@@ -764,8 +764,8 @@ func (s *PersistenceStore) GetKmsConfigByUUID(ctx context.Context, uuid string) 
 func (s *PersistenceStore) UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error) {
 	return s.dataStore.UpdateKmsConfigAttributes(ctx, uuid, attributes)
 }
-func (s *PersistenceStore) GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error) {
-	return s.dataStore.GetJobByResourceUUID(ctx, resourceUUID)
+func (s *PersistenceStore) GetJobByResourceUUID(ctx context.Context, resourceUUID string, jobType string) (*datamodel.Job, error) {
+	return s.dataStore.GetJobByResourceUUID(ctx, resourceUUID, jobType)
 }
 
 func (s *PersistenceStore) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, kmsId, accountId int64) ([]*datamodel.Job, error) {

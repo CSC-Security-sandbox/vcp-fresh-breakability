@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	cvpClientModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -27,16 +28,16 @@ import (
 )
 
 var (
-	pollCvpOperationForWorkflow       = _pollCvpOperationForWorkflow
-	getGcpService                     = hyperscaler.GetGCPService
-	GcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+	pollCvpOperationForWorkflow          = _pollCvpOperationForWorkflow
+	getGcpService                        = hyperscaler.GetGCPService
+	GcpServiceCreateServiceAccountKey    = _gcpServiceCreateServiceAccountKey
 	DeleteServiceAccountKeysExcludingKey = _deleteServiceAccountKeysExcludingKey
-	gcpGrantServiceAccountRole        = _gcpGrantServiceAccountRole
-	retryDo                           = retry.RetryDoWithTimeout
-	AccessCryptoKey                   = _accessCryptoKey
-	getImpersonatedKmsService         = google.GetImpersonatedKmsService
-	synchronizeServiceAccountKeys     = _synchronizeServiceAccountKeys
-	UpdateKmsConfigHealth             = _updateKmsConfigHealth
+	gcpGrantServiceAccountRole           = _gcpGrantServiceAccountRole
+	retryDo                              = retry.RetryDoWithTimeout
+	AccessCryptoKey                      = _accessCryptoKey
+	getImpersonatedKmsService            = google.GetImpersonatedKmsService
+	synchronizeServiceAccountKeys        = _synchronizeServiceAccountKeys
+	UpdateKmsConfigHealth                = _updateKmsConfigHealth
 )
 
 const (
@@ -44,9 +45,12 @@ const (
 	ErrTypeKmsConfigNotFound               = "KmsConfigNotFound"
 	ErrTypeKmsConfigNotReachableVsaCluster = "KmsConfigNotReachableVsaCluster"
 	ErrTypeDNSExists                       = "DNSEntryExists"
-	RetryTimeOutForGetCryptoKey            = 1 * time.Minute
+	RetryTimeOutForGetCryptoKey            = 30 * time.Second
 	RetryIntervalForGetCryptoKey           = 5 * time.Second
 	GcpKmsConfigHealthError                = "specified key <key_name> in <key_ring> does not exist or service permissions are incorrect"
+	GcpKmsConfigImpersonationHealthError   = "impersonate: status code 403"
+	RetryTimeOutForDescribeSDEJob          = 1 * time.Minute
+	RetryIntervalForDescribeSDEJob         = 10 * time.Second
 )
 
 type KmsConfigActivity struct {
@@ -122,7 +126,7 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 	vsaEmail := utils.RemovePrefix(kmsConfig.KmsAttributes.SdeServiceAccountEmail, SDEShortTermSAPrefix)
 	dbAccount, err := se.GetServiceAccountFromEmail(ctx, vsaEmail)
 	if err != nil && !errors.IsNotFoundErr(err) {
-		return nil, err
+		return nil, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrGettingKmsServiceAccount, err))
 	} else if errors.IsNotFoundErr(err) {
 		serviceAccountKey, err := GcpServiceCreateServiceAccountKey(gcpService, ctx, vsaEmail)
 		if err != nil {
@@ -144,12 +148,12 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 	// For accounts where db record already exists, check if password is "" and update it.
 	password, err := utils.DecryptPassword(log.Secret(dbAccount.ServiceAccountPasswordLocation))
 	if err != nil {
-		return nil, err
+		return nil, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrDecryptingServiceAccountPassword, err))
 	}
 	if password != nil && *password == "" {
 		encryptedKey, err := synchronizeServiceAccountKeys(ctx, gcpService, dbAccount.ServiceAccountEmail)
 		if err != nil {
-			return nil, err
+			return nil, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrorSynchronizingServiceAccountKey, err))
 		}
 		dbAccount, err = se.UpdateServiceAccountEmailAndKey(ctx, dbAccount.UUID, dbAccount.ServiceAccountEmail, *encryptedKey)
 		if err != nil {
@@ -194,7 +198,7 @@ func (j *KmsConfigActivity) GrantRoleActivity(ctx context.Context, kmsConfig *da
 }
 
 // FailedKmsConfigCreateActivity updates the KMS configuration state to "error" with the provided error message.
-func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, errMsg string) error {
+func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, errMsg string, location string) error {
 	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	logger := util.GetLogger(ctx)
 	cvpClient := createClient(logger, jwtToken)
@@ -214,7 +218,7 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 	deleteParams := &kms_configurations.V1betaDeleteKmsConfigurationParams{}
 	deleteParams.KmsConfigID = kmsConfig.UUID
 	deleteParams.ProjectNumber = kmsConfig.CustomerProjectID
-	deleteParams.LocationID = kmsConfig.KeyRingLocation
+	deleteParams.LocationID = location
 	response, _, cvpErr := cvpClient.KmsConfigurations.V1betaDeleteKmsConfiguration(deleteParams)
 	if cvpErr != nil {
 		switch cvpErr.(type) {
@@ -232,13 +236,20 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 		operationParams := async.NewV1betaDescribeOperationParams()
 		operationParams.OperationID = operationUUID
 		operationParams.ProjectNumber = kmsConfig.CustomerProjectID
-		operationParams.LocationID = kmsConfig.KeyRingLocation
-		_, err = pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
+		operationParams.LocationID = location
+
+		err = retryDo(ctx, RetryTimeOutForDescribeSDEJob, RetryIntervalForDescribeSDEJob, "AccessCryptoKeyWithImpersonation", func(attempt int) (bool, error) {
+			_, err = pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
+			if err != nil {
+				return true, retry.NewRetriableErr(err.Error())
+			}
+			return false, nil
+		})
 		if err != nil {
 			return err
 		}
 	}
-	return err
+	return nil
 }
 
 // CreatedKmsConfigActivity updates the KMS configuration state to created
@@ -385,7 +396,7 @@ func _updateKmsConfigHealth(ctx context.Context, se database.Storage, configChec
 		stateDetails = configCheck.HealthError
 		healthErrorMessage := strings.Replace(strings.Replace(GcpKmsConfigHealthError, "<key_name>", kmsConfig.KeyName, 1), "<key_ring>", kmsConfig.KeyRing, 1)
 		// Keep the state as created if the health error message indicates that the key does not exist or service permissions are incorrect.
-		if strings.Contains(stateDetails, healthErrorMessage) {
+		if strings.Contains(stateDetails, healthErrorMessage) || strings.Contains(stateDetails, GcpKmsConfigImpersonationHealthError) {
 			state = models.LifeCycleStateCreated
 		}
 	}

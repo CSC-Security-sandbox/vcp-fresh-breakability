@@ -850,7 +850,7 @@ func TestGetJobByKmsConfigIDReturnsErrorIfNotFound_Persistence_Store(t *testing.
 	assert.NoError(t, err)
 	ctx := context.Background()
 
-	found, err := store.GetJobByResourceUUID(ctx, "nonexistent-uuid")
+	found, err := store.GetJobByResourceUUID(ctx, "nonexistent-uuid", "")
 	assert.Error(t, err)
 	assert.Nil(t, found)
 }

@@ -56,7 +56,8 @@ func _createServiceAccountKey(gcpService *GcpServices, ctx context.Context, serv
 		return nil, fmt.Errorf("failed to create service account key for %s: %w", serviceAccountEmail, err)
 	}
 	if key == nil {
-		return nil, fmt.Errorf("received empty key when creating service account key for %s", serviceAccountEmail)
+		util.GetLogger(ctx).Errorf("Received nil key when creating service account key for %s", serviceAccountEmail)
+		return nil, fmt.Errorf("received nil key when creating service account key for %s", serviceAccountEmail)
 	}
 	return convertServiceAccountKeyToModel(key), nil
 }

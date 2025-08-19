@@ -286,6 +286,38 @@ func Test_CreateServiceAccountKey(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, key)
 	})
+	t.Run("WhenKeyNil", func(tt *testing.T) {
+		ctx := context.Background()
+		url := "/v1/projects/-/serviceAccounts/test@project.iam.gserviceaccount.com/keys"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodPost {
+				response, err := json.Marshal(nil)
+				if err != nil {
+					rw.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				rw.Header().Set("Content-Type", "application/json")
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		gcp := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+		}
+		key, err := _createServiceAccountKey(gcp, ctx, "test@project.iam.gserviceaccount.com")
+		assert.Error(tt, err)
+		assert.Nil(tt, key)
+	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
 		keyResp := &iam.ServiceAccountKey{

@@ -354,7 +354,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateCreating,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
 		assert.NotEmpty(t, result)
 		assert.NoError(t, err)
@@ -381,7 +381,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateInUse,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
 		assert.NotEmpty(t, result)
 		assert.NoError(t, err)
@@ -407,10 +407,10 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateCreating,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything).Return(nil, errors.New("some other error"))
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some other error"))
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
-		assert.Empty(t, result)
-		assert.Error(t, err)
+		assert.NotEmpty(t, result) // Should return internal server error response, not empty
+		assert.NoError(t, err)     // HTTP error response doesn't return Go error
 	})
 	t.Run("WhenCheckKmsConfigurationParseAndValidateRegionAndZoneReturnsGlobalRegion", func(t *testing.T) {
 		// Define input parameters
@@ -437,6 +437,292 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, float64(http.StatusBadRequest), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
+	})
+	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInDeletingState", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateDeleting,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// No GetJobByResourceUUID call expected since the method returns early for Deleting state
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
+	})
+	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInUpdatingState", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateUpdating,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// No GetJobByResourceUUID call expected since the method returns early for Updating state
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
+	})
+	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInMigratingState", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateMigrating,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// No GetJobByResourceUUID call expected since the method returns early for Migrating state
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
+	})
+	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatedState", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		job := &vsaCoreModels.Job{BaseModel: vsaCoreModels.BaseModel{UUID: "operation-123"}}
+		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateCreated,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
+		
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
+		assert.Equal(t, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+	t.Run("CvpClientCreateKmsConfigurationReturnsConflictError", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Simulate a conflict error from CVP as an error (not a response)
+		conflictError := &kms_configurations.V1betaCreateKmsConfigurationConflict{
+			Payload: &models.Error{
+				Code:    409,
+				Message: "KMS configuration already exists",
+			},
+		}
+		mockClient.On("V1betaCreateKmsConfiguration", mock.Anything).Return(nil, conflictError)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
+		
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
+	})
+	t.Run("CvpClientCreateKmsConfigurationReturnsBadRequestError", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Simulate a bad request error from CVP as an error (not a response)
+		badRequestError := &kms_configurations.V1betaCreateKmsConfigurationBadRequest{
+			Payload: &models.Error{
+				Code:    400,
+				Message: "Invalid KMS key path",
+			},
+		}
+		mockClient.On("V1betaCreateKmsConfiguration", mock.Anything).Return(nil, badRequestError)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
+		
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
+	})
+	t.Run("CvpClientCreateKmsConfigurationReturnsUnauthorizedError", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Simulate an unauthorized error from CVP as an error (not a response)
+		unauthorizedError := &kms_configurations.V1betaCreateKmsConfigurationUnauthorized{
+			Payload: &models.Error{
+				Code:    401,
+				Message: "Authentication failed",
+			},
+		}
+		mockClient.On("V1betaCreateKmsConfiguration", mock.Anything).Return(nil, unauthorizedError)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
+		
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(401), result.(*gcpgenserver.V1betaCreateKmsConfigurationUnauthorized).Code)
+	})
+	t.Run("OrchestratorCreateKmsConfigFails", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+
+		mockClient := kms_configurations.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		
+		// Mock successful CVP response
+		mockResponse := &kms_configurations.V1betaCreateKmsConfigurationAccepted{
+			Payload: &models.OperationV1beta{
+				Name:     "operation-id",
+				Done:     nillable.GetBoolPtr(true),
+				Response: models.KmsConfigV1beta{UUID: "test", KeyFullPath: nil},
+			},
+		}
+		mockClient.On("V1betaCreateKmsConfiguration", mock.Anything).Return(mockResponse, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
+		// Mock orchestrator CreateKmsConfig to return error
+		mockOrchestrator.EXPECT().CreateKmsConfig(mock.Anything, mock.Anything).Return(nil, "", errors.New("orchestrator failed to create kms config"))
+		
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaCreateKmsConfigurationInternalServerError).Code)
 	})
 }
 
@@ -3485,5 +3771,89 @@ func TestConvertErrorToKmsConfigCheckV1beta_ReturnsUnhealthyWithErrorMessage(t *
 		assert.False(t, result.KmsConfigHealthCheck.Value.IsHealthy)
 		assert.Equal(t, "access denied", result.KmsConfigHealthCheck.Value.HealthError.Value)
 		assert.NotEmpty(t, result.ServiceAccount)
+	})
+}
+
+func TestCategorizeCvpClientErrorsForUpdate(t *testing.T) {
+	logger := log.NewLogger()
+	
+	t.Run("ReturnsBadRequestOnBadRequestError", func(t *testing.T) {
+		code := float64(400)
+		msg := "bad request"
+		err := &kms_configurations.V1betaUpdateKmsConfigurationBadRequest{
+			Payload: &models.Error{Code: code, Message: msg},
+		}
+		res := categorizeCvpClientErrorsForUpdate(err, logger)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{}, res)
+		assert.Equal(t, code, res.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Code)
+		assert.Equal(t, msg, res.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Message)
+	})
+
+	t.Run("ReturnsUnauthorizedOnUnauthorizedError", func(t *testing.T) {
+		code := float64(401)
+		msg := "unauthorized"
+		err := &kms_configurations.V1betaUpdateKmsConfigurationUnauthorized{
+			Payload: &models.Error{Code: code, Message: msg},
+		}
+		res := categorizeCvpClientErrorsForUpdate(err, logger)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateKmsConfigurationUnauthorized{}, res)
+		assert.Equal(t, code, res.(*gcpgenserver.V1betaUpdateKmsConfigurationUnauthorized).Code)
+		assert.Equal(t, msg, res.(*gcpgenserver.V1betaUpdateKmsConfigurationUnauthorized).Message)
+	})
+
+	t.Run("ReturnsForbiddenOnForbiddenError", func(t *testing.T) {
+		code := float64(403)
+		msg := "forbidden"
+		err := &kms_configurations.V1betaUpdateKmsConfigurationForbidden{
+			Payload: &models.Error{Code: code, Message: msg},
+		}
+		res := categorizeCvpClientErrorsForUpdate(err, logger)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateKmsConfigurationForbidden{}, res)
+		assert.Equal(t, code, res.(*gcpgenserver.V1betaUpdateKmsConfigurationForbidden).Code)
+		assert.Equal(t, msg, res.(*gcpgenserver.V1betaUpdateKmsConfigurationForbidden).Message)
+	})
+
+	t.Run("ReturnsNotFoundOnNotFoundError", func(t *testing.T) {
+		code := float64(404)
+		msg := "not found"
+		err := &kms_configurations.V1betaUpdateKmsConfigurationNotFound{
+			Payload: &models.Error{Code: code, Message: msg},
+		}
+		res := categorizeCvpClientErrorsForUpdate(err, logger)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateKmsConfigurationNotFound{}, res)
+		assert.Equal(t, code, res.(*gcpgenserver.V1betaUpdateKmsConfigurationNotFound).Code)
+		assert.Equal(t, msg, res.(*gcpgenserver.V1betaUpdateKmsConfigurationNotFound).Message)
+	})
+
+	t.Run("ReturnsConflictOnConflictError", func(t *testing.T) {
+		code := float64(409)
+		msg := "conflict"
+		err := &kms_configurations.V1betaUpdateKmsConfigurationConflict{
+			Payload: &models.Error{Code: code, Message: msg},
+		}
+		res := categorizeCvpClientErrorsForUpdate(err, logger)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateKmsConfigurationConflict{}, res)
+		assert.Equal(t, code, res.(*gcpgenserver.V1betaUpdateKmsConfigurationConflict).Code)
+		assert.Equal(t, msg, res.(*gcpgenserver.V1betaUpdateKmsConfigurationConflict).Message)
+	})
+
+	t.Run("ReturnsInternalServerErrorOnInternalServerError", func(t *testing.T) {
+		code := float64(500)
+		msg := "internal server error"
+		err := &kms_configurations.V1betaUpdateKmsConfigurationInternalServerError{
+			Payload: &models.Error{Code: code, Message: msg},
+		}
+		res := categorizeCvpClientErrorsForUpdate(err, logger)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError{}, res)
+		assert.Equal(t, code, res.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Code)
+		assert.Equal(t, msg, res.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Message)
+	})
+
+	t.Run("ReturnsInternalServerErrorOnUnknownErrorType", func(t *testing.T) {
+		err := fmt.Errorf("some unknown error")
+		res := categorizeCvpClientErrorsForUpdate(err, logger)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError{}, res)
+		assert.Equal(t, float64(500), res.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Code)
+		assert.Equal(t, "Unknown error encountered during Update KMS configurations operation", res.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Message)
 	})
 }

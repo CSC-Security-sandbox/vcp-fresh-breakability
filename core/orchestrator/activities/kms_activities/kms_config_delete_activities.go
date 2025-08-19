@@ -52,7 +52,7 @@ func (a *KmsConfigActivity) DeleteKmsConfig(ctx context.Context, kmsConfig *data
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
-	_, err := se.DeleteKmsConfig(ctx, params.KmsConfigID, models.LifeCycleStateDeleted, "")
+	_, err := se.DeleteKmsConfig(ctx, params.KmsConfigID, models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails)
 	if err != nil {
 		return err
 	}

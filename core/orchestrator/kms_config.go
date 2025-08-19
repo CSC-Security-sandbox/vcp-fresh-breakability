@@ -173,7 +173,7 @@ func _updateKmsConfig(ctx context.Context, se database.Storage, params *common.U
 		if !errors.IsNotFoundErr(err) {
 			return nil, err
 		}
-		logger.Error("Failed to get kms config from database", "error", err)
+		logger.Info("Kms config not found in vcp database", "error", err)
 
 		// For KmsConfig not found, directly call SDE & return
 		kmsConfig = &datamodel.KmsConfig{
@@ -256,7 +256,7 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	if err == nil {
 		// If KMS config is already in DELETING state, check for existing delete job
 		if kmsConfig.State == models.LifeCycleStateDeleting {
-			existingJob, jobErr := se.GetJobByResourceUUID(ctx, params.KmsConfigID)
+			existingJob, jobErr := se.GetJobByResourceUUID(ctx, params.KmsConfigID, string(models.JobTypeDeleteKmsConfig))
 			if jobErr == nil && existingJob != nil {
 				// Check if it's a delete job that's not done
 				if existingJob.Type == string(models.JobTypeDeleteKmsConfig) && existingJob.State != string(models.JobsStateDONE) {
@@ -292,6 +292,7 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		ResourceName:  kmsConfig.ResourceID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: params.KmsConfigID},
+		CorrelationID: params.XCorrelationID,
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

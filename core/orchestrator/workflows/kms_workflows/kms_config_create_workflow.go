@@ -5,7 +5,6 @@ import (
 
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -48,7 +47,7 @@ func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfi
 
 	if customErr != nil {
 		kmsConfigWorkflow.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSCreate, customErr)))
+		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
@@ -99,9 +98,9 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	rollbackManager := common.NewRollbackManager()
-	rollbackManager.AddActivity(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig)
 	defer func() {
 		if err != nil {
+			rollbackManager.AddActivity(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig, err.Error(), params.LocationID)
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}

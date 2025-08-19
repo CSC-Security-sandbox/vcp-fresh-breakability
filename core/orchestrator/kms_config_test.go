@@ -1629,7 +1629,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id").Return(existingJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(existingJob, nil)
 
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
@@ -1671,7 +1671,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id").Return(existingJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(existingJob, nil)
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
 		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
@@ -1713,7 +1713,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id").Return(nil, errors.New("job not found"))
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(nil, errors.New("job not found"))
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
 		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)

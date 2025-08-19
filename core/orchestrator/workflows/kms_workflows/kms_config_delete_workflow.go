@@ -2,7 +2,6 @@ package kms_workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -43,7 +42,7 @@ func DeleteKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfi
 	_, customErr := kmsConfigWf.Run(ctx, kmsConfig, params)
 	if customErr != nil {
 		kmsConfigWf.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSDelete, customErr)))
+		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWf.Status = workflows.WorkflowStatusCompleted

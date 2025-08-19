@@ -1096,5 +1096,35 @@
     "message": "Error rotating kms key - Cannot find service account for kms configuration",
     "retriable": false,
     "http_code": 500
+  },
+  "8003": {
+    "description": "Error while deleting kms configuration in SDE",
+    "message": "Internal error while deleting kms configuration",
+    "retriable": false,
+    "http_code": 500
+  },
+  "8004": {
+    "description": "Error while describing kms configuration in SDE",
+    "message": "Internal error while describing kms configuration",
+    "retriable": false,
+    "http_code": 500
+  },
+  "8005": {
+    "description": "Error while getting service account for kms configuration",
+    "message": "Error while creating kms service account key",
+    "retriable": false,
+    "http_code": 500
+  },
+  "8006": {
+    "description": "Error while decrypting kms service account password",
+    "message": "Error while creating kms service account key",
+    "retriable": false,
+    "http_code": 500
+  },
+  "8007": {
+    "description": "Error while synchronizing kms service account keys",
+    "message": "Error while creating kms service account key",
+    "retriable": false,
+    "http_code": 500
   }
 }

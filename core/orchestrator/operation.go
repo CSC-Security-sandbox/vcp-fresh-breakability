@@ -87,8 +87,8 @@ func convertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
 	return modelJob
 }
 
-func (o *Orchestrator) GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*models.Job, error) {
-	job, err := o.storage.GetJobByResourceUUID(ctx, resourceUUID)
+func (o *Orchestrator) GetJobByResourceUUID(ctx context.Context, resourceUUID string, jobType string) (*models.Job, error) {
+	job, err := o.storage.GetJobByResourceUUID(ctx, resourceUUID, jobType)
 	if err != nil {
 		return nil, err
 	}

@@ -50,7 +50,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		kmsConfig := &datamodel.KmsConfig{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", errors.New("GetSignedTokenActivity failed"))
-		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
 
@@ -93,7 +93,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("some", "error", nil))
-		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
 
@@ -137,7 +137,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
-		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
 
@@ -184,7 +184,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
 		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
-		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
@@ -233,7 +233,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
-		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
 
@@ -282,7 +282,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreatedKmsConfigActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
-		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
 
@@ -328,7 +328,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
 		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
-		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
 

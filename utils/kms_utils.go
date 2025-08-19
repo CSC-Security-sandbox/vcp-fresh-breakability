@@ -11,7 +11,7 @@ import (
 
 // Constants for error messages, regex patterns, and expected parts
 const (
-	ErrInvalidResourceFormat      = "invalid resource format"
+	ErrInvalidResourceFormat      = "invalid key full path format"
 	ErrInvalidServiceAccountEmail = "invalid service account email format"
 	ServiceAccountEmailPattern    = `^([a-zA-Z0-9-]+)-([a-zA-Z0-9-]+)@(\d+)\.iam\.gserviceaccount\.com$`
 	ExpectedResourceParts         = 8
@@ -32,7 +32,7 @@ func ParseKeyFullPathResource(resource string) (*ParsedKeyFullPathResource, erro
 	parts := strings.Split(resource, "/")
 
 	if len(parts) != ExpectedResourceParts {
-		return nil, errors.New(ErrInvalidResourceFormat)
+		return nil, errors.NewBadRequestErr(ErrInvalidResourceFormat)
 	}
 
 	return &ParsedKeyFullPathResource{

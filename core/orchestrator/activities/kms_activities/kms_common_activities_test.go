@@ -108,7 +108,7 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateError, StateDetails: "failure reason",
 			ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("DeleteKmsConfig", mock.Anything, kmsConfig.UUID, models.LifeCycleStateDeleted, kmsConfig.StateDetails).Return(nil, errors.New("failure reason"))
-		err := activity.FailedKmsConfigCreateActivity(context.Background(), kmsConfig, "failure reason")
+		err := activity.FailedKmsConfigCreateActivity(context.Background(), kmsConfig, "failure reason", "location-id")
 		assert.Error(tt, err)
 	})
 	t.Run("WhenDeleteKmsConfigErrorNotFound", func(tt *testing.T) {
@@ -117,7 +117,7 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateDeleted, StateDetails: "failure reason",
 			ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("DeleteKmsConfig", mock.Anything, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails).Return(nil, errors.NewNotFoundErr("failure reason", nil))
-		err := activity.FailedKmsConfigCreateActivity(context.Background(), kmsConfig, "failure reason")
+		err := activity.FailedKmsConfigCreateActivity(context.Background(), kmsConfig, "failure reason", "location-id")
 		assert.Error(tt, err)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
@@ -151,42 +151,8 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 			ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("DeleteKmsConfig", mock.Anything, kmsConfig.UUID, models.LifeCycleStateDeleted, kmsConfig.StateDetails).Return(nil, nil)
 		mockSE.On("UpdateServiceAccountState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
-		err := activity.FailedKmsConfigCreateActivity(ctx, kmsConfig, "failure reason")
+		err := activity.FailedKmsConfigCreateActivity(ctx, kmsConfig, "failure reason", "location-id")
 		assert.NoError(tt, err)
-	})
-	t.Run("WhenPollCvpOperationForWorkflowFails", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
-		mockClient := kms_configurations.NewMockClientService(t)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() {
-			createClient = originalCreateClient
-			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
-		}()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-
-		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
-			return nil, errors.New("failure reason")
-		}
-		done := false
-		resp := &kms_configurations.V1betaDeleteKmsConfigurationAccepted{
-			Payload: &cvpModels.OperationV1beta{
-				Name: "delete-kms-configuration",
-				Done: &done,
-			},
-		}
-		mockClient.On("V1betaDeleteKmsConfiguration", mock.Anything).Return(resp, nil, nil)
-		mockSE := database.NewMockStorage(t)
-		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateError, StateDetails: "failure reason",
-			ServiceAccount: &datamodel.ServiceAccount{}}
-		mockSE.On("DeleteKmsConfig", mock.Anything, kmsConfig.UUID, models.LifeCycleStateDeleted, kmsConfig.StateDetails).Return(nil, nil)
-		mockSE.On("UpdateServiceAccountState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
-		err := activity.FailedKmsConfigCreateActivity(ctx, kmsConfig, "failure reason")
-		assert.Error(tt, err)
 	})
 	t.Run("WhenV1betaDeleteKmsConfigurationFails", func(tt *testing.T) {
 		mockLogger := log.NewLogger()
@@ -207,7 +173,7 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 			ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("DeleteKmsConfig", mock.Anything, kmsConfig.UUID, models.LifeCycleStateDeleted, kmsConfig.StateDetails).Return(nil, nil)
 		mockSE.On("UpdateServiceAccountState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
-		err := activity.FailedKmsConfigCreateActivity(ctx, kmsConfig, "failure reason")
+		err := activity.FailedKmsConfigCreateActivity(ctx, kmsConfig, "failure reason", "location-id")
 		assert.Error(tt, err)
 	})
 	t.Run("WhenV1betaDeleteKmsConfigurationFailsDueToNotFoundError", func(tt *testing.T) {
@@ -229,7 +195,7 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 			ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("DeleteKmsConfig", mock.Anything, kmsConfig.UUID, models.LifeCycleStateDeleted, kmsConfig.StateDetails).Return(nil, nil)
 		mockSE.On("UpdateServiceAccountState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
-		err := activity.FailedKmsConfigCreateActivity(ctx, kmsConfig, "failure reason")
+		err := activity.FailedKmsConfigCreateActivity(ctx, kmsConfig, "failure reason", "location-id")
 		assert.Error(tt, err)
 	})
 }
@@ -1269,6 +1235,32 @@ func TestUpdateKmsConfigHealth(t *testing.T) {
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		healthError := strings.Replace(strings.Replace(GcpKmsConfigHealthError, "<key_name>", "key1", 1), "<key_ring>", "ring1", 1)
+		mockStorage.On("GetKmsConfigByUUID", ctx, kmsConfig.UUID).Return(kmsConfig, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, kmsConfig.UUID).Return(true, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateCreated, healthError).Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigAttributes", ctx, "test-uuid", kmsConfig.KmsAttributes).Return(kmsConfig, nil)
+
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   false,
+			HealthError: healthError,
+			ProxyType:   models.ProxyTypeCvp,
+		}
+		result, err := UpdateKmsConfigHealth(ctx, mockStorage, response)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	t.Run("WhenImpersonateHealthError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			State:         models.LifeCycleStateCreated,
+			KeyName:       "key1",
+			KeyRing:       "ring1",
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		healthError := GcpKmsConfigImpersonationHealthError
 		mockStorage.On("GetKmsConfigByUUID", ctx, kmsConfig.UUID).Return(kmsConfig, nil)
 		mockStorage.On("IsKmsConfigInUse", ctx, kmsConfig.UUID).Return(true, nil)
 		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateCreated, healthError).Return(kmsConfig, nil)

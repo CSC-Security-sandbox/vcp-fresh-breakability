@@ -67,7 +67,7 @@ func TestDeleteKmsConfig_Success(t *testing.T) {
 	params := &common.DeleteKmsConfigParams{
 		KmsConfigID: "uuid",
 	}
-	mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateDeleted, "").Return(kms, nil)
+	mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails).Return(kms, nil)
 
 	// Act
 	err := activity.DeleteKmsConfig(ctx, kms, params)
@@ -87,7 +87,7 @@ func TestDeleteKmsConfig_Error(t *testing.T) {
 	params := &common.DeleteKmsConfigParams{
 		KmsConfigID: "uuid",
 	}
-	mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateDeleted, "").Return(nil, errors.New("some error"))
+	mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails).Return(nil, errors.New("some error"))
 
 	// Act
 	err := activity.DeleteKmsConfig(ctx, kms, params)

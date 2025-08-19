@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -147,7 +148,7 @@ func _getKmsConfigByUUID(db *gorm.DB, uuid string) (*datamodel.KmsConfig, error)
 	kmsConfig := &datamodel.KmsConfig{}
 	err := db.Preload("ServiceAccount").Preload("Account").First(kmsConfig, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: uuid}}).Error
 	if err != nil {
-		if err.Error() == "record not found" {
+		if coreerrors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.NewNotFoundErr("KMS Configuration", nil)
 		}
 		return nil, err
@@ -195,9 +196,16 @@ func _updateKmsConfigAttributes(db *gorm.DB, uuid string, attributes *datamodel.
 }
 
 // GetJobByResourceUUID retrieves the job associated with a KMS configuration by its UUID
-func (d *DataStoreRepository) GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error) {
+func (d *DataStoreRepository) GetJobByResourceUUID(ctx context.Context, resourceUUID string, jobType string) (*datamodel.Job, error) {
 	job := &datamodel.Job{}
-	err := d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", resourceUUID).First(job).Error
+	query := d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", resourceUUID)
+
+	// Add job type filter if provided
+	if jobType != "" {
+		query = query.Where("type = ?", jobType)
+	}
+
+	err := query.First(job).Error
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -27,7 +28,7 @@ func (j *KmsConfigActivity) DescribeSDEKmsConfigurationActivity(ctx context.Cont
 	describeKmsConfigParams.ProjectNumber = params.ProjectNumber
 	sdeKmsConfigResponse, err := cvpClient.KmsConfigurations.V1betaDescribeKmsConfiguration(describeKmsConfigParams)
 	if err != nil {
-		return nil, err
+		return nil, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrKmsConfigNotFound, err))
 	}
 	if sdeKmsConfigResponse == nil || sdeKmsConfigResponse.Payload == nil {
 		return nil, errors.New("unknown error during the get kms configuration")

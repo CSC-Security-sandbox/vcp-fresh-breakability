@@ -3,6 +3,7 @@ package sde
 import (
 	"context"
 	"go.temporal.io/sdk/temporal"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
@@ -51,7 +52,7 @@ func UpdateSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 			Message: "unknown error during the update kms configurations",
 		}, nil
 	}
-	return nil, nil
+	return convertCvpKmsConfigToGcpServer(res.Payload), nil
 }
 
 func DeleteSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.DeleteKmsConfigParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {
@@ -67,13 +68,13 @@ func DeleteSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 	}
 	res, _, err := cvpClient.KmsConfigurations.V1betaDeleteKmsConfiguration(deleteKmsConfigParams)
 	if err != nil {
-		return convertCvpClientDeleteKmsConfigErrorToVcpError(err), err
+		return convertCvpClientDeleteKmsConfigErrorToVcpError(err), errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrKMSDeleteSDE, err))
 	}
 	if res == nil || res.Payload == nil {
 		return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{
 			Code:    500,
-			Message: "unknown error during the update kms configurations",
-		}, nil
+			Message: "unknown error during the delete kms configurations",
+		}, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrKMSDeleteSDE, err))
 	}
 	return convertToOperationV1beta(res.Payload), nil
 }
@@ -95,8 +96,8 @@ func DescribeSDEJob(ctx context.Context, operationId, region, accountName, corre
 	}
 	if *res.Payload.Done {
 		if res.Payload.Error != nil {
-			logger.Errorf("failed to describe sde kms delete job: %v", res.Payload.Error)
-			return errors2.NewVCPError(errors2.ErrSDEKmsDeleteJobFailed, errors2.New("delete kms job failed"))
+			logger.Errorf("job failed in SDE: %v", res.Payload.Error)
+			return errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrDescribingSDEJob, errors2.New("sde job failed")))
 		}
 		return nil
 	}
@@ -221,4 +222,52 @@ func convertToOperationV1beta(res *models.OperationV1beta) *gcpgenserver.Operati
 		Name: gcpgenserver.NewOptString(res.Name),
 		Done: gcpgenserver.NewOptBool(*res.Done),
 	}
+}
+
+// convertCvpKmsConfigToGcpServer converts CVP KmsConfigV1beta to gcpgenserver KmsConfigV1beta
+func convertCvpKmsConfigToGcpServer(cvpConfig *models.KmsConfigV1beta) *gcpgenserver.KmsConfigV1beta {
+	result := &gcpgenserver.KmsConfigV1beta{}
+
+	result.UUID = gcpgenserver.NewOptString(cvpConfig.UUID)
+	result.ServiceAccountEmail = gcpgenserver.NewOptString(cvpConfig.ServiceAccountEmail)
+
+	if cvpConfig.KeyFullPath != nil {
+		result.KeyFullPath = *cvpConfig.KeyFullPath
+	}
+
+	// Convert the KMS state
+	if cvpConfig.KmsState != "" {
+		result.KmsState = gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsState(cvpConfig.KmsState))
+	}
+
+	// Convert the KMS state
+	if cvpConfig.KmsStateDetails != "" {
+		result.KmsStateDetails = gcpgenserver.NewOptString(cvpConfig.KmsStateDetails)
+	}
+
+	if cvpConfig.Description != nil {
+		result.Description = gcpgenserver.NewOptString(*cvpConfig.Description)
+	}
+
+	if !cvpConfig.CreatedTime.IsZero() {
+		result.CreatedTime = gcpgenserver.NewOptDateTime(time.Time(cvpConfig.CreatedTime))
+	}
+
+	if cvpConfig.UpdatedTime != nil && !cvpConfig.UpdatedTime.IsZero() {
+		result.UpdatedTime = gcpgenserver.NewOptDateTime(time.Time(*cvpConfig.UpdatedTime))
+	}
+
+	if cvpConfig.DeletedTime != nil && !cvpConfig.DeletedTime.IsZero() {
+		result.DeletedTime = gcpgenserver.NewOptDateTime(time.Time(*cvpConfig.DeletedTime))
+	}
+
+	if cvpConfig.Instructions != "" {
+		result.Instructions = gcpgenserver.NewOptString(cvpConfig.Instructions)
+	}
+
+	if cvpConfig.ResourceID != nil {
+		result.ResourceId = gcpgenserver.NewOptString(*cvpConfig.ResourceID)
+	}
+
+	return result
 }

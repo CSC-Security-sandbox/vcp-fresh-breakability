@@ -6,7 +6,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -17,7 +16,7 @@ func UpdateKmsConfig(se database.Storage, ctx context.Context, kmsConfig *datamo
 	if params.ResourceID != "" {
 		updateFields["resource_id"] = params.ResourceID
 	}
-	if !nillable.IsNilOrEmpty(params.Description) {
+	if params.Description != nil {
 		updateFields["description"] = *params.Description
 	}
 	if params.KeyName != "" {

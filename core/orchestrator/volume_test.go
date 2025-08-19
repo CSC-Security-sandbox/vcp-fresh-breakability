@@ -299,7 +299,7 @@ func TestGetVolume(t *testing.T) {
 		assert.Equal(tt, "test_volume", result.DisplayName)
 		assert.Equal(tt, "test_account", result.AccountName)
 
-		job, err := store.GetJobByResourceUUID(ctx, volumeId)
+		job, err := store.GetJobByResourceUUID(ctx, volumeId, "")
 		if err != nil {
 			tt.Fatalf("Failed to get job: %v", err)
 			return

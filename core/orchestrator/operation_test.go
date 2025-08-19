@@ -118,9 +118,9 @@ func TestGetJobByResourceUUID(t *testing.T) {
 	t.Run("ReturnsErrorWhenStorageFails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		customErr := errors.New("job not found")
-		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, "invalid-resource").Return(nil, customErr)
+		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, "invalid-resource", mock.Anything).Return(nil, customErr)
 		orchestrator := &Orchestrator{storage: mockStorage}
-		job, err := orchestrator.GetJobByResourceUUID(context.Background(), "invalid-resource")
+		job, err := orchestrator.GetJobByResourceUUID(context.Background(), "invalid-resource", "")
 		assert.Error(tt, err)
 		assert.Nil(tt, job)
 		assert.Equal(tt, "job not found", err.Error())
@@ -143,9 +143,9 @@ func TestGetJobByResourceUUID(t *testing.T) {
 			},
 			ResourceName: "resource",
 		}
-		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, "resource-1").Return(dummyJob, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, "resource-1", mock.Anything).Return(dummyJob, nil)
 		orchestrator := &Orchestrator{storage: mockStorage}
-		job, err := orchestrator.GetJobByResourceUUID(context.Background(), "resource-1")
+		job, err := orchestrator.GetJobByResourceUUID(context.Background(), "resource-1", "")
 		assert.NoError(tt, err)
 		assert.NotNil(tt, job)
 		assert.Equal(tt, "job-uuid", job.UUID)

@@ -79,8 +79,8 @@ func LoadConfig() *Config {
 	gcpPort := env.GetString("GCP_PROXY_PORT", "8080")
 	gcpHost := env.GetString("GCP_PROXY_HOST", "")
 	corePort := env.GetString("CORE_API_PORT", "8081")
-	readTimeout := parseDuration(env.GetString("READ_TIMEOUT", "5s"))
-	writeTimeout := parseDuration(env.GetString("WRITE_TIMEOUT", "10s"))
+	readTimeout := parseDuration(env.GetString("READ_TIMEOUT", "30s"))
+	writeTimeout := parseDuration(env.GetString("WRITE_TIMEOUT", "60s"))
 	idleTimeout := parseDuration(env.GetString("IDLE_TIMEOUT", "120s"))
 	readHeaderTimeout := parseDuration(env.GetString("READ_HEADER_TIMEOUT", "2s"))
 

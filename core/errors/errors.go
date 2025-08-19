@@ -214,8 +214,13 @@ const (
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsNotFound            = 6182
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsUnknown             = 6183
 
-	ErrKMSRotate              = 8001
-	ErrServiceAccountNotFound = 8002
+	ErrKMSRotate                        = 8001
+	ErrServiceAccountNotFound           = 8002
+	ErrKMSDeleteSDE                     = 8003
+	ErrKmsConfigNotFound                = 8004
+	ErrGettingKmsServiceAccount         = 8005
+	ErrDecryptingServiceAccountPassword = 8006
+	ErrorSynchronizingServiceAccountKey = 8007
 )
 
 type Error interface {

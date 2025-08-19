@@ -250,6 +250,7 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 	}
 	jobs := []*datamodel.Job{
 		{BaseModel: datamodel.BaseModel{UUID: "job-uuid1", DeletedAt: nil}, JobAttributes: &datamodel.JobAttributes{ResourceUUID: "uuid1"}},
+		{BaseModel: datamodel.BaseModel{UUID: "job-uuid2", DeletedAt: nil}, JobAttributes: &datamodel.JobAttributes{ResourceUUID: "uuid2"}, Type: "create_kms_config"},
 	}
 	err = store.db.Create(accounts).Error()
 	assert.NoError(t, err, "Failed to create Service account table")
@@ -308,14 +309,21 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 
 	t.Run("GetJobByKmsConfigIDRetrievesJobSuccessfully", func(tt *testing.T) {
 		kmsConfigUUID := "uuid1"
-		result, err := store.GetJobByResourceUUID(context.Background(), kmsConfigUUID)
+		result, err := store.GetJobByResourceUUID(context.Background(), kmsConfigUUID, "")
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, "job-uuid1", result.UUID)
 	})
+	t.Run("GetJobByKmsConfigIDWithJobTypeFilter", func(tt *testing.T) {
+		kmsConfigUUID := "uuid2"
+		result, err := store.GetJobByResourceUUID(context.Background(), kmsConfigUUID, "create_kms_config")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid2", result.UUID)
+	})
 	t.Run("GetJobByKmsConfigIDReturnsErrorWhenRecordIsNotFound", func(tt *testing.T) {
 		kmsConfigUUID := "nonexistent-uuid"
-		result, err := store.GetJobByResourceUUID(context.Background(), kmsConfigUUID)
+		result, err := store.GetJobByResourceUUID(context.Background(), kmsConfigUUID, "")
 
 		assert.ErrorContains(tt, err, "record not found")
 		assert.Nil(tt, result)
