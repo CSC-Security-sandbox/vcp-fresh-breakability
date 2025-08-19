@@ -276,7 +276,7 @@ func (d *DataStoreRepository) IsLatestBackup(ctx context.Context, backupUUID, vo
 	db := d.db.GORM().WithContext(ctx)
 	backup := &datamodel.Backup{}
 	// get backup by created_at timestamp under a volume
-	err := db.Where("volume_uuid = ? and state = ?", volumeUUID, models.LifeCycleStateAvailable).Order("created_at desc").First(&backup).Error
+	err := db.Where("volume_uuid = ?", volumeUUID).Order("created_at desc").First(&backup).Error
 	if err != nil {
 		return false, err
 	}
