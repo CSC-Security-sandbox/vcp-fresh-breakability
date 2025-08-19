@@ -65,6 +65,7 @@ data:
   LEASE_NAMESPACE: {{.Values.workerConfig.leaseNameSpace | quote}}
   HARVEST_HOST: {{.Values.workerConfig.harvestHost | quote}}
   ENABLE_METRICS: {{.Values.workerConfig.enableMetrics | quote}}
+  HARVEST_SECRET_MANAGER_AUTH_ENABLED: {{.Values.workerConfig.harvestSecretManagerAuthEnabled | quote}}
   HARVEST_REST_PROTOCOL: {{.Values.workerConfig.harvestRestProtocol | quote}}
   CVP_HOST: {{ .Values.workerConfig.cvpHost | quote }}
   PROBER_PROJECT_LIST: {{ .Values.workerConfig.proberProjectList | quote }}

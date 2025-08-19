@@ -668,6 +668,9 @@ type HarvestConfig struct {
 	PROJECT             string
 	LEASE_NAME          string
 	FILE_NAME           string
+	AUTH_TYPE           int
+	SECRET_ID           string
+	SECRET_PROJECT      string
 }
 
 // NodeNodeGroupMap represents the mapping between a node and a node group

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"go.temporal.io/sdk/temporal"
 	"gorm.io/gorm"
@@ -29,6 +30,7 @@ var (
 	createKubernetesLease = utils.CreateKubernetesLease
 	leaseExists           = utils.LeaseExists
 	vcpLeaseNameSpace     = env.GetString("LEASE_NAMESPACE", "vcp")
+	smHarvestAuthEnabled  = env.GetBool("HARVEST_SECRET_MANAGER_AUTH_ENABLED", false)
 )
 
 // RegisterNodeToHarvestFarmInput holds input parameters for the activity
@@ -267,13 +269,16 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 		return err
 	}
 	pool := database.ConvertPoolViewToPool(poolView)
-	credentials, err := fetchOnTapCredentials(ctx, pool)
-	if err != nil {
-		return err
-	}
-	if credentials == nil {
-		logger.Errorf("Failed to get credentials for pool %d", pool.ID)
-		return fmt.Errorf("failed to get credentials for pool %d", pool.ID)
+	var credentials *vlm.OntapCredentials
+	if !smHarvestAuthEnabled {
+		credentials, err = fetchOnTapCredentials(ctx, pool)
+		if err != nil {
+			return err
+		}
+		if credentials == nil {
+			logger.Errorf("Failed to get credentials for pool %d", pool.ID)
+			return fmt.Errorf("failed to get credentials for pool %d", pool.ID)
+		}
 	}
 	renderFunc := a.RenderHarvestTemplateFunc
 	if renderFunc == nil {
@@ -295,8 +300,15 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 			return errors.New("invalid node mapping: nil HarvestConfig")
 		}
 
-		// Set password if credentials are provided
-		mapping.HarvestConfig.PASSWORD = strconv.Quote(credentials.AdminPassword)
+		if !smHarvestAuthEnabled && credentials != nil {
+			// Set password if credentials are provided
+			mapping.HarvestConfig.PASSWORD = strconv.Quote(credentials.AdminPassword)
+		} else {
+			// Set Auth Type and SecretID info if fetchCreds env flag is not set
+			mapping.HarvestConfig.AUTH_TYPE = pool.PoolCredentials.AuthType
+			mapping.HarvestConfig.SECRET_ID = pool.PoolCredentials.SecretID
+			mapping.HarvestConfig.SECRET_PROJECT = env.SecretManagerProjectID
+		}
 
 		tmplStr, err := renderFunc(mapping.HarvestConfig)
 		if err != nil {

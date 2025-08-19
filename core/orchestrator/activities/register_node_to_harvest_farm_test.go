@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"errors"
+	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -165,6 +166,7 @@ func TestUploadHarvestTemplate_PoolFetchOtherError_ReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "db down")
 }
 
+// Below test case will test when auth type is default creds(userName and Password)
 func TestUploadHarvestTemplate_WithCredentials(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseMultipartForm(10 << 20)
@@ -270,6 +272,115 @@ func TestUploadHarvestTemplate_WithCreds_SpecialChars(t *testing.T) {
 
 	// Verify that the password was actually set in the HarvestConfig
 	assert.Equal(t, strconv.Quote("]yq9$r50Kz5^"), harvestConfig.PASSWORD)
+}
+
+// Below test case will test when auth type is secretManager
+func TestUploadHarvestTemplate_WithSMCredentials(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseMultipartForm(10 << 20)
+		assert.NoError(t, err)
+		file, _, err := r.FormFile("file")
+		assert.NoError(t, err)
+		defer func() {
+			cerr := file.Close()
+			assert.NoError(t, cerr)
+		}()
+		content, err := io.ReadAll(file)
+		assert.NoError(t, err)
+		assert.Contains(t, string(content), "fake-yaml")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	harvestConfig := &datamodel.HarvestConfig{}
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 1,
+			SecretID: "test-secret-id",
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
+
+	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+	oldsmHarvestAuthEnabled := smHarvestAuthEnabled
+	smHarvestAuthEnabled = true
+	defer func() {
+		hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+		smHarvestAuthEnabled = oldsmHarvestAuthEnabled
+	}()
+
+	input := UploadHarvestTemplateInput{
+		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: harvestConfig, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
+		UploadURL:    ts.URL,
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
+	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	activity := &UploadHarvestTemplateActivity{
+		SE:                      mockSE,
+		LoadHarvestTemplateFunc: func() (string, error) { return "template: {{.Fake}}", nil },
+		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) {
+			// Verify that the password was set from credentials
+			assert.Equal(t, "", cfg.PASSWORD)
+			assert.Equal(t, 1, cfg.AUTH_TYPE)
+			assert.Equal(t, "test-secret-id", cfg.SECRET_ID)
+			return "fake-yaml", nil
+		},
+	}
+	ctx := context.Background()
+	assert.NoError(t, activity.UploadHarvestTemplate(ctx, input))
+
+	// Verify that the password was actually set in the HarvestConfig
+	assert.Equal(t, "", harvestConfig.PASSWORD)
+	assert.Equal(t, "test-secret-id", harvestConfig.SECRET_ID)
+	assert.Equal(t, 1, harvestConfig.AUTH_TYPE)
+}
+
+// Below test case will test when smAuth is disabled and returns error
+func TestUploadHarvestTemplate_WithSMCredentialsError(t *testing.T) {
+	harvestConfig := &datamodel.HarvestConfig{}
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 1,
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
+
+	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+	oldsmHarvestAuthEnabled := smHarvestAuthEnabled
+	smHarvestAuthEnabled = false
+	defer func() {
+		hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+		smHarvestAuthEnabled = oldsmHarvestAuthEnabled
+	}()
+	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "", errors.New("creds-fetch-error")
+	}
+
+	input := UploadHarvestTemplateInput{
+		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: harvestConfig, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
+		UploadURL:    "",
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
+	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	activity := &UploadHarvestTemplateActivity{
+		SE: mockSE,
+	}
+	ctx := context.Background()
+	err := activity.UploadHarvestTemplate(ctx, input)
+	assert.Error(t, err)
+	assert.Equal(t, "creds-fetch-error", err.Error())
 }
 
 func TestUploadHarvestTemplate_RenderError(t *testing.T) {

@@ -29,6 +29,11 @@ Pollers:
     auth_style: {{.AUTH_STYLE}}
     username: {{.USERNAME}}
     password: {{.PASSWORD}}
+    auth_type: {{.AUTH_TYPE}}
+    secret_id: {{.SECRET_ID}}
+    secret_project_number: {{.SECRET_PROJECT}}
+
+
     labels:
       - project: {{.PROJECT}}
     use_insecure_tls: true  # Disable TLS verification when connecting to ONTAP cluster
