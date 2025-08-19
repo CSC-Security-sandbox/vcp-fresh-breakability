@@ -83,15 +83,33 @@ func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 	if err != nil {
 		return err
 	}
+
+	// First, get the volume details to check if it's in use for splitting or has clones
+	vol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
+		UUID: volumeUUID,
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"uuid", "name", "clone.*", "snapmirror.*"},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	// Check if the volume is in use for splitting or has clones
+	if vol != nil && vol.Clone != nil {
+		// Check if volume has FlexClone volumes or a split is initiated
+		if (vol.Clone.HasFlexclone != nil && *vol.Clone.HasFlexclone) ||
+			(vol.Clone.SplitInitiated != nil && *vol.Clone.SplitInitiated) {
+			return vsaerrors.NewVCPError(vsaerrors.ErrDeleteVolumeWhenInSplitState, errors.New("Cannot delete a volume that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup"))
+		}
+	}
+
+	// If all checks pass, proceed with volume deletion
 	err = client.Storage().VolumeDelete(&ontapRest.VolumeDeleteParams{
 		UUID: volumeUUID,
 		Name: volumeName,
 	})
 
 	if err != nil {
-		if strings.Contains(err.Error(), "because it has one or more clones") {
-			return vsaerrors.NewVCPError(vsaerrors.ErrDeleteVolumeWhenInSplitState, errors.New("Cannot delete a volume that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup"))
-		}
 		return err
 	}
 

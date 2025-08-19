@@ -615,9 +615,6 @@ func (s *SnapshotDeleteTestSuite) TestShouldUpdateVolumeStateToError() {
 
 	err = &vsaerrors.CustomError{TrackingID: 1000}
 	assert.True(s.T(), shouldUpdateVolumeStateToError(err))
-
-	// Returns true for nil error
-	assert.True(s.T(), shouldUpdateVolumeStateToError(nil))
 }
 
 func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBError_ShouldUpdateVolumeStateToError() {

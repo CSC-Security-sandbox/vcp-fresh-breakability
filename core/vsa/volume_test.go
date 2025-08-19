@@ -318,6 +318,17 @@ func TestDeleteVolume_Success(t *testing.T) {
 	volumeUUID := "testUUID"
 	volumeName := "testVolume"
 
+	// Mock VolumeGet to return a volume with no clones or split state
+	mockVolume := &ontaprest.Volume{
+		Volume: models.Volume{
+			UUID: &volumeUUID,
+			Name: &volumeName,
+		},
+	}
+	// The Clone and Snapmirror fields are nil by default, which means no clones or snapmirror protection
+	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+	// Mock VolumeDelete to succeed
 	mockStorage.On("VolumeDelete", mock.Anything).Return(nil)
 
 	err := rc.DeleteVolume(volumeUUID, volumeName)
@@ -344,6 +355,16 @@ func TestDeleteVolume_Error(t *testing.T) {
 	volumeUUID := "testUUID"
 	volumeName := "testVolume"
 
+	// Mock VolumeGet to return a volume with no clones or split state
+	mockVolume := &ontaprest.Volume{
+		Volume: models.Volume{
+			UUID: &volumeUUID,
+			Name: &volumeName,
+		},
+	}
+	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+	// Mock VolumeDelete to fail
 	mockStorage.On("VolumeDelete", mock.Anything).Return(errors.New("deletion error"))
 
 	err := rc.DeleteVolume(volumeUUID, volumeName)
@@ -389,12 +410,83 @@ func TestDeleteVolume_ErrorWhenVolumeHasClones(t *testing.T) {
 	volumeUUID := "testUUID"
 	volumeName := "testVolume"
 
-	mockStorage.On("VolumeDelete", mock.Anything).Return(errors.New("Cannot delete volume because it has one or more clones"))
+	// Mock VolumeGet to return a volume with clones
+	hasFlexclone := true
+	mockVolume := &ontaprest.Volume{
+		Volume: models.Volume{
+			UUID: &volumeUUID,
+			Name: &volumeName,
+			Clone: &models.VolumeInlineClone{
+				HasFlexclone: &hasFlexclone,
+			},
+		},
+	}
+	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
 
 	err := rc.DeleteVolume(volumeUUID, volumeName)
 
 	assert.Error(t, err)
 	assertErrContains(t, err, "Cannot delete a volume that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup")
+}
+
+func TestDeleteVolume_ErrorWhenVolumeHasSplitInitiated(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeUUID := "testUUID"
+	volumeName := "testVolume"
+
+	// Mock VolumeGet to return a volume with split initiated
+	splitInitiated := true
+	mockVolume := &ontaprest.Volume{
+		Volume: models.Volume{
+			UUID: &volumeUUID,
+			Name: &volumeName,
+			Clone: &models.VolumeInlineClone{
+				SplitInitiated: &splitInitiated,
+			},
+		},
+	}
+	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+	err := rc.DeleteVolume(volumeUUID, volumeName)
+
+	assert.Error(t, err)
+	assertErrContains(t, err, "Cannot delete a volume that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup")
+}
+
+func TestDeleteVolume_ErrorWhenVolumeGetFails(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeUUID := "testUUID"
+	volumeName := "testVolume"
+
+	// Mock VolumeGet to fail
+	mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.New("volume get error"))
+
+	err := rc.DeleteVolume(volumeUUID, volumeName)
+
+	assert.Error(t, err)
+	assert.Equal(t, "volume get error", err.Error())
 }
 
 func TestGetVolume_WhenVolumeIsFound_ThenReturnVolumeResponse(t *testing.T) {
