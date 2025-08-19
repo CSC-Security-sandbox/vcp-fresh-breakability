@@ -110,10 +110,11 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -184,10 +185,11 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -211,10 +213,11 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -298,10 +301,11 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)

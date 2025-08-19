@@ -89,10 +89,11 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 
@@ -118,8 +119,9 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	pollingOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			InitialInterval:    time.Duration(cvpPollInterval) * time.Second,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			InitialInterval:        time.Duration(cvpPollInterval) * time.Second,
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 

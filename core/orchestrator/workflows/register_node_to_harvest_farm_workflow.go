@@ -82,6 +82,7 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 				"node group assignment returned insufficient mappings for pool",
 				"node1 and node2 must be different nodes",
 				"failed to fetch node group details from nodeGroup Map table",
+				"PanicError",
 			},
 		},
 	}

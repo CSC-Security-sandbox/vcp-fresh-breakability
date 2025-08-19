@@ -98,6 +98,7 @@ func (wf *updateBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 				"V1betaUpdateBackupPolicyForbidden",
 				"V1betaUpdateBackupPolicyNotFound",
 				"V1betaUpdateBackupPolicyInternalServerError",
+				"PanicError",
 			},
 		},
 	}
@@ -221,10 +222,11 @@ func (wf *deleteBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	commonActivities := &activities.CommonActivities{}

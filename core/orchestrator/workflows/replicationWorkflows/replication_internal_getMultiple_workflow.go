@@ -73,10 +73,11 @@ func (wf *replicationInternalGetMultipleWorkflow) Run(ctx workflow.Context, args
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(1),
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(1),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)

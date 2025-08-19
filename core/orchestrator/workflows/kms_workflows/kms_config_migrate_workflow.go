@@ -111,10 +111,11 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	activityOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, activityOptions)
@@ -149,8 +150,9 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	pollingOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			InitialInterval:    time.Duration(cvpPollInterval) * time.Second,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			InitialInterval:        time.Duration(cvpPollInterval) * time.Second,
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
@@ -363,10 +365,11 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		activityOptionsVSAMigration := workflow.ActivityOptions{
 			StartToCloseTimeout: time.Duration(startToCloseTimeout) * time.Minute,
 			RetryPolicy: &temporal.RetryPolicy{
-				InitialInterval:    retryPolicy.InitialInterval,
-				BackoffCoefficient: retryPolicy.BackoffCoefficient,
-				MaximumInterval:    retryPolicy.MaximumInterval,
-				MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+				InitialInterval:        retryPolicy.InitialInterval,
+				BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+				MaximumInterval:        retryPolicy.MaximumInterval,
+				MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+				NonRetryableErrorTypes: []string{"PanicError"},
 			},
 		}
 		ctxVSAMigration := workflow.WithActivityOptions(ctx, activityOptionsVSAMigration)

@@ -98,7 +98,7 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        handleResourceVCPJobMaxRetryAttempts,
-			NonRetryableErrorTypes: []string{"NotFoundErr"},
+			NonRetryableErrorTypes: []string{"NotFoundErr", "PanicError"},
 		},
 	}
 
@@ -219,7 +219,7 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        handleResourceVCPJobMaxRetryAttempts,
-			NonRetryableErrorTypes: []string{"NotFoundErr"},
+			NonRetryableErrorTypes: []string{"NotFoundErr", "PanicError"},
 		},
 	}
 
@@ -341,7 +341,7 @@ func (s updateResourceStateCommonResourceOFFWorkflow) Run(ctx workflow.Context, 
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        handleResourceVCPJobMaxRetryAttempts,
-			NonRetryableErrorTypes: []string{"NotFoundErr"},
+			NonRetryableErrorTypes: []string{"NotFoundErr", "PanicError"},
 		},
 	}
 
@@ -456,7 +456,7 @@ func (s updateResourceStateCommonResourceONWorkflow) Run(ctx workflow.Context, a
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        handleResourceVCPJobMaxRetryAttempts,
-			NonRetryableErrorTypes: []string{"NotFoundErr"},
+			NonRetryableErrorTypes: []string{"NotFoundErr", "PanicError"},
 		},
 	}
 

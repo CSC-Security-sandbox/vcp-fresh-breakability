@@ -86,7 +86,7 @@ func (wf *internalSnapshotDeleteWorkflow) Run(ctx workflow.Context, args ...inte
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"NonRetryableErr"},
+			NonRetryableErrorTypes: []string{"NonRetryableErr", "PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)

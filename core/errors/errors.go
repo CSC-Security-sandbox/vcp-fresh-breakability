@@ -410,9 +410,12 @@ func ExtractCustomerFacingErrorMessage(ctx interface{}, err error) string {
 
 func ExtractCustomError(err error) *CustomError {
 	var applicationErr *temporal.ApplicationError
+	var panicError *temporal.PanicError
 	var customErr *CustomError
 
-	if As(err, &applicationErr) {
+	if As(err, &panicError) {
+		return NewVCPError(ErrInternalServerError, Newf("Panic error occurred in activity: error: %v\nstackTrace: %v", panicError.Error(), panicError.StackTrace()))
+	} else if As(err, &applicationErr) {
 		if applicationErr.Type() == CustomErrorType {
 			var (
 				trackingID   int

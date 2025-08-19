@@ -85,7 +85,8 @@ func (wf *snapshotUpdateWorkflow) Run(ctx workflow.Context, args ...interface{})
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			MaximumAttempts: int32(retryPolicy.MaximumAttempts),
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)

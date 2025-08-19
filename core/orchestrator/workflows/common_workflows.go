@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.temporal.io/sdk/temporal"
 	"strconv"
 	"time"
 
@@ -96,6 +97,9 @@ func (bw *BaseWorkflow) GetDefaultActivityOptions(ctx workflow.Context) workflow
 	// Set default activity options
 	return workflow.ActivityOptions{
 		StartToCloseTimeout: 30 * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
 	}
 }
 
@@ -181,6 +185,9 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 	commonActivity := activities.CommonActivities{}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 10 * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
 	})
 	return executeActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }

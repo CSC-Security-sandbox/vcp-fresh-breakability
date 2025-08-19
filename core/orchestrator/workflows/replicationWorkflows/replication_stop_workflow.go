@@ -78,7 +78,7 @@ func (wf *ReplicationStopWorkflow) Run(ctx workflow.Context, args ...interface{}
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"NonRetryableError"},
+			NonRetryableErrorTypes: []string{"NonRetryableError", "PanicError"},
 		},
 	}
 	ao1 := ao

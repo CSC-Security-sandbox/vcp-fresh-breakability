@@ -12,7 +12,7 @@ type Worker struct {
 
 // returns new worker object
 func NewWorker(c client.Client, taskQueue string) *Worker {
-	w := worker.New(c, taskQueue, worker.Options{})
+	w := worker.New(c, taskQueue, worker.Options{WorkflowPanicPolicy: worker.FailWorkflow})
 	return &Worker{
 		client: c,
 		worker: w,

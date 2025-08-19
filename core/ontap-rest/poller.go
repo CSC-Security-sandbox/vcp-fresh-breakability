@@ -120,7 +120,7 @@ func PollOntapJob(ctx workflow.Context, clientParams RESTClientParams, UUID stri
 			InitialInterval:        wait,
 			BackoffCoefficient:     0,
 			MaximumInterval:        wait,
-			NonRetryableErrorTypes: []string{"NonRetryableErr"},
+			NonRetryableErrorTypes: []string{"NonRetryableErr", "PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)

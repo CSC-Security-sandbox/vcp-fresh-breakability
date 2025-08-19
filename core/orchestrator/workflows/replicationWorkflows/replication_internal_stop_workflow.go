@@ -82,7 +82,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"NonRetryableError"},
+			NonRetryableErrorTypes: []string{"NonRetryableError", "PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
