@@ -43,9 +43,9 @@ func (h *VLMErrorHandler) HandleVLMError(err error) error {
 	var childWorkflowErr *temporal.ChildWorkflowExecutionError
 	if errors.As(err, &childWorkflowErr) {
 		h.logger.Info("Detected child workflow execution error (retry scenario)",
-			"workflow_type", childWorkflowErr.WorkflowType,
-			"workflow_id", childWorkflowErr.WorkflowID,
-			"run_id", childWorkflowErr.RunID)
+			"workflow_type", childWorkflowErr.WorkflowType(),
+			"workflow_id", childWorkflowErr.WorkflowID(),
+			"run_id", childWorkflowErr.RunID())
 
 		// Try to extract the actual error from the cause
 		// For child workflow errors, we need to check if there's an underlying application error
@@ -201,8 +201,8 @@ func (h *VLMErrorHandler) mapVLMErrorToUserFacingError(vlmErr VLMClientError, or
 	}
 
 	// PRIORITY 2: String-based pattern matching (medium specificity)
-	if vlmErr.Message != "" {
-		return h.handleStringBasedError(vlmErr.Message, originalErr)
+	if vlmErr.Message != "" || len(vlmErr.Cause) > 0 {
+		return h.handleStringBasedError(vlmErr, originalErr)
 	}
 
 	// PRIORITY 3: Map based on HTTP status codes (least specific, fallback)
@@ -493,110 +493,136 @@ func (h *VLMErrorHandler) handleCloudOperationFailed(vlmErr VLMClientError, orig
 		fmt.Errorf("Cloud operation failed: %s", vlmErr.Message))
 }
 
-// handleStringBasedError processes string-based error patterns
-func (h *VLMErrorHandler) handleStringBasedError(errorStr string, originalErr error) error {
-	errorStr = strings.ToLower(errorStr)
+// handleStringBasedError processes string-based error patterns using both message and cause
+func (h *VLMErrorHandler) handleStringBasedError(vlmErr VLMClientError, originalErr error) error {
+	// Prioritize cause information over message for more detailed error matching
+	var errorStr string
+	if len(vlmErr.Cause) > 0 {
+		errorStr = strings.ToLower(vlmErr.Cause[0])
+		h.logger.Debug("Using cause information for string-based error matching",
+			"cause", vlmErr.Cause[0])
+	} else if vlmErr.Message != "" {
+		errorStr = strings.ToLower(vlmErr.Message)
+		h.logger.Debug("Using message for string-based error matching",
+			"message", vlmErr.Message)
+	} else {
+		// No error information available
+		h.logger.Warn("No error message or cause available for string-based matching")
+		return errors.NewVCPError(errors.ErrVLMWorkflowError, originalErr)
+	}
 
 	h.logger.Debug("Processing string-based error",
 		"error_string", errorStr)
 
 	// Resource exhaustion/stockout patterns
 	if strings.Contains(errorStr, "notfound") || strings.Contains(errorStr, "does not exist in zone") {
-		return errors.NewVCPError(errors.ErrVLMResourceNotAvailableInZone, originalErr)
+		return errors.NewVCPError(errors.ErrVLMResourceNotAvailableInZone, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	if strings.Contains(errorStr, "zone_resource_pool_exhausted") {
 		if strings.Contains(errorStr, "with_details") {
-			return errors.NewVCPError(errors.ErrVLMZoneResourcePoolExhaustedWithDetails, originalErr)
+			return errors.NewVCPError(errors.ErrVLMZoneResourcePoolExhaustedWithDetails, h.appendCauseToOriginalError(originalErr, vlmErr))
 		}
-		return errors.NewVCPError(errors.ErrVLMZoneResourcePoolExhausted, originalErr)
+		return errors.NewVCPError(errors.ErrVLMZoneResourcePoolExhausted, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	if strings.Contains(errorStr, "does not have enough resources available") {
-		return errors.NewVCPError(errors.ErrVLMInsufficientResourcesInZone, originalErr)
+		return errors.NewVCPError(errors.ErrVLMInsufficientResourcesInZone, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// VM type unavailable patterns
 	if strings.Contains(errorStr, "vm instance") && strings.Contains(errorStr, "unavailable in the") {
 		if strings.Contains(errorStr, "because of") {
-			return errors.NewVCPError(errors.ErrVLMVMTypeUnavailableWithReason, originalErr)
+			return errors.NewVCPError(errors.ErrVLMVMTypeUnavailableWithReason, h.appendCauseToOriginalError(originalErr, vlmErr))
 		}
-		return errors.NewVCPError(errors.ErrVLMVMTypeUnavailableInZone, originalErr)
+		return errors.NewVCPError(errors.ErrVLMVMTypeUnavailableInZone, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Rate limit patterns
 	if strings.Contains(errorStr, "resource_operation_rate_exceeded") {
-		return errors.NewVCPError(errors.ErrVLMRateLimitExceeded, originalErr)
+		return errors.NewVCPError(errors.ErrVLMRateLimitExceeded, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	if strings.Contains(errorStr, "rate limited") {
-		return errors.NewVCPError(errors.ErrVLMDiskRateLimited, originalErr)
+		return errors.NewVCPError(errors.ErrVLMDiskRateLimited, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Resource not ready patterns
 	if strings.Contains(errorStr, "not ready") {
-		return errors.NewVCPError(errors.ErrVLMResourceNotReady, originalErr)
+		return errors.NewVCPError(errors.ErrVLMResourceNotReady, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Project constraint patterns
 	if strings.Contains(errorStr, "constraint") && strings.Contains(errorStr, "violated") {
-		return errors.NewVCPError(errors.ErrVLMProjectConstraintViolated, originalErr)
+		return errors.NewVCPError(errors.ErrVLMProjectConstraintViolated, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// CPU platform mismatch patterns
 	if strings.Contains(errorStr, "cpu platform") && strings.Contains(errorStr, "must match") {
-		return errors.NewVCPError(errors.ErrVLMCPUPlatformMismatch, originalErr)
+		return errors.NewVCPError(errors.ErrVLMCPUPlatformMismatch, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Service account access denied patterns
 	if strings.Contains(errorStr, "service_account_access_denied") {
-		return errors.NewVCPError(errors.ErrVLMServiceAccountAccessDenied, originalErr)
+		return errors.NewVCPError(errors.ErrVLMServiceAccountAccessDenied, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Machine image update patterns
 	if strings.Contains(errorStr, "sourcemachineimage") && strings.Contains(errorStr, "not supported") {
-		return errors.NewVCPError(errors.ErrVLMInvalidMachineImageUpdate, originalErr)
+		return errors.NewVCPError(errors.ErrVLMInvalidMachineImageUpdate, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Quota patterns (fallback)
 	if strings.Contains(errorStr, "quota") && strings.Contains(errorStr, "exceeded") {
 		if strings.Contains(errorStr, "region") {
-			return errors.NewVCPError(errors.ErrVLMQuotaExceededRegional, originalErr)
+			return errors.NewVCPError(errors.ErrVLMQuotaExceededRegional, h.appendCauseToOriginalError(originalErr, vlmErr))
 		}
 		if strings.Contains(errorStr, "zone") {
-			return errors.NewVCPError(errors.ErrVLMQuotaExceededZonal, originalErr)
+			return errors.NewVCPError(errors.ErrVLMQuotaExceededZonal, h.appendCauseToOriginalError(originalErr, vlmErr))
 		}
-		return errors.NewVCPError(errors.ErrVLMQuotaExceededGeneral, originalErr)
+		return errors.NewVCPError(errors.ErrVLMQuotaExceededGeneral, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Permission/authorization patterns
 	if strings.Contains(errorStr, "permission denied") || strings.Contains(errorStr, "unauthorized") {
-		return errors.NewVCPError(errors.ErrVLMInsufficientPermissions, originalErr)
+		return errors.NewVCPError(errors.ErrVLMInsufficientPermissions, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Conflict patterns (resource already exists, in use, etc.)
 	if strings.Contains(errorStr, "resource already exists") || strings.Contains(errorStr, "already exists") {
-		return errors.NewVCPError(errors.ErrGCPResourceAlreadyExistsError, originalErr)
+		return errors.NewVCPError(errors.ErrGCPResourceAlreadyExistsError, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Bad request patterns (CPU platform mismatch, invalid machine image, etc.)
 	if strings.Contains(errorStr, "cpu platform mismatch") {
-		return errors.NewVCPError(errors.ErrVLMCPUPlatformMismatch, originalErr)
+		return errors.NewVCPError(errors.ErrVLMCPUPlatformMismatch, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	if strings.Contains(errorStr, "invalid value for field") && strings.Contains(errorStr, "not supported") {
-		return errors.NewVCPError(errors.ErrVLMInvalidMachineImageUpdate, originalErr)
+		return errors.NewVCPError(errors.ErrVLMInvalidMachineImageUpdate, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Not found patterns
 	if strings.Contains(errorStr, "resource not found in zone") || strings.Contains(errorStr, "not found in zone") {
-		return errors.NewVCPError(errors.ErrVLMResourceNotAvailableInZone, originalErr)
+		return errors.NewVCPError(errors.ErrVLMResourceNotAvailableInZone, h.appendCauseToOriginalError(originalErr, vlmErr))
 	}
 
 	// Default to generic VLM workflow error
 	h.logger.Warn("No specific error pattern matched, using generic VLM workflow error",
 		"error_string", errorStr)
 	return errors.NewVCPError(errors.ErrVLMWorkflowError, originalErr)
+}
+
+// appendCauseToOriginalError appends the cause error message to the original error message
+func (h *VLMErrorHandler) appendCauseToOriginalError(originalErr error, vlmErr VLMClientError) error {
+	// If we have cause information, append it to the original error
+	if len(vlmErr.Cause) > 0 {
+		cause := vlmErr.Cause[0]
+		return fmt.Errorf("%s: %s", originalErr.Error(), cause)
+	}
+
+	// Return original error if no cause
+	return originalErr
 }
 
 // Helper methods for error classification

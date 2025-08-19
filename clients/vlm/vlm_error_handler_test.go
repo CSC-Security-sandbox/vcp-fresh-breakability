@@ -739,65 +739,226 @@ func TestVLMErrorHandler_HandleStringBasedError(t *testing.T) {
 		message       string
 		expectedError int
 	}{
+		// Resource exhaustion/stockout patterns
 		{
-			name:          "Quota exceeded pattern",
-			message:       "Quota 'CPUS' exceeded. Limit: 8 in zone us-central1-a",
-			expectedError: errors.ErrVLMQuotaExceededZonal,
+			name:          "Not found pattern",
+			message:       "notfound",
+			expectedError: errors.ErrVLMResourceNotAvailableInZone,
 		},
 		{
-			name:          "Resource exhaustion pattern",
-			message:       "ZONE_RESOURCE_POOL_EXHAUSTED",
+			name:          "Does not exist in zone pattern",
+			message:       "does not exist in zone",
+			expectedError: errors.ErrVLMResourceNotAvailableInZone,
+		},
+		{
+			name:          "Zone resource pool exhausted pattern",
+			message:       "zone_resource_pool_exhausted",
 			expectedError: errors.ErrVLMZoneResourcePoolExhausted,
 		},
 		{
-			name:          "VM unavailable pattern",
-			message:       "A n2-standard-4 VM instance with 4 vCPUs is currently unavailable in the us-central1-a zone",
+			name:          "Zone resource pool exhausted with details pattern",
+			message:       "zone_resource_pool_exhausted with_details",
+			expectedError: errors.ErrVLMZoneResourcePoolExhaustedWithDetails,
+		},
+		{
+			name:          "Does not have enough resources available pattern",
+			message:       "does not have enough resources available",
+			expectedError: errors.ErrVLMInsufficientResourcesInZone,
+		},
+
+		// VM type unavailable patterns
+		{
+			name:          "VM instance unavailable pattern",
+			message:       "vm instance unavailable in the",
 			expectedError: errors.ErrVLMVMTypeUnavailableInZone,
 		},
 		{
-			name:          "Rate limit pattern",
-			message:       "Disk cannot be resized due to being rate limited",
+			name:          "VM instance unavailable because of pattern",
+			message:       "vm instance unavailable in the because of",
+			expectedError: errors.ErrVLMVMTypeUnavailableWithReason,
+		},
+
+		// Rate limit patterns
+		{
+			name:          "Resource operation rate exceeded pattern",
+			message:       "resource_operation_rate_exceeded",
+			expectedError: errors.ErrVLMRateLimitExceeded,
+		},
+		{
+			name:          "Rate limited pattern",
+			message:       "rate limited",
 			expectedError: errors.ErrVLMDiskRateLimited,
 		},
+
+		// Resource not ready patterns
 		{
-			name:          "Resource not ready pattern",
-			message:       "The resource 'projects/project/regions/region/subnetworks/default' is not ready",
+			name:          "Not ready pattern",
+			message:       "not ready",
 			expectedError: errors.ErrVLMResourceNotReady,
 		},
+
+		// Project constraint patterns
 		{
-			name:          "Constraint violation pattern",
-			message:       "Constraint constraints/compute.vmExternalIpAccess violated for projects/project",
+			name:          "Constraint violated pattern",
+			message:       "constraint violated",
 			expectedError: errors.ErrVLMProjectConstraintViolated,
 		},
+
+		// CPU platform mismatch patterns
 		{
-			name:          "CPU platform pattern",
-			message:       "The selected machine type (n2-standard-4) has a required CPU platform of Intel Haswell. The minimum CPU platform must match this, but was Intel Skylake",
+			name:          "CPU platform must match pattern",
+			message:       "cpu platform must match",
+			expectedError: errors.ErrVLMCPUPlatformMismatch,
+		},
+
+		// Service account access denied patterns
+		{
+			name:          "Service account access denied pattern",
+			message:       "service_account_access_denied",
+			expectedError: errors.ErrVLMServiceAccountAccessDenied,
+		},
+
+		// Machine image update patterns
+		{
+			name:          "Source machine image not supported pattern",
+			message:       "sourcemachineimage not supported",
+			expectedError: errors.ErrVLMInvalidMachineImageUpdate,
+		},
+
+		// Quota patterns (fallback)
+		{
+			name:          "Quota exceeded pattern",
+			message:       "quota exceeded",
+			expectedError: errors.ErrVLMQuotaExceededGeneral,
+		},
+		{
+			name:          "Regional quota exceeded pattern",
+			message:       "quota exceeded region",
+			expectedError: errors.ErrVLMQuotaExceededRegional,
+		},
+		{
+			name:          "Zonal quota exceeded pattern",
+			message:       "quota exceeded zone",
+			expectedError: errors.ErrVLMQuotaExceededZonal,
+		},
+
+		// Permission/authorization patterns
+		{
+			name:          "Permission denied pattern",
+			message:       "permission denied",
+			expectedError: errors.ErrVLMInsufficientPermissions,
+		},
+		{
+			name:          "Unauthorized pattern",
+			message:       "unauthorized",
+			expectedError: errors.ErrVLMInsufficientPermissions,
+		},
+
+		// Conflict patterns
+		{
+			name:          "Resource already exists pattern",
+			message:       "resource already exists",
+			expectedError: errors.ErrGCPResourceAlreadyExistsError,
+		},
+		{
+			name:          "Already exists pattern",
+			message:       "already exists",
+			expectedError: errors.ErrGCPResourceAlreadyExistsError,
+		},
+
+		// Bad request patterns
+		{
+			name:          "CPU platform mismatch pattern",
+			message:       "cpu platform mismatch",
 			expectedError: errors.ErrVLMCPUPlatformMismatch,
 		},
 		{
-			name:          "Service account pattern",
-			message:       "SERVICE_ACCOUNT_ACCESS_DENIED",
-			expectedError: errors.ErrVLMServiceAccountAccessDenied,
-		},
-		{
-			name:          "Machine image pattern",
-			message:       "Invalid value for field 'resource.sourceMachineImage': Updating 'sourceMachineImage' is not supported",
+			name:          "Invalid value for field not supported pattern",
+			message:       "invalid value for field not supported",
 			expectedError: errors.ErrVLMInvalidMachineImageUpdate,
 		},
+
+		// Not found patterns
+		{
+			name:          "Resource not found in zone pattern",
+			message:       "resource not found in zone",
+			expectedError: errors.ErrVLMResourceNotAvailableInZone,
+		},
+		{
+			name:          "Not found in zone pattern",
+			message:       "not found in zone",
+			expectedError: errors.ErrVLMResourceNotAvailableInZone,
+		},
+
+		// Unknown pattern (fallback)
 		{
 			name:          "Unknown pattern",
 			message:       "Some unknown error message",
 			expectedError: errors.ErrVLMWorkflowError,
 		},
+		// Test with cause information to cover appendCauseToOriginalError
+		{
+			name:          "Pattern with cause information",
+			message:       "not ready",
+			expectedError: errors.ErrVLMResourceNotReady,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := handler.handleStringBasedError(tt.message, fmt.Errorf("original error"))
+			// Create a VLMClientError with the message in the cause field for better error matching
+			vlmErr := VLMClientError{
+				Message: tt.message,
+				Cause:   []string{tt.message}, // Put message in cause for better matching
+			}
+			result := handler.handleStringBasedError(vlmErr, fmt.Errorf("original error"))
 
 			var customErr *errors.CustomError
 			assert.True(t, errors.As(result, &customErr))
 			assert.Equal(t, tt.expectedError, customErr.TrackingID)
+		})
+	}
+}
+
+func TestVLMErrorHandler_AppendCauseToOriginalError(t *testing.T) {
+	handler := NewVLMErrorHandler()
+
+	tests := []struct {
+		name           string
+		originalErr    error
+		vlmErr         VLMClientError
+		expectedResult string
+	}{
+		{
+			name:        "With cause information",
+			originalErr: fmt.Errorf("original error"),
+			vlmErr: VLMClientError{
+				Cause: []string{"detailed cause information"},
+			},
+			expectedResult: "original error: detailed cause information",
+		},
+		{
+			name:        "Without cause information",
+			originalErr: fmt.Errorf("original error"),
+			vlmErr: VLMClientError{
+				Cause: []string{},
+			},
+			expectedResult: "original error",
+		},
+		{
+			name:        "With empty cause",
+			originalErr: fmt.Errorf("original error"),
+			vlmErr: VLMClientError{
+				Cause: []string{""},
+			},
+			expectedResult: "original error: ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := handler.appendCauseToOriginalError(tt.originalErr, tt.vlmErr)
+			assert.Equal(t, tt.expectedResult, result.Error())
 		})
 	}
 }
