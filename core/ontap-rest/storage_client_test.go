@@ -505,6 +505,135 @@ func TestQosPolicyGroupCollectionModify(t *testing.T) {
 	})
 }
 
+func TestQoSPolicyGroupFind(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "sample-policy"})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenNoNameProvided_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: ""})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "no name provided")
+	})
+
+	t.Run("WhenNotFound_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.QosPolicyCollectionGetOK{
+			Payload: &models.QosPolicyResponse{
+				QosPolicyResponseInlineRecords: []*models.QosPolicy{},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "test-policy"})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("WhenMultipleFound_ThenReturnError", func(tt *testing.T) {
+		policyName := "test-policy"
+		transport := &mockTransport{response: &storage.QosPolicyCollectionGetOK{
+			Payload: &models.QosPolicyResponse{
+				QosPolicyResponseInlineRecords: []*models.QosPolicy{
+					{Name: &policyName},
+					{Name: &policyName},
+				},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "test-policy"})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "multiple QoS policies found")
+	})
+
+	t.Run("WhenSuccessful_ThenReturnQoSPolicy", func(tt *testing.T) {
+		policyName := "test-policy"
+		policyUUID := "test-uuid"
+		svmName := "test-svm"
+		maxThroughput := int64(100)
+		maxIOPS := int64(1000)
+		transport := &mockTransport{response: &storage.QosPolicyCollectionGetOK{
+			Payload: &models.QosPolicyResponse{
+				QosPolicyResponseInlineRecords: []*models.QosPolicy{
+					{
+						Name: &policyName,
+						UUID: &policyUUID,
+						Svm: &models.QosPolicyInlineSvm{
+							Name: &svmName,
+						},
+						Fixed: &models.QosPolicyInlineFixed{
+							MaxThroughputMbps: &maxThroughput,
+							MaxThroughputIops: &maxIOPS,
+						},
+					},
+				},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		result, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{
+			Name:    "test-policy",
+			SvmName: "test-svm",
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, policyName, *result.Name)
+		assert.Equal(tt, policyUUID, *result.UUID)
+		assert.Equal(tt, svmName, *result.Svm.Name)
+		assert.Equal(tt, maxThroughput, *result.Fixed.MaxThroughputMbps)
+		assert.Equal(tt, maxIOPS, *result.Fixed.MaxThroughputIops)
+	})
+}
+
+func TestQoSPolicyGroupUpdate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QoSPolicyGroupUpdate(&QoSPolicyGroupUpdateParams{UUID: "some-uuid"})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenNoUUIDProvided_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QoSPolicyGroupUpdate(&QoSPolicyGroupUpdateParams{UUID: ""})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "no UUID provided")
+	})
+
+	t.Run("WhenSuccessful_ThenReturnJob", func(tt *testing.T) {
+		jobUUID := strfmt.UUID("123e4567-e89b-12d3-a456-426614174000")
+		transport := &mockTransport{response: &storage.QosPolicyModifyCollectionAccepted{
+			Payload: &models.QosPolicyJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: &jobUUID,
+				},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		result, err := client.QoSPolicyGroupUpdate(&QoSPolicyGroupUpdateParams{
+			UUID:          "test-uuid",
+			Name:          "test-policy",
+			SvmName:       "test-svm",
+			MaxThroughput: 200,
+			MaxIOPS:       2000,
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, jobUUID, strfmt.UUID(result.JobUUID))
+	})
+}
+
 func TestCloudStoreCreate(t *testing.T) {
 	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}

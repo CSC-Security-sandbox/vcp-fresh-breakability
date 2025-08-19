@@ -23,6 +23,8 @@ type StorageClient interface {
 	QosPolicyGroupCollectionGet(params *QosPolicyGroupCollectionGetParams, ucbf UserCallbackFunc[[]*QosPolicy]) error
 	QosPolicyGroupCollectionModify(params []*QosPolicyGroupModifyCollectionParams) (*QosPolicyModifyCollection, *JobAccepted, error)
 	QoSPolicyGroupCreate(params *QoSPolicyGroupCreateParams) (*QosPolicy, *JobAccepted, error)
+	QoSPolicyGroupFind(params *QoSPolicyGroupFindParams) (*QosPolicy, error)
+	QoSPolicyGroupUpdate(params *QoSPolicyGroupUpdateParams) (*JobAccepted, error)
 
 	CloudStoreCreate(params *storage.CloudStoreCreateParams) (*JobAccepted, error)
 
@@ -210,6 +212,59 @@ func (sc *storageClient) QoSPolicyGroupCreate(params *QoSPolicyGroupCreateParams
 		return &QosPolicy{QosPolicy: *created.Payload.Records[0]}, nil, nil
 	}
 	return nil, nil, errors.New("unexpected response from server while creating QoS policy - received no QoS info")
+}
+
+// QoSPolicyGroupFind invokes pkg/ontap-rest/client/storage/Client.QosPolicyCollectionGet to find a QoS policy by name
+func (sc *storageClient) QoSPolicyGroupFind(params *QoSPolicyGroupFindParams) (*QosPolicy, error) {
+	if params.Name == "" {
+		return nil, errors.New("no name provided for QoSPolicyGroupFind")
+	}
+
+	otParams := storage.NewQosPolicyCollectionGetParams().WithFields([]string{"fixed.max_throughput_mbps", "fixed.max_throughput_iops", "name", "uuid", "svm.name"})
+	otParams.SetName(&params.Name)
+	if params.SvmName != "" {
+		otParams.SetSvmName(&params.SvmName)
+	}
+	otParams.SetMaxRecords(nillable.ToPointer("1"))
+
+	rsp, err := sc.api.QosPolicyCollectionGet(otParams, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rsp.Payload.QosPolicyResponseInlineRecords) == 0 {
+		return nil, errors.NewNotFoundErr("qosPolicy", &params.Name)
+	}
+
+	if len(rsp.Payload.QosPolicyResponseInlineRecords) > 1 {
+		return nil, errors.New("multiple QoS policies found with the same name")
+	}
+
+	return &QosPolicy{QosPolicy: *rsp.Payload.QosPolicyResponseInlineRecords[0]}, nil
+}
+
+// QoSPolicyGroupUpdate invokes pkg/ontap-rest/client/storage/Client.QosPolicyModifyCollection to update a QoS policy
+func (sc *storageClient) QoSPolicyGroupUpdate(params *QoSPolicyGroupUpdateParams) (*JobAccepted, error) {
+	if params.UUID == "" {
+		return nil, errors.New("no UUID provided for QoSPolicyGroupUpdate")
+	}
+
+	// Create the modify collection params
+	modifyParams := []*QosPolicyGroupModifyCollectionParams{
+		{
+			UUID:       params.UUID,
+			Throughput: params.MaxThroughput,
+			Iops:       params.MaxIOPS,
+		},
+	}
+
+	// Use the existing collection modify method
+	_, job, err := sc.QosPolicyGroupCollectionModify(modifyParams)
+	if err != nil {
+		return nil, err
+	}
+
+	return job, nil
 }
 
 var paginateSnapshotCollectionGet = _paginate[[]*Snapshot]

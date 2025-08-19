@@ -972,11 +972,12 @@ func qosPolicyGroupCollectionModifyParamsToONTAP(qosPolicyGroupParams []*QosPoli
 		if qosPolicy.UUID == "" {
 			continue
 		}
-		throughput := int64(qosPolicy.Throughput)
+
 		qosPolicyGroup := &models.QosPolicy{
 			UUID: &qosPolicy.UUID,
 			Fixed: &models.QosPolicyInlineFixed{
-				MaxThroughputMbps: &throughput,
+				MaxThroughputMbps: &qosPolicy.Throughput,
+				MaxThroughputIops: &qosPolicy.Iops,
 			},
 		}
 
@@ -1007,7 +1008,8 @@ type QosPolicyModifyCollection struct {
 // QosPolicyGroupModifyCollectionParams is the input param struct for storageClient.VolumeModifyCollectionParams
 type QosPolicyGroupModifyCollectionParams struct {
 	BaseParams
-	Throughput float64
+	Throughput int64
+	Iops       int64
 	UUID       string
 }
 
@@ -1959,6 +1961,23 @@ func qosPolicyGroupCollectionGetParamsToONTAPCollectionGet(params *QosPolicyGrou
 	otParams.SetFields(params.Fields)
 	otParams.SetName(&params.Name)
 	return otParams
+}
+
+// QoSPolicyGroupFindParams is the input param struct for StorageClient.QoSPolicyGroupFind
+// Used for finding an existing QoS policy group by name
+type QoSPolicyGroupFindParams struct {
+	Name    string // Name of the QoS policy group to find
+	SvmName string // SVM name to filter by
+}
+
+// QoSPolicyGroupUpdateParams is the input param struct for StorageClient.QoSPolicyGroupUpdate
+// Used for updating an existing QoS policy group with new throughput and IOPS values
+type QoSPolicyGroupUpdateParams struct {
+	UUID          string // UUID of the QoS policy group to update
+	Name          string // Name of the QoS policy group
+	SvmName       string // SVM name
+	MaxThroughput int64  // New throughput in MiBps
+	MaxIOPS       int64  // New max IOPS
 }
 
 // QoSPolicyGroupCreateParams is the input param struct for StorageClient.QoSPolicyGroupCreate

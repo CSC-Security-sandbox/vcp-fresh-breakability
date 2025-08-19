@@ -318,6 +318,122 @@ func (_c *MockStorageClient_QoSPolicyGroupCreate_Call) RunAndReturn(run func(*Qo
 	return _c
 }
 
+// QoSPolicyGroupFind provides a mock function with given fields: params
+func (_m *MockStorageClient) QoSPolicyGroupFind(params *QoSPolicyGroupFindParams) (*QosPolicy, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QoSPolicyGroupFind")
+	}
+
+	var r0 *QosPolicy
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*QoSPolicyGroupFindParams) (*QosPolicy, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*QoSPolicyGroupFindParams) *QosPolicy); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*QosPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*QoSPolicyGroupFindParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_QoSPolicyGroupFind_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QoSPolicyGroupFind'
+type MockStorageClient_QoSPolicyGroupFind_Call struct {
+	*mock.Call
+}
+
+// QoSPolicyGroupFind is a helper method to define mock.On call
+//   - params *QoSPolicyGroupFindParams
+func (_e *MockStorageClient_Expecter) QoSPolicyGroupFind(params interface{}) *MockStorageClient_QoSPolicyGroupFind_Call {
+	return &MockStorageClient_QoSPolicyGroupFind_Call{Call: _e.mock.On("QoSPolicyGroupFind", params)}
+}
+
+func (_c *MockStorageClient_QoSPolicyGroupFind_Call) Run(run func(params *QoSPolicyGroupFindParams)) *MockStorageClient_QoSPolicyGroupFind_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*QoSPolicyGroupFindParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_QoSPolicyGroupFind_Call) Return(_a0 *QosPolicy, _a1 error) *MockStorageClient_QoSPolicyGroupFind_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_QoSPolicyGroupFind_Call) RunAndReturn(run func(*QoSPolicyGroupFindParams) (*QosPolicy, error)) *MockStorageClient_QoSPolicyGroupFind_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// QoSPolicyGroupUpdate provides a mock function with given fields: params
+func (_m *MockStorageClient) QoSPolicyGroupUpdate(params *QoSPolicyGroupUpdateParams) (*JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QoSPolicyGroupUpdate")
+	}
+
+	var r0 *JobAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*QoSPolicyGroupUpdateParams) (*JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*QoSPolicyGroupUpdateParams) *JobAccepted); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*QoSPolicyGroupUpdateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_QoSPolicyGroupUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QoSPolicyGroupUpdate'
+type MockStorageClient_QoSPolicyGroupUpdate_Call struct {
+	*mock.Call
+}
+
+// QoSPolicyGroupUpdate is a helper method to define mock.On call
+//   - params *QoSPolicyGroupUpdateParams
+func (_e *MockStorageClient_Expecter) QoSPolicyGroupUpdate(params interface{}) *MockStorageClient_QoSPolicyGroupUpdate_Call {
+	return &MockStorageClient_QoSPolicyGroupUpdate_Call{Call: _e.mock.On("QoSPolicyGroupUpdate", params)}
+}
+
+func (_c *MockStorageClient_QoSPolicyGroupUpdate_Call) Run(run func(params *QoSPolicyGroupUpdateParams)) *MockStorageClient_QoSPolicyGroupUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*QoSPolicyGroupUpdateParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_QoSPolicyGroupUpdate_Call) Return(_a0 *JobAccepted, _a1 error) *MockStorageClient_QoSPolicyGroupUpdate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_QoSPolicyGroupUpdate_Call) RunAndReturn(run func(*QoSPolicyGroupUpdateParams) (*JobAccepted, error)) *MockStorageClient_QoSPolicyGroupUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // QosPolicyGroupCollectionGet provides a mock function with given fields: params, ucbf
 func (_m *MockStorageClient) QosPolicyGroupCollectionGet(params *QosPolicyGroupCollectionGetParams, ucbf UserCallbackFunc[[]*QosPolicy]) error {
 	ret := _m.Called(params, ucbf)

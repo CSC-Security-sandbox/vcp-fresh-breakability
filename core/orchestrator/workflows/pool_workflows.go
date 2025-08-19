@@ -644,6 +644,20 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Get nodes for the pool to modify QoS policy
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
+
+	// Modify QoS policy and apply to SVM if needed
+	err = workflow.ExecuteActivity(ctx, poolActivity.ModifyQoSPolicyAndApplyToSVM, dbPool, node, updatePoolParams).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, updateVSAClusterDeploymentResponse.VLMConfig, updatePoolParams).Get(ctx, nil)
 	return nil, ConvertToVSAError(err)
 }

@@ -851,7 +851,40 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 	return createdSvm, nil
 }
 
+// applyQoSPolicyToSVM is a utility function that applies a QoS policy to an SVM
+// It handles the common logic of getting the provider and applying the policy
+func applyQoSPolicyToSVM(ctx context.Context, svm *datamodel.Svm, node *models.Node, qosPolicyName string) error {
+	logger := util.GetLogger(ctx)
+
+	// Get the provider for the node
+	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Apply the QoS policy to the SVM
+	modifySvmParams := vsa.ModifySVMWithQoSPolicyParams{
+		SvmUUID:       svm.SvmDetails.ExternalUUID,
+		QoSPolicyName: qosPolicyName,
+	}
+
+	err = provider.ModifySVMWithQoSPolicy(modifySvmParams)
+	if err != nil {
+		logger.Error("Failed to apply QoS policy to SVM", "error", err, "svmName", svm.Name, "policyName", qosPolicyName)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Info("QoS policy applied to SVM successfully", "svmName", svm.Name, "policyName", qosPolicyName)
+	return nil
+}
+
+// generateQoSPolicyName generates a consistent QoS policy name for an SVM
+func generateQoSPolicyName(svmName string) string {
+	return fmt.Sprintf("%s-qos-policy", svmName)
+}
+
 // CreateQoSPolicyAndApplyToSVM creates a QoS policy group and applies it to the SVM
+// This activity is idempotent - it will check if the QoS policy already exists before creating
 func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *datamodel.Pool, svm *datamodel.Svm, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	logger.Info("Creating QoS policy and applying to SVM", "svmName", svm.Name, "poolName", pool.Name)
@@ -864,9 +897,59 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 
 	// Create QoS policy group with default values
 	// These values can be made configurable in the future
-	qosPolicyName := fmt.Sprintf("%s-qos-policy", svm.Name)
+	qosPolicyName := generateQoSPolicyName(svm.Name)
 	maxThroughput := pool.PoolAttributes.ThroughputMibps
 	maxIOPS := pool.PoolAttributes.Iops
+
+	// Check if the QoS policy already exists (idempotent behavior)
+	findQosPolicyParams := vsa.FindQoSGroupPolicyParams{
+		Name:    qosPolicyName,
+		SvmName: svm.Name,
+	}
+
+	existingQosPolicy, err := provider.FindQoSGroupPolicy(findQosPolicyParams)
+	if err == nil {
+		// QoS policy already exists, check if it matches our requirements
+		if existingQosPolicy.MaxThroughput == maxThroughput && existingQosPolicy.MaxIOPS == maxIOPS {
+			logger.Info("QoS policy already exists and matches requirements, skipping creation",
+				"policyName", qosPolicyName,
+				"throughput", existingQosPolicy.MaxThroughput,
+				"iops", existingQosPolicy.MaxIOPS)
+
+			// Apply the existing QoS policy to the SVM using the utility function
+			return applyQoSPolicyToSVM(ctx, svm, node, existingQosPolicy.Name)
+		} else {
+			logger.Info("QoS policy already exists but with different values, updating instead",
+				"policyName", qosPolicyName,
+				"existingThroughput", existingQosPolicy.MaxThroughput,
+				"newThroughput", maxThroughput,
+				"existingIOPS", existingQosPolicy.MaxIOPS,
+				"newIOPS", maxIOPS)
+
+			// Update the existing QoS policy with new values
+			updateQosPolicyParams := vsa.UpdateQoSGroupPolicyParams{
+				UUID:          existingQosPolicy.UUID,
+				Name:          existingQosPolicy.Name,
+				SvmName:       existingQosPolicy.SvmName,
+				MaxThroughput: maxThroughput,
+				MaxIOPS:       maxIOPS,
+			}
+
+			err = provider.UpdateQoSGroupPolicy(updateQosPolicyParams)
+			if err != nil {
+				logger.Error("Failed to update existing QoS policy group", "error", err, "policyName", qosPolicyName)
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+
+			logger.Info("QoS policy group updated successfully", "policyName", existingQosPolicy.Name, "policyUUID", existingQosPolicy.UUID)
+
+			// Apply the updated QoS policy to the SVM using the utility function
+			return applyQoSPolicyToSVM(ctx, svm, node, existingQosPolicy.Name)
+		}
+	}
+
+	// QoS policy doesn't exist, create it
+	logger.Info("QoS policy does not exist, creating new one", "policyName", qosPolicyName)
 
 	// Create the QoS policy group
 	qosPolicyParams := vsa.CreateQoSGroupPolicyParams{
@@ -884,20 +967,85 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 
 	logger.Info("QoS policy group created successfully", "policyName", qosPolicyResponse.Name, "policyUUID", qosPolicyResponse.UUID)
 
-	// Apply the QoS policy to the SVM
-	modifySvmParams := vsa.ModifySVMWithQoSPolicyParams{
-		SvmUUID:       svm.SvmDetails.ExternalUUID,
-		QoSPolicyName: qosPolicyResponse.Name,
-	}
+	// Apply the QoS policy to the SVM using the utility function
+	return applyQoSPolicyToSVM(ctx, svm, node, qosPolicyResponse.Name)
+}
 
-	err = provider.ModifySVMWithQoSPolicy(modifySvmParams)
+// ModifyQoSPolicyAndApplyToSVM modifies an existing QoS policy group and applies it to the SVM if changes are needed
+// This activity is idempotent - it will only update the QoS policy if the new requirements differ from the current ones
+func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *datamodel.Pool, node *models.Node, updateParams *commonparams.UpdatePoolParams) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Modifying QoS policy and applying to SVM", "poolName", pool.Name)
+
+	// Get the provider for the node
+	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
-		logger.Error("Failed to apply QoS policy to SVM", "error", err, "svmName", svm.Name, "policyName", qosPolicyResponse.Name)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	logger.Info("QoS policy applied to SVM successfully", "svmName", svm.Name, "policyName", qosPolicyResponse.Name)
-	return nil
+	// Find the SVM related to the pool
+	svm, err := j.GetSvmForPoolID(ctx, pool.ID)
+	if err != nil {
+		logger.Error("Failed to get SVM for pool", "error", err, "poolID", pool.ID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Construct the QoS policy name (same format as CreateQoSPolicyAndApplyToSVM)
+	qosPolicyName := generateQoSPolicyName(svm.Name)
+
+	// Get the new requirements from the update parameters
+	newMaxThroughput := int64(updateParams.TotalThroughputMibps)
+	newMaxIOPS := int64(updateParams.TotalIops)
+
+	// Find the existing QoS policy
+	findQosPolicyParams := vsa.FindQoSGroupPolicyParams{
+		Name:    qosPolicyName,
+		SvmName: svm.Name,
+	}
+
+	existingQosPolicy, err := provider.FindQoSGroupPolicy(findQosPolicyParams)
+	if err != nil {
+		logger.Error("Failed to find existing QoS policy", "error", err, "policyName", qosPolicyName)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Check if the QoS policy needs to be updated
+	if existingQosPolicy.MaxThroughput == newMaxThroughput && existingQosPolicy.MaxIOPS == newMaxIOPS {
+		logger.Info("QoS policy already matches the new requirements, no update needed",
+			"policyName", qosPolicyName,
+			"currentThroughput", existingQosPolicy.MaxThroughput,
+			"newThroughput", newMaxThroughput,
+			"currentIOPS", existingQosPolicy.MaxIOPS,
+			"newIOPS", newMaxIOPS)
+		return nil
+	}
+
+	logger.Info("QoS policy needs to be updated",
+		"policyName", qosPolicyName,
+		"currentThroughput", existingQosPolicy.MaxThroughput,
+		"newThroughput", newMaxThroughput,
+		"currentIOPS", existingQosPolicy.MaxIOPS,
+		"newIOPS", newMaxIOPS)
+
+	// Update the QoS policy with new values
+	updateQosPolicyParams := vsa.UpdateQoSGroupPolicyParams{
+		UUID:          existingQosPolicy.UUID,
+		Name:          existingQosPolicy.Name,
+		SvmName:       existingQosPolicy.SvmName,
+		MaxThroughput: newMaxThroughput,
+		MaxIOPS:       newMaxIOPS,
+	}
+
+	err = provider.UpdateQoSGroupPolicy(updateQosPolicyParams)
+	if err != nil {
+		logger.Error("Failed to update QoS policy group", "error", err, "policyName", qosPolicyName)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Info("QoS policy group updated successfully", "policyName", existingQosPolicy.Name, "policyUUID", existingQosPolicy.UUID)
+
+	// Apply the updated QoS policy to the SVM using the utility function
+	return applyQoSPolicyToSVM(ctx, svm, node, existingQosPolicy.Name)
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.

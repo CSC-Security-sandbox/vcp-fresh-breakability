@@ -1572,6 +1572,64 @@ func (_c *MockProvider_DeleteVolumeReplication_Call) RunAndReturn(run func(*Dele
 	return _c
 }
 
+// FindQoSGroupPolicy provides a mock function with given fields: params
+func (_m *MockProvider) FindQoSGroupPolicy(params FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindQoSGroupPolicy")
+	}
+
+	var r0 *QoSGroupPolicyResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(FindQoSGroupPolicyParams) *QoSGroupPolicyResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*QoSGroupPolicyResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(FindQoSGroupPolicyParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_FindQoSGroupPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindQoSGroupPolicy'
+type MockProvider_FindQoSGroupPolicy_Call struct {
+	*mock.Call
+}
+
+// FindQoSGroupPolicy is a helper method to define mock.On call
+//   - params FindQoSGroupPolicyParams
+func (_e *MockProvider_Expecter) FindQoSGroupPolicy(params interface{}) *MockProvider_FindQoSGroupPolicy_Call {
+	return &MockProvider_FindQoSGroupPolicy_Call{Call: _e.mock.On("FindQoSGroupPolicy", params)}
+}
+
+func (_c *MockProvider_FindQoSGroupPolicy_Call) Run(run func(params FindQoSGroupPolicyParams)) *MockProvider_FindQoSGroupPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(FindQoSGroupPolicyParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_FindQoSGroupPolicy_Call) Return(_a0 *QoSGroupPolicyResponse, _a1 error) *MockProvider_FindQoSGroupPolicy_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_FindQoSGroupPolicy_Call) RunAndReturn(run func(FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)) *MockProvider_FindQoSGroupPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetClusterPeer provides a mock function with given fields: clusterPeerID
 func (_m *MockProvider) GetClusterPeer(clusterPeerID string) (*ClusterPeer, error) {
 	ret := _m.Called(clusterPeerID)
@@ -4126,6 +4184,52 @@ func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) Return(_a0 *ontap
 }
 
 func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) RunAndReturn(run func(string, string) (*ontap_rest.SnapmirrorTransfer, error)) *MockProvider_SnapmirrorRelationshipTransferGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateQoSGroupPolicy provides a mock function with given fields: params
+func (_m *MockProvider) UpdateQoSGroupPolicy(params UpdateQoSGroupPolicyParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateQoSGroupPolicy")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(UpdateQoSGroupPolicyParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateQoSGroupPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateQoSGroupPolicy'
+type MockProvider_UpdateQoSGroupPolicy_Call struct {
+	*mock.Call
+}
+
+// UpdateQoSGroupPolicy is a helper method to define mock.On call
+//   - params UpdateQoSGroupPolicyParams
+func (_e *MockProvider_Expecter) UpdateQoSGroupPolicy(params interface{}) *MockProvider_UpdateQoSGroupPolicy_Call {
+	return &MockProvider_UpdateQoSGroupPolicy_Call{Call: _e.mock.On("UpdateQoSGroupPolicy", params)}
+}
+
+func (_c *MockProvider_UpdateQoSGroupPolicy_Call) Run(run func(params UpdateQoSGroupPolicyParams)) *MockProvider_UpdateQoSGroupPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(UpdateQoSGroupPolicyParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateQoSGroupPolicy_Call) Return(_a0 error) *MockProvider_UpdateQoSGroupPolicy_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateQoSGroupPolicy_Call) RunAndReturn(run func(UpdateQoSGroupPolicyParams) error) *MockProvider_UpdateQoSGroupPolicy_Call {
 	_c.Call.Return(run)
 	return _c
 }

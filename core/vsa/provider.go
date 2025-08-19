@@ -94,6 +94,8 @@ type Provider interface {
 	CreateDns(params CreateDnsParams) error
 	CreateQoSGroupPolicy(params CreateQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
 	ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error
+	FindQoSGroupPolicy(params FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
+	UpdateQoSGroupPolicy(params UpdateQoSGroupPolicyParams) error
 	CreateExportPolicy(params *ExportPolicy) error
 	CreateSecurityLogForwarding(params CreateSecurityLogForwardingParams) (*CreateSecurityLogForwardingResponse, error)
 	GetSecurityLogForwarding(params GetSecurityLogForwardingParams) error

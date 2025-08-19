@@ -532,6 +532,23 @@ type ModifySVMWithQoSPolicyParams struct {
 	QoSPolicyName string // Name of the QoS policy group to apply
 }
 
+// FindQoSGroupPolicyParams is the input struct for Provider.FindQoSGroupPolicy
+// Used to find an existing QoS policy group by name
+type FindQoSGroupPolicyParams struct {
+	Name    string // Name of the QoS policy group to find
+	SvmName string // SVM name to filter by
+}
+
+// UpdateQoSGroupPolicyParams is the input struct for Provider.UpdateQoSGroupPolicy
+// Used to update an existing QoS policy group with new throughput and IOPS values
+type UpdateQoSGroupPolicyParams struct {
+	UUID          string // UUID of the QoS policy group to update
+	Name          string // Name of the QoS policy group
+	SvmName       string // SVM name
+	MaxThroughput int64  // New throughput in MiBps
+	MaxIOPS       int64  // New max IOPS
+}
+
 type SmObjectStoreEndpointSnapshot struct {
 	// Indicates whether or not the snapshot has objects in the archival storage.
 	ArchivedObjects *bool

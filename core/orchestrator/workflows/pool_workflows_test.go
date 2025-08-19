@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -1306,6 +1307,20 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	}, nil)
 	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
+
+	// Mock the new activities for QoS policy modification
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-node-1",
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2},
+			Name:      "test-node-2",
+		},
+	}, nil)
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
@@ -1406,6 +1421,242 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	// Assert the workflow has completed successfully.
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Setup context propagation and header values
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Setup test input data for update workflow.
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
+		TotalThroughputMibps: 128,
+		TotalIops:            2048,
+		QosType:              "Manual",
+		Description:          "Updated pool description",
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-id-foobar-rchilaka",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		// Set additional fields if required.
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		SizeInBytes: 456,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            10,
+			ThroughputMibps: 6,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-auto-tier-bucket",
+		},
+		VLMConfig: "{\"deployment\": {\"vsa_instance_type\": \"foo-bar\"}}",
+	}
+
+	// Register activity mocks.
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       1,
+			VSAInstanceType: "c3-new-instance-type",
+			SPConfig: vlm.SPConfig{
+				IOps:       2048,
+				Throughput: 128,
+				Size:       "1TiB",
+			},
+		},
+	}, nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
+
+	// Mock the new activities for QoS policy modification - but make it fail
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-node-1",
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2},
+			Name:      "test-node-2",
+		},
+	}, nil)
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("QoS policy modification failed"))
+
+	// Mock the rollback activity
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	// Execute the workflow.
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+
+	// Optionally query workflow status.
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert the workflow has failed due to QoS policy modification error.
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	// The error is wrapped in a CustomError, so we need to check the error message more carefully
+	workflowError := env.GetWorkflowError().Error()
+	assert.True(t, strings.Contains(workflowError, "QoS policy modification failed") || strings.Contains(workflowError, "CustomError"),
+		"Expected error to contain 'QoS policy modification failed' or 'CustomError', got: %s", workflowError)
+	env.AssertExpectations(t)
+}
+
+func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Setup context propagation and header values
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Setup test input data for update workflow.
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
+		TotalThroughputMibps: 128,
+		TotalIops:            2048,
+		QosType:              "Manual",
+		Description:          "Updated pool description",
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-id-foobar-rchilaka",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		// Set additional fields if required.
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		SizeInBytes: 456,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            10,
+			ThroughputMibps: 6,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-auto-tier-bucket",
+		},
+		VLMConfig: "{\"deployment\": {\"vsa_instance_type\": \"foo-bar\"}}",
+	}
+
+	// Register activity mocks.
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       1,
+			VSAInstanceType: "c3-new-instance-type",
+			SPConfig: vlm.SPConfig{
+				IOps:       2048,
+				Throughput: 128,
+				Size:       "1TiB",
+			},
+		},
+	}, nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
+
+	// Mock GetNode to fail
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get nodes"))
+
+	// Mock the rollback activity
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	// Execute the workflow.
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+
+	// Optionally query workflow status.
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert the workflow has failed due to GetNode error.
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	// The error is wrapped in a CustomError, so we need to check the error message more carefully
+	workflowError := env.GetWorkflowError().Error()
+	assert.True(t, strings.Contains(workflowError, "failed to get nodes") || strings.Contains(workflowError, "CustomError"),
+		"Expected error to contain 'failed to get nodes' or 'CustomError', got: %s", workflowError)
 	env.AssertExpectations(t)
 }
 
