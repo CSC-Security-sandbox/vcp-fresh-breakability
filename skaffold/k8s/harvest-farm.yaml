@@ -85,6 +85,8 @@ spec:
               value: host.minikube.internal:9090
             - name: CHOKIDAR_USEPOLLING
               value: "true"
+            - name: ENABLE_VOLUME_ONLINE
+              value: "false"
           volumeMounts:
             - mountPath: "/configs/harvest"
               name: harvest-farm-shared

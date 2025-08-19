@@ -43,6 +43,13 @@ spec:
           ports:
           - name: http
             containerPort: {{ $.Values.service.targetPort }}
+          {{- if .Values.extraEnvs }}
+          env:
+            {{- range .Values.extraEnvs }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /health
@@ -75,6 +82,13 @@ spec:
               hostPort: {{ $port.hostPort }}
               {{- end }}
             {{- end }}
+          {{- if .Values.extraEnvs }}
+          env:
+            {{- range .Values.extraEnvs }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /

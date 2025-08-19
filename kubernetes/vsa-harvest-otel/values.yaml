@@ -71,7 +71,9 @@ replicaCount: 2
 
 mode: deployment
 
-extraEnvs: []
+extraEnvs:
+  - name: ENABLE_VOLUME_ONLINE
+    value: "false"
 
 lifecycleHooks: {}
 
