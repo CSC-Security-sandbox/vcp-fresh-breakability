@@ -44,9 +44,8 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 
 	// Set snapshot policy only if the volume is not a data protection volume.
 	if !volume.VolumeAttributes.IsDataProtection {
-		updateVolumeParams.SnapshotPolicyName = SnapshotPolicyNone
-		if volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
-			updateVolumeParams.SnapshotPolicyName = volume.SnapshotPolicy.Name
+		if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" {
+			updateVolumeParams.SnapshotPolicyName = params.SnapshotPolicy.Name
 		}
 	}
 

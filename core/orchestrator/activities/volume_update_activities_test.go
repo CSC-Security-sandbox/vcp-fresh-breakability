@@ -56,6 +56,55 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	node := &models.Node{}
 
 	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
+		UUID: volume.VolumeAttributes.ExternalUUID,
+		Size: params.QuotaInBytes,
+		TieringPolicy: &vsa.TieringPolicy{
+			CoolnessPeriod:            int64(params.AutoTieringPolicy.CoolingThresholdDays),
+			CoolAccessRetrievalPolicy: params.AutoTieringPolicy.RetrievalPolicy,
+			CoolAccessTieringPolicy:   params.AutoTieringPolicy.TieringPolicy,
+		},
+	}).Return(nil)
+
+	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateVolumeInONTAPWithSnapshotPolicy_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "default-snapshot-policy",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 1024,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			AutoTieringEnabled:   true,
+			TieringPolicy:        "auto",
+			RetrievalPolicy:      "default",
+			CoolingThresholdDays: 10,
+		},
+		SnapshotPolicy: &models.SnapshotPolicy{
+			Name: "default-snapshot-policy",
+		},
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
 		UUID:               volume.VolumeAttributes.ExternalUUID,
 		Size:               params.QuotaInBytes,
 		SnapshotPolicyName: "default-snapshot-policy",
@@ -145,9 +194,8 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	expectedErr := errors.New("update failed")
 
 	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
-		UUID:               volume.VolumeAttributes.ExternalUUID,
-		Size:               int64(params.QuotaInBytes),
-		SnapshotPolicyName: SnapshotPolicyNone,
+		UUID: volume.VolumeAttributes.ExternalUUID,
+		Size: int64(params.QuotaInBytes),
 		TieringPolicy: &vsa.TieringPolicy{
 			CoolnessPeriod:            int64(params.AutoTieringPolicy.CoolingThresholdDays),
 			CoolAccessRetrievalPolicy: params.AutoTieringPolicy.RetrievalPolicy,

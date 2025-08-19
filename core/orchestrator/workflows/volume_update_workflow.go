@@ -149,7 +149,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
-			rollbackManager.AddActivity(updateActivity.UpdateSnapshotPolicyInOntap, node, updatingPolicy, &volume.SnapshotPolicy)
+			rollbackManager.AddActivity(updateActivity.UpdateSnapshotPolicyInOntap, node, updatingPolicy, volume.SnapshotPolicy)
 			volume.SnapshotPolicy = updatingPolicy
 		}
 	}
@@ -374,6 +374,12 @@ func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse, existingVolume 
 			CoolingThresholdDays: existingVolume.AutoTieringPolicy.CoolingThresholdDays,
 			TieringPolicy:        existingVolume.AutoTieringPolicy.TieringPolicy,
 			RetrievalPolicy:      existingVolume.AutoTieringPolicy.RetrievalPolicy,
+		}
+	}
+
+	if volResponse.SnapshotPolicyName != "" {
+		params.SnapshotPolicy = &models.SnapshotPolicy{
+			Name: volResponse.SnapshotPolicyName,
 		}
 	}
 
