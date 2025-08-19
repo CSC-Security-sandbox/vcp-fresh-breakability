@@ -52,7 +52,7 @@ spec:
           {{- end }}
           readinessProbe:
             httpGet:
-              path: /health
+              path: /healthz
               port: {{ $.Values.service.targetPort }}
           volumeMounts:
           - mountPath: /configs/harvest
