@@ -18,7 +18,7 @@ horizontalPodAutoscaling:
 images:
   pm2:
     name: vcp-container-images-us/harvest-multi
-    tag: 25.08.04-1
+    tag: 25.08.18-1
     digest: ""
     secondary: false
     primary: true

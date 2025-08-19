@@ -12,7 +12,9 @@ spec:
       app: {{ .Chart.Name }}
   template:
     metadata:
-      annotations: {{ include "harvest.kubernetes.annotations" $ | nindent 8 }}
+      annotations:
+        {{ include "harvest.kubernetes.annotations" $ | nindent 8 }}
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
       labels:
         {{ include "harvest.kubernetes.labels" $ | nindent 8 }}
         app: {{ .Chart.Name }}
@@ -41,6 +43,10 @@ spec:
           ports:
           - name: http
             containerPort: {{ $.Values.service.targetPort }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ $.Values.service.targetPort }}
           volumeMounts:
           - mountPath: /configs/harvest
             name: harvest-data
