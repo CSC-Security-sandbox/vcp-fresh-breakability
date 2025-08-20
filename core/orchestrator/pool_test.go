@@ -716,7 +716,7 @@ func TestValidateCreatePoolParams(t *testing.T) {
 			QosType:      QosTypeAuto,
 		}
 		err := _validateCreatePoolParams(params)
-		assert.EqualError(t, err, "Given pool size not supported. Pool size must be greater than 2TiB and a multiple of 1GiB")
+		assert.EqualError(t, err, "Given pool size not supported. Pool size must be greater than 1TiB and a multiple of 1GiB")
 	})
 	t.Run("ValidateCreatePoolParams_WithInvalidGiBSize_ReturnsError", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
@@ -744,7 +744,7 @@ func TestValidateCreatePoolParams(t *testing.T) {
 			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 0, Iops: 1000},
 		}
 		err := _validateCreatePoolParams(params)
-		assert.EqualError(t, err, "TotalThroughputMibps must be set and must be greater than 64 MiBps for Unified Flex Storage Pool")
+		assert.EqualError(t, err, "TotalThroughputMibps must be between 64 and 5120 MiBps")
 	})
 	t.Run("ValidateCreatePoolParams_WithInvalidIOPSSetWithCustomPerformance", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
@@ -754,7 +754,178 @@ func TestValidateCreatePoolParams(t *testing.T) {
 			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 128, Iops: 100},
 		}
 		err := _validateCreatePoolParams(params)
-		assert.EqualError(t, err, "TotalIops must be greater than 1024 for Unified Flex Storage Pool")
+		assert.EqualError(t, err, "TotalIops must be between 1024 and 160000 IOPS")
+	})
+
+	// Edge cases for throughput validation
+	t.Run("ValidateCreatePoolParams_WithThroughputAtMinimumBoundary", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             2 * 1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("ValidateCreatePoolParams_WithThroughputAtMaximumBoundary", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             2 * 1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 5120, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("ValidateCreatePoolParams_WithThroughputAboveMaximum", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             2 * 1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 5121, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(t, err, "TotalThroughputMibps must be between 64 and 5120 MiBps")
+	})
+
+	// Edge cases for IOPS validation
+	t.Run("ValidateCreatePoolParams_WithIOPSAtMinimumBoundary", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             2 * 1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("ValidateCreatePoolParams_WithIOPSAtMaximumBoundary", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             2 * 1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 160000},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	// Edge cases for pool size validation
+	t.Run("ValidateCreatePoolParams_WithPoolSizeAtNewMinimumBoundary", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1099511627776, // 1 TiB
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("ValidateCreatePoolParams_WithPoolSizeBelowNewMinimum", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1099511627775, // 1 TiB - 1 byte
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(t, err, "Given pool size not supported. Pool size must be greater than 1TiB and a multiple of 1GiB")
+	})
+
+	t.Run("ValidateCreatePoolParams_WithPoolSizeAtNewMaximumBoundary", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             425 * TibInBytes, // 425 TiB (new maximum)
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("ValidateCreatePoolParams_WithPoolSizeAboveNewMaximum", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             426 * TibInBytes, // 426 TiB (above new maximum)
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(t, err, "Given pool size not supported. Pool size must be less than 425TiB")
+	})
+
+	t.Run("ValidateCreatePoolParams_WithNilCustomPerformanceParams", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             2 * 1099511627776,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: nil,
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err) // Should not fail when CustomPerformanceParams is nil
+	})
+
+	// Test edge cases for combination of parameters
+	t.Run("ValidateCreatePoolParams_CombinesNewMinimumSizeAndPerformanceLimits", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes, // New minimum 1 TiB
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024}, // Minimum performance
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("ValidateCreatePoolParams_CombinesNewMaximumSizeAndPerformanceLimits", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             425 * TibInBytes, // New maximum 425 TiB
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 5120, Iops: 160000}, // Maximum performance
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	// Test old minimum size that should now be valid
+	t.Run("ValidateCreatePoolParams_OldMinimum2TiBNowValid", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             2 * TibInBytes, // Old minimum 2 TiB should still work
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
+	})
+
+	// Test fractional values just under boundaries
+	t.Run("ValidateCreatePoolParams_JustUnderMinimumSize", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1*TibInBytes - GibInBytes, // Just under 1 TiB by 1 GiB
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(tt, err, "Given pool size not supported. Pool size must be greater than 1TiB and a multiple of 1GiB")
+	})
+
+	t.Run("ValidateCreatePoolParams_JustOverMaximumSize", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             425*TibInBytes + GibInBytes, // Just over 425 TiB by 1 GiB
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(tt, err, "Given pool size not supported. Pool size must be less than 425TiB")
 	})
 }
 
@@ -820,7 +991,7 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 			TotalThroughputMibps:     float64(minCustomThroughput - 1),
 			TotalIops:                float64(minCustomIops + 100),
 		}
-		expectedErr := fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput)
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput)
 		err := _validateUpdatePoolParams(params, pool)
 		assert.EqualError(tt, err, expectedErr)
 	})
@@ -833,10 +1004,144 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 			TotalThroughputMibps:     float64(minCustomThroughput + 10),
 			TotalIops:                float64(minCustomIops - 1),
 		}
-		expectedErr := fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops)
+		expectedErr := fmt.Sprintf("TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops)
 		err := _validateUpdatePoolParams(params, pool)
 		assert.EqualError(tt, err, expectedErr)
 	})
+
+	// Additional edge cases for update validation
+	t.Run("Returns error when throughput is above maximum", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(maxCustomThroughput + 1),
+			TotalIops:                float64(minCustomIops + 100),
+		}
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput)
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Returns error when iops is above maximum", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(maxCustomIops + 1),
+		}
+		expectedErr := fmt.Sprintf("TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops)
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Succeeds with throughput at maximum boundary", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(maxCustomThroughput),
+			TotalIops:                float64(maxCustomIops),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Succeeds with throughput and IOPS at minimum boundary", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput),
+			TotalIops:                float64(minCustomIops),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Succeeds with IOPS at maximum boundary", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput),
+			TotalIops:                float64(maxCustomIops),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Succeeds with throughput at minimum boundary", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              minQuotaInBytesPool * 2,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput),
+			TotalIops:                float64(minCustomIops),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Validates new pool size limits - at new minimum boundary", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              1 * TibInBytes, // 1 TiB (new minimum)
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput),
+			TotalIops:                float64(minCustomIops),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Validates new pool size limits - at new maximum boundary", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              425 * TibInBytes, // 425 TiB (new maximum)
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput),
+			TotalIops:                float64(minCustomIops),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Returns error when pool size is above new maximum", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              426 * TibInBytes, // 426 TiB (above new maximum)
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput),
+			TotalIops:                float64(minCustomIops),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "Given pool size not supported. Pool size must be less than 425TiB")
+	})
+
+	t.Run("Returns error when pool size is below new minimum", func(tt *testing.T) {
+		pool := &datamodel.Pool{QosType: "Manual"}
+		params := &common.UpdatePoolParams{
+			QosType:                  "Manual",
+			SizeInBytes:              1*TibInBytes - 1, // Below 1 TiB
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput),
+			TotalIops:                float64(minCustomIops),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "Given pool size not supported. Pool size must be greater than 1TiB and a multiple of 1GiB")
+	})
+
 	t.Run("Succeeds with valid update parameters", func(tt *testing.T) {
 		pool := &datamodel.Pool{QosType: "Manual"}
 		// Use a valid size that is a multiple of minSizeGranularity. For this test, we assume that minQuotaInBytesPool*2 is valid.
@@ -941,6 +1246,113 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 		}
 		err := _validateUpdatePoolParams(params, pool)
 		assert.NoError(tt, err)
+	})
+}
+
+// Test the new helper functions
+func TestValidateThroughputRange(t *testing.T) {
+	t.Run("Returns error when throughput is below minimum", func(tt *testing.T) {
+		err := validateThroughputRange(int64(minCustomThroughput - 1))
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Returns error when throughput is above maximum", func(tt *testing.T) {
+		err := validateThroughputRange(int64(maxCustomThroughput + 1))
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Succeeds when throughput is at minimum", func(tt *testing.T) {
+		err := validateThroughputRange(int64(minCustomThroughput))
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Succeeds when throughput is at maximum", func(tt *testing.T) {
+		err := validateThroughputRange(int64(maxCustomThroughput))
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Succeeds when throughput is in valid range", func(tt *testing.T) {
+		err := validateThroughputRange(int64(minCustomThroughput + 100))
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Handles zero throughput", func(tt *testing.T) {
+		err := validateThroughputRange(0)
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Handles very large throughput values", func(tt *testing.T) {
+		err := validateThroughputRange(999999)
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Handles boundary case - one above maximum", func(tt *testing.T) {
+		err := validateThroughputRange(int64(maxCustomThroughput + 1))
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Handles boundary case - one below minimum", func(tt *testing.T) {
+		err := validateThroughputRange(int64(minCustomThroughput - 1))
+		expectedErr := fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput)
+		assert.EqualError(tt, err, expectedErr)
+	})
+}
+
+func TestValidateIopsRange(t *testing.T) {
+	t.Run("Returns error when IOPS is below minimum", func(tt *testing.T) {
+		err := validateIopsRange(int64(minCustomIops - 1))
+		expectedErr := fmt.Sprintf("TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Returns error when IOPS is above maximum", func(tt *testing.T) {
+		err := validateIopsRange(int64(maxCustomIops + 1))
+		expectedErr := fmt.Sprintf("TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Succeeds when IOPS is at minimum", func(tt *testing.T) {
+		err := validateIopsRange(int64(minCustomIops))
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Succeeds when IOPS is at maximum", func(tt *testing.T) {
+		err := validateIopsRange(int64(maxCustomIops))
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Succeeds when IOPS is in valid range", func(tt *testing.T) {
+		err := validateIopsRange(int64(minCustomIops + 1000))
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Handles zero IOPS", func(tt *testing.T) {
+		err := validateIopsRange(0)
+		expectedErr := fmt.Sprintf("TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Handles very large IOPS values", func(tt *testing.T) {
+		err := validateIopsRange(999999)
+		expectedErr := fmt.Sprintf("TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Handles boundary case - one above maximum", func(tt *testing.T) {
+		err := validateIopsRange(int64(maxCustomIops + 1))
+		expectedErr := fmt.Sprintf("TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops)
+		assert.EqualError(tt, err, expectedErr)
+	})
+
+	t.Run("Handles boundary case - one below minimum", func(tt *testing.T) {
+		err := validateIopsRange(int64(minCustomIops - 1))
+		expectedErr := fmt.Sprintf("TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops)
+		assert.EqualError(tt, err, expectedErr)
 	})
 }
 
@@ -2275,4 +2687,163 @@ func TestDeletePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 
 	// Verify UpdatePoolState was called (even though it failed)
 	mockStorage.AssertCalled(t, "UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything)
+}
+
+// Pool Size Validation Tests
+func TestPoolSizeValidation(t *testing.T) {
+	t.Run("MinimumValidSize", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes, // Exactly 1 TiB (minimum)
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Minimum valid size (1 TiB) should pass validation")
+	})
+
+	t.Run("BelowMinimumSize", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1*TibInBytes - 1, // Just below 1 TiB
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Given pool size not supported. Pool size must be greater than 1TiB and a multiple of 1GiB")
+	})
+
+	t.Run("MaximumValidSize", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             425 * TibInBytes, // Exactly 425 TiB (maximum)
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Maximum valid size (425 TiB) should pass validation")
+	})
+
+	t.Run("AboveMaximumSize", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             425*TibInBytes + 1, // Just above 425 TiB
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Given pool size not supported. Pool size must be less than 425TiB")
+	})
+
+	t.Run("InvalidGranularity", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1*TibInBytes + 512*1024*1024, // 1 TiB + 512 MiB (not aligned to 1 GiB)
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 1024},
+		}
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Given pool size must be a multiple of 1GiB")
+	})
+}
+
+// Throughput Validation Tests
+func TestThroughputValidation(t *testing.T) {
+	t.Run("MinimumValidThroughput", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 1024}, // Exactly 64 MiBps
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Minimum valid throughput (64 MiBps) should pass validation")
+	})
+
+	t.Run("BelowMinimumThroughput", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 63, Iops: 1024}, // Just below 64 MiBps
+		}
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "TotalThroughputMibps must be between 64 and 5120 MiBps")
+	})
+
+	t.Run("MaximumValidThroughput", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 5120, Iops: 1024}, // Exactly 5120 MiBps
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Maximum valid throughput (5120 MiBps) should pass validation")
+	})
+
+	t.Run("AboveMaximumThroughput", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 5121, Iops: 1024}, // Just above 5120 MiBps
+		}
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "TotalThroughputMibps must be between 64 and 5120 MiBps")
+	})
+}
+
+// IOPS Validation Tests
+func TestIOPSValidation(t *testing.T) {
+	t.Run("MinimumValidIOPS", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 1024}, // Exactly 1024 IOPS
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Minimum valid IOPS (1024) should pass validation")
+	})
+
+	t.Run("BelowMinimumIOPS", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 1023}, // Just below 1024 IOPS
+		}
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "TotalIops must be between 1024 and 160000 IOPS")
+	})
+
+	t.Run("MaximumValidIOPS", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 160000}, // Exactly 160000 IOPS
+		}
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Maximum valid IOPS (160000) should pass validation")
+	})
+
+	t.Run("AboveMaximumIOPS", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:             1 * TibInBytes,
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: 160001}, // Just above 160000 IOPS
+		}
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "TotalIops must be between 1024 and 160000 IOPS")
+	})
 }

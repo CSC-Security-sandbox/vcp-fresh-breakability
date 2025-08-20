@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -26,15 +27,43 @@ import (
 
 var (
 	regionalPoolEnabled = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
+	minCustomThroughput = utils.MinCustomThroughput
+	maxCustomThroughput = utils.MaxCustomThroughput
+	minCustomIops       = utils.MinCustomIops
+	maxCustomIops       = utils.MaxCustomIops
+	iopsPerMiBps        = utils.IopsPerMiBps
 )
 
 const (
 	HTTP_BAD_REQUEST_CODE     = 400
-	DEFAULT_IOPS              = 1024
 	maxRuneCount              = 63
 	maxByteCount              = 128
 	MinPoolHotTierSizeInBytes = 1099511627776 // 1 TiB
 )
+
+// Helper functions for performance parameter calculation
+func calculateIopsFromThroughput(throughputMibps int64) int64 {
+	calculatedIops := throughputMibps * int64(iopsPerMiBps)
+	return int64(math.Min(float64(calculatedIops), float64(maxCustomIops)))
+}
+
+func resolvePerformanceParams(reqThroughput gcpgenserver.OptNilFloat64, reqIops gcpgenserver.OptNilFloat64) (throughput int64, iops int64) {
+	// Set default throughput if not provided
+	if reqThroughput.IsSet() {
+		throughput = int64(reqThroughput.Value)
+	} else {
+		throughput = int64(minCustomThroughput)
+	}
+
+	// Set IOPS based on throughput if not provided, otherwise use provided value
+	if reqIops.IsSet() {
+		iops = int64(reqIops.Value)
+	} else {
+		iops = calculateIopsFromThroughput(throughput)
+	}
+
+	return throughput, iops
+}
 
 // V1betaDescribePool handles the request to describe a pool.
 func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1betaDescribePoolParams) (gcpgenserver.V1betaDescribePoolRes, error) {
@@ -122,12 +151,8 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		secondaryZone = req.SecondaryZone.Value
 	}
 
-	totalIops := 0
-	if !req.TotalIops.IsSet() {
-		totalIops = DEFAULT_IOPS // Default to 1024 IOPS if not provided
-	} else {
-		totalIops = int(req.TotalIops.Value)
-	}
+	// Resolve performance parameters with defaults and auto-calculation
+	totalThroughput, totalIops := resolvePerformanceParams(req.TotalThroughputMibps, req.TotalIops)
 
 	hotTierSizeInBytes := uint64(req.SizeInBytes)
 	if req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value {
@@ -150,7 +175,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		AllowAutoTiering:        req.AllowAutoTiering.Value,
 		HotTierSizeInBytes:      hotTierSizeInBytes,
 		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
-		CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: int64(req.TotalThroughputMibps.Value), Enabled: req.CustomPerformanceEnabled.Value, Iops: int64(totalIops)},
+		CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: totalThroughput, Enabled: req.CustomPerformanceEnabled.Value, Iops: totalIops},
 		KmsConfigId:             req.KmsConfigId.Value,
 		KmsConfigResourceID:     req.KmsConfigResourceId.Value,
 	}
@@ -507,6 +532,7 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 	} else {
 		param.TotalThroughputMibps = existingPool.CustomPerformanceParams.Throughput
 	}
+
 	if req.Labels.IsSet() {
 		jsonbLabels, err := validateLabels(req.Labels.Value)
 		if err != nil {
@@ -518,9 +544,14 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		param.Labels = jsonbLabels
 	}
 
+	// Handle IOPS calculation: if IOPS not provided but throughput is provided, calculate IOPS
 	if req.TotalIops.IsSet() {
 		param.TotalIops = req.TotalIops.Value
+	} else if req.TotalThroughputMibps.IsSet() {
+		// Auto-calculate IOPS from throughput if IOPS not provided
+		param.TotalIops = float64(calculateIopsFromThroughput(int64(req.TotalThroughputMibps.Value)))
 	} else {
+		// Use existing IOPS if neither is provided
 		param.TotalIops = float64(existingPool.CustomPerformanceParams.Iops)
 	}
 
@@ -811,6 +842,12 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 			}
 		}
 	}
+
+	err := validateThroughputAndIops(req.TotalThroughputMibps, req.TotalIops)
+	if err != nil {
+		return err
+	}
+
 	// Validate auto-tiering parameters
 	if !autoTieringEnabled && ((req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value) || (req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0)) {
 		return &gcpgenserver.Error{
@@ -915,6 +952,34 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
+	err := validateThroughputAndIops(req.TotalThroughputMibps, req.TotalIops)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateThroughputAndIops(throughput gcpgenserver.OptNilFloat64, iops gcpgenserver.OptNilFloat64) *gcpgenserver.Error {
+	idealMinIops := minCustomIops
+	if throughput.IsSet() {
+		if throughput.Value < float64(minCustomThroughput) || throughput.Value > float64(maxCustomThroughput) {
+			return &gcpgenserver.Error{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput),
+			}
+		}
+		idealMinIops = uint64(calculateIopsFromThroughput(int64(throughput.Value)))
+	}
+
+	if iops.IsSet() {
+		if iops.Value < float64(idealMinIops) || iops.Value > float64(maxCustomIops) {
+			return &gcpgenserver.Error{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: fmt.Sprintf("TotalIops must be between %d and %d IOPS", idealMinIops, maxCustomIops),
+			}
+		}
+	}
 	return nil
 }
 

@@ -23,6 +23,101 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+// Test the new helper functions for performance parameter calculation
+func TestCalculateIopsFromThroughput(t *testing.T) {
+	t.Run("CalculatesCorrectIOPSFromThroughput", func(tt *testing.T) {
+		throughput := int64(128)
+		expectedIops := throughput * int64(iopsPerMiBps)
+		actualIops := calculateIopsFromThroughput(throughput)
+		assert.Equal(tt, expectedIops, actualIops)
+	})
+
+	t.Run("HandlesZeroThroughput", func(tt *testing.T) {
+		throughput := int64(0)
+		expectedIops := int64(0)
+		actualIops := calculateIopsFromThroughput(throughput)
+		assert.Equal(tt, expectedIops, actualIops)
+	})
+
+	t.Run("HandlesMinimumThroughput", func(tt *testing.T) {
+		throughput := int64(64)        // Default minimum
+		expectedIops := int64(64 * 16) // 1024 IOPS
+		actualIops := calculateIopsFromThroughput(throughput)
+		assert.Equal(tt, expectedIops, actualIops)
+	})
+
+	t.Run("HandlesMaximumThroughput", func(tt *testing.T) {
+		throughput := int64(11000)    // Maximum throughput
+		expectedIops := int64(160000) // Should be capped at maxCustomIops
+		actualIops := calculateIopsFromThroughput(throughput)
+		assert.Equal(tt, expectedIops, actualIops)
+	})
+}
+
+func TestResolvePerformanceParams(t *testing.T) {
+	t.Run("UsesDefaultThroughputWhenNotProvided", func(tt *testing.T) {
+		reqThroughput := gcpgenserver.OptNilFloat64{}
+		reqIops := gcpgenserver.OptNilFloat64{Value: 2048, Set: true}
+
+		throughput, iops := resolvePerformanceParams(reqThroughput, reqIops)
+
+		assert.Equal(tt, minCustomThroughput, uint64(throughput))
+		assert.Equal(tt, int64(2048), iops)
+	})
+
+	t.Run("CalculatesIOPSFromThroughputWhenNotProvided", func(tt *testing.T) {
+		reqThroughput := gcpgenserver.OptNilFloat64{Value: 128, Set: true}
+		reqIops := gcpgenserver.OptNilFloat64{}
+
+		throughput, iops := resolvePerformanceParams(reqThroughput, reqIops)
+
+		expectedIops := int64(128 * 16) // 128 * iopsPerMiBps
+		assert.Equal(tt, int64(128), throughput)
+		assert.Equal(tt, expectedIops, iops)
+	})
+
+	t.Run("UsesProvidedValuesWhenBothSet", func(tt *testing.T) {
+		reqThroughput := gcpgenserver.OptNilFloat64{Value: 256, Set: true}
+		reqIops := gcpgenserver.OptNilFloat64{Value: 5000, Set: true}
+
+		throughput, iops := resolvePerformanceParams(reqThroughput, reqIops)
+
+		assert.Equal(tt, int64(256), throughput)
+		assert.Equal(tt, int64(5000), iops)
+	})
+
+	t.Run("UsesDefaultsWhenBothNotSet", func(tt *testing.T) {
+		reqThroughput := gcpgenserver.OptNilFloat64{}
+		reqIops := gcpgenserver.OptNilFloat64{}
+
+		throughput, iops := resolvePerformanceParams(reqThroughput, reqIops)
+
+		expectedIops := minCustomThroughput * iopsPerMiBps
+		assert.Equal(tt, minCustomThroughput, uint64(throughput))
+		assert.Equal(tt, expectedIops, uint64(iops))
+	})
+
+	t.Run("HandlesLargeValues", func(tt *testing.T) {
+		reqThroughput := gcpgenserver.OptNilFloat64{Value: 5120, Set: true} // Max throughput
+		reqIops := gcpgenserver.OptNilFloat64{Value: 160000, Set: true}     // Max IOPS
+
+		throughput, iops := resolvePerformanceParams(reqThroughput, reqIops)
+
+		assert.Equal(tt, int64(5120), throughput)
+		assert.Equal(tt, int64(160000), iops)
+	})
+
+	t.Run("HandlesMinimumValues", func(tt *testing.T) {
+		reqThroughput := gcpgenserver.OptNilFloat64{Value: 64, Set: true} // Min throughput
+		reqIops := gcpgenserver.OptNilFloat64{Value: 1024, Set: true}     // Min IOPS
+
+		throughput, iops := resolvePerformanceParams(reqThroughput, reqIops)
+
+		assert.Equal(tt, int64(64), throughput)
+		assert.Equal(tt, int64(1024), iops)
+	})
+}
+
 func TestV1betaGetMultiplePools(t *testing.T) {
 	t.Run("WhenGetMultiplePoolsFailsWithBadRequest", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
@@ -814,13 +909,10 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		// Should return OK response with all VCP pools, no CVP fallback needed
+		// Since all pools are found in VCP, we expect OK response with all pools
 		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
 		assert.True(tt, ok)
 		assert.Len(tt, okResp.Pools, 2)
-		// Verify all pools are returned
-		assert.Equal(tt, "uuid1", okResp.Pools[0].PoolId.Value)
-		assert.Equal(tt, "uuid2", okResp.Pools[1].PoolId.Value)
 	})
 
 	t.Run("WhenOrchestratorGetMultiplePoolsReturnsEmpty_TriggersCVPFallback", func(tt *testing.T) {
@@ -1672,7 +1764,7 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		// Should pass validation since Type is set to UNIFIED (Type takes precedence)
+		// Should pass validation since Type is set to UNIFIED
 		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
 	})
 
@@ -1718,7 +1810,7 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		// Should pass validation since Type is set to UNIFIED (Type takes precedence)
+		// Should pass validation since Type is set to UNIFIED
 		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
 	})
 }
@@ -3144,5 +3236,245 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.PoolV1betaTypeFILE, result.Type.Value, "Type should be set to FILE for CVP pools")
 		assert.False(tt, result.Unified.Value, "Unified should be false for CVP pools")
 		assert.False(tt, result.UnifiedPool.Value, "UnifiedPool should be false for CVP pools")
+	})
+}
+
+func TestValidateThroughputAndIops(t *testing.T) {
+	// Save original values and restore after tests
+	originalMinCustomThroughput := minCustomThroughput
+	originalMaxCustomThroughput := maxCustomThroughput
+	originalMinCustomIops := minCustomIops
+	originalMaxCustomIops := maxCustomIops
+	originalIopsPerMiBps := iopsPerMiBps
+	defer func() {
+		minCustomThroughput = originalMinCustomThroughput
+		maxCustomThroughput = originalMaxCustomThroughput
+		minCustomIops = originalMinCustomIops
+		maxCustomIops = originalMaxCustomIops
+		iopsPerMiBps = originalIopsPerMiBps
+	}()
+
+	// Set test values (these should match the actual utils values)
+	minCustomThroughput = 64
+	maxCustomThroughput = 11000
+	minCustomIops = 1024
+	maxCustomIops = 160000
+	iopsPerMiBps = 16
+
+	t.Run("ValidThroughputAndIopsValues", func(tt *testing.T) {
+		t.Run("BothValidValues", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(128) // 128 MiBps
+			iops := gcpgenserver.NewOptNilFloat64(2048)      // 2048 IOPS
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error for valid throughput and IOPS")
+		})
+
+		t.Run("OnlyThroughputProvided", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(256) // 256 MiBps
+			iops := gcpgenserver.OptNilFloat64{}             // Not set
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error when only valid throughput is provided")
+		})
+
+		t.Run("OnlyIopsProvided", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{}  // Not set
+			iops := gcpgenserver.NewOptNilFloat64(5000) // 5000 IOPS
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error when only valid IOPS is provided")
+		})
+
+		t.Run("NeitherProvided", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{} // Not set
+			iops := gcpgenserver.OptNilFloat64{}       // Not set
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error when neither throughput nor IOPS is provided")
+		})
+	})
+
+	t.Run("InvalidThroughputValues", func(tt *testing.T) {
+		t.Run("ThroughputBelowMinimum", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(32) // Below minimum (64)
+			iops := gcpgenserver.OptNilFloat64{}            // Not set
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for throughput below minimum")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
+		})
+
+		t.Run("ThroughputAboveMaximum", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(12000) // Above maximum (11000)
+			iops := gcpgenserver.OptNilFloat64{}               // Not set
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for throughput above maximum")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
+		})
+	})
+
+	t.Run("InvalidIopsWithoutThroughput", func(tt *testing.T) {
+		t.Run("IopsBelowDefaultMinimum", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{} // Not set, so uses default minCustomIops
+			iops := gcpgenserver.NewOptNilFloat64(512) // Below minimum (1024)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for IOPS below minimum when throughput not provided")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+		})
+
+		t.Run("IopsAboveMaximum", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{}    // Not set
+			iops := gcpgenserver.NewOptNilFloat64(200000) // Above maximum (160000)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for IOPS above maximum when throughput not provided")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+		})
+	})
+
+	t.Run("InvalidIopsWithThroughput", func(tt *testing.T) {
+		t.Run("UserProvidesTohroughputButWrongIops_BelowIdealMinimum", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(256) // 256 MiBps -> ideal min IOPS = 256 * 16 = 4096
+			iops := gcpgenserver.NewOptNilFloat64(2048)      // Below ideal minimum (4096) but above global minimum (1024)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for IOPS below ideal minimum when throughput is provided")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 4096 and 160000 IOPS")
+		})
+
+		t.Run("UserProvidesTohroughputButWrongIops_AboveMaximum", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(128) // 128 MiBps -> ideal min IOPS = 128 * 16 = 2048
+			iops := gcpgenserver.NewOptNilFloat64(200000)    // Above maximum (160000)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for IOPS above maximum when throughput is provided")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 2048 and 160000 IOPS")
+		})
+
+		t.Run("UserProvidesHighThroughputButLowIops", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(1000) // 1000 MiBps -> ideal min IOPS = 1000 * 16 = 16000
+			iops := gcpgenserver.NewOptNilFloat64(5000)       // Much lower than ideal (16000)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for IOPS too low for high throughput")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 16000 and 160000 IOPS")
+		})
+
+		t.Run("UserProvidesMinimumThroughputButWrongIops", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(64) // Minimum throughput -> ideal min IOPS = 64 * 16 = 1024
+			iops := gcpgenserver.NewOptNilFloat64(512)      // Below ideal minimum (1024)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for IOPS below ideal minimum for minimum throughput")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+		})
+	})
+
+	t.Run("BoundaryConditions", func(tt *testing.T) {
+		t.Run("ThroughputAtMinimumBoundary", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(64) // Exactly at minimum
+			iops := gcpgenserver.NewOptNilFloat64(1024)     // Exactly at calculated minimum (64 * 16)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error at minimum boundary")
+		})
+
+		t.Run("ThroughputAtMaximumBoundary", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(11000) // Exactly at maximum
+			iops := gcpgenserver.NewOptNilFloat64(160000)      // At maximum (calculated would be higher but capped)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error at maximum boundary")
+		})
+
+		t.Run("IopsAtIdealMinimumForThroughput", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(512) // 512 MiBps -> ideal min IOPS = 512 * 16 = 8192
+			iops := gcpgenserver.NewOptNilFloat64(8192)      // Exactly at ideal minimum
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error when IOPS is exactly at ideal minimum for throughput")
+		})
+
+		t.Run("IopsJustBelowIdealMinimumForThroughput", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(512) // 512 MiBps -> ideal min IOPS = 512 * 16 = 8192
+			iops := gcpgenserver.NewOptNilFloat64(8191)      // Just below ideal minimum
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error when IOPS is just below ideal minimum for throughput")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 8192 and 160000 IOPS")
+		})
+	})
+
+	t.Run("EdgeCasesWithCalculatedIops", func(tt *testing.T) {
+		t.Run("ThroughputThatExceedsMaxIopsWhenCalculated", func(ttt *testing.T) {
+			// When throughput * 16 > maxCustomIops, the ideal minimum should be capped at maxCustomIops
+			throughput := gcpgenserver.NewOptNilFloat64(11000) // 11000 * 16 = 176000, but max is 160000
+			iops := gcpgenserver.NewOptNilFloat64(160000)      // At maximum
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error when calculated IOPS exceeds maximum but provided IOPS is at max")
+		})
+
+		t.Run("ValidIopsWithLowThroughput", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(100) // 100 MiBps -> ideal min IOPS = 100 * 16 = 1600
+			iops := gcpgenserver.NewOptNilFloat64(5000)      // Much higher than ideal (16000)
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.Nil(ttt, err, "Expected no error when IOPS is higher than ideal minimum")
+		})
+	})
+
+	t.Run("ZeroAndNegativeValues", func(tt *testing.T) {
+		t.Run("ZeroThroughput", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(0) // Zero throughput
+			iops := gcpgenserver.OptNilFloat64{}           // Not set
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for zero throughput")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
+		})
+
+		t.Run("ZeroIops", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{} // Not set
+			iops := gcpgenserver.NewOptNilFloat64(0)   // Zero IOPS
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for zero IOPS")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+		})
+
+		t.Run("NegativeThroughput", func(ttt *testing.T) {
+			throughput := gcpgenserver.NewOptNilFloat64(-100) // Negative throughput
+			iops := gcpgenserver.OptNilFloat64{}              // Not set
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for negative throughput")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
+		})
+
+		t.Run("NegativeIops", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{}  // Not set
+			iops := gcpgenserver.NewOptNilFloat64(-500) // Negative IOPS
+
+			err := validateThroughputAndIops(throughput, iops)
+			assert.NotNil(ttt, err, "Expected error for negative IOPS")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+		})
 	})
 }

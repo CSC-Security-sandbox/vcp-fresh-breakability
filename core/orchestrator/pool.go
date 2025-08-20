@@ -25,11 +25,18 @@ import (
 )
 
 var (
-	minQuotaInBytesPool      = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 2*TibInBytes)   // 2TiB
-	maxQuotaInBytesPool      = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 500*TibInBytes) // 500TiB
-	minCustomThroughput      = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)               // 64 MiBps
-	minCustomIops            = env.GetUint64("MIN_CUSTOM_IOPS", 1024)
-	minSizeGranularity       = env.GetUint64("MIN_SIZE_GRANULARITY", GibInBytes) // 1 GiB
+	// Pool size limits
+	minQuotaInBytesPool = utils.MinQuotaInBytesPool
+	maxQuotaInBytesPool = utils.MaxQuotaInBytesPool
+	minSizeGranularity  = utils.MinSizeGranularity
+
+	// Performance limits
+	minCustomThroughput = utils.MinCustomThroughput
+	maxCustomThroughput = utils.MaxCustomThroughput
+	minCustomIops       = utils.MinCustomIops
+	maxCustomIops       = utils.MaxCustomIops
+
+	// Function variables
 	createPool               = _createPool
 	updatePool               = _updatePool
 	ValidateCreatePoolParams = _validateCreatePoolParams
@@ -45,6 +52,23 @@ const (
 	GibInBytes           = 1073741824
 	TibInBytes           = 1099511627776
 )
+
+// Helper functions for performance parameters calculation and validation
+func validateThroughputRange(throughput int64) error {
+	if t := uint64(throughput); t < minCustomThroughput || t > maxCustomThroughput {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
+			"TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput))
+	}
+	return nil
+}
+
+func validateIopsRange(iops int64) error {
+	if t := uint64(iops); t < minCustomIops || t > maxCustomIops {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
+			"TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops))
+	}
+	return nil
+}
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
 func (o *Orchestrator) CreatePool(ctx context.Context, params *commonparams.CreatePoolParams) (*models.Pool, string, error) {
@@ -310,12 +334,16 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 	}
 
 	// CustomPerformanceParams is always set in endpoints layer
-	if minCustomThroughput > uint64(params.CustomPerformanceParams.ThroughputMibps) {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput))
-	}
+	if params.CustomPerformanceParams != nil {
+		// Validate throughput range
+		if err := validateThroughputRange(params.CustomPerformanceParams.ThroughputMibps); err != nil {
+			return err
+		}
 
-	if minCustomIops > uint64(params.CustomPerformanceParams.Iops) {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
+		// Validate IOPS range
+		if err := validateIopsRange(params.CustomPerformanceParams.Iops); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -351,12 +379,14 @@ func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *data
 		return customerrors.NewUserInputValidationErr("Auto tiering disable operation is not supported")
 	}
 
-	if minCustomThroughput > uint64(params.TotalThroughputMibps) {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput))
+	// Validate throughput range
+	if err := validateThroughputRange(int64(params.TotalThroughputMibps)); err != nil {
+		return err
 	}
 
-	if minCustomIops > uint64(params.TotalIops) {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
+	// Validate IOPS range
+	if err := validateIopsRange(int64(params.TotalIops)); err != nil {
+		return err
 	}
 
 	return nil

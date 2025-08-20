@@ -3281,7 +3281,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.EqualError(tt, err, "Invalid volume capacity 99. Must be between 100 GiB and 102400 GiB.")
+		assert.EqualError(tt, err, "Invalid volume capacity 0. Must be between 1 GiB and 131072 GiB.")
 	})
 	t.Run("WhenVolumeSizeExceedsPoolSize", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -9074,4 +9074,183 @@ func TestRevertVolume(t *testing.T) {
 		assert.Empty(tt, jobUUID)
 		assert.Contains(tt, err.Error(), "workflow execution failed")
 	})
+}
+
+// Helper function to set up common test infrastructure
+func setupVolumeValidationTest(t *testing.T, poolSizeInTiB int64) (context.Context, database.Storage, *datamodel.Account, *datamodel.Pool) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	assert.NoError(t, err)
+
+	// Clean up database after test
+	t.Cleanup(func() {
+		_ = database.ClearInMemoryDB(store.DB())
+	})
+
+	// Create account
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	assert.NoError(t, err)
+
+	// Create pool
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: poolSizeInTiB * TibInBytes,
+	}
+	err = store.DB().Create(pool).Error
+	assert.NoError(t, err)
+
+	return ctx, store, account, pool
+}
+
+// Helper function to set up nodes and LIFs (for tests that need complex validation)
+func setupNodesAndLIFs(t *testing.T, store database.Storage, account *datamodel.Account, pool *datamodel.Pool) {
+	// Create SVM
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+		Name:      "test_svm",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		Pool:      pool,
+		State:     models.LifeCycleStateREADY,
+	}
+	err := store.DB().Create(svm).Error
+	assert.NoError(t, err)
+
+	// Create 2 nodes as required by the validation
+	node1 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid1"},
+		Name:            "test_node1",
+		AccountID:       account.ID,
+		EndpointAddress: "11.11.11.11",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node1).Error
+	assert.NoError(t, err, "Failed to create node")
+
+	node2 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid2"},
+		Name:            "test_node2",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node2).Error
+	assert.NoError(t, err, "Failed to create node")
+
+	// Create LIFs for the nodes
+	lif1 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid1"},
+		Name:      "test_lif1",
+		NodeID:    node1.ID,
+		AccountID: account.ID,
+	}
+	err = store.DB().Create(lif1).Error
+	assert.NoError(t, err, "Failed to create lif")
+
+	lif2 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid2"},
+		Name:      "test_lif2",
+		NodeID:    node2.ID,
+		AccountID: account.ID,
+	}
+	err = store.DB().Create(lif2).Error
+	assert.NoError(t, err, "Failed to create lif")
+}
+
+// Comprehensive edge case tests for volume validation
+func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
+	testCases := []struct {
+		name              string
+		poolSizeInTiB     int64
+		quotaInBytes      uint64
+		needsComplexSetup bool
+		blockDevices      *[]common.BlockDevice
+		expectedError     string
+	}{
+		{
+			name:              "WhenVolumeCapacityAtNewMinimumBoundary",
+			poolSizeInTiB:     10,
+			quotaInBytes:      uint64(1 * GibInBytes), // 1 GiB - new minimum
+			needsComplexSetup: true,
+			blockDevices: &[]common.BlockDevice{
+				{OSType: "linux"},
+			},
+			expectedError: "",
+		},
+		{
+			name:              "WhenVolumeCapacityAtNewMaximumBoundary",
+			poolSizeInTiB:     200,
+			quotaInBytes:      uint64(131072 * GibInBytes), // 128 TiB - new maximum (131072 GiB)
+			needsComplexSetup: true,
+			blockDevices: &[]common.BlockDevice{
+				{OSType: "linux"},
+			},
+			expectedError: "",
+		},
+		{
+			name:              "WhenVolumeCapacityExceedsNewMaximum",
+			poolSizeInTiB:     200,
+			quotaInBytes:      uint64(131073 * GibInBytes), // 131073 GiB - exceeds new maximum
+			needsComplexSetup: false,
+			blockDevices:      nil,
+			expectedError:     "Invalid volume capacity 131073. Must be between 1 GiB and 131072 GiB.",
+		},
+		{
+			name:              "WhenVolumeCapacityBelowNewMinimum",
+			poolSizeInTiB:     10,
+			quotaInBytes:      uint64(GibInBytes - 1), // Just below 1 GiB
+			needsComplexSetup: false,
+			blockDevices:      nil,
+			expectedError:     "Invalid volume capacity 0. Must be between 1 GiB and 131072 GiB.",
+		},
+		{
+			name:              "WhenZeroVolumeCapacity",
+			poolSizeInTiB:     10,
+			quotaInBytes:      0, // Zero capacity
+			needsComplexSetup: false,
+			blockDevices:      nil,
+			expectedError:     "Invalid volume capacity 0. Must be between 1 GiB and 131072 GiB.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			ctx, store, account, pool := setupVolumeValidationTest(tt, tc.poolSizeInTiB)
+
+			// Set up nodes and LIFs if needed for complex validation
+			if tc.needsComplexSetup {
+				setupNodesAndLIFs(tt, store, account, pool)
+			}
+
+			poolView := &datamodel.PoolView{
+				Pool: *pool,
+			}
+
+			params := &common.CreateVolumeParams{
+				Name:         "test-volume",
+				PoolID:       pool.UUID,
+				QuotaInBytes: tc.quotaInBytes,
+				Protocols:    []string{"ISCSI"},
+				BlockDevices: tc.blockDevices,
+			}
+
+			err := validateCreateVolumeParams(ctx, store, params, poolView)
+
+			if tc.expectedError == "" {
+				assert.NoError(tt, err)
+			} else {
+				assert.EqualError(tt, err, tc.expectedError)
+			}
+		})
+	}
 }

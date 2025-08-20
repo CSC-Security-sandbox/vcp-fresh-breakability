@@ -37,6 +37,16 @@ import (
 var (
 	localRegion                    = env.GetString("LOCAL_REGION", "local")
 	PairedRegions                  = env.GetString("VCP_PAIRED_REGIONS", "")
+	MinQuotaInBytesPool            = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1*TiBInBytes)      // 1 TiB
+	MaxQuotaInBytesPool            = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 425*TiBInBytes)    // 425 TiB
+	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 1073741824)      // 1 GiB
+	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 140737488355328) // 128 TiB
+	MinSizeGranularity             = env.GetUint64("MIN_SIZE_GRANULARITY", 1*GiBInBytes)         // 1 GiB
+	MinCustomThroughput            = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                  // 64 MiBps
+	MaxCustomThroughput            = env.GetUint64("MAX_CUSTOM_THROUGHPUT", 5120)                // 5120 MiBps
+	MinCustomIops                  = env.GetUint64("MIN_CUSTOM_IOPS", 1024)                      // 1024 IOPS
+	MaxCustomIops                  = env.GetUint64("MAX_CUSTOM_IOPS", 160000)                    // 160000 IOPS
+	IopsPerMiBps                   = env.GetUint64("IOPS_PER_MIBPS", 16)                         // 16 IOPS per MiBps (for auto-calculation)
 	ParseRegionAndZone             = _parseRegionAndZone
 	ParseAndValidateRegionAndZone  = _parseAndValidateRegionAndZone
 	GetPairedRegionURI             = _getPairedRegionURI
@@ -55,8 +65,6 @@ var (
 	ReplicationUriRegex            = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
 	GetLocation                    = _getLocation
 	GenerateStrongPassword         = _generateStrongPassword
-	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 107374182400)    // 100 GiB
-	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 109951162777605) // 102,400 GiB
 	ParsePEMCertificate            = _parsePEMCertificate
 	// fileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
 	fileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
@@ -70,6 +78,8 @@ const (
 	uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	digits           = "0123456789"
 	specialChars     = "!@#$%^&*()-_=+[]{}|;:,.<>?/`~"
+	GiBInBytes       = 1073741824
+	TiBInBytes       = 1099511627776
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
