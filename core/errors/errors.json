@@ -120,7 +120,7 @@
     "http_code": 500
   },
   "2004": {
-    "description": "Error when updating data in the database",
+    "description": "Error while reading the data from the database",
     "message": "An internal error occurred.",
     "retriable": false,
     "http_code": 500
@@ -152,6 +152,12 @@
   "2101": {
     "description": "Account not found in the database",
     "message": "Account not found",
+    "retriable": false,
+    "http_code": 404
+  },
+  "2102": {
+    "description": "Pool not found in the database",
+    "message": "Pool not found",
     "retriable": false,
     "http_code": 404
   },

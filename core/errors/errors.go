@@ -47,6 +47,7 @@ const (
 	ErrDatabaseDataNotFoundError = 2007
 	ErrVolumeNotFound            = 2100
 	ErrAccountNotFound           = 2101
+	ErrPoolNotFound              = 2102
 
 	ErrGCPClientInitializationError               = 3001
 	ErrPSAPeeringNotFoundError                    = 3002

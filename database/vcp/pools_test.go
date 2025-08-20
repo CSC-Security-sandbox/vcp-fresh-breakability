@@ -1582,7 +1582,7 @@ func TestUpdatePoolState(t *testing.T) {
 		result, errDB := store.UpdatePoolState(context.Background(), pool3, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
 		assert.Nil(tt, result)
 		assert.Error(tt, errDB)
-		assert.EqualError(tt, errDB, "An internal error occurred.")
+		assert.EqualError(tt, errDB, "Pool not found")
 		assert.Contains(tt, errDB.(*vsaerrors.CustomError).OriginalErr.Error(), "pool not found")
 	})
 }

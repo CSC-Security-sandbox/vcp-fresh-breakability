@@ -272,7 +272,7 @@ func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.PoolVie
 	err := db.Preload("Account").Preload("KmsConfig").Preload("KmsConfig.ServiceAccount").Preload("KmsConfig.Account").First(&pool, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("pool", nil))
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrPoolNotFound, customerrors.NewNotFoundErr("pool", nil))
 		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
