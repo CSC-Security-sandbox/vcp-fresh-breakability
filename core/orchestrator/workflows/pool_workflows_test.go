@@ -174,6 +174,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+// If On-Boarding to harvest fails pool create shouldn't be rolled back
 func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -185,7 +186,9 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-
+	mockForwardingRuleIP := "127.0.0.1"
+	mockAddressURI := "test-address-uri"
+	ginLoggingFeatureFlag = true
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	defer func() {
@@ -197,13 +200,8 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterWorkflowWithOptions(
-		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
-			return nil
-		},
-		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
-	)
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -229,15 +227,18 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		DeploymentName: "test-deployment",
 	}
 	svmName := "svmName"
-	mockForwardingRuleIP := "127.0.0.1"
-	mockAddressURI := "test-address-uri"
+
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
 	}()
 	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
 		return nil
 	}
 
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
@@ -252,13 +253,13 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
 	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -284,18 +285,6 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		Region:        "test-region",
 		MediatorZone:  "test-mediator-zone",
 	}, nil)
-
-	// Rollback
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
-	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
@@ -320,8 +309,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 
 	// Assert workflow execution
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.Error(t, env.GetWorkflowError())
-	assert.Contains(t, env.GetWorkflowError().Error(), "failed to register node")
+	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
 

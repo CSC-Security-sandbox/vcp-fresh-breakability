@@ -466,16 +466,13 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			WorkflowID: "register-node-to-harvest-farm" + uuid.New().String(),
 			TaskQueue:  workflowengine.CustomerTaskQueue,
 		})
-		unregisterParams := &unRegisterNodeFromHarvestFarmParams{
-			PoolID:            dbPool.ID,
-			CustomerProjectID: params.AccountName,
-			TenantProjectID:   *tenantProjectNumber,
-		}
 
-		rollbackManager.AddWorkflow(workflowengine.CustomerTaskQueue, UnRegisterNodeFromHarvestFarmWorkflow, unregisterParams)
-
-		if err = workflow.ExecuteChildWorkflow(ctx, RegisterNodeToHarvestFarmWorkflow, registerNodeToHarvestFarmWorkflowInput).Get(ctx, nil); err != nil {
-			return nil, ConvertToVSAError(err)
+		// If on-boarding to harvest-farm fails log warning message,
+		// TODO: Need to emit a metric to alert on pool on-boarding to harvest-farm
+		if childWfErr := workflow.ExecuteChildWorkflow(ctx,
+			RegisterNodeToHarvestFarmWorkflow,
+			registerNodeToHarvestFarmWorkflowInput).Get(ctx, nil); childWfErr != nil {
+			wf.Logger.Warnf("Failed to on-board poolId %d to harvest-farm due to error: %v", dbPool.ID, childWfErr)
 		}
 	}
 	return nil, nil
