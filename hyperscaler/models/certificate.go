@@ -1,16 +1,16 @@
 package hyperscaler
 
 import (
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"time"
 )
 
 // CustomCertificate is a struct that represents a certificate independent of Hyperscaler
 type CustomCertificate struct {
 	Name                       string
 	PemCertificate             string
-	CreateTime                 *timestamppb.Timestamp
+	CreateTime                 *time.Time
 	LifeTime                   string
-	UpdateTime                 *timestamppb.Timestamp
+	UpdateTime                 *time.Time
 	SubjectCommonName          string
 	SubjectAltName             []string
 	SerialNumber               string
@@ -41,8 +41,8 @@ type CustomSecret struct {
 	Name               string
 	SecretOwningEntity string
 	Region             string
-	CreateTime         *timestamppb.Timestamp
-	LifeTime           *timestamppb.Timestamp
+	CreateTime         *time.Time
+	LifeTime           *time.Time
 	SecretVersion      *CustomSecretVersion
 }
 

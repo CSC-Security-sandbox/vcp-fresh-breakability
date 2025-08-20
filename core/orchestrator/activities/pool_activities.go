@@ -567,7 +567,7 @@ func _getInternalVSANetworkForFirewalls(vpcName, firewallName string, sourceRang
 	}
 }
 
-func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool, region, clusterName string) (*vlm.OntapCredentials, error) {
+func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool, clusterName string) (*vlm.OntapCredentials, error) {
 	credentials := &vlm.OntapCredentials{}
 	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
 	if getGcpServiceErr != nil {
@@ -577,17 +577,14 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
-		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, region, pool.PoolCredentials.CertificateID, clusterName)
+		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.PoolCredentials.CertificateID, clusterName)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
-		credentials.Certificate.CommonName = certificate.Certificate.SubjectCommonName
-		credentials.Certificate.Certificate = certificate.Certificate.PemCertificate
-		credentials.Certificate.PrivateKey = certificate.Secret.SecretVersion.Value
-		credentials.Certificate.InterMediateCertificate = certificate.Certificate.PemCertificateChain
+		credentials = setPoolCredentials(certificate)
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
-		secret, err := hyperscaler2.GeneratePasswordForVSACluster(gcpService, env.SecretManagerProjectID, region, pool.PoolCredentials.SecretID)
+		secret, err := hyperscaler2.GeneratePasswordForVSACluster(gcpService, pool.PoolCredentials.SecretID)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -596,6 +593,15 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 		credentials.AdminPassword = pool.PoolCredentials.Password
 	}
 	return credentials, nil
+}
+
+func setPoolCredentials(certificate *hyperscaler_models.CustomCertificateResponse) *vlm.OntapCredentials {
+	credentials := &vlm.OntapCredentials{}
+	credentials.Certificate.CommonName = certificate.Certificate.SubjectCommonName
+	credentials.Certificate.Certificate = certificate.Certificate.PemCertificate
+	credentials.Certificate.PrivateKey = certificate.Secret.SecretVersion.Value
+	credentials.Certificate.InterMediateCertificate = certificate.Certificate.PemCertificateChain
+	return credentials
 }
 
 func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamodel.Pool) error {
@@ -1339,7 +1345,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 			}
 			gcpService, err := hyperscaler2.GetGCPService(ctx)
 			if err != nil {
-				return nil, err
+				return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 			}
 
 			IpaddressVm1 := details.VM1.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
@@ -1367,7 +1373,7 @@ func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[st
 	if authType == env.USER_CERTIFICATE {
 		gcpService, err := hyperscaler2.GetGCPService(ctx)
 		if err != nil {
-			return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
+			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		// Delete entries for each node
 		for _, host := range hostMap {
@@ -1389,9 +1395,6 @@ func (j *PoolActivity) GetCloudDNSRecords(ctx context.Context, poolId int64, aut
 		nodes, err := se.GetNodesByPoolID(ctx, poolId)
 		if err != nil {
 			return &hostMap, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err))
-		}
-		if len(nodes) == 0 {
-			return &hostMap, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, errors.New("no node found for the pool")))
 		}
 		for _, node := range nodes {
 			hostMap[node.EndpointAddress] = node.HostDNSName

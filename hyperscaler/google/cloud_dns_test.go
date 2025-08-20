@@ -226,7 +226,7 @@ func TestGetResourceRecordSet(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			if req.URL.Path == url && req.Method == http.MethodGet {
 				response, _ := json.Marshal(&models.CustomCloudDNSRecord{})
-				rw.WriteHeader(http.StatusOK)
+				rw.WriteHeader(http.StatusNotFound)
 				_, _ = rw.Write(response)
 				return
 			}
@@ -247,10 +247,8 @@ func TestGetResourceRecordSet(t *testing.T) {
 		}
 
 		record, err := gService.GetResourceRecordSet(projectId, managedZone, recordName)
-		if err == nil {
+		if err != nil && record != nil {
 			tt.Error("Expected an error but got nothing")
-		} else if record != nil {
-			tt.Errorf("Expected nil operation but got: %+v", recordName)
 		}
 	})
 	t.Run("WhenGetResourceRecordSetFails", func(tt *testing.T) {

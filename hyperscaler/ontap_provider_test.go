@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	common2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler3 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -149,198 +150,6 @@ func Test_newGcpServices_ReturnsInitializedGcpServices(t *testing.T) {
 	assert.NotNil(t, services.Retry)
 }
 
-func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
-	certificateID := "test-cert-id"
-
-	// Save and restore RemoveFromCertAuthCache
-	origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
-	defer func() { common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache }()
-
-	t.Run("success", func(t *testing.T) {
-		mockGcpService := new(MockGoogleServices)
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.CustomCertificate{}, nil)
-		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", nil)
-		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{}, nil)
-		mockGcpService.On("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
-		common.RemoveFromCertAuthCache = func(certID string) bool { return true }
-
-		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGcpService, certificateID)
-		assert.NoError(t, err)
-		mockGcpService.AssertExpectations(t)
-	})
-
-	t.Run("GetCertificate fails", func(t *testing.T) {
-		mockGcpService := new(MockGoogleServices)
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("get cert error"))
-
-		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGcpService, certificateID)
-		assert.EqualError(t, err, "get cert error")
-	})
-
-	t.Run("RevokeCertificate fails", func(t *testing.T) {
-		mockGcpService := new(MockGoogleServices)
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.CustomCertificate{}, nil)
-		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", fmt.Errorf("revoke error"))
-
-		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGcpService, certificateID)
-		assert.EqualError(t, err, "revoke error")
-	})
-	t.Run("GetSecretWithLatestVersion fails", func(t *testing.T) {
-		mockGcpService := new(MockGoogleServices)
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.CustomCertificate{}, nil)
-		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", nil)
-		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, errors.New("get secret error"))
-
-		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGcpService, certificateID)
-		assert.EqualError(t, err, "get secret error")
-	})
-
-	t.Run("DeleteSecret fails", func(t *testing.T) {
-		mockGcpService := new(MockGoogleServices)
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.CustomCertificate{}, nil)
-		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", nil)
-		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{}, nil)
-		mockGcpService.On("DeleteSecret", mock.Anything, mock.Anything).Return(fmt.Errorf("delete secret error"))
-
-		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGcpService, certificateID)
-		assert.EqualError(t, err, "delete secret error")
-	})
-
-	t.Run("RemoveFromCertAuthCache fails", func(t *testing.T) {
-		mockGcpService := new(MockGoogleServices)
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.CustomCertificate{}, nil)
-		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", nil)
-		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{}, nil)
-		mockGcpService.On("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
-		common.RemoveFromCertAuthCache = func(certID string) bool { return false }
-
-		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGcpService, certificateID)
-		assert.NoError(t, err)
-	})
-}
-
-func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
-	region := "us-central1"
-	certificateID := "test-cert-id"
-	clusterName := "test-cluster"
-	csr := []byte("fake-csr")
-	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	t.Run("Success", func(t *testing.T) {
-		mockGcpService := NewMockGoogleServices(t)
-		cert := &hyperscaler3.CustomCertificate{
-			SubjectCommonName:   "test-cn",
-			PemCertificate:      "pem-cert",
-			PemCertificateChain: []string{"chain1", "chain2"},
-		}
-		secret := &hyperscaler3.CustomSecret{
-			SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"},
-		}
-
-		origGenerateCSR := GenerateCSR
-		origValidateAndConvert := google.ValidateAndConvertCertificateParamsToCustomCertificate
-		origGetAndCreate := GetOrCreateCertificateInCASAndPrivateKeyInSM
-		defer func() {
-			common.RemoveFromCertAuthCache(certificateID)
-			GenerateCSR = origGenerateCSR
-			google.ValidateAndConvertCertificateParamsToCustomCertificate = origValidateAndConvert
-			GetOrCreateCertificateInCASAndPrivateKeyInSM = origGetAndCreate
-		}()
-
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
-			return csr, key, nil
-		}
-		google.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
-			return cert, nil
-		}
-		GetOrCreateCertificateInCASAndPrivateKeyInSM = func(gcpService GoogleServices, certificate *hyperscaler3.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
-			return cert, secret, nil
-		}
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGcpService, region, certificateID, clusterName)
-		assert.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.Equal(t, cert, resp.Certificate)
-		assert.Equal(t, secret, resp.Secret)
-	})
-	t.Run("GenerateCSR fail", func(t *testing.T) {
-		mockGcpService := NewMockGoogleServices(t)
-
-		origGenerateCSR := GenerateCSR
-		defer func() { GenerateCSR = origGenerateCSR }()
-
-		expectedErr := fmt.Errorf("generate csr error")
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
-			return nil, nil, expectedErr
-		}
-
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGcpService, region, certificateID, clusterName)
-		assert.Nil(t, resp)
-		assert.EqualError(t, err, expectedErr.Error())
-	})
-	t.Run("ValidateAndConvert fail", func(t *testing.T) {
-		mockGcpService := NewMockGoogleServices(t)
-
-		// Patch GenerateCSR to succeed
-		origGenerateCSR := GenerateCSR
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
-			return []byte("csr"), &rsa.PrivateKey{}, nil
-		}
-
-		// Patch ValidateAndConvertCertificateParamsToCustomCertificate to fail
-		origValidate := google.ValidateAndConvertCertificateParamsToCustomCertificate
-		google.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
-			return nil, fmt.Errorf("validation failed")
-		}
-		defer func() {
-			GenerateCSR = origGenerateCSR
-			google.ValidateAndConvertCertificateParamsToCustomCertificate = origValidate
-		}()
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGcpService, region, certificateID, clusterName)
-		assert.Nil(t, resp)
-		assert.EqualError(t, err, "validation failed")
-	})
-	t.Run("GetOrCreateCertificateInCASAndPrivateKeyInSM fails", func(t *testing.T) {
-		mockGcpService := new(MockGoogleServices)
-		expectedErr := errors.New("CAS/SM error")
-
-		// Patch GenerateCSR to return dummy values
-		origGenerateCSR := GenerateCSR
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
-			return []byte("csr"), &rsa.PrivateKey{}, nil
-		}
-		// Patch GetOrCreateCertificateInCASAndPrivateKeyInSM to return error
-		origGetAndCreate := GetOrCreateCertificateInCASAndPrivateKeyInSM
-		GetOrCreateCertificateInCASAndPrivateKeyInSM = func(gcpService GoogleServices, certificate *hyperscaler3.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
-			return nil, nil, expectedErr
-		}
-
-		// Patch ValidateAndConvertCertificateParamsToCustomCertificate to return dummy cert
-		origValidate := google.ValidateAndConvertCertificateParamsToCustomCertificate
-		google.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
-			return &hyperscaler3.CustomCertificate{}, nil
-		}
-		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		defer func() {
-			GenerateCSR = origGenerateCSR
-			GetOrCreateCertificateInCASAndPrivateKeyInSM = origGetAndCreate
-			google.ValidateAndConvertCertificateParamsToCustomCertificate = origValidate
-		}()
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGcpService, region, certificateID, clusterName)
-		assert.Nil(t, resp)
-		assert.Equal(t, expectedErr, err)
-	})
-}
-
 func Test_GetPasswordForVSACluster_Success(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		gcpService := NewMockGoogleServices(t)
@@ -428,174 +237,8 @@ func Test_GetCertificateFromCacheOrSecretManager(t *testing.T) {
 	})
 }
 
-func Test_getAndCreatePrivateKeyInSecretManagerAndCache(t *testing.T) {
-	cert := &hyperscaler3.CustomCertificate{
-		CertificateID:     "test-cert",
-		Region:            "us-central1",
-		SubjectCommonName: "test-cn",
-	}
-	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	expectedSecret := &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"}}
-
-	t.Run("returns existing secret", func(t *testing.T) {
-		mockGCP := new(MockGoogleServices)
-		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(expectedSecret, nil)
-		secret, err := GetOrCreatePrivateKeyInSecretManagerAndCache(mockGCP, cert, key)
-		assert.NoError(t, err)
-		assert.Equal(t, expectedSecret, secret)
-		mockGCP.AssertExpectations(t)
-	})
-
-	t.Run("creates secret if not found", func(t *testing.T) {
-		mockGCP := new(MockGoogleServices)
-		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, errors.New("not found"))
-		mockGCP.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedSecret, nil)
-		secret, err := GetOrCreatePrivateKeyInSecretManagerAndCache(mockGCP, cert, key)
-		assert.NoError(t, err)
-		assert.Equal(t, expectedSecret, secret)
-		mockGCP.AssertExpectations(t)
-	})
-
-	t.Run("create secret fails, revoke fails", func(t *testing.T) {
-		mockGCP := new(MockGoogleServices)
-		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, errors.New("not found"))
-		mockGCP.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create failed"))
-		mockGCP.On("RevokeCertificate", mock.Anything).Return("", errors.New("revoke failed"))
-		secret, err := GetOrCreatePrivateKeyInSecretManagerAndCache(mockGCP, cert, key)
-		assert.Nil(t, secret)
-		assert.Error(t, err)
-		mockGCP.AssertExpectations(t)
-	})
-
-	t.Run("create secret fails, revoke succeeds", func(t *testing.T) {
-		mockGCP := new(MockGoogleServices)
-		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, errors.New("not found"))
-		mockGCP.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create failed"))
-		mockGCP.On("RevokeCertificate", mock.Anything).Return("", nil)
-		secret, err := GetOrCreatePrivateKeyInSecretManagerAndCache(mockGCP, cert, key)
-		assert.Nil(t, secret)
-		assert.Error(t, err)
-		mockGCP.AssertExpectations(t)
-	})
-}
-
-func Test_GetAndCreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
-	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	certificate := &hyperscaler3.CustomCertificate{
-		CertificateID:     "certid",
-		Region:            "us-central1",
-		SubjectCommonName: "test-cn",
-	}
-	originalConvert := google.ConvertPrivateKeyToString
-	defer func() {
-		google.ConvertPrivateKeyToString = originalConvert
-	}()
-	google.ConvertPrivateKeyToString = func(key *rsa.PrivateKey, rsaKeyType string) string {
-		return "private-key"
-	}
-
-	t.Run("GetCertificate fails, CreateCertificate succeeds, GetOrCreatePrivateKeyInSecretManagerAndCache succeeds ", func(t *testing.T) {
-		mockSvc := NewMockGoogleServices(t)
-		mockSvc.On("GetLogger").Return(log.NewLogger())
-		mockSvc.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("not found"))
-		mockSvc.On("CreateCertificate", certificate).Return(certificate, nil)
-
-		originalGetAndCreatePrivateKeyInSecretManagerAndCache := GetOrCreatePrivateKeyInSecretManagerAndCache
-		defer func() {
-			GetOrCreatePrivateKeyInSecretManagerAndCache = originalGetAndCreatePrivateKeyInSecretManagerAndCache
-		}()
-
-		GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler3.CustomSecret, error) {
-			return &hyperscaler3.CustomSecret{}, nil
-		}
-		cert, _, err := GetOrCreateCertificateInCASAndPrivateKeyInSM(mockSvc, certificate, key)
-		assert.NoError(t, err)
-		assert.Equal(t, certificate, cert)
-		mockSvc.AssertExpectations(t)
-	})
-
-	t.Run("GetCertificate fails, CreateCertificate fails", func(t *testing.T) {
-		mockSvc := NewMockGoogleServices(t)
-		mockSvc.On("GetLogger").Return(log.NewLogger())
-		mockSvc.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("not found"))
-		mockSvc.On("CreateCertificate", certificate).Return(nil, fmt.Errorf("can not create cert"))
-		cert, secret, err := GetOrCreateCertificateInCASAndPrivateKeyInSM(mockSvc, certificate, key)
-		assert.Nil(t, cert)
-		assert.Nil(t, secret)
-		assert.EqualError(t, err, "can not create cert")
-		mockSvc.AssertExpectations(t)
-	})
-
-	t.Run("GetCertificate succeeds, GetOrCreatePrivateKeyInSecretManagerAndCache succeeds", func(t *testing.T) {
-		mockSvc := NewMockGoogleServices(t)
-		mockSvc.On("GetLogger").Return(log.NewLogger())
-		mockSvc.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certificate, nil)
-		mockSecret := &hyperscaler3.CustomSecret{Name: "secret"}
-		originalGetAndCreatePrivateKeyInSecretManagerAndCache := GetOrCreatePrivateKeyInSecretManagerAndCache
-		defer func() {
-			GetOrCreatePrivateKeyInSecretManagerAndCache = originalGetAndCreatePrivateKeyInSecretManagerAndCache
-		}()
-
-		GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler3.CustomSecret, error) {
-			return mockSecret, nil
-		}
-		cert, secret, err := GetOrCreateCertificateInCASAndPrivateKeyInSM(mockSvc, certificate, key)
-		assert.NoError(t, err)
-		assert.Equal(t, certificate, cert)
-		assert.Equal(t, mockSecret, secret)
-		mockSvc.AssertExpectations(t)
-	})
-
-	t.Run("GetCertificate succeeds, GetOrCreatePrivateKeyInSecretManagerAndCache fails", func(t *testing.T) {
-		mockSvc := NewMockGoogleServices(t)
-		mockSvc.On("GetLogger").Return(log.NewLogger())
-		mockSvc.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certificate, nil)
-		originalGetAndCreatePrivateKeyInSecretManagerAndCache := GetOrCreatePrivateKeyInSecretManagerAndCache
-		defer func() {
-			GetOrCreatePrivateKeyInSecretManagerAndCache = originalGetAndCreatePrivateKeyInSecretManagerAndCache
-		}()
-
-		GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler3.CustomSecret, error) {
-			return nil, errors.New("can not create cert")
-		}
-		cert, secret, err := GetOrCreateCertificateInCASAndPrivateKeyInSM(mockSvc, certificate, key)
-		assert.Error(t, err)
-		assert.Nil(t, cert)
-		assert.Nil(t, secret)
-		mockSvc.AssertExpectations(t)
-	})
-
-	t.Run("CreateCertificate succeeds, GetOrCreatePrivateKeyInSecretManagerAndCache fails", func(t *testing.T) {
-		mockSvc := NewMockGoogleServices(t)
-		mockSvc.On("GetLogger").Return(log.NewLogger())
-		mockSvc.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("not found"))
-		mockSvc.On("CreateCertificate", certificate).Return(certificate, nil)
-
-		originalGetAndCreatePrivateKeyInSecretManagerAndCache := GetOrCreatePrivateKeyInSecretManagerAndCache
-		defer func() {
-			GetOrCreatePrivateKeyInSecretManagerAndCache = originalGetAndCreatePrivateKeyInSecretManagerAndCache
-		}()
-
-		GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler3.CustomSecret, error) {
-			return nil, errors.New("private key creation failed")
-		}
-		cert, secret, err := GetOrCreateCertificateInCASAndPrivateKeyInSM(mockSvc, certificate, key)
-		assert.Error(t, err)
-		assert.Nil(t, cert)
-		assert.Nil(t, secret)
-		assert.Contains(t, err.Error(), "private key creation failed")
-		mockSvc.AssertExpectations(t)
-	})
-}
-
 func Test_GeneratePasswordForVSACluster(t *testing.T) {
-	projectId := "test-project"
 	userName := "test-user"
-	region := "test-region"
 
 	t.Run("PasswordGenerationFails", func(tt *testing.T) {
 		mockGCPService := new(MockGoogleServices)
@@ -604,9 +247,9 @@ func Test_GeneratePasswordForVSACluster(t *testing.T) {
 			return "", errors.New("password generation failed")
 		}
 		defer func() { utils.GenerateStrongPassword = originalGeneratePassword }()
-
+		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
-		secret, err := GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+		secret, err := GeneratePasswordForVSACluster(mockGCPService, userName)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, secret)
@@ -622,10 +265,10 @@ func Test_GeneratePasswordForVSACluster(t *testing.T) {
 		defer func() { utils.GenerateStrongPassword = originalGeneratePassword }()
 
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
-		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret get error"))
+		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret creation failed"))
 
-		secret, err := GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+		secret, err := GeneratePasswordForVSACluster(mockGCPService, userName)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, secret)
@@ -638,7 +281,7 @@ func Test_GeneratePasswordForVSACluster(t *testing.T) {
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
 		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{}, nil)
 
-		secret, err := GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+		secret, err := GeneratePasswordForVSACluster(mockGCPService, userName)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, secret)
 		mockGCPService.AssertExpectations(tt)
@@ -647,13 +290,13 @@ func Test_GeneratePasswordForVSACluster(t *testing.T) {
 	t.Run("Success", func(tt *testing.T) {
 		mockGCPService := new(MockGoogleServices)
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
-		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret get error"))
+		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "secretID"}}, nil)
 		defer func() {
 			common.RemoveFromUserAuthCache("secretID")
 		}()
 
-		secret, err := GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+		secret, err := GeneratePasswordForVSACluster(mockGCPService, userName)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, secret)
@@ -728,7 +371,7 @@ func Test_deleteVSAClusterPassword(t *testing.T) {
 	t.Run("DeleteSecret called when GetSecretWithLatestVersion passes", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{}, nil)
 		mockGCP.On("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
 
 		err := DeletePasswordFromCacheAndSecretManager(mockGCP, secretID)
@@ -739,7 +382,7 @@ func Test_deleteVSAClusterPassword(t *testing.T) {
 	t.Run("DeleteSecret returns error", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{}, nil)
 		mockGCP.On("DeleteSecret", mock.Anything, mock.Anything).Return(fmt.Errorf("delete error"))
 
 		err := DeletePasswordFromCacheAndSecretManager(mockGCP, secretID)
@@ -751,17 +394,18 @@ func Test_deleteVSAClusterPassword(t *testing.T) {
 	t.Run("Delete Secret fails if GetSecretWithLatestVersion fails", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{}, fmt.Errorf("get secret error"))
+		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("get secret error"))
 
 		err := DeletePasswordFromCacheAndSecretManager(mockGCP, secretID)
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "get secret error")
 		mockGCP.AssertExpectations(t)
 	})
 
 	t.Run("RemoveFromUserAuthCache returns false", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler3.CustomSecret{}, nil)
 		mockGCP.On("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock the cache removal to return false
@@ -870,6 +514,7 @@ func Test_GetOrCreateCloudDNSRecord(t *testing.T) {
 	t.Run("record exists", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		expectedRecord := &hyperscaler3.CustomCloudDNSRecord{RecordName: recordName}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
 		mockGCP.On("GetResourceRecordSet", mock.Anything, mock.Anything, recordName).Return(expectedRecord, nil)
 
 		record, err := GetOrCreateCloudDNSRecord(mockGCP, recordName, ipAddress)
@@ -882,7 +527,7 @@ func Test_GetOrCreateCloudDNSRecord(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		expectedRecord := &hyperscaler3.CustomCloudDNSRecord{RecordName: recordName}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetResourceRecordSet", mock.Anything, mock.Anything, recordName).Return(nil, errors.New("not found"))
+		mockGCP.On("GetResourceRecordSet", mock.Anything, mock.Anything, recordName).Return(nil, nil)
 		mockGCP.On("CreateResourceRecordSet", mock.Anything, mock.Anything, ipAddress, recordName).Return(expectedRecord, nil)
 
 		record, err := GetOrCreateCloudDNSRecord(mockGCP, recordName, ipAddress)
@@ -894,7 +539,7 @@ func Test_GetOrCreateCloudDNSRecord(t *testing.T) {
 	t.Run("record does not exist, create fails", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetResourceRecordSet", mock.Anything, mock.Anything, recordName).Return(nil, errors.New("not found"))
+		mockGCP.On("GetResourceRecordSet", mock.Anything, mock.Anything, recordName).Return(nil, nil)
 		mockGCP.On("CreateResourceRecordSet", mock.Anything, mock.Anything, ipAddress, recordName).Return(nil, errors.New("create failed"))
 
 		record, err := GetOrCreateCloudDNSRecord(mockGCP, recordName, ipAddress)
@@ -933,7 +578,7 @@ func Test_DeleteCloudDNSRecord(t *testing.T) {
 	t.Run("record does not exist", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetResourceRecordSet", mock.Anything, mock.Anything, recordName).Return(nil, errors.New("not found"))
+		mockGCP.On("GetResourceRecordSet", mock.Anything, mock.Anything, recordName).Return(nil, nil)
 
 		err := DeleteCloudDNSRecord(mockGCP, recordName)
 		assert.NoError(t, err)
@@ -1164,9 +809,7 @@ func Test_AdditionalMissingLineCoverage(t *testing.T) {
 }
 
 func Test_GeneratePasswordForVSACluster_AllScenarios(t *testing.T) {
-	projectId := "test-project"
 	userName := "test-user"
-	region := "test-region"
 
 	t.Run("GetSecretWithLatestVersion succeeds - use existing", func(t *testing.T) {
 		mockGCPService := new(MockGoogleServices)
@@ -1176,7 +819,7 @@ func Test_GeneratePasswordForVSACluster_AllScenarios(t *testing.T) {
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
 		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(expectedSecret, nil)
 
-		secret, err := GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+		secret, err := GeneratePasswordForVSACluster(mockGCPService, userName)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedSecret, secret)
 		mockGCPService.AssertExpectations(t)
@@ -1197,10 +840,10 @@ func Test_GeneratePasswordForVSACluster_AllScenarios(t *testing.T) {
 			SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "generated-password"},
 		}
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
-		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("not found"))
+		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedSecret, nil)
 
-		secret, err := GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
+		secret, err := GeneratePasswordForVSACluster(mockGCPService, userName)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedSecret, secret)
 		mockGCPService.AssertExpectations(t)
@@ -1216,5 +859,512 @@ func Test_NewGcpServices(t *testing.T) {
 		assert.Equal(t, ctx, services.Ctx)
 		assert.NotNil(t, services.Logger)
 		assert.NotNil(t, services.Retry)
+	})
+}
+
+func Test_DeleteCertificateAndSecret(t *testing.T) {
+	certificateID := "test-cert-id"
+	certificate := &hyperscaler3.CustomCertificate{}
+	secret := &hyperscaler3.CustomSecret{}
+
+	t.Run("both certificate and secret are not nil, all succeed", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("RevokeCertificate", mock.Anything).Return("", nil)
+		mockGCP.On("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
+
+		err := DeleteCertificateAndSecret(mockGCP, certificateID, certificate, secret)
+		assert.NoError(t, err)
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("certificate revoke fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("RevokeCertificate", mock.Anything).Return("", fmt.Errorf("revoke error"))
+
+		err := DeleteCertificateAndSecret(mockGCP, certificateID, certificate, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "revoke error")
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("secret delete fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("DeleteSecret", mock.Anything, mock.Anything).Return(fmt.Errorf("delete error"))
+
+		err := DeleteCertificateAndSecret(mockGCP, certificateID, nil, secret)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete error")
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("both certificate and secret are nil", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		err := DeleteCertificateAndSecret(mockGCP, certificateID, nil, nil)
+		assert.NoError(t, err)
+		mockGCP.AssertExpectations(t)
+	})
+}
+
+func Test_GetCertificateAndSecret(t *testing.T) {
+	certificateID := "test-cert-id"
+	expectedCert := &hyperscaler3.CustomCertificate{CertificateID: certificateID}
+	expectedSecret := &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"}}
+
+	t.Run("success", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("GetCertificate", env.CaPoolDeployedProjectID, env.Region, env.CaPoolName, certificateID).Return(expectedCert, nil)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(expectedSecret, nil)
+
+		cert, secret, err := GetCertificateAndSecret(mockGCP, certificateID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedCert, cert)
+		assert.Equal(t, expectedSecret, secret)
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("GetCertificate fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("GetCertificate", env.CaPoolDeployedProjectID, env.Region, env.CaPoolName, certificateID).Return(nil, fmt.Errorf("cert error"))
+
+		cert, secret, err := GetCertificateAndSecret(mockGCP, certificateID)
+		assert.Error(t, err)
+		assert.Nil(t, cert)
+		assert.Nil(t, secret)
+	})
+
+	t.Run("GetSecretWithLatestVersion fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("GetCertificate", env.CaPoolDeployedProjectID, env.Region, env.CaPoolName, certificateID).Return(expectedCert, nil)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(nil, fmt.Errorf("secret error"))
+
+		cert, secret, err := GetCertificateAndSecret(mockGCP, certificateID)
+		assert.Error(t, err)
+		assert.Nil(t, cert)
+		assert.Nil(t, secret)
+	})
+}
+
+func Test_CreateCertificateInCAS(t *testing.T) {
+	certificate := &hyperscaler3.CustomCertificate{
+		SubjectCommonName: "test-cn",
+		CertificateID:     "cert-123",
+	}
+	t.Run("success", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("CreateCertificate", certificate).Return(certificate, nil)
+
+		cert, err := CreateCertificateInCAS(mockGCP, certificate)
+		assert.NoError(t, err)
+		assert.Equal(t, certificate, cert)
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("CreateCertificate fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("CreateCertificate", certificate).Return(nil, fmt.Errorf("create error"))
+
+		cert, err := CreateCertificateInCAS(mockGCP, certificate)
+		assert.Error(t, err)
+		assert.Nil(t, cert)
+		assert.Contains(t, err.Error(), "create error")
+		mockGCP.AssertExpectations(t)
+	})
+}
+
+func Test_CreatePrivateKeyInSecretManager(t *testing.T) {
+	certificate := &hyperscaler3.CustomCertificate{
+		SubjectCommonName: "test-cn",
+		CertificateID:     "cert-123",
+		Region:            "us-central1",
+	}
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+
+	t.Run("success", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		expectedSecret := &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"}}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("CreateSecret", env.SecretManagerProjectID, certificate.Region, certificate.CertificateID, mock.Anything).Return(expectedSecret, nil)
+
+		secret, err := CreatePrivateKeyInSecretManager(mockGCP, certificate, key)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSecret, secret)
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("CreateSecret", env.SecretManagerProjectID, certificate.Region, certificate.CertificateID, mock.Anything).Return(nil, fmt.Errorf("create failed"))
+		secret, err := CreatePrivateKeyInSecretManager(mockGCP, certificate, key)
+		assert.Nil(t, secret)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "create failed")
+		mockGCP.AssertExpectations(t)
+	})
+}
+
+func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
+	certificateID := "test-cert-id"
+	clusterName := "test-cluster"
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	expectedDomains := []string{fmt.Sprintf("*.%s.%s", clusterName, env.VsaDeployedDnsName)}
+
+	// Patch GenerateCSR and ValidateAndConvertCertParam
+
+	t.Run("success", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origGenerateCSR := GenerateCSR
+		origValidate := common2.ValidateAndConvertCertParams
+		origCreateCertificateInCAS := CreateCertificateInCAS
+		origCreatePrivateKeyInSecretManager := CreatePrivateKeyInSecretManager
+
+		defer func() {
+			GenerateCSR = origGenerateCSR
+			common2.ValidateAndConvertCertParams = origValidate
+			CreateCertificateInCAS = origCreateCertificateInCAS
+			CreatePrivateKeyInSecretManager = origCreatePrivateKeyInSecretManager
+		}()
+		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			assert.Equal(t, env.VCP_ADMIN, commonName)
+			assert.Equal(t, expectedDomains, domains)
+			return []byte("csr"), key, nil
+		}
+		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
+			assert.Equal(t, certificateID, param.CertificateID)
+			return &hyperscaler3.CustomCertificate{CertificateID: certificateID}, nil
+		}
+		CreateCertificateInCAS = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate) (*hyperscaler3.CustomCertificate, error) {
+			return cert, nil
+		}
+		CreatePrivateKeyInSecretManager = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate, k *rsa.PrivateKey) (*hyperscaler3.CustomSecret, error) {
+			return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"}}, nil
+		}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		assert.NoError(t, err)
+		assert.NotNil(t, cert)
+		assert.NotNil(t, secret)
+	})
+
+	t.Run("GenerateCSR fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origGenerateCSR := GenerateCSR
+
+		defer func() {
+			GenerateCSR = origGenerateCSR
+		}()
+		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			return nil, nil, fmt.Errorf("csr error")
+		}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		assert.Error(t, err)
+		assert.Nil(t, cert)
+		assert.Nil(t, secret)
+	})
+
+	t.Run("ValidateAndConvertCertParams fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origGenerateCSR := GenerateCSR
+		origValidate := common2.ValidateAndConvertCertParams
+
+		defer func() {
+			GenerateCSR = origGenerateCSR
+			common2.ValidateAndConvertCertParams = origValidate
+		}()
+		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			return []byte("csr"), key, nil
+		}
+		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
+			return nil, fmt.Errorf("validate error")
+		}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		assert.Error(t, err)
+		assert.Nil(t, cert)
+		assert.Nil(t, secret)
+	})
+
+	t.Run("CreateCertificateInCAS fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origGenerateCSR := GenerateCSR
+		origValidate := common2.ValidateAndConvertCertParams
+		origCreateCertificateInCAS := CreateCertificateInCAS
+
+		defer func() {
+			GenerateCSR = origGenerateCSR
+			common2.ValidateAndConvertCertParams = origValidate
+			CreateCertificateInCAS = origCreateCertificateInCAS
+		}()
+		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			return []byte("csr"), key, nil
+		}
+		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
+			return &hyperscaler3.CustomCertificate{CertificateID: certificateID}, nil
+		}
+		CreateCertificateInCAS = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate) (*hyperscaler3.CustomCertificate, error) {
+			return nil, fmt.Errorf("cas error")
+		}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		assert.Error(t, err)
+		assert.Nil(t, cert)
+		assert.Nil(t, secret)
+	})
+
+	t.Run("CreatePrivateKeyInSecretManager fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origGenerateCSR := GenerateCSR
+		origValidate := common2.ValidateAndConvertCertParams
+		origCreateCertificateInCAS := CreateCertificateInCAS
+		origCreatePrivateKeyInSecretManager := CreatePrivateKeyInSecretManager
+
+		defer func() {
+			GenerateCSR = origGenerateCSR
+			common2.ValidateAndConvertCertParams = origValidate
+			CreateCertificateInCAS = origCreateCertificateInCAS
+			CreatePrivateKeyInSecretManager = origCreatePrivateKeyInSecretManager
+		}()
+		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+			return []byte("csr"), key, nil
+		}
+		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
+			return &hyperscaler3.CustomCertificate{CertificateID: certificateID}, nil
+		}
+		CreateCertificateInCAS = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate) (*hyperscaler3.CustomCertificate, error) {
+			return cert, nil
+		}
+		CreatePrivateKeyInSecretManager = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate, k *rsa.PrivateKey) (*hyperscaler3.CustomSecret, error) {
+			return nil, fmt.Errorf("sm error")
+		}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		assert.Error(t, err)
+		assert.Nil(t, cert)
+		assert.Nil(t, secret)
+	})
+}
+
+func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
+	certificateID := "test-cert-id"
+	clusterName := "test-cluster"
+
+	t.Run("returns cached certificate and secret if found", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		expectedCert := &hyperscaler3.CustomCertificate{
+			SubjectCommonName:   "test-cn",
+			PemCertificate:      "pem-cert",
+			PemCertificateChain: []string{"chain1", "chain2"},
+		}
+		expectedSecret := &hyperscaler3.CustomSecret{
+			SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"},
+		}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		originalGetCertificateAndSecret := GetCertificateAndSecret
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return expectedCert, expectedSecret, nil
+		}
+		defer func() { GetCertificateAndSecret = originalGetCertificateAndSecret }()
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, expectedCert, resp.Certificate)
+		assert.Equal(t, expectedSecret, resp.Secret)
+	})
+
+	t.Run("GetCertificateAndSecret returns error", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		originalGetCertificateAndSecret := GetCertificateAndSecret
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("get cert error")
+		}
+		defer func() { GetCertificateAndSecret = originalGetCertificateAndSecret }()
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("DeleteCertificateAndSecret returns error", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		originalGetCertificateAndSecret := GetCertificateAndSecret
+		originalDeleteCertificateAndSecret := DeleteCertificateAndSecret
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, nil
+		}
+		DeleteCertificateAndSecret = func(gcpService GoogleServices, certificateID string, certificate *hyperscaler3.CustomCertificate, secret *hyperscaler3.CustomSecret) error {
+			return fmt.Errorf("delete error")
+		}
+		defer func() {
+			GetCertificateAndSecret = originalGetCertificateAndSecret
+			DeleteCertificateAndSecret = originalDeleteCertificateAndSecret
+		}()
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("CreateCertificateInCASAndPrivateKeyInSM returns error", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		originalGetCertificateAndSecret := GetCertificateAndSecret
+		originalDeleteCertificateAndSecret := DeleteCertificateAndSecret
+		originalCreateCertificateInCASAndPrivateKeyInSM := CreateCertificateInCASAndPrivateKeyInSM
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, nil
+		}
+		DeleteCertificateAndSecret = func(gcpService GoogleServices, certificateID string, certificate *hyperscaler3.CustomCertificate, secret *hyperscaler3.CustomSecret) error {
+			return nil
+		}
+		CreateCertificateInCASAndPrivateKeyInSM = func(gcpService GoogleServices, certificateID, clusterName string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("create error")
+		}
+		defer func() {
+			GetCertificateAndSecret = originalGetCertificateAndSecret
+			DeleteCertificateAndSecret = originalDeleteCertificateAndSecret
+			CreateCertificateInCASAndPrivateKeyInSM = originalCreateCertificateInCASAndPrivateKeyInSM
+		}()
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("successfully creates new certificate and secret", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		expectedCert := &hyperscaler3.CustomCertificate{
+			SubjectCommonName:   "test-cn",
+			PemCertificate:      "pem-cert",
+			PemCertificateChain: []string{"chain1", "chain2"},
+		}
+		expectedSecret := &hyperscaler3.CustomSecret{
+			SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"},
+		}
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		originalGetCertificateAndSecret := GetCertificateAndSecret
+		originalDeleteCertificateAndSecret := DeleteCertificateAndSecret
+		originalCreateCertificateInCASAndPrivateKeyInSM := CreateCertificateInCASAndPrivateKeyInSM
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, nil
+		}
+		DeleteCertificateAndSecret = func(gcpService GoogleServices, certificateID string, certificate *hyperscaler3.CustomCertificate, secret *hyperscaler3.CustomSecret) error {
+			return nil
+		}
+		CreateCertificateInCASAndPrivateKeyInSM = func(gcpService GoogleServices, certificateID, clusterName string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return expectedCert, expectedSecret, nil
+		}
+		defer func() {
+			GetCertificateAndSecret = originalGetCertificateAndSecret
+			DeleteCertificateAndSecret = originalDeleteCertificateAndSecret
+			CreateCertificateInCASAndPrivateKeyInSM = originalCreateCertificateInCASAndPrivateKeyInSM
+		}()
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, expectedCert, resp.Certificate)
+		assert.Equal(t, expectedSecret, resp.Secret)
+	})
+}
+
+func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
+	certificateID := "test-cert-id"
+	mockLogger := log.NewLogger()
+	cert := &hyperscaler3.CustomCertificate{}
+	secret := &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"}}
+
+	t.Run("success", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		origDeleteCertificateAndSecret := DeleteCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+			DeleteCertificateAndSecret = origDeleteCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return cert, secret, nil
+		}
+		DeleteCertificateAndSecret = func(gcpService GoogleServices, certificateID string, certificate *hyperscaler3.CustomCertificate, secret *hyperscaler3.CustomSecret) error {
+			return nil
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return true }
+		mockGCP.On("GetLogger").Return(mockLogger)
+
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, certificateID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetCertificateAndSecret fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("get cert error")
+		}
+		mockGCP.On("GetLogger").Return(mockLogger)
+
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, certificateID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "get cert error")
+	})
+
+	t.Run("DeleteCertificateAndSecret fails", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		origDeleteCertificateAndSecret := DeleteCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+			DeleteCertificateAndSecret = origDeleteCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return cert, secret, nil
+		}
+		DeleteCertificateAndSecret = func(gcpService GoogleServices, certificateID string, certificate *hyperscaler3.CustomCertificate, secret *hyperscaler3.CustomSecret) error {
+			return fmt.Errorf("delete error")
+		}
+		mockGCP.On("GetLogger").Return(mockLogger)
+
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, certificateID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete error")
+	})
+
+	t.Run("RemoveFromCertAuthCache returns false", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		origDeleteCertificateAndSecret := DeleteCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+			DeleteCertificateAndSecret = origDeleteCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, certificateID string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return cert, secret, nil
+		}
+		DeleteCertificateAndSecret = func(gcpService GoogleServices, certificateID string, certificate *hyperscaler3.CustomCertificate, secret *hyperscaler3.CustomSecret) error {
+			return nil
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return false }
+		mockGCP.On("GetLogger").Return(mockLogger)
+
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, certificateID)
+		assert.NoError(t, err)
 	})
 }

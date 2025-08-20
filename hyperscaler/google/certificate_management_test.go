@@ -11,6 +11,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
 )
@@ -52,6 +53,38 @@ func Test_GetCertificate(t *testing.T) {
 			tt.Error("Expected an error but got nothing")
 		} else if cert != nil {
 			tt.Errorf("Expected nil operation but got: %+v", cert)
+		}
+	})
+	t.Run("WhenGetCertificateFailsNotFound", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		errString := fmt.Errorf("GetCertificate failed for certificate : %s", certID)
+		url := fmt.Sprintf("/v1/projects/%s/locations/%s/caPools/%s/certificates/%s/get", projectId, region, pooID, certID)
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodGet {
+				response, _ := json.Marshal(&privateca.Operation{Name: certID, Error: &privateca.Status{Message: errString.Error(), Code: 404}})
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := privateca.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				privateCaService: svc,
+			},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+		cert, err := gService.GetCertificate(projectId, region, pooID, certID)
+		if err != nil && cert != nil {
+			tt.Error("Expected an error but got nothing")
 		}
 	})
 	t.Run("WhenGetCertificateSuccess", func(tt *testing.T) {
@@ -272,4 +305,26 @@ func Test_RevokeCertificate(t *testing.T) {
 			tt.Errorf("Unexpected operation: %+v", cert)
 		}
 	})
+}
+func Test_googleResourceNotFoundCheck(t *testing.T) {
+	// Case: googleapi.Error with 404 code returns nil
+	gErr := &googleapi.Error{Code: 404}
+	err := googleResourceNotFoundCheck(gErr)
+	if err != nil {
+		t.Errorf("Expected nil for 404 error, got: %v", err)
+	}
+
+	// Case: googleapi.Error with non-404 code returns the error
+	gErr = &googleapi.Error{Code: 500}
+	err = googleResourceNotFoundCheck(gErr)
+	if err == nil {
+		t.Errorf("Expected non-nil for non-404 error")
+	}
+
+	// Case: non-googleapi.Error returns the error
+	otherErr := fmt.Errorf("some error")
+	err = googleResourceNotFoundCheck(otherErr)
+	if err == nil {
+		t.Errorf("Expected non-nil for generic error")
+	}
 }

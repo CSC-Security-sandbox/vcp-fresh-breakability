@@ -145,6 +145,8 @@ spec:
               value: "24"
             - name: CLOUD_DNS_CACHE_TTL
               value: "300"
+            - name: PRIVATE_KEY_BITS
+              value: "3072"
             - name: METRICS_PORT
               value: "9090"
             - name: ADC_IMAGE

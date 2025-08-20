@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	common2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -24,14 +25,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-var GetProviderByNode = GetProviderByNodeOld
+var GetProviderByNode = _getProviderByNode
 
-func GetProviderByNodeOld(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 	if node.AuthType == env.USER_CERTIFICATE {
 		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, node.CertificateID)
 		if err != nil {
 			util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
-			return nil, err
+			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
 		}
 
 		return vsa.NewProvider(ctx, vsa.ProviderDetails{
@@ -51,7 +52,7 @@ func GetProviderByNodeOld(ctx context.Context, node *models.Node) (vsa.Provider,
 		secret, err := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
 		if err != nil {
 			util.GetLogger(ctx).Errorf("Failed to get password for node %s: %v", node.Name, err)
-			return nil, err
+			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
 		}
 		password = secret
 	} else {
@@ -72,38 +73,142 @@ func GetProviderByNodeOld(ctx context.Context, node *models.Node) (vsa.Provider,
 	}), nil
 }
 
-var GetCertificateFromCacheOrSecretManager = GetCertificateFromCacheOrSecretManager1
+var GetCertificateFromCacheOrSecretManager = _getCertificateFromCacheOrSecretManager
 
-var RevokeCertificateAndDeleteFromCacheAndSecretManager = RevokeCertificateAndDeleteFromCacheAndSecretManager1
+var RevokeCertificateAndDeleteFromCacheAndSecretManager = _revokeCertificateAndDeleteFromCacheAndSecretManager
 
-var GenerateAndCreateCertificateForVSACluster = GenerateAndCreateCertificateForVSACluster1
+var GenerateAndCreateCertificateForVSACluster = _generateAndCreateCertificateForVSACluster
 
-var GeneratePasswordForVSACluster = GeneratePasswordForVSACluster1
+var GeneratePasswordForVSACluster = _generatePasswordForVSACluster
 
-var GetPasswordForVSACluster = GetPasswordForVSACluster1
+var GetPasswordForVSACluster = _getPasswordForVSACluster
 
-var GetPasswordFromCacheOrSecretManager = GetPasswordFromCacheOrSecretManager1
+var GetPasswordFromCacheOrSecretManager = _getPasswordFromCacheOrSecretManager
 
-var GenerateCSR = GenerateCSR1
+var GenerateCSR = _generateCSR
 
-var DeletePasswordFromCacheAndSecretManager = DeletePasswordFromSecretManagerAndCache1
+var DeletePasswordFromCacheAndSecretManager = _deletePasswordFromSecretManagerAndCache
 
-var DeleteCloudDNSRecord = DeleteCloudDNSRecord1
+var DeleteCloudDNSRecord = _deleteCloudDNSRecord
 
-var GetOrCreateCloudDNSRecord = GetOrCreateCloudDNSRecord1
+var GetOrCreateCloudDNSRecord = _getOrCreateCloudDNSRecord
 
-var GetCertificateAndPrivateKeyByID = GetCertificateAndPrivateKeyByID1
+var GetCertificateAndPrivateKeyByID = _getCertificateAndPrivateKeyByID
 
-var GetOrCreatePrivateKeyInSecretManagerAndCache = GetOrCreatePrivateKeyInSecretManagerAndCache1
+var CreatePrivateKeyInSecretManager = _createPrivateKeyInSecretManager
 
-var GetOrCreateCertificateInCASAndPrivateKeyInSM = GetOrCreateCertificateInCASAndPrivateKeyInSM1
+var CreateCertificateInCAS = _createCertificateInCAS
 
-// GenerateAndCreateCertificateForVSACluster1 generates a CSR and creates a certificate in GCP Certificate Authority Service.
-func GenerateAndCreateCertificateForVSACluster1(gcpService GoogleServices, Region, certificateID, clusterName string) (*hyperscalermodels.CustomCertificateResponse, error) {
+var CreateCertificateInCASAndPrivateKeyInSM = _createCertificateInCASAndPrivateKeyInSM
+
+var GetCertificateAndSecret = _getCertificateAndSecret
+
+var DeleteCertificateAndSecret = _deleteCertificateAndSecret
+
+// _generateAndCreateCertificateForVSACluster generates a CSR and creates a certificate in GCP Certificate Authority Service.
+func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, certificateID, clusterName string) (*hyperscalermodels.CustomCertificateResponse, error) {
+	logger := gcpService.GetLogger()
+	// Get Both Certificate and Secret
+	certificate, secret, err := GetCertificateAndSecret(gcpService, certificateID)
+	if err != nil {
+		logger.Errorf("Failed to get Certificate and Secret for certificateID: %s, err: %v", certificateID, err)
+		return nil, err
+	}
+
+	// NotFoundError already handled and hence certificate and secret will be nil if not found
+	if certificate != nil && secret != nil {
+		common.AddToCertAuthCache(certificateID, &models.Certificate{
+			CommonName:               certificate.SubjectCommonName,
+			SignedCertificate:        certificate.PemCertificate,
+			PrivateKey:               secret.SecretVersion.Value,
+			InterMediateCertificates: certificate.PemCertificateChain,
+		})
+
+		return &hyperscalermodels.CustomCertificateResponse{
+			Certificate: certificate,
+			Secret:      secret,
+		}, nil
+	}
+
+	// Delete the certificate and Secret if any exist
+	err = DeleteCertificateAndSecret(gcpService, certificateID, certificate, secret)
+	if err != nil {
+		logger.Errorf("Failed to delete certificate and privake key for certificateID: %s, err: %v", certificateID, err)
+		return nil, err
+	}
+
+	// If certificate and secret are nil so create a CSR and request new certificate in CAS and store the private key in secret manager
+	logger.Debugf("Generating and creating certificate for cluster: %s with certificateID: %s", clusterName, certificateID)
+	certificate, secret, err = CreateCertificateInCASAndPrivateKeyInSM(gcpService, certificateID, clusterName)
+	if err != nil {
+		logger.Errorf("Failed to create certificate and store private key for cluster: %s with certificateID: %s", clusterName, certificateID)
+		return nil, err
+	}
+
+	logger.Debug("certificate created successfully for certificateID: %s", certificateID)
+	// Add the certificate to the cache
+	common.AddToCertAuthCache(certificateID, &models.Certificate{
+		CommonName:               certificate.SubjectCommonName,
+		SignedCertificate:        certificate.PemCertificate,
+		PrivateKey:               secret.SecretVersion.Value,
+		InterMediateCertificates: certificate.PemCertificateChain,
+	})
+
+	return &hyperscalermodels.CustomCertificateResponse{
+		Certificate: certificate,
+		Secret:      secret,
+	}, nil
+}
+
+func _deleteCertificateAndSecret(gcpService GoogleServices, certificateID string, certificate *hyperscalermodels.CustomCertificate, secret *hyperscalermodels.CustomSecret) error {
+	logger := gcpService.GetLogger()
+	if certificate != nil {
+		certObject := &hyperscalermodels.CustomCertificate{
+			CertOwningEntity: env.CaPoolDeployedProjectID,
+			Region:           env.Region,
+			CaGroupName:      env.CaPoolName,
+			CertificateID:    certificateID,
+		}
+
+		// delete the certificate from CAS
+		_, err := gcpService.RevokeCertificate(certObject)
+		if err != nil {
+			logger.Errorf("Failed to revoke certificate for projectID: %s, region: %s and certificateID: %s", env.CaPoolDeployedProjectID, env.Region, certificateID)
+			return err
+		}
+	}
+
+	if secret != nil {
+		// delete the private key from secret manager
+		err := gcpService.DeleteSecret(env.SecretManagerProjectID, certificateID)
+		if err != nil {
+			logger.Errorf("Failed to delete private key from secret manager for projectID: %s and certificate: %s", env.SecretManagerProjectID, certificateID)
+			return err
+		}
+	}
+	return nil
+}
+
+func _getCertificateAndSecret(gcpService GoogleServices, certificateID string) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
+	logger := gcpService.GetLogger()
+	cert, getErr := gcpService.GetCertificate(env.CaPoolDeployedProjectID, env.Region, env.CaPoolName, certificateID)
+	if getErr != nil {
+		logger.Errorf("Failed to get certificate for certificateID: %s, err: %v", certificateID, getErr)
+		return nil, nil, getErr
+	}
+	secret, getErr := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, certificateID)
+	if getErr != nil {
+		logger.Errorf("Failed to get secret for certificateID: %s, err: %v", certificateID, getErr)
+		return nil, nil, getErr
+	}
+	return cert, secret, nil
+}
+
+func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certificateID string, clusterName string) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 	domains := fmt.Sprintf("*.%s.%s", clusterName, env.VsaDeployedDnsName)
-	param := &hyperscalermodels.CustomCertificateParam{
-		Region:           Region,
+	certObj := &hyperscalermodels.CustomCertificateParam{
+		Region:           env.Region,
 		CertificateID:    certificateID,
 		CaPoolName:       env.CaPoolName,
 		CaName:           env.CaName,
@@ -112,97 +217,70 @@ func GenerateAndCreateCertificateForVSACluster1(gcpService GoogleServices, Regio
 		CertOwningEntity: env.CaPoolDeployedProjectID,
 	}
 	// Generate CSR
-	csrDER, key, err := GenerateCSR(param.CommonName, param.Domains)
+	csrDER, key, err := GenerateCSR(certObj.CommonName, certObj.Domains)
 	if err != nil {
-		logger.Errorf("failed to generate CSR for commonName: %s, certificateId : %s, err : %v", param.CommonName, param.CertificateID, err)
-		return nil, err
+		logger.Errorf("failed to generate CSR for commonName: %s, certificateId : %s, err : %v", certObj.CommonName, certObj.CertificateID, err)
+		return nil, nil, err
 	}
 
 	pemBlock := pem.Block{
 		Type:  CsrType,
 		Bytes: csrDER,
 	}
-	logger.Debug("Generate CSR for commonName: %s, certificateId : %s", param.CommonName, param.CertificateID)
+	logger.Debugf("Generate CSR for commonName: %s, certificateId : %s", certObj.CommonName, certObj.CertificateID)
 
-	customCertificate, err := google.ValidateAndConvertCertificateParamsToCustomCertificate(param, pemBlock)
+	customCertificate, err := common2.ValidateAndConvertCertParams(certObj, pemBlock)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Create the Certificate
-	cert, secret, err := GetOrCreateCertificateInCASAndPrivateKeyInSM(gcpService, customCertificate, key)
+	// Create the Certificate in CAS
+	cert, err := CreateCertificateInCAS(gcpService, customCertificate)
 	if err != nil {
-		logger.Errorf("failed to create customCertificate in CAS and private key in SM for commonName: %s, certificateId : %s, err : %v", param.CommonName, param.CertificateID, err)
-		return nil, err
+		logger.Errorf("failed to create Certificate in CAS and private key in SM for projectID: %s, certificateId : %s, err : %v", certObj.CertOwningEntity, certObj.CertificateID, err)
+		return nil, nil, err
 	}
 
-	// Add the certificate to the cache
-	common.AddToCertAuthCache(certificateID, &models.Certificate{
-		CommonName:               cert.SubjectCommonName,
-		SignedCertificate:        cert.PemCertificate,
-		PrivateKey:               secret.SecretVersion.Value,
-		InterMediateCertificates: cert.PemCertificateChain,
-	})
-	return &hyperscalermodels.CustomCertificateResponse{
-		Certificate: cert,
-		Secret:      secret,
-	}, nil
-}
-
-// GetOrCreateCertificateInCASAndPrivateKeyInSM1 creates a certificate in GCP Certificate Authority Service and stores the private key in Secret Manager.
-func GetOrCreateCertificateInCASAndPrivateKeyInSM1(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate, key *rsa.PrivateKey) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
-	// Create the certificate if Get the certificate fails
-	logger := gcpService.GetLogger()
-	var secret *hyperscalermodels.CustomSecret
-	var cert *hyperscalermodels.CustomCertificate
-	cert, err := gcpService.GetCertificate(env.CaPoolDeployedProjectID, certificate.Region, env.CaPoolName, certificate.CertificateID)
+	// Create the private key in Secret Manager
+	secret, err := CreatePrivateKeyInSecretManager(gcpService, customCertificate, key)
 	if err != nil {
-		// Create the Certificate
-		cert, err = gcpService.CreateCertificate(certificate)
-		if err != nil {
-			logger.Errorf("failed to create certificate in CAS for commonName: %s, certificateId : %s, err : %v", certificate.SubjectCommonName, certificate.CertificateID, err)
-			return nil, nil, err
-		}
-		logger.Debugf("created certificate in CAS for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
-
-		secret, err = GetOrCreatePrivateKeyInSecretManagerAndCache(gcpService, certificate, key)
-		if err != nil {
-			return nil, nil, err
-		}
-		return cert, secret, nil
-	}
-
-	secret, err = GetOrCreatePrivateKeyInSecretManagerAndCache(gcpService, certificate, key)
-	if err != nil {
+		logger.Errorf("failed to create private key in Secret Manager for projectID: %s, certificateId : %s, err : %v", env.SecretManagerProjectID, certObj.CertificateID, err)
 		return nil, nil, err
 	}
 	return cert, secret, nil
 }
 
-func GetOrCreatePrivateKeyInSecretManagerAndCache1(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate, key *rsa.PrivateKey) (*hyperscalermodels.CustomSecret, error) {
+// _createCertificateInCAS creates a certificate in GCP Certificate Authority Service and stores the private key in Secret Manager.
+func _createCertificateInCAS(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate) (*hyperscalermodels.CustomCertificate, error) {
 	logger := gcpService.GetLogger()
-	secret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, certificate.CertificateID)
+	logger.Debugf("Creating certificate in CAS and private key in SM for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
+	var cert *hyperscalermodels.CustomCertificate
+	// Create the Certificate
+	cert, err := gcpService.CreateCertificate(certificate)
 	if err != nil {
-		// Store the private key in Secret Manager
-		secretValue := google.ConvertPrivateKeyToString(key, RsaKeyType)
-		secret, err = gcpService.CreateSecret(env.SecretManagerProjectID, certificate.Region, certificate.CertificateID, secretValue)
-		if err != nil {
-			logger.Errorf("failed to create secret in SM for commonName: %s, certificateId : %s, err : %v", certificate.SubjectCommonName, certificate.CertificateID, err)
-			// Revoke the certificate if the secret creation fails
-			_, revokeError := gcpService.RevokeCertificate(certificate)
-			if revokeError != nil {
-				logger.Errorf("failed to revoke certificate in CAS for commonName: %s, certificateId : %s, err : %v", certificate.SubjectCommonName, certificate.CertificateID, revokeError)
-				return nil, revokeError
-			}
-			return nil, err
-		}
-		logger.Debugf("created secret in SM for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
+		logger.Errorf("failed to create certificate in CAS for commonName: %s, certificateId : %s, err : %v", certificate.SubjectCommonName, certificate.CertificateID, err)
+		return nil, err
 	}
+	logger.Debugf("created certificate in CAS for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
+	return cert, nil
+}
+
+func _createPrivateKeyInSecretManager(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate, key *rsa.PrivateKey) (*hyperscalermodels.CustomSecret, error) {
+	logger := gcpService.GetLogger()
+	logger.Debugf("Creating private key in Secret Manager for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
+	// Store the private key in Secret Manager
+	secretValue := common2.ConvertPrivateKeyToString(key, RsaKeyType)
+	secret, err := gcpService.CreateSecret(env.SecretManagerProjectID, certificate.Region, certificate.CertificateID, secretValue)
+	if err != nil {
+		logger.Errorf("failed to create secret in SM for commonName: %s, certificateId : %s, err : %v", certificate.SubjectCommonName, certificate.CertificateID, err)
+		return nil, err
+	}
+	logger.Debugf("created secret in SM for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
 	return secret, nil
 }
 
-// GetCertificateAndPrivateKeyByID1 retrieves the certificate for a VSA cluster from GCP Certificate Authority Service and Private key from Secret Manager.
-func GetCertificateAndPrivateKeyByID1(gcpService GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
+// _getCertificateAndPrivateKeyByID retrieves the certificate for a VSA cluster from GCP Certificate Authority Service and Private key from Secret Manager.
+func _getCertificateAndPrivateKeyByID(gcpService GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
 	certificate, err := gcpService.GetCertificate(caDeployedProjectID, region, caPoolName, certificateID)
 	if err != nil || certificate == nil {
 		return nil, fmt.Errorf("failed to get certficate for project: %s, region: %s, caPoolName : %s, certificateID : %s, err: %s", caDeployedProjectID, region, caPoolName, certificateID, err)
@@ -217,18 +295,22 @@ func GetCertificateAndPrivateKeyByID1(gcpService GoogleServices, caDeployedProje
 	}, nil
 }
 
-// GeneratePasswordForVSACluster1 generates a strong password and creates a secret in GCP Secret Manager.
-func GeneratePasswordForVSACluster1(gcpService GoogleServices, projectID, region, secretID string) (*hyperscalermodels.CustomSecret, error) {
+// _generatePasswordForVSACluster generates a strong password and creates a secret in GCP Secret Manager.
+func _generatePasswordForVSACluster(gcpService GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
-	password, err := utils.GenerateStrongPassword(12)
-	if err != nil {
-		logger.Errorf("failed to generate password for secretID: %s, err : %v", secretID, err)
-		return nil, err
-	}
 	var secret *hyperscalermodels.CustomSecret
+	projectID := env.SecretManagerProjectID
 	secret, getSecretError := gcpService.GetSecretWithLatestVersion(projectID, secretID)
 	if getSecretError != nil {
-		secret, err = gcpService.CreateSecret(projectID, region, secretID, password)
+		return nil, getSecretError
+	}
+	if secret == nil {
+		password, err := utils.GenerateStrongPassword(12)
+		if err != nil {
+			logger.Errorf("failed to generate password for secretID: %s, err : %v", secretID, err)
+			return nil, err
+		}
+		secret, err = gcpService.CreateSecret(projectID, env.Region, secretID, password)
 		if err != nil {
 			return nil, err
 		}
@@ -237,8 +319,8 @@ func GeneratePasswordForVSACluster1(gcpService GoogleServices, projectID, region
 	return secret, nil
 }
 
-// GetPasswordForVSACluster1 retrieves the password for a VSA cluster from GCP Secret Manager.
-func GetPasswordForVSACluster1(gcpService GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
+// _getPasswordForVSACluster retrieves the password for a VSA cluster from GCP Secret Manager.
+func _getPasswordForVSACluster(gcpService GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
 	secret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, secretID)
 	if err != nil || secret == nil || secret.SecretVersion == nil {
 		return nil, fmt.Errorf("failed to get secret for project: %s, userName: %s, err: %s", env.SecretManagerProjectID, secretID, err)
@@ -246,8 +328,8 @@ func GetPasswordForVSACluster1(gcpService GoogleServices, secretID string) (*hyp
 	return secret, nil
 }
 
-// GetPasswordFromCacheOrSecretManager1 retrieves the password for a VSA cluster from cache or GCP Secret Manager if not found in cache.
-func GetPasswordFromCacheOrSecretManager1(ctx context.Context, secretID string) (string, error) {
+// _getPasswordFromCacheOrSecretManager retrieves the password for a VSA cluster from cache or GCP Secret Manager if not found in cache.
+func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) (string, error) {
 	password := ""
 	userCache, exist := common.GetFromUserAuthCache(secretID)
 	if !exist || userCache.Password == "" {
@@ -267,28 +349,30 @@ func GetPasswordFromCacheOrSecretManager1(ctx context.Context, secretID string) 
 	return password, nil
 }
 
-// DeletePasswordFromSecretManagerAndCache1 generates a strong password and creates a secret in GCP Secret Manager.
-func DeletePasswordFromSecretManagerAndCache1(gcpService GoogleServices, secretID string) error {
+// _deletePasswordFromSecretManagerAndCache generates a strong password and creates a secret in GCP Secret Manager.
+func _deletePasswordFromSecretManagerAndCache(gcpService GoogleServices, secretID string) error {
 	logger := gcpService.GetLogger()
-	_, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, secretID)
-	if err == nil {
+	secret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, secretID)
+	if err != nil {
+		return err
+	}
+	if secret != nil {
 		err = gcpService.DeleteSecret(env.SecretManagerProjectID, secretID)
 		if err != nil {
 			logger.Errorf("failed to delete password for secretID: %s, err : %v", secretID, err)
 			return err
 		}
+	}
 
-		done := common.RemoveFromUserAuthCache(secretID)
-		if !done {
-			logger.Errorf("failed to remove password from cache for secretID: %s", secretID)
-			return nil
-		}
+	done := common.RemoveFromUserAuthCache(secretID)
+	if !done {
+		logger.Errorf("failed to remove password from cache for secretID: %s", secretID)
 	}
 	return nil
 }
 
-// GetCertificateFromCacheOrSecretManager1 retrieves the certificate from cache or GCP Certificate and Secret Manager.
-func GetCertificateFromCacheOrSecretManager1(ctx context.Context, certificateID string) (*models.Certificate, error) {
+// _getCertificateFromCacheOrSecretManager retrieves the certificate from cache or GCP Certificate and Secret Manager.
+func _getCertificateFromCacheOrSecretManager(ctx context.Context, certificateID string) (*models.Certificate, error) {
 	certCache, exist := common.GetCertAuthCache(certificateID)
 	// If not found in cache, fetch from GCP Certificate and Secret Manager
 	if !exist || certCache.Certificate == nil {
@@ -309,30 +393,38 @@ func GetCertificateFromCacheOrSecretManager1(ctx context.Context, certificateID 
 		common.AddToCertAuthCache(certificateID, cert)
 		return cert, nil
 	}
-
 	return certCache.Certificate, nil
 }
 
-// GetOrCreateCloudDNSRecord1 checks if a Cloud DNS record exists, and if not, creates it.
-func GetOrCreateCloudDNSRecord1(gcpService GoogleServices, recordName, ipAddress string) (*hyperscalermodels.CustomCloudDNSRecord, error) {
-	record, getErr := gcpService.GetResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
-	if getErr != nil {
-		gcpService.GetLogger().Debugf("Creating Cloud DNS record: %s.%s with type %s", recordName, env.VsaManagedZone, recordName)
-		record, err := gcpService.CreateResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, ipAddress, recordName)
-		if err != nil {
-			gcpService.GetLogger().Errorf("Failed to create Cloud DNS record: %v", err)
-			return nil, errors.WrapAsTemporalApplicationError(err)
-		}
-		return record, nil
+// _getOrCreateCloudDNSRecord checks if a Cloud DNS record exists, and if not, creates it.
+func _getOrCreateCloudDNSRecord(gcpService GoogleServices, recordName, ipAddress string) (*hyperscalermodels.CustomCloudDNSRecord, error) {
+	gcpService.GetLogger().Debugf("Get and Create Cloud DNS for projectID: %s, record: %s, managedZone: %s", env.SecretManagerProjectID, recordName, env.VsaManagedZone)
+	record, err := gcpService.GetResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
+	if err != nil {
+		gcpService.GetLogger().Errorf("Failed to get Cloud DNS record: %s, err: %v", recordName, err)
+		return nil, err
 	}
+	if record == nil {
+		gcpService.GetLogger().Debugf("Creating Cloud DNS record: %s, managedzone %s", recordName, env.VsaManagedZone)
+		record, err = gcpService.CreateResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, ipAddress, recordName)
+		if err != nil {
+			gcpService.GetLogger().Errorf("Failed to create Cloud DNS record: %s, err: %v", recordName, err)
+			return nil, err
+		}
+	}
+
 	// If the record already exists, return it
 	return record, nil
 }
 
-func DeleteCloudDNSRecord1(gcpService GoogleServices, recordName string) error {
+func _deleteCloudDNSRecord(gcpService GoogleServices, recordName string) error {
 	logger := gcpService.GetLogger()
-	_, err := gcpService.GetResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
-	if err == nil {
+	record, err := gcpService.GetResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
+	if err != nil {
+		logger.Errorf("Failed to get Cloud DNS record: %v", err)
+		return err
+	}
+	if record != nil {
 		logger.Debugf("Deleting Cloud DNS record: %s.%s", recordName, env.VsaManagedZone)
 		err = gcpService.DeleteResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
 		if err != nil {
@@ -342,37 +434,18 @@ func DeleteCloudDNSRecord1(gcpService GoogleServices, recordName string) error {
 	return nil
 }
 
-func RevokeCertificateAndDeleteFromCacheAndSecretManager1(gcpService GoogleServices, certificateID string) error {
+func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService GoogleServices, certificateID string) error {
 	logger := gcpService.GetLogger()
-	_, err := gcpService.GetCertificate(env.CaPoolDeployedProjectID, env.Region, env.CaPoolName, certificateID)
+	certificate, secret, err := GetCertificateAndSecret(gcpService, certificateID)
 	if err != nil {
-		logger.Errorf("Failed to get certificate from cache for project %s and region %s", env.CaPoolDeployedProjectID, env.Region)
-		return err
-	}
-	certObject := &hyperscalermodels.CustomCertificate{
-		CertOwningEntity: env.CaPoolDeployedProjectID,
-		Region:           env.Region,
-		CaGroupName:      env.CaPoolName,
-		CertificateID:    certificateID,
-	}
-
-	// delete the certificate from CAS
-	_, err = gcpService.RevokeCertificate(certObject)
-	if err != nil {
-		logger.Errorf("Failed to revoke certificate for project %s and region %s", env.CaPoolDeployedProjectID, env.Region)
+		logger.Errorf("Failed to get Certificate and Secret for certificateID: %s, err: %v", certificateID, err)
 		return err
 	}
 
-	_, err = gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, certificateID)
+	// Delete the certificate and Secret if any exist
+	err = DeleteCertificateAndSecret(gcpService, certificateID, certificate, secret)
 	if err != nil {
-		logger.Errorf("Failed to get private key from secret manager for project %s and certificate %s", env.SecretManagerProjectID, certificateID)
-		return err
-	}
-
-	// delete the private key from secret manager
-	err = gcpService.DeleteSecret(env.SecretManagerProjectID, certificateID)
-	if err != nil {
-		logger.Errorf("Failed to delete private key from secret manager for project %s and certificate %s", env.SecretManagerProjectID, certificateID)
+		logger.Errorf("Failed to delete certificate and privake key for certificateID: %s, err: %v", certificateID, err)
 		return err
 	}
 
@@ -381,14 +454,13 @@ func RevokeCertificateAndDeleteFromCacheAndSecretManager1(gcpService GoogleServi
 	if !done {
 		logger.Errorf("Failed to remove certificate %s from cache", certificateID)
 	}
-
 	return nil
 }
 
-// GenerateCSR1 generates a Certificate Signing Request (CSR) with the specified common name and domains.
-func GenerateCSR1(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+// _generateCSR generates a Certificate Signing Request (CSR) with the specified common name and domains.
+func _generateCSR(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
 	// Generate an RSA private key.
-	key, err := rsa.GenerateKey(rand.Reader, 3072)
+	key, err := rsa.GenerateKey(rand.Reader, env.PrivateKeyBits)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -459,10 +531,10 @@ const DigitalSignature = 0x80 // 10000000 in binary (bit 0)
 
 const KeyEncipherment = 0x20
 
-var GetGCPService = GetGCPService1
+var GetGCPService = _getGCPService
 
-// GetGCPService1 initializes and returns a GcpServices instance.
-func GetGCPService1(ctx context.Context) (*google.GcpServices, error) {
+// _getGCPService initializes and returns a GcpServices instance.
+func _getGCPService(ctx context.Context) (*google.GcpServices, error) {
 	gcpService := NewGcpServices(ctx)
 
 	gcpService.Logger.Debug("gcpService initialized")
@@ -487,10 +559,10 @@ func NewGcpServices(ctx context.Context) *google.GcpServices {
 
 var MaxRetries = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
 
-var CreateNodeForProvider = C1reateNodeForProvider
+var CreateNodeForProvider = _createNodeForProvider
 
-// CreateNodeForProvider creates a node for a given provider using the provided information.
-func C1reateNodeForProvider(inp NodeProviderInput) *models.Node {
+// _createNodeForProvider creates a node for a given provider using the provided information.
+func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 	endpointAddressToHostNameMap := make(map[string]string)
 	if inp.AuthType == env.USER_CERTIFICATE {
 		for _, node := range inp.Nodes {

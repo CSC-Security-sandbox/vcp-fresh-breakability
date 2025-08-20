@@ -1,12 +1,14 @@
 package google
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/privateca/v1"
 )
 
@@ -68,14 +70,22 @@ func (gcpService *GcpServices) GetCertificate(projectID, region, poolName, certi
 	certificate, err := gcpService.AdminGCPService.privateCaService.Projects.Locations.CaPools.Certificates.Get(certificateName).Context(gcpService.Ctx).Do()
 
 	if err != nil {
-		gcpService.Logger.Errorf("GetCertificate failed for certificate : %s", certificateName)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+		gcpService.Logger.Errorf("GetCertificate failed for certificate : %s, err: %s", certificateName, err.Error())
+		return nil, googleResourceNotFoundCheck(err)
 	}
 
 	gcpService.Logger.Debug(fmt.Sprintf("GetCertificate success with response :  %s", certificateID))
 	customCertificate, err := ValidateAndConvertPrivateCACertificateToCustomCertificate(certificateID, certificate)
 	if err != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
+		return nil, err
 	}
 	return customCertificate, nil
+}
+
+func googleResourceNotFoundCheck(err error) error {
+	var gErr *googleapi.Error
+	if errors.As(err, &gErr) && gErr.Code == 404 {
+		return nil
+	}
+	return err
 }

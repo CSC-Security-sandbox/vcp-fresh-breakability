@@ -1001,6 +1001,7 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 	originalMgmtNetworkIpRange := MgmtNetworkIpRange
 	originalRsmNetworkIpRange := RsmNetworkIpRange
 	originalIcNetworkIpRange := IcNetworkIpRange
+	originalPrivateKeyBits := PrivateKeyBits
 
 	t.Run("WhenAllEnvironmentVariablesAreSet", func(tt *testing.T) {
 		// Set all required environment variables
@@ -1040,6 +1041,8 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		assert.NoError(tt, err)
 		err = os.Setenv("IC_NETWORK_IP_RANGE", "198.18.0.0/20")
 		assert.NoError(tt, err)
+		err = os.Setenv("PRIVATE_KEY_BITS", "3072")
+		assert.NoError(tt, err)
 
 		// Reinitialize variables by simulating package load
 		Region = GetString("LOCAL_REGION", "")
@@ -1051,6 +1054,7 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		VsaManagedZone = GetString("VSA_MANAGED_ZONE", "")
 		CertificateLifetime = GetString("CERTIFICATE_LIFETIME", "94608000s")
 		CloudDNSCacheTTL = GetInt64("CLOUD_DNS_CACHE_TTL", 300)
+		PrivateKeyBits = GetInt("PRIVATE_KEY_BITS", 3072)
 		NodePassword = GetString("VSA_NODE_PASSWORD", "")
 		MgmtFirewallSourceRanges = GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
 		RsmFirewallSourceRanges = GetString("RSM_FIREWALL_SOURCE_RANGES", "")
@@ -1121,6 +1125,8 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		err = os.Unsetenv("RSM_NETWORK_IP_RANGE")
 		assert.NoError(tt, err)
 		err = os.Unsetenv("IC_NETWORK_IP_RANGE")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("PRIVATE_KEY_BITS")
 		assert.NoError(tt, err)
 	})
 
@@ -1239,6 +1245,23 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		assert.Contains(tt, err.Error(), "VSA_NODE_PASSWORD must be set for authentication")
 	})
 
+	t.Run("WhenPrivateKeyBitsIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = "test-project"
+		SecretManagerProjectID = "secret-project"
+		VsaDeployedDnsName = "test.example.com"
+		VsaManagedZone = "test-zone"
+		CertificateLifetime = "2592000s"
+		CloudDNSCacheTTL = 300
+		NodePassword = "password"
+		PrivateKeyBits = 0
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "PRIVATE_KEY_BITS must be set for authentication")
+	})
+
 	// Restore original values
 	Region = originalRegion
 	CaName = originalCaName
@@ -1258,6 +1281,7 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 	MgmtNetworkIpRange = originalMgmtNetworkIpRange
 	RsmNetworkIpRange = originalRsmNetworkIpRange
 	IcNetworkIpRange = originalIcNetworkIpRange
+	PrivateKeyBits = originalPrivateKeyBits
 }
 
 // TestGlobalVariableDeclarations tests the global variables declared in the package
