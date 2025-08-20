@@ -1082,6 +1082,10 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 		State:        string(models.JobsStateNEW),
 		ResourceName: event.ReplicationModel.Uri,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: event.ReplicationModel.UUID,
+			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -1222,6 +1226,10 @@ func _resumeReplicationInternal(ctx context.Context, se database.Storage, tempor
 		State:        string(models.JobsStateNEW),
 		ResourceName: replicationDb.Uri,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: replicationDb.UUID,
+			PoolUUID:     replicationDb.Volume.Pool.UUID,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)

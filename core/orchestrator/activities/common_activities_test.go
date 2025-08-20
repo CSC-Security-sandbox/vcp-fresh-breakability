@@ -4,21 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
@@ -593,5 +596,138 @@ func TestCommonActivities_GetJob(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, job)
 		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestDescribeRemoteJob(t *testing.T) {
+	t.Run("DescribeJob_Success", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.CreateReplicationResult{
+			JobId:            nillable.GetStringPtr("test-job-id"),
+			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "test-location-id",
+			},
+			DstBasePath: nillable.GetStringPtr("base-path"),
+			DstJwtToken: nillable.GetStringPtr("jwt-token"),
+		}
+
+		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+			OperationId:   *result.JobId,
+			ProjectNumber: *result.DstProjectNumber,
+			LocationId:    result.Event.DestinationLocationID,
+		}
+
+		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
+
+		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+
+		assert.NoError(tt, err)
+	})
+
+	t.Run("DescribeJob_Error", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.CreateReplicationResult{
+			JobId:            nillable.GetStringPtr("test-job-id"),
+			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "test-location-id",
+			},
+			DstBasePath: nillable.GetStringPtr("base-path"),
+			DstJwtToken: nillable.GetStringPtr("jwt-token"),
+		}
+
+		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+			OperationId:   *result.JobId,
+			ProjectNumber: *result.DstProjectNumber,
+			LocationId:    result.Event.DestinationLocationID,
+		}
+		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
+		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+
+		assert.Error(tt, err)
+	})
+
+	t.Run("DescribeJob_NotFinished", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.CreateReplicationResult{
+			JobId:            nillable.GetStringPtr("test-job-id"),
+			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "test-location-id",
+			},
+			DstBasePath: nillable.GetStringPtr("base-path"),
+			DstJwtToken: nillable.GetStringPtr("jwt-token"),
+		}
+
+		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+			OperationId:   *result.JobId,
+			ProjectNumber: *result.DstProjectNumber,
+			LocationId:    result.Event.DestinationLocationID,
+		}
+		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
+		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+
+		assert.Error(tt, err)
+	})
+	t.Run("DescribeJob_FinishedWithError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.CreateReplicationResult{
+			JobId:            nillable.GetStringPtr("test-job-id"),
+			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "test-location-id",
+			},
+			DstBasePath: nillable.GetStringPtr("base-path"),
+			DstJwtToken: nillable.GetStringPtr("jwt-token"),
+		}
+
+		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+			OperationId:   *result.JobId,
+			ProjectNumber: *result.DstProjectNumber,
+			LocationId:    result.Event.DestinationLocationID,
+		}
+
+		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true), Error: googleproxyclient.NewOptStatusV1Beta(googleproxyclient.StatusV1Beta{Message: googleproxyclient.NewOptString("failed")})}, nil)
+
+		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+
+		assert.Error(tt, err)
 	})
 }

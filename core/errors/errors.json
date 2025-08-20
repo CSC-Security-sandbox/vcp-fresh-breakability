@@ -1085,6 +1085,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6184": {
+    "description": "Internal job failed",
+    "message": "Internal job failed",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

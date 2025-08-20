@@ -400,9 +400,16 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 		_ = protocolsV1beta.UnmarshalText([]byte(value))
 		protocols = append(protocols, protocolsV1beta)
 	}
-	osType := srcVol.VolumeAttributes.BlockProperties.OSType
-	blockProperties := googleproxyclient.BlockPropertiesV1beta{
-		OsType: googleproxyclient.NewOptBlockPropertiesV1betaOsType(convertBlockPropertiesOsType(osType)),
+
+	// Convert BlockDevices
+	blockDevices := make([]googleproxyclient.BlockDeviceV1beta, 0)
+	if srcVol.VolumeAttributes.BlockDevices != nil {
+		for _, blockDevice := range *srcVol.VolumeAttributes.BlockDevices {
+			blockDeviceV1beta := googleproxyclient.BlockDeviceV1beta{
+				OsType: googleproxyclient.NewOptBlockDeviceV1betaOsType(convertBlockDeviceOsType(blockDevice.OSType)),
+			}
+			blockDevices = append(blockDevices, blockDeviceV1beta)
+		}
 	}
 
 	var creationToken *string
@@ -416,14 +423,14 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 	}
 
 	volume := googleproxyclient.VolumeV1beta{
-		ResourceId:      *resourceId,
-		CreationToken:   googleproxyclient.NewOptString(*creationToken),
-		PoolId:          googleproxyclient.NewNilString(result.DstPool.PoolId.Value),
-		QuotaInBytes:    googleproxyclient.NewOptFloat64(float64(srcVol.SizeInBytes)),
-		Network:         googleproxyclient.NewOptString(result.DstPool.Network),
-		Description:     googleproxyclient.NewOptNilString(nillable.GetString(result.Event.CreateReplicationParams.DestinationVolumeParameters.Description, "")),
-		Protocols:       protocols,
-		BlockProperties: googleproxyclient.NewOptBlockPropertiesV1beta(blockProperties),
+		ResourceId:    *resourceId,
+		CreationToken: googleproxyclient.NewOptString(*creationToken),
+		PoolId:        googleproxyclient.NewNilString(result.DstPool.PoolId.Value),
+		QuotaInBytes:  googleproxyclient.NewOptFloat64(float64(srcVol.SizeInBytes)),
+		Network:       googleproxyclient.NewOptString(result.DstPool.Network),
+		Description:   googleproxyclient.NewOptNilString(nillable.GetString(result.Event.CreateReplicationParams.DestinationVolumeParameters.Description, "")),
+		Protocols:     protocols,
+		BlockDevices:  blockDevices,
 	}
 	return volume
 }
@@ -469,15 +476,15 @@ func _convertReplicationScheduleToInternalReplicationSchedule(in string) googlep
 	}
 }
 
-func convertBlockPropertiesOsType(in string) googleproxyclient.BlockPropertiesV1betaOsType {
+func convertBlockDeviceOsType(in string) googleproxyclient.BlockDeviceV1betaOsType {
 	switch in {
 	case "LINUX":
-		return googleproxyclient.BlockPropertiesV1betaOsTypeLINUX
+		return googleproxyclient.BlockDeviceV1betaOsTypeLINUX
 	case "WINDOWS":
-		return googleproxyclient.BlockPropertiesV1betaOsTypeWINDOWS
+		return googleproxyclient.BlockDeviceV1betaOsTypeWINDOWS
 	case "ESXI":
-		return googleproxyclient.BlockPropertiesV1betaOsTypeESXI
+		return googleproxyclient.BlockDeviceV1betaOsTypeESXI
 	default:
-		return googleproxyclient.BlockPropertiesV1betaOsTypeOSTYPEUNSPECIFIED
+		return googleproxyclient.BlockDeviceV1betaOsTypeOSTYPEUNSPECIFIED
 	}
 }

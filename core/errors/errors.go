@@ -213,6 +213,7 @@ const (
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsForbidden           = 6181
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsNotFound            = 6182
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsUnknown             = 6183
+	ErrJobFailed                                                                             = 6184
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

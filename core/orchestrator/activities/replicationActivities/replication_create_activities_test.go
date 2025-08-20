@@ -2562,6 +2562,41 @@ func TestDescribeRemoteJob(t *testing.T) {
 
 		assert.Error(tt, err)
 	})
+	t.Run("DescribeJob_FinishedWithError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result := &replication.CreateReplicationResult{
+			JobId:            nillable.GetStringPtr("test-job-id"),
+			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "test-location-id",
+			},
+			DstBasePath: nillable.GetStringPtr("base-path"),
+			DstJwtToken: nillable.GetStringPtr("jwt-token"),
+		}
+
+		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+			OperationId:   *result.JobId,
+			ProjectNumber: *result.DstProjectNumber,
+			LocationId:    result.Event.DestinationLocationID,
+		}
+
+		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true), Error: googleproxyclient.NewOptStatusV1Beta(googleproxyclient.StatusV1Beta{Message: googleproxyclient.NewOptString("failed")})}, nil)
+
+		err := activity.DescribeRemoteJob(ctx, result)
+
+		assert.Error(tt, err)
+	})
 }
 
 func TestMountReplication(t *testing.T) {
@@ -2646,5 +2681,280 @@ func TestMountReplication(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
+	})
+}
+
+func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
+	t.Run("WithCompleteVolumeData_ShouldConvertCorrectly", func(tt *testing.T) {
+		// Arrange
+		blockDevices := []datamodel.BlockDevice{
+			{
+				Name:       "test-lun-1",
+				Identifier: "test-id-1",
+				Size:       1073741824, // 1GB
+				OSType:     "LINUX",
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "hg-uuid-1",
+						HostQNs:       []string{"iqn.1993-08.org.example:host1"},
+					},
+				},
+			},
+			{
+				Name:       "test-lun-2",
+				Identifier: "test-id-2",
+				Size:       2147483648, // 2GB
+				OSType:     "WINDOWS",
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "hg-uuid-2",
+						HostQNs:       []string{"iqn.1993-08.org.example:host2"},
+					},
+				},
+			},
+		}
+
+		creationToken := "test-creation-token"
+		volumeID := "test-volume-id"
+		resourceID := "test-resource-id"
+		shareName := "test-share-name"
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        volumeID,
+					SizeInBytes: 5368709120, // 5GB
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: creationToken,
+						Protocols:     []string{"ISCSI", "NFSV3"},
+						BlockDevices:  &blockDevices,
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID: &resourceID,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:    volumeID,
+						ShareName:   shareName,
+						Description: func() *string { s := "Test destination volume"; return &s }(),
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.Equal(tt, volumeID, result.ResourceId)
+		assert.Equal(tt, shareName, result.CreationToken.Value)
+		assert.Equal(tt, "pool-123", result.PoolId.Value)
+		assert.Equal(tt, float64(5368709120), result.QuotaInBytes.Value)
+		assert.Equal(tt, "test-network", result.Network.Value)
+		assert.Equal(tt, "Test destination volume", result.Description.Value)
+
+		// Test protocols conversion
+		assert.Len(tt, result.Protocols, 2)
+		protocolsMap := make(map[string]bool)
+		for _, p := range result.Protocols {
+			protocolsMap[string(p)] = true
+		}
+		assert.True(tt, protocolsMap["ISCSI"])
+		assert.True(tt, protocolsMap["NFSV3"])
+
+		// Test BlockDevices conversion
+		assert.Len(tt, result.BlockDevices, 2)
+
+		// First block device
+		blockDevice1 := result.BlockDevices[0]
+		assert.Equal(tt, googleproxyclient.BlockDeviceV1betaOsTypeLINUX, blockDevice1.OsType.Value)
+
+		// Second block device
+		blockDevice2 := result.BlockDevices[1]
+		assert.Equal(tt, googleproxyclient.BlockDeviceV1betaOsTypeWINDOWS, blockDevice2.OsType.Value)
+	})
+
+	t.Run("WithEmptyShareName_ShouldUseCreationToken", func(tt *testing.T) {
+		// Arrange
+		creationToken := "fallback-creation-token"
+		volumeID := "test-volume-id"
+		resourceID := "test-resource-id"
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        volumeID,
+					SizeInBytes: 1073741824,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: creationToken,
+						Protocols:     []string{"NFSV3"},
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID: &resourceID,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:  volumeID,
+						ShareName: "", // Empty share name
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-456"),
+				Network: "test-network-2",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.Equal(tt, creationToken, result.CreationToken.Value)
+	})
+
+	t.Run("WithEmptyVolumeID_ShouldUseSourceVolumeName", func(tt *testing.T) {
+		// Arrange
+		creationToken := "test-creation-token"
+		sourceName := "source-volume-name"
+		resourceID := "test-resource-id"
+		shareName := "test-share-name"
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        sourceName,
+					SizeInBytes: 2147483648,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: creationToken,
+						Protocols:     []string{"ISCSI"},
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID: &resourceID,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:  "", // Empty volume ID
+						ShareName: shareName,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-789"),
+				Network: "test-network-3",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.Equal(tt, sourceName, result.ResourceId)
+	})
+
+	t.Run("WithNilBlockDevices_ShouldHandleGracefully", func(tt *testing.T) {
+		// Arrange
+		creationToken := "test-creation-token"
+		volumeID := "test-volume-id"
+		resourceID := "test-resource-id"
+		shareName := "test-share-name"
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        volumeID,
+					SizeInBytes: 1073741824,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: creationToken,
+						Protocols:     []string{"NFSV3"},
+						BlockDevices:  nil, // Nil block devices
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID: &resourceID,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:  volumeID,
+						ShareName: shareName,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-nil"),
+				Network: "test-network-nil",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.Empty(tt, result.BlockDevices)
+		assert.Equal(tt, volumeID, result.ResourceId)
+		assert.Equal(tt, shareName, result.CreationToken.Value)
+	})
+
+	t.Run("WithESXIBlockDevice_ShouldConvertCorrectly", func(tt *testing.T) {
+		// Arrange
+		blockDevices := []datamodel.BlockDevice{
+			{
+				Name:       "esxi-lun",
+				Identifier: "esxi-id",
+				Size:       10737418240, // 10GB
+				OSType:     "ESXI",
+			},
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "esxi-volume",
+					SizeInBytes: 10737418240,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "esxi-token",
+						Protocols:     []string{"ISCSI"},
+						BlockDevices:  &blockDevices,
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:  "esxi-volume",
+						ShareName: "esxi-share",
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("esxi-pool"),
+				Network: "esxi-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.Len(tt, result.BlockDevices, 1)
+		assert.Equal(tt, googleproxyclient.BlockDeviceV1betaOsTypeESXI, result.BlockDevices[0].OsType.Value)
+	})
+}
+
+func TestConvertBlockDeviceOsType(t *testing.T) {
+	t.Run("ShouldConvertAllOSTypes", func(tt *testing.T) {
+		testCases := []struct {
+			input    string
+			expected googleproxyclient.BlockDeviceV1betaOsType
+		}{
+			{"LINUX", googleproxyclient.BlockDeviceV1betaOsTypeLINUX},
+			{"WINDOWS", googleproxyclient.BlockDeviceV1betaOsTypeWINDOWS},
+			{"ESXI", googleproxyclient.BlockDeviceV1betaOsTypeESXI},
+			{"UNKNOWN", googleproxyclient.BlockDeviceV1betaOsTypeOSTYPEUNSPECIFIED},
+			{"", googleproxyclient.BlockDeviceV1betaOsTypeOSTYPEUNSPECIFIED},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.input, func(ttt *testing.T) {
+				result := convertBlockDeviceOsType(tc.input)
+				assert.Equal(ttt, tc.expected, result)
+			})
+		}
 	})
 }

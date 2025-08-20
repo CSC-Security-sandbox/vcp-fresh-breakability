@@ -3013,6 +3013,11 @@ func TestResumeReplication(t *testing.T) {
 		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
 			}
 			return nil
 		}
@@ -3054,6 +3059,11 @@ func TestResumeReplication(t *testing.T) {
 		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
 			}
 			return nil
 		}
@@ -3101,6 +3111,11 @@ func TestResumeReplication(t *testing.T) {
 		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					EndpointType: "src",
 				},
@@ -3221,6 +3236,11 @@ func TestResumeReplicationInternal(t *testing.T) {
 			MirrorState:        &mirrorState,
 			LastTransferError:  "error",
 			RelationshipStatus: &relationShipStatus,
+			Volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "uuid"},
+				},
+			},
 		}
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplicationId).Return(replicationDb, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
@@ -3249,6 +3269,11 @@ func TestResumeReplicationInternal(t *testing.T) {
 			MirrorState:        &mirrorState,
 			LastTransferError:  "error",
 			RelationshipStatus: &relationShipStatus,
+			Volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "uuid"},
+				},
+			},
 		}
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
@@ -3288,6 +3313,11 @@ func TestResumeReplicationInternal(t *testing.T) {
 			RelationshipStatus: &relationShipStatus,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType: "src",
+			},
+			Volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "uuid"},
+				},
 			},
 		}
 		jobResponse := &datamodel.Job{

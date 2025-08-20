@@ -29,7 +29,7 @@ data:
   GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: {{ .Values.workerConfig.gcpHydrateAuthServiceAccount | quote }}
   GCP_HYDRATE_BASE_URL: {{ .Values.workerConfig.gcpHydrateBaseUrl | quote }}
   PROXY_CLIENT_TRANSPORT_SCHEMA: {{ .Values.workerConfig.proxyClientTransportSchema | quote }}
-  VCP_PAIRED_REGIONS: {{ .Values.workerConfig.vcpPairedRegions | quote }}
+  VCP_PAIRED_REGIONS: "{{ index .Values.workerConfig "vcpPairedRegions" }}"
   GCP_KMS_KEY_ROTATION_ENABLED: {{ .Values.workerConfig.gcpKmsKeyRotationEnabled | quote }}
   GCP_AUTH_SERVICE_ACCOUNT: {{ .Values.workerConfig.gcpAuthServiceAccount | quote }}
   GCP_SERVICE_URL: {{ .Values.workerConfig.gcpServiceUrl | quote }}

@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	errors2 "errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -84,6 +85,10 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	if ok {
 		if operation.Done.Value {
+			if operation.Error.IsSet() {
+				logger.Errorf("Job with operation id: %s failed", describeOperationParams.OperationId)
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrJobFailed, errors2.New("job failed with error: "+operation.Error.Value.Message.Value)))
+			}
 			return nil
 		}
 	}
