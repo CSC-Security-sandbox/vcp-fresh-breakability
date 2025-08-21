@@ -23,7 +23,6 @@ var (
 	portStart               = env.GetInt("HARVEST_PORT_START", 13001)
 	portEnd                 = env.GetInt("HARVEST_PORT_END", 13500)
 	vsaNodeUserName         = env.GetString("VSA_NODE_USERNAME", "admin")
-	vsaNodePassword         = env.GetString("VSA_NODE_PASSWORD", "")
 )
 
 // CreateNodeNodeGroupMap creates a new node to nodegroup mapping
@@ -267,7 +266,7 @@ func renderHarvestConfig(node datamodel.Node, port, customerProject, leaseName s
 		NODE_IP:             node.EndpointAddress,
 		AUTH_STYLE:          "basic",
 		USERNAME:            vsaNodeUserName,
-		PASSWORD:            vsaNodePassword,
+		PASSWORD:            "", // Password info shouldn't be updated in DataBase
 		PROJECT:             customerProject,
 		LEASE_NAME:          leaseName,
 		FILE_NAME:           fmt.Sprintf("harvest-%d.yaml", node.ID),

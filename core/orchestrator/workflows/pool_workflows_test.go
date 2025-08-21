@@ -1733,6 +1733,92 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+// When unRegister Nodes from Harvest fails DeletePool Workflow should be success
+func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	enableMetrics = true
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+	}()
+
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+	// Set up test data
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool",
+		AccountName: "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-bucket",
+		},
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-tenant",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		KmsConfig:   &datamodel.KmsConfig{},
+		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
+	}
+
+	// Mock activity responses
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+
+	// Mock child workflow
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
+		PoolID: 0,
+	}).Return(errors.New("un-register fails"))
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	// Execute workflow
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()

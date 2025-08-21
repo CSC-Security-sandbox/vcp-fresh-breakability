@@ -304,7 +304,8 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 			// Set password if credentials are provided
 			mapping.HarvestConfig.PASSWORD = strconv.Quote(credentials.AdminPassword)
 		} else {
-			// Set Auth Type and SecretID info if fetchCreds env flag is not set
+			// Set Auth Type and SecretID info if smHarvestAuthEnabled env flag is set
+			mapping.HarvestConfig.PASSWORD = ""
 			mapping.HarvestConfig.AUTH_TYPE = pool.PoolCredentials.AuthType
 			mapping.HarvestConfig.SECRET_ID = pool.PoolCredentials.SecretID
 			mapping.HarvestConfig.SECRET_PROJECT = env.SecretManagerProjectID

@@ -824,9 +824,11 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		unregisterParams := &unRegisterNodeFromHarvestFarmParams{
 			PoolID: dbPool.ID,
 		}
-		err = workflow.ExecuteChildWorkflow(ctx, UnRegisterNodeFromHarvestFarmWorkflow, unregisterParams).Get(childCtx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
+		// If off-boarding to harvest-farm fails log warning message
+		// TODO: Need to emit a metric to alert on delete pool off-boarding to harvest-farm
+		childWfError := workflow.ExecuteChildWorkflow(ctx, UnRegisterNodeFromHarvestFarmWorkflow, unregisterParams).Get(childCtx, nil)
+		if childWfError != nil {
+			wf.Logger.Warnf("Failed to off-board poolId %d to harvest-farm due to error: %v", dbPool.ID, childWfError)
 		}
 	}
 
