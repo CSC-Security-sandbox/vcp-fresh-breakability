@@ -1890,6 +1890,34 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			},
 			message: "Pool size cannot be reduced",
 		},
+		{
+			name: "QosType is set to manual",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				QosType: gcpgenserver.NewOptNilString("manual"),
+			},
+			message: "Updating QosType is currently not supported",
+		},
+		{
+			name: "QosType is set to invalid value",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				QosType: gcpgenserver.NewOptNilString("invalid-qos-type"),
+			},
+			message: "Updating QosType is currently not supported",
+		},
+		{
+			name: "CustomPerformanceEnabled is set to false",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				CustomPerformanceEnabled: gcpgenserver.NewOptNilBool(false),
+			},
+			message: "Updating CustomerPerformance is currently not supported",
+		},
+		{
+			name: "CustomPerformanceEnabled is set to true",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				CustomPerformanceEnabled: gcpgenserver.NewOptNilBool(true),
+			},
+			message: "Updating CustomerPerformance is currently not supported",
+		},
 	}
 
 	for _, tc := range validationErrorCases {

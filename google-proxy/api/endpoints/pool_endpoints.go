@@ -39,6 +39,7 @@ const (
 	maxRuneCount              = 63
 	maxByteCount              = 128
 	MinPoolHotTierSizeInBytes = 1099511627776 // 1 TiB
+	QosTypeAuto               = "auto"
 )
 
 // Helper functions for performance parameter calculation
@@ -949,6 +950,20 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,
 			Message: "Pool size cannot be reduced",
+		}
+	}
+
+	if req.QosType.IsSet() && req.QosType.Value != QosTypeAuto {
+		return &gcpgenserver.Error{
+			Code:    http.StatusBadRequest,
+			Message: "Updating QosType is currently not supported",
+		}
+	}
+
+	if req.CustomPerformanceEnabled.IsSet() {
+		return &gcpgenserver.Error{
+			Code:    http.StatusBadRequest,
+			Message: "Updating CustomerPerformance is currently not supported",
 		}
 	}
 
