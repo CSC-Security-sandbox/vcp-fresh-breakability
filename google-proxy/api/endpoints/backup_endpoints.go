@@ -261,14 +261,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 			return convertToOperationV1beta(resp), nil
 		}
 		if cvpBackupAccepted != nil {
-			pl := cvpBackupAccepted.Payload
-			done := false
-			resp := &models.OperationV1beta{
-				Name:     pl.Name,
-				Done:     &done,
-				Response: pl.Response,
-			}
-			return convertToOperationV1beta(resp), nil
+			return convertOperationToOperationV1Beta(cvpBackupAccepted.Payload), nil
 		}
 
 		msg := "An unexpected error occurred while creating the backup"
@@ -846,13 +839,7 @@ func deleteBackupToCVP(ctx context.Context, params gcpgenserver.V1betaDeleteBack
 	}
 
 	if cvpAccepted != nil {
-		pl := cvpAccepted.Payload
-		done := false
-		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, pl.Name)
-		return &gcpgenserver.OperationV1beta{
-			Name: gcpgenserver.NewOptString(operationID),
-			Done: gcpgenserver.NewOptBool(done),
-		}, nil
+		return convertOperationToOperationV1Beta(cvpAccepted.Payload), nil
 	}
 	msg := "An unexpected error occurred while deleting the backup"
 	return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{

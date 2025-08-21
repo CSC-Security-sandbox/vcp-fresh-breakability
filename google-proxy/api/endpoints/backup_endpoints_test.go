@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"testing"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1273,7 +1273,7 @@ func TestV1betaDeleteBackupUnderBackupVault(t *testing.T) {
 		mockClient.EXPECT().V1betaDeleteBackupUnderBackupVault(mock.Anything).Return(nil, &backups.V1betaDeleteBackupUnderBackupVaultAccepted{
 			Payload: &models.OperationV1beta{
 				Done: nillable.ToPointer(false),
-				Name: "job-id",
+				Name: "/v1beta/projects/project-number/locations/us-east4/operations/job-id",
 			},
 		}, nil)
 

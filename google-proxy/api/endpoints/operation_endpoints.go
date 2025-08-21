@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
@@ -15,6 +14,7 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -47,7 +47,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 		}, nil
 	}
 	job, err := h.Orchestrator.GetJob(ctx, jobUUID.String())
-	if err != nil && customerrors.IsNotFoundErr(err) {
+	if err != nil && !customerrors.IsNotFoundErr(err) {
 		logger.Error("Failed to describe operation", "error", err.Error())
 		return &gcpgenserver.V1betaDescribeOperationInternalServerError{
 			Code:    500,
@@ -172,29 +172,36 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 				Message: "unknown error during the get job",
 			}, nil
 		}
-		// Check if there is an error in the operation
-		if operationResponse.Payload.Error != nil {
-			return &gcpgenserver.V1betaDescribeOperationBadRequest{
-				Code:    operationResponse.Payload.Error.Code,
-				Message: operationResponse.Payload.Error.Message,
-			}, nil
-		}
 		// Convert the CVP operation to gcpgenserver operation
 		convertedOperation := convertOperationToOperationV1Beta(operationResponse.Payload)
-		// Set the name of the operation
-		convertedOperation.Name = gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId))
 		// Return the converted operation
 		return convertedOperation, nil
 	}
 }
-func convertOperationToOperationV1Beta(op *cvpmodels.OperationV1beta) *gcpgenserver.OperationV1beta {
-	// TODO: Convert the CVP operation model to gcpgenserver model
 
-	// TODO: convert all the params
-	return &gcpgenserver.OperationV1beta{
+func convertOperationToOperationV1Beta(op *cvpmodels.OperationV1beta) *gcpgenserver.OperationV1beta {
+	result := &gcpgenserver.OperationV1beta{
 		Name: gcpgenserver.NewOptString(op.Name),
-		Done: gcpgenserver.NewOptBool(*op.Done),
 	}
+	if op.Done != nil {
+		result.Done = gcpgenserver.NewOptBool(*op.Done)
+	}
+	if op.Error != nil {
+		result.Error = gcpgenserver.OptStatusV1Beta{
+			Value: gcpgenserver.StatusV1Beta{
+				Code:    gcpgenserver.NewOptFloat64(op.Error.Code),
+				Message: gcpgenserver.NewOptString(op.Error.Message),
+			},
+			Set: true,
+		}
+	}
+	if op.Response != nil {
+		responseData, err := json.Marshal(op.Response)
+		if err == nil {
+			result.Response = responseData
+		}
+	}
+	return result
 }
 
 func encodeOperationV1Beta(res interface{}) jx.Raw {

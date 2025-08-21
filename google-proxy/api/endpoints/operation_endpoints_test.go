@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -350,12 +351,24 @@ func TestV1betaDescribeOperationSuccess(t *testing.T) {
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 		return "us-east4", "us-east4", nil
 	}
-	done := true
+	done := false
 	operationResponse := async.V1betaDescribeOperationOK{
 		Payload: &cvpmodels.OperationV1beta{
-			Done:  &done,
-			Name:  "operation-123",
-			Error: &cvpmodels.StatusV1Beta{},
+			Done: &done,
+			Name: "/v1beta/projects/proj/locations/valid-location/operations/b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+			Response: map[string]interface{}{
+				"backupId":         "04c5b0da-5810-09c6-e45c-b863a0054b17",
+				"backupType":       "MANUAL",
+				"backupVaultId":    "0c325851-2f75-2e29-ef1e-edaa151c6d1f",
+				"created":          "0001-01-01T00:00:00.000Z",
+				"description":      "",
+				"resourceId":       "adhoc-backup-tcase-30618-1908251257121",
+				"satisfiesPzi":     false,
+				"satisfiesPzs":     false,
+				"state":            "CREATING",
+				"volumeId":         "5859f5d5-2194-985e-2e8c-0278ef1d667e",
+				"volumeUsageBytes": 0,
+			},
 		},
 	}
 	mockAsync := &async.MockClientService{}
@@ -370,5 +383,28 @@ func TestV1betaDescribeOperationSuccess(t *testing.T) {
 	}
 	result, err := handler.V1betaDescribeOperation(ctx, params)
 	assert.NoError(t, err)
-	assert.IsType(t, &gcpgenserver.V1betaDescribeOperationBadRequest{}, result)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+	// Verify the response contains the expected data
+	operationResult := result.(*gcpgenserver.OperationV1beta)
+	assert.Equal(t, false, operationResult.Done.Value)
+	assert.Equal(t, "/v1beta/projects/proj/locations/valid-location/operations/b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a", operationResult.Name.Value)
+	assert.NotEmpty(t, operationResult.Response)
+
+	// Verify specific fields in the response
+	var responseData map[string]interface{}
+	err = json.Unmarshal(operationResult.Response, &responseData)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "04c5b0da-5810-09c6-e45c-b863a0054b17", responseData["backupId"])
+	assert.Equal(t, "MANUAL", responseData["backupType"])
+	assert.Equal(t, "0c325851-2f75-2e29-ef1e-edaa151c6d1f", responseData["backupVaultId"])
+	assert.Equal(t, "0001-01-01T00:00:00.000Z", responseData["created"])
+	assert.Equal(t, "", responseData["description"])
+	assert.Equal(t, "adhoc-backup-tcase-30618-1908251257121", responseData["resourceId"])
+	assert.Equal(t, false, responseData["satisfiesPzi"])
+	assert.Equal(t, false, responseData["satisfiesPzs"])
+	assert.Equal(t, "CREATING", responseData["state"])
+	assert.Equal(t, "5859f5d5-2194-985e-2e8c-0278ef1d667e", responseData["volumeId"])
+	assert.Equal(t, float64(0), responseData["volumeUsageBytes"])
 }
