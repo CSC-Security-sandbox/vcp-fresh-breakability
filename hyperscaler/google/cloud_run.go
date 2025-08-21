@@ -135,6 +135,11 @@ func (gcpService *GcpServices) CreateCloudRunService(ctx context.Context, config
 		},
 	}
 
+	// Set ingress configuration if specified
+	if config.Ingress != "" {
+		service.Ingress = config.Ingress
+	}
+
 	// Create the service using REST API
 	parent := fmt.Sprintf("projects/%s/locations/%s", config.ProjectID, config.LocationID)
 	operation, err := gcpService.AdminGCPService.cloudRunService.Projects.Locations.Services.Create(parent, service).ServiceId(config.ServiceName).Do()

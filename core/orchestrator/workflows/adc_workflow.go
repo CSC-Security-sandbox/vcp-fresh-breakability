@@ -195,9 +195,9 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 			"managed-by": "vsa-control-plane",
 		},
 		Annotations: map[string]string{
-			"description":                "ADC service for backup and restore operations",
-			"run.googleapis.com/ingress": "internal",
+			"description": "ADC service for backup and restore operations",
 		},
+		Ingress: "INGRESS_TRAFFIC_INTERNAL_ONLY", // Equivalent to "internal" annotation
 		EnvVars: map[string]string{
 			"RUN_REST":           "1",
 			"REST_PORT":          "80",

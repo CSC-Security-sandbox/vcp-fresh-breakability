@@ -34,9 +34,9 @@ func TestDeployADCCloudRunService(t *testing.T) {
 				"managed-by": "vsa-control-plane",
 			},
 			Annotations: map[string]string{
-				"description":                "ADC service for backup and restore operations",
-				"run.googleapis.com/ingress": "internal",
+				"description": "ADC service for backup and restore operations",
 			},
+			Ingress: "INGRESS_TRAFFIC_INTERNAL_ONLY", // Equivalent to "internal" annotation
 			EnvVars: map[string]string{
 				"RUN_REST":           "1",
 				"REST_PORT":          "80",
@@ -86,6 +86,138 @@ func TestDeployADCCloudRunService(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, response)
 	})
+	t.Run("withInternalIngress", func(t *testing.T) {
+		cloudRunConfig := &hyperscalermodels.CloudRunServiceConfig{
+			ProjectID:   "test-project",
+			LocationID:  "us-central1",
+			ServiceName: fmt.Sprintf("adc-svc-%s", "timestamp"),
+			Image:       "adcImage",
+			Description: fmt.Sprintf("ADC Cloud Run service for %s", "backup uuid"),
+			Labels: map[string]string{
+				"app":        "adc",
+				"component":  "backup",
+				"managed-by": "vsa-control-plane",
+			},
+			Annotations: map[string]string{
+				"description": "ADC service for backup and restore operations",
+			},
+			Ingress: "INGRESS_TRAFFIC_INTERNAL_ONLY",
+			EnvVars: map[string]string{
+				"RUN_REST":           "1",
+				"REST_PORT":          "80",
+				"PROVIDER":           "GoogleCloud",
+				"LOG_LEVEL":          "2",
+				"DISABLE_VERIFY_SSL": "0",
+				"ENABLE_COPY":        "1",
+				"LOG_TO_CONSOLE":     "1",
+				"CA_FILE":            "adc-cert.crt",
+				"CERT_PATH":          "/home/ADC/cert/",
+			},
+		}
+		ctx := context.Background()
+		mockGCPService := new(hyperscaler.MockGoogleServices)
+		mockGCPService.On("CreateCloudRunService", ctx, cloudRunConfig).Return(&hyperscalermodels.CloudRunOperationResponse{
+			OperationName: "DeployADCCloudRunService",
+			Status:        "success",
+		}, nil)
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
+			return mockGCPService, nil
+		}
+		activity := activities.ADCActivity{}
+		response, err := activity.DeployADCCloudRunService(ctx, cloudRunConfig)
+		assert.Nil(t, err)
+		assert.NotNil(t, response)
+		assert.Equal(t, "DeployADCCloudRunService", response.OperationName)
+	})
+	t.Run("withAllTrafficIngress", func(t *testing.T) {
+		cloudRunConfig := &hyperscalermodels.CloudRunServiceConfig{
+			ProjectID:   "test-project",
+			LocationID:  "us-central1",
+			ServiceName: fmt.Sprintf("adc-svc-%s", "timestamp"),
+			Image:       "adcImage",
+			Description: fmt.Sprintf("ADC Cloud Run service for %s", "backup uuid"),
+			Labels: map[string]string{
+				"app":        "adc",
+				"component":  "backup",
+				"managed-by": "vsa-control-plane",
+			},
+			Annotations: map[string]string{
+				"description": "ADC service for backup and restore operations",
+			},
+			Ingress: "INGRESS_TRAFFIC_ALL",
+			EnvVars: map[string]string{
+				"RUN_REST":           "1",
+				"REST_PORT":          "80",
+				"PROVIDER":           "GoogleCloud",
+				"LOG_LEVEL":          "2",
+				"DISABLE_VERIFY_SSL": "0",
+				"ENABLE_COPY":        "1",
+				"LOG_TO_CONSOLE":     "1",
+				"CA_FILE":            "adc-cert.crt",
+				"CERT_PATH":          "/home/ADC/cert/",
+			},
+		}
+		ctx := context.Background()
+		mockGCPService := new(hyperscaler.MockGoogleServices)
+		mockGCPService.On("CreateCloudRunService", ctx, cloudRunConfig).Return(&hyperscalermodels.CloudRunOperationResponse{
+			OperationName: "DeployADCCloudRunService",
+			Status:        "success",
+		}, nil)
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
+			return mockGCPService, nil
+		}
+		activity := activities.ADCActivity{}
+		response, err := activity.DeployADCCloudRunService(ctx, cloudRunConfig)
+		assert.Nil(t, err)
+		assert.NotNil(t, response)
+		assert.Equal(t, "DeployADCCloudRunService", response.OperationName)
+	})
+	t.Run("withNoIngressSpecified", func(t *testing.T) {
+		cloudRunConfig := &hyperscalermodels.CloudRunServiceConfig{
+			ProjectID:   "test-project",
+			LocationID:  "us-central1",
+			ServiceName: fmt.Sprintf("adc-svc-%s", "timestamp"),
+			Image:       "adcImage",
+			Description: fmt.Sprintf("ADC Cloud Run service for %s", "backup uuid"),
+			Labels: map[string]string{
+				"app":        "adc",
+				"component":  "backup",
+				"managed-by": "vsa-control-plane",
+			},
+			Annotations: map[string]string{
+				"description": "ADC service for backup and restore operations",
+			},
+			// No Ingress field specified - should use default
+			EnvVars: map[string]string{
+				"RUN_REST":           "1",
+				"REST_PORT":          "80",
+				"PROVIDER":           "GoogleCloud",
+				"LOG_LEVEL":          "2",
+				"DISABLE_VERIFY_SSL": "0",
+				"ENABLE_COPY":        "1",
+				"LOG_TO_CONSOLE":     "1",
+				"CA_FILE":            "adc-cert.crt",
+				"CERT_PATH":          "/home/ADC/cert/",
+			},
+		}
+		ctx := context.Background()
+		mockGCPService := new(hyperscaler.MockGoogleServices)
+		mockGCPService.On("CreateCloudRunService", ctx, cloudRunConfig).Return(&hyperscalermodels.CloudRunOperationResponse{
+			OperationName: "DeployADCCloudRunService",
+			Status:        "success",
+		}, nil)
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
+			return mockGCPService, nil
+		}
+		activity := activities.ADCActivity{}
+		response, err := activity.DeployADCCloudRunService(ctx, cloudRunConfig)
+		assert.Nil(t, err)
+		assert.NotNil(t, response)
+		assert.Equal(t, "DeployADCCloudRunService", response.OperationName)
+	})
 	t.Run("onCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
@@ -109,9 +241,9 @@ func TestDeployADCCloudRunService(t *testing.T) {
 				"managed-by": "vsa-control-plane",
 			},
 			Annotations: map[string]string{
-				"description":                "ADC service for backup and restore operations",
-				"run.googleapis.com/ingress": "internal",
+				"description": "ADC service for backup and restore operations",
 			},
+			Ingress: "INGRESS_TRAFFIC_INTERNAL_ONLY", // Equivalent to "internal" annotation
 			EnvVars: map[string]string{
 				"RUN_REST":           "1",
 				"REST_PORT":          "80",

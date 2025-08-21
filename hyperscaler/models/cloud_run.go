@@ -8,6 +8,7 @@ type CloudRunServiceConfig struct {
 	Description  string
 	Labels       map[string]string
 	Annotations  map[string]string
+	Ingress      string // "INGRESS_TRAFFIC_ALL", "INGRESS_TRAFFIC_INTERNAL_ONLY", "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 	EnvVars      map[string]string
 	VolumeMounts []VolumeMount
 	Volumes      []Volume

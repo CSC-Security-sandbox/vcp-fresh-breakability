@@ -61,6 +61,98 @@ func TestCreateCloudRunService(t *testing.T) {
 		assert.Equal(tt, "RUNNING", result.Status)
 	})
 
+	t.Run("withInternalIngress", func(tt *testing.T) {
+		// Create a test server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Mock successful operation response
+			operation := &cloudrun.GoogleLongrunningOperation{
+				Name: "operations/test-operation-123",
+				Done: false,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(w).Encode(operation)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		// Create Cloud Run client with custom HTTP client
+		httpClient := &http.Client{Timeout: time.Second}
+		svc, err := cloudrun.NewService(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create Cloud Run client: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudRunService: svc,
+			},
+			Ctx:    context.Background(),
+			Logger: log.NewLogger(),
+		}
+
+		config := &models.CloudRunServiceConfig{
+			ProjectID:   "test-project",
+			LocationID:  "us-central1",
+			ServiceName: "test-service",
+			Image:       "gcr.io/test-project/test-image:latest",
+			Ingress:     "INGRESS_TRAFFIC_INTERNAL_ONLY",
+		}
+
+		result, err := gService.CreateCloudRunService(context.Background(), config)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "operations/test-operation-123", result.OperationName)
+		assert.Equal(tt, "RUNNING", result.Status)
+	})
+
+	t.Run("withAllTrafficIngress", func(tt *testing.T) {
+		// Create a test server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Mock successful operation response
+			operation := &cloudrun.GoogleLongrunningOperation{
+				Name: "operations/test-operation-123",
+				Done: false,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(w).Encode(operation)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		// Create Cloud Run client with custom HTTP client
+		httpClient := &http.Client{Timeout: time.Second}
+		svc, err := cloudrun.NewService(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create Cloud Run client: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudRunService: svc,
+			},
+			Ctx:    context.Background(),
+			Logger: log.NewLogger(),
+		}
+
+		config := &models.CloudRunServiceConfig{
+			ProjectID:   "test-project",
+			LocationID:  "us-central1",
+			ServiceName: "test-service",
+			Image:       "gcr.io/test-project/test-image:latest",
+			Ingress:     "INGRESS_TRAFFIC_ALL",
+		}
+
+		result, err := gService.CreateCloudRunService(context.Background(), config)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "operations/test-operation-123", result.OperationName)
+		assert.Equal(tt, "RUNNING", result.Status)
+	})
+
 	t.Run("onFailure", func(tt *testing.T) {
 		// Create a test server that returns an error
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
