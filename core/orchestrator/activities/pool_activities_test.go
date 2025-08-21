@@ -2441,8 +2441,7 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 			SubnetNames:   []string{},
 		}
 		err := activity.ReleaseSubnet(ctx, &poolNoSubnet)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "subnet is not associated with the pool")
+		assert.Nil(t, err)
 		mockStorage.AssertExpectations(t)
 	})
 
