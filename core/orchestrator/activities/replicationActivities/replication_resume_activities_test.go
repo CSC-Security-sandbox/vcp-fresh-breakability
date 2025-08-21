@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -291,7 +292,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			DstJwtToken: &dstToken,
 			SrcJwtToken: &srcToken,
 		}
-		expectedError := errors.New("failed to verify dst volume")
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrDescribingVolume, errors.New("volume not found"))
 		verifyDstVolume = func(ctx context.Context, event *replication.ResumeReplicationEvent, srcBasePath, dstBasePath, srcJwtToken, dstJwtToken string) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, expectedError
 		}
@@ -323,7 +324,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			DstJwtToken: &dstToken,
 			SrcJwtToken: &srcToken,
 		}
-		verifyError := errors.NewBadRequestErr("Destination volume used size is greater than source volume available quota")
+		verifyError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotFound, errors.New("volume not found"))
 		verifyDstVolume = func(ctx context.Context, event *replication.ResumeReplicationEvent, srcBasePath, dstBasePath, srcJwtToken, dstJwtToken string) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, verifyError
 		}
@@ -407,12 +408,13 @@ func TestResumeReplicationOnDestination(t *testing.T) {
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrGoogleProxyInternalResumeReplication, errors.New("some-error"))
 		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(nil, errors.New("some-error"))
 		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
 		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, expectedError, err)
 	})
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()

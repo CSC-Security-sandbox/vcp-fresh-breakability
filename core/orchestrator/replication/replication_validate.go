@@ -691,22 +691,22 @@ func _verifyDstVolume(ctx context.Context, event *ResumeReplicationEvent, srcBas
 	if err != nil {
 		if err.Error() != "volume not found" {
 			logger.Error("getSourceVolume error", common.Error(err))
-			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrValidateGetVolumeReplicationCreation, err)
+			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrDescribingVolume, err)
 		}
-		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrVolumeNotFound, err)
 	}
 
 	dstVolume, err := describeVolume(ctx, destBasePath, dstToken, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.DestinationProjectNumber, event.XCorrelationID, event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID)
 	if err != nil {
 		if err.Error() != "volume not found" {
 			logger.Error("getDestinationVolume error", common.Error(err))
-			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrValidateGetVolumeReplicationCreation, err)
+			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrDescribingVolume, err)
 		}
-		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrVolumeNotFound, err)
 	}
 
 	if (srcVolume.VolumeState.Set && srcVolume.VolumeState.Value == vsa.VolumeStateOffline) && (dstVolume.VolumeState.Set && dstVolume.VolumeState.Value == vsa.VolumeStateOffline) {
-		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, utilErrors.NewWithTrackingID("Volume is offline", utilErrors.VolumeInOfflineState)
+		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrVolumeNotOnlineForReplicationResume, errors.New("Volume is not online for replication"))
 	}
 
 	var srcQuotaInBytes float64
@@ -724,7 +724,7 @@ func _verifyDstVolume(ctx context.Context, event *ResumeReplicationEvent, srcBas
 	}
 	if srcQuotaInBytes != dstQuotaInBytes {
 		if dstUsedBytes > srcQuotaInBytes {
-			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, utilErrors.NewBadRequestErr("Destination volume used size is greater than source volume available quota")
+			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrDestinationVolumeUsedSizeGreaterThanSourceVolumeAvailableQuota, errors.New("Destination volume used size is greater than source volume available quota"))
 		}
 	}
 	return srcVolume, dstVolume, nil

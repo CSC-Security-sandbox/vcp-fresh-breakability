@@ -1097,6 +1097,24 @@
     "retriable": false,
     "http_code": 500
   },
+  "6185": {
+    "description": "Google Proxy Internal Resume Replication",
+    "message": "Failed to resume replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6186": {
+    "description": "Resume Replication Volume State Offline",
+    "message": "Failed to resume replication as volume is offline",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6187": {
+    "description": "Destination Volume Used Size Greater Than Source Volume Available Quota",
+    "message": "Failed to resume replication as destination volume used size is greater than source volume available quota",
+    "retriable": false,
+    "http_code": 400
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

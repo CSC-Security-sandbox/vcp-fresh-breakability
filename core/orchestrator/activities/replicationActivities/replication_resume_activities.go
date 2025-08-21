@@ -64,7 +64,7 @@ func (a *ResumeVolumeReplicationActivity) GetSignedDstTokenResume(ctx context.Co
 func (a *ResumeVolumeReplicationActivity) VerifyDstVolume(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
 	srcVolume, dstVolume, err := verifyDstVolume(ctx, result.Event, *result.SrcBasePath, *result.DstBasePath, *result.SrcJwtToken, *result.DstJwtToken)
 	if err != nil {
-		if utilError.IsBadRequestErr(err) {
+		if err.(*errors.CustomError).TrackingID == errors.ErrVolumeNotFound {
 			return nil, utilError.NewNonRetryableErr(err.Error())
 		}
 		return nil, err
@@ -104,7 +104,7 @@ func (a *ResumeVolumeReplicationActivity) ResumeReplicationOnDestination(ctx con
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, err)
 	}
 	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
 	if ok {

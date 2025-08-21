@@ -2238,16 +2238,94 @@ func TestVerifyDstVolume(t *testing.T) {
 		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
 		assert.Error(tt, err)
 	})
+	t.Run("WhenDescribeDestinationVolumeError", func(tt *testing.T) {
+		defer func() {
+			describeVolume = _describeVolume
+		}()
+		ctx := context.Background()
+		count := 0
+		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
+			if count == 0 {
+				count = count + 1
+				return googleproxyclient.VolumeV1beta{}, nil
+			}
+			return googleproxyclient.VolumeV1beta{}, errors.New("some error")
+		}
+		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		assert.Error(tt, err)
+	})
 	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
 		defer func() {
 			describeVolume = _describeVolume
 		}()
 		ctx := context.Background()
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotFound, errors.New("volume not found"))
 		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
 		}
 		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
 		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenDestinationVolumeNotFound", func(tt *testing.T) {
+		defer func() {
+			describeVolume = _describeVolume
+		}()
+		ctx := context.Background()
+		count := 0
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotFound, errors.New("volume not found"))
+		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
+			if count == 0 {
+				count = count + 1
+				return googleproxyclient.VolumeV1beta{}, nil
+			}
+			return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+		}
+		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenVolumeStateOffline", func(tt *testing.T) {
+		defer func() {
+			describeVolume = _describeVolume
+		}()
+		ctx := context.Background()
+		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
+			return googleproxyclient.VolumeV1beta{
+				VolumeState: googleproxyclient.OptVolumeV1betaVolumeState{
+					Set:   true,
+					Value: "offline",
+				},
+			}, nil
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotOnlineForReplicationResume, errors.New("Volume is not online for replication"))
+		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		assert.Error(tt, err)
+		assert.Equal(tt, err, expectedError)
+	})
+	t.Run("WhenDestinationVolumeUsedSizeGreaterThanSourceVolumeAvailableQuota", func(tt *testing.T) {
+		defer func() {
+			describeVolume = _describeVolume
+		}()
+		ctx := context.Background()
+		count := 0
+		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
+			if count == 0 {
+				count = count + 1
+				return googleproxyclient.VolumeV1beta{
+					QuotaInBytes: googleproxyclient.NewOptFloat64(123),
+				}, nil
+			} else {
+				return googleproxyclient.VolumeV1beta{
+					QuotaInBytes: googleproxyclient.NewOptFloat64(124),
+					UsedBytes:    googleproxyclient.NewOptNilFloat64(200),
+				}, nil
+			}
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrDestinationVolumeUsedSizeGreaterThanSourceVolumeAvailableQuota, errors.New("Destination volume used size is greater than source volume available quota"))
+		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, expectedError, err)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		defer func() {
