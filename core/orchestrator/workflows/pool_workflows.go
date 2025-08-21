@@ -56,9 +56,9 @@ var (
 	enableMetrics                                        = env.GetBool("ENABLE_METRICS", false)
 	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
 
-	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "r9-17-1xn-250807-0000-gcnv")
+	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "x-9-17-1x49-gcnv")
 	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
-	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "r9-17-1xn-250807-0000-mediator-debian-12")
+	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1x49")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 
 	serviceAttachment         = env.GetString("GIN_SERVICE_ATTACHMENT", "")

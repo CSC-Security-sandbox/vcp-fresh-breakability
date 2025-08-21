@@ -4,7 +4,7 @@ global:
   primaryImageRegistryPasswordAuth: true
   primaryImagePullSecretName: ghcr.io
   secondaryImageRegistry: "us-docker.pkg.dev/gcnv-artifact-registry-nonprod"
-  secondaryImageRegistryPath: "vlm"
+  secondaryImageRegistryPath: "vcp-container-images-us"
   secondaryImageRegistryPasswordAuth: false
   useTags: false
   nodeSelector:
@@ -24,9 +24,9 @@ serviceAccount:
 # Image configuration
 images:
   vlmWorker:
-    name: temporal-vlm
-    tag: "R9.17.1xN_non_promo_7745405"
-    digest: "sha256:81badcebc85ff5f78ffebda3d10626d4f5288f24448bc8bc969df7c1400873b7"
+    name: vlm-worker
+    tag: "R9.17.1xN_7759115"
+    digest: "sha256:fa1fd1be60acab92e7ec83eeceb8a213dbf11b987b0578bebb2c7f58c6172422"
     secondary: true
     pullPolicy: IfNotPresent
 

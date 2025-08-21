@@ -77,7 +77,7 @@ workerConfig:
   maxNodesPerGroup: 200
   filesProtocolSupport: "false"
   fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
-  vsaImageName: "r9-17-1xn-250807-0000-gcnv"
+  vsaImageName: "x-9-17-1x49-gcnv"
   # this will be removed after AGA
   vsaFilesImageName: "r9-18-1xn-250722-0000"
   vsaImageProject: ""
@@ -93,7 +93,7 @@ workerConfig:
   # Mediator VM Configuration
   vsaMediatorInstanceType: "e2-micro"
   vsaMediatorDiskType: "pd-ssd"
-  vsaMediatorImageName: "r9-17-1xn-250807-0000-mediator-debian-12"
+  vsaMediatorImageName: "cvo-mediator-x-9-17-1x49"
   
   metricsPort: "9090"
 
