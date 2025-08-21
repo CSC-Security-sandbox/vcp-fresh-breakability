@@ -129,9 +129,9 @@ func collectVolumeMetrics(ctx context.Context, logger log.Logger, provider Volum
 func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resp *monitoringpb.TimeSeries) datamodel.HydratedMetrics {
 	return datamodel.HydratedMetrics{
 		MetricTimestamp: resp.Points[0].Interval.EndTime.AsTime(),
-		MeasuredType:    measuredType.String(),
+		MeasuredType:    measuredType,
 		ConsumerID:      projectID,
-		ResourceType:    resourceType.String(),
+		ResourceType:    resourceType,
 		ResourceName:    resp.Resource.Labels["name"],
 		Location:        resp.Resource.Labels["location"],
 		Quantity:        extractValue(resp.Points[0].Value),

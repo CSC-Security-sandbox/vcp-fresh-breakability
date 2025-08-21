@@ -5,15 +5,18 @@ import (
 	"fmt"
 	metricdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"time"
 )
 
 type VCPProcessor interface {
 	ProcessPerformanceMetrics(ctx context.Context) error
+	ProcessUsageMetrics(ctx context.Context) error
 }
 
 type MetricsProcessor struct {
@@ -22,10 +25,11 @@ type MetricsProcessor struct {
 	telemetryDatastore   metricdb.Storage
 	sink                 performance.Sink
 	googleMetricProvider collector.VolumeMetricsProvider
+	billingProvider      *aggregator.BillingProvider
 }
 
-func NewMetricsProcessor(vcpDatastore database.Storage, telemetryDatastore metricdb.Storage, sink performance.Sink, metricsProvider collector.VolumeMetricsProvider) MetricsProcessor {
-	return MetricsProcessor{vcpDatastore: vcpDatastore, telemetryDatastore: telemetryDatastore, sink: sink, googleMetricProvider: metricsProvider}
+func NewMetricsProcessor(vcpDatastore database.Storage, telemetryDatastore metricdb.Storage, sink performance.Sink, metricsProvider collector.VolumeMetricsProvider, billingProvider *aggregator.BillingProvider) MetricsProcessor {
+	return MetricsProcessor{vcpDatastore: vcpDatastore, telemetryDatastore: telemetryDatastore, sink: sink, googleMetricProvider: metricsProvider, billingProvider: billingProvider}
 }
 
 func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error {
@@ -73,4 +77,16 @@ func (mp *MetricsProcessor) processRawMetrics(ctx context.Context) {
 		return
 	}
 	logger.Info(" Hydrated Metrics processing completed successfully")
+}
+
+func (mp *MetricsProcessor) ProcessUsageMetrics(ctx context.Context) error {
+	logger := util.GetLogger(ctx)
+	logger.Infof("Process %s!\n", "Usage Metrics")
+
+	err := mp.billingProvider.ProcessBillingMetrics(ctx, time.Now())
+	if err != nil {
+		logger.Error("Failed to aggregate hydrated metrics", "error", err.Error())
+		return err
+	}
+	return nil
 }

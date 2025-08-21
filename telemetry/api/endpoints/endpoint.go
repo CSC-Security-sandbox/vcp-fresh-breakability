@@ -49,3 +49,29 @@ func (h Handler) V1Performance(ctx context.Context) (r oasgenserver.V1Performanc
 	}(ctx)
 	return &oasgenserver.V1PerformanceAccepted{}, nil
 }
+
+func (h Handler) V1Usage(ctx context.Context) (r oasgenserver.V1UsageRes, _ error) {
+	logger := util.GetLogger(ctx)
+	go func(parent context.Context) {
+		backgroundContext := context.WithoutCancel(ctx)
+
+		db, err := h.telemetryDatastore.DB().DB()
+		if err != nil {
+			logger.Errorf("Failed to get telemetry datastore: %v", err)
+			return
+		}
+		queue := utils.NewQueue(db, &h.metricsProcessor)
+		j := jobs.NewProcessUsageMetrics("{}")
+		err = queue.Enqueue(backgroundContext, j, "performance")
+		if err != nil {
+			logger.Errorf("Failed to enqueue ProcessUsageMetrics job: %v", err)
+			return
+		}
+
+		queues := []string{"performance"}
+		if err := queue.Worker(backgroundContext, queues, &jobs.ProcessUsageMetrics{}); err != nil {
+			log.Println(err)
+		}
+	}(ctx)
+	return &oasgenserver.V1UsageAccepted{}, nil
+}

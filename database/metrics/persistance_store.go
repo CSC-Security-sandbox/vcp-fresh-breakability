@@ -394,20 +394,3 @@ func (s *PersistenceStore) UpdateAggregatedUsage(ctx context.Context, id int64, 
 func (s *PersistenceStore) DeleteAggregatedUsage(ctx context.Context, id int64) error {
 	return s.dataStore.dataStore.DeleteAggregatedUsage(ctx, id)
 }
-
-// BillingGcpUsage CRUD
-func (s *PersistenceStore) CreateBillingGcpUsage(ctx context.Context, b *datamodel.BillingGcpUsage) error {
-	return s.dataStore.dataStore.CreateBillingGcpUsage(ctx, b)
-}
-
-func (s *PersistenceStore) GetBillingGcpUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.BillingGcpUsage, error) {
-	return s.dataStore.dataStore.GetBillingGcpUsage(ctx, filter)
-}
-
-func (s *PersistenceStore) UpdateBillingGcpUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
-	return s.dataStore.dataStore.UpdateBillingGcpUsage(ctx, id, updates)
-}
-
-func (s *PersistenceStore) DeleteBillingGcpUsage(ctx context.Context, id int64) error {
-	return s.dataStore.dataStore.DeleteBillingGcpUsage(ctx, id)
-}

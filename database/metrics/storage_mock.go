@@ -166,53 +166,6 @@ func (_c *MockStorage_CreateAggregatedUsage_Call) RunAndReturn(run func(context.
 	return _c
 }
 
-// CreateBillingGcpUsage provides a mock function with given fields: ctx, b
-func (_m *MockStorage) CreateBillingGcpUsage(ctx context.Context, b *datamodel.BillingGcpUsage) error {
-	ret := _m.Called(ctx, b)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateBillingGcpUsage")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BillingGcpUsage) error); ok {
-		r0 = rf(ctx, b)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockStorage_CreateBillingGcpUsage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBillingGcpUsage'
-type MockStorage_CreateBillingGcpUsage_Call struct {
-	*mock.Call
-}
-
-// CreateBillingGcpUsage is a helper method to define mock.On call
-//   - ctx context.Context
-//   - b *datamodel.BillingGcpUsage
-func (_e *MockStorage_Expecter) CreateBillingGcpUsage(ctx interface{}, b interface{}) *MockStorage_CreateBillingGcpUsage_Call {
-	return &MockStorage_CreateBillingGcpUsage_Call{Call: _e.mock.On("CreateBillingGcpUsage", ctx, b)}
-}
-
-func (_c *MockStorage_CreateBillingGcpUsage_Call) Run(run func(ctx context.Context, b *datamodel.BillingGcpUsage)) *MockStorage_CreateBillingGcpUsage_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.BillingGcpUsage))
-	})
-	return _c
-}
-
-func (_c *MockStorage_CreateBillingGcpUsage_Call) Return(_a0 error) *MockStorage_CreateBillingGcpUsage_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockStorage_CreateBillingGcpUsage_Call) RunAndReturn(run func(context.Context, *datamodel.BillingGcpUsage) error) *MockStorage_CreateBillingGcpUsage_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // CreateHydratedMetrics provides a mock function with given fields: ctx, m
 func (_m *MockStorage) CreateHydratedMetrics(ctx context.Context, m *datamodel.HydratedMetrics) error {
 	ret := _m.Called(ctx, m)
@@ -402,53 +355,6 @@ func (_c *MockStorage_DeleteAggregatedUsage_Call) RunAndReturn(run func(context.
 	return _c
 }
 
-// DeleteBillingGcpUsage provides a mock function with given fields: ctx, id
-func (_m *MockStorage) DeleteBillingGcpUsage(ctx context.Context, id int64) error {
-	ret := _m.Called(ctx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteBillingGcpUsage")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64) error); ok {
-		r0 = rf(ctx, id)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockStorage_DeleteBillingGcpUsage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBillingGcpUsage'
-type MockStorage_DeleteBillingGcpUsage_Call struct {
-	*mock.Call
-}
-
-// DeleteBillingGcpUsage is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-func (_e *MockStorage_Expecter) DeleteBillingGcpUsage(ctx interface{}, id interface{}) *MockStorage_DeleteBillingGcpUsage_Call {
-	return &MockStorage_DeleteBillingGcpUsage_Call{Call: _e.mock.On("DeleteBillingGcpUsage", ctx, id)}
-}
-
-func (_c *MockStorage_DeleteBillingGcpUsage_Call) Run(run func(ctx context.Context, id int64)) *MockStorage_DeleteBillingGcpUsage_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64))
-	})
-	return _c
-}
-
-func (_c *MockStorage_DeleteBillingGcpUsage_Call) Return(_a0 error) *MockStorage_DeleteBillingGcpUsage_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockStorage_DeleteBillingGcpUsage_Call) RunAndReturn(run func(context.Context, int64) error) *MockStorage_DeleteBillingGcpUsage_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // DeleteHydratedMetrics provides a mock function with given fields: ctx, id
 func (_m *MockStorage) DeleteHydratedMetrics(ctx context.Context, id string) error {
 	ret := _m.Called(ctx, id)
@@ -551,65 +457,6 @@ func (_c *MockStorage_GetAggregatedUsage_Call) Return(_a0 []datamodel.Aggregated
 }
 
 func (_c *MockStorage_GetAggregatedUsage_Call) RunAndReturn(run func(context.Context, map[string]interface{}) ([]datamodel.AggregatedUsage, error)) *MockStorage_GetAggregatedUsage_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetBillingGcpUsage provides a mock function with given fields: ctx, filter
-func (_m *MockStorage) GetBillingGcpUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.BillingGcpUsage, error) {
-	ret := _m.Called(ctx, filter)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetBillingGcpUsage")
-	}
-
-	var r0 []datamodel.BillingGcpUsage
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, map[string]interface{}) ([]datamodel.BillingGcpUsage, error)); ok {
-		return rf(ctx, filter)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, map[string]interface{}) []datamodel.BillingGcpUsage); ok {
-		r0 = rf(ctx, filter)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]datamodel.BillingGcpUsage)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, map[string]interface{}) error); ok {
-		r1 = rf(ctx, filter)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_GetBillingGcpUsage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBillingGcpUsage'
-type MockStorage_GetBillingGcpUsage_Call struct {
-	*mock.Call
-}
-
-// GetBillingGcpUsage is a helper method to define mock.On call
-//   - ctx context.Context
-//   - filter map[string]interface{}
-func (_e *MockStorage_Expecter) GetBillingGcpUsage(ctx interface{}, filter interface{}) *MockStorage_GetBillingGcpUsage_Call {
-	return &MockStorage_GetBillingGcpUsage_Call{Call: _e.mock.On("GetBillingGcpUsage", ctx, filter)}
-}
-
-func (_c *MockStorage_GetBillingGcpUsage_Call) Run(run func(ctx context.Context, filter map[string]interface{})) *MockStorage_GetBillingGcpUsage_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(map[string]interface{}))
-	})
-	return _c
-}
-
-func (_c *MockStorage_GetBillingGcpUsage_Call) Return(_a0 []datamodel.BillingGcpUsage, _a1 error) *MockStorage_GetBillingGcpUsage_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_GetBillingGcpUsage_Call) RunAndReturn(run func(context.Context, map[string]interface{}) ([]datamodel.BillingGcpUsage, error)) *MockStorage_GetBillingGcpUsage_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -947,54 +794,6 @@ func (_c *MockStorage_UpdateAggregatedUsage_Call) Return(_a0 error) *MockStorage
 }
 
 func (_c *MockStorage_UpdateAggregatedUsage_Call) RunAndReturn(run func(context.Context, int64, map[string]interface{}) error) *MockStorage_UpdateAggregatedUsage_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateBillingGcpUsage provides a mock function with given fields: ctx, id, updates
-func (_m *MockStorage) UpdateBillingGcpUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
-	ret := _m.Called(ctx, id, updates)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateBillingGcpUsage")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64, map[string]interface{}) error); ok {
-		r0 = rf(ctx, id, updates)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockStorage_UpdateBillingGcpUsage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBillingGcpUsage'
-type MockStorage_UpdateBillingGcpUsage_Call struct {
-	*mock.Call
-}
-
-// UpdateBillingGcpUsage is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - updates map[string]interface{}
-func (_e *MockStorage_Expecter) UpdateBillingGcpUsage(ctx interface{}, id interface{}, updates interface{}) *MockStorage_UpdateBillingGcpUsage_Call {
-	return &MockStorage_UpdateBillingGcpUsage_Call{Call: _e.mock.On("UpdateBillingGcpUsage", ctx, id, updates)}
-}
-
-func (_c *MockStorage_UpdateBillingGcpUsage_Call) Run(run func(ctx context.Context, id int64, updates map[string]interface{})) *MockStorage_UpdateBillingGcpUsage_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64), args[2].(map[string]interface{}))
-	})
-	return _c
-}
-
-func (_c *MockStorage_UpdateBillingGcpUsage_Call) Return(_a0 error) *MockStorage_UpdateBillingGcpUsage_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockStorage_UpdateBillingGcpUsage_Call) RunAndReturn(run func(context.Context, int64, map[string]interface{}) error) *MockStorage_UpdateBillingGcpUsage_Call {
 	_c.Call.Return(run)
 	return _c
 }

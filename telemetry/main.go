@@ -3,6 +3,7 @@ package main
 import (
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	"net/http"
 	"os"
@@ -68,7 +69,8 @@ func main() {
 	wrapper := collector.NewMetricClientWrapper(client)
 	config := metricscommon.LoadMetricsConfigFromBytes()
 	provider := collector.NewGoogleProvider(tenantProvider, wrapper, config.VolumeMetrics)
-	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider)
+	billingProvidor := aggregator.NewBillingProvider(telemetryDbConn, metricscommon.LoadConfig())
+	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvidor)
 	tdb := telemetryDbConn.SQLDB()
 
 	// Create a new server instance with the API handler

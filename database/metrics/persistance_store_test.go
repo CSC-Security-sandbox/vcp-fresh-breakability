@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
@@ -97,8 +98,6 @@ func TestSetupInMemoryDB(t *testing.T) {
 			assert.True(t, migrator.HasTable(&datamodel.HydratedMetrics{}))
 		case *datamodel.AggregatedUsage:
 			assert.True(t, migrator.HasTable(&datamodel.AggregatedUsage{}))
-		case *datamodel.BillingGcpUsage:
-			assert.True(t, migrator.HasTable(&datamodel.BillingGcpUsage{}))
 		case *datamodel.Job:
 			assert.True(t, migrator.HasTable(&datamodel.Job{}))
 		}
@@ -123,15 +122,15 @@ func TestSetupStorageForTest(t *testing.T) {
 	// Test basic CRUD operations work
 	ctx := context.Background()
 	metric := &datamodel.HydratedMetrics{
-		MeasuredType: "test-type",
-		ResourceType: "test-resource",
-		ResourceName: "test-resource-1",
+		MeasuredType: metadata.MeasuredType("test-type"),
+		ResourceType: metadata.ResourceType("test-resource"),
+		ResourceName: "test-uuid",
 	}
 
 	err = ps.CreateHydratedMetrics(ctx, metric)
 	assert.NoError(t, err)
 
-	metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "test-resource-1"})
+	metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "test-uuid"})
 	assert.NoError(t, err)
 	assert.Len(t, metrics, 1)
 
@@ -318,16 +317,16 @@ func TestPersistenceStore_WithTransaction(t *testing.T) {
 		err := ps.WithTransaction(ctx, func(tx dbutils.Transaction) error {
 			// Create a test record within transaction
 			metric := &datamodel.HydratedMetrics{
-				MeasuredType: "tx-test",
-				ResourceType: "tx-resource",
-				ResourceName: "tx-resource-1",
+				MeasuredType: metadata.MeasuredType("tx-test"),
+				ResourceType: metadata.ResourceType("tx-resource"),
+				ResourceName: "tx-uuid",
 			}
 			return tx.GORM().Create(metric).Error
 		})
 		assert.NoError(t, err)
 
 		// Verify the record was committed
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "tx-resource-1"})
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "tx-uuid"})
 		assert.NoError(t, err)
 		assert.Len(t, metrics, 1)
 	})
@@ -342,6 +341,7 @@ func TestPersistenceStore_WithTransaction(t *testing.T) {
 			metric := &datamodel.HydratedMetrics{
 				MeasuredType: "rollback-test",
 				ResourceType: "rollback-resource",
+				ResourceName: "rollback-uuid",
 			}
 			if err := tx.GORM().Create(metric).Error; err != nil {
 				return err
@@ -383,6 +383,7 @@ func TestPersistenceStore_WithTransaction(t *testing.T) {
 				metric := &datamodel.HydratedMetrics{
 					MeasuredType: "panic-test",
 					ResourceType: "panic-resource",
+					ResourceName: "rollback-uuid",
 				}
 				tx.GORM().Create(metric)
 				// Force a panic
@@ -440,7 +441,7 @@ func TestPersistenceStore_HydratedMetricsCRUD(t *testing.T) {
 		metric := &datamodel.HydratedMetrics{
 			MeasuredType: "cpu",
 			ResourceType: "vm",
-			ResourceName: "vm-1",
+			ResourceName: "vm-123", // Updated to match query in get test
 		}
 
 		err := ps.CreateHydratedMetrics(ctx, metric)
@@ -449,33 +450,45 @@ func TestPersistenceStore_HydratedMetricsCRUD(t *testing.T) {
 
 	// Test Get
 	t.Run("get hydrated metrics", func(t *testing.T) {
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-1"})
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-123"})
 		assert.NoError(t, err)
 		assert.Len(t, metrics, 1)
-		assert.Equal(t, "cpu", metrics[0].MeasuredType)
-		assert.Equal(t, "vm", metrics[0].ResourceType)
+		assert.Equal(t, metadata.MeasuredType("cpu"), metrics[0].MeasuredType)
+		assert.Equal(t, metadata.ResourceType("vm"), metrics[0].ResourceType)
 	})
 
 	// Test Update
 	t.Run("update hydrated metrics", func(t *testing.T) {
+		// Get the ID of the created record first
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-123"})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, metrics)
+		recordID := fmt.Sprintf("%d", metrics[0].ID)
+
 		updates := map[string]interface{}{"measured_type": "memory"}
-		err := ps.UpdateHydratedMetrics(ctx, "vm-1", updates)
+		err = ps.UpdateHydratedMetrics(ctx, recordID, updates)
 		assert.NoError(t, err)
 
 		// Verify update
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-1"})
+		metrics, err = ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-123"})
 		assert.NoError(t, err)
 		assert.Len(t, metrics, 1)
-		assert.Equal(t, "memory", metrics[0].MeasuredType)
+		assert.Equal(t, metadata.MeasuredType("memory"), metrics[0].MeasuredType)
 	})
 
 	// Test Delete
 	t.Run("delete hydrated metrics", func(t *testing.T) {
-		err := ps.DeleteHydratedMetrics(ctx, "vm-1")
+		// Get the ID of the record first
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-123"})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, metrics)
+		recordID := fmt.Sprintf("%d", metrics[0].ID)
+
+		err = ps.DeleteHydratedMetrics(ctx, recordID)
 		assert.NoError(t, err)
 
 		// Verify deletion
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-1"})
+		metrics, err = ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-123"})
 		assert.NoError(t, err)
 		assert.Empty(t, metrics)
 	})
@@ -494,7 +507,7 @@ func TestPersistenceStore_AggregatedUsageCRUD(t *testing.T) {
 	// Test Create
 	t.Run("create aggregated usage", func(t *testing.T) {
 		usage := &datamodel.AggregatedUsage{
-			ResourceType: "storage",
+			ResourceType: metadata.ResourceType("storage"),
 			// Using Quantity field which is the correct field name
 		}
 
@@ -510,7 +523,7 @@ func TestPersistenceStore_AggregatedUsageCRUD(t *testing.T) {
 		usages, err := ps.GetAggregatedUsage(ctx, map[string]interface{}{"resource_type": "storage"})
 		assert.NoError(t, err)
 		assert.Len(t, usages, 1)
-		assert.Equal(t, "storage", usages[0].ResourceType)
+		assert.Equal(t, metadata.ResourceType("storage"), usages[0].ResourceType)
 		createdID = usages[0].ID
 	})
 
@@ -536,67 +549,6 @@ func TestPersistenceStore_AggregatedUsageCRUD(t *testing.T) {
 		usages, err := ps.GetAggregatedUsage(ctx, map[string]interface{}{"id": createdID})
 		assert.NoError(t, err)
 		assert.Empty(t, usages)
-	})
-
-	_ = ps.Close()
-}
-
-func TestPersistenceStore_BillingGcpUsageCRUD(t *testing.T) {
-	logger := log.NewLogger()
-	storage, err := SetupStorageForTest(logger)
-	require.NoError(t, err)
-
-	ps := storage.(*PersistenceStore)
-	ctx := context.Background()
-
-	// Test Create
-	t.Run("create billing gcp usage", func(t *testing.T) {
-		billing := &datamodel.BillingGcpUsage{
-			CustomerID: "test-customer",
-			State:      "processed",
-			ErrorCount: 0,
-		}
-
-		err := ps.CreateBillingGcpUsage(ctx, billing)
-		assert.NoError(t, err)
-		assert.NotZero(t, billing.ID) // Auto-generated ID
-	})
-
-	var createdID int64
-
-	// Test Get
-	t.Run("get billing gcp usage", func(t *testing.T) {
-		billings, err := ps.GetBillingGcpUsage(ctx, map[string]interface{}{"customer_id": "test-customer"})
-		assert.NoError(t, err)
-		assert.Len(t, billings, 1)
-		assert.Equal(t, "test-customer", billings[0].CustomerID)
-		assert.Equal(t, "processed", billings[0].State)
-		assert.Equal(t, int32(0), billings[0].ErrorCount)
-		createdID = billings[0].ID
-	})
-
-	// Test Update
-	t.Run("update billing gcp usage", func(t *testing.T) {
-		updates := map[string]interface{}{"state": "error", "error_count": 1}
-		err := ps.UpdateBillingGcpUsage(ctx, createdID, updates)
-		assert.NoError(t, err)
-
-		// Verify update
-		billings, err := ps.GetBillingGcpUsage(ctx, map[string]interface{}{"id": createdID})
-		assert.NoError(t, err)
-		assert.Len(t, billings, 1)
-		assert.Equal(t, "error", billings[0].State)
-	})
-
-	// Test Delete
-	t.Run("delete billing gcp usage", func(t *testing.T) {
-		err := ps.DeleteBillingGcpUsage(ctx, createdID)
-		assert.NoError(t, err)
-
-		// Verify deletion
-		billings, err := ps.GetBillingGcpUsage(ctx, map[string]interface{}{"id": createdID})
-		assert.NoError(t, err)
-		assert.Empty(t, billings)
 	})
 
 	_ = ps.Close()
@@ -656,8 +608,9 @@ func TestPersistenceStore_ConcurrentAccess(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			metric := &datamodel.HydratedMetrics{
-				MeasuredType: fmt.Sprintf("concurrent-type-%d", id),
+				MeasuredType: metadata.MeasuredType(fmt.Sprintf("concurrent-type-%d", id)),
 				ResourceType: "concurrent-resource",
+				ResourceName: fmt.Sprintf("concurrent-uuid-%d", id),
 			}
 			err := ps.CreateHydratedMetrics(ctx, metric)
 			assert.NoError(t, err)
@@ -764,8 +717,9 @@ func BenchmarkPersistenceStore_CreateHydratedMetrics(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		metric := &datamodel.HydratedMetrics{
-			MeasuredType: fmt.Sprintf("bench-type-%d", i),
+			MeasuredType: metadata.MeasuredType(fmt.Sprintf("bench-type-%d", i)),
 			ResourceType: "bench-resource",
+			ResourceName: fmt.Sprintf("bench-uuid-%d", i),
 		}
 		_ = ps.CreateHydratedMetrics(ctx, metric)
 	}
@@ -784,8 +738,9 @@ func BenchmarkPersistenceStore_GetHydratedMetrics(b *testing.B) {
 	// Setup test data
 	for i := 0; i < 100; i++ {
 		metric := &datamodel.HydratedMetrics{
-			MeasuredType: fmt.Sprintf("bench-type-%d", i),
+			MeasuredType: metadata.MeasuredType(fmt.Sprintf("bench-type-%d", i)),
 			ResourceType: "bench-resource",
+			ResourceName: fmt.Sprintf("bench-uuid-%d", i),
 		}
 		_ = ps.CreateHydratedMetrics(ctx, metric)
 	}
@@ -971,6 +926,7 @@ func TestPersistenceStore_FieldValidation(t *testing.T) {
 		metric := &datamodel.HydratedMetrics{
 			MeasuredType: "",
 			ResourceType: "",
+			ResourceName: "",
 		}
 
 		err := ps.CreateHydratedMetrics(ctx, metric)
@@ -991,27 +947,6 @@ func TestPersistenceStore_FieldValidation(t *testing.T) {
 		err := ps.CreateAggregatedUsage(ctx, usage)
 		assert.NoError(t, err)
 		assert.NotZero(t, usage.ID)
-	})
-
-	t.Run("billing gcp usage with various states", func(t *testing.T) {
-		states := []string{"pending", "processing", "completed", "error", "retrying"}
-
-		for _, state := range states {
-			billing := &datamodel.BillingGcpUsage{
-				CustomerID: fmt.Sprintf("customer-%s", state),
-				State:      state,
-				ErrorCount: 0,
-			}
-
-			err := ps.CreateBillingGcpUsage(ctx, billing)
-			assert.NoError(t, err)
-			assert.NotZero(t, billing.ID)
-		}
-
-		// Verify all were created
-		billings, err := ps.GetBillingGcpUsage(ctx, map[string]interface{}{})
-		assert.NoError(t, err)
-		assert.GreaterOrEqual(t, len(billings), len(states))
 	})
 
 	_ = ps.Close()

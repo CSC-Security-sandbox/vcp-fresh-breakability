@@ -13,7 +13,6 @@ func getMetricModels() []interface{} {
 	return []interface{}{
 		&datamodel.HydratedMetrics{},
 		&datamodel.AggregatedUsage{},
-		&datamodel.BillingGcpUsage{},
 		&datamodel.Job{},
 	}
 }

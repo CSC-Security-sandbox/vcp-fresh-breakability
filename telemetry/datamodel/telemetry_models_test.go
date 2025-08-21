@@ -4,80 +4,247 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
-func TestHyderatedMetricsInitialization(t *testing.T) {
-	now := time.Now()
-	metrics := HydratedMetrics{
-		MetricTimestamp: now,
-		MeasuredType:    "VSA_ALLOCATED_SIZE",
-		ResourceType:    "VSA_BLOCK_VOLUME",
-		Quantity:        123.45,
-		Metadata:        []byte("dummy metadata"),
-	}
-	if metrics.MeasuredType != "VSA_ALLOCATED_SIZE" {
-		t.Errorf("Expected MeasuredType 'VSA_ALLOCATED_SIZE', got %s", metrics.MeasuredType)
-	}
-	if metrics.ResourceType != "VSA_BLOCK_VOLUME" {
-		t.Errorf("Expected ResourceType 'VSA_BLOCK_VOLUME', got %s", metrics.ResourceType)
-	}
+func TestHydratedMetrics(t *testing.T) {
+	t.Run("standard initialization", func(t *testing.T) {
+		now := time.Now().UTC().Truncate(time.Millisecond)
+		metrics := HydratedMetrics{
+			MetricTimestamp: now,
+			MeasuredType:    metadata.MeasuredType("ALLOCATED_SIZE"),
+			ResourceType:    metadata.ResourceType("VOLUME"),
+			Quantity:        42.5,
+			ResourceName:    "vol-1",
+			ConsumerID:      "customer-123",
+			Location:        "us-west",
+			Metadata:        []byte(`{"key":"value"}`),
+		}
+
+		// Verify all fields with assertions
+		assert.Equal(t, now, metrics.MetricTimestamp, "MetricTimestamp should match")
+		assert.Equal(t, metadata.MeasuredType("ALLOCATED_SIZE"), metrics.MeasuredType, "MeasuredType should match")
+		assert.Equal(t, metadata.ResourceType("VOLUME"), metrics.ResourceType, "ResourceType should match")
+		assert.Equal(t, 42.5, metrics.Quantity, "Quantity should match")
+		assert.Equal(t, "vol-1", metrics.ResourceName, "ResourceName should match")
+		assert.Equal(t, "customer-123", metrics.ConsumerID, "ConsumerID should match")
+		assert.Equal(t, "us-west", metrics.Location, "Location should match")
+		assert.Equal(t, []byte(`{"key":"value"}`), metrics.Metadata, "Metadata should match")
+	})
+
+	t.Run("zero values", func(t *testing.T) {
+		// Test with zero/default values
+		metrics := HydratedMetrics{}
+
+		assert.Equal(t, time.Time{}, metrics.MetricTimestamp, "MetricTimestamp should be zero value")
+		assert.Equal(t, metadata.MeasuredType(""), metrics.MeasuredType, "MeasuredType should be empty")
+		assert.Equal(t, metadata.ResourceType(""), metrics.ResourceType, "ResourceType should be empty")
+		assert.Equal(t, 0.0, metrics.Quantity, "Quantity should be zero")
+		assert.Equal(t, "", metrics.ResourceName, "ResourceName should be empty")
+		assert.Equal(t, "", metrics.ConsumerID, "ConsumerID should be empty")
+		assert.Equal(t, "", metrics.Location, "Location should be empty")
+		assert.Nil(t, metrics.Metadata, "Metadata should be nil")
+	})
 }
 
-func TestAggregatedUsageInitialization(t *testing.T) {
-	start := pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	end := pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	usage := AggregatedUsage{
-		ID:                     1,
-		AccountUuid:            pgtype.Text{String: "123e4567-e89b-12d3-a456-426614174000", Valid: true},
-		AggregationStart:       start,
-		AggregationEnd:         end,
-		MeasuredType:           pgtype.Text{String: "VSA_ALLOCATED_SIZE", Valid: true},
-		Quantity:               pgtype.Numeric{},
-		DetailsID:              pgtype.Int8{Int64: 42, Valid: true},
-		ResourceUuid:           pgtype.Text{String: "123e4567-e89b-12d3-a456-426614174123", Valid: true},
-		VolumeName:             pgtype.Text{String: "vol-1", Valid: true},
-		AggregationGranularity: pgtype.Int4{Int32: 1, Valid: true},
-		ServiceLevel:           pgtype.Text{String: "flex", Valid: true},
-		ResourceType:           "VSA_BLOCK_VOLUME",
-		AggregationType:        "HOURLY",
-		LastCounterValue:       pgtype.Numeric{},
-		CustomerID:             pgtype.Text{String: "cust-1", Valid: true},
-		RegionName:             pgtype.Text{String: "us-west", Valid: true},
-		SourceRegion:           pgtype.Text{String: "us-east", Valid: true},
-		DestinationRegion:      pgtype.Text{String: "eu-west", Valid: true},
-		BillingLabels:          pgtype.Text{String: "tag1,tag2", Valid: true},
-		CreatedAt:              start,
-		UpdatedAt:              end,
-		ReplicationDstVolumeID: pgtype.Text{String: "dst-vol-1", Valid: true},
-		DoubleEncryption:       pgtype.Bool{Bool: true, Valid: true},
-	}
-	if usage.ID != 1 {
-		t.Errorf("Expected ID 1, got %d", usage.ID)
-	}
-	if usage.ResourceType != "VSA_BLOCK_VOLUME" {
-		t.Errorf("Expected ResourceType 'VSA_BLOCK_VOLUME', got %s", usage.ResourceType)
-	}
+func TestAggregatedUsage(t *testing.T) {
+	t.Run("full initialization", func(t *testing.T) {
+		now := time.Now().UTC().Truncate(time.Millisecond)
+		start := now
+		end := now.Add(time.Hour)
+		accountUuid := "123e4567-e89b-12d3-a456-426614174000"
+		resourceName := "vol-1"
+		regionName := "us-west"
+		sourceRegion := "us-east"
+		destinationRegion := "eu-west"
+		billingLabels := "tag1,tag2"
+		replicationDstVolumeID := "dst-vol-1"
+		doubleEncryption := true
+		errorMessage := ""
+		submission := "sub-123"
+		lastCounterValue := 100.5
+
+		usage := AggregatedUsage{
+			ID:                     1,
+			AccountUuid:            &accountUuid,
+			AggregationStart:       start,
+			AggregationEnd:         end,
+			MeasuredType:           metadata.MeasuredType("ALLOCATED_SIZE"),
+			Quantity:               42.5,
+			ResourceName:           &resourceName,
+			ResourceType:           metadata.ResourceType("VOLUME"),
+			AggregationType:        "HOURLY",
+			LastCounterValue:       &lastCounterValue,
+			RegionName:             &regionName,
+			SourceRegion:           &sourceRegion,
+			DestinationRegion:      &destinationRegion,
+			BillingLabels:          &billingLabels,
+			CreatedAt:              start,
+			UpdatedAt:              end,
+			ReplicationDstVolumeID: &replicationDstVolumeID,
+			DoubleEncryption:       &doubleEncryption,
+			State:                  common.Unsubmitted,
+			ErrorCount:             0,
+			ErrorMessage:           &errorMessage,
+			Submission:             &submission,
+			IsBillable:             true,
+		}
+
+		// Verify all fields with assertions
+		assert.Equal(t, int64(1), usage.ID)
+		assert.Equal(t, "123e4567-e89b-12d3-a456-426614174000", *usage.AccountUuid)
+		assert.Equal(t, start, usage.AggregationStart)
+		assert.Equal(t, end, usage.AggregationEnd)
+		assert.Equal(t, metadata.MeasuredType("ALLOCATED_SIZE"), usage.MeasuredType)
+		assert.Equal(t, 42.5, usage.Quantity)
+		assert.Equal(t, "vol-1", *usage.ResourceName)
+		assert.Equal(t, metadata.ResourceType("VOLUME"), usage.ResourceType)
+		assert.Equal(t, "HOURLY", usage.AggregationType)
+		assert.Equal(t, 100.5, *usage.LastCounterValue)
+		assert.Equal(t, "us-west", *usage.RegionName)
+		assert.Equal(t, "us-east", *usage.SourceRegion)
+		assert.Equal(t, "eu-west", *usage.DestinationRegion)
+		assert.Equal(t, "tag1,tag2", *usage.BillingLabels)
+		assert.Equal(t, start, usage.CreatedAt)
+		assert.Equal(t, end, usage.UpdatedAt)
+		assert.Equal(t, "dst-vol-1", *usage.ReplicationDstVolumeID)
+		assert.True(t, *usage.DoubleEncryption)
+		assert.Equal(t, common.Unsubmitted, usage.State)
+		assert.Equal(t, int32(0), usage.ErrorCount)
+		assert.Equal(t, "", *usage.ErrorMessage)
+		assert.Equal(t, "sub-123", *usage.Submission)
+		assert.True(t, usage.IsBillable)
+	})
+
+	t.Run("minimal initialization", func(t *testing.T) {
+		// Test with minimal required fields
+		now := time.Now().UTC().Truncate(time.Millisecond)
+		usage := AggregatedUsage{
+			ID:               100,
+			AggregationStart: now,
+			AggregationEnd:   now.Add(time.Hour),
+			MeasuredType:     metadata.MeasuredType("THROUGHPUT"),
+			Quantity:         50.0,
+			ResourceType:     metadata.ResourceType("VOLUME"),
+			AggregationType:  "DAILY",
+			State:            common.Submitted,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		}
+
+		assert.Equal(t, int64(100), usage.ID)
+		assert.Equal(t, metadata.MeasuredType("THROUGHPUT"), usage.MeasuredType)
+		assert.Equal(t, metadata.ResourceType("VOLUME"), usage.ResourceType)
+		assert.Equal(t, common.Submitted, usage.State)
+		assert.Equal(t, 50.0, usage.Quantity)
+		assert.Equal(t, "DAILY", usage.AggregationType)
+
+		// Verify nil pointer fields are nil
+		assert.Nil(t, usage.AccountUuid)
+		assert.Nil(t, usage.ResourceName)
+		assert.Nil(t, usage.LastCounterValue)
+		assert.Nil(t, usage.RegionName)
+		assert.Nil(t, usage.SourceRegion)
+		assert.Nil(t, usage.DestinationRegion)
+		assert.Nil(t, usage.BillingLabels)
+		assert.Nil(t, usage.ReplicationDstVolumeID)
+		assert.Nil(t, usage.DoubleEncryption)
+		assert.Nil(t, usage.ErrorMessage)
+		assert.Nil(t, usage.Submission)
+
+		// Verify default values
+		assert.Equal(t, int32(0), usage.ErrorCount)
+		assert.False(t, usage.IsBillable)
+	})
 }
 
-func TestBillingGcpUsageInitialization(t *testing.T) {
-	now := pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	billing := BillingGcpUsage{
-		ID:                10,
-		AggregatedUsageID: 20,
-		State:             "SUBMITTED",
-		ErrorCount:        0,
-		SentQuantity:      pgtype.Numeric{},
-		ErrorMessage:      pgtype.Text{String: "", Valid: false},
-		CustomerID:        "cust-2",
-		Submission:        pgtype.Text{String: "sub-1", Valid: true},
-		CreatedAt:         now,
-		UpdatedAt:         now,
-	}
-	if billing.State != "SUBMITTED" {
-		t.Errorf("Expected State 'VSA_BLOCK_VOLUME', got %s", billing.State)
-	}
-	if billing.CustomerID != "cust-2" {
-		t.Errorf("Expected CustomerID 'cust-2', got %s", billing.CustomerID)
-	}
+func TestJob(t *testing.T) {
+	t.Run("full initialization", func(t *testing.T) {
+		now := time.Now().UTC().Truncate(time.Millisecond)
+		startedAt := now.Add(time.Minute)
+		finishedAt := now.Add(2 * time.Minute)
+		scheduledAt := now.Add(-time.Hour)
+
+		job := Job{
+			ID:          100,
+			TypeName:    "metrics-aggregation",
+			Status:      "completed",
+			Queue:       "high-priority",
+			Data:        `{"config": "test"}`,
+			Error:       "",
+			Attempt:     3,
+			CreatedAt:   now,
+			StartedAt:   startedAt,
+			FinishedAt:  finishedAt,
+			ScheduledAt: scheduledAt,
+		}
+
+		// Verify all fields
+		assert.Equal(t, int64(100), job.ID)
+		assert.Equal(t, "metrics-aggregation", job.TypeName)
+		assert.Equal(t, "completed", job.Status)
+		assert.Equal(t, "high-priority", job.Queue)
+		assert.Equal(t, `{"config": "test"}`, job.Data)
+		assert.Equal(t, "", job.Error)
+		assert.Equal(t, int32(3), job.Attempt)
+		assert.Equal(t, now, job.CreatedAt)
+		assert.Equal(t, startedAt, job.StartedAt)
+		assert.Equal(t, finishedAt, job.FinishedAt)
+		assert.Equal(t, scheduledAt, job.ScheduledAt)
+	})
+
+	t.Run("minimal initialization", func(t *testing.T) {
+		// Test with minimal required fields
+		job := Job{
+			ID:       200,
+			TypeName: "data-processing",
+			Status:   "pending",
+			Queue:    "default",
+		}
+
+		assert.Equal(t, int64(200), job.ID)
+		assert.Equal(t, "data-processing", job.TypeName)
+		assert.Equal(t, "pending", job.Status)
+		assert.Equal(t, "default", job.Queue)
+
+		// Verify default values
+		assert.Equal(t, "", job.Data)
+		assert.Equal(t, "", job.Error)
+		assert.Equal(t, int32(0), job.Attempt)
+		assert.True(t, job.CreatedAt.IsZero())
+		assert.True(t, job.StartedAt.IsZero())
+		assert.True(t, job.FinishedAt.IsZero())
+		assert.True(t, job.ScheduledAt.IsZero())
+	})
+
+	t.Run("error state", func(t *testing.T) {
+		// Test job in error state
+		now := time.Now().UTC().Truncate(time.Millisecond)
+
+		job := Job{
+			ID:        300,
+			TypeName:  "failing-job",
+			Status:    "failed",
+			Queue:     "retry",
+			Data:      `{"retry": true}`,
+			Error:     "Database connection timeout",
+			Attempt:   5,
+			CreatedAt: now,
+			StartedAt: now.Add(time.Minute),
+		}
+
+		assert.Equal(t, int64(300), job.ID)
+		assert.Equal(t, "failing-job", job.TypeName)
+		assert.Equal(t, "failed", job.Status)
+		assert.Equal(t, "retry", job.Queue)
+		assert.Equal(t, `{"retry": true}`, job.Data)
+		assert.Equal(t, "Database connection timeout", job.Error)
+		assert.Equal(t, int32(5), job.Attempt)
+		assert.Equal(t, now, job.CreatedAt)
+		assert.Equal(t, now.Add(time.Minute), job.StartedAt)
+		assert.True(t, job.FinishedAt.IsZero())  // Not finished yet
+		assert.True(t, job.ScheduledAt.IsZero()) // Not scheduled
+	})
 }

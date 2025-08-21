@@ -440,8 +440,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsEnabledValidCli
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) ([]metricsdm.HydratedMetrics, error) {
 		return []metricsdm.HydratedMetrics{
 			{
-				MeasuredType: metadata.FileSystemReadOps.String(),
-				ResourceType: metadata.Volume.String(),
+				MeasuredType: metadata.FileSystemReadOps,
+				ResourceType: metadata.Volume,
 				ResourceName: "test-volume-1",
 			},
 		}, nil
@@ -561,13 +561,13 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsError(t
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) ([]metricsdm.HydratedMetrics, error) {
 		return []metricsdm.HydratedMetrics{
 			{
-				MeasuredType: metadata.FileSystemReadOps.String(),
-				ResourceType: metadata.Volume.String(),
+				MeasuredType: metadata.FileSystemReadOps,
+				ResourceType: metadata.Volume,
 				ResourceName: "test-volume-1",
 			},
 			{
-				MeasuredType: metadata.FileSystemWriteOps.String(),
-				ResourceType: metadata.Volume.String(),
+				MeasuredType: metadata.FileSystemWriteOps,
+				ResourceType: metadata.Volume,
 				ResourceName: "test-volume-1",
 			},
 		}, nil
@@ -632,13 +632,13 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_SkipsUnknownMeasuredType(t *
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) ([]metricsdm.HydratedMetrics, error) {
 		return []metricsdm.HydratedMetrics{
 			{
-				MeasuredType: metadata.UnknownMeasuredType.String(),
-				ResourceType: metadata.Volume.String(), // Fix: Add valid resource type
+				MeasuredType: metadata.UnknownMeasuredType,
+				ResourceType: metadata.Volume, // Fix: Add valid resource type
 				ResourceName: "test-volume-1",
 			},
 			{
-				MeasuredType: metadata.FileSystemReadOps.String(),
-				ResourceType: metadata.Volume.String(),
+				MeasuredType: metadata.FileSystemReadOps,
+				ResourceType: metadata.Volume,
 				ResourceName: "test-volume-2",
 			},
 		}, nil

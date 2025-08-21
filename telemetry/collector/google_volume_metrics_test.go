@@ -280,7 +280,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success(t *testing.T) {
 	results, err := provider.GetVolumeMetrics(ctx, logger)
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
-	assert.Equal(t, metadata.MeasuredType("FILE_SYSTEM_READ_OPS").String(), results[0].MeasuredType)
+	assert.Equal(t, metadata.MeasuredType("FILE_SYSTEM_READ_OPS"), results[0].MeasuredType)
 	mockTenantProvider.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 	mockIterator.AssertExpectations(t)

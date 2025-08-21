@@ -13,6 +13,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+// MockVCPProcessor is a mock implementation that satisfies the VCPProcessor interface
+type MockVCPProcessor struct {
+	*procMock.MockProcessor
+}
+
+// ProcessUsageMetrics implements the missing interface method
+func (m *MockVCPProcessor) ProcessUsageMetrics(ctx context.Context) error {
+	return nil
+}
+
 func setupTestDB(t *testing.T) (metricsdb.Storage, func()) {
 	logger := log.NewLogger()
 	store, err := metricsdb.SetupStorageForTest(logger)
@@ -33,13 +43,14 @@ func Test_ReturnsAcceptedResponseForPerformanceEndpoint(t *testing.T) {
 	defer cleanup()
 
 	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	handler := Handler{
 		vcpDatastore:       vcpStore,
 		telemetryDatastore: telemetryStore,
-		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockProc},
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
 	}
 	response, err := handler.V1Performance(context.Background())
 	assert.NoError(t, err)
@@ -58,13 +69,14 @@ func Test_V1Performance_DBError(t *testing.T) {
 	_ = telemetryStore.Close()
 
 	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	handler := Handler{
 		vcpDatastore:       vcpStore,
 		telemetryDatastore: telemetryStore,
-		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockProc},
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
 	}
 	response, err := handler.V1Performance(context.Background())
 
@@ -78,6 +90,7 @@ func Test_V1Performance_ContextCancel(t *testing.T) {
 	defer cleanup()
 
 	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -86,7 +99,7 @@ func Test_V1Performance_ContextCancel(t *testing.T) {
 	handler := Handler{
 		vcpDatastore:       vcpStore,
 		telemetryDatastore: telemetryStore,
-		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockProc},
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
 	}
 
 	// Context cancellation should not affect the response since we use context.WithoutCancel
@@ -95,4 +108,30 @@ func Test_V1Performance_ContextCancel(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.IsType(t, &oasgenserver.V1PerformanceAccepted{}, response)
+}
+
+func Test_ReturnsAcceptedResponseForUsageEndpoint(t *testing.T) {
+	vcpStore := &vcpdb.MockStorage{}
+	telemetryStore, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	handler := Handler{
+		vcpDatastore:       vcpStore,
+		telemetryDatastore: telemetryStore,
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+	}
+
+	// Context cancellation should not affect the response since we use context.WithoutCancel
+	cancel()
+	response, err := handler.V1Usage(ctx)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &oasgenserver.V1UsageAccepted{}, response)
 }

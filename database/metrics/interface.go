@@ -32,20 +32,39 @@ func (r *DataStoreRepository) CreateHydratedMetricsBatch(ctx context.Context, me
 }
 func (r *DataStoreRepository) GetHydratedMetrics(ctx context.Context, filter map[string]interface{}) ([]datamodel.HydratedMetrics, error) {
 	var result []datamodel.HydratedMetrics
-	tx := r.db.GORM().WithContext(ctx)
+	db := r.db.GORM().WithContext(ctx)
+
 	if len(filter) > 0 {
-		tx = tx.Where(filter)
+		// Check if we have complex conditions
+		if conditions, ok := filter["conditions"]; ok {
+			// Process each condition
+			if condArr, ok := conditions.([][]interface{}); ok {
+				for _, condition := range condArr {
+					if len(condition) > 0 {
+						// Apply each condition to the query
+						db = db.Where(condition[0], condition[1:]...)
+					}
+				}
+			}
+			// Remove the conditions key from filter
+			delete(filter, "conditions")
+		}
+
+		// Apply any remaining simple filters
+		if len(filter) > 0 {
+			db = db.Where(filter)
+		}
 	}
-	err := tx.Find(&result).Error
+	err := db.Find(&result).Error
 	return result, err
 }
 
 func (r *DataStoreRepository) UpdateHydratedMetrics(ctx context.Context, id string, updates map[string]interface{}) error {
-	return r.db.GORM().WithContext(ctx).Model(&datamodel.HydratedMetrics{}).Where("resource_name = ?", id).Updates(updates).Error
+	return r.db.GORM().WithContext(ctx).Model(&datamodel.HydratedMetrics{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *DataStoreRepository) DeleteHydratedMetrics(ctx context.Context, id string) error {
-	return r.db.GORM().WithContext(ctx).Where("resource_name = ?", id).Delete(&datamodel.HydratedMetrics{}).Error
+	return r.db.GORM().WithContext(ctx).Where("id = ?", id).Delete(&datamodel.HydratedMetrics{}).Error
 }
 
 // AggregatedUsage CRUD
@@ -69,29 +88,6 @@ func (r *DataStoreRepository) UpdateAggregatedUsage(ctx context.Context, id int6
 
 func (r *DataStoreRepository) DeleteAggregatedUsage(ctx context.Context, id int64) error {
 	return r.db.GORM().WithContext(ctx).Where("id = ?", id).Delete(&datamodel.AggregatedUsage{}).Error
-}
-
-// BillingGcpUsage CRUD
-func (r *DataStoreRepository) CreateBillingGcpUsage(ctx context.Context, b *datamodel.BillingGcpUsage) error {
-	return r.db.GORM().WithContext(ctx).Create(b).Error
-}
-
-func (r *DataStoreRepository) GetBillingGcpUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.BillingGcpUsage, error) {
-	var result []datamodel.BillingGcpUsage
-	tx := r.db.GORM().WithContext(ctx)
-	if len(filter) > 0 {
-		tx = tx.Where(filter)
-	}
-	err := tx.Find(&result).Error
-	return result, err
-}
-
-func (r *DataStoreRepository) UpdateBillingGcpUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
-	return r.db.GORM().WithContext(ctx).Model(&datamodel.BillingGcpUsage{}).Where("id = ?", id).Updates(updates).Error
-}
-
-func (r *DataStoreRepository) DeleteBillingGcpUsage(ctx context.Context, id int64) error {
-	return r.db.GORM().WithContext(ctx).Where("id = ?", id).Delete(&datamodel.BillingGcpUsage{}).Error
 }
 
 type (
@@ -124,11 +120,5 @@ type (
 		GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error)
 		UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error
 		DeleteAggregatedUsage(ctx context.Context, id int64) error
-
-		// BillingGcpUsage CRUD
-		CreateBillingGcpUsage(ctx context.Context, b *datamodel.BillingGcpUsage) error
-		GetBillingGcpUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.BillingGcpUsage, error)
-		UpdateBillingGcpUsage(ctx context.Context, id int64, updates map[string]interface{}) error
-		DeleteBillingGcpUsage(ctx context.Context, id int64) error
 	}
 )

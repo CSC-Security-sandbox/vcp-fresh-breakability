@@ -237,6 +237,7 @@ func TestLoadConfig_MetricsDBEnvVars(t *testing.T) {
 	assert.Equal(t, "Asia/Kolkata", cfg.MetricsDBTimeZone.String())
 
 	// Clean up
+	_ = os.Unsetenv("LOCAL_REGION")
 	_ = os.Unsetenv("METRICS_DB_TYPE")
 	_ = os.Unsetenv("METRICS_DB_HOST")
 	_ = os.Unsetenv("METRICS_DB_PORT")

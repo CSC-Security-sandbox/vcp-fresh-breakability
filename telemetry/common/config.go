@@ -7,6 +7,11 @@ import (
 	"log"
 )
 
+const (
+	Gcp string = "gcp"
+	Dev string = "dev"
+)
+
 type TelemetryConfig struct {
 	// Server configuration
 	OperationBatchSize   int64
@@ -16,6 +21,7 @@ type TelemetryConfig struct {
 	RegionName           string
 	EnableVolumeMetrics  bool
 	PushBatchSize        int64
+	Environment          string
 }
 
 type MetricItem struct {
@@ -37,6 +43,7 @@ func LoadConfig() *TelemetryConfig {
 	regionName := env.GetString("LOCAL_REGION", "")
 	enableVolumeMetrics := env.GetBool("ENABLE_VOLUME_METRICS", false)
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
+	environment := env.GetString("ENVIRONMENT", Dev)
 
 	return &TelemetryConfig{
 		RootUrl:              rootUrl,
@@ -46,6 +53,7 @@ func LoadConfig() *TelemetryConfig {
 		RegionName:           regionName,
 		EnableVolumeMetrics:  enableVolumeMetrics,
 		PushBatchSize:        pushBatchSize,
+		Environment:          environment,
 	}
 }
 
