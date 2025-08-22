@@ -43,17 +43,6 @@ data:
                   http_sd_configs:
                   - url: http://localhost:3000/pollers/prometheus-targets
                     refresh_interval: 30s
-                  metric_relabel_configs:
-                  - source_labels: [metadata_collector_api_time, metadata_collector_bytesRx, metadata_collector_calc_time, metadata_collector_instances]
-                    action: drop
-                  - source_labels: [metadata_collector_metrics, metadata_collector_numCalls, metadata_collector_numPartials, metadata_collector_parse_time]
-                    action: drop
-                  - source_labels: [metadata_collector_pluginInstances, metadata_collector_plugin_time, metadata_collector_poll_time, metadata_collector_skips]
-                    action: drop
-                  - source_labels: [metadata_collector_task_time, metadata_component_count, metadata_component_status, metadata_exporter_count]
-                    action: drop
-                  - source_labels: [metadata_exporter_time, metadata_target_goroutines, metadata_target_ping, metadata_target_status]
-                    action: drop
     service:
         extensions:
             - health_check
