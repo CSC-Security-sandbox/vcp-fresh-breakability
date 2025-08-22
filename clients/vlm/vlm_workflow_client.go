@@ -19,13 +19,12 @@ import (
 )
 
 var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
-var NewVSAMockClientWorkflowManager = _newVSAMockClientWorkflowManager
 
 var (
 	VSALifecycleManagerQueuePrefix = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
 	OntapVersion                   = env.GetString("ONTAP_VERSION", "9.17.1")
 	VSALifecycleManagerQueue       = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
-
+	IsIntegrationTest              = env.GetBool("INTEGRATION_TEST", false)
 	VlmWorkflowStartToCloseTimeout = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")
 	VlmWorkflowRetryInterval       = env.GetString("VLMWORKFLOW_RETRY_INTERVAL", "1m")
 	VlmWorkflowRetryMaxAttempts    = env.GetInt("VLMWORKFLOW_RETRY_MAX_ATTEMPTS", 3)
@@ -52,11 +51,10 @@ type VSAClientWorkflowManager struct {
 }
 
 func _newVSAClientWorkflowManager() VlmWorkflowClient {
+	if IsIntegrationTest {
+		return &VSAClientWorkflowManagerMock{}
+	}
 	return &VSAClientWorkflowManager{}
-}
-
-func _newVSAMockClientWorkflowManager() VlmWorkflowClient {
-	return &VSAClientWorkflowManagerMock{}
 }
 
 func getVLMWorkerQueue(logger log.Logger, account string) string {

@@ -3,6 +3,7 @@ package vlm
 import (
 	"errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,46 +55,6 @@ func TestCreateVSAClusterDeployment(t *testing.T) {
 	assert.NoError(t, env.GetWorkflowError())
 }
 
-func TestCreateVSAClusterDeploymentMock(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
-		"requestCorrelationID": "test-correlation-id",
-	})
-	mockHeader := &commonpb.Header{
-		Fields: map[string]*commonpb.Payload{
-			"logParam": encodedValue,
-		},
-	}
-	env.SetHeader(mockHeader)
-
-	env.RegisterWorkflowWithOptions(
-		func(ctx workflow.Context, request *CreateVSAClusterDeploymentRequest) error {
-			return nil
-		},
-		workflow.RegisterOptions{Name: CreateVSAClusterDeploymentWorkflowName},
-	)
-
-	createVSAClusterDeploymentRequest := &CreateVSAClusterDeploymentRequest{
-		VLMConfig: VLMConfig{
-			Deployment: DeploymentConfig{
-				DeploymentID: "test-deployment-id",
-			},
-		},
-	}
-
-	vlmManager := NewVSAMockClientWorkflowManager()
-
-	env.ExecuteWorkflow(func(ctx workflow.Context) error {
-		_, err := vlmManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
-		return err
-	})
-
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
-}
-
 func TestCreateVSAClusterDeployment_Error(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -134,6 +95,53 @@ func TestCreateVSAClusterDeployment_Error(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	err := env.GetWorkflowError()
 	assert.Error(t, err)
+}
+
+func TestCreateVSAClusterDeployment_IntegrationTest(t *testing.T) {
+	// Set the environment variable to true
+	originalEnv := env.GetBool("INTEGRATION_TEST", false)
+	// Restore the original value after the test
+	IsIntegrationTest = true
+	defer func() { IsIntegrationTest = originalEnv }()
+
+	var ts testsuite.WorkflowTestSuite
+	environment := ts.NewTestWorkflowEnvironment()
+	environment.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	environment.SetHeader(mockHeader)
+
+	// Register a workflow that returns an error
+	environment.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *CreateVSAClusterDeploymentRequest) error {
+			return errors.New("child workflow failed")
+		},
+		workflow.RegisterOptions{Name: CreateVSAClusterDeploymentWorkflowName},
+	)
+
+	createVSAClusterDeploymentRequest := &CreateVSAClusterDeploymentRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+			},
+		},
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	environment.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
+		return err
+	})
+
+	assert.True(t, environment.IsWorkflowCompleted())
+	assert.NoError(t, environment.GetWorkflowError())
 }
 
 func TestCreateVSASVM(t *testing.T) {
