@@ -55,6 +55,43 @@ func Test_GetCertificate(t *testing.T) {
 			tt.Errorf("Expected nil operation but got: %+v", cert)
 		}
 	})
+	t.Run("WhenGetCertificateFailsRevoked", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		url := fmt.Sprintf("/v1/projects/%s/locations/%s/caPools/%s/certificates/%s", projectId, region, pooID, certID)
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodGet {
+				response, _ := json.Marshal(&privateca.Certificate{
+					Name: certID,
+					RevocationDetails: &privateca.RevocationDetails{
+						RevocationState: PrivilegeWithdrawn,
+					},
+				})
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := privateca.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				privateCaService: svc,
+			},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+		cert, err := gService.GetCertificate(projectId, region, pooID, certID)
+		if err != nil && cert != nil {
+			tt.Error("Expected cert to be nil for revoked certificate")
+		}
+	})
 	t.Run("WhenGetCertificateFailsNotFound", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()

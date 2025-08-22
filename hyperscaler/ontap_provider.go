@@ -538,8 +538,6 @@ func _getGCPService(ctx context.Context) (*google.GcpServices, error) {
 	gcpService := NewGcpServices(ctx)
 
 	gcpService.Logger.Debug("gcpService initialized")
-
-	gcpService.Logger.Debug("Calling InitializeClients")
 	err := gcpService.InitializeClients()
 	if err != nil || !gcpService.IsAdminClientInitialized() {
 		gcpService.Logger.Debug("Initialisation of service failed")

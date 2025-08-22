@@ -74,6 +74,12 @@ func (gcpService *GcpServices) GetCertificate(projectID, region, poolName, certi
 		return nil, googleResourceNotFoundCheck(err)
 	}
 
+	// Check if the certificate has revocation details implies certificate is revoked
+	if certificate.RevocationDetails != nil && certificate.RevocationDetails.RevocationState == PrivilegeWithdrawn {
+		gcpService.Logger.Debug(fmt.Sprintf("Certificate :%s is in revoked state already", certificateName))
+		return nil, nil
+	}
+
 	gcpService.Logger.Debug(fmt.Sprintf("GetCertificate success with response :  %s", certificateID))
 	customCertificate, err := ValidateAndConvertPrivateCACertificateToCustomCertificate(certificateID, certificate)
 	if err != nil {

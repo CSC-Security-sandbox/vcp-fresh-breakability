@@ -104,16 +104,13 @@ func _newClient(ctx context.Context, opts ...option.ClientOption) (*http.Client,
 func (gcpService *GcpServices) InitializeClients() error {
 	var adminServiceClient *AdminGCPService
 	var err error
-	gcpService.Logger.Debug("Initializing GCP clients")
 	if !gcpService.IsAdminClientInitialized() {
-		gcpService.Logger.Debug("Admin Client isn't initialised. Initialising now. Creating new GCP client")
 		adminServiceClient, err = newGoogleClient(gcpService.Ctx)
 		if err != nil {
 			return err
 		}
 		gcpService.AdminGCPService = adminServiceClient
 	}
-	gcpService.Logger.Debug("Admin Client is initialised")
 	return nil
 }
 
@@ -141,21 +138,18 @@ func (gcpService *GcpServices) GetContext() context.Context {
 // _initializeAdminClient creates a new googleService object using Workload identity and Initializes the services
 func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 	log := util.GetLogger(ctx)
-	log.Debug("Calling initializeManagementService")
 	managementService, err := initializeManagementService(ctx)
 	if err != nil {
 		log.Errorf("Error initializeManagementService : %s", err.Error())
 		return nil, err
 	}
 
-	log.Debug("Calling initializeNetworkingService")
 	networkingService, err := initializeNetworkingService(ctx)
 	if err != nil {
 		log.Errorf("Error initializeNetworkingService : %s", err.Error())
 		return nil, err
 	}
 
-	log.Debug("Calling initializeComputeService")
 	computeService, err := initializeComputeService(ctx)
 	if err != nil {
 		log.Errorf("Error initializeComputeService : %s", err.Error())
@@ -168,7 +162,6 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
-	log.Debug("Calling initializeIamService")
 	iamService, err := initializeIamService(ctx)
 	if err != nil {
 		log.Errorf("Error initializeIamService :%s", err.Error())
@@ -180,27 +173,25 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		log.Error("Error initializeCloudProjectsService", err)
 		return nil, err
 	}
-	log.Debug("Calling initializePrivateCaService")
+
 	privateCaService, err := initializePrivateCaService(ctx)
 	if err != nil {
 		log.Errorf("Error initializePrivateCaService :%s", err.Error())
 		return nil, err
 	}
-	log.Debug("Calling initializeSecretManagerService")
+
 	secretManagerService, err := initializeSecretManagerService(ctx)
 	if err != nil {
 		log.Errorf("Error initializeSecretManagerService :%s", err.Error())
 		return nil, err
 	}
 
-	log.Debug("Calling initializeCloudRunService")
 	cloudRunService, err := initializeCloudRunService(ctx)
 	if err != nil {
 		log.Errorf("error initializing CloudRun Service: %s", err.Error())
 		return nil, err
 	}
 
-	log.Debug("Calling initializeCloudDnsService")
 	cloudDnsService, err := initializeCloudDnsService(ctx)
 	if err != nil {
 		log.Errorf("Error initializeCloudDnsService :%s", err.Error())
@@ -229,7 +220,6 @@ func _initializeManagementService(ctx context.Context) (*serviceconsumermanageme
 	scopesOption := option.WithScopes(serviceconsumermanagement.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
 
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", serviceconsumermanagement.CloudPlatformScope)))
 	}
@@ -270,11 +260,10 @@ func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APISe
 
 	scopesOption := option.WithScopes(servicenetworking.CloudPlatformScope, servicenetworking.ServiceManagementScope)
 	opts := []option.ClientOption{scopesOption}
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
+
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", servicenetworking.CloudPlatformScope, servicenetworking.ServiceManagementScope)))
 	}
-	logger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		logger.Errorf("error while creating new client for _initializeNetworkingService : %s", err.Error())
@@ -311,12 +300,10 @@ func _initializeIamService(ctx context.Context) (*iam.Service, error) {
 	slogger := util.GetLogger(ctx)
 	scopesOption := option.WithScopes(iam.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
-	slogger.Debug(fmt.Sprintf("opts: %#v", opts))
 
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", iam.CloudPlatformScope)))
 	}
-	slogger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		slogger.Error("error while creating new client for _initializeIamService", err)
@@ -342,11 +329,10 @@ func _initializeCloudProjectsService(ctx context.Context) (*projectsManagement.S
 	opts := []option.ClientOption{scopesOption}
 	slogger := util.GetLogger(ctx)
 
-	slogger.Debug(fmt.Sprintf("opts: %#v", opts))
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", projectsManagement.CloudPlatformScope)))
 	}
-	slogger.Debug("creating newClient")
+
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		slogger.Error("error while creating new client for _initializeCloudProjectsService", err)
@@ -370,12 +356,10 @@ func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
 
 	scopesOption := option.WithScopes(compute.ComputeReadonlyScope, compute.ComputeScope, compute.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
 
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", compute.ComputeReadonlyScope, compute.ComputeScope, compute.CloudPlatformScope)))
 	}
-	logger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		logger.Errorf("error while creating new client for _initializeComputeService : %s", err.Error())
@@ -419,7 +403,6 @@ func _initializePrivateCaService(ctx context.Context) (*privateca.Service, error
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", privateca.CloudPlatformScope)))
 	}
-	logger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		logger.Errorf("error while creating new client for _initializePrivateCaService : %s", err.Error())
@@ -449,7 +432,6 @@ func _initializeSecretManagerService(ctx context.Context) (*secretmanager.Servic
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", secretmanager.CloudPlatformScope)))
 	}
-	logger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		logger.Errorf("error while creating new client for _initializeSecretManagerService : %s", err.Error())
@@ -478,7 +460,6 @@ func _initializeCloudDnsService(ctx context.Context) (*dns.Service, error) {
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", dns.CloudPlatformScope)))
 	}
-	logger.Debug("creating newClient")
 	client, endpoint, err := newClient(ctx, opts...)
 	if err != nil {
 		logger.Errorf("error while creating new client for _initializeCloudDnsService : %s", err.Error())
