@@ -111,7 +111,7 @@ func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateJobStatus_Setup_Erro
 
 	// Mock UpdateJob method calls
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
-	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 1011, mock.Anything).Return(nil)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -195,7 +195,7 @@ func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateSnapshot_Error() {
 
 	// Mock UpdateJob method calls
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
-	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 1011, mock.Anything).Return(nil)
 
 	// Mock UpdateSnapshot to return error
 	s.env.OnActivity(updateSnapshotActivity.UpdateSnapshot, mock.Anything, mock.Anything).Return(assert.AnError)

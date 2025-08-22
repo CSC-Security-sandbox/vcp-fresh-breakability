@@ -39,7 +39,7 @@ func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotP
 	if customErr != nil {
 		logger.Infof("Snapshot delete workflow run executed with error: %v", customErr)
 		snapshotWf.Status = WorkflowStatusFailed
-		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if jobUpdateErr != nil {
 			logger.Errorf("Failed to update job status to Done with error for DeleteSnapshotWorkflow: %v", jobUpdateErr)
 			return nil, jobUpdateErr

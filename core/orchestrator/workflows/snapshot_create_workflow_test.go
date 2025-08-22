@@ -125,7 +125,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnActivityError()
 
 	// Mock UpdateJob method calls - use mock.Anything for error details since they may vary
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
-	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 1011, mock.Anything).Return(nil)
 
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(snapshotCreateActivity.CreateSnapshotInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
@@ -288,7 +288,7 @@ func (s *SnapshotUnitTestSuite) TestSnapshotCreateWorkflowRollbackOnFailure() {
 
 	// Mock UpdateJob method calls - use mock.Anything for error details since they may vary
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
-	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 1011, mock.Anything).Return(nil)
 
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(snapshotCreateActivity.CreateSnapshotInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("snapshot creation failed"))

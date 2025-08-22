@@ -93,7 +93,7 @@ func (s *SnapshotDeleteTestSuite) Test_DeleteSnapshotWorkflow_Failure() {
 
 	// Mock UpdateJob method calls
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
-	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 1011, mock.Anything).Return(nil)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -252,7 +252,7 @@ func (s *SnapshotDeleteTestSuite) TestDeleteSnapshotWorkflowFailsOnActivityError
 
 	// Mock UpdateJob method calls
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
-	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 1011, mock.Anything).Return(nil)
 
 	// Mock activities
 	s.env.OnActivity(deleteSnapshotActivity.DeleteSnapshotInONTAP, mock.Anything, mock.Anything).Return(assert.AnError)

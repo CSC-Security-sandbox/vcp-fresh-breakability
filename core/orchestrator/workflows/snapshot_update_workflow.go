@@ -38,7 +38,7 @@ func UpdateSnapshotWorkflow(ctx workflow.Context, snapshot *datamodel.Snapshot) 
 	if customErr != nil {
 		logger.Infof("Snapshot update workflow run executed with error: %v", customErr)
 		snapshotWf.Status = WorkflowStatusFailed
-		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if jobUpdateErr != nil {
 			logger.Errorf("Failed to update job status to Done with error for UpdateSnapshotWorkflow: %v", jobUpdateErr)
 			return nil, jobUpdateErr
