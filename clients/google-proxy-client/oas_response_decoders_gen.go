@@ -24390,7 +24390,7 @@ func decodeV1betaInternalReleaseVolumeReplicationResponse(resp *http.Response) (
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response VolumeReplicationInternalV1beta
+			var response OperationV1beta
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err

@@ -16,7 +16,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -873,7 +872,7 @@ func TestUpdateReplicationDetails(t *testing.T) {
 		volumeRep.ReplicationAttributes.SourceReplicationUUID = volumeRep.UUID
 		volumeRep.ReplicationAttributes.ReplicationType = string(result.DstReplication.ReplicationType.Value)
 		mockStorage.On("UpdateVolumeReplication", ctx, volumeRep).Return(nil)
-		err := activity.UpdateReplicationDetails(ctx, result)
+		_, err := activity.UpdateReplicationDetails(ctx, result)
 
 		// Assert
 		assert.NoError(t, err)
@@ -898,11 +897,218 @@ func TestUpdateReplicationDetails(t *testing.T) {
 		volumeRep.ReplicationAttributes.SourceReplicationUUID = volumeRep.UUID
 		volumeRep.ReplicationAttributes.ReplicationType = string(result.DstReplication.ReplicationType.Value)
 		mockStorage.On("UpdateVolumeReplication", ctx, volumeRep).Return(errors.New("some error"))
-		err := activity.UpdateReplicationDetails(ctx, result)
+		_, err := activity.UpdateReplicationDetails(ctx, result)
 
 		// Assert
 		assert.Error(t, err)
 		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestUpdateDestinationVolumeDetails(t *testing.T) {
+	dstProj := "projDst"
+	dstPath := "dstPath"
+	dstToken := "dstToken"
+	destPoolUuid := "uuid"
+	destVolUuid := "vol-uuid"
+	resourceId := "rep-1"
+	repSchedule := "HOURLY"
+	srcSvm := "src-svm"
+	dstSvm := "dst-svm"
+	dstRepUuid := "dst-rep-uuid"
+	result := &replication.CreateReplicationResult{
+		Event: &replication.CreateReplicationEvent{
+			DestinationPoolName:   "pool1",
+			DestinationLocationID: "us-est1",
+			SourcePool: datamodel.Pool{
+				ClusterDetails: datamodel.ClusterDetails{
+					ExternalName: "srcCluster",
+				},
+			},
+			CreateReplicationParams: &replication.CreateReplicationParamsBody{
+				ResourceID:                  &resourceId,
+				DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+				ReplicationSchedule:         &repSchedule,
+			},
+			SourceVolume: datamodel.Volume{
+				Name: "src-vol",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					CreationToken: "src-token",
+					Protocols:     []string{"iscsi"},
+					BlockProperties: &datamodel.BlockProperties{
+						OSType: "linux",
+					},
+				},
+			},
+		},
+		SrcSvm:           &srcSvm,
+		DstSvm:           &dstSvm,
+		DstBasePath:      &dstPath,
+		DstJwtToken:      &dstToken,
+		DstProjectNumber: &dstProj,
+		DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString(dstRepUuid),
+			ReplicationType:       googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationType(googleproxyclient.VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION),
+		},
+		DstPool: &googleproxyclient.PoolInternalV1beta{
+			PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+			ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+		},
+		DstVolume: &gcpserver.VolumeV1beta{
+			ResourceId: "dst-vol-name",
+			VolumeId:   gcpserver.NewOptString(destVolUuid),
+		},
+		DbVolReplication: &datamodel.VolumeReplication{
+			Name:                  "rep-1",
+			ReplicationAttributes: &datamodel.ReplicationDetails{},
+		},
+	}
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volumeRep := result.DbVolReplication
+		volumeRep.State = models.LifeCycleStateCreated
+		volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
+		volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
+		volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
+		volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId
+		volumeRep.ReplicationAttributes.SourceSvmName = *result.SrcSvm
+		volumeRep.ReplicationAttributes.DestinationSvmName = *result.DstSvm
+		volumeRep.ReplicationAttributes.SourceHostName = result.Event.SourcePool.ClusterDetails.ExternalName
+		volumeRep.ReplicationAttributes.DestinationHostName = result.DstPool.ClusterName.Value
+		volumeRep.ReplicationAttributes.DestinationReplicationUUID = result.DstReplication.VolumeReplicationUuid.Value
+		volumeRep.ReplicationAttributes.SourceReplicationUUID = volumeRep.UUID
+		volumeRep.ReplicationAttributes.ReplicationType = string(result.DstReplication.ReplicationType.Value)
+		mockStorage.On("UpdateVolumeReplication", ctx, volumeRep).Return(nil)
+		_, err := activity.UpdateDestinationVolumeDetails(ctx, result)
+
+		// Assert
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("WhenError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volumeRep := result.DbVolReplication
+		volumeRep.State = models.LifeCycleStateCreated
+		volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
+		volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
+		volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
+		volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId
+		volumeRep.ReplicationAttributes.SourceSvmName = *result.SrcSvm
+		volumeRep.ReplicationAttributes.DestinationSvmName = *result.DstSvm
+		volumeRep.ReplicationAttributes.SourceHostName = result.Event.SourcePool.ClusterDetails.ExternalName
+		volumeRep.ReplicationAttributes.DestinationHostName = result.DstPool.ClusterName.Value
+		volumeRep.ReplicationAttributes.DestinationReplicationUUID = result.DstReplication.VolumeReplicationUuid.Value
+		volumeRep.ReplicationAttributes.SourceReplicationUUID = volumeRep.UUID
+		volumeRep.ReplicationAttributes.ReplicationType = string(result.DstReplication.ReplicationType.Value)
+		mockStorage.On("UpdateVolumeReplication", ctx, volumeRep).Return(errors.New("some error"))
+		_, err := activity.UpdateDestinationVolumeDetails(ctx, result)
+
+		// Assert
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestUpdateDestinationVolumeReplicationDetails(t *testing.T) {
+	dstProj := "projDst"
+	dstPath := "dstPath"
+	dstToken := "dstToken"
+	destPoolUuid := "uuid"
+	destVolUuid := "vol-uuid"
+	srcSvm := "src-svm"
+	dstSvm := "dst-svm"
+	dstRepUuid := "dst-rep-uuid"
+	result := &replication.CreateReplicationResult{
+		Event: &replication.CreateReplicationEvent{
+			DestinationLocationID: "us-central1-b",
+			DestinationPoolName:   "test-pool",
+			SourcePool: datamodel.Pool{
+				ClusterDetails: datamodel.ClusterDetails{
+					ExternalName: "src-cluster",
+				},
+			},
+		},
+		DstProjectNumber: &dstProj,
+		DstBasePath:      &dstPath,
+		DstJwtToken:      &dstToken,
+		DstPool: &googleproxyclient.PoolInternalV1beta{
+			PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+			ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+		},
+		DstVolume: &gcpserver.VolumeV1beta{
+			ResourceId: "dst-vol-name",
+			VolumeId:   gcpserver.NewOptString(destVolUuid),
+		},
+		DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString(dstRepUuid),
+			ReplicationType:       googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationType(googleproxyclient.VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION),
+		},
+		DbVolReplication: &datamodel.VolumeReplication{
+			Name:                  "rep-1",
+			ReplicationAttributes: &datamodel.ReplicationDetails{},
+		},
+		SrcSvm: &srcSvm,
+		DstSvm: &dstSvm,
+	}
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		volumeRep := result.DbVolReplication
+		volumeRep.ReplicationAttributes.SourceHostName = result.Event.SourcePool.ClusterDetails.ExternalName
+		volumeRep.ReplicationAttributes.DestinationHostName = result.DstPool.ClusterName.Value
+		volumeRep.ReplicationAttributes.DestinationReplicationUUID = result.DstReplication.VolumeReplicationUuid.Value
+		volumeRep.ReplicationAttributes.SourceReplicationUUID = volumeRep.UUID
+		volumeRep.ReplicationAttributes.ReplicationType = string(result.DstReplication.ReplicationType.Value)
+
+		mockStorage.On("UpdateVolumeReplication", ctx, volumeRep).Return(nil)
+
+		// Act
+		updatedResult, err := activity.UpdateDestinationVolumeReplicationDetails(ctx, result)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result.Event.SourcePool.ClusterDetails.ExternalName, updatedResult.DbVolReplication.ReplicationAttributes.SourceHostName)
+		assert.Equal(tt, result.DstPool.ClusterName.Value, updatedResult.DbVolReplication.ReplicationAttributes.DestinationHostName)
+		assert.Equal(tt, result.DstReplication.VolumeReplicationUuid.Value, updatedResult.DbVolReplication.ReplicationAttributes.DestinationReplicationUUID)
+		assert.Equal(tt, volumeRep.UUID, updatedResult.DbVolReplication.ReplicationAttributes.SourceReplicationUUID)
+		assert.Equal(tt, string(result.DstReplication.ReplicationType.Value), updatedResult.DbVolReplication.ReplicationAttributes.ReplicationType)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenError", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		volumeRep := result.DbVolReplication
+		volumeRep.ReplicationAttributes.SourceHostName = result.Event.SourcePool.ClusterDetails.ExternalName
+		volumeRep.ReplicationAttributes.DestinationHostName = result.DstPool.ClusterName.Value
+		volumeRep.ReplicationAttributes.DestinationReplicationUUID = result.DstReplication.VolumeReplicationUuid.Value
+		volumeRep.ReplicationAttributes.SourceReplicationUUID = volumeRep.UUID
+		volumeRep.ReplicationAttributes.ReplicationType = string(result.DstReplication.ReplicationType.Value)
+
+		mockStorage.On("UpdateVolumeReplication", ctx, volumeRep).Return(errors.New("some error"))
+
+		// Act
+		updatedResult, err := activity.UpdateDestinationVolumeReplicationDetails(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockStorage.AssertExpectations(tt)
 	})
 }
 
@@ -2280,7 +2486,6 @@ func TestGetSourceInterclusterLifs(t *testing.T) {
 
 func TestHydrateDestinationVolume(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
-		// Arrange
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
 		activity := VolumeReplicationCreateActivity{SE: mockStorage}
@@ -2294,22 +2499,23 @@ func TestHydrateDestinationVolume(t *testing.T) {
 			},
 			DstProjectNumber: nillable.GetStringPtr("project-number"),
 		}
+		hydrationEnabled = true
 
-		// Mock the VolumeHydration function
+		originalDeHydrateVolume := hydrateVolume
+		defer func() {
+			hydrateVolume = originalDeHydrateVolume
+			hydrationEnabled = false
+		}()
+		// Mock the hydrateVolume function
 		hydrateVolume = func(ctx context.Context, destVolume models.Volume, project string, poolResourceId string) error {
 			return nil
 		}
-		// Act
 		updatedResult, err := activity.HydrateDestinationVolume(ctx, result)
-
-		// Assert
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updatedResult)
-		hydrateVolume = HydrateVolume
 	})
 
 	t.Run("WhenError", func(tt *testing.T) {
-		// Arrange
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
 		activity := VolumeReplicationCreateActivity{SE: mockStorage}
@@ -2323,41 +2529,18 @@ func TestHydrateDestinationVolume(t *testing.T) {
 			},
 			DstProjectNumber: nillable.GetStringPtr("project-number"),
 		}
-
-		// Mock the VolumeHydration function
+		hydrationEnabled = true
+		originalDeHydrateVolume := hydrateVolume
+		defer func() {
+			hydrateVolume = originalDeHydrateVolume
+			hydrationEnabled = false
+		}()
 		hydrateVolume = func(ctx context.Context, destVolume models.Volume, project string, poolResourceId string) error {
 			return errors.New("hydration error")
 		}
-
-		// Act
 		updatedResult, err := activity.HydrateDestinationVolume(ctx, result)
-
-		// Assert
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
-		hydrateVolume = HydrateVolume
-	})
-	t.Run("WhenHydrationIsDisabled", func(tt *testing.T) {
-		// Arrange
-		ctx := context.Background()
-		mockStorage := &database.MockStorage{}
-		activity := VolumeReplicationCreateActivity{SE: mockStorage}
-		defer func() { hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true) }() // Restore hydrationEnabled after test
-		result := &replication.CreateReplicationResult{
-			DstVolume: &gcpserver.VolumeV1beta{},
-			Event: &replication.CreateReplicationEvent{
-				DestinationLocationID: "location-id",
-			},
-			DstProjectNumber: nillable.GetStringPtr("project-number"),
-		}
-		// Disable Hydration
-		hydrationEnabled = false
-		// Act
-		updatedResult, err := activity.HydrateDestinationVolume(ctx, result)
-
-		// Assert
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult)
 	})
 }
 

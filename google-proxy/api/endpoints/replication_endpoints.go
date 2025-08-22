@@ -535,6 +535,12 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 			Message: parsingErr.Message,
 		}, nil
 	}
+	isCleanUp := false
+	if req.CleanupResourcesJobId.IsSet() {
+		if req.CleanupResourcesJobId.Value != "" {
+			isCleanUp = true
+		}
+	}
 
 	deleteReplicationParams := &common.DeleteReplicationParams{
 		AccountName:           params.ProjectNumber,
@@ -545,7 +551,7 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 		Zone:                  zone,
 	}
 
-	volumeRep, jobUUID, err := h.Orchestrator.DeleteReplication(ctx, deleteReplicationParams)
+	volumeRep, jobUUID, err := h.Orchestrator.DeleteReplication(ctx, deleteReplicationParams, isCleanUp)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaDeleteReplicationBadRequest{
@@ -553,20 +559,21 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 				Message: err.Error(),
 			}, nil
 		}
-
 		logger.Error("Failed to delete replication", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteReplicationInternalServerError{
 			Code:    500,
 			Message: err.Error(),
 		}, nil
 	}
-
-	resp, err := encodeVolumeReplicationV1(convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeRep))
-	if err != nil {
-		return nil, err
-	}
-
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+
+	var resp jx.Raw
+	if !isCleanUp {
+		resp, err = encodeVolumeReplicationV1(convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeRep))
+		if err != nil {
+			return nil, err
+		}
+	}
 	if volumeRep.State == models2.LifeCycleStateDeleting {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
@@ -574,6 +581,7 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 			Done:     gcpgenserver.NewOptBool(false),
 		}, nil
 	}
+
 	return &gcpgenserver.OperationV1beta{
 		Name:     gcpgenserver.NewOptString(operationID),
 		Response: resp,

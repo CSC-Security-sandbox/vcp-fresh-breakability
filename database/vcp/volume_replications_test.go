@@ -75,6 +75,70 @@ func TestCreateVolumeReplication(t *testing.T) {
 		assert.Equal(tt, volumeRep.Name, createdVolumeRep.Name, "Expected volume name %v, got %v", volumeRep.Name, createdVolumeRep.Name)
 		assert.Equal(tt, createdVolumeRep.State, models.LifeCycleStateCreating, "Expected volume state %v, got %v", models.LifeCycleStateCreating, createdVolumeRep.State)
 		assert.Equal(tt, createdVolumeRep.StateDetails, models.LifeCycleStateCreatingDetails, "Expected volume state %v, got %v", models.LifeCycleStateCreatingDetails, createdVolumeRep.State)
+		assert.Equal(tt, createdVolumeRep.ReplicationAttributes.DestinationReplicationUUID, createdVolumeRep.UUID)
+	})
+	t.Run("WhenVolumeReplicationIsCreatedSuccessfullyFromSrc", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			Name:    "test_pool",
+			Account: account,
+		}
+
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+
+		err = store.db.Create(volume).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		volumeRep := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+			Name:      "test_volume_rep",
+			Account:   account,
+			Volume:    volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "test-volume-rep-uuid",
+				EndpointType:               "src",
+			},
+		}
+
+		createdVolumeRep, err := store.CreateVolumeReplication(context.Background(), volumeRep)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, volumeRep.Name, createdVolumeRep.Name, "Expected volume name %v, got %v", volumeRep.Name, createdVolumeRep.Name)
+		assert.Equal(tt, createdVolumeRep.State, models.LifeCycleStateCreating, "Expected volume state %v, got %v", models.LifeCycleStateCreating, createdVolumeRep.State)
+		assert.Equal(tt, createdVolumeRep.StateDetails, models.LifeCycleStateCreatingDetails, "Expected volume state %v, got %v", models.LifeCycleStateCreatingDetails, createdVolumeRep.State)
+		assert.Equal(tt, createdVolumeRep.ReplicationAttributes.SourceReplicationUUID, createdVolumeRep.UUID)
 	})
 	t.Run("WhenVolumeReplicationAlreadyExists", func(tt *testing.T) {
 		db, err := SetupTestDB()

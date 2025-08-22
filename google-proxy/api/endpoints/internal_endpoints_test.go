@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -666,37 +667,19 @@ func TestV1betaInternalDeleteVolumeReplicationRow(t *testing.T) {
 			Type:       "job-type-create-volume-replication",
 			State:      "job-state-processing",
 		}
-		expectedResponse := &gcpgenserver.VolumeReplicationInternalV1beta{
-			VolumeReplicationUuid: gcpgenserver.NewOptString(volumeReplication.UUID),
-			EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointType(volumeReplication.ReplicationAttributes.EndpointType),
-			RemoteRegion:          volumeReplication.ReplicationAttributes.SourceRegion,
-			SourceHostName:        volumeReplication.ReplicationAttributes.SourceHostName,
-			SourceServerName:      volumeReplication.ReplicationAttributes.SourceSvmName,
-			SourceVolumeName:      volumeReplication.ReplicationAttributes.SourceVolumeName,
-			SourceVolumeUuid:      gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourceVolumeUUID),
-			SourcePoolUuid:        gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourcePoolUUID),
-			DestinationHostName:   volumeReplication.ReplicationAttributes.DestinationHostName,
-			DestinationServerName: volumeReplication.ReplicationAttributes.DestinationSvmName,
-			DestinationVolumeName: volumeReplication.ReplicationAttributes.DestinationVolumeName,
-			DestinationVolumeUuid: gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationVolumeUUID),
-			DestinationPoolUuid:   gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationPoolUUID),
-			ReplicationType: gcpgenserver.OptVolumeReplicationInternalV1betaReplicationType{
-				Value: gcpgenserver.VolumeReplicationInternalV1betaReplicationType(volumeReplication.ReplicationAttributes.ReplicationType),
-				Set:   true,
-			},
-			Jobs: []gcpgenserver.JobV1beta{
-				{
-					JobId:    gcpgenserver.NewOptString(job.UUID),
-					Created:  gcpgenserver.NewOptDateTime(job.CreatedAt),
-					WorkerId: gcpgenserver.NewOptString(job.WorkflowID),
-				},
-			},
+		expectedOperationName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
+		expectedResponse := &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(expectedOperationName),
+			Done: gcpgenserver.NewOptBool(true),
 		}
 		mockOrchestrator.EXPECT().ReleaseVolumeReplication(ctx, mock.Anything).Return(volumeReplication, job, nil)
 
 		resp, err := handler.V1betaInternalReleaseVolumeReplication(ctx, params)
+		operationResp := resp.(*gcpgenserver.OperationV1beta)
+
 		assert.NoError(tt, err)
-		assert.Equal(tt, expectedResponse, resp)
+		assert.Equal(tt, expectedResponse.Name.Value, operationResp.Name.Value)
+		assert.Equal(tt, expectedResponse.Done.Value, operationResp.Done.Value)
 	})
 }
 

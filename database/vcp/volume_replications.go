@@ -18,6 +18,11 @@ var (
 	getVolumeReplicationDetails = _getVolumeReplicationDetails
 )
 
+const (
+	VolumeReplicationEndpointTypeDestination = "dst"
+	VolumeReplicationEndpointTypeSource      = "src"
+)
+
 // CreateVolumeReplication creates a new replication in the database
 func (d *DataStoreRepository) CreateVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	db := d.db.GORM().WithContext(ctx)
@@ -43,7 +48,11 @@ func (d *DataStoreRepository) CreateVolumeReplication(ctx context.Context, repli
 	replication.StateDetails = models.LifeCycleStateCreatingDetails
 	replication.CreatedAt = time.Now()
 	replication.UpdatedAt = replication.CreatedAt
-	replication.ReplicationAttributes.DestinationReplicationUUID = replication.UUID
+	if replication.ReplicationAttributes.EndpointType == VolumeReplicationEndpointTypeSource {
+		replication.ReplicationAttributes.SourceReplicationUUID = replication.UUID
+	} else {
+		replication.ReplicationAttributes.DestinationReplicationUUID = replication.UUID
+	}
 
 	err = tx.Create(replication).Error
 	if err != nil {

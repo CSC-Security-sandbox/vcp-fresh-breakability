@@ -50,10 +50,10 @@ func ReplicationDeleteWorkflow(ctx workflow.Context, params *commonparams.Delete
 }
 
 func (wf *replicationDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) error {
-	resumeReplicationParams := input.(*commonparams.DeleteReplicationParams)
+	deleteReplicationParams := input.(*commonparams.DeleteReplicationParams)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
-	wf.CustomerID = resumeReplicationParams.AccountName
+	wf.CustomerID = deleteReplicationParams.AccountName
 	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)

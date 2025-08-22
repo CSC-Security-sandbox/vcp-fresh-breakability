@@ -246,31 +246,62 @@ func (a *VolumeReplicationCreateActivity) UpdateReplicationState(ctx context.Con
 	return nil
 }
 
-func (a *VolumeReplicationCreateActivity) UpdateReplicationDetails(ctx context.Context, result *replication.CreateReplicationResult) error {
+func (a *VolumeReplicationCreateActivity) UpdateDestinationVolumeDetails(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+	volumeRep := result.DbVolReplication
+	volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
+	volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId
+	err := se.UpdateVolumeReplication(ctx, volumeRep)
+	if err != nil {
+		return nil, err
+	}
+	result.DbVolReplication = volumeRep
+
+	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
+
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) UpdateDestinationVolumeReplicationDetails(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+	volumeRep := result.DbVolReplication
+	volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
+	volumeRep.ReplicationAttributes.DestinationHostName = result.DstPool.ClusterName.Value
+	volumeRep.ReplicationAttributes.DestinationReplicationUUID = result.DstReplication.VolumeReplicationUuid.Value
+	err := se.UpdateVolumeReplication(ctx, volumeRep)
+	if err != nil {
+		return nil, err
+	}
+	result.DbVolReplication = volumeRep
+
+	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
+
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) UpdateReplicationDetails(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
 	volumeRep := result.DbVolReplication
 	volumeRep.State = models.LifeCycleStateCreated
 	volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
-	volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
-	volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
-	volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId
 	volumeRep.ReplicationAttributes.SourceSvmName = *result.SrcSvm
 	volumeRep.ReplicationAttributes.DestinationSvmName = *result.DstSvm
 	volumeRep.ReplicationAttributes.SourceHostName = result.Event.SourcePool.ClusterDetails.ExternalName
-	volumeRep.ReplicationAttributes.DestinationHostName = result.DstPool.ClusterName.Value
-	volumeRep.ReplicationAttributes.DestinationReplicationUUID = result.DstReplication.VolumeReplicationUuid.Value
 	volumeRep.ReplicationAttributes.SourceReplicationUUID = volumeRep.UUID
 	volumeRep.ReplicationAttributes.ReplicationType = string(result.DstReplication.ReplicationType.Value)
 
 	err := se.UpdateVolumeReplication(ctx, volumeRep)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	result.DbVolReplication = volumeRep
 	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
 
-	return nil
+	return result, nil
 }
 
 func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {

@@ -848,6 +848,10 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 		State:        string(models.JobsStateNEW),
 		ResourceName: dbVolumeReplication.Uri,
 		AccountID:    sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbVolumeReplication.UUID,
+			PoolUUID:     dbVolumeReplication.Volume.Pool.UUID,
+		},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
@@ -1333,13 +1337,12 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 	return convertDataStoreReplicationToModel(dbVolumeReplication), createdJob, nil
 }
 
-func (o *Orchestrator) DeleteReplication(ctx context.Context, params *commonparams.DeleteReplicationParams) (*models.VolumeReplication, string, error) {
-	return deleteReplication(ctx, o.storage, o.temporal, params)
+func (o *Orchestrator) DeleteReplication(ctx context.Context, params *commonparams.DeleteReplicationParams, isCleanUp bool) (*models.VolumeReplication, string, error) {
+	return deleteReplication(ctx, o.storage, o.temporal, params, isCleanUp)
 }
 
-func _deleteReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.DeleteReplicationParams) (*models.VolumeReplication, string, error) {
+func _deleteReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.DeleteReplicationParams, isCleanUp bool) (*models.VolumeReplication, string, error) {
 	logger := util.GetLogger(ctx)
-
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		logger.Error("Failed to get or create account", "error", err)
@@ -1362,10 +1365,17 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 	if err != nil {
 		return nil, "", err
 	}
+	dstReplication := &models.VolumeReplication{
+		ReplicationAttributes: &models.ReplicationDetails{
+			EndpointType: event.ReplicationModel.ReplicationAttributes.EndpointType,
+		},
+	}
 
-	dstReplication, err := VerifyDstReplicationDelete(ctx, &event)
-	if err != nil {
-		return nil, "", err
+	if !isCleanUp {
+		dstReplication, err = VerifyDstReplicationDelete(ctx, &event)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	job := &datamodel.Job{
@@ -1385,24 +1395,39 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", err
 	}
 
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		},
-		replicationWorkflows.ReplicationDeleteWorkflow,
-		params,
-		&event,
-	)
+	if isCleanUp {
+		_, err = temporal.ExecuteWorkflow(ctx,
+			client.StartWorkflowOptions{
+				TaskQueue:             workflowengine.CustomerTaskQueue,
+				ID:                    createdJob.WorkflowID,
+				WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+				WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+			},
+			replicationWorkflows.ReplicationCleanupWorkflow,
+			params,
+			&event,
+		)
+	} else {
+		_, err = temporal.ExecuteWorkflow(ctx,
+			client.StartWorkflowOptions{
+				TaskQueue:             workflowengine.CustomerTaskQueue,
+				ID:                    createdJob.WorkflowID,
+				WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+				WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+			},
+			replicationWorkflows.ReplicationDeleteWorkflow,
+			params,
+			&event,
+		)
+	}
+
 	if err != nil {
 		logger.Error("Failed to execute workflow", "error", err)
 		return nil, "", err
 	}
-
 	dstReplication.State = models.LifeCycleStateDeleting
 	dstReplication.StateDetails = models.LifeCycleStateDeletingDetails
-	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
 	return dstReplication, createdJob.UUID, nil
 }
 

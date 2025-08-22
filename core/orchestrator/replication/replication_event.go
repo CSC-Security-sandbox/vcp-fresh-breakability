@@ -158,7 +158,7 @@ type DeleteReplicationResult struct {
 	DstJwtToken      *string
 	SrcJwtToken      *string
 	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
-	DstVolume        *gcpgenserver.VolumeV1beta
+	DstVolume        *googleproxyclient.VolumeV1beta
 	Error            error
 	JobId            string
 }

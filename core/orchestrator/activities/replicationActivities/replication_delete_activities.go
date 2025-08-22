@@ -10,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -126,7 +125,7 @@ func (a *DeleteVolumeReplicationActivity) DeleteVolumeOnDestination(ctx context.
 	}
 	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	if ok {
-		volume := gcpserver.VolumeV1beta{}
+		volume := googleproxyclient.VolumeV1beta{}
 		err := replication.JsonUnMarshal(operation.Response, &volume)
 		if err != nil {
 			return nil, errors.NewVCPError(errors.ErrorFailedToUnmarshal, err)
@@ -140,7 +139,7 @@ func (a *DeleteVolumeReplicationActivity) DeleteVolumeOnDestination(ctx context.
 
 func (a *DeleteVolumeReplicationActivity) DeHydrateDestinationVolume(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	if hydrationEnabled {
-		err := deHydrateVolume(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation), *result.DstProjectNumber)
+		err := deHydrateVolume(ctx, convertVolumeV1BetaToVolumeModelForCleanup(*result.DstVolume, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation), *result.DstProjectNumber)
 		if err != nil {
 			return nil, errors.NewVCPError(errors.ErrDeHydrateVolume, err)
 		}
@@ -162,9 +161,9 @@ func (a *DeleteVolumeReplicationActivity) ReleaseReplicationOnSource(ctx context
 	if err != nil {
 		return nil, err
 	}
-	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
+	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	if ok {
-		result.JobId = response.Jobs[0].JobId.Value
+		result.JobId = strings.Split(operation.Name.Value, "/")[7]
 		return result, nil
 	}
 	return nil, nil
@@ -186,9 +185,6 @@ func (a *DeleteVolumeReplicationActivity) DeleteSnapmirrorSnapshotsOnDestination
 	}
 	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	if ok {
-		if err != nil {
-			return nil, errors.NewVCPError(errors.ErrorFailedToUnmarshal, err)
-		}
 		result.JobId = strings.Split(operation.Name.Value, "/")[7]
 		return result, nil
 	}
@@ -211,9 +207,6 @@ func (a *DeleteVolumeReplicationActivity) DeleteSnapmirrorSnapshotsOnSource(ctx 
 	}
 	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	if ok {
-		if err != nil {
-			return nil, errors.NewVCPError(errors.ErrorFailedToUnmarshal, err)
-		}
 		result.JobId = strings.Split(operation.Name.Value, "/")[7]
 		return result, nil
 	}

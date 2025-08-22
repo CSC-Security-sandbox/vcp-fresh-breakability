@@ -254,6 +254,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.UpdateResourceStateCommonResourceOFFWorkflow)
 	worker.RegisterWorkflow(workflows.FinishProjectEventDeleteStateWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteBackupPolicyWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.ReplicationCleanupWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
@@ -296,4 +297,5 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&resource_events_activities.FinishProjectEventActivity{SE: dbcon})
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: dbcon})
 	worker.RegisterActivity(ontaprest.PollOntapJobActivity)
+	worker.RegisterActivity(&replicationActivities.CleanupVolumeReplicationActivity{SE: dbcon})
 }

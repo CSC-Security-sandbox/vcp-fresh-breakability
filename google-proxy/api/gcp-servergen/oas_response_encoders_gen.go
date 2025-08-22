@@ -10516,7 +10516,7 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 
 func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInternalReleaseVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *VolumeReplicationInternalV1beta:
+	case *OperationV1beta:
 		if err := func() error {
 			if err := response.Validate(); err != nil {
 				return err

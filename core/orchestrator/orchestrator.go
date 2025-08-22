@@ -65,7 +65,7 @@ type OrchestratorFactory interface {
 	DeleteReplicationInternal(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error)
 	StopReplicationInternal(ctx context.Context, replicationUUID string, accountName string, forceStop bool) (*models.VolumeReplication, *datamodel.Job, error)
 	StopReplication(ctx context.Context, params *commonparams.StopReplicationParams) (*models.VolumeReplication, string, error)
-	DeleteReplication(ctx context.Context, params *commonparams.DeleteReplicationParams) (*models.VolumeReplication, string, error)
+	DeleteReplication(ctx context.Context, params *commonparams.DeleteReplicationParams, isCleanUp bool) (*models.VolumeReplication, string, error)
 	SyncReplication(ctx context.Context, params *commonparams.ResumeReplicationParams) (*models.VolumeReplication, string, error)
 
 	// KMS Config related methods

@@ -401,13 +401,7 @@ func TestReleaseReplicationOnSource(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		res := &googleproxyclient.VolumeReplicationInternalV1beta{
-			Jobs: []googleproxyclient.JobV1beta{
-				googleproxyclient.JobV1beta{
-					JobId: googleproxyclient.NewOptString("job-uuid"),
-				},
-			},
-		}
+
 		inputResult := &replication.DeleteReplicationResult{
 			SrcBasePath:      &dstPath,
 			SrcProjectNumber: &dstProj,
@@ -431,7 +425,7 @@ func TestReleaseReplicationOnSource(t *testing.T) {
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(res, nil)
+		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(&googleproxyclient.OperationV1beta{Name: googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol-uuid/operations/job-uuid"), Done: googleproxyclient.NewOptBool(true)}, nil)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		result, err := activity.ReleaseReplicationOnSource(context.Background(), inputResult)
 		assert.NoError(tt, err)

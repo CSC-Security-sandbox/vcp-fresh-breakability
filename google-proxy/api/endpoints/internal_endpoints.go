@@ -121,7 +121,7 @@ func (h Handler) V1betaInternalReleaseVolumeReplication(ctx context.Context, par
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
-	volumeReplication, job, err := h.Orchestrator.ReleaseVolumeReplication(ctx, params.VolumeReplicationId)
+	_, job, err := h.Orchestrator.ReleaseVolumeReplication(ctx, params.VolumeReplicationId)
 	if err != nil {
 		logger.Error("Failed to release volume replication", "error", err.Error())
 		if errors.IsNotFoundErr(err) {
@@ -135,8 +135,11 @@ func (h Handler) V1betaInternalReleaseVolumeReplication(ctx context.Context, par
 			Message: err.Error(),
 		}, nil
 	}
-	ans := convertToInternalV1betaVolumeReplication(volumeReplication, job)
-	return ans, nil
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)),
+		Response: nil,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
 }
 
 func (h Handler) V1betaInternalDeleteVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalDeleteVolumeReplicationParams) (gcpgenserver.V1betaInternalDeleteVolumeReplicationRes, error) {

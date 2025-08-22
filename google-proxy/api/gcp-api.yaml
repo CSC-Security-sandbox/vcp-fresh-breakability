@@ -4772,7 +4772,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: true
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1
         '204':
           description: No content
         '400':

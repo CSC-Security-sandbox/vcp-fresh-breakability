@@ -5800,6 +5800,7 @@ func (*OperationV1beta) v1betaDeleteVolumeRes()                           {}
 func (*OperationV1beta) v1betaDescribeOperationRes()                      {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                         {}
 func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {}
+func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()       {}
 func (*OperationV1beta) v1betaResumeReplicationRes()                      {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()            {}
 func (*OperationV1beta) v1betaRevertVolumeRes()                           {}
@@ -20319,7 +20320,6 @@ func (*VolumeReplicationInternalV1beta) v1betaInternalAuthorizeVolumeReplication
 func (*VolumeReplicationInternalV1beta) v1betaInternalCreateVolumeReplicationRes()    {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalDeleteVolumeReplicationRes()    {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalDescribeVolumeReplicationRes()  {}
-func (*VolumeReplicationInternalV1beta) v1betaInternalReleaseVolumeReplicationRes()   {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalResumeVolumeReplicationRes()    {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalStopVolumeReplicationRes()      {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalUpdateVolumeReplicationRes()    {}
