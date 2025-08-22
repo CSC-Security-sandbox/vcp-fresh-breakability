@@ -158,6 +158,7 @@ type (
 		GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string, accountID int64) (*datamodel.KmsConfig, error)
 		UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error
 		IsKmsConfigInUse(ctx context.Context, kmsConfigUUID string) (bool, error)
+		ListKmsConfigByAccountID(ctx context.Context, accountID int64) ([]*datamodel.KmsConfig, error)
 
 		CreateKmsServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error)
 		UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error)

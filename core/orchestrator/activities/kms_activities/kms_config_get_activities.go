@@ -58,3 +58,16 @@ func (j *KmsConfigActivity) UpdateKmsConfigAttributesActivity(ctx context.Contex
 	}
 	return kmsConfig, nil
 }
+
+func (j *KmsConfigActivity) ListKmsConfigActivity(ctx context.Context, projectNumber string) ([]*datamodel.KmsConfig, error) {
+	se := j.SE
+	account, err := se.GetAccount(ctx, projectNumber)
+	if err != nil {
+		return nil, err
+	}
+	kmsConfigs, err := se.ListKmsConfigByAccountID(ctx, account.ID)
+	if err != nil {
+		return nil, err
+	}
+	return kmsConfigs, nil
+}

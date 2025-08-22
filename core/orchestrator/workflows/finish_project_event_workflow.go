@@ -4,8 +4,10 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -124,5 +126,29 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, nil
+	if isPreAGA {
+		s.Logger.Info("In pre-AGA stage, skipping resource deletion from VCP.")
+		// If the project is in pre-AGA state, we will not delete the resources from VCP.
+		return nil, nil
+	}
+
+	// TODO: Delete Active directory from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
+
+	// Delete KMS config from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
+	kmsActivities := &kms_activities.KmsConfigActivity{}
+	var kmsConfigs []*datamodel.KmsConfig
+	err = workflow.ExecuteActivity(ctx, kmsActivities.ListKmsConfigActivity, finishProjectEventParams.ProjectNumber).Get(ctx, &kmsConfigs)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	// For now, we will have only one KMS config per project.
+	if len(kmsConfigs) > 0 && kmsConfigs[0] != nil {
+		kmsConfig := kmsConfigs[0]
+		err = workflow.ExecuteActivity(ctx, kmsActivities.DeleteKmsConfig, kmsConfig,
+			&common.DeleteKmsConfigParams{KmsConfigID: kmsConfig.UUID}).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+	return nil, ConvertToVSAError(err)
 }

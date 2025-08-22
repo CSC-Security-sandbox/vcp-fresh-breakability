@@ -143,3 +143,57 @@ func TestGetKmsConfigActivity(t *testing.T) {
 		assert.Contains(t, err.Error(), "db error")
 	})
 }
+
+func TestListKmsConfigActivity(t *testing.T) {
+	t.Run("ListKMSConfigFailureOnGetAccountFailure", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		projectNumber := "1234567"
+		storageErr := errors.New("Failed to get account")
+		mockSE.EXPECT().GetAccount(mock.Anything, mock.Anything).Return(nil, storageErr)
+		result, err := activity.ListKmsConfigActivity(ctx, projectNumber)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "Failed to get account")
+	})
+	t.Run("ListKMSConfigFailureOnInvokingListKmsConfigByAccountID", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		projectNumber := "1234567"
+		mockSE.EXPECT().GetAccount(mock.Anything, mock.Anything).Return(&datamodel.Account{Name: projectNumber}, nil)
+		mockSE.EXPECT().ListKmsConfigByAccountID(mock.Anything, mock.Anything).Return(nil, errors.New("Failed to list KMS configs"))
+		result, err := activity.ListKmsConfigActivity(ctx, projectNumber)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "Failed to list KMS configs")
+	})
+
+	t.Run("ListKMSConfigWhenListKmsConfigByAccountIDReturnsEmpty", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		projectNumber := "1234567"
+		mockSE.EXPECT().GetAccount(mock.Anything, mock.Anything).Return(&datamodel.Account{Name: projectNumber}, nil)
+		mockSE.EXPECT().ListKmsConfigByAccountID(mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
+		result, err := activity.ListKmsConfigActivity(ctx, projectNumber)
+		assert.Nil(t, err)
+		assert.Empty(t, result)
+		assert.Equal(t, 0, len(result))
+	})
+
+	t.Run("ListKMSConfigWhenListKmsConfigByAccountIDReturnsKMSConfig", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		projectNumber := "1234567"
+		mockSE.EXPECT().GetAccount(mock.Anything, mock.Anything).Return(&datamodel.Account{Name: projectNumber}, nil)
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+		mockSE.EXPECT().ListKmsConfigByAccountID(mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{kmsConfig}, nil)
+		result, err := activity.ListKmsConfigActivity(ctx, projectNumber)
+		assert.Nil(t, err)
+		assert.NotEmpty(t, result)
+		assert.Equal(t, 1, len(result))
+	})
+}

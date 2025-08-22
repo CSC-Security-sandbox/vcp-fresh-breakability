@@ -745,6 +745,10 @@ func (s *PersistenceStore) UpdateKmsConfigState(ctx context.Context, kmsConfigUU
 	return s.dataStore.UpdateKmsConfigState(ctx, kmsConfigUUID, state, stateDetails)
 }
 
+func (s *PersistenceStore) ListKmsConfigByAccountID(ctx context.Context, accountID int64) ([]*datamodel.KmsConfig, error) {
+	return s.dataStore.ListKmsConfigByAccountID(ctx, accountID)
+}
+
 func (s *PersistenceStore) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
 	return s.dataStore.GetSvmsByKmsConfigID(ctx, kmsConfigID)
 }

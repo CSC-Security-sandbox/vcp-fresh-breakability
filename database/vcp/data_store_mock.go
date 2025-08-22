@@ -7399,6 +7399,65 @@ func (_c *MockDataStore_ListBackupVaults_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// ListKmsConfigByAccountID provides a mock function with given fields: ctx, accountID
+func (_m *MockDataStore) ListKmsConfigByAccountID(ctx context.Context, accountID int64) ([]*datamodel.KmsConfig, error) {
+	ret := _m.Called(ctx, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListKmsConfigByAccountID")
+	}
+
+	var r0 []*datamodel.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.KmsConfig, error)); ok {
+		return rf(ctx, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.KmsConfig); ok {
+		r0 = rf(ctx, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListKmsConfigByAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListKmsConfigByAccountID'
+type MockDataStore_ListKmsConfigByAccountID_Call struct {
+	*mock.Call
+}
+
+// ListKmsConfigByAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID int64
+func (_e *MockDataStore_Expecter) ListKmsConfigByAccountID(ctx interface{}, accountID interface{}) *MockDataStore_ListKmsConfigByAccountID_Call {
+	return &MockDataStore_ListKmsConfigByAccountID_Call{Call: _e.mock.On("ListKmsConfigByAccountID", ctx, accountID)}
+}
+
+func (_c *MockDataStore_ListKmsConfigByAccountID_Call) Run(run func(ctx context.Context, accountID int64)) *MockDataStore_ListKmsConfigByAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListKmsConfigByAccountID_Call) Return(_a0 []*datamodel.KmsConfig, _a1 error) *MockDataStore_ListKmsConfigByAccountID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListKmsConfigByAccountID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.KmsConfig, error)) *MockDataStore_ListKmsConfigByAccountID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListKmsServiceAccounts provides a mock function with given fields: ctx, filter
 func (_m *MockDataStore) ListKmsServiceAccounts(ctx context.Context, filter *utils.Filter) ([]*datamodel.ServiceAccount, error) {
 	ret := _m.Called(ctx, filter)
