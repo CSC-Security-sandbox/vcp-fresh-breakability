@@ -559,6 +559,13 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 	updatedPool, operationID, err := h.Orchestrator.UpdatePool(ctx, param)
 	if err != nil {
 		logger.Error("Failed to update pool", "error", err.Error())
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaUpdatePoolConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+
 		return &gcpgenserver.V1betaUpdatePoolInternalServerError{
 			Code:    500,
 			Message: err.Error(),

@@ -2069,6 +2069,51 @@ func TestV1betaUpdatePool(t *testing.T) {
 		assert.Equal(tt, float64(500), internalErr.Code)
 		assert.Equal(tt, "update failed", internalErr.Message)
 	})
+	t.Run("WhenUpdatePoolFailsDueToConflict", func(tt *testing.T) {
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		// Set orchestrator to return a pool when DescribePool is called.
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Description: "original description",
+			SizeInBytes: 1099511627776, // 1 TiB
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64, // 64 MiBps
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, nil)
+		// Set orchestrator to return an error when UpdatePool is called.
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
+			Return(nil, "", errors.NewConflictErr("Pool is already transitioning between states"))
+
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description:          gcpgenserver.NewOptNilString("updated description"),
+			SizeInBytes:          gcpgenserver.NewOptNilFloat64(1099511627776),
+			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
+			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdatePoolConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), internalErr.Code)
+		assert.Equal(tt, "Pool is already transitioning between states", internalErr.Message)
+	})
 	t.Run("WhenPoolUpdateSucceeds", func(tt *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "", nil
