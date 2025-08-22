@@ -949,7 +949,7 @@ func (s *BackupCreateV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "SnapshotId",
+			Name:  "snapshotId",
 			Error: err,
 		})
 	}

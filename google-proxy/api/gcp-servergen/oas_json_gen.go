@@ -1403,7 +1403,7 @@ func (s *BackupCreateV1beta) encodeFields(e *jx.Encoder) {
 	}
 	{
 		if s.SnapshotId.Set {
-			e.FieldStart("SnapshotId")
+			e.FieldStart("snapshotId")
 			s.SnapshotId.Encode(e)
 		}
 	}
@@ -1413,7 +1413,7 @@ var jsonFieldsNameOfBackupCreateV1beta = [4]string{
 	0: "resourceId",
 	1: "description",
 	2: "volumeId",
-	3: "SnapshotId",
+	3: "snapshotId",
 }
 
 // Decode decodes BackupCreateV1beta from json.
@@ -1459,7 +1459,7 @@ func (s *BackupCreateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"volumeId\"")
 			}
-		case "SnapshotId":
+		case "snapshotId":
 			if err := func() error {
 				s.SnapshotId.Reset()
 				if err := s.SnapshotId.Decode(d); err != nil {
@@ -1467,7 +1467,7 @@ func (s *BackupCreateV1beta) Decode(d *jx.Decoder) error {
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"SnapshotId\"")
+				return errors.Wrap(err, "decode field \"snapshotId\"")
 			}
 		default:
 			return d.Skip()

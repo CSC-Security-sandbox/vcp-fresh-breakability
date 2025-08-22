@@ -9512,7 +9512,7 @@ components:
       type: object
       description: String describing snapshot ID
       properties:
-        SnapshotId:
+        snapshotId:
           type: string
           description: UUID v4 of the snapshot
           pattern: >-

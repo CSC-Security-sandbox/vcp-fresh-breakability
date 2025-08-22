@@ -739,7 +739,7 @@ type BackupCreateV1beta struct {
 	// UUID v4 of the volume.
 	VolumeId string `json:"volumeId"`
 	// UUID v4 of the snapshot.
-	SnapshotId OptString `json:"SnapshotId"`
+	SnapshotId OptString `json:"snapshotId"`
 }
 
 // GetResourceId returns the value of ResourceId.
