@@ -935,50 +935,91 @@ func getMountInstructions(osType string, ipAddress string, lunName string) gcpge
 	instructions := ""
 	switch osType {
 	case "LINUX":
-		instructions = fmt.Sprintf(`Mount instructions for iSCSI target on Linux
-1. Install the ISCSI initiator on your host
+		instructions = fmt.Sprintf(`Prerequisites
+Ensure the open-iscsi and device-mapper-multipath packages are installed:
+
+# Debian/Ubuntu
+sudo apt-get install open-iscsi multipath-tools
+
+# RHEL/CentOS
+sudo yum install iscsi-initiator-utils device-mapper-multipath
+
+1. Install the iSCSI initiator
+
+First, install the iSCSI initiator and sg3 utils package on your system. This software enables your host to connect to the iSCSI target.
+
 On Red Hat Enterprise Linux or SUSE Linux:
-$ sudo yum install y iscsi-initiator-utils
+$ sudo yum install -y iscsi-initiator-utils sg3_utils
+
 On Ubuntu or Debian instances:
-$ sudo apt-get install open-iscsi
-2. Discover the ISCSi target
-Use the target IP address and port (default 3260).
+$ sudo apt-get install open-iscsi sg3-utils
+
+2. Discover the iSCSI target
+
+Next, discover the available iSCSI targets by specifying the target's IP address and port. The default iSCSI port is 3260.
+
 $ sudo iscsiadm -m discovery -t sendtargets -p %s:3260
-3. Log in to the ISCSI target
-Use the target initiator with the provided IQN.
+
+This command will list the discovered targets, including their IQN (iSCSI Qualified Name).
+
+3. Log in to the iSCSI target
+
+Now, log in to the specific target using its IQN, which you discovered in the previous step. Replace <<target-iqn>> with the actual IQN.
+
 $ sudo iscsiadm -m node -T <<target-iqn>> -p %s:3260 -l
+
 4. Identify the LUN on your host
-After logging in, rescan for new devices:
+
+After logging in, your host needs to rescan its SCSI bus to detect the newly connected Logical Unit Number (LUN).
+
+Rescan for new devices:
 $ rescan-scsi-bus.sh
-Check for the new device (e.g.. /dev/sdb):
+
+Check for the new device (e.g., /dev/sdb). The output will show a new block device.
 $ lsblk
-5. Format and mount the LUN (if needed).
-If the LUN doesn't have a filesystem, create one (e.g, ext4):
+
+5. Format and mount the LUN (if needed)
+
+If the LUN doesn't have a filesystem, create one (e.g., ext4):
 $ sudo mkfs.ext4 /dev/sdb
+
 Create a mount point and mount the device:
 $ sudo mkdir /mnt/%s
 $ sudo mount /dev/sdb /mnt/%s
-To mount automatically on reboot, add to /etc/stab:
-$ /dev/sdb /mnt/%s ext4 defaults 0 0`, ipAddress, ipAddress, lunName, lunName, lunName)
+
+To mount automatically on reboot, add to /etc/fstab:
+/dev/sdb /mnt/%s ext4 defaults 0 0`, ipAddress, ipAddress, lunName, lunName, lunName)
 		return gcpgenserver.NewOptString(instructions)
 	case "WINDOWS":
-		instructions = `Mount instructions for iSCS target on Windows
-1. Enable the ISCSI initiator on your Windows host
-• Open the Start menu and search for ISCSI Initiator.
-• If prompted to start the service, click Yes to enable the Microsoft ISCSI Initiator Service.
-2. Discover the iSCSi target
-• In the iSCSI Initiator window, go to the Discovery tab.
-• Click Discover Portal, enter the target IP address from the Target details section (default port 3260), and click OK.
-3. Connect to the iSCSI target
-• Use the target IQN from the Target details section in the list of discovered
-targets.
-• Select the target and click Connect.
-• In the Connect dialog, check Enable muiti-path (if using multipathing) and click OK.
-4. Initialize and format the LUN
-• Open Disk Management (right-click Start > Disk Management).
-• The new disk (LUN ID 0) should appear as an uninitialized disk
-• Right-click the disk, select initialize Disk, and choose GPT or MBR(GPT recommended).
-• Right-click the unallocated space, select New Simple Volume, and follow the wizard to format the disk (e.g. with NTFS) and assign a drive letter (e.g.. D:).`
+		instructions = `Mount instruction for iSCSI target on Windows
+
+Prerequisites
+• Windows Server with iSCSI Initiator and Multipath I/O (MPIO) features installed.
+
+1. iSCSI Target Discovery and Login
+• Open iSCSI Initiator (iscsicpl.exe)
+  If prompted to start the service, click Yes to enable the Microsoft iSCSI Initiator Service.
+• Under Discovery tab, click Discover Portal
+  Enter the IP address of the target and click OK. Repeat this for both IP addresses reported by target.
+• Under Targets tab, select on each of the discovered target portals and click Connect.
+  In the Connect dialog, check Enable multi-path (if using multipathing) and click OK.
+
+2. Multipath Configuration
+• Enable MPIO Feature:
+  Open Server Manager > Manage > Add Roles and Features.
+  Under Features, select Multipath I/O and install.
+• Configure MPIO for iSCSI Devices:
+  Open MPIO from Control Panel or Server Manager.
+  Go to Discover Multi-Paths tab.
+  Check Add support for iSCSI devices and click Add.
+  Reboot if prompted.
+• Verify Multipath:
+  Open Device Manager and expand Disk drives.
+  Your iSCSI disk should appear as a multi-path device.
+  In MPIO Properties, under Devices, you should see your iSCSI device listed.
+
+3. Configure Volume as Usual
+• Use Disk Management to initialize, partition, and format the disk.`
 		return gcpgenserver.NewOptString(instructions)
 
 	case "ESXI":

@@ -2034,3 +2034,53 @@ func TestListPoolUUIDs(t *testing.T) {
 		}
 	})
 }
+
+func TestUpdatePoolFields(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	// Create account and pool
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	err = store.db.Create(account).Error()
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		Account:     account,
+		Description: "old description",
+	}
+	err = store.db.Create(pool).Error()
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	// Update description field
+	newDescription := "new description"
+	updates := map[string]interface{}{
+		"description": newDescription,
+	}
+	err = store.UpdatePoolFields(context.Background(), pool.UUID, updates)
+	assert.NoError(t, err)
+
+	// Verify update
+	updatedPool := &datamodel.Pool{}
+	err = store.db.GORM().First(updatedPool, "uuid = ?", pool.UUID).Error
+	assert.NoError(t, err)
+	assert.Equal(t, newDescription, updatedPool.Description)
+	assert.False(t, updatedPool.UpdatedAt.IsZero())
+
+	// Test error when pool does not exist
+	err = store.UpdatePoolFields(context.Background(), "non-existent-uuid", updates)
+	assert.Error(t, err)
+}

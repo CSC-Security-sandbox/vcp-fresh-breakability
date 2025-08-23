@@ -2492,3 +2492,50 @@ func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlm
 	logger.Info("Extracted intercluster LIF IPs from VLM config", "lifCount", len(lifIPs))
 	return lifIPs, nil
 }
+
+// DetermineVMScalingDirection determines whether the new VM decision represents scaling up or down
+// by using the decision maker's comparison method.
+// Returns true if scaling up (new VM is more expensive), false if scaling down (new VM is cheaper).
+func (j *PoolActivity) DetermineVMScalingDirection(ctx context.Context, vmrsConfigPath string, currentInstanceType string, newInstanceType string) (bool, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("Determining VM scaling direction", "currentType", currentInstanceType, "newType", newInstanceType)
+
+	// Parse VMRS config to get access to decision maker
+	vmrsConfig, err := LoadVMRSConfig(vmrsConfigPath)
+	if err != nil {
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Create decision maker to access the comparison method
+	decisionMaker, err := CreateDecisionMaker(vmrsConfig)
+	if err != nil {
+		logger.Error("Failed to create decision maker", "error", err)
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Use the decision maker's comparison method directly
+	// This eliminates the need for type casting and makes the code more maintainable
+	isScalingUp, err := decisionMaker.CompareVMScalingDirection(currentInstanceType, newInstanceType)
+	if err != nil {
+		logger.Error("Failed to compare VM scaling direction", "error", err)
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Info("VM scaling direction determined",
+		"currentType", currentInstanceType,
+		"newType", newInstanceType,
+		"isScalingUp", isScalingUp)
+
+	return isScalingUp, nil
+}
+
+// UpdatePoolFields updates specific fields of a pool without changing its state
+// This is a generic method that can be used to update any combination of pool fields
+func (j *PoolActivity) UpdatePoolFields(ctx context.Context, poolUUID string, updates map[string]interface{}) error {
+	se := j.SE
+	err := se.UpdatePoolFields(ctx, poolUUID, updates)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}

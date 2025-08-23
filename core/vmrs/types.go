@@ -132,6 +132,11 @@ type DecisionMaker interface {
 	// FindOptimalVMs takes the VMRS configuration and customer requested performance.
 	// It returns the list of VM identifiers that together satisfy the customer request performance thresholds, while optimizing for some cost function. The cost function that is optimized for depends on the implementation.
 	FindOptimalVMs(config *VMRSConfig, customerRequest CustomerRequestedPerformance, currentConfig *vlm.VLMConfig) (*Decision, error)
+
+	// CompareVMScalingDirection compares two VM types and determines if the change represents scaling up or down.
+	// Returns true if scaling up (new VM is more expensive), false if scaling down (new VM is cheaper).
+	// Returns error if either VM type is not found in the configuration.
+	CompareVMScalingDirection(currentInstanceType, newInstanceType string) (bool, error)
 }
 
 // A DecisionMakerFactory is responsible for creating instances of DecisionMaker based on the provided VMRSConfig.

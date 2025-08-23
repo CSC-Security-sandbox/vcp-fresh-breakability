@@ -40,6 +40,7 @@ type (
 		UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 		UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHostProject string, subnetNames []string) error
 		UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error)
+		UpdatePoolFields(ctx context.Context, poolUUID string, updates map[string]interface{}) error
 		DeletePool(ctx context.Context, pool *datamodel.Pool) error
 		DeletingPool(ctx context.Context, pool *datamodel.Pool) error
 		DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)

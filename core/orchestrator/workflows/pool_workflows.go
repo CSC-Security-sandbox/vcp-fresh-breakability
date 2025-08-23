@@ -633,19 +633,18 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Update the mediator zone in the VLM config
 	newVlmConfig.Deployment.Zone.MediatorZone = locationInfo.MediatorZone
 
-	credentials := &vlm.OntapCredentials{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &credentials)
+	// Determine VM scaling direction to decide the order of operations
+	currentInstanceType := currentVlmConfig.Deployment.VSAInstanceType
+	newInstanceType := newVlmConfig.Deployment.VSAInstanceType
+
+	var isScalingUp bool
+	err = workflow.ExecuteActivity(ctx, poolActivity.DetermineVMScalingDirection, vmrsConfigPath, currentInstanceType, newInstanceType).Get(ctx, &isScalingUp)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
-	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-
-	ontapVersion := ExtractOntapVersion(pool.ClusterDetails.OntapVersion)
-
-	updateVSAClusterDeploymentRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
-	prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest, *currentVlmConfig, *newVlmConfig, *credentials)
-	updateVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+	credentials := &vlm.OntapCredentials{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &credentials)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -658,12 +657,59 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
 
-	// Modify QoS policy and apply to SVM if needed
-	err = workflow.ExecuteActivity(ctx, poolActivity.ModifyQoSPolicyAndApplyToSVM, dbPool, node, updatePoolParams).Get(ctx, nil)
+	// Execute activities based on scaling direction
+	wf.Logger.Info("VM scaling direction determined", "isScalingUp", isScalingUp)
+
+	// Execute QoS modification before deployment update if scaling down
+	if !isScalingUp {
+		wf.Logger.Info("Scaling down detected - modifying QoS policy first")
+		err = workflow.ExecuteActivity(ctx, poolActivity.ModifyQoSPolicyAndApplyToSVM, dbPool, node, updatePoolParams).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		updatedPoolAttributes := &datamodel.PoolAttributes{
+			ThroughputMibps: int64(updatePoolParams.TotalThroughputMibps),
+			Iops:            int64(updatePoolParams.TotalIops),
+			PrimaryZone:     dbPool.PoolAttributes.PrimaryZone,
+			SecondaryZone:   dbPool.PoolAttributes.SecondaryZone,
+			MediatorZone:    dbPool.PoolAttributes.MediatorZone,
+			Labels:          dbPool.PoolAttributes.Labels,
+			IsRegionalHA:    dbPool.PoolAttributes.IsRegionalHA,
+		}
+		// Update pool in DB to reflect QoS changes
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
+			"pool_attributes": updatedPoolAttributes,
+		}).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		dbPool.PoolAttributes.ThroughputMibps = int64(updatePoolParams.TotalThroughputMibps)
+		dbPool.PoolAttributes.Iops = int64(updatePoolParams.TotalIops)
+	}
+
+	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+	ontapVersion := ExtractOntapVersion(pool.ClusterDetails.OntapVersion)
+
+	updateVSAClusterDeploymentRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
+	prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest, *currentVlmConfig, *newVlmConfig, *credentials)
+
+	// Update VSA cluster deployment
+	updateVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Execute QoS modification after deployment update if scaling up
+	if isScalingUp {
+		wf.Logger.Info("Scaling up detected - modifying QoS policy after deployment update")
+		err = workflow.ExecuteActivity(ctx, poolActivity.ModifyQoSPolicyAndApplyToSVM, dbPool, node, updatePoolParams).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
+	// Update pool with VLM config
 	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, updateVSAClusterDeploymentResponse.VLMConfig, updatePoolParams).Get(ctx, nil)
 	return nil, ConvertToVSAError(err)
 }

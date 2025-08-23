@@ -132,6 +132,25 @@ func (re *retryEngine) UpdatePoolState(ctx context.Context, pool *datamodel.Pool
 	return var0, err
 }
 
+func (re *retryEngine) UpdatePoolFields(ctx context.Context, poolUUID string, updates map[string]interface{}) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdatePoolFields(ctx, poolUUID, updates)
+		if err != nil {
+			re.logError("UpdatePoolFields", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

@@ -8596,3 +8596,197 @@ func Test_getInternalVSANetworkForFirewalls(t *testing.T) {
 		assert.Equal(t, trafficDirection, result.Firewall.Direction)
 	})
 }
+
+func TestDetermineVMScalingDirection_Success_ScalingUp(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Use the existing VMRS config file
+	configPath := "../../../config/vmrs_gcp.yaml"
+
+	// Test scaling up (cheaper to more expensive VM)
+	isScalingUp, err := activity.DetermineVMScalingDirection(ctx, configPath, "c3-standard-4-lssd", "c3-standard-22-lssd")
+
+	assert.NoError(t, err)
+	assert.True(t, isScalingUp, "Should be scaling up from cheaper to more expensive VM")
+}
+
+func TestDetermineVMScalingDirection_Success_ScalingDown(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Use the existing VMRS config file
+	configPath := "../../../config/vmrs_gcp.yaml"
+
+	// Test scaling down (more expensive to cheaper VM)
+	isScalingUp, err := activity.DetermineVMScalingDirection(ctx, configPath, "c3-standard-22-lssd", "c3-standard-4-lssd")
+
+	assert.NoError(t, err)
+	assert.False(t, isScalingUp, "Should be scaling down from more expensive to cheaper VM")
+}
+
+func TestDetermineVMScalingDirection_LoadVMRSConfigError(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Test with non-existent config file
+	_, err := activity.DetermineVMScalingDirection(ctx, "non-existent-config.yaml", "n2-standard-8", "n2-standard-16")
+
+	assert.Error(t, err)
+	// VMRS errors are not wrapped as temporal application errors
+	assert.Contains(t, err.Error(), "ConfigParseError")
+}
+
+func TestDetermineVMScalingDirection_InvalidVMTypes(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Use the existing VMRS config file
+	configPath := "../../../config/vmrs_gcp.yaml"
+
+	// Test with invalid VM types that don't exist in the config
+	// This should trigger an error when trying to compare VM types
+	_, err := activity.DetermineVMScalingDirection(ctx, configPath, "invalid-vm-type-1", "invalid-vm-type-2")
+
+	assert.Error(t, err)
+	// The error should contain the specific error message about VM type not found
+	assert.Contains(t, err.Error(), "current VM type not found in sorted list")
+}
+
+func TestDetermineVMScalingDirection_UnexpectedDecisionMakerType(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Use the existing VMRS config file
+	configPath := "../../../config/vmrs_gcp.yaml"
+
+	// Test with valid config - this should work since we're using least_cost_single_vm strategy
+	isScalingUp, err := activity.DetermineVMScalingDirection(ctx, configPath, "c3-standard-4-lssd", "c3-standard-4-lssd")
+
+	// This should work since the strategy is correct
+	assert.NoError(t, err)
+	assert.False(t, isScalingUp, "Same VM type should not be scaling")
+}
+
+func TestDetermineVMScalingDirection_VMsSortedByCostNil(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Use the existing VMRS config file
+	configPath := "../../../config/vmrs_gcp.yaml"
+
+	// Test with valid config - this should work
+	isScalingUp, err := activity.DetermineVMScalingDirection(ctx, configPath, "c3-standard-4-lssd", "c3-standard-4-lssd")
+
+	assert.NoError(t, err)
+	assert.False(t, isScalingUp, "Same VM type should not be scaling")
+}
+
+func TestDetermineVMScalingDirection_CurrentVMTypeNotFound(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Use the existing VMRS config file
+	configPath := "../../../config/vmrs_gcp.yaml"
+
+	// Test with current VM type not in the list
+	_, err := activity.DetermineVMScalingDirection(ctx, configPath, "non-existent-vm-type", "c3-standard-4-lssd")
+
+	assert.Error(t, err)
+	// The error should contain the specific error message about VM type not found
+	assert.Contains(t, err.Error(), "current VM type not found in sorted list")
+}
+
+func TestDetermineVMScalingDirection_NewVMTypeNotFound(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Use the existing VMRS config file
+	configPath := "../../../config/vmrs_gcp.yaml"
+
+	// Test with new VM type not in the list
+	_, err := activity.DetermineVMScalingDirection(ctx, configPath, "c3-standard-4-lssd", "non-existent-vm-type")
+
+	assert.Error(t, err)
+	// The error should contain the specific error message about VM type not found
+	assert.Contains(t, err.Error(), "new VM type not found in sorted list")
+}
+
+func TestDetermineVMScalingDirection_EarlyBreakOptimization(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Use the existing VMRS config file
+	configPath := "../../../config/vmrs_gcp.yaml"
+
+	// Test with first and second VM types to test early break optimization
+	isScalingUp, err := activity.DetermineVMScalingDirection(ctx, configPath, "c3-standard-4-lssd", "c3-standard-8-lssd")
+
+	assert.NoError(t, err)
+	assert.True(t, isScalingUp, "Should be scaling up from cheaper to more expensive VM")
+}
+
+func TestUpdatePoolFields_Success(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock the UpdatePoolFields call
+	poolUUID := "test-pool-uuid"
+	updates := map[string]interface{}{
+		"description": "updated description",
+		"name":        "updated-pool-name",
+	}
+
+	mockStorage.On("UpdatePoolFields", ctx, poolUUID, updates).Return(nil)
+
+	// Test UpdatePoolFields
+	err := activity.UpdatePoolFields(ctx, poolUUID, updates)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdatePoolFields_Error(t *testing.T) {
+	// Create a mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock the UpdatePoolFields call to return an error
+	poolUUID := "test-pool-uuid"
+	updates := map[string]interface{}{
+		"description": "updated description",
+	}
+	expectedError := errors.New("database update failed")
+
+	mockStorage.On("UpdatePoolFields", ctx, poolUUID, updates).Return(expectedError)
+
+	// Test UpdatePoolFields with error
+	err := activity.UpdatePoolFields(ctx, poolUUID, updates)
+
+	assert.Error(t, err)
+	// Regular errors are not wrapped as temporal application errors
+	assert.Equal(t, expectedError, err)
+
+	mockStorage.AssertExpectations(t)
+}

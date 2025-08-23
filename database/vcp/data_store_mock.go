@@ -8929,6 +8929,54 @@ func (_c *MockDataStore_UpdateNodeNodeGroupMap_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// UpdatePoolFields provides a mock function with given fields: ctx, poolUUID, updates
+func (_m *MockDataStore) UpdatePoolFields(ctx context.Context, poolUUID string, updates map[string]interface{}) error {
+	ret := _m.Called(ctx, poolUUID, updates)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePoolFields")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]interface{}) error); ok {
+		r0 = rf(ctx, poolUUID, updates)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdatePoolFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePoolFields'
+type MockDataStore_UpdatePoolFields_Call struct {
+	*mock.Call
+}
+
+// UpdatePoolFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolUUID string
+//   - updates map[string]interface{}
+func (_e *MockDataStore_Expecter) UpdatePoolFields(ctx interface{}, poolUUID interface{}, updates interface{}) *MockDataStore_UpdatePoolFields_Call {
+	return &MockDataStore_UpdatePoolFields_Call{Call: _e.mock.On("UpdatePoolFields", ctx, poolUUID, updates)}
+}
+
+func (_c *MockDataStore_UpdatePoolFields_Call) Run(run func(ctx context.Context, poolUUID string, updates map[string]interface{})) *MockDataStore_UpdatePoolFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(map[string]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdatePoolFields_Call) Return(_a0 error) *MockDataStore_UpdatePoolFields_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdatePoolFields_Call) RunAndReturn(run func(context.Context, string, map[string]interface{}) error) *MockDataStore_UpdatePoolFields_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdatePoolState provides a mock function with given fields: ctx, pool, state, stateDetails
 func (_m *MockDataStore) UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error) {
 	ret := _m.Called(ctx, pool, state, stateDetails)

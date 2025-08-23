@@ -411,6 +411,33 @@ func (d *DataStoreRepository) UpdatePoolWithKmsConfigID(ctx context.Context, poo
 	return &poolWithDetails.Pool, err
 }
 
+// UpdatePoolFields updates specific fields of a pool without changing its state
+func (d *DataStoreRepository) UpdatePoolFields(ctx context.Context, poolUUID string, updates map[string]interface{}) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	// Add updated_at timestamp
+	updates["updated_at"] = time.Now()
+
+	// Update only the specified fields
+	result := tx.Model(&datamodel.Pool{}).
+		Where("uuid = ?", poolUUID).
+		Updates(updates)
+	if result.Error != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.New("pool not found"))
+	}
+
+	return nil
+}
+
 // GetNextSerialNumberInRegion retrieves the next number from a regional db counter and returns the serial number suffix with the given prefix.
 func (d *DataStoreRepository) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
 	db := d.db.GORM().WithContext(ctx)

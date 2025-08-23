@@ -381,6 +381,10 @@ func (s *PersistenceStore) UpdatePoolState(ctx context.Context, pool *datamodel.
 	return s.dataStore.UpdatePoolState(ctx, pool, state, stateDetails)
 }
 
+func (s *PersistenceStore) UpdatePoolFields(ctx context.Context, poolUUID string, updates map[string]interface{}) error {
+	return s.dataStore.UpdatePoolFields(ctx, poolUUID, updates)
+}
+
 func (s *PersistenceStore) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
 	return s.dataStore.GetPoolsByAccountName(ctx, accountName)
 }

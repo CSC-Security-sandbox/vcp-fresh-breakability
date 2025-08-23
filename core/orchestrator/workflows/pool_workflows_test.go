@@ -1234,7 +1234,7 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -1310,6 +1310,12 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Mock the new DetermineVMScalingDirection activity
+	env.OnActivity("DetermineVMScalingDirection", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil) // false = scaling down
+
+	// Mock the new UpdatePoolFields activity
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -1434,7 +1440,7 @@ func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -1512,6 +1518,9 @@ func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 	// Mock the rollback activity
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
 
+	// Mock the new DetermineVMScalingDirection activity
+	env.OnActivity("DetermineVMScalingDirection", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil) // false = scaling down
+
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
@@ -1557,7 +1566,7 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -1624,6 +1633,9 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 
 	// Mock the rollback activity
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Mock the new DetermineVMScalingDirection activity
+	env.OnActivity("DetermineVMScalingDirection", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil) // false = scaling down
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager

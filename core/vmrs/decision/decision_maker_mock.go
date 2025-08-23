@@ -24,3 +24,9 @@ func (m *DecisionMakerMock) FindOptimalVMs(config *vmrs.VMRSConfig, customerRequ
 	}
 	return nil, args.Error(1)
 }
+
+// CompareVMScalingDirection mocks the CompareVMScalingDirection method of the DecisionMaker interface.
+func (m *DecisionMakerMock) CompareVMScalingDirection(currentInstanceType, newInstanceType string) (bool, error) {
+	args := m.Called(currentInstanceType, newInstanceType)
+	return args.Bool(0), args.Error(1)
+}

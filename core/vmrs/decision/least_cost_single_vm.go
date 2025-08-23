@@ -115,3 +115,49 @@ func sortVMsByCost(config *vmrs.VMRSConfig, workloadHeadroom vmrs.PerfAmplificat
 
 	return sortedVMs
 }
+
+// GetVMsSortedByCost returns the sorted list of VMs by cost for external access
+func (d *LeastCostSingleVMDecisionMaker) GetVMsSortedByCost() []vmrs.VMPerfLimit {
+	return d.vmsSortedByCost
+}
+
+// CompareVMScalingDirection compares two VM types and determines if the change represents scaling up or down.
+// Returns true if scaling up (new VM is more expensive), false if scaling down (new VM is cheaper).
+// Returns error if either VM type is not found in the configuration.
+func (d *LeastCostSingleVMDecisionMaker) CompareVMScalingDirection(currentInstanceType, newInstanceType string) (bool, error) {
+	// Find the VM types and their relative costs
+	var currentVM, newVM *vmrs.VMPerfLimit
+
+	for i := range d.vmsSortedByCost {
+		if d.vmsSortedByCost[i].VMType == currentInstanceType {
+			currentVM = &d.vmsSortedByCost[i]
+		}
+		if d.vmsSortedByCost[i].VMType == newInstanceType {
+			newVM = &d.vmsSortedByCost[i]
+		}
+		// If we found both, we can break early
+		if currentVM != nil && newVM != nil {
+			break
+		}
+	}
+
+	// Validate that we found both VM types
+	if currentVM == nil {
+		return false, &vmrs.NoSuitableVMError{
+			Message:         "current VM type not found in sorted list",
+			CustomerRequest: vmrs.CustomerRequestedPerformance{},
+		}
+	}
+	if newVM == nil {
+		return false, &vmrs.NoSuitableVMError{
+			Message:         "new VM type not found in sorted list",
+			CustomerRequest: vmrs.CustomerRequestedPerformance{},
+		}
+	}
+
+	// Determine scaling direction using RelativeCost
+	// Higher RelativeCost means more expensive VM
+	isScalingUp := newVM.RelativeCost > currentVM.RelativeCost
+
+	return isScalingUp, nil
+}
