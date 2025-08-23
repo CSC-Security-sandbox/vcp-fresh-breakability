@@ -152,6 +152,7 @@ workerConfig:
   mockAccessToken: ""
   integrationTest: "false"
   nkdevTest: false
+  disableVsaCleanupOnVlmFailure: false
 
   # Database configuration
   database:

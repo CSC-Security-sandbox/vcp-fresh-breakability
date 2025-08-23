@@ -197,6 +197,8 @@ spec:
               value: "projects/netapp-au-se1-autopush-sde-tst/regions/australia-southeast1/serviceAttachments/fluent-bit-psc"
             - name: GIN_LOGGING_FEATURE
               value: "false"
+            - name: DISABLE_VSA_CLEANUP_ON_VLM_FAILURE
+              value: "false"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

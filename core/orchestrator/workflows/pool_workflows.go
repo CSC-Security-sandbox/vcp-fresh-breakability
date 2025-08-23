@@ -61,10 +61,11 @@ var (
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1x49")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 
-	serviceAttachment         = env.GetString("GIN_SERVICE_ATTACHMENT", "")
-	ginLoggingMetricsProtocol = env.GetString("GIN_METRICS_PROTOCOL", "tcp-unencrypted")
-	ginLoggingMetricsPort     = env.GetInt64("GIN_METRICS_PORT", 5140)
-	ginLoggingFeatureFlag     = env.GetBool("GIN_LOGGING_FEATURE", false)
+	serviceAttachment             = env.GetString("GIN_SERVICE_ATTACHMENT", "")
+	ginLoggingMetricsProtocol     = env.GetString("GIN_METRICS_PROTOCOL", "tcp-unencrypted")
+	ginLoggingMetricsPort         = env.GetInt64("GIN_METRICS_PORT", 5140)
+	ginLoggingFeatureFlag         = env.GetBool("GIN_LOGGING_FEATURE", false)
+	disableVsaCleanupOnVLMFailure = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
 )
 
 const (
@@ -282,7 +283,9 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	rollbackManager.AddActivity(poolActivity.DeleteOnTapCredentials, pool)
+	if !disableVsaCleanupOnVLMFailure {
+		rollbackManager.AddActivity(poolActivity.DeleteOnTapCredentials, pool)
+	}
 
 	sizeInGB := utils.BytesToGigabytes(params.HotTierSizeInBytes)
 	// Convert CustomPerformanceParams to CustomerRequestedPerformance.
@@ -302,9 +305,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		bucketName = pool.AutoTieringConfig.BucketName
 	}
 
-	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
-	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, tenancyDetails.RegionalTenantProject)
-	rollbackManager.AddWorkflow(vlm.VSALifecycleManagerQueue, vlm.DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest)
+	if !disableVsaCleanupOnVLMFailure {
+		deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
+		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, tenancyDetails.RegionalTenantProject)
+		rollbackManager.AddWorkflow(vlm.VSALifecycleManagerQueue, vlm.DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest)
+	}
 
 	locationInfo := &common.LocationInfo{
 		PrimaryZone:   params.PrimaryZone,
@@ -781,11 +786,20 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		ontapVersion = vlm.OntapVersion
 	}
 
-	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
-	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
-	err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+	if !disableVsaCleanupOnVLMFailure {
+		deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
+		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
+		err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	} else if dbPool.State != models.LifeCycleStateError {
+		deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
+		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
+		err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	bucketName := ""
@@ -808,10 +822,18 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+	if !disableVsaCleanupOnVLMFailure {
+		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	} else if dbPool.State != models.LifeCycleStateError {
+		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
+
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletePoolResources, dbPool).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
