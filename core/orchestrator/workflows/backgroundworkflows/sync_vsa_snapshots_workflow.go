@@ -3,12 +3,14 @@ package backgroundworkflows
 import (
 	"context"
 	"fmt"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"strconv"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	temporalutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -49,14 +51,14 @@ func SyncVSASnapshotsWorkflow(ctx workflow.Context) error {
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
 
-	var pools []*datamodel.Pool
-	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.ListPools).Get(ctx, &pools)
+	var poolIdentifiers []*database.PoolIdentifier
+	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.ListPoolsUUID).Get(ctx, &poolIdentifiers)
 	if err != nil {
 		logger.Error("ListPools activity failed.", "Error", err)
 		return err
 	}
 
-	for _, pool := range pools {
+	for _, pool := range poolIdentifiers {
 		location, err := utils.GetLocationFromVendorID(pool.VendorID)
 		if err != nil {
 			logger.Errorf("Failed to get location from vendor ID for pool %s, error: %v", pool.Name, err)
@@ -66,7 +68,18 @@ func SyncVSASnapshotsWorkflow(ctx workflow.Context) error {
 
 		var isWFRunning *bool
 		syncSnapshotWFRunningCheck := &SyncSnapshotWFRunningCheck{}
-		err = workflow.ExecuteActivity(ctx, syncSnapshotWFRunningCheck.IsSyncSnapshotForPoolRunning, syncSnapshotForPoolWFID).Get(ctx, &isWFRunning)
+
+		// Use a context with a single retry attempt to check if the workflow is running.
+		// This is to avoid long delays when checking the workflow status.
+		// We don't want to block the main workflow for too long while checking the status of each pool's sync workflow.
+		ctxWithSingleRetry := workflow.WithRetryPolicy(ctx, temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        1,
+			NonRetryableErrorTypes: []string{"PanicError"},
+		})
+		err = workflow.ExecuteActivity(ctxWithSingleRetry, syncSnapshotWFRunningCheck.IsSyncSnapshotForPoolRunning, syncSnapshotForPoolWFID).Get(ctxWithSingleRetry, &isWFRunning)
 		if err != nil {
 			// If checking the workflow status, fails, we try to start a new one.
 			logger.Warn("Failed to check if sync snapshot workflow is running.", "Error", err, "PoolName", pool.Name)
@@ -116,7 +129,7 @@ type SyncSnapshotsForPoolWF struct {
 
 var _ workflows.WorkflowInterface = &SyncSnapshotsForPoolWF{}
 
-func SyncSnapshotsForPoolWorkflow(ctx workflow.Context, pool *datamodel.Pool) error {
+func SyncSnapshotsForPoolWorkflow(ctx workflow.Context, pool *database.PoolIdentifier) error {
 	syncSnapshotPoolWF := new(SyncSnapshotsForPoolWF)
 	err := syncSnapshotPoolWF.Setup(ctx, pool)
 	if err != nil {
@@ -135,10 +148,10 @@ func SyncSnapshotsForPoolWorkflow(ctx workflow.Context, pool *datamodel.Pool) er
 }
 
 func (wf *SyncSnapshotsForPoolWF) Setup(ctx workflow.Context, input interface{}) error {
-	pool := input.(*datamodel.Pool)
+	pool := input.(*database.PoolIdentifier)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
-	wf.CustomerID = pool.Account.Name
+	wf.CustomerID = strconv.FormatInt(pool.AccountID, 10)
 	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
@@ -155,7 +168,7 @@ func (wf *SyncSnapshotsForPoolWF) Setup(ctx workflow.Context, input interface{})
 
 func (wf *SyncSnapshotsForPoolWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	logger := wf.Logger
-	pool := args[0].(*datamodel.Pool)
+	poolIdentifier := args[0].(*database.PoolIdentifier)
 
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
@@ -173,7 +186,14 @@ func (wf *SyncSnapshotsForPoolWF) Run(ctx workflow.Context, args ...interface{})
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
-	logger.Infof("Starting synchronization of snapshots for pool: %s", pool.Name)
+	logger.Infof("Starting synchronization of snapshots for pool: %s", poolIdentifier.Name)
+
+	var pool *datamodel.Pool
+	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.FetchPoolByUUID, poolIdentifier.UUID, poolIdentifier.AccountID).Get(ctx, &pool)
+	if err != nil {
+		logger.Error("FetchPoolByUUID activity execution failed.", "Error", err, "PoolName", poolIdentifier.Name)
+		return nil, vsaerrors.ExtractCustomError(err)
+	}
 
 	var ontapVolSnapshotResp *backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.GetOntapVolumesAndSnapshotsForPool, pool).Get(ctx, &ontapVolSnapshotResp)

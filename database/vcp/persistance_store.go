@@ -397,6 +397,10 @@ func (s *PersistenceStore) ListPools(ctx context.Context, filter *dbutils.Filter
 	return s.dataStore.ListPools(ctx, filter)
 }
 
+func (s *PersistenceStore) ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error) {
+	return s.dataStore.ListPoolUUIDs(ctx, filter)
+}
+
 func (s *PersistenceStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPoolByName(ctx, conditions)
 }

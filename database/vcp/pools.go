@@ -456,3 +456,34 @@ func (d *DataStoreRepository) ListSnHosts(ctx context.Context) ([]string, error)
 	}
 	return projects, nil
 }
+
+// PoolIdentifier contains pool identification information
+type PoolIdentifier struct {
+	UUID      string
+	VendorID  string
+	Name      string
+	AccountID int64
+}
+
+// ListPoolUUIDs retrieves pool identifiers that match the provided filter
+func (d *DataStoreRepository) ListPoolUUIDs(ctx context.Context, filter *utils2.Filter) ([]*PoolIdentifier, error) {
+	var db *gorm.DB
+
+	if filter != nil {
+		if filter.ShouldIncludeDeleted() {
+			db = d.db.ApplyFilter(filter.Apply()).Unscoped().GORM().WithContext(ctx)
+		} else {
+			db = d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
+		}
+	} else {
+		db = d.db.GORM().WithContext(ctx)
+	}
+
+	var results []*PoolIdentifier
+	err := db.Model(&datamodel.Pool{}).Select("uuid, vendor_id, name, account_id").Find(&results).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return results, nil
+}

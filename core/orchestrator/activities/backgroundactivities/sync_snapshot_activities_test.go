@@ -3,7 +3,6 @@ package backgroundactivities
 import (
 	"context"
 	"errors"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"strings"
 	"testing"
 
@@ -11,41 +10,15 @@ import (
 	"github.com/stretchr/testify/mock"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
 )
-
-func TestListPools(t *testing.T) {
-	t.Run("ListPoolsSuccess", func(tt *testing.T) {
-		ctx := context.TODO()
-		mockStorage := database.NewMockStorage(tt)
-
-		mockStorage.On("ListPools", ctx, mock.Anything).Return(
-			[]*datamodel.PoolView{{Pool: datamodel.Pool{}, VolumeCount: 1}}, nil)
-
-		syncSnapshotActivity := SyncSnapshotActivity{SE: mockStorage}
-		pools, err := syncSnapshotActivity.ListPools(ctx)
-		assert.NoError(tt, err)
-		assert.Equal(tt, len(pools), 1)
-		mockStorage.AssertExpectations(tt)
-	})
-	t.Run("ListPoolsFailure", func(tt *testing.T) {
-		ctx := context.TODO()
-		mockStorage := database.NewMockStorage(tt)
-
-		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("failed to list pools"))
-
-		syncSnapshotActivity := SyncSnapshotActivity{SE: mockStorage}
-		pools, err := syncSnapshotActivity.ListPools(ctx)
-		assert.Error(tt, err)
-		assert.Nil(tt, pools)
-		mockStorage.AssertExpectations(tt)
-	})
-}
 
 func TestFilterOntapVolumesAndSnapshots(t *testing.T) {
 	volumes := []*vsa.Volume{
@@ -929,4 +902,263 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool(t *testing.T) {
 	assert.Contains(t, result.OntapVolumeMap, "vol-uuid")
 	assert.Len(t, result.OntapSnapshots, 1)
 	mockProvider.AssertExpectations(t)
+}
+
+func TestSyncSnapshotActivity_ListPoolsUUID(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("ListPoolsUUID_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		expectedPools := []*database.PoolIdentifier{
+			{
+				Name:      "pool-1",
+				AccountID: 123,
+				VendorID:  "/projects/test-project/locations/us-central1/pools/pool-1",
+				UUID:      "pool-uuid-1",
+			},
+			{
+				Name:      "pool-2",
+				AccountID: 124,
+				VendorID:  "/projects/test-project/locations/us-west1/pools/pool-2",
+				UUID:      "pool-uuid-2",
+			},
+		}
+
+		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return(expectedPools, nil)
+
+		result, err := activity.ListPoolsUUID(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, expectedPools[0].Name, result[0].Name)
+		assert.Equal(tt, expectedPools[0].AccountID, result[0].AccountID)
+		assert.Equal(tt, expectedPools[0].VendorID, result[0].VendorID)
+		assert.Equal(tt, expectedPools[0].UUID, result[0].UUID)
+		assert.Equal(tt, expectedPools[1].Name, result[1].Name)
+		assert.Equal(tt, expectedPools[1].AccountID, result[1].AccountID)
+		assert.Equal(tt, expectedPools[1].VendorID, result[1].VendorID)
+		assert.Equal(tt, expectedPools[1].UUID, result[1].UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ListPoolsUUID_EmptyResult", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*database.PoolIdentifier{}, nil)
+
+		result, err := activity.ListPoolsUUID(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 0)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ListPoolsUUID_DatabaseError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return(nil, errors.New("database connection failed"))
+
+		result, err := activity.ListPoolsUUID(ctx)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ListPoolsUUID_WithFilterConditions", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		expectedPools := []*database.PoolIdentifier{
+			{
+				Name:      "ready-pool",
+				AccountID: 123,
+				VendorID:  "/projects/test-project/locations/us-central1/pools/ready-pool",
+				UUID:      "ready-pool-uuid",
+			},
+		}
+
+		mockStorage.On("ListPoolUUIDs", ctx, mock.MatchedBy(func(filter *utils2.Filter) bool {
+			// Verify that the filter contains the expected condition for state = "ready"
+			for _, condition := range filter.Conditions {
+				if condition.Field == "state" && condition.Op == "=" && condition.Value == models.LifeCycleStateREADY {
+					return true
+				}
+			}
+			return false
+		})).Return(expectedPools, nil)
+
+		result, err := activity.ListPoolsUUID(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, expectedPools[0].Name, result[0].Name)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("FetchPoolByUUID_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		poolUUID := "test-pool-uuid"
+		accountID := int64(123)
+
+		expectedPoolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: poolUUID,
+				},
+				Name:      "test-pool",
+				AccountID: accountID,
+				State:     models.LifeCycleStateREADY,
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password: "test-password",
+				},
+			},
+		}
+
+		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(expectedPoolView, nil)
+
+		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, expectedPoolView.Pool.ID, result.ID)
+		assert.Equal(tt, expectedPoolView.Pool.UUID, result.UUID)
+		assert.Equal(tt, expectedPoolView.Pool.Name, result.Name)
+		assert.Equal(tt, expectedPoolView.Pool.AccountID, result.AccountID)
+		assert.Equal(tt, expectedPoolView.Pool.State, result.State)
+		assert.NotNil(tt, result.PoolCredentials)
+		assert.Equal(tt, expectedPoolView.Pool.PoolCredentials.Password, result.PoolCredentials.Password)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("FetchPoolByUUID_PoolNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		poolUUID := "non-existent-pool-uuid"
+		accountID := int64(123)
+
+		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(nil, gorm.ErrRecordNotFound)
+
+		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("FetchPoolByUUID_DatabaseError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		poolUUID := "test-pool-uuid"
+		accountID := int64(123)
+
+		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(nil, errors.New("database connection failed"))
+
+		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("FetchPoolByUUID_WithFullPoolData", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		poolUUID := "full-pool-uuid"
+		accountID := int64(456)
+
+		expectedPoolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   2,
+					UUID: poolUUID,
+				},
+				Name:      "full-test-pool",
+				AccountID: accountID,
+				State:     models.LifeCycleStateREADY,
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "full-password",
+					SecretID:      "secret-123",
+					CertificateID: "cert-456",
+					AuthType:      1, // password auth type
+				},
+				DeploymentName: "test-deployment",
+			},
+		}
+
+		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(expectedPoolView, nil)
+
+		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, expectedPoolView.Pool.ID, result.ID)
+		assert.Equal(tt, expectedPoolView.Pool.UUID, result.UUID)
+		assert.Equal(tt, expectedPoolView.Pool.Name, result.Name)
+		assert.Equal(tt, expectedPoolView.Pool.AccountID, result.AccountID)
+		assert.Equal(tt, expectedPoolView.Pool.State, result.State)
+		assert.Equal(tt, expectedPoolView.Pool.DeploymentName, result.DeploymentName)
+		assert.NotNil(tt, result.PoolCredentials)
+		assert.Equal(tt, expectedPoolView.Pool.PoolCredentials.Password, result.PoolCredentials.Password)
+		assert.Equal(tt, expectedPoolView.Pool.PoolCredentials.SecretID, result.PoolCredentials.SecretID)
+		assert.Equal(tt, expectedPoolView.Pool.PoolCredentials.CertificateID, result.PoolCredentials.CertificateID)
+		assert.Equal(tt, expectedPoolView.Pool.PoolCredentials.AuthType, result.PoolCredentials.AuthType)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("FetchPoolByUUID_EmptyUUID", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		poolUUID := ""
+		accountID := int64(123)
+
+		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(nil, errors.New("invalid pool UUID"))
+
+		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("FetchPoolByUUID_ZeroAccountID", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		poolUUID := "test-pool-uuid"
+		accountID := int64(0)
+
+		expectedPoolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   3,
+					UUID: poolUUID,
+				},
+				Name:      "zero-account-pool",
+				AccountID: accountID,
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+
+		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(expectedPoolView, nil)
+
+		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, expectedPoolView.Pool.ID, result.ID)
+		assert.Equal(tt, expectedPoolView.Pool.UUID, result.UUID)
+		assert.Equal(tt, expectedPoolView.Pool.Name, result.Name)
+		assert.Equal(tt, expectedPoolView.Pool.AccountID, result.AccountID)
+		mockStorage.AssertExpectations(tt)
+	})
 }

@@ -3,6 +3,7 @@ package backgroundworkflows
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
@@ -29,27 +31,23 @@ func TestSyncVSASnapshotsWorkflow_Success(t *testing.T) {
 	env.RegisterActivity(syncSSWfCheck)
 
 	// Mock test data
-	pools := []*datamodel.Pool{
+	pools := []*database.PoolIdentifier{
 		{
-			BaseModel: datamodel.BaseModel{ID: 1},
 			Name:      "test-pool-1",
-			Account: &datamodel.Account{
-				Name: "test-account",
-			},
-			VendorID: "/projects/test-project/locations/us-central1/pools/test-pool-1",
+			AccountID: 123,
+			VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool-1",
+			UUID:      "test-pool-1",
 		},
 		{
-			BaseModel: datamodel.BaseModel{ID: 2},
 			Name:      "test-pool-2",
-			Account: &datamodel.Account{
-				Name: "test-account",
-			},
-			VendorID: "/projects/test-project/locations/us-west1/pools/test-pool-1",
+			AccountID: 124,
+			VendorID:  "/projects/test-project/locations/us-west1/pools/test-pool-2",
+			UUID:      "test-pool-2",
 		},
 	}
 
 	// Mock ListPools activity to return test pools
-	env.OnActivity(backgroundActivities.ListPools, mock.Anything).Return(pools, nil).Once()
+	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
 	// Mock IsSyncSnapshotForPoolRunning to return false (not running) for all pools
 	env.OnActivity(syncSSWfCheck.IsSyncSnapshotForPoolRunning, mock.Anything, mock.Anything).Return(false, nil).Times(len(pools))
@@ -76,7 +74,7 @@ func TestSyncVSASnapshotsWorkflow_ListPoolsError(t *testing.T) {
 	env.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{})
 
 	// Mock ListPools activity to return error
-	env.OnActivity(backgroundActivities.ListPools, mock.Anything).Return(nil, assert.AnError)
+	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(nil, assert.AnError)
 
 	// Execute workflow
 	env.ExecuteWorkflow(SyncVSASnapshotsWorkflow)
@@ -97,27 +95,23 @@ func TestSyncVSASnapshotsWorkflow_AlreadyRunningWorkflows(t *testing.T) {
 	env.RegisterActivity(syncSSWfCheck)
 
 	// Mock test data
-	pools := []*datamodel.Pool{
+	pools := []*database.PoolIdentifier{
 		{
-			BaseModel: datamodel.BaseModel{ID: 1},
 			Name:      "test-pool-1",
-			Account: &datamodel.Account{
-				Name: "test-account",
-			},
-			VendorID: "/projects/test-project/locations/us-central1/pools/test-pool-1",
+			AccountID: 123,
+			VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool-1",
+			UUID:      "test-pool-1",
 		},
 		{
-			BaseModel: datamodel.BaseModel{ID: 2},
 			Name:      "test-pool-2",
-			Account: &datamodel.Account{
-				Name: "test-account",
-			},
-			VendorID: "/projects/test-project/locations/us-west1/pools/test-pool-1",
+			AccountID: 124,
+			VendorID:  "/projects/test-project/locations/us-west1/pools/test-pool-2",
+			UUID:      "test-pool-2",
 		},
 	}
 
 	// Mock ListPools activity
-	env.OnActivity(backgroundActivities.ListPools, mock.Anything).Return(pools, nil).Once()
+	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
 	// Mock IsSyncSnapshotForPoolRunning to return true (already running) for all pools
 	env.OnActivity(syncSSWfCheck.IsSyncSnapshotForPoolRunning, mock.Anything, mock.Anything).Return(true, nil)
@@ -141,19 +135,17 @@ func TestSyncVSASnapshotsWorkflow_InvalidVendorID(t *testing.T) {
 	env.RegisterActivity(syncSSWfCheck)
 
 	// Mock test data with invalid vendor ID
-	pools := []*datamodel.Pool{
+	pools := []*database.PoolIdentifier{
 		{
-			BaseModel: datamodel.BaseModel{ID: 1},
 			Name:      "test-pool-1",
-			Account: &datamodel.Account{
-				Name: "test-account",
-			},
-			VendorID: "invalid-location", // Invalid vendor ID
+			AccountID: 123,
+			VendorID:  "invalid-vendor-id", // Invalid format
+			UUID:      "test-pool-1",
 		},
 	}
 
 	// Mock ListPools activity
-	env.OnActivity(backgroundActivities.ListPools, mock.Anything).Return(pools, nil).Once()
+	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
 	// Execute workflow
 	env.ExecuteWorkflow(SyncVSASnapshotsWorkflow)
@@ -173,19 +165,17 @@ func TestSyncVSASnapshotsWorkflow_CheckRunningError(t *testing.T) {
 	env.RegisterActivity(syncSSWfCheck)
 
 	// Mock test data
-	pools := []*datamodel.Pool{
+	pools := []*database.PoolIdentifier{
 		{
-			BaseModel: datamodel.BaseModel{ID: 1},
 			Name:      "test-pool-1",
-			Account: &datamodel.Account{
-				Name: "test-account",
-			},
-			VendorID: "/projects/test-project/locations/us-central1/pools/test-pool-1",
+			AccountID: 123,
+			VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool-1",
+			UUID:      "test-pool-1",
 		},
 	}
 
 	// Mock ListPools activity
-	env.OnActivity(backgroundActivities.ListPools, mock.Anything).Return(pools, nil).Once()
+	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
 	// Mock IsSyncSnapshotForPoolRunning to return error
 	env.OnActivity(syncSSWfCheck.IsSyncSnapshotForPoolRunning, mock.Anything, mock.Anything).Return(nil, assert.AnError)
@@ -211,6 +201,7 @@ func TestSyncSnapshotsForPoolWorkflow(t *testing.T) {
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -238,6 +229,7 @@ func TestSyncSnapshotsForPoolWorkflow(t *testing.T) {
 	}
 
 	// Mock activities
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, mock.Anything).Return(pool, nil)
 	env.OnActivity(backgroundActivity.GetOntapVolumesAndSnapshotsForPool, mock.Anything, pool).Return(ontapVolSnapshotResp, nil)
 	env.OnActivity(backgroundActivity.GetDBVolumeAndSnapshotsForPool, mock.Anything, pool).Return(dbVolSnapshotResp, nil)
 	env.OnActivity(backgroundActivity.ProcessSnapshots, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(processSnapshotsResp, nil)
@@ -248,7 +240,12 @@ func TestSyncSnapshotsForPoolWorkflow(t *testing.T) {
 	env.OnActivity(backgroundActivity.HydrateSnapshotsToCCFE, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	// Verify workflow completion
 	assert.True(t, env.IsWorkflowCompleted())
@@ -266,7 +263,7 @@ func TestSyncSnapshotsForPoolWorkflow(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusCompleted, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestSyncSnapshotsForPoolWorkflow_GetOntapVolumesError(t *testing.T) {
@@ -280,6 +277,7 @@ func TestSyncSnapshotsForPoolWorkflow_GetOntapVolumesError(t *testing.T) {
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -289,11 +287,19 @@ func TestSyncSnapshotsForPoolWorkflow_GetOntapVolumesError(t *testing.T) {
 		},
 	}
 
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(pool, nil)
+
 	// Mock GetOntapVolumesAndSnapshotsForPool to fail
 	env.OnActivity(backgroundActivity.GetOntapVolumesAndSnapshotsForPool, mock.Anything, pool).Return(nil, fmt.Errorf("failed to get ONTAP volumes"))
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 
@@ -309,7 +315,56 @@ func TestSyncSnapshotsForPoolWorkflow_GetOntapVolumesError(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
+}
+
+func TestSyncSnapshotsForPoolWorkflow_FetchPoolError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	backgroundActivity := &backgroundactivities.SyncSnapshotActivity{}
+	// Register activity
+	env.RegisterActivity(backgroundActivity)
+
+	// Test data
+	pool := &datamodel.Pool{
+		AccountID: 123,
+		BaseModel: datamodel.BaseModel{
+			ID: 1,
+		},
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+	}
+
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(nil, fmt.Errorf("failed to fetch pool"))
+	
+	// Execute workflow
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+
+	// Verify workflow status shows failed
+	var status workflows.WorkflowStatus
+	encVal, err := env.QueryWorkflow(workflows.StatusQueryName)
+	if err != nil {
+		t.Fatalf("Failed to query workflow status: %v", err)
+	}
+	err = encVal.Get(&status)
+	if err != nil {
+		t.Fatalf("Failed to decode workflow status: %v", err)
+	}
+	assert.NoError(t, err)
+	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestSyncSnapshotsForPoolWorkflow_GetDBSnapshotsError(t *testing.T) {
@@ -323,6 +378,7 @@ func TestSyncSnapshotsForPoolWorkflow_GetDBSnapshotsError(t *testing.T) {
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -331,6 +387,9 @@ func TestSyncSnapshotsForPoolWorkflow_GetDBSnapshotsError(t *testing.T) {
 			Name: "test-account",
 		},
 	}
+
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(pool, nil)
 
 	// Mock successful ONTAP volumes retrieval
 	ontapVolSnapshotResp := &backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue{
@@ -343,7 +402,12 @@ func TestSyncSnapshotsForPoolWorkflow_GetDBSnapshotsError(t *testing.T) {
 	env.OnActivity(backgroundActivity.GetDBVolumeAndSnapshotsForPool, mock.Anything, pool).Return(nil, fmt.Errorf("failed to get DB snapshots"))
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 
@@ -359,7 +423,7 @@ func TestSyncSnapshotsForPoolWorkflow_GetDBSnapshotsError(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestSyncSnapshotsForPoolWorkflow_ProcessSnapshotsError(t *testing.T) {
@@ -373,6 +437,7 @@ func TestSyncSnapshotsForPoolWorkflow_ProcessSnapshotsError(t *testing.T) {
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -381,6 +446,9 @@ func TestSyncSnapshotsForPoolWorkflow_ProcessSnapshotsError(t *testing.T) {
 			Name: "test-account",
 		},
 	}
+
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(pool, nil)
 
 	// Mock successful responses for initial activities
 	ontapVolSnapshotResp := &backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue{
@@ -399,7 +467,12 @@ func TestSyncSnapshotsForPoolWorkflow_ProcessSnapshotsError(t *testing.T) {
 	env.OnActivity(backgroundActivity.ProcessSnapshots, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("failed to process snapshots"))
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 
@@ -415,7 +488,7 @@ func TestSyncSnapshotsForPoolWorkflow_ProcessSnapshotsError(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestSyncSnapshotsForPoolWorkflow_SyncDeletedSnapshotsError(t *testing.T) {
@@ -429,6 +502,7 @@ func TestSyncSnapshotsForPoolWorkflow_SyncDeletedSnapshotsError(t *testing.T) {
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -437,6 +511,9 @@ func TestSyncSnapshotsForPoolWorkflow_SyncDeletedSnapshotsError(t *testing.T) {
 			Name: "test-account",
 		},
 	}
+
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(pool, nil)
 
 	// Mock successful responses for initial activities
 	ontapVolSnapshotResp := &backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue{
@@ -461,7 +538,12 @@ func TestSyncSnapshotsForPoolWorkflow_SyncDeletedSnapshotsError(t *testing.T) {
 	env.OnActivity(backgroundActivity.SyncDeletedSnapshotsToDatabase, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("failed to sync deleted snapshots"))
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 
@@ -477,7 +559,7 @@ func TestSyncSnapshotsForPoolWorkflow_SyncDeletedSnapshotsError(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestSyncSnapshotsForPoolWorkflow_SyncNewSnapshotsError(t *testing.T) {
@@ -491,6 +573,7 @@ func TestSyncSnapshotsForPoolWorkflow_SyncNewSnapshotsError(t *testing.T) {
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -499,6 +582,9 @@ func TestSyncSnapshotsForPoolWorkflow_SyncNewSnapshotsError(t *testing.T) {
 			Name: "test-account",
 		},
 	}
+
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(pool, nil)
 
 	// Mock successful responses for initial activities
 	ontapVolSnapshotResp := &backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue{
@@ -525,7 +611,12 @@ func TestSyncSnapshotsForPoolWorkflow_SyncNewSnapshotsError(t *testing.T) {
 	env.OnActivity(backgroundActivity.SyncNewSnapshotsToDatabase, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("failed to sync new snapshots"))
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 
@@ -541,7 +632,7 @@ func TestSyncSnapshotsForPoolWorkflow_SyncNewSnapshotsError(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestSyncSnapshotsForPoolWorkflow_SyncUpdatedSnapshotsError(t *testing.T) {
@@ -555,6 +646,7 @@ func TestSyncSnapshotsForPoolWorkflow_SyncUpdatedSnapshotsError(t *testing.T) {
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -563,6 +655,9 @@ func TestSyncSnapshotsForPoolWorkflow_SyncUpdatedSnapshotsError(t *testing.T) {
 			Name: "test-account",
 		},
 	}
+
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(pool, nil)
 
 	// Mock successful responses for initial activities
 	ontapVolSnapshotResp := &backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue{
@@ -587,10 +682,15 @@ func TestSyncSnapshotsForPoolWorkflow_SyncUpdatedSnapshotsError(t *testing.T) {
 	env.OnActivity(backgroundActivity.SyncNewSnapshotsToDatabase, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Snapshot{}, nil)
 
 	// Mock SyncUpdatedSnapshotsToDatabase to fail
-	env.OnActivity(backgroundActivity.SyncUpdatedSnapshotsToDatabase, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to sync updated snapshots"))
+	env.OnActivity(backgroundActivity.SyncUpdatedSnapshotsToDatabase, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Snapshot{}, fmt.Errorf("failed to sync updated snapshots"))
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 
@@ -606,7 +706,7 @@ func TestSyncSnapshotsForPoolWorkflow_SyncUpdatedSnapshotsError(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestSyncSnapshotsForPoolWorkflow_SyncWronglyDeletedSnapshotsError(t *testing.T) {
@@ -620,6 +720,7 @@ func TestSyncSnapshotsForPoolWorkflow_SyncWronglyDeletedSnapshotsError(t *testin
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -628,6 +729,9 @@ func TestSyncSnapshotsForPoolWorkflow_SyncWronglyDeletedSnapshotsError(t *testin
 			Name: "test-account",
 		},
 	}
+
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(pool, nil)
 
 	// Mock successful responses for initial activities
 	ontapVolSnapshotResp := &backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue{
@@ -657,7 +761,12 @@ func TestSyncSnapshotsForPoolWorkflow_SyncWronglyDeletedSnapshotsError(t *testin
 	env.OnActivity(backgroundActivity.SyncWronglyDeletedSnapshotsToDatabase, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to sync wrongly deleted snapshots"))
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 
@@ -673,7 +782,7 @@ func TestSyncSnapshotsForPoolWorkflow_SyncWronglyDeletedSnapshotsError(t *testin
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestSyncSnapshotsForPoolWorkflow_HydrateSnapshotsToCCFEError(t *testing.T) {
@@ -687,6 +796,7 @@ func TestSyncSnapshotsForPoolWorkflow_HydrateSnapshotsToCCFEError(t *testing.T) 
 
 	// Test data
 	pool := &datamodel.Pool{
+		AccountID: 123,
 		BaseModel: datamodel.BaseModel{
 			ID: 1,
 		},
@@ -695,6 +805,9 @@ func TestSyncSnapshotsForPoolWorkflow_HydrateSnapshotsToCCFEError(t *testing.T) 
 			Name: "test-account",
 		},
 	}
+
+	// Mock FetchPoolByUUID to return the pool
+	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(pool, nil)
 
 	// Mock successful responses for initial activities
 	ontapVolSnapshotResp := &backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue{
@@ -723,7 +836,12 @@ func TestSyncSnapshotsForPoolWorkflow_HydrateSnapshotsToCCFEError(t *testing.T) 
 	env.OnActivity(backgroundActivity.HydrateSnapshotsToCCFE, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to hydrate snapshots to CCFE"))
 
 	// Execute workflow
-	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, pool)
+	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
+		Name:      pool.Name,
+		AccountID: pool.AccountID,
+		VendorID:  pool.VendorID,
+		UUID:      pool.UUID,
+	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 
@@ -739,7 +857,7 @@ func TestSyncSnapshotsForPoolWorkflow_HydrateSnapshotsToCCFEError(t *testing.T) 
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, workflows.WorkflowStatusFailed, status.Status)
-	assert.Equal(t, "test-account", status.CustomerID)
+	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
 func TestIsSyncSnapshotForPoolRunning(t *testing.T) {

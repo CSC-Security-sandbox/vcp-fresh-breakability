@@ -200,6 +200,15 @@ func TestListPools_Persistence_Store(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestListPoolUUIDs_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	_, err := store.ListPoolUUIDs(ctx, nil)
+	assert.NoError(t, err)
+}
+
 func TestGetPoolByName_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)

@@ -11,7 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -48,22 +48,32 @@ type SyncSnapshotActivity struct {
 	SE database.Storage
 }
 
-func (a *SyncSnapshotActivity) ListPools(ctx context.Context) ([]*datamodel.Pool, error) {
+func (a *SyncSnapshotActivity) ListPoolsUUID(ctx context.Context) ([]*database.PoolIdentifier, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
 	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
-	poolViews, err := se.ListPools(ctx, filter)
+	pools, err := se.ListPoolUUIDs(ctx, filter)
 	if err != nil {
 		logger.Errorf("Failed to list pools: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 
-	var pools []*datamodel.Pool
-	for _, poolView := range poolViews {
-		pools = append(pools, database.ConvertPoolViewToPool(poolView))
-	}
+	logger.Infof("Found %d pools", len(pools))
 	return pools, nil
+}
+
+func (a *SyncSnapshotActivity) FetchPoolByUUID(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error) {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	pool, err := se.GetPool(ctx, poolUUID, accountID)
+	if err != nil {
+		logger.Errorf("Failed to get pool, error: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return database.ConvertPoolViewToPool(pool), nil
 }
 
 func _filterOntapVolumesAndSnapshots(volumes []*vsa.Volume, snapshots []*vsa.Snapshot) (map[string]*vsa.Volume, []*vsa.Snapshot) {

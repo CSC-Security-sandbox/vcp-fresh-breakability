@@ -7762,6 +7762,65 @@ func (_c *MockStorage_ListOngoingPoolJobsWithKmsConfigId_Call) RunAndReturn(run 
 	return _c
 }
 
+// ListPoolUUIDs provides a mock function with given fields: ctx, filter
+func (_m *MockStorage) ListPoolUUIDs(ctx context.Context, filter *utils.Filter) ([]*PoolIdentifier, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPoolUUIDs")
+	}
+
+	var r0 []*PoolIdentifier
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter) ([]*PoolIdentifier, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter) []*PoolIdentifier); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*PoolIdentifier)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListPoolUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPoolUUIDs'
+type MockStorage_ListPoolUUIDs_Call struct {
+	*mock.Call
+}
+
+// ListPoolUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *utils.Filter
+func (_e *MockStorage_Expecter) ListPoolUUIDs(ctx interface{}, filter interface{}) *MockStorage_ListPoolUUIDs_Call {
+	return &MockStorage_ListPoolUUIDs_Call{Call: _e.mock.On("ListPoolUUIDs", ctx, filter)}
+}
+
+func (_c *MockStorage_ListPoolUUIDs_Call) Run(run func(ctx context.Context, filter *utils.Filter)) *MockStorage_ListPoolUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Filter))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListPoolUUIDs_Call) Return(_a0 []*PoolIdentifier, _a1 error) *MockStorage_ListPoolUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListPoolUUIDs_Call) RunAndReturn(run func(context.Context, *utils.Filter) ([]*PoolIdentifier, error)) *MockStorage_ListPoolUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPools provides a mock function with given fields: ctx, filter
 func (_m *MockStorage) ListPools(ctx context.Context, filter *utils.Filter) ([]*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, filter)

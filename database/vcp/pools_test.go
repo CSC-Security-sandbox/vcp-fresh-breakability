@@ -1810,3 +1810,227 @@ func TestListSnHosts_ReturnsErrorOnDBFailure(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, projects)
 }
+
+func TestListPoolUUIDs(t *testing.T) {
+	t.Run("ReturnsEmptySliceWhenNoPools", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		poolIds, err := store.ListPoolUUIDs(context.Background(), nil)
+		assert.NoError(tt, err)
+		assert.Empty(tt, poolIds)
+	})
+
+	t.Run("ReturnsPoolsWhenPresent", func(tt *testing.T) {
+		store := setup(tt)
+
+		// Create test account and pools
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create multiple pools
+		pools := []*datamodel.Pool{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+				Name:           "test_pool_1",
+				AccountID:      account.ID,
+				VendorID:       "test-vendor-id-1",
+				DeploymentName: "deployment-1",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+				Name:           "test_pool_2",
+				AccountID:      account.ID,
+				VendorID:       "test-vendor-id-2",
+				DeploymentName: "deployment-2",
+			},
+		}
+
+		for _, pool := range pools {
+			err := store.db.Create(pool).Error()
+			if err != nil {
+				tt.Fatalf("Failed to create pool: %v", err)
+			}
+		}
+
+		// Test ListPoolUUIDs
+		poolIds, err := store.ListPoolUUIDs(context.Background(), nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, poolIds, 2)
+
+		// Verify pool identifiers
+		// Create a map for easier lookup
+		poolMap := make(map[string]*PoolIdentifier)
+		for _, p := range poolIds {
+			poolMap[p.UUID] = p
+		}
+
+		// Check that both pools are returned with correct data
+		for _, expected := range pools {
+			actual, exists := poolMap[expected.UUID]
+			assert.True(tt, exists, "Pool with UUID %s was not returned", expected.UUID)
+			if exists {
+				assert.Equal(tt, expected.UUID, actual.UUID)
+				assert.Equal(tt, expected.VendorID, actual.VendorID)
+				assert.Equal(tt, expected.Name, actual.Name)
+				assert.Equal(tt, expected.AccountID, actual.AccountID)
+			}
+		}
+	})
+
+	t.Run("WithFilter", func(tt *testing.T) {
+		store := setup(tt)
+
+		// Create test account and pools
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create multiple pools with different names
+		pools := []*datamodel.Pool{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+				Name:           "filter_pool",
+				AccountID:      account.ID,
+				VendorID:       "test-vendor-id-1",
+				DeploymentName: "deployment-filter-1",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+				Name:           "other_pool",
+				AccountID:      account.ID,
+				VendorID:       "test-vendor-id-2",
+				DeploymentName: "deployment-filter-2",
+			},
+		}
+
+		for _, pool := range pools {
+			err := store.db.Create(pool).Error()
+			if err != nil {
+				tt.Fatalf("Failed to create pool: %v", err)
+			}
+		}
+
+		// Create a filter for pools with name = 'filter_pool'
+		filter := utils.NewFilterCondition("name", "=", "filter_pool")
+
+		// Test ListPoolUUIDs with filter
+		poolIds, err := store.ListPoolUUIDs(context.Background(), utils.CreateFilterWithConditions(filter))
+		assert.NoError(tt, err)
+		assert.Len(tt, poolIds, 1)
+		assert.Equal(tt, "test-pool-uuid-1", poolIds[0].UUID)
+		assert.Equal(tt, "filter_pool", poolIds[0].Name)
+		assert.Equal(tt, "test-vendor-id-1", poolIds[0].VendorID)
+	})
+
+	t.Run("WithFilterIncludeDeleted", func(tt *testing.T) {
+		store := setup(tt)
+
+		// Create test account and pools
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create pools - one normal, one soft-deleted
+		pools := []*datamodel.Pool{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+				Name:           "active_pool",
+				AccountID:      account.ID,
+				VendorID:       "test-vendor-id-1",
+				DeploymentName: "deployment-active",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+				Name:           "deleted_pool",
+				AccountID:      account.ID,
+				VendorID:       "test-vendor-id-2",
+				DeploymentName: "deployment-deleted",
+			},
+		}
+
+		for _, pool := range pools {
+			err := store.db.Create(pool).Error()
+			if err != nil {
+				tt.Fatalf("Failed to create pool: %v", err)
+			}
+		}
+
+		// Soft delete the second pool
+		err = store.db.GORM().Delete(&pools[1]).Error
+		if err != nil {
+			tt.Fatalf("Failed to delete pool: %v", err)
+		}
+
+		// Test without including deleted
+		poolIds, err := store.ListPoolUUIDs(context.Background(), nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, poolIds, 1)
+		assert.Equal(tt, "test-pool-uuid-1", poolIds[0].UUID)
+
+		// Test with filter that includes deleted
+		poolIds, err = store.ListPoolUUIDs(context.Background(), &utils.Filter{IncludeDeleted: true})
+		assert.NoError(tt, err)
+		assert.Len(tt, poolIds, 2)
+
+		// Create a map for easier lookup
+		poolMap := make(map[string]*PoolIdentifier)
+		for _, p := range poolIds {
+			poolMap[p.UUID] = p
+		}
+
+		// Verify both pools are present
+		assert.Contains(tt, poolMap, "test-pool-uuid-1")
+		assert.Contains(tt, poolMap, "test-pool-uuid-2")
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, mock, err := sqlmock.New()
+		if err != nil {
+			tt.Fatalf("Failed to create sqlmock: %v", err)
+		}
+		gdb, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
+		if err != nil {
+			tt.Fatalf("Failed to open gorm db: %v", err)
+		}
+		wrapper := gormwrapper.New(gdb)
+		store := NewDataStoreRepository(wrapper)
+
+		// Mock the query to return an error
+		mock.ExpectQuery("SELECT uuid, vendor_id, name, account_id FROM \"pools\"").
+			WillReturnError(sql.ErrConnDone)
+
+		poolIds, err := store.ListPoolUUIDs(context.Background(), nil)
+		assert.Error(tt, err)
+		assert.Nil(tt, poolIds)
+
+		// Verify all expectations were met
+		if err := mock.ExpectationsWereMet(); err != nil {
+			tt.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+}
