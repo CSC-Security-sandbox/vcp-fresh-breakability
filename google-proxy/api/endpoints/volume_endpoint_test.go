@@ -2070,6 +2070,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				{
 					Name:       gcpgenserver.NewOptString("test-lun"),
 					HostGroups: []string{"9760acf5-4638-11e7-9bdb-020073ca3333", "9760acf5-4638-11e7-9bdb-020073ca4444"},
+					OsType:     gcpgenserver.NewOptBlockDeviceV1betaOsType(gcpgenserver.BlockDeviceV1betaOsTypeLINUX),
 				},
 			},
 		}
@@ -2079,6 +2080,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.Len(t, out.BlockDevices, 1)
 		assert.Equal(t, "test-lun", out.BlockDevices[0].Name)
 		assert.Equal(t, []string{"9760acf5-4638-11e7-9bdb-020073ca3333", "9760acf5-4638-11e7-9bdb-020073ca4444"}, out.BlockDevices[0].HostGroups)
+		assert.Equal(t, "LINUX", out.BlockDevices[0].OSType)
 	})
 
 	t.Run("WhenMultipleBlockDevicesSet_ThenErrorIsReturned", func(t *testing.T) {

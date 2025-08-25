@@ -170,7 +170,30 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	// Avoid updating the lun if the size is not changed
 	if params.QuotaInBytes > volume.SizeInBytes {
-		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateLun, volume, params.QuotaInBytes, node).Get(ctx, nil)
+		updatedLun := &vsa.LunResponse{}
+		err = workflow.ExecuteActivity(ctx, updateActivity.GetVolumeFromONTAP, volume, &node).Get(ctx, &volResponse)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateLun, volume, volResponse.AvailableSpace, node).Get(ctx, &updatedLun)
+		lunName := utils.GetLunName(volume.Name)
+		if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+			blockDevices := *volume.VolumeAttributes.BlockDevices
+			for i := range blockDevices {
+				if blockDevices[i].Name == lunName {
+					blockDevice := &common.BlockDevice{
+						Name:            blockDevices[i].Name,
+						SizeInBytes:     updatedLun.Size,
+						OSType:          blockDevices[i].OSType,
+						LunSerialNumber: blockDevices[i].Identifier,
+						LunUUID:         blockDevices[i].LunUUID,
+					}
+					volumeAttachedHG := utils.GetHgUUIDs(blockDevices[i].HostGroupDetails)
+					blockDevice.HostGroups = volumeAttachedHG
+					params.BlockDevices = append(params.BlockDevices, blockDevice)
+				}
+			}
+		}
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}

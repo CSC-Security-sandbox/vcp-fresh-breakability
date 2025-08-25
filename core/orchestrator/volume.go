@@ -1293,6 +1293,11 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 					for _, volBlockDevice := range *volume.VolumeAttributes.BlockDevices {
 						if volBlockDevice.Name == paramBlockDevice.Name {
 							matchingBlockDevice = paramBlockDevice
+							// Validate that OSType cannot be changed
+							if paramBlockDevice.OSType != "" && paramBlockDevice.OSType != volBlockDevice.OSType {
+								return customerrors.NewUserInputValidationErr("Cannot update OSType for block device. OSType is immutable after creation")
+							}
+
 							// assign the read-only properties from the volume's BlockDevice
 							matchingBlockDevice.SizeInBytes = volBlockDevice.Size
 							matchingBlockDevice.OSType = volBlockDevice.OSType

@@ -242,7 +242,13 @@ func TestUpdateLun_Success(t *testing.T) {
 		Size:       int64(params.QuotaInBytes),
 	}).Return(nil)
 
-	err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(&vsa.LunResponse{}, nil)
+
+	_, err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -280,7 +286,13 @@ func TestUpdateLunWithBD_Success(t *testing.T) {
 		Size:       int64(params.QuotaInBytes),
 	}).Return(nil)
 
-	err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(&vsa.LunResponse{}, nil)
+
+	_, err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -319,7 +331,7 @@ func TestUpdateLun_Failure(t *testing.T) {
 		Size:       int64(params.QuotaInBytes),
 	}).Return(expectedErr)
 
-	err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	_, err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
 	assert.Error(t, err)
 	assert.EqualError(t, err, expectedErr.Error())
 	mockProvider.AssertExpectations(t)
@@ -407,7 +419,7 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 		Size:       int64(params.QuotaInBytes),
 	}).Return(conflictErr)
 
-	err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	_, err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }

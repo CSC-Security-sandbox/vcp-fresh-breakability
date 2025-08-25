@@ -572,6 +572,11 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				return nil, errors.NewUserInputValidationErr("BlockDevice name is required")
 			}
 
+			if blockDevice.OsType.IsSet() {
+				osType, _ := blockDevice.OsType.Get()
+				blockDeviceReq.OSType = (string)(osType)
+			}
+
 			if len(blockDevice.HostGroups) > 0 {
 				blockDeviceReq.HostGroups = DeduplicateSlice(blockDevice.HostGroups)
 			}

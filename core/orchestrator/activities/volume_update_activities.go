@@ -105,11 +105,11 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 }
 
 // UpdateLun updates the LUN associated with the volume in the VSA cluster
-func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.Volume, quotaInBytes int64, node *models.Node) error {
+func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.Volume, quotaInBytes int64, node *models.Node) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	lunName := utils.GetLunName(volume.Name)
 	var lunUUID string
@@ -129,14 +129,15 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			logger.Debugf("Lun %s size is same as existing size", volume.Name)
-			return nil
+			return nil, nil
 		}
 		logger.Errorf("Failed to update lun %s in vsa cluster: %v", volume.Name, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	logger.Debugf("Lun %s updated successfully in vsa cluster", volume.Name)
-	return nil
+
+	return LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
 }
 
 func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Context, volume *datamodel.Volume, iGroups []string, node *models.Node) error {

@@ -6981,6 +6981,43 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		assert.Contains(tt, err.Error(), "could not find matching BlockDevice")
 	})
 
+	t.Run("OSType_Update_ShouldReturnError", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Setup volume with BlockDevices
+		volumeBlockDevices := []datamodel.BlockDevice{
+			{
+				Name:       "test-lun-1",
+				Identifier: "lun-123",
+				Size:       107374182400,
+				OSType:     "LINUX",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:   "READY",
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices: &volumeBlockDevices,
+			},
+		}
+
+		// Setup update params with non-matching BlockDevice
+		params := &common.UpdateVolumeParams{
+			BlockDevices: []*common.BlockDevice{
+				{
+					Name:   "test-lun-1", // Doesn't match existing BlockDevice
+					OSType: "WINDOWS",
+				},
+			},
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Cannot update OSType for block device.")
+	})
+
 	t.Run("WithBlockProperties_ShouldValidateSuccessfully", func(tt *testing.T) {
 		ctx := context.Background()
 		se := &database.MockStorage{}
