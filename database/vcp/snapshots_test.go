@@ -418,7 +418,7 @@ func TestGetSnapshotByPoolID(t *testing.T) {
 		retrievedSnapshot, err := store.GetSnapshotByPoolID(ctx, nonExistentUUID, 1, 1, false)
 		assert.Error(tt, err, "Expected error when snapshot does not exist")
 		assert.Nil(tt, retrievedSnapshot, "Expected nil snapshot")
-		assert.ErrorContains(tt, err, "snapshot 'non-existent-uuid' not found", "Expected error 'snapshot 'non-existent-uuid' not found', got %v", err)
+		assert.ErrorContains(tt, err, "snapshot not found", "Expected error 'snapshot not found' not found', got %v", err)
 	})
 }
 

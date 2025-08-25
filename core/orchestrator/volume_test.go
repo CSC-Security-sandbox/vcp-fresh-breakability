@@ -1008,7 +1008,7 @@ func TestCreateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := createVolume(ctx, store, temporal, params)
 		assert.Nil(tt, volume, "Expected nil volume")
-		assert.EqualError(tt, err, "snapshot 'test-snapshot-id' not found")
+		assert.EqualError(tt, err, "snapshot not found")
 	})
 	t.Run("WhenParentSnapshotNotInReadyStateForCreateVolumeFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -1105,6 +1105,125 @@ func TestCreateVolume(t *testing.T) {
 		volume, _, err := createVolume(ctx, store, temporal, params)
 		assert.Nil(tt, volume, "Expected nil volume")
 		assert.ErrorContains(tt, err, "Restore snapshots across pool is not supported")
+	})
+	t.Run("WhenRestoreVolumeSizeLessThanParentVolumeSize", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create a parent volume with larger size
+		parentVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "test-parent-volume-uuid"},
+			Name:        "test_parent_volume",
+			AccountID:   account.ID,
+			PoolID:      pool.ID,
+			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GiB
+			State:       models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		// Create a snapshot from the parent volume
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			Volume:    parentVolume, // Link the snapshot to the parent volume
+		}
+
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_volume",
+			VendorID:     "test_vendor",
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50 GiB - smaller than parent volume
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.ErrorContains(tt, err, "Restore volume size cannot be less than the parent volume size")
 	})
 	t.Run("WhenCreateVolumeSuccessWithBP", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

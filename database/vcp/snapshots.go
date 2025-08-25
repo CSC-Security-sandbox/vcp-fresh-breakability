@@ -139,7 +139,7 @@ func (d *DataStoreRepository) GetSnapshotByPoolID(ctx context.Context, uuid stri
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "snapshot", &uuid)
+			return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "snapshot", nil)
 		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -149,7 +149,7 @@ func (d *DataStoreRepository) GetSnapshotByPoolID(ctx context.Context, uuid stri
 		return snapshot, nil
 	}
 
-	return nil, customerrors.NewBadRequestErr("Restore snapshots across pool is not supported")
+	return nil, customerrors.NewUserInputValidationErr("Restore snapshots across pool is not supported")
 }
 
 func (d *DataStoreRepository) GetSnapshotsWithCondition(ctx context.Context, filter utils2.Filter) ([]*datamodel.Snapshot, error) {

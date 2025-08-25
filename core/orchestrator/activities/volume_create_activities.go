@@ -131,7 +131,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	return res, nil
 }
 
-func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.LunResponse, error) {
+func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -153,7 +153,7 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 		LunName:    lunName,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
-		Size:       volume.SizeInBytes,
+		Size:       availableSpace,
 	})
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -714,14 +714,14 @@ func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, v
 }
 
 // InitiateSplitForVolume initiates a split for the given volume in ONTAP.
-func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) error {
+func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) (*vsa.VolumeResponse, error) {
 	if snapshot == nil {
-		return nil
+		return nil, nil
 	}
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	preSplitUpdateParams := &vsa.UpdateVolumeParams{
 		UUID:               volume.VolumeAttributes.ExternalUUID,
@@ -732,7 +732,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 	err = updateVolume(ctx, provider, *preSplitUpdateParams)
 	if err != nil {
 		logger.Errorf("Failed to update cloned volume %s in ontap before split: %v", volume.Name, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	logger.Debugf("Cloned volume %s updated successfully in ontap", volume.Name)
@@ -744,10 +744,19 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 	err = updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to initiate split %s in ontap: %v", volume.Name, err)
-		return err
+		return nil, err
 	}
 	logger.Debugf("Split %s initiated successfully in ontap", volume.Name)
-	return nil
+	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
+		UUID:       volume.VolumeAttributes.ExternalUUID,
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	})
+	if err != nil {
+		logger.Errorf("Failed to get volume %s from ontap after pre-split update: %v", volume.Name, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return volumeRes, nil
 }
 
 func ConvertToVSASnapshotPolicySchedules(schedules []*datamodel.SnapshotPolicySchedule) []*vsa.SnapshotPolicySchedule {

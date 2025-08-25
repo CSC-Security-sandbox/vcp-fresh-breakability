@@ -83,6 +83,11 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			logger.Error("Parent snapshot is not in a valid state for volume creation", "snapshot_state", dbSnapshot.State)
 			return nil, "", customerrors.NewUserInputValidationErr("Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
 		}
+		// Validate that restore volume size cannot be less than parent volume size
+		if dbSnapshot.Volume != nil && int64(params.QuotaInBytes) < dbSnapshot.Volume.SizeInBytes {
+			return nil, "", customerrors.NewUserInputValidationErr(
+				fmt.Sprintf("Restore volume size cannot be less than the parent volume size (%.2f GB)", float64(dbSnapshot.Volume.SizeInBytes)/1073741824))
+		}
 		params.Snapshot = dbSnapshot
 	}
 

@@ -94,7 +94,7 @@ func PreBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 }
 
 // PostBlockVolumeWorkflow handles post-provisioning for block volumes
-func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool) (*datamodel.Volume, error) {
+func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, postSplitAvailableSpace int64) (*datamodel.Volume, error) {
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var err error
 
@@ -118,8 +118,13 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	// Create LUN for block volume
 	var lun *vsa.LunResponse
 
-	if isRestoreFromBackup || isRestoreSnapshot {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node).Get(ctx, &lun)
+	if isRestoreSnapshot {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, postSplitAvailableSpace).Get(ctx, &lun)
+		if err != nil {
+			return nil, err
+		}
+	} else if isRestoreFromBackup {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +191,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 }
 
 // PostFileVolumeWorkflow handles post-provisioning for file volumes
-func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool) (*datamodel.Volume, error) {
+func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, availableSpace int64) (*datamodel.Volume, error) {
 	// Configure activity options for child workflow
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -366,6 +371,21 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
+	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
+	var postSplitVolumeRes *vsa.VolumeResponse
+	err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, &postSplitVolumeRes)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
+	var availableSpace int64
+	if postSplitVolumeRes != nil {
+		availableSpace = postSplitVolumeRes.AvailableSpace
+	} else {
+		// Fallback to volCreateResponse.AvailableSpace when no split operation was performed
+		availableSpace = volCreateResponse.AvailableSpace
+	}
+
 	if !isRestoreFromBackup {
 		// Post-provisioning child workflow
 		postWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
@@ -374,7 +394,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		var updatedVolume *datamodel.Volume
-		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot).Get(ctx, &updatedVolume)
+		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, availableSpace).Get(ctx, &updatedVolume)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -383,11 +403,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if updatedVolume != nil {
 			dbVolume = updatedVolume
 		}
-	}
-	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
-	err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
 	}
 
 	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" {

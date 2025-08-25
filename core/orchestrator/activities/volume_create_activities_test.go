@@ -2088,6 +2088,7 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 	volume := &datamodel.Volume{
 		Name:        "test-volume",
 		SizeInBytes: 107374182400, // 100 GiB
+		Svm:         &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "vol-uuid-1",
 			SnapReserve:  5,
@@ -2116,7 +2117,7 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
-		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		_, err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "provider error")
 		mockProvider.AssertExpectations(tt)
@@ -2148,7 +2149,15 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 				params.SnapshotPolicyName == "" &&
 				params.SnapReserve == nil
 		})).Return(nil).Once()
-		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+
+		// Mock the GetVolume call that happens after split initiation
+		mockProvider.On("GetVolume", mock.MatchedBy(func(params vsa.GetVolumeParams) bool {
+			return params.UUID == "vol-uuid-1" &&
+				params.VolumeName == "test-volume" &&
+				params.SvmName == "test-svm"
+		})).Return(&vsa.VolumeResponse{AvailableSpace: 1024}, nil).Once()
+
+		_, err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -2167,7 +2176,7 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 			return !params.InitiateSplit
 		})).Return(errors.New("failed to update cloned volume")).Once()
 
-		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		_, err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to update cloned volume")
 		mockProvider.AssertExpectations(tt)
@@ -2192,7 +2201,7 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 			return params.InitiateSplit == true
 		})).Return(errors.New("failed to initiate split")).Once()
 
-		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		_, err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to initiate split")
 		mockProvider.AssertExpectations(tt)
@@ -2206,7 +2215,7 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		err := activity.InitiateSplitForVolume(ctx, volume, node, nil)
+		_, err := activity.InitiateSplitForVolume(ctx, volume, node, nil)
 		assert.NoError(tt, err)
 	})
 }
@@ -2239,7 +2248,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 
-		lun, err := activity.UpdateLunName(ctx, volume, node)
+		lun, err := activity.UpdateLunName(ctx, volume, node, 1024)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, lun)
@@ -2266,7 +2275,7 @@ func TestUpdateLunName(t *testing.T) {
 
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node)
+		lun, err := activity.UpdateLunName(ctx, volume, node, 1024)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
@@ -2299,7 +2308,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 		mockProvider.On("LunUpdate", mock.Anything).Return(errors.New("failed to update lun"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node)
+		lun, err := activity.UpdateLunName(ctx, volume, node, 1024)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
@@ -2333,7 +2342,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node)
+		lun, err := activity.UpdateLunName(ctx, volume, node, 1024)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
