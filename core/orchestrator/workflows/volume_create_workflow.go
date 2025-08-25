@@ -2,8 +2,6 @@ package workflows
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -25,8 +23,7 @@ type volumeCreateWorkflow struct {
 }
 
 var (
-	runningEnv    = env.GetString("ENV", "")
-	workflowSleep = workflow.Sleep
+	runningEnv = env.GetString("ENV", "")
 )
 
 // Volume provisioning phases
@@ -97,10 +94,9 @@ func PreBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 }
 
 // PostBlockVolumeWorkflow handles post-provisioning for block volumes
-func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool) (*datamodel.Volume, error) {
+func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool) (*datamodel.Volume, error) {
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var err error
-	var hostGroups []*datamodel.HostGroup
 
 	// Configure activity options for child workflow
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -118,20 +114,6 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
-
-	// Get host groups for block volume
-	err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &dbVolume).Get(ctx, &hostGroups)
-	if err != nil {
-		return nil, err
-	}
-
-	hostParams := createHostParamsFromHostGroups(hostGroups, dbVolume)
-
-	// Create igroup for block volume
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, node).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(fmt.Errorf("failed to create igroup: %w", err))
-	}
 
 	// Create LUN for block volume
 	var lun *vsa.LunResponse
@@ -204,7 +186,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 }
 
 // PostFileVolumeWorkflow handles post-provisioning for file volumes
-func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool) (*datamodel.Volume, error) {
+func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool) (*datamodel.Volume, error) {
 	// Configure activity options for child workflow
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -358,99 +340,50 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteVolumeInONTAP, volCreateResponse.ExternalUUID, dbVolume.Name, &node) // This will delete the lunMap & lun if exists
 
+	var hostGroups []*datamodel.HostGroup
+	var hostParams []*common.HostParams
+	if utils.IsSanProtocols(dbVolume.VolumeAttributes.Protocols) {
+		// Get host groups for block volume
+		err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &dbVolume).Get(ctx, &hostGroups)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		hostParams = createHostParamsFromHostGroups(hostGroups, dbVolume)
+
+		// Create igroup for block volume
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(fmt.Errorf("failed to create igroup: %w", err))
+		}
+	}
 	// If isRestoreFromBackup is true, we will restore the volume from the backup
 	// backup path example: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName"
 	if isRestoreFromBackup {
-		objStore := &common.CloudTarget{}
-		backupActivity := &activities.BackupActivity{}
-		var smDestinationPath string
-		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, dbVolume).Get(ctx, &smDestinationPath)
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateRestoreWorkflow, createVolumeParams, &dbVolume, &hostParams, backupVault, backup, &volCreateResponse).Get(ctx, nil)
 		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		var smSourcePath string
-		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathForRestoreActivity, backupVault, backup).Get(ctx, &smSourcePath)
-		log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
-		log.Debugf("\nsmSourcePath: %v", smSourcePath)
-
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-
-		snapmirrorRelationship := &common.SnapmirrorRelationship{}
-		SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
-			SourcePath:      smSourcePath,
-			DestinationPath: smDestinationPath,
-			SourceUUID:      &backup.Attributes.EndpointUUID,
-			IsRestore:       true,
-		}
-
-		objStoreName, err := activities.GetObjStoreNameFromBackup(backupVault, backup)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-
-		bucketDetails, err := activities.GetBucketDetailsFromBackup(backupVault, backup)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		bucketName := bucketDetails.BucketName
-		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetOrCreateObjectStore, node, objStoreName, bucketName).Get(ctx, &objStore)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorGetOrCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, "").Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		// TODO: Make this a backukground job
-		done := false
-		var status string
-		for !done {
-			err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetSnapmirrorTransferStatus, node, snapmirrorRelationship.UUID, "").Get(ctx, &status)
-			if err != nil {
-				return nil, ConvertToVSAError(err)
-			}
-			switch status {
-			case activities.SmStatusTransferring:
-				err := workflow.Sleep(ctx, Wait) // Wait before polling again
-				if err != nil {
-					return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err))
-				}
-			case activities.SmStatusSuccess:
-				// temporary fix to allow the volume to be available as RW in ONTAP to perform LunUpdate()
-				err := workflowSleep(ctx, 10*time.Second) // permanent fix in progress VSCP-1493
-				if err != nil {
-					return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err))
-				}
-				log.Debugf("Snapmirror transfer completed successfully")
-				done = true
-			case activities.SmStatusFailed:
-				return nil, ConvertToVSAError(fmt.Errorf("snapmirror transfer failed for restore with status: %s", status))
-			}
+			return nil, ConvertToVSAError(fmt.Errorf("failed to create Restore Workflow: %w", err))
 		}
 	}
 
-	// Post-provisioning child workflow
-	postWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	var updatedVolume *datamodel.Volume
-	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot).Get(ctx, &updatedVolume)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
+	if !isRestoreFromBackup {
+		// Post-provisioning child workflow
+		postWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 
-	// Update the dbVolume with the changes from the child workflow
-	if updatedVolume != nil {
-		dbVolume = updatedVolume
-	}
+		var updatedVolume *datamodel.Volume
+		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot).Get(ctx, &updatedVolume)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 
+		// Update the dbVolume with the changes from the child workflow
+		if updatedVolume != nil {
+			dbVolume = updatedVolume
+		}
+	}
 	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
 	err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, nil)
 	if err != nil {

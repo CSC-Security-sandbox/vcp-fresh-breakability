@@ -27,6 +27,7 @@ const (
 	JobTypeCreateSnapshot                    JobType = "CREATE_SNAPSHOT"
 	JobTypeUpdateSnapshot                    JobType = "UPDATE_SNAPSHOT"
 	JobTypeDeleteSnapshot                    JobType = "DELETE_SNAPSHOT"
+	JobTypeRestoreBackup                     JobType = "RESTORE_BACKUP"
 	JobTypeAcceptClusterPeer                 JobType = "ACCEPT_CLUSTER_PEER"
 	JobTypeUpdateKmsConfig                   JobType = "UPDATE_KMS_CONFIG"
 	JobTypeCreateKmsConfig                   JobType = "CREATE_KMS_CONFIG"

@@ -68,6 +68,7 @@ type VolumeResponse struct {
 	SnapshotPolicyName string
 	SnapReserve        int64
 	UsedBytes          int64
+	Type               string
 	Encryption
 }
 
@@ -199,6 +200,7 @@ type GetVolumeParams struct {
 	UUID       string
 	VolumeName string
 	SvmName    string
+	IsRestore  bool
 }
 
 type IgroupCreateParams struct {

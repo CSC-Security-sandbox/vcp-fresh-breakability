@@ -1591,6 +1591,7 @@ func TestGetVolumeFromONTAP_Success(t *testing.T) {
 		UUID:       volume.VolumeAttributes.ExternalUUID,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
+		IsRestore:  false,
 	}).Return(expectedRes, nil)
 
 	res, err := activity.GetVolumeFromONTAP(ctx, volume, node)
@@ -1623,6 +1624,7 @@ func TestGetVolumeFromONTAP_Error(t *testing.T) {
 		UUID:       volume.VolumeAttributes.ExternalUUID,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
+		IsRestore:  false,
 	}).Return(nil, expectedErr)
 
 	res, err := activity.GetVolumeFromONTAP(ctx, volume, node)

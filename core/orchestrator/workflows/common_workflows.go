@@ -32,9 +32,9 @@ const (
 	WorkflowStatusAborted   = "ABORTED"
 	WorkflowStatusPending   = "PENDING"
 
-	StatusQueryName = "status"
-
-	pollDBJobWaitTimeSecond = 30
+	StatusQueryName            = "status"
+	RestoreStartToCloseTimeout = 6 * 24 * time.Hour // 6 days
+	pollDBJobWaitTimeSecond    = 30
 )
 
 var (

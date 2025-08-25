@@ -562,6 +562,7 @@ func TestGetVolume_WhenVolumeGetReturnsError_ThenReturnError(t *testing.T) {
 		UUID:       volumeUUID,
 		VolumeName: volumeName,
 		SvmName:    svmName,
+		IsRestore:  false,
 	}
 	resp, err := rc.GetVolume(params)
 
@@ -595,6 +596,7 @@ func TestGetVolume_WhenVolumeGetReturnsNilVolume_ThenReturnNotFoundError(t *test
 		UUID:       volumeUUID,
 		VolumeName: volumeName,
 		SvmName:    svmName,
+		IsRestore:  false,
 	}
 	resp, err := rc.GetVolume(params)
 
@@ -635,6 +637,7 @@ func TestGetVolume_WhenVolumeGetReturnsVolumeWithNilNameOrUUID_ThenReturnNotFoun
 		UUID:       volumeUUID,
 		VolumeName: volumeName,
 		SvmName:    svmName,
+		IsRestore:  false,
 	}
 	resp, err := rc.GetVolume(params)
 	assert.Error(t, err)
@@ -677,6 +680,7 @@ func TestGetVolume_WhenVolumeGetReturnsError_getOntapClientFuncError(t *testing.
 		UUID:       volumeUUID,
 		VolumeName: volumeName,
 		SvmName:    svmName,
+		IsRestore:  false,
 	}
 	resp, err := rc.GetVolume(params)
 
@@ -838,6 +842,7 @@ func TestVolumeEncryptionStatus(t *testing.T) {
 		UUID:       volumeUUID,
 		VolumeName: volumeName,
 		SvmName:    svmName,
+		IsRestore:  false,
 	}
 	t.Run("WhenGetVolumeEncryptionStatusReturnsError", func(tt *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
@@ -933,7 +938,6 @@ func TestVolumeEncryptionStatus(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.Encryption)
 		assert.True(tt, *result.Enabled)
-		assert.Equal(tt, "volume", *result.Type)
 		assert.Equal(tt, "encrypted", *result.Encryption.State)
 	})
 }

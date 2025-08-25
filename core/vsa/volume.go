@@ -127,16 +127,26 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		Name:    params.VolumeName,
 		SvmName: &params.SvmName,
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"uuid", "name", "space.*", "state", "snapshot_policy.name"},
+			Fields: []string{"uuid", "name", "space.*", "state", "snapshot_policy.name", "type"},
 		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	if vol == nil || vol.Name == nil || vol.UUID == nil || vol.Space == nil || vol.Space.LogicalSpace == nil {
+	if vol == nil || vol.Name == nil || vol.UUID == nil || vol.Space == nil {
 		return nil, errors.NewNotFoundErr("volume", nil)
 	}
-
+	if !params.IsRestore && vol.Space.LogicalSpace == nil {
+		return nil, errors.NewNotFoundErr("volume", nil)
+	}
+	usedBytes := int64(0)
+	if vol.Space.LogicalSpace != nil && vol.Space.LogicalSpace.Used != nil {
+		usedBytes = nillable.FromPointer(vol.Space.LogicalSpace.Used)
+	}
+	volType := ""
+	if vol.Type != nil {
+		volType = *vol.Type
+	}
 	res := &VolumeResponse{
 		ProviderResponse: ProviderResponse{
 			Name:         *vol.Name,
@@ -145,9 +155,10 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		AvailableSpace: *vol.Space.Available,
 		Size:           *vol.Space.Size,
 		State:          *vol.State,
-		UsedBytes:      nillable.FromPointer(vol.Space.LogicalSpace.Used),
+		UsedBytes:      usedBytes,
 		// by default, volume will always have none as the snapshot policy
 		SnapshotPolicyName: *vol.SnapshotPolicy.Name,
+		Type:               volType,
 	}
 	if vol.Space.SizeAvailableForSnapshots != nil {
 		res.SnapReserve = *vol.Space.SizeAvailableForSnapshots

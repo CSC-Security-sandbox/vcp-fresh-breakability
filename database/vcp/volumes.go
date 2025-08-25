@@ -35,7 +35,7 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 	err2 := tx.Where("name = ?", volume.Name).Where("account_id = ?", volume.AccountID).First(&volume).Error
 	if errors.Is(err2, gorm.ErrRecordNotFound) {
 		volume.UUID = utils.RandomUUID()
-		if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupID != "" && volume.VolumeAttributes.RestoredBackupPath != "" {
+		if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
 			// This is volume restore case
 			volume.State = models.LifeCycleStateRestoring
 			volume.StateDetails = models.LifeCycleStateRestoringDetails

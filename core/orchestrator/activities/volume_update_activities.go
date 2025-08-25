@@ -85,11 +85,15 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
+	isRestore := false
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
+		isRestore = true
+	}
 	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
 		UUID:       volume.VolumeAttributes.ExternalUUID,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
+		IsRestore:  isRestore,
 	})
 
 	if err != nil {

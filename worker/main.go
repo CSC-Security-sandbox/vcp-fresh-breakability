@@ -170,6 +170,11 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.DeleteScheduledBackupWorkflow)
 	worker.RegisterWorkflow(workflows.VolumeRefreshWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.RotateKmsSAKeyWorkflow)
+	worker.RegisterWorkflow(workflows.RestoreBackupWorkflow)
+	worker.RegisterWorkflow(workflows.PreBlockVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.PostBlockVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.PreFileVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.PostFileVolumeWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -180,6 +185,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundworkflows.SyncSnapshotWFRunningCheck{})
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
+	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
 }
 
 // initializeTemporalClient initializes and returns a TemporalWorkflowEngine client.
@@ -254,6 +260,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.UpdateResourceStateCommonResourceOFFWorkflow)
 	worker.RegisterWorkflow(workflows.FinishProjectEventDeleteStateWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteBackupPolicyWorkflow)
+	worker.RegisterWorkflow(workflows.RestoreBackupWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReplicationCleanupWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())

@@ -279,7 +279,7 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024, State: "online"}
 
 	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
-	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(expectedResponse, nil)
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm", IsRestore: false}).Return(expectedResponse, nil)
 
 	// Act
 	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
@@ -1187,7 +1187,7 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	node := &models.Node{}
 
 	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
-	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(nil, errors.New("volume not found"))
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm", IsRestore: false}).Return(nil, errors.New("volume not found"))
 
 	// Act
 	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
@@ -1210,6 +1210,7 @@ func TestHandleVolumeCreateConflict_SuccessOnline(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
+		IsRestore:  false,
 	}).Return(expectedRes, nil)
 
 	res, err := activities.HandleVolumeCreateConflict(volume, mockProvider)
@@ -1233,6 +1234,7 @@ func TestHandleVolumeCreateConflict_NotOnline_DeleteSuccess(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
+		IsRestore:  false,
 	}).Return(volRes, nil)
 	mockProvider.On("DeleteVolume", "uuid-123", "test-volume").Return(nil)
 
@@ -1252,6 +1254,7 @@ func TestHandleVolumeCreateConflict_GetVolumeError(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
+		IsRestore:  false,
 	}).Return(nil, errors.New("get volume error"))
 
 	res, err := activities.HandleVolumeCreateConflict(volume, mockProvider)
@@ -1276,6 +1279,7 @@ func TestHandleVolumeCreateConflict_DeleteVolumeError(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
+		IsRestore:  false,
 	}).Return(volRes, nil)
 	mockProvider.On("DeleteVolume", "uuid-123", "test-volume").Return(errors.New("delete error"))
 

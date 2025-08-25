@@ -2,7 +2,11 @@ package activities
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
@@ -20,8 +24,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/sdk/client"
 )
 
 const (
@@ -31,6 +35,7 @@ const (
 	CrossRegionBackupType        = "CROSS_REGION"
 	ImmutableBackupVaultErrMsg   = "Immutable backup vaults are not supported for ISCSI volumes"
 	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
+	RestoreBackupWorkflow        = "RestoreBackupWorkflow"
 )
 
 type VolumeCreateActivity struct {
@@ -50,6 +55,12 @@ var (
 	CreateBackupPolicyFetchedFromSDE = _createBackupPolicyFetchedFromSDE
 	CreateBackupPolicySchedule       = _createBackupPolicySchedule
 )
+
+var fetchTemporalClient = _fetchTemporalClient
+
+func _fetchTemporalClient(ctx context.Context) client.Client {
+	return activity.GetClient(ctx)
+}
 
 func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	se := a.SE
@@ -197,9 +208,14 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 }
 
 func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider) (*vsa.VolumeResponse, error) {
+	isRestore := false
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
+		isRestore = true
+	}
 	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
+		IsRestore:  isRestore,
 	})
 	if err != nil {
 		return nil, err
@@ -341,9 +357,14 @@ func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *d
 	se := a.SE
 
 	volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
-	volume.State = models.LifeCycleStateREADY
-	volume.StateDetails = models.LifeCycleStateAvailableDetails
-
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
+		// This is volume restore case
+		volume.State = models.LifeCycleStateRestoring
+		volume.StateDetails = models.LifeCycleStateRestoringDetails
+	} else {
+		volume.State = models.LifeCycleStateREADY
+		volume.StateDetails = models.LifeCycleStateAvailableDetails
+	}
 	if err := se.UpdateVolume(ctx, volume); err != nil {
 		return err
 	}
@@ -837,5 +858,49 @@ func _createBackupPolicySchedule(ctx context.Context, temporalScheduler *schedul
 		logger.Errorf("Failed to create backup policy schedule: %v", err)
 		return err
 	}
+	return nil
+}
+
+func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createVolumeParams *common.CreateVolumeParams, volume *datamodel.Volume, hostParams []*common.HostParams, backupVault *datamodel.BackupVault, backup *datamodel.Backup, volCreateResponse *vsa.VolumeResponse) error {
+	logger := util.GetLogger(ctx)
+	logger.Infof("Creating backup restore workflow for backup: %s", backup.Name)
+	se := a.SE
+	jobType := models.JobTypeRestoreBackup
+	job := &datamodel.Job{
+		Type:          string(jobType),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  volume.Name,
+		AccountID:     sql.NullInt64{Int64: volume.Account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create snapshot delete job in database %v", err)
+		return err
+	}
+
+	temporalClient := fetchTemporalClient(ctx)
+	_, err = temporalClient.ExecuteWorkflow(
+		ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		RestoreBackupWorkflow,
+		createVolumeParams,
+		volume,
+		backupVault,
+		backup,
+		hostParams,
+		volCreateResponse,
+	)
+	if err != nil {
+		logger.Error("Failed to start restore backup workflow: ", "error", err)
+		return err
+	}
+
 	return nil
 }
