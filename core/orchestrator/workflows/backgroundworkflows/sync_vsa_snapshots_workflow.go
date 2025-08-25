@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -65,61 +64,17 @@ func SyncVSASnapshotsWorkflow(ctx workflow.Context) error {
 			continue
 		}
 		syncSnapshotForPoolWFID := fmt.Sprintf(SyncSnapshotsPoolWFPlaceholder, pool.AccountID, location, pool.Name)
-
-		var isWFRunning *bool
-		syncSnapshotWFRunningCheck := &SyncSnapshotWFRunningCheck{}
-
-		// Use a context with a single retry attempt to check if the workflow is running.
-		// This is to avoid long delays when checking the workflow status.
-		// We don't want to block the main workflow for too long while checking the status of each pool's sync workflow.
-		ctxWithSingleRetry := workflow.WithRetryPolicy(ctx, temporal.RetryPolicy{
-			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
-			MaximumInterval:        retryPolicy.MaximumInterval,
-			MaximumAttempts:        1,
-			NonRetryableErrorTypes: []string{"PanicError"},
-		})
-		err = workflow.ExecuteActivity(ctxWithSingleRetry, syncSnapshotWFRunningCheck.IsSyncSnapshotForPoolRunning, syncSnapshotForPoolWFID).Get(ctxWithSingleRetry, &isWFRunning)
-		if err != nil {
-			// If checking the workflow status, fails, we try to start a new one.
-			logger.Warn("Failed to check if sync snapshot workflow is running.", "Error", err, "PoolName", pool.Name)
-		}
-
-		// If the workflow is already running, skip starting a new one.
-		// This prevents multiple workflows from running concurrently for the same pool.
-		if isWFRunning != nil && *isWFRunning {
-			logger.Info("Sync snapshot workflow is already running for pool, skipping", "PoolName", pool.Name, "WorkflowID", syncSnapshotForPoolWFID)
-			continue
-		}
-
-		cwo := workflow.ChildWorkflowOptions{
-			WorkflowID:            syncSnapshotForPoolWFID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
-			// Since it's an independent pool level workflow, we can set the ParentClosePolicy to abandon.
-			// This means that if the parent workflow is closed, this child workflow will continue to run.
-			// And since we have a workflow timeout set, it will eventually complete or fail and not orphan out.
-			ParentClosePolicy:  enums.PARENT_CLOSE_POLICY_ABANDON,
-			WorkflowRunTimeout: temporalutils.GetWorkflowGlobalTimeout(),
-		}
-		ctxWithCWO := workflow.WithChildOptions(ctx, cwo)
-
-		// Add extra logger fields to the child workflow context for better traceability.
-		// This will help in identifying the parent workflow ID in the logs of the child workflow.
-		// It is useful for debugging and tracing the execution flow of the workflows.
-		ctxWithCWO = util.AddExtraLoggerFields(ctxWithCWO, map[string]interface{}{
+		startSyncPoolWFActivity := &StartSyncSnapshotForPoolActivity{}
+		ctxWithParentWFID := util.AddExtraLoggerFields(ctx, map[string]interface{}{
 			"parentWorkflowID": workflow.GetInfo(ctx).WorkflowExecution.ID,
 		})
 
-		logger.Info("Starting asynchronous synchronization of snapshots for pool", "PoolName", pool.Name)
-		workflow.ExecuteChildWorkflow(ctxWithCWO, SyncSnapshotsForPoolWorkflow, pool)
+		err = workflow.ExecuteActivity(ctxWithParentWFID, startSyncPoolWFActivity.StartSyncSnapshotForPoolWFActivity, syncSnapshotForPoolWFID, pool).Get(ctxWithParentWFID, nil)
+		if err != nil {
+			// Logging and not returning error to ensure that the other pools can still be processed.
+			logger.Warnf("Failed to start sync snapshot workflow for pool %s, error: %v", pool.Name, err)
+		}
 	}
-
-	// Sleep for a short duration to allow the last child workflow to initiate before the parent workflow completes.
-	err = workflow.Sleep(ctx, 1*time.Second)
-	if err != nil {
-		logger.Error("Failed to sleep after starting child workflows", "Error", err)
-	}
-
 	return nil
 }
 
@@ -263,24 +218,34 @@ func _fetchTemporalClient(ctx context.Context) client.Client {
 	return activity.GetClient(ctx)
 }
 
-type SyncSnapshotWFRunningCheck struct{}
+type StartSyncSnapshotForPoolActivity struct{}
 
-// IsSyncSnapshotForPoolRunning checks if a sync snapshot workflow is already running for the given workflow ID.
-func (a *SyncSnapshotWFRunningCheck) IsSyncSnapshotForPoolRunning(ctx context.Context, workflowID string) (bool, error) {
+// StartSyncSnapshotForPoolWFActivity starts a workflow to synchronize snapshots for a specific pool asynchronously.
+func (a *StartSyncSnapshotForPoolActivity) StartSyncSnapshotForPoolWFActivity(ctx context.Context, workflowID string, poolIdentifier *database.PoolIdentifier) error {
 	temporalClient := fetchTemporalClient(ctx)
-	// Sending empty string as the runID will query the latest workflow run with the given workflowID.
-	syncWFStatus, err := workflows.QueryWorkflowStatus(ctx, temporalClient, workflowID, "")
+	logger := util.GetLogger(ctx)
+
+	logger.Info("Starting asynchronous synchronization of snapshots for pool", "PoolName", poolIdentifier.Name)
+
+	_, err := temporalClient.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             temporalutils.BackgroundTaskQueue,
+			ID:                    workflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
+			WorkflowRunTimeout:    temporalutils.GetWorkflowGlobalTimeout(),
+			// If a workflow with the same ID is already running, use the existing one.
+			// This prevents duplicate workflows for the same pool.
+			WorkflowIDConflictPolicy: enums.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
+		},
+		SyncSnapshotsForPoolWorkflow,
+		poolIdentifier,
+	)
 	if err != nil {
-		return false, err
+		logger.Errorf("Failed to start workflow for pool: %s, error: %v", poolIdentifier.Name, err)
+		return err
 	}
 
-	if syncWFStatus.Status == workflows.WorkflowStatusFailed {
-		// If the workflow has failed, we can consider it as not running.
-		return false, nil
-	}
+	logger.Infof("Started sync workflow for pool: %s with workflow ID: %s", poolIdentifier.Name, workflowID)
 
-	if syncWFStatus.Status != workflows.WorkflowStatusCompleted {
-		return true, nil
-	}
-	return false, nil
+	return nil
 }

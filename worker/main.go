@@ -183,7 +183,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
 	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
-	worker.RegisterActivity(&backgroundworkflows.SyncSnapshotWFRunningCheck{})
+	worker.RegisterActivity(&backgroundworkflows.StartSyncSnapshotForPoolActivity{})
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
 }

@@ -24,11 +24,11 @@ func TestSyncVSASnapshotsWorkflow_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
-	syncSSWfCheck := &SyncSnapshotWFRunningCheck{}
+	startSSWF := &StartSyncSnapshotForPoolActivity{}
 
 	// Register activities
 	env.RegisterActivity(backgroundActivities)
-	env.RegisterActivity(syncSSWfCheck)
+	env.RegisterActivity(startSSWF)
 
 	// Mock test data
 	pools := []*database.PoolIdentifier{
@@ -49,8 +49,8 @@ func TestSyncVSASnapshotsWorkflow_Success(t *testing.T) {
 	// Mock ListPools activity to return test pools
 	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
-	// Mock IsSyncSnapshotForPoolRunning to return false (not running) for all pools
-	env.OnActivity(syncSSWfCheck.IsSyncSnapshotForPoolRunning, mock.Anything, mock.Anything).Return(false, nil).Times(len(pools))
+	// Mock StartSyncSnapshotForPoolWFActivity to return nil for all pools
+	env.OnActivity(startSSWF.StartSyncSnapshotForPoolWFActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Times(len(pools))
 
 	// Mock child workflow executions
 	for _, pool := range pools {
@@ -84,55 +84,15 @@ func TestSyncVSASnapshotsWorkflow_ListPoolsError(t *testing.T) {
 	assert.Error(t, env.GetWorkflowError())
 }
 
-func TestSyncVSASnapshotsWorkflow_AlreadyRunningWorkflows(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
-	syncSSWfCheck := &SyncSnapshotWFRunningCheck{}
-
-	// Register activities
-	env.RegisterActivity(backgroundActivities)
-	env.RegisterActivity(syncSSWfCheck)
-
-	// Mock test data
-	pools := []*database.PoolIdentifier{
-		{
-			Name:      "test-pool-1",
-			AccountID: 123,
-			VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool-1",
-			UUID:      "test-pool-1",
-		},
-		{
-			Name:      "test-pool-2",
-			AccountID: 124,
-			VendorID:  "/projects/test-project/locations/us-west1/pools/test-pool-2",
-			UUID:      "test-pool-2",
-		},
-	}
-
-	// Mock ListPools activity
-	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-
-	// Mock IsSyncSnapshotForPoolRunning to return true (already running) for all pools
-	env.OnActivity(syncSSWfCheck.IsSyncSnapshotForPoolRunning, mock.Anything, mock.Anything).Return(true, nil)
-
-	// Execute workflow
-	env.ExecuteWorkflow(SyncVSASnapshotsWorkflow)
-
-	// Assert workflow completion
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
-}
-
 func TestSyncVSASnapshotsWorkflow_InvalidVendorID(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
-	syncSSWfCheck := &SyncSnapshotWFRunningCheck{}
+	startSSWF := &StartSyncSnapshotForPoolActivity{}
 
 	// Register activities
 	env.RegisterActivity(backgroundActivities)
-	env.RegisterActivity(syncSSWfCheck)
+	env.RegisterActivity(startSSWF)
 
 	// Mock test data with invalid vendor ID
 	pools := []*database.PoolIdentifier{
@@ -158,11 +118,11 @@ func TestSyncVSASnapshotsWorkflow_CheckRunningError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
-	syncSSWfCheck := &SyncSnapshotWFRunningCheck{}
+	startSSWF := &StartSyncSnapshotForPoolActivity{}
 
 	// Register activities
 	env.RegisterActivity(backgroundActivities)
-	env.RegisterActivity(syncSSWfCheck)
+	env.RegisterActivity(startSSWF)
 
 	// Mock test data
 	pools := []*database.PoolIdentifier{
@@ -177,8 +137,8 @@ func TestSyncVSASnapshotsWorkflow_CheckRunningError(t *testing.T) {
 	// Mock ListPools activity
 	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
-	// Mock IsSyncSnapshotForPoolRunning to return error
-	env.OnActivity(syncSSWfCheck.IsSyncSnapshotForPoolRunning, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	// Mock StartSyncSnapshotForPoolWFActivity to return error
+	env.OnActivity(startSSWF.StartSyncSnapshotForPoolWFActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
 	// Mock child workflow execution (should still execute despite check error)
 	env.OnWorkflow(SyncSnapshotsForPoolWorkflow, mock.Anything, pools[0]).Return(nil)
@@ -341,7 +301,7 @@ func TestSyncSnapshotsForPoolWorkflow_FetchPoolError(t *testing.T) {
 
 	// Mock FetchPoolByUUID to return the pool
 	env.OnActivity(backgroundActivity.FetchPoolByUUID, mock.Anything, pool.UUID, pool.AccountID).Return(nil, fmt.Errorf("failed to fetch pool"))
-	
+
 	// Execute workflow
 	env.ExecuteWorkflow(SyncSnapshotsForPoolWorkflow, &database.PoolIdentifier{
 		Name:      pool.Name,
@@ -860,10 +820,26 @@ func TestSyncSnapshotsForPoolWorkflow_HydrateSnapshotsToCCFEError(t *testing.T) 
 	assert.Equal(t, strconv.FormatInt(pool.AccountID, 10), status.CustomerID)
 }
 
-func TestIsSyncSnapshotForPoolRunning(t *testing.T) {
-	// Setup
-	syncSSWfCheck := &SyncSnapshotWFRunningCheck{}
-	ctx := context.Background()
+func TestStartSyncSnapshotForPoolWFActivity_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
+	startSyncActivity := &StartSyncSnapshotForPoolActivity{}
+	// Register activity
+	env.RegisterActivity(backgroundActivities)
+	env.RegisterActivity(startSyncActivity)
+
+	// Test data
+	pool := &database.PoolIdentifier{
+		Name:      "test-pool",
+		AccountID: 123,
+		VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool",
+		UUID:      "test-pool",
+	}
+
+	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return([]*database.PoolIdentifier{
+		pool,
+	}, nil).Once()
 
 	// Mock fetchTemporalClient and workflows.QueryWorkflowStatus
 	originalFetchTemporalClient := fetchTemporalClient
@@ -873,44 +849,58 @@ func TestIsSyncSnapshotForPoolRunning(t *testing.T) {
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockClient
 	}
+	// Mock workflow execution
+	mockClient.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
-	// Case 1: QueryWorkflowStatus returns error
-	workflows.QueryWorkflowStatus = func(ctx context.Context, c client.Client, workflowID, runID string) (*workflows.WorkflowStatus, error) {
-		return nil, fmt.Errorf("query error")
-	}
-	running, err := syncSSWfCheck.IsSyncSnapshotForPoolRunning(ctx, "wf-id")
-	assert.False(t, running)
-	assert.Error(t, err)
+	// Execute workflow
+	env.ExecuteWorkflow(SyncVSASnapshotsWorkflow)
 
-	// Case 2: WorkflowStatusFailed
-	workflows.QueryWorkflowStatus = func(ctx context.Context, c client.Client, workflowID, runID string) (*workflows.WorkflowStatus, error) {
-		return &workflows.WorkflowStatus{Status: workflows.WorkflowStatusFailed}, nil
-	}
-	running, err = syncSSWfCheck.IsSyncSnapshotForPoolRunning(ctx, "wf-id")
-	assert.False(t, running)
-	assert.NoError(t, err)
+	// Assert workflow completion
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
 
-	// Case 3: WorkflowStatusCompleted
-	workflows.QueryWorkflowStatus = func(ctx context.Context, c client.Client, workflowID, runID string) (*workflows.WorkflowStatus, error) {
-		return &workflows.WorkflowStatus{Status: workflows.WorkflowStatusCompleted}, nil
-	}
-	running, err = syncSSWfCheck.IsSyncSnapshotForPoolRunning(ctx, "wf-id")
-	assert.False(t, running)
-	assert.NoError(t, err)
+	// Verify that CheckRunningWorkflow was called
+	env.AssertExpectations(t)
+}
 
-	// Case 4: WorkflowStatusRunning
-	workflows.QueryWorkflowStatus = func(ctx context.Context, c client.Client, workflowID, runID string) (*workflows.WorkflowStatus, error) {
-		return &workflows.WorkflowStatus{Status: workflows.WorkflowStatusRunning}, nil
-	}
-	running, err = syncSSWfCheck.IsSyncSnapshotForPoolRunning(ctx, "wf-id")
-	assert.True(t, running)
-	assert.NoError(t, err)
+func TestStartSyncSnapshotForPoolWFActivity_Error(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
+	startSyncActivity := &StartSyncSnapshotForPoolActivity{}
+	// Register activity
+	env.RegisterActivity(backgroundActivities)
+	env.RegisterActivity(startSyncActivity)
 
-	// Case 4: WorkflowStatusCreated
-	workflows.QueryWorkflowStatus = func(ctx context.Context, c client.Client, workflowID, runID string) (*workflows.WorkflowStatus, error) {
-		return &workflows.WorkflowStatus{Status: workflows.WorkflowStatusCreated}, nil
+	// Test data
+	pool := &database.PoolIdentifier{
+		Name:      "test-pool",
+		AccountID: 123,
+		VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool",
+		UUID:      "test-pool",
 	}
-	running, err = syncSSWfCheck.IsSyncSnapshotForPoolRunning(ctx, "wf-id")
-	assert.True(t, running)
-	assert.NoError(t, err)
+
+	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return([]*database.PoolIdentifier{
+		pool,
+	}, nil).Once()
+
+	// Mock fetchTemporalClient and workflows.QueryWorkflowStatus
+	originalFetchTemporalClient := fetchTemporalClient
+	defer func() { fetchTemporalClient = originalFetchTemporalClient }()
+
+	mockClient := workflow_engine.NewMockTemporalTestClient(t)
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockClient
+	}
+	// Mock workflow execution
+	mockClient.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("failed to execute workflow"))
+
+	// Execute workflow
+	env.ExecuteWorkflow(SyncVSASnapshotsWorkflow)
+
+	// Assert workflow completion
+	assert.True(t, env.IsWorkflowCompleted())
+
+	// Verify that CheckRunningWorkflow was called
+	env.AssertExpectations(t)
 }
