@@ -89,6 +89,8 @@ workerConfig:
   vlmCreateVSASVMWorkflowTimeoutMinutes: 10
   vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes: 20
   vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes: 120
+  # Comma-separated list of error patterns that trigger delete and retry operations
+  vlmRetryErrorPatterns: ""
 
   # Mediator VM Configuration
   vsaMediatorInstanceType: "e2-micro"
@@ -135,7 +137,7 @@ workerConfig:
   waitTimeForGcpOperationInSec: "10"
 
   # Default Workflow Retry configuration
-  startToCloseTimeout: "25m"
+  startToCloseTimeout: "45m"
   retryInterval: "5s"
   retryMaxAttempts: "3"
   retryMaxInterval: "5m"

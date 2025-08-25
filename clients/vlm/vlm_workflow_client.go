@@ -30,7 +30,30 @@ var (
 	VlmWorkflowRetryMaxAttempts    = env.GetInt("VLMWORKFLOW_RETRY_MAX_ATTEMPTS", 3)
 	VlmWorkflowRetryMaxInterval    = env.GetString("VLMWORKFLOW_RETRY_MAX_INTERVAL", "5m")
 	VlmWorkflowRetryBackoff        = env.GetString("VLMWORKFLOW_RETRY_BACKOFF_COEFFICIENT", "2.0")
+
+	// RetryErrorPatterns Configurable error patterns that trigger delete and retry operations
+	RetryErrorPatterns = getRetryErrorPatterns()
 )
+
+const VLMCloudProvider = "gcp"
+
+// getRetryErrorPatterns returns the list of error patterns that trigger delete and retry operations
+func getRetryErrorPatterns() []string {
+	// Try to get from environment variable first
+	patternsStr := env.GetString("VLM_RETRY_ERROR_PATTERNS", "")
+	if patternsStr == "" {
+		// No patterns configured, return empty slice
+		return []string{}
+	}
+
+	// Parse comma-separated string
+	patterns := strings.Split(patternsStr, ",")
+	// Trim whitespace from each pattern
+	for i, pattern := range patterns {
+		patterns[i] = strings.TrimSpace(pattern)
+	}
+	return patterns
+}
 
 type WorkflowRetryPolicy struct {
 	InitialInterval     time.Duration
@@ -111,6 +134,63 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 
 	if err != nil {
 		logger.Error("Failed to create VSA cluster", "error", err)
+
+		// Check if error contains configured strings that require delete and retry
+		if len(RetryErrorPatterns) > 0 {
+			shouldRetry := checkRetryError(err)
+
+			if shouldRetry {
+				logger.Info("Detected configured error pattern, attempting delete and retry",
+					"deploymentID", createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID)
+
+				// Delete existing deployment
+				deleteRequest := &DeleteVSAClusterDeploymentRequest{
+					DeploymentID:  createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID,
+					ProjectID:     createVSAClusterDeploymentRequest.VLMConfig.Deployment.GCPConfig.ProjectID,
+					CloudProvider: VLMCloudProvider,
+				}
+
+				ontapVersion := OntapVersion
+				if utils.IsFileProtocolSupported(accountId) {
+					ontapVersion = "9.18.1"
+				}
+
+				deleteErr := vlmManager.DeleteVSAClusterDeployment(ctx, deleteRequest, ontapVersion)
+				if deleteErr == nil {
+					logger.Info("Successfully deleted deployment, retrying creation",
+						"deploymentID", createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID)
+
+					// Retry creation
+					// using new retryChildWorkflowContxt to ensure a new child workflow is created with a unique ID
+					// using the same Deployment ID with the same parent workflow would also work as the previous execution failed
+					// but since we couldn't reproduce the issue reliably, using a new child workflow ID for retry to be safe
+					retryChildWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+						WorkflowID:            createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID + "-1", // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
+						TaskQueue:             getVLMWorkerQueue(logger, accountId),                                       // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+						WaitForCancellation:   true,                                                                       // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
+						WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,                 // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
+						RetryPolicy: &temporal.RetryPolicy{
+							InitialInterval:    retryPolicy.InitialInterval,
+							BackoffCoefficient: retryPolicy.BackoffCoefficient,
+							MaximumInterval:    retryPolicy.MaximumInterval,
+							MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+						},
+						WorkflowExecutionTimeout: workflowExecutionTimeout,
+					})
+					retryErr := workflow.ExecuteChildWorkflow(retryChildWorkflowContxt, CreateVSAClusterDeploymentWorkflowName, createVSAClusterDeploymentRequest).Get(retryChildWorkflowContxt, &createVSAClusterDeploymentResponse)
+					if retryErr == nil {
+						logger.Info("Successfully created VSA cluster after retry",
+							"deploymentID", createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID)
+						return createVSAClusterDeploymentResponse, nil
+					}
+				} else {
+					logger.Warn("Failed to delete existing deployment during retry, continuing with normal error handling",
+						"deploymentID", createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID,
+						"deleteError", deleteErr)
+				}
+			}
+		}
+
 		// Handle VLM-specific errors and convert them to user-facing errors
 		vlmErrorHandler := NewVLMErrorHandlerWithLogger(logger)
 
@@ -312,4 +392,41 @@ func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {
 		MaximumInterval:     activityRetryMaxInterval,
 		MaximumAttempts:     activityRetryMaxAttempts,
 	}, nil
+}
+
+// checkRetryError checks if the error message or cause contains any of the configured retry error patterns
+func checkRetryError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check the main error message
+	errMsg := strings.ToLower(err.Error())
+	for _, pattern := range RetryErrorPatterns {
+		if strings.Contains(errMsg, strings.ToLower(pattern)) {
+			return true
+		}
+	}
+
+	// Check if it's a temporal application error and extract cause
+	var appErr *temporal.ApplicationError
+	if errors.As(err, &appErr) {
+		// Check if it's a VLM client error with cause information
+		if appErr.Type() == "VLMClientError" {
+			var vlmClientErr VLMClientError
+			if appErr.HasDetails() && appErr.Details(&vlmClientErr) == nil {
+				// Check each cause string
+				for _, cause := range vlmClientErr.Cause {
+					causeStr := strings.ToLower(cause)
+					for _, pattern := range RetryErrorPatterns {
+						if strings.Contains(causeStr, strings.ToLower(pattern)) {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }

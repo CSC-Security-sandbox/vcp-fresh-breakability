@@ -199,6 +199,8 @@ spec:
               value: "false"
             - name: DISABLE_VSA_CLEANUP_ON_VLM_FAILURE
               value: "false"
+            - name: VLM_RETRY_ERROR_PATTERNS
+              value: "Aggregates are degraded or unmirrored"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.temporal.io/sdk/temporal"
 	"strconv"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	StartToCloseTimeout = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT", "25m")
+	StartToCloseTimeout = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT", "45m")
 	RetryInterval       = env.GetString("RETRY_INTERVAL", "5s")
 	RetryMaxAttempts    = env.GetInt("RETRY_MAX_ATTEMPTS", 3)
 	RetryMaxInterval    = env.GetString("RETRY_MAX_INTERVAL", "5m")

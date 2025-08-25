@@ -69,8 +69,7 @@ var (
 )
 
 const (
-	DefaultSvmName   = "gcnv"
-	VLMCloudProvider = "gcp"
+	DefaultSvmName = "gcnv"
 
 	TimestampLayout   = "20060102150405"
 	SaIdPrefix        = "vsa-sa-"
@@ -307,7 +306,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	if !disableVsaCleanupOnVLMFailure {
 		deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
-		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, tenancyDetails.RegionalTenantProject)
+		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, vlm.VLMCloudProvider, tenancyDetails.RegionalTenantProject)
 		rollbackManager.AddWorkflow(vlm.VSALifecycleManagerQueue, vlm.DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest)
 	}
 
@@ -834,14 +833,14 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	if !disableVsaCleanupOnVLMFailure {
 		deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
-		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
+		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, vlm.VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
 		err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 	} else if dbPool.State != models.LifeCycleStateError {
 		deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
-		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
+		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, vlm.VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
 		err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
