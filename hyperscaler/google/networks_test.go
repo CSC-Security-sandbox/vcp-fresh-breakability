@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"go.temporal.io/sdk/temporal"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -134,8 +135,8 @@ func Test_GetTenantProject(t *testing.T) {
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
-			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established.", consumerNetwork)) {
-				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
+			if !strings.Contains(err.(*temporal.ApplicationError).Error(), fmt.Sprintf("Setup/Configure Private Service Access (PSA) Peering")) {
+				tt.Errorf("Unexpected error: %s", err.(*temporal.ApplicationError))
 			}
 		}
 	})
@@ -260,8 +261,60 @@ func Test_CreateTPSubnetOpInternal(t *testing.T) {
 			if out != nil {
 				tt.Errorf("Unexpected output: %+v\n", out)
 			}
-			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), errMsg) {
-				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
+			if !strings.Contains(err.(*temporal.ApplicationError).Message(), "Setup/Configure Private Service Access (PSA) Peering") {
+				tt.Errorf("Unexpected error: %s", err.(*temporal.ApplicationError).Message())
+			}
+		}
+		CreateTPSubnetOp = _createTPSubnetOp
+	})
+	t.Run("When_CreateTPSubnetOpIPExhaustion", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		errMsg := "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(&servicenetworking.Operation{Name: "net-op-1", Error: &servicenetworking.Status{Message: errMsg}})
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+		svc, err := servicenetworking.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		serviceConsumerManagementEndpoint = "endpoint.goog"
+		serviceNetworkingEndpoint = "endpoint.goog"
+
+		defer func() {
+			serviceConsumerManagementEndpoint = "abc"
+			serviceNetworkingEndpoint = "something"
+		}()
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				networkingService: svc,
+			},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+			serviceNetworkingEndpoint:         serviceNetworkingEndpoint,
+		}
+		out, err := CreateTPSubnetOp(gService, &servicenetworking.AddSubnetworkRequest{}, tenantProjectNumber)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if out != nil {
+				tt.Errorf("Unexpected output: %+v\n", out)
+			}
+			if !strings.Contains(err.(*temporal.ApplicationError).Message(), "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider") {
+				tt.Errorf("Unexpected error: %s", err.(*temporal.ApplicationError).Message())
 			}
 		}
 		CreateTPSubnetOp = _createTPSubnetOp
@@ -1054,8 +1107,8 @@ func TestReleaseSubnetwork(t *testing.T) {
 		}
 		gService := &GcpServices{AdminGCPService: &AdminGCPService{networkingService: svc}, Ctx: ctx, Logger: util.GetLogger(ctx)}
 		_, err = _createTPSubnetOp(gService, &servicenetworking.AddSubnetworkRequest{}, "test-project")
-		if err == nil || !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "are not successfully connected yet") {
-			tt.Errorf("Expected are not successfully connected yet error, got: %v", err)
+		if err == nil || !strings.Contains(err.(*temporal.ApplicationError).Error(), "Setup/Configure Private Service Access (PSA) Peering") {
+			tt.Errorf("Expected Setup/Configure Private Service Access (PSA) Peering error, got: %v", err)
 		}
 	})
 }
@@ -1781,6 +1834,39 @@ func Test_GetSnHost(t *testing.T) {
 			}
 		}
 	})
+	t.Run("WhenGetSnHostNoPeering", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusNotFound)
+				_, _ = rw.Write([]byte(`{"error": {"message": "Please create Service Networking connection with service"}}`))
+				return
+			}
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Logger: util.GetLogger(ctx),
+		}
+		_, err = gService.GetSnHost(projectName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if !strings.Contains(err.Error(), "Setup/Configure Private Service Access (PSA) Peering") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
 	t.Run("WhenGetSnHostNotFound", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
@@ -1850,7 +1936,7 @@ func Test_GetSnHost(t *testing.T) {
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
-			if !strings.Contains(err.Error(), "SN Producer Host Project") {
+			if !strings.Contains(err.Error(), "Setup/Configure Private Service Access (PSA) Peering") {
 				tt.Errorf("Unexpected error: %s", err.Error())
 			}
 		}

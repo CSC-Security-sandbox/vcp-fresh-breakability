@@ -46,7 +46,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 		}
 	}
 	gcpService.Logger.Debugf("Tenancy not found : consumerNetwork: %s, customerProjectNumber: %s, tenantProjectRegion: %s , parent : %s ", consumerNetwork, customerProjectNumber, tenantProjectRegion, parent)
-	return "", vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, errors.New(fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established.", consumerNetwork)))
+	return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("vpc peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established", consumerNetwork)))
 }
 
 // CreateTPSubnetOp returns GCP operation for creating subnetwork for a tenant project
@@ -102,12 +102,15 @@ func (gcpService *GcpServices) ReleaseSubnetwork(region, projectName, subnetwork
 func (gcpService *GcpServices) GetSnHost(project string) (string, error) {
 	snProject, err := gcpService.AdminGCPService.computeService.Projects.GetXpnHost(project).Do()
 	if err != nil {
-		gcpService.Logger.Errorf(fmt.Sprintf("error getting SN host for project %s", project))
+		gcpService.Logger.Errorf(fmt.Sprintf("error getting SN host for project : %s, Error : %v", project, err))
+		if strings.Contains(err.Error(), "Please create Service Networking connection with service") {
+			return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("SN Producer Host Project %s Error: %v", project, err)))
+		}
 		return "", err
 	}
 	// for a new VPC, snhost project will be empty. we need to return empty in this case to establish datalink
 	if snProject != nil && snProject.Name == "" {
-		return "", errors.NewNotFoundErr("SN Producer Host Project", &project)
+		return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("SN Producer Host Project %s Error: %v", project, err)))
 	}
 	return snProject.Name, nil
 }
@@ -121,15 +124,18 @@ func _createTPSubnetOp(gcpService *GcpServices, request *servicenetworking.AddSu
 			err = &googleapi.Error{Message: tu.Error.Message}
 		}
 		if err != nil {
-			if strings.Contains(err.Error(), "are not successfully connected yet") {
-				gcpService.Logger.Errorf("AddSubnetwork failed : with error : %v", err.Error())
-				return nil, vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, err)
+			if strings.Contains(err.Error(), "are not successfully connected yet") || strings.Contains(err.Error(), "Please create Service Networking connection with service") {
+				gcpService.Logger.Errorf("CreateTPSubnetOp failed : with error : %v", err.Error())
+				return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, err))
+			} else if strings.Contains(err.Error(), "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider") {
+				gcpService.Logger.Errorf("CreateTPSubnetOp failed : with error : %v", err.Error())
+				return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPCustomerIPExhaustion, err))
 			}
 			gcpService.Logger.Errorf("CreateTPSubnetOp failed with error: %s", err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 		}
 	}
-	gcpService.Logger.Debugf("AddSubnetwork for tenant project : %s successful", tenantProjectNumber)
+	gcpService.Logger.Debugf("CreateTPSubnetOp for tenant project : %s successful", tenantProjectNumber)
 	return convertServiceNetOpToComputeOp(tu), nil
 }
 

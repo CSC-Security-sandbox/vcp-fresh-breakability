@@ -209,6 +209,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "3009": {
+    "description": "Customer's data subnet exhausted",
+    "message": "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider",
+    "retriable": false,
+    "http_code": 400
+  },
   "4001": {
     "description": "VSA Cluster Provisioning Error",
     "message": "An internal error occurred.",

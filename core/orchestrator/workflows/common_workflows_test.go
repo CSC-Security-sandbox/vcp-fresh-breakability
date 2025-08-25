@@ -426,7 +426,7 @@ func TestWaitForDBJob_JobErrorWithErrorDetails(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	err := env.GetWorkflowError()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "job job-uuid failed with error: some error")
+	assert.Contains(t, err.Error(), "some error")
 }
 
 func TestWaitForDBJob_Timeout(t *testing.T) {

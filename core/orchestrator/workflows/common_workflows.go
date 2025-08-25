@@ -282,7 +282,7 @@ func PollOnDBJob(ctx workflow.Context, jobUUID string, timeout time.Duration) er
 		}
 
 		if job.State == string(models.JobsStateERROR) {
-			return fmt.Errorf("job %s failed with error: %s", jobUUID, job.ErrorDetails)
+			return vsaerrors.NewVCPError(job.TrackingID, errors.New(job.ErrorDetails))
 		}
 
 		// Sleep for a some duration before checking again.

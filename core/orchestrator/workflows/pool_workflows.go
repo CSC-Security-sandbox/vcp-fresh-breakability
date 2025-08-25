@@ -161,7 +161,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			MaximumInterval:    retryPolicy.MaximumInterval,
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 			// add panic error as non-retriable types
-			NonRetryableErrorTypes: []string{"PanicError"},
+			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -1110,7 +1110,7 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 			MaximumInterval:    retryPolicy.MaximumInterval,
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 			// TODO: Add non-retryable errors.ErrPSAPeeringNotFoundError
-			NonRetryableErrorTypes: []string{"PanicError"},
+			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)

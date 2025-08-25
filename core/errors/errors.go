@@ -57,6 +57,7 @@ const (
 	ErrGCPResourceAlreadyExistsError              = 3006
 	ErrGCPServiceAccountDeletionError             = 3007
 	ErrGCPServiceAccountDeletionNonRetriableError = 3008
+	ErrGCPCustomerIPExhaustion                    = 3009
 
 	// VLM-specific GCP errors (9000-9999 range)
 	ErrVLMQuotaExceededRegional                = 9001

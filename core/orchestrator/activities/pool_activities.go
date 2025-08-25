@@ -389,7 +389,7 @@ func _getCreateDataSubnetworkOp(service hyperscaler2.GoogleServices, params comm
 	operationName, err := GetCreateSubnetworkOperation(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion)
 	if err != nil {
 		logger.Errorf("Error creating subnetwork for tenant project: %s, Region %s. Error : %s", tenantProjectNumber, tenantProjectRegion, err.Error())
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+		return nil, err
 	}
 	return operationName, err
 }
