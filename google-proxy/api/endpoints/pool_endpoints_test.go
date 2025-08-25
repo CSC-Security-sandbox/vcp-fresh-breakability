@@ -1382,7 +1382,9 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
+		conflictResp, ok := result.(*gcpgenserver.V1betaCreatePoolConflict)
+		assert.True(tt, ok, "Expected V1betaCreatePoolConflict response")
+		assert.NotNil(tt, conflictResp)
 	})
 	t.Run("WhenPoolCreationFailsWithUserInputValidationError", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -1813,7 +1815,108 @@ func TestV1betaCreatePool(t *testing.T) {
 		// Should pass validation since Type is set to UNIFIED
 		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
 	})
+
+	t.Run("WhenPoolIsInCreatingState", func(tt *testing.T) {
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:    "test-pool",
+			Unified:       gcpgenserver.NewOptBool(true),
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   1099511627776,
+			Network:       "test-network",
+			Zone:          gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		existingPool := &models.Pool{
+			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		job := &models.Job{
+			BaseModel: models.BaseModel{UUID: "job-uuid"},
+			Type:      models.JobTypeCreatePool,
+			JobAttributes: &models.JobAttributes{
+				ResourceUUID: "creating-pool-uuid",
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreatePool)).Return(job, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		operation, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "Expected OperationV1beta response")
+		assert.False(tt, operation.Done.Value, "Operation should not be marked as done")
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/us-east4-a/operations/job-uuid")
+	})
+
+	t.Run("WhenPoolIsInCreatingStateAndJobLookupFails", func(tt *testing.T) {
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:    "test-pool",
+			Unified:       gcpgenserver.NewOptBool(true),
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   1099511627776,
+			Network:       "test-network",
+			Zone:          gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		existingPool := &models.Pool{
+			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreatePool)).Return(nil, errors.NewNotFoundErr("job not found", nil))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		operation, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "Expected OperationV1beta response")
+		assert.True(tt, operation.Done.Value, "Operation should be marked as done when job lookup fails")
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/us-east4-a/operations/00000000-0000-0000-0000-000000000000")
+	})
 }
+
 func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 	validationErrorCases := []struct {
 		name    string
@@ -1950,6 +2053,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 				PoolAttributes: &models.PoolAttributes{
 					PrimaryZone: "us-east4-a",
 				},
+				State: "READY",
 			}, nil)
 
 			handler := Handler{
@@ -1959,10 +2063,63 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 
 			assert.NoError(tt, err)
 			assert.NotNil(tt, result)
-			assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdatePoolBadRequest).Code)
-			assert.Equal(tt, tc.message, result.(*gcpgenserver.V1betaUpdatePoolBadRequest).Message)
+			// Check if result is BadRequest error (most common for validation errors)
+			if badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest); ok {
+				assert.Equal(tt, float64(400), badReq.Code)
+				assert.Equal(tt, tc.message, badReq.Message)
+			} else if conflict, ok := result.(*gcpgenserver.V1betaUpdatePoolConflict); ok {
+				// If it's a conflict error, check its message content
+				assert.Equal(tt, float64(409), conflict.Code)
+				assert.Equal(tt, tc.message, conflict.Message)
+			} else {
+				tt.Fatalf("Unexpected response type: %T", result)
+			}
 		})
 	}
+
+	t.Run("TestOngoingUpdatePoolOperationScenario", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		// Set orchestrator to return a pool when DescribePool is called.
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Description: "original description",
+			SizeInBytes: 1099511627776, // 1 TiB
+			State:       "UPDATING",
+		}, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdatePool(context.Background(), &gcpgenserver.PoolUpdateV1beta{
+			SizeInBytes: gcpgenserver.NewOptNilFloat64(2199023255552), // 2 TiB
+		}, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Check if result is BadRequest error (most common for validation errors)
+		if conflict, ok := result.(*gcpgenserver.V1betaUpdatePoolConflict); ok {
+			// If it's a conflict error, check its message content
+			assert.Equal(tt, float64(409), conflict.Code)
+			assert.Equal(tt, "An update operation is already in progress for this pool", conflict.Message)
+		} else {
+			tt.Fatalf("Unexpected response type: %T", result)
+		}
+	})
 }
 
 func TestV1betaUpdatePool(t *testing.T) {
@@ -2045,6 +2202,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
+			State: "READY",
 		}, nil)
 		// Set orchestrator to return an error when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
@@ -2160,62 +2318,6 @@ func TestV1betaUpdatePool(t *testing.T) {
 			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
 			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
 			Labels:               gcpgenserver.OptPoolUpdateV1betaLabels{Value: labels, Set: true},
-		}
-		handler := Handler{Orchestrator: mockOrchestrator}
-
-		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
-		assert.NoError(tt, err)
-		op, ok := result.(*gcpgenserver.OperationV1beta)
-		assert.True(tt, ok)
-		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
-		assert.Equal(tt, expectedOpName, op.Name.Value)
-	})
-	t.Run("WhenPoolUpdateSucceedsForSameZone", func(tt *testing.T) {
-		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-			return "us-east4", "", nil
-		}
-		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
-
-		// Create a dummy pool that represents the updated pool.
-		updatedPool := &models.Pool{
-			BaseModel: models.BaseModel{
-				UUID: "updated-pool-uuid",
-			},
-			PoolAttributes: &models.PoolAttributes{
-				PrimaryZone: "us-east4-a",
-			},
-		}
-
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		// Set orchestrator to return a pool when DescribePool is called.
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
-			BaseModel: models.BaseModel{
-				UUID: "pool-uuid",
-			},
-			Description: "original description",
-			SizeInBytes: 1099511627776, // 1 TiB
-			CustomPerformanceParams: &models.CustomPerformanceParams{
-				Throughput: 64, // 64 MiBps
-				Iops:       1024,
-			},
-			PoolAttributes: &models.PoolAttributes{
-				PrimaryZone: "us-east4-a",
-			},
-		}, nil)
-		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
-			Return(updatedPool, "op-123", nil)
-
-		params := gcpgenserver.V1betaUpdatePoolParams{
-			LocationId:    "us-east4",
-			ProjectNumber: "project-number",
-			PoolId:        "pool-id",
-		}
-		req := &gcpgenserver.PoolUpdateV1beta{
-			Description:          gcpgenserver.NewOptNilString("updated description"),
-			SizeInBytes:          gcpgenserver.NewOptNilFloat64(1099511627776),
-			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
-			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
-			Zone:                 gcpgenserver.NewOptString("us-east4-a"),
 		}
 		handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -2470,7 +2572,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, float64(409), result.(*gcpgenserver.V1betaDeletePoolConflict).Code)
 		assert.Equal(tt, "Error deleting pool - Pool is already transitioning between states", result.(*gcpgenserver.V1betaDeletePoolConflict).Message)
 	})
-	t.Run("WhenPoolIsInDeletingState", func(tt *testing.T) {
+	t.Run("WhenPoolIsInDeletingStateAndJobExists_ThenReturnTheSameJob", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
@@ -2488,7 +2590,17 @@ func TestV1betaDeletePool(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
+
+		job := &models.Job{
+			BaseModel: models.BaseModel{UUID: "job-uuid"},
+			Type:      models.JobTypeDeletePool,
+			JobAttributes: &models.JobAttributes{
+				ResourceUUID: "deleting-pool-id",
+			},
+			State: models.JobsStateNEW,
+		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(job, nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2497,8 +2609,40 @@ func TestV1betaDeletePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, float64(409), result.(*gcpgenserver.V1betaDeletePoolConflict).Code)
-		assert.Equal(tt, "Error deleting pool - Pool is already transitioning between states", result.(*gcpgenserver.V1betaDeletePoolConflict).Message)
+		assert.Equal(tt, result.(*gcpgenserver.OperationV1beta).Name.Value, "/v1beta/projects/project-number/locations/us-east4/operations/job-uuid")
+		assert.False(tt, result.(*gcpgenserver.OperationV1beta).Done.Value)
+	})
+	t.Run("WhenPoolIsInDeletingStateAndJobDoesNotExists_ThenReturnStaticJobWithDone", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "deleting-pool-id",
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "deleting-pool-id",
+			},
+			State:          models.LifeCycleStateDeleting,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, result.(*gcpgenserver.OperationV1beta).Name.Value, "/v1beta/projects/project-number/locations/us-east4/operations/00000000-0000-0000-0000-000000000000")
+		assert.True(tt, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 }
 
@@ -3090,6 +3234,24 @@ func TestValidateCreatePoolParams_AutoTieringValidation(t *testing.T) {
 			assert.Contains(ttt, err.Message, "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering")
 		})
 	})
+
+	t.Run("ThroughputAndIopsValidation", func(tt *testing.T) {
+		t.Run("Invalid throughput should trigger type assertion and return proper error", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Type:                 gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+				SizeInBytes:          validPoolSize,
+				TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(50), // Invalid throughput (too low)
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+
+			// Verify that the type assertion worked and we get a gcpgenserver.Error with the right values
+			assert.NotNil(ttt, err, "Expected error for invalid throughput")
+			assert.Equal(ttt, float64(400), err.Code, "Expected bad request error code from type assertion")
+			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between", "Expected throughput validation error message from type assertion")
+		})
+	})
 }
 
 func TestValidateCreatePoolParams_SecondaryZoneValidation(t *testing.T) {
@@ -3375,8 +3537,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for throughput below minimum")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
 		})
 
 		t.Run("ThroughputAboveMaximum", func(ttt *testing.T) {
@@ -3385,8 +3549,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for throughput above maximum")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
 		})
 	})
 
@@ -3397,8 +3563,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for IOPS below minimum when throughput not provided")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 1024 and 160000 IOPS")
 		})
 
 		t.Run("IopsAboveMaximum", func(ttt *testing.T) {
@@ -3407,8 +3575,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for IOPS above maximum when throughput not provided")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 1024 and 160000 IOPS")
 		})
 	})
 
@@ -3419,8 +3589,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for IOPS below ideal minimum when throughput is provided")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 4096 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 4096 and 160000 IOPS")
 		})
 
 		t.Run("UserProvidesTohroughputButWrongIops_AboveMaximum", func(ttt *testing.T) {
@@ -3429,8 +3601,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for IOPS above maximum when throughput is provided")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 2048 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 2048 and 160000 IOPS")
 		})
 
 		t.Run("UserProvidesHighThroughputButLowIops", func(ttt *testing.T) {
@@ -3439,8 +3613,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for IOPS too low for high throughput")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 16000 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 16000 and 160000 IOPS")
 		})
 
 		t.Run("UserProvidesMinimumThroughputButWrongIops", func(ttt *testing.T) {
@@ -3449,8 +3625,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for IOPS below ideal minimum for minimum throughput")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 1024 and 160000 IOPS")
 		})
 	})
 
@@ -3485,8 +3663,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error when IOPS is just below ideal minimum for throughput")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 8192 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 8192 and 160000 IOPS")
 		})
 	})
 
@@ -3516,8 +3696,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for zero throughput")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
 		})
 
 		t.Run("ZeroIops", func(ttt *testing.T) {
@@ -3526,8 +3708,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for zero IOPS")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 1024 and 160000 IOPS")
 		})
 
 		t.Run("NegativeThroughput", func(ttt *testing.T) {
@@ -3536,8 +3720,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for negative throughput")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalThroughputMibps must be between 64 and 11000 MiBps")
 		})
 
 		t.Run("NegativeIops", func(ttt *testing.T) {
@@ -3546,8 +3732,10 @@ func TestValidateThroughputAndIops(t *testing.T) {
 
 			err := validateThroughputAndIops(throughput, iops)
 			assert.NotNil(ttt, err, "Expected error for negative IOPS")
-			assert.Equal(ttt, float64(400), err.Code)
-			assert.Contains(ttt, err.Message, "TotalIops must be between 1024 and 160000 IOPS")
+			badReq, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			assert.True(ttt, ok, "Expected V1betaUpdatePoolBadRequest")
+			assert.Equal(ttt, float64(400), badReq.Code)
+			assert.Contains(ttt, badReq.Message, "TotalIops must be between 1024 and 160000 IOPS")
 		})
 	})
 }

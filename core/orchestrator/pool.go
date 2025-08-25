@@ -113,6 +113,9 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbPool.UUID,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -425,6 +428,9 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: pool.UUID,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)

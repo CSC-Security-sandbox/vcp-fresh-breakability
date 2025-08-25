@@ -177,6 +177,10 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 						},
 						WorkflowExecutionTimeout: workflowExecutionTimeout,
 					})
+					// Add correlation and deployment IDs to context
+					retryChildWorkflowContxt = workflow.WithValue(retryChildWorkflowContxt, CorrelationIDKey, correlationID)
+					retryChildWorkflowContxt = workflow.WithValue(retryChildWorkflowContxt, DeploymentIDKey, createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID)
+
 					retryErr := workflow.ExecuteChildWorkflow(retryChildWorkflowContxt, CreateVSAClusterDeploymentWorkflowName, createVSAClusterDeploymentRequest).Get(retryChildWorkflowContxt, &createVSAClusterDeploymentResponse)
 					if retryErr == nil {
 						logger.Info("Successfully created VSA cluster after retry",

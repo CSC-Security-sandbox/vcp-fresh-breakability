@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/go-faster/jx"
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -127,14 +129,8 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	existingPool, err := h.Orchestrator.GetPoolByVendorID(ctx, vendorId, params.ProjectNumber)
 	if err == nil {
 		logger.Info("Pool already exists", "vendorId", vendorId)
-		resp, err := encodePoolV1(convertToPoolV1Beta(existingPool))
-		if err != nil {
-			return nil, err
-		}
-		return &gcpgenserver.OperationV1beta{
-			Name:     gcpgenserver.OptString{Value: "operation-id"},
-			Response: resp,
-		}, nil
+		res, err2 := handleExistingPool(ctx, req, params, existingPool, h.Orchestrator)
+		return res, err2
 	} else if !errors.IsNotFoundErr(err) {
 		logger.Error("Failed to check existing pool", "error", err.Error())
 		return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
@@ -218,6 +214,40 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	return &gcpgenserver.OperationV1beta{}, nil
 }
 
+func handleExistingPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params gcpgenserver.V1betaCreatePoolParams, existingPool *models.Pool, orchestrator orchestrator.OrchestratorFactory) (gcpgenserver.V1betaCreatePoolRes, error) {
+	logger := util.GetLogger(ctx)
+	if existingPool.State != models.LifeCycleStateCreating {
+		// Pool exists and is not in creating state, return 409 Conflict
+		return &gcpgenserver.V1betaCreatePoolConflict{
+			Code:    409,
+			Message: fmt.Sprintf("Pool with resource_id '%s' already exists", req.ResourceId),
+		}, nil
+	} else {
+		resp, err := encodePoolV1(convertToPoolV1Beta(existingPool))
+		if err != nil {
+			logger.Error("Failed to encode existing pool response", "error", err.Error())
+			return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
+		}
+		// Pool is in creating state, find the existing job and return same operation
+		job, jobErr := orchestrator.GetJobByResourceUUID(ctx, existingPool.UUID, string(models.JobTypeCreatePool))
+		if jobErr != nil {
+			logger.Error("Failed to find job for creating pool", "poolUUID", existingPool.UUID, "error", jobErr.Error())
+			// Return the pool response even if job lookup fails
+			return &gcpgenserver.OperationV1beta{
+				Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, uuid.UUID{}.String())), // Dummy operation ID
+				Response: resp,
+				Done:     gcpgenserver.NewOptBool(true), // Mark as done since we can't track the job
+			}, nil
+		}
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR), // Done if job is in DONE or ERROR state
+		}, nil
+	}
+}
+
 // V1betaDeletePool handles the request to delete a pool.
 func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1betaDeletePoolParams) (gcpgenserver.V1betaDeletePoolRes, error) {
 	logger := util.GetLogger(ctx)
@@ -246,9 +276,26 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 		}
 	}
 
+	dummyOperationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, uuid.UUID{}.String())
 	if existingPool != nil {
 		switch existingPool.State {
-		case models.LifeCycleStateDeleting, models.LifeCycleStateCreating, models.LifeCycleStateUpdating:
+		case models.LifeCycleStateDeleting:
+			log := util.GetLogger(ctx)
+			job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, existingPool.UUID, string(models.JobTypeDeletePool))
+			if jobErr != nil {
+				log.Error("Failed to find job for deleting pool", "poolUUID", existingPool.UUID, "error", jobErr.Error())
+				// Return the pool response even if job lookup fails
+				return &gcpgenserver.OperationV1beta{
+					Name: gcpgenserver.NewOptString(dummyOperationID), // Dummy operation ID
+					Done: gcpgenserver.NewOptBool(true),               // Mark as done since we can't find the job
+				}, nil
+			}
+			operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
+			return &gcpgenserver.OperationV1beta{
+				Name: gcpgenserver.NewOptString(operationID),
+				Done: gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR), // Done if job is in DONE or ERROR state
+			}, nil
+		case models.LifeCycleStateCreating, models.LifeCycleStateUpdating:
 			msg := "Error deleting pool - Pool is already transitioning between states"
 			return &gcpgenserver.V1betaDeletePoolConflict{
 				Code:    409,
@@ -259,7 +306,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 
 	if existingPool != nil && existingPool.DeletedAt != nil {
 		return &gcpgenserver.OperationV1beta{
-			Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, utils.RandomUUID())),
+			Name: gcpgenserver.NewOptString(dummyOperationID),
 			Done: gcpgenserver.NewOptBool(true),
 		}, nil
 	}
@@ -273,7 +320,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "uuid", params.PoolId)
 			return &gcpgenserver.OperationV1beta{
-				Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, utils.RandomUUID())),
+				Name: gcpgenserver.NewOptString(dummyOperationID),
 				Done: gcpgenserver.NewOptBool(true),
 			}, nil
 		}
@@ -299,7 +346,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 		}, nil
 	}
 
-	logger.Info("Pool deleted successfully", "PoolID", existingPool.UUID)
+	logger.Info("Pool deleted successfully", "PoolID", params.PoolId)
 	return &gcpgenserver.V1betaDeletePoolNoContent{}, nil
 }
 
@@ -491,17 +538,7 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 
 	validateErr := validateUpdatePoolParams(req, existingPool)
 	if validateErr != nil {
-		if validateErr.Code == http.StatusBadRequest {
-			return &gcpgenserver.V1betaUpdatePoolBadRequest{
-				Code:    validateErr.Code,
-				Message: validateErr.Message,
-			}, nil
-		} else {
-			return &gcpgenserver.V1betaUpdatePoolInternalServerError{
-				Code:    validateErr.Code,
-				Message: validateErr.Message,
-			}, nil
-		}
+		return validateErr, nil
 	}
 
 	param := &common.UpdatePoolParams{
@@ -518,11 +555,11 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 	// This ensures that customers only changing throughput don't lose their higher IOPS
 	// while maintaining the minimum IOPS requirement for the new throughput level.
 	// Always validate and calculate IOPS - handles all cases including validation
-	calculatedIops, validateErr := validateThroughputAndIopsForUpdate(ctx, req.TotalThroughputMibps, req.TotalIops, existingPool)
-	if validateErr != nil {
+	calculatedIops, validateErr2 := validateThroughputAndIopsForUpdate(ctx, req.TotalThroughputMibps, req.TotalIops, existingPool)
+	if validateErr2 != nil {
 		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    HTTP_BAD_REQUEST_CODE,
-			Message: validateErr.Message,
+			Message: validateErr2.Message,
 		}, nil
 	}
 	param.TotalIops = calculatedIops
@@ -859,7 +896,13 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 
 	err := validateThroughputAndIops(req.TotalThroughputMibps, req.TotalIops)
 	if err != nil {
-		return err
+		// Type assert to extract the bad request error
+		if badRequest, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest); ok {
+			return &gcpgenserver.Error{
+				Code:    badRequest.Code,
+				Message: badRequest.Message,
+			}
+		}
 	}
 
 	// Validate auto-tiering parameters
@@ -915,44 +958,51 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 
 // validateUpdatePoolParams validates the parameters for updating a pool.
 // We currently only allow updating the description, size, total throughput, and total IOPS.
-func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *models.Pool) *gcpgenserver.Error {
+func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *models.Pool) gcpgenserver.V1betaUpdatePoolRes {
+	if existingPool.State == models.LifeCycleStateUpdating {
+		return &gcpgenserver.V1betaUpdatePoolConflict{
+			Code:    http.StatusConflict,
+			Message: "An update operation is already in progress for this pool",
+		}
+	}
+
 	if req.Zone.IsSet() && req.Zone.Value != existingPool.PoolAttributes.PrimaryZone {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Migrating to a different Zone is currently not supported",
 		}
 	}
 
 	if req.GlobalAccessAllowed.IsSet() {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Updating Global access is currently not supported",
 		}
 	}
 
 	if req.ActiveDirectoryConfigId.IsSet() {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Updating Active Directory is currently not supported",
 		}
 	}
 
 	if req.AllowAutoTiering.IsSet() {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Updating Auto tiering is currently not supported",
 		}
 	}
 
 	if req.HotTierSizeInBytes.IsSet() {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Updating HotTierSize is currently not supported",
 		}
 	}
 
 	if req.EnableHotTierAutoResize.IsSet() {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Updating HotTier auto resize is currently not supported",
 		}
@@ -960,21 +1010,21 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 
 	// We do not allow pool size to be reduced.
 	if req.SizeInBytes.IsSet() && req.SizeInBytes.Value < float64(existingPool.SizeInBytes) {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Pool size cannot be reduced",
 		}
 	}
 
 	if req.QosType.IsSet() && req.QosType.Value != QosTypeAuto {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Updating QosType is currently not supported",
 		}
 	}
 
 	if req.CustomPerformanceEnabled.IsSet() {
-		return &gcpgenserver.Error{
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Updating CustomerPerformance is currently not supported",
 		}
@@ -983,11 +1033,11 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 	return nil
 }
 
-func validateThroughputAndIops(throughput gcpgenserver.OptNilFloat64, iops gcpgenserver.OptNilFloat64) *gcpgenserver.Error {
+func validateThroughputAndIops(throughput gcpgenserver.OptNilFloat64, iops gcpgenserver.OptNilFloat64) gcpgenserver.V1betaUpdatePoolRes {
 	idealMinIops := minCustomIops
 	if throughput.IsSet() {
 		if throughput.Value < float64(minCustomThroughput) || throughput.Value > float64(maxCustomThroughput) {
-			return &gcpgenserver.Error{
+			return &gcpgenserver.V1betaUpdatePoolBadRequest{
 				Code:    HTTP_BAD_REQUEST_CODE,
 				Message: fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput),
 			}
@@ -997,7 +1047,7 @@ func validateThroughputAndIops(throughput gcpgenserver.OptNilFloat64, iops gcpge
 
 	if iops.IsSet() {
 		if iops.Value < float64(idealMinIops) || iops.Value > float64(maxCustomIops) {
-			return &gcpgenserver.Error{
+			return &gcpgenserver.V1betaUpdatePoolBadRequest{
 				Code:    HTTP_BAD_REQUEST_CODE,
 				Message: fmt.Sprintf("TotalIops must be between %d and %d IOPS", idealMinIops, maxCustomIops),
 			}

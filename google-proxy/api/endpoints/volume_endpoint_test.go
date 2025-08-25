@@ -1814,6 +1814,30 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		assert.Contains(tt, internalErr.Message, "An error occurred")
 	})
 
+	t.Run("WhenOrchestratorThrowsConflictError_Return409Conflict", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
+		}
+
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume update conflict"))
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		conflictErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), conflictErr.Code)
+		assert.Contains(tt, conflictErr.Message, "Volume update conflict")
+	})
+
 	t.Run("WhenLifeCycleStateUpdating_ThenReturnDoneAsFalse", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -2562,6 +2586,25 @@ func TestV1betaCreateVolume(t *testing.T) {
 		assert.Contains(tt, badReq.Message, "invalid input")
 	})
 
+	t.Run("UserInputValidationErrorWhenVolumeQuotaIsByteIsNotSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{},
+		}
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "QuotaInBytes is required", badReq.Message)
+	})
+
 	t.Run("InternalServerError", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -2661,6 +2704,34 @@ func TestV1betaCreateVolume(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(500), internalErr.Code)
 		assert.Contains(tt, internalErr.Message, "An error occurred")
+	})
+
+	t.Run("WhenOrchestratorThrowsConflictError_Return409Conflict", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+		}
+
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume already exists"))
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		conflictErr, ok := result.(*gcpgenserver.V1betaCreateVolumeConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), conflictErr.Code)
+		assert.Contains(tt, conflictErr.Message, "Volume already exists")
 	})
 
 	t.Run("WhenLifeCycleStateCreating_ThenReturnDoneAsFalse", func(tt *testing.T) {
@@ -3153,6 +3224,7 @@ func TestPrepareCreateVolumeParams_BackupDisabled(t *testing.T) {
 			BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
 				BackupVaultId: gcpgenserver.NewOptNilString("backup-vault-id"),
 			}),
+			QuotaInBytes: gcpgenserver.NewOptFloat64(107374182400),
 		},
 	}
 
@@ -3562,6 +3634,9 @@ func TestRestoreWhenBackupFeatureNotEnabled_ReturnsError(t *testing.T) {
 
 	req := &gcpgenserver.VolumeCreateV1beta{
 		BackupPath: gcpgenserver.NewOptString("/backup/path"),
+		Volume: gcpgenserver.VolumeV1beta{
+			QuotaInBytes: gcpgenserver.NewOptFloat64(107374182400),
+		},
 	}
 	params := gcpgenserver.V1betaCreateVolumeParams{
 		ProjectNumber: "test-project",
@@ -3838,14 +3913,24 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
+		job := &models.Job{
+			BaseModel: models.BaseModel{UUID: "job-uuid"},
+			Type:      models.JobTypeDeleteVolume,
+			JobAttributes: &models.JobAttributes{
+				ResourceUUID: "deleting-pool-id",
+			},
+			State: models.JobsStatePROCESSING,
+		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(models.JobTypeDeleteVolume)).Return(job, nil)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
-		assert.NoError(tt, err) // err is nil since GetVolume succeeded
-		conflict, isConflict := result.(*gcpgenserver.V1betaDeleteVolumeConflict)
-		assert.True(tt, isConflict)
-		assert.Equal(tt, float64(409), conflict.Code)
-		assert.Equal(tt, "Error deleting volume - Volume is already transitioning between states", conflict.Message)
+		assert.NoError(tt, err)
+		operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, isOperation)
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/test-project/locations/test-location/operations/job-uuid")
+		assert.False(tt, false, operation.Done.Value)
+		assert.Equal(tt, 0, len(operation.Response)) // No response for already deleting/deleted volume
 	})
 
 	t.Run("VolumeAlreadyDeleted", func(tt *testing.T) {
@@ -3864,7 +3949,13 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{UUID: "pool-1"},
+			Name:      "test-pool",
+			State:     models.LifeCycleStateREADY,
+		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().GetPoolByName(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3873,6 +3964,39 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/test-project/locations/test-location/operations/")
 		assert.Equal(tt, true, operation.Done.Value)
 		assert.Equal(tt, 0, len(operation.Response)) // No response for already deleted volume
+	})
+
+	t.Run("VolumeAlreadyDeleted", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateDeleted,
+			CreationToken:  "token",
+			DisplayName:    "testvolume",
+		}
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{UUID: "pool-1"},
+			Name:      "test-pool",
+			State:     models.LifeCycleStateDeleted,
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().GetPoolByName(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		res, ok := result.(*gcpgenserver.V1betaDeleteVolumeNotFound)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), res.Code)
+		assert.Equal(tt, "Volume not found", res.Message)
 	})
 
 	t.Run("DeleteVolumeNotFound", func(tt *testing.T) {
@@ -4194,34 +4318,6 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, true, op.Done.Value)
 		assert.Contains(tt, op.Name.Value, "/v1beta/projects/123456789/locations/us-central1-a/operations/")
-	})
-
-	t.Run("VolumeAlreadyDeleting", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-
-		params := gcpgenserver.V1betaDeleteVolumeParams{
-			LocationId:    "us-central1-a",
-			ProjectNumber: "123456789",
-			VolumeId:      "vol-1",
-		}
-		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
-
-		// Mock GetVolume to return a volume already in DELETING state
-		deletingVolume := &models.Volume{
-			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateDeleting,
-			DisplayName:    "testvolume",
-		}
-		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(deletingVolume, nil)
-
-		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
-		assert.NoError(tt, err)
-
-		conflict, ok := result.(*gcpgenserver.V1betaDeleteVolumeConflict)
-		assert.True(tt, ok)
-		assert.Equal(tt, float64(409), conflict.Code)
-		assert.Equal(tt, "Error deleting volume - Volume is already transitioning between states", conflict.Message)
 	})
 
 	t.Run("InternalServerError_GetVolume", func(tt *testing.T) {

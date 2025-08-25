@@ -63,6 +63,22 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	vol, volErr := se.GetVolumeByNameAndAccountID(ctx, params.Name, pool.Account.ID)
+	if volErr != nil {
+		logger.Debug("No existing volume found with the given name, proceeding to create a new volume", "volume_name", params.Name)
+	} else {
+		if vol.State != models.LifeCycleStateCreating {
+			return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume with resource_id '%s' already exists", params.Name))
+		} else {
+			job, jobErr := se.GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeCreateVolume))
+			if jobErr != nil {
+				logger.Error("Failed to fetch existing create volume job for volume in CREATING state", "error", jobErr)
+				return convertDatastoreVolumeToModel(vol, nil), "", nil
+			}
+			return convertDatastoreVolumeToModel(vol, nil), job.UUID, nil
+		}
+	}
+
 	err = validateCreateVolumeParams(ctx, se, params, pool)
 	if err != nil {
 		return nil, "", err
@@ -266,6 +282,9 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbVolume.UUID,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -675,8 +694,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("volume size cannot be greater than pool size")
 	}
 
-	if pool.State != models.LifeCycleStateREADY {
-		return customerrors.NewUserInputValidationErr("pool is not ready")
+	switch pool.State {
+	case models.LifeCycleStateCreating, models.LifeCycleStateDeleting, models.LifeCycleStateDeleted:
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Specified pool is in %s state, hence volume cannot be created", pool.State))
+	case models.LifeCycleStateError:
+		return customerrors.NewUserInputValidationErr("Pool is currently unavailable for creating volume")
 	}
 
 	if params.Network == "" {
@@ -976,6 +998,9 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		AccountID:     sql.NullInt64{Int64: volume.Account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: volume.UUID,
+		},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
@@ -1056,21 +1081,31 @@ func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []strin
 		return nil, err
 	}
 
-	conditions := [][]interface{}{{"account_id = ?", account.ID}}
-	conditions = append(conditions, []interface{}{"uuid in ?", volumeIds})
-	volumes, err := se.GetMultipleVolumes(ctx, conditions)
-	if err != nil {
-		return nil, err
+	var result []*models.Volume
+	if len(volumeIds) == 1 {
+		// CCFE does GetMultipleVolumes call with single volumeId instead of calling GetVolume API
+		// So, to update volume metrics, we call GetVolume here
+		volume, getVolErr := o.GetVolume(ctx, volumeIds[0], true)
+		if getVolErr != nil {
+			return nil, getVolErr
+		}
+		result = append(result, volume)
+	} else {
+		conditions := [][]interface{}{{"account_id = ?", account.ID}}
+		conditions = append(conditions, []interface{}{"uuid in ?", volumeIds})
+		volumes, err2 := se.GetMultipleVolumes(ctx, conditions)
+		if err2 != nil {
+			return nil, err2
+		}
+		for _, volume := range volumes {
+			ipAddresses, ipErr := getIPAddressForVolume(ctx, se, volume)
+			if ipErr != nil {
+				return nil, ipErr
+			}
+			result = append(result, convertDatastoreVolumeToModel(volume, &ipAddresses))
+		}
 	}
 
-	var result []*models.Volume
-	for _, volume := range volumes {
-		ipAddresses, err := getIPAddressForVolume(ctx, se, volume)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, convertDatastoreVolumeToModel(volume, &ipAddresses))
-	}
 	return result, nil
 }
 
@@ -1218,8 +1253,10 @@ func _updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *dat
 }
 
 func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams, pool *datamodel.PoolView) error {
-	if utils.IsTransitionalState(volume.State) {
-		return customerrors.NewUserInputValidationErr("volume is not in a valid state for update")
+	if volume.State == models.LifeCycleStateUpdating {
+		return customerrors.NewConflictErr("An update operation is already in progress for this volume")
+	} else if utils.IsTransitionalState(volume.State) {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Volume %s cannot be updated, while in transitioning state: %s", volume.Name, volume.State))
 	}
 
 	// Greater than 0 means the value was provided in the request

@@ -128,6 +128,13 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 
 	volume, jobUUID, err := h.Orchestrator.CreateVolume(ctx, param)
 	if err != nil {
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaCreateVolumeConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaCreateVolumeBadRequest{
 				Code:    400,
@@ -226,6 +233,10 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 
 	if strings.Contains(req.Volume.ResourceId, "-") {
 		return nil, errors.NewUserInputValidationErr("The Resource ID can only contain lowercase letters, numbers, and underscores. It must start with a letter and cannot end with an underscore.")
+	}
+
+	if !req.Volume.QuotaInBytes.IsSet() {
+		return nil, errors.NewUserInputValidationErr("QuotaInBytes is required")
 	}
 
 	var backupPath string
@@ -469,7 +480,12 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 
 	volume, jobUUID, err := h.Orchestrator.UpdateVolume(ctx, param)
 	if err != nil {
-		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaUpdateVolumeConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaUpdateVolumeBadRequest{
 				Code:    400,
 				Message: err.Error(),
@@ -660,25 +676,47 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 				Message: "Volume not found",
 			}, nil
 		}
-		logger.Error("Failed to delete volume", "error", err.Error())
+		logger.Error("Failed to get volume before deletion", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 			Code:    500,
 			Message: "Internal server error",
 		}, nil
 	}
 
+	dummyOperationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
 	if volume != nil && volume.LifeCycleState == models.LifeCycleStateDeleting {
-		msg := "Error deleting volume - Volume is already transitioning between states"
-		return &gcpgenserver.V1betaDeleteVolumeConflict{
-			Code:    409,
-			Message: msg,
+		log := util.GetLogger(ctx)
+		job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume))
+		if jobErr != nil {
+			log.Error("Failed to find job for deleting volume", "volumeUUID", volume.UUID, "error", jobErr.Error())
+			// Return the volume response even if job lookup fails
+			return &gcpgenserver.OperationV1beta{
+				Name: gcpgenserver.NewOptString(dummyOperationID), // Dummy operation ID
+				Done: gcpgenserver.NewOptBool(true),               // Mark as done since we can't find the job
+			}, nil
+		}
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(operationID),
+			Done: gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR), // Done if job is in DONE or ERROR state
 		}, nil
 	}
 
 	if volume != nil && volume.LifeCycleState == models.LifeCycleStateDeleted {
-		operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
+		// in case the pool is deleted, we should return 404 as the volumes is no longer accessible
+		pool, getPoolErr := h.Orchestrator.GetPoolByName(ctx, volume.PoolName, params.ProjectNumber, 0)
+		if getPoolErr != nil && !errors.IsNotFoundErr(getPoolErr) {
+			logger.Info("Failed to get pool while deleting volume", "poolName", volume.PoolName, "error", getPoolErr.Error())
+		}
+		if pool.State == models.LifeCycleStateDeleting || pool.State == models.LifeCycleStateDeleted {
+			return &gcpgenserver.V1betaDeleteVolumeNotFound{
+				Code:    404,
+				Message: "Volume not found",
+			}, nil
+		}
+
 		return &gcpgenserver.OperationV1beta{
-			Name: gcpgenserver.NewOptString(operationID),
+			Name: gcpgenserver.NewOptString(dummyOperationID),
 			Done: gcpgenserver.NewOptBool(true),
 		}, nil
 	}
@@ -686,9 +724,8 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 	volume, jobUUID, err := h.Orchestrator.DeleteVolume(ctx, params.VolumeId)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
-			operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
 			return &gcpgenserver.OperationV1beta{
-				Name: gcpgenserver.NewOptString(operationID),
+				Name: gcpgenserver.NewOptString(dummyOperationID),
 				Done: gcpgenserver.NewOptBool(true),
 			}, nil
 		}

@@ -17,6 +17,7 @@ import (
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
+	"gorm.io/gorm"
 )
 
 func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
@@ -84,6 +85,7 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, account.ID).Return(nil, errors.New("volume not found"))
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
@@ -98,7 +100,7 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		}()
 
 		// Mock UpdateJob call to mark job as error
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil).Once()
 
 		// Mock UpdateVolumeFields call to mark volume as error
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
@@ -486,6 +488,7 @@ func TestCreateVolume_FailedVolumeUpdateOnError(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, account.ID).Return(nil, gorm.ErrRecordNotFound)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
@@ -585,6 +588,7 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, account.ID).Return(nil, gorm.ErrRecordNotFound)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)

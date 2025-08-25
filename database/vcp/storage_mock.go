@@ -6552,6 +6552,66 @@ func (_c *MockStorage_GetVolumeByName_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// GetVolumeByNameAndAccountID provides a mock function with given fields: ctx, name, accountID
+func (_m *MockStorage) GetVolumeByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, name, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeByNameAndAccountID")
+	}
+
+	var r0 *datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.Volume, error)); ok {
+		return rf(ctx, name, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.Volume); ok {
+		r0 = rf(ctx, name, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, name, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetVolumeByNameAndAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeByNameAndAccountID'
+type MockStorage_GetVolumeByNameAndAccountID_Call struct {
+	*mock.Call
+}
+
+// GetVolumeByNameAndAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetVolumeByNameAndAccountID(ctx interface{}, name interface{}, accountID interface{}) *MockStorage_GetVolumeByNameAndAccountID_Call {
+	return &MockStorage_GetVolumeByNameAndAccountID_Call{Call: _e.mock.On("GetVolumeByNameAndAccountID", ctx, name, accountID)}
+}
+
+func (_c *MockStorage_GetVolumeByNameAndAccountID_Call) Run(run func(ctx context.Context, name string, accountID int64)) *MockStorage_GetVolumeByNameAndAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetVolumeByNameAndAccountID_Call) Return(_a0 *datamodel.Volume, _a1 error) *MockStorage_GetVolumeByNameAndAccountID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetVolumeByNameAndAccountID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.Volume, error)) *MockStorage_GetVolumeByNameAndAccountID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeCount provides a mock function with given fields: ctx, accountName
 func (_m *MockStorage) GetVolumeCount(ctx context.Context, accountName string) (int64, error) {
 	ret := _m.Called(ctx, accountName)

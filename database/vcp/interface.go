@@ -59,6 +59,7 @@ type (
 		GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 		DescribeVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 		GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error)
+		GetVolumeByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.Volume, error)
 		GetVolumeCount(ctx context.Context, accountName string) (int64, error)
 		GetVolumeByName(ctx context.Context, name string) (*datamodel.Volume, error)
 		UpdateVolume(ctx context.Context, volume *datamodel.Volume) error

@@ -7102,7 +7102,6 @@ components:
             a soft quota used for alerting only.
           format: double
           example: 4000000000000
-          default: 1000000000000
         coldTierSizeGib:
           title: coldTierSizeGib
           type: number

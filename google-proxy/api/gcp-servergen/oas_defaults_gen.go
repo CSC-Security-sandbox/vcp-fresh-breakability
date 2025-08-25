@@ -373,10 +373,6 @@ func (s *VolumeV1beta) setDefaults() {
 		s.UsedBytes.SetTo(val)
 	}
 	{
-		val := float64(1000000000000)
-		s.QuotaInBytes.SetTo(val)
-	}
-	{
 		val := float64(0)
 		s.ColdTierSizeGib.SetTo(val)
 	}
