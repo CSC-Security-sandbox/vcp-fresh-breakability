@@ -2791,7 +2791,7 @@ func TestCreateBackupPolicySchedule(t *testing.T) {
 		schedulerHandle.On("GetID").Return("schedule-id")
 		mockClient.On("Create", ctx, mock.Anything).Return(schedulerHandle, nil).Once()
 
-		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy)
+		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy, "")
 		assert.NoError(t, err)
 	})
 	t.Run("CreateBackupPolicyScheduleFails", func(t *testing.T) {
@@ -2812,8 +2812,30 @@ func TestCreateBackupPolicySchedule(t *testing.T) {
 		schedulerHandle.On("GetID").Return("schedule-id")
 		mockClient.On("Create", ctx, mock.Anything).Return(nil, errors.New("failed to create schedule")).Times(scheduler.DefaultMaxRetries)
 
-		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy)
+		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy, "")
 		assert.Error(t, err, "failed to create schedule")
+	})
+	t.Run("CreateBackupPolicyScheduleWithCustomScheduleSucceeds", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockClient := &mocks.ScheduleClient{}
+		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
+		activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: temporalScheduler}
+
+		ctx := context.Background()
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				UUID: "policy-uuid",
+			},
+			Name: "test-policy",
+		}
+		customSchedule := "0 2 * * *" // Daily at 2 AM
+
+		schedulerHandle := &mocks.ScheduleHandle{}
+		schedulerHandle.On("GetID").Return("schedule-id")
+		mockClient.On("Create", ctx, mock.Anything).Return(schedulerHandle, nil).Once()
+
+		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy, customSchedule)
+		assert.NoError(t, err)
 	})
 }
 

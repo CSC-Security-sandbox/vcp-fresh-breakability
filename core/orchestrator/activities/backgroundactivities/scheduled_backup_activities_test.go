@@ -109,7 +109,7 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
-			{"data_protection->>'scheduled_backup_enabled' = true"},
+			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
 		mockStorage.On("ListVolumes", ctx, conditions).Return(expectedVolumes, nil).Once()
 
@@ -129,7 +129,7 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
-			{"data_protection->>'scheduled_backup_enabled' = true"},
+			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
 
 		mockStorage.On("ListVolumes", ctx, conditions).Return(nil, errors.New("db error")).Once()

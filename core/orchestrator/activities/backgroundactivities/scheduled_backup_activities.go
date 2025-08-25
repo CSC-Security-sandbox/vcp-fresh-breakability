@@ -110,7 +110,7 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 	conditions := [][]interface{}{
 		{"account_id = ?", accountID},
 		{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
-		{"data_protection->>'scheduled_backup_enabled' = true"},
+		{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 	}
 	volumes, err := se.ListVolumes(ctx, conditions)
 	if err != nil {

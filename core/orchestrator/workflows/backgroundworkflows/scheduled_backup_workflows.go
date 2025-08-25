@@ -28,6 +28,7 @@ const (
 )
 
 var (
+	hydrationEnabled          = env.GetBool("GCP_HYDRATE_ENABLED", true)
 	scheduledWeeklyBackupDay  = env.GetInt("SCHEDULED_WEEKLY_BACKUP_DAY", 1)  // Default to Monday (0=Sunday, 1=Monday, ..., 6=Saturday)
 	scheduledMonthlyBackupDay = env.GetInt("SCHEDULED_MONTHLY_BACKUP_DAY", 1) // Default to 1st day of the month
 )
@@ -395,9 +396,11 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	}
 	rollbackManager.AddActivity(backupActivities.DeleteSnapshotFromObjectStore, node, cloudTarget.UUID, backups[0].Attributes.EndpointUUID, backups[0].Attributes.SnapshotID)
 
-	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateCreatedBackupsToCCFE, volume, backups, backupVault.Name).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	if hydrationEnabled {
+		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateCreatedBackupsToCCFE, volume, backups, backupVault.Name).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	err = workflow.ExecuteChildWorkflow(ctx, DeleteScheduledBackupWorkflow, volume, backupPolicy).Get(ctx, nil)
@@ -556,9 +559,11 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		}
 	}
 
-	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateDeletedBackupsToCCFE, volume, backupToBeDeleted, backupVault.Name).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	if hydrationEnabled {
+		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateDeletedBackupsToCCFE, volume, backupToBeDeleted, backupVault.Name).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 	return nil, nil
 }

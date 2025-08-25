@@ -2003,6 +2003,10 @@ func (s *Server) handleV1betaCreateVolumeRequest(args [2]string, argsEscaped boo
 					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
+				{
+					Name: "X-Netapp-Backup-Schedule",
+					In:   "header",
+				}: params.XNetappBackupSchedule,
 			},
 			Raw: r,
 		}
@@ -14778,6 +14782,10 @@ func (s *Server) handleV1betaUpdateVolumeRequest(args [3]string, argsEscaped boo
 					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
+				{
+					Name: "X-Netapp-Backup-Schedule",
+					In:   "header",
+				}: params.XNetappBackupSchedule,
 				{
 					Name: "volumeId",
 					In:   "path",

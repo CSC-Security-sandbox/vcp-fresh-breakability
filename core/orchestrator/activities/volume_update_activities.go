@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -508,6 +509,6 @@ func (a *VolumeUpdateActivity) FetchAndCreateBackupPolicyFromSDE(ctx context.Con
 }
 
 // CreateScheduleForBackupPolicy creates a backup policy schedule in the VCP
-func (a *VolumeUpdateActivity) CreateScheduleForBackupPolicy(ctx context.Context, backupPolicy *datamodel.BackupPolicy) error {
-	return CreateBackupPolicySchedule(ctx, a.Scheduler, backupPolicy)
+func (a *VolumeUpdateActivity) CreateScheduleForBackupPolicy(ctx context.Context, backupPolicy *datamodel.BackupPolicy, customSchedule string) error {
+	return CreateBackupPolicySchedule(ctx, a.Scheduler, backupPolicy, customSchedule)
 }

@@ -4535,3 +4535,300 @@ func TestPrepareRevertVolumeParams(t *testing.T) {
 		assert.Contains(tt, err.Error(), "No Snapshot ID given")
 	})
 }
+
+func TestValidateBackupScheduleCron(t *testing.T) {
+	tests := []struct {
+		name        string
+		cronExpr    string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "Valid cron expression - every 5 minutes",
+			cronExpr:    "*/5 * * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 10 minutes",
+			cronExpr:    "*/10 * * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 30 minutes",
+			cronExpr:    "*/30 * * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every hour",
+			cronExpr:    "0 * * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - daily at midnight",
+			cronExpr:    "0 0 * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - specific minute",
+			cronExpr:    "30 * * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes during business hours",
+			cronExpr:    "*/5 9-17 * * 1-5",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 30 minutes on weekdays",
+			cronExpr:    "*/30 * * * 1-5",
+			expectError: false,
+		},
+		{
+			name:        "Invalid cron expression - every 1 minute (too frequent)",
+			cronExpr:    "* * * * *",
+			expectError: true,
+			errorMsg:    "Backup schedule interval must be at least 5 minutes. Current schedule: every minute",
+		},
+		{
+			name:        "Invalid cron expression - every 2 minutes (too frequent)",
+			cronExpr:    "*/2 * * * *",
+			expectError: true,
+			errorMsg:    "Backup schedule interval must be at least 5 minutes. Current interval: 2 minutes",
+		},
+		{
+			name:        "Invalid cron expression - malformed",
+			cronExpr:    "invalid cron",
+			expectError: true,
+			errorMsg:    "Invalid cron expression:",
+		},
+		{
+			name:        "Invalid cron expression - wrong number of fields",
+			cronExpr:    "* * * *",
+			expectError: true,
+			errorMsg:    "Invalid cron expression:",
+		},
+		{
+			name:        "Invalid cron expression - too many fields",
+			cronExpr:    "* * * * * *",
+			expectError: true,
+			errorMsg:    "Invalid cron expression format. Expected 5 fields: minute hour day month weekday",
+		},
+		{
+			name:        "Invalid cron expression - invalid interval format",
+			cronExpr:    "*/abc * * * *",
+			expectError: true,
+			errorMsg:    "Invalid cron expression:",
+		},
+		{
+			name:        "Empty cron expression",
+			cronExpr:    "",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with specific hour",
+			cronExpr:    "*/5 2 * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with specific day",
+			cronExpr:    "*/5 * 15 * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with specific month",
+			cronExpr:    "*/5 * * 6 *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with specific weekday",
+			cronExpr:    "*/5 * * * 1",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with range in hour",
+			cronExpr:    "*/5 9-17 * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with list in hour",
+			cronExpr:    "*/5 9,12,17 * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with step in hour",
+			cronExpr:    "*/5 */2 * * *",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBackupScheduleCron(tt.cronExpr)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error for cron expression '%s', but got none", tt.cronExpr)
+					return
+				}
+
+				if tt.errorMsg != "" {
+					if !contains(err.Error(), tt.errorMsg) {
+						t.Errorf("Expected error message to contain '%s', but got: %v", tt.errorMsg, err.Error())
+					}
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error for cron expression '%s', but got: %v", tt.cronExpr, err)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateBackupScheduleCron_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		cronExpr    string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "Valid cron expression - every 5 minutes with complex hour range",
+			cronExpr:    "*/5 0-23 * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with complex day range",
+			cronExpr:    "*/5 * 1-15 * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with complex month range",
+			cronExpr:    "*/5 * * 1-12 *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with complex weekday range",
+			cronExpr:    "*/5 * * * 1-7",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with mixed ranges",
+			cronExpr:    "*/5 9-17 1-15 1-6 1-5",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with lists",
+			cronExpr:    "*/5 9,12,15,18 * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - every 5 minutes with steps",
+			cronExpr:    "*/5 */3 * * *",
+			expectError: false,
+		},
+		{
+			name:        "Invalid cron expression - every 1 minute with complex constraints",
+			cronExpr:    "* 9-17 * * 1-5",
+			expectError: true,
+			errorMsg:    "Backup schedule interval must be at least 5 minutes. Current schedule: every minute",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBackupScheduleCron(tt.cronExpr)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error for cron expression '%s', but got none", tt.cronExpr)
+					return
+				}
+
+				if tt.errorMsg != "" {
+					if !contains(err.Error(), tt.errorMsg) {
+						t.Errorf("Expected error message to contain '%s', but got: %v", tt.errorMsg, err.Error())
+					}
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error for cron expression '%s', but got: %v", tt.cronExpr, err)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateBackupScheduleCron_BoundaryValues(t *testing.T) {
+	tests := []struct {
+		name        string
+		cronExpr    string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "Valid cron expression - exactly 5 minutes interval",
+			cronExpr:    "*/5 * * * *",
+			expectError: false,
+		},
+		{
+			name:        "Invalid cron expression - 4 minutes interval (just below boundary)",
+			cronExpr:    "*/4 * * * *",
+			expectError: true,
+			errorMsg:    "Backup schedule interval must be at least 5 minutes. Current interval: 4 minutes",
+		},
+		{
+			name:        "Valid cron expression - 6 minutes interval (just above boundary)",
+			cronExpr:    "*/6 * * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - large interval",
+			cronExpr:    "*/60 * * * *",
+			expectError: false,
+		},
+		{
+			name:        "Valid cron expression - very large interval",
+			cronExpr:    "*/1440 * * * *",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBackupScheduleCron(tt.cronExpr)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error for cron expression '%s', but got none", tt.cronExpr)
+					return
+				}
+
+				if tt.errorMsg != "" {
+					if !contains(err.Error(), tt.errorMsg) {
+						t.Errorf("Expected error message to contain '%s', but got: %v", tt.errorMsg, err.Error())
+					}
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error for cron expression '%s', but got: %v", tt.cronExpr, err)
+				}
+			}
+		})
+	}
+}
+
+// Helper function to check if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > len(substr) && (s[:len(substr)] == substr ||
+			s[len(s)-len(substr):] == substr ||
+			func() bool {
+				for i := 1; i <= len(s)-len(substr); i++ {
+					if s[i:i+len(substr)] == substr {
+						return true
+					}
+				}
+				return false
+			}())))
+}

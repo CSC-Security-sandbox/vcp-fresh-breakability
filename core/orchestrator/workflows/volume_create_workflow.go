@@ -449,7 +449,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
-			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicySchedule, &vcpBackupPolicy).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicySchedule, &vcpBackupPolicy, createVolumeParams.BackupSchedule).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

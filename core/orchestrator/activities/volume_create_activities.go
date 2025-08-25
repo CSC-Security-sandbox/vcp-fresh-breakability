@@ -825,17 +825,25 @@ func _createBackupPolicyFetchedFromSDE(ctx context.Context, se database.Storage,
 	return dbBackupPolicy, nil
 }
 
-func (a VolumeCreateActivity) CreateBackupPolicySchedule(ctx context.Context, vcpBackupPolicy *datamodel.BackupPolicy) error {
-	return _createBackupPolicySchedule(ctx, a.Scheduler, vcpBackupPolicy)
+func (a VolumeCreateActivity) CreateBackupPolicySchedule(ctx context.Context, vcpBackupPolicy *datamodel.BackupPolicy, customSchedule string) error {
+	return _createBackupPolicySchedule(ctx, a.Scheduler, vcpBackupPolicy, customSchedule)
 }
 
-func _createBackupPolicySchedule(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, vcpBackupPolicy *datamodel.BackupPolicy) error {
+func _createBackupPolicySchedule(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, vcpBackupPolicy *datamodel.BackupPolicy, customSchedule string) error {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Creating backup policy schedule for policy: %s", vcpBackupPolicy.Name)
 
-	backupPolicyCreatedTime := vcpBackupPolicy.CreatedAt
-	// Cron expression based on the created time of the backup policy to create schedules
-	cronExpr := fmt.Sprintf("%d %d * * *", backupPolicyCreatedTime.Minute(), backupPolicyCreatedTime.Hour())
+	var cronExpr string
+	if customSchedule != "" {
+		// Use the custom schedule if provided
+		cronExpr = customSchedule
+		logger.Infof("Using custom backup schedule: %s", cronExpr)
+	} else {
+		// Default cron expression based on the created time of the backup policy
+		backupPolicyCreatedTime := vcpBackupPolicy.CreatedAt
+		cronExpr = fmt.Sprintf("%d %d * * *", backupPolicyCreatedTime.Minute(), backupPolicyCreatedTime.Hour())
+		logger.Infof("Using default backup schedule based on creation time: %s", cronExpr)
+	}
 
 	createParams := scheduler.CreateScheduleParams{
 		ScheduleParams: scheduler.ScheduleParams{

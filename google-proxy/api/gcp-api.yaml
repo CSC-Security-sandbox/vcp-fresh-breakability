@@ -590,6 +590,7 @@ paths:
         - $ref: '#/components/parameters/projectNumberPathParameter'
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/xNetappBackupScheduleHeader'
         - name: volumeId
           in: path
           description: Uuid v4 used to identify the volume
@@ -963,6 +964,7 @@ paths:
         - $ref: '#/components/parameters/projectNumberPathParameter'
         - $ref: '#/components/parameters/locationIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/xNetappBackupScheduleHeader'
       requestBody:
         description: The required parameters to create a new volume.
         content:
@@ -10734,6 +10736,12 @@ components:
       name: X-Correlation-ID
       in: header
       description: Correlation identifier
+      schema:
+        type: string
+    xNetappBackupScheduleHeader:
+      name: X-Netapp-Backup-Schedule
+      in: header
+      description: Backup schedule cron expression
       schema:
         type: string
     includeDeletedQueryParameter:

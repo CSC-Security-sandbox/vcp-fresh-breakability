@@ -2334,6 +2334,8 @@ type V1betaCreateVolumeParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
+	// Backup schedule cron expression.
+	XNetappBackupSchedule OptString
 }
 
 func unpackV1betaCreateVolumeParams(packed middleware.Parameters) (params V1betaCreateVolumeParams) {
@@ -2358,6 +2360,15 @@ func unpackV1betaCreateVolumeParams(packed middleware.Parameters) (params V1beta
 		}
 		if v, ok := packed[key]; ok {
 			params.XCorrelationID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Netapp-Backup-Schedule",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XNetappBackupSchedule = v.(OptString)
 		}
 	}
 	return params
@@ -2522,6 +2533,45 @@ func decodeV1betaCreateVolumeParams(args [2]string, argsEscaped bool, r *http.Re
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "X-Correlation-ID",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode header: X-Netapp-Backup-Schedule.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Netapp-Backup-Schedule",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXNetappBackupScheduleVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXNetappBackupScheduleVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XNetappBackupSchedule.SetTo(paramsDotXNetappBackupScheduleVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Netapp-Backup-Schedule",
 			In:   "header",
 			Err:  err,
 		}
@@ -23392,6 +23442,8 @@ type V1betaUpdateVolumeParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
+	// Backup schedule cron expression.
+	XNetappBackupSchedule OptString
 	// Uuid v4 used to identify the volume.
 	VolumeId string
 }
@@ -23418,6 +23470,15 @@ func unpackV1betaUpdateVolumeParams(packed middleware.Parameters) (params V1beta
 		}
 		if v, ok := packed[key]; ok {
 			params.XCorrelationID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Netapp-Backup-Schedule",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XNetappBackupSchedule = v.(OptString)
 		}
 	}
 	{
@@ -23589,6 +23650,45 @@ func decodeV1betaUpdateVolumeParams(args [3]string, argsEscaped bool, r *http.Re
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "X-Correlation-ID",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode header: X-Netapp-Backup-Schedule.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Netapp-Backup-Schedule",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXNetappBackupScheduleVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXNetappBackupScheduleVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XNetappBackupSchedule.SetTo(paramsDotXNetappBackupScheduleVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Netapp-Backup-Schedule",
 			In:   "header",
 			Err:  err,
 		}

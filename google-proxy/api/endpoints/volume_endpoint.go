@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
+	"github.com/robfig/cron"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -34,6 +35,7 @@ var (
 	prepareCreateVolumeParams     = _prepareCreateVolumeParams
 	prepareRevertVolumeParams     = _prepareRevertVolumeParams
 	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
+	qaEnabled                     = env.GetBool("QA_ENABLED", false)
 )
 
 const (
@@ -43,6 +45,7 @@ const (
 	SnapshotScheduleLabelWeekly  = "weekly"
 	SnapshotScheduleLabelMonthly = "monthly"
 	MaxBackupPathComponents      = 8
+	MinBackupScheduleInterval    = 5 * time.Minute // Minimum 5 minutes interval
 
 	daysOfMonthError = `daysOfMonth must include unique values in the range 1-31 (inclusive).`
 	daysOfWeekError  = `day in weeklySchedule must include 1-7 (inclusive) unique weekdays, that are comma separated.`
@@ -241,16 +244,27 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	if req.BackupId.IsSet() {
 		backupID = req.BackupId.Value
 	}
+
+	var backupSchedule string
+	if qaEnabled && params.XNetappBackupSchedule.IsSet() {
+		backupSchedule = params.XNetappBackupSchedule.Value
+		// Validate the backup schedule cron expression
+		if err := validateBackupScheduleCron(backupSchedule); err != nil {
+			return nil, err
+		}
+	}
+
 	param := &common.CreateVolumeParams{
-		AccountName:   params.ProjectNumber,
-		Region:        region,
-		Name:          req.Volume.ResourceId,
-		VendorID:      vendorId,
-		CreationToken: req.Volume.CreationToken.Value,
-		PoolID:        req.Volume.PoolId.Value,
-		QuotaInBytes:  uint64(req.Volume.QuotaInBytes.Value),
-		BackupID:      backupID,
-		BackupPath:    backupPath,
+		AccountName:    params.ProjectNumber,
+		Region:         region,
+		Name:           req.Volume.ResourceId,
+		VendorID:       vendorId,
+		CreationToken:  req.Volume.CreationToken.Value,
+		PoolID:         req.Volume.PoolId.Value,
+		QuotaInBytes:   uint64(req.Volume.QuotaInBytes.Value),
+		BackupID:       backupID,
+		BackupPath:     backupPath,
+		BackupSchedule: backupSchedule,
 	}
 
 	if req.VolumeType.IsSet() {
@@ -487,11 +501,21 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 }
 
 func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+	var backupSchedule string
+	if qaEnabled && params.XNetappBackupSchedule.IsSet() {
+		backupSchedule = params.XNetappBackupSchedule.Value
+		// Validate the backup schedule cron expression
+		if err := validateBackupScheduleCron(backupSchedule); err != nil {
+			return nil, err
+		}
+	}
+
 	param := &common.UpdateVolumeParams{
-		AccountName: params.ProjectNumber,
-		Region:      region,
-		PoolID:      req.PoolId.Value,
-		VolumeId:    params.VolumeId,
+		AccountName:    params.ProjectNumber,
+		Region:         region,
+		PoolID:         req.PoolId.Value,
+		VolumeId:       params.VolumeId,
+		BackupSchedule: backupSchedule,
 	}
 
 	if req.Description.IsSet() {
@@ -1705,4 +1729,46 @@ func convertDaysOfWeekFromIntArray(days []int) string {
 	}
 
 	return strings.Join(resultDays, ",")
+}
+
+// validateBackupScheduleCron validates that the cron expression has a minimum interval of 5 minutes
+func validateBackupScheduleCron(cronExpression string) error {
+	if cronExpression == "" {
+		return nil
+	}
+
+	// First validate that it's a valid cron expression
+	_, err := cron.Parse(cronExpression)
+	if err != nil {
+		return errors.NewUserInputValidationErr(fmt.Sprintf("Invalid cron expression: %s", err.Error()))
+	}
+
+	// Split the cron expression to check the minute field
+	parts := strings.Fields(cronExpression)
+	if len(parts) != 5 {
+		return errors.NewUserInputValidationErr("Invalid cron expression format. Expected 5 fields: minute hour day month weekday")
+	}
+
+	minuteField := parts[0]
+
+	// Check if the minute field indicates a frequency less than 5 minutes
+	if minuteField == "*" {
+		// Every minute - too frequent
+		return errors.NewUserInputValidationErr("Backup schedule interval must be at least 5 minutes. Current schedule: every minute")
+	}
+
+	if strings.HasPrefix(minuteField, "*/") {
+		// Parse the interval
+		intervalStr := strings.TrimPrefix(minuteField, "*/")
+		interval, err := strconv.Atoi(intervalStr)
+		if err != nil {
+			return errors.NewUserInputValidationErr(fmt.Sprintf("Invalid minute interval in cron expression: %s", minuteField))
+		}
+
+		if interval < 5 {
+			return errors.NewUserInputValidationErr(fmt.Sprintf("Backup schedule interval must be at least 5 minutes. Current interval: %d minutes", interval))
+		}
+	}
+
+	return nil
 }

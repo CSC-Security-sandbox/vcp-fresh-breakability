@@ -97,6 +97,7 @@ type CreateVolumeParams struct {
 	AutoTieringPolicy *AutoTieringPolicy
 	BackupID          string
 	BackupPath        string
+	BackupSchedule    string
 	Labels            *datamodel.JSONB
 }
 
@@ -152,6 +153,7 @@ type UpdateVolumeParams struct {
 	InitiateSplit     bool
 	AutoTieringPolicy *AutoTieringPolicy
 	FileProperties    *models.FileProperties
+	BackupSchedule    string
 }
 
 type CreateLunMapParams struct {
