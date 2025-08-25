@@ -325,6 +325,32 @@ func (mock *MockClientService) AssertIpsecPolicyModify(params *IpsecPolicyModify
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// KeyManagerConfigGet mocks a call to ClientService.KeyManagerConfigGet
+func (mock *MockClientService) KeyManagerConfigGet(params *KeyManagerConfigGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*KeyManagerConfigGetOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "KeyManagerConfigGet", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**KeyManagerConfigGetOK), *ret[1].(*error)
+}
+
+// AssertKeyManagerConfigGet verifies that KeyManagerConfigGet has been invoked
+func (mock *MockClientService) AssertKeyManagerConfigGet(params *KeyManagerConfigGetParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *KeyManagerConfigGetOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "KeyManagerConfigGet", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// KeyManagerConfigModify mocks a call to ClientService.KeyManagerConfigModify
+func (mock *MockClientService) KeyManagerConfigModify(params *KeyManagerConfigModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*KeyManagerConfigModifyOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "KeyManagerConfigModify", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**KeyManagerConfigModifyOK), *ret[1].(*error)
+}
+
+// AssertKeyManagerConfigModify verifies that KeyManagerConfigModify has been invoked
+func (mock *MockClientService) AssertKeyManagerConfigModify(params *KeyManagerConfigModifyParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *KeyManagerConfigModifyOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "KeyManagerConfigModify", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
 // RoleCollectionGet mocks a call to ClientService.RoleCollectionGet
 func (mock *MockClientService) RoleCollectionGet(params *RoleCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleCollectionGetOK, error) {
 	mock.calls <- &mockClientServiceCall{name: "RoleCollectionGet", params: []interface{}{&params, &authInfo, &opts}}

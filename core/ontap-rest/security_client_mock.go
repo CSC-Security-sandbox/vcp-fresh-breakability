@@ -17,6 +17,51 @@ func (_m *MockSecurityClient) EXPECT() *MockSecurityClient_Expecter {
 	return &MockSecurityClient_Expecter{mock: &_m.Mock}
 }
 
+// EnableAutoVolOfflineCronForGCPKMS provides a mock function with no fields
+func (_m *MockSecurityClient) EnableAutoVolOfflineCronForGCPKMS() error {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableAutoVolOfflineCronForGCPKMS")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableAutoVolOfflineCronForGCPKMS'
+type MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call struct {
+	*mock.Call
+}
+
+// EnableAutoVolOfflineCronForGCPKMS is a helper method to define mock.On call
+func (_e *MockSecurityClient_Expecter) EnableAutoVolOfflineCronForGCPKMS() *MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call {
+	return &MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call{Call: _e.mock.On("EnableAutoVolOfflineCronForGCPKMS")}
+}
+
+func (_c *MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call) Run(run func()) *MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call) Return(_a0 error) *MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call) RunAndReturn(run func() error) *MockSecurityClient_EnableAutoVolOfflineCronForGCPKMS_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GcpKmsCreate provides a mock function with given fields: params
 func (_m *MockSecurityClient) GcpKmsCreate(params *GcpKmsCreateParams) ([]*GcpKms, error) {
 	ret := _m.Called(params)

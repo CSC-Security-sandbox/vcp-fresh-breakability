@@ -507,6 +507,38 @@ func TestMockClientServiceIpsecPolicyModify(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceKeyManagerConfigGet(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *KeyManagerConfigGetParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *KeyManagerConfigGetOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.KeyManagerConfigGet(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertKeyManagerConfigGet(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceKeyManagerConfigModify(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *KeyManagerConfigModifyParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *KeyManagerConfigModifyOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.KeyManagerConfigModify(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertKeyManagerConfigModify(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceRoleCollectionGet(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *RoleCollectionGetParams

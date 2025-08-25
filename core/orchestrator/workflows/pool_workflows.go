@@ -61,11 +61,12 @@ var (
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1x49")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 
-	serviceAttachment             = env.GetString("GIN_SERVICE_ATTACHMENT", "")
-	ginLoggingMetricsProtocol     = env.GetString("GIN_METRICS_PROTOCOL", "tcp-unencrypted")
-	ginLoggingMetricsPort         = env.GetInt64("GIN_METRICS_PORT", 5140)
-	ginLoggingFeatureFlag         = env.GetBool("GIN_LOGGING_FEATURE", false)
-	disableVsaCleanupOnVLMFailure = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
+	serviceAttachment                 = env.GetString("GIN_SERVICE_ATTACHMENT", "")
+	ginLoggingMetricsProtocol         = env.GetString("GIN_METRICS_PROTOCOL", "tcp-unencrypted")
+	ginLoggingMetricsPort             = env.GetInt64("GIN_METRICS_PORT", 5140)
+	ginLoggingFeatureFlag             = env.GetBool("GIN_LOGGING_FEATURE", false)
+	disableVsaCleanupOnVLMFailure     = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
+	enableAutoVolOfflineCronForGCPKMS = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
 )
 
 const (
@@ -974,6 +975,14 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateDnsActivity, node).Get(ctx, nil)
 	if err != nil {
 		return err
+	}
+
+	// Enable the ontap scheduler to take the volume offline in case the KMS key is not reachable/disabled.
+	if enableAutoVolOfflineCronForGCPKMS {
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.EnableAutoVolOfflineCronForGCPKMSActivity, node).Get(ctx, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Configure KMS for SVM if KMS config is provided

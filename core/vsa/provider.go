@@ -101,6 +101,7 @@ type Provider interface {
 	GetSecurityLogForwarding(params GetSecurityLogForwardingParams) error
 	UpdateSecurityAudit(params UpdateSecurityAuditParams) (*SecurityAudit, error)
 	GetSecurityAudit() (*SecurityAudit, error)
+	EnableAutoVolOfflineCronForGCPKMS() error
 }
 
 type OntapRestProvider struct {

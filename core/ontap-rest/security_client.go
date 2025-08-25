@@ -16,6 +16,7 @@ type SecurityClient interface { // generate:mock
 	SecurityAuditUpdate(params *SecurityAuditUpdateParams) (*SecurityAudit, error)
 	SecurityAuditGet() (*SecurityAudit, error)
 	GcpKmsModify(params *GcpKmsModifyParams) (*GcpKms, *JobAccepted, error)
+	EnableAutoVolOfflineCronForGCPKMS() error
 }
 
 type securityClient struct {
@@ -127,6 +128,21 @@ func (sc *securityClient) GcpKmsDelete(params *GcpKmsDeleteParams) error {
 	}
 	if response == nil {
 		return errors.New("ontap-rest response for GcpKmsDelete is nil")
+	}
+	return nil
+}
+
+// EnableAutoVolOfflineCronForGCPKMS invokes pkg/ontap-rest/client/security/Client.KeyManagerConfigModify
+func (sc *securityClient) EnableAutoVolOfflineCronForGCPKMS() error {
+	response, err := (*sc.api).KeyManagerConfigModify(getGCPKeyManagerConfigModifyParamsToOntap(), nil)
+	if err != nil {
+		return err
+	}
+	if response == nil {
+		return errors.New("ontap-rest response for EnableAutoVolOfflineCronForGCPKMS is nil")
+	}
+	if !response.IsSuccess() {
+		return errors.New("ontap-rest response for EnableAutoVolOfflineCronForGCPKMS is unsuccessful")
 	}
 	return nil
 }

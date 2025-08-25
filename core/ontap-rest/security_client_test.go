@@ -293,3 +293,34 @@ func TestGcpKmsModify(t *testing.T) {
 		assert.Nil(tt, job)
 	})
 }
+func TestEnableAutoVolOfflineCronForGCPKMS(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+
+		err := client.EnableAutoVolOfflineCronForGCPKMS()
+		assert.EqualError(tt, err, "rest call failed")
+	})
+
+	t.Run("WhenResponseIsNil_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{response: nil}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		defer func() {
+			if r := recover(); r == nil {
+				tt.Errorf("Expected panic when response.Payload is nil")
+			}
+		}()
+		err := client.EnableAutoVolOfflineCronForGCPKMS()
+		assert.Error(tt, err)
+	})
+	t.Run("WhenResponseIsSuccessful_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.KeyManagerConfigModifyOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+
+		err := client.EnableAutoVolOfflineCronForGCPKMS()
+		assert.NoError(tt, err)
+	})
+}

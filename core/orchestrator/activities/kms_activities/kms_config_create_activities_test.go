@@ -277,3 +277,86 @@ func TestCreateDnsActivity(t *testing.T) {
 		}
 	})
 }
+// TestEnableAutoVolOfflineCronForGCPKMSActivity tests the EnableAutoVolOfflineCronForGCPKMSActivity method.
+func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	node := &coreModels.Node{Name: "test-node"}
+
+	t.Run("returns error if GetProviderByNode fails", func(t *testing.T) {
+		// Patch hyperscaler.GetProviderByNode to return error
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		activity := &KmsConfigActivity{}
+		err := activity.EnableAutoVolOfflineCronForGCPKMSActivity(ctx, node)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		assert.EqualError(t, err, "provider error")
+	})
+
+	t.Run("logs error but returns nil if provider.EnableAutoVolOfflineCronForGCPKMS fails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("EnableAutoVolOfflineCronForGCPKMS").Return(errors.New("cron error"))
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		activity := &KmsConfigActivity{}
+		err := activity.EnableAutoVolOfflineCronForGCPKMSActivity(ctx, node)
+		// The method logs the error but returns nil (as per implementation)
+		if err != nil {
+			t.Fatalf("expected nil, got %v", err)
+		}
+	})
+
+	t.Run("returns nil on success", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("EnableAutoVolOfflineCronForGCPKMS").Return(nil)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		activity := &KmsConfigActivity{}
+		err := activity.EnableAutoVolOfflineCronForGCPKMSActivity(ctx, node)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+}
+
+// Additional test for CreateDnsActivity to handle "duplicate entry" case
+func TestCreateDnsActivity_DuplicateEntry(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	node := &coreModels.Node{Name: "test-node"}
+
+	t.Run("returns nil when DNS entry already exists", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("CreateDns", mock.Anything).Return(errors.New("duplicate entry"))
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		activity := &KmsConfigActivity{}
+		err := activity.CreateDnsActivity(ctx, node)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+}

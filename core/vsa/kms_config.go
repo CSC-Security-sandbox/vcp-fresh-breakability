@@ -104,3 +104,16 @@ func (rc *OntapRestProvider) ModifyGcpKms(externalUUID string, credentials *log.
 	}
 	return nil, &ontapJob.JobUUID, nil
 }
+
+func (rc *OntapRestProvider) EnableAutoVolOfflineCronForGCPKMS() error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	err = client.Security().EnableAutoVolOfflineCronForGCPKMS()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

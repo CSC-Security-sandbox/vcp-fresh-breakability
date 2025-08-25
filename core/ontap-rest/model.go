@@ -854,6 +854,34 @@ func gcpKmsCreateParamsToONTAP(params *GcpKmsCreateParams) *security.GcpKmsCreat
 	return otParams
 }
 
+type KeyManagerConfig struct {
+	models.KeyManagerConfig
+}
+
+type KeyManagerConfigGCPModifyParams struct {
+}
+
+type KeyManagerConfigModifyParams struct {
+	BaseParams
+	Info *models.KeyManagerConfig
+}
+
+func getGCPKeyManagerConfigModifyParamsToOntap() *security.KeyManagerConfigModifyParams {
+	otParams := security.NewKeyManagerConfigModifyParams()
+	tt := true
+	otParams.SetInfo(
+		&models.KeyManagerConfig{
+			HealthMonitorPolicy: &models.KeyManagerConfigInlineHealthMonitorPolicy{
+				Gcp: &models.KeyManagerConfigInlineHealthMonitorPolicyInlineGcp{
+					Enabled:             &tt,
+					ManageVolumeOffline: &tt,
+				},
+			},
+		},
+	)
+	return otParams
+}
+
 // GcpKms is a simple wrapper of models.GcpKms
 type GcpKms struct {
 	models.GcpKms

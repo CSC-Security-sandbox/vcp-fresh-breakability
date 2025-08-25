@@ -126,6 +126,10 @@ type ClientService interface {
 
 	IpsecPolicyModify(params *IpsecPolicyModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IpsecPolicyModifyOK, error)
 
+	KeyManagerConfigGet(params *KeyManagerConfigGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*KeyManagerConfigGetOK, error)
+
+	KeyManagerConfigModify(params *KeyManagerConfigModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*KeyManagerConfigModifyOK, error)
+
 	RoleCollectionGet(params *RoleCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleCollectionGetOK, error)
 
 	RoleCreate(params *RoleCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleCreateCreated, error)
@@ -828,6 +832,92 @@ func (a *Client) IpsecPolicyModify(params *IpsecPolicyModifyParams, authInfo run
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*IpsecPolicyModifyDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	KeyManagerConfigGet Retrieves key manager configurations.
+
+Retrieves the key manager health monitor policy (fields=health_monitor_policy).
+### Related ONTAP commands
+* `security key-manager config show`
+* `security key-manager health policy show`
+*/
+func (a *Client) KeyManagerConfigGet(params *KeyManagerConfigGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*KeyManagerConfigGetOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewKeyManagerConfigGetParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "key_manager_config_get",
+		Method:             "GET",
+		PathPattern:        "/security/key-manager-configs",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &KeyManagerConfigGetReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*KeyManagerConfigGetOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*KeyManagerConfigGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	KeyManagerConfigModify Updates key manager configurations.
+
+Updates the key manager health monitor policy.
+### Related ONTAP commands
+* `security key-manager config modify`
+* `security key-manager health policy modify`
+*/
+func (a *Client) KeyManagerConfigModify(params *KeyManagerConfigModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*KeyManagerConfigModifyOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewKeyManagerConfigModifyParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "key_manager_config_modify",
+		Method:             "PATCH",
+		PathPattern:        "/security/key-manager-configs",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &KeyManagerConfigModifyReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*KeyManagerConfigModifyOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*KeyManagerConfigModifyDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

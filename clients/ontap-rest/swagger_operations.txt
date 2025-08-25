@@ -89,6 +89,8 @@ kerberos_realm_create
 kerberos_realm_delete
 kerberos_realm_get
 kerberos_realm_modify
+key_manager_config_get
+key_manager_config_modify
 ldap_collection_get
 ldap_create
 ldap_delete

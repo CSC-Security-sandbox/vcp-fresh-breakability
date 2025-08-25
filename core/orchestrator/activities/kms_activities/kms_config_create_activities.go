@@ -2,7 +2,6 @@ package kms_activities
 
 import (
 	"context"
-	"go.temporal.io/sdk/temporal"
 	"strings"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 )
 
 const (
@@ -116,6 +116,19 @@ func (j *KmsConfigActivity) CreateDnsActivity(ctx context.Context, node *models.
 
 		logger.Error("Failed to create dns", "error", err)
 		return err
+	}
+	return nil
+}
+
+func (j *KmsConfigActivity) EnableAutoVolOfflineCronForGCPKMSActivity(ctx context.Context, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return err
+	}
+	err = provider.EnableAutoVolOfflineCronForGCPKMS()
+	if err != nil {
+		logger.Error("Failed to enable auto vol offline cron in ontap for kms config", "error", err)
 	}
 	return nil
 }

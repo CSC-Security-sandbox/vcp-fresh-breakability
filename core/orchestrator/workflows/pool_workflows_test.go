@@ -2637,6 +2637,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2723,6 +2724,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2774,6 +2776,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2867,6 +2870,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2917,6 +2921,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3056,6 +3061,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3196,6 +3202,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3341,6 +3348,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3477,6 +3485,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3611,6 +3620,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3746,6 +3756,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3837,6 +3848,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3885,6 +3897,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3977,6 +3990,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
@@ -4024,6 +4038,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -4116,6 +4131,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4163,6 +4179,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 		mockForwardingRuleIP := "127.0.0.1"
 		mockAddressURI := "test-address-uri"
+		ginLoggingFeatureFlag = true
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -4254,6 +4271,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)

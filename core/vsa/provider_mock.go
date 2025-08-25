@@ -1572,6 +1572,51 @@ func (_c *MockProvider_DeleteVolumeReplication_Call) RunAndReturn(run func(*Dele
 	return _c
 }
 
+// EnableAutoVolOfflineCronForGCPKMS provides a mock function with no fields
+func (_m *MockProvider) EnableAutoVolOfflineCronForGCPKMS() error {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableAutoVolOfflineCronForGCPKMS")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableAutoVolOfflineCronForGCPKMS'
+type MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call struct {
+	*mock.Call
+}
+
+// EnableAutoVolOfflineCronForGCPKMS is a helper method to define mock.On call
+func (_e *MockProvider_Expecter) EnableAutoVolOfflineCronForGCPKMS() *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call {
+	return &MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call{Call: _e.mock.On("EnableAutoVolOfflineCronForGCPKMS")}
+}
+
+func (_c *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call) Run(run func()) *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call) Return(_a0 error) *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call) RunAndReturn(run func() error) *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindQoSGroupPolicy provides a mock function with given fields: params
 func (_m *MockProvider) FindQoSGroupPolicy(params FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error) {
 	ret := _m.Called(params)
