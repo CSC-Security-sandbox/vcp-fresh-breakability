@@ -70,9 +70,7 @@ var (
 )
 
 const (
-	DefaultSvmName = "gcnv"
-
-	TimestampLayout   = "20060102150405"
+	DefaultSvmName    = "gcnv"
 	SaIdPrefix        = "vsa-sa-"
 	statusDone        = "DONE"
 	operationProgress = int64(100)
@@ -228,8 +226,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	serviceAccount := &iam.ServiceAccount{}
-	saTimestamp := workflow.Now(ctx).Format(TimestampLayout)
-	serviceAccountID := fmt.Sprintf("%s%s", SaIdPrefix, saTimestamp)
+	serviceAccountID := fmt.Sprintf("%s%s", SaIdPrefix, pool.DeploymentName)
 	dbPool.ServiceAccountId = serviceAccountID
 
 	rollbackManager.AddActivity(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, serviceAccountID)

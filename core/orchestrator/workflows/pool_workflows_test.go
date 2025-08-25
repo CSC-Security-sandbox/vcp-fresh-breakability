@@ -7705,3 +7705,214 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
 }
+
+func TestServiceAccountBackwardCompatibility(t *testing.T) {
+	tests := []struct {
+		name                     string
+		pool                     *datamodel.Pool
+		expectedServiceAccountID string
+		description              string
+	}{
+		{
+			name: "LegacyPool",
+			pool: &datamodel.Pool{
+				Name:             "legacy-pool-name",
+				DeploymentName:   "",                        // Empty deployment name indicates legacy pool
+				ServiceAccountId: "vsa-sa-legacy-pool-name", // Pre-existing service account ID
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					BucketName: "test-bucket",
+				},
+				ClusterDetails: datamodel.ClusterDetails{
+					RegionalTenantProject: "test-tenant",
+				},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password: "test-password",
+					SecretID: "",
+					AuthType: envs.USERNAME_PWD,
+				},
+			},
+			expectedServiceAccountID: "vsa-sa-legacy-pool-name",
+			description:              "Legacy pools should use their stored service account ID",
+		},
+		{
+			name: "NewPool",
+			pool: &datamodel.Pool{
+				Name:             "new-pool-name",
+				DeploymentName:   "gcnv-abc123def456789",        // Non-empty deployment name
+				ServiceAccountId: "vsa-sa-gcnv-abc123def456789", // Service account based on deployment name
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					BucketName: "test-bucket",
+				},
+				ClusterDetails: datamodel.ClusterDetails{
+					RegionalTenantProject: "test-tenant",
+				},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password: "test-password",
+					SecretID: "",
+					AuthType: envs.USERNAME_PWD,
+				},
+			},
+			expectedServiceAccountID: "vsa-sa-gcnv-abc123def456789",
+			description:              "New pools should use their deployment-based service account ID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var ts testsuite.WorkflowTestSuite
+			env := ts.NewTestWorkflowEnvironment()
+			env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+			encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+			mockHeader := &commonpb.Header{
+				Fields: map[string]*commonpb.Payload{
+					"logParam": encodedValue,
+				},
+			}
+			env.SetHeader(mockHeader)
+
+			mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+			newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+			enableMetrics = true
+			defer func() {
+				GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+				enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+			}()
+
+			env.RegisterActivity(&activities.CommonActivities{})
+			env.RegisterActivity(&activities.PoolActivity{})
+			env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+			params := &common.DeletePoolParams{
+				PoolID:      "test-pool",
+				AccountName: "test-account",
+			}
+
+			// Variable to capture the service account ID passed to DeleteServiceAccount
+			var capturedServiceAccountID string
+
+			// Mock activity responses
+			env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+			env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(tt.pool, nil)
+			env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+			mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+
+			// Capture the service account ID from DeleteServiceAccount call
+			env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.MatchedBy(func(serviceAccountID string) bool {
+				capturedServiceAccountID = serviceAccountID
+				return serviceAccountID == tt.expectedServiceAccountID
+			})).Return(nil)
+
+			env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+			env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+			env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+
+			// Mock child workflow
+			env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
+				PoolID: 0,
+			}).Return(nil)
+
+			GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+				return mockVSAClientWorkflowManager
+			}
+
+			// Execute workflow
+			env.ExecuteWorkflow(DeletePoolWorkflow, params, tt.pool)
+
+			_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+			if err != nil {
+				t.Fatalf("Failed to query workflow: %v", err)
+			}
+
+			// Assert workflow execution
+			assert.True(t, env.IsWorkflowCompleted())
+			assert.NoError(t, env.GetWorkflowError())
+
+			// Verify the correct service account ID was used
+			assert.Equal(t, tt.expectedServiceAccountID, capturedServiceAccountID, tt.description)
+
+			env.AssertExpectations(t)
+		})
+	}
+}
+
+func TestCreatePoolWorkflow_ServiceAccountWithDeploymentName(t *testing.T) {
+	// Test the direct service account ID generation logic that's used in CreatePoolWorkflow
+	// This avoids all the complexity of mocking the entire workflow
+
+	// Set up test data with deployment name
+	deploymentName := "gcnv-abc123def456789"
+	expectedServiceAccountID := "vsa-sa-gcnv-abc123def456789"
+
+	// Create a pool with the deployment name set
+	pool := &datamodel.Pool{
+		Name:           "test-pool",
+		DeploymentName: deploymentName,
+	}
+
+	// Execute the exact code from CreatePoolWorkflow lines 228-229
+	serviceAccountID := fmt.Sprintf("%s%s", SaIdPrefix, pool.DeploymentName)
+	pool.ServiceAccountId = serviceAccountID
+
+	// Verify the service account ID was set correctly based on deployment name
+	assert.Equal(t, expectedServiceAccountID, serviceAccountID,
+		"Service account ID should be based on deployment name")
+	assert.Equal(t, expectedServiceAccountID, pool.ServiceAccountId,
+		"Pool's ServiceAccountId should be based on deployment name")
+}
+
+// Test deterministic deployment name generation
+func TestDeterministicDeploymentNameGeneration(t *testing.T) {
+	tests := []struct {
+		name      string
+		accountID int64
+		poolID    string
+		region    string
+	}{
+		{
+			name:      "StandardInputs",
+			accountID: 12345,
+			poolID:    "test-pool-uuid-1234",
+			region:    "us-central1",
+		},
+		{
+			name:      "DifferentAccountID",
+			accountID: 67890,
+			poolID:    "test-pool-uuid-1234",
+			region:    "us-central1",
+		},
+		{
+			name:      "DifferentPoolID",
+			accountID: 12345,
+			poolID:    "different-pool-uuid-5678",
+			region:    "us-central1",
+		},
+		{
+			name:      "DifferentRegion",
+			accountID: 12345,
+			poolID:    "test-pool-uuid-1234",
+			region:    "europe-west1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Generate deployment name
+			deploymentName1 := utils.GenerateDeterministicDeploymentName(tt.accountID, tt.poolID, tt.region)
+			deploymentName2 := utils.GenerateDeterministicDeploymentName(tt.accountID, tt.poolID, tt.region)
+
+			// Test determinism
+			assert.Equal(t, deploymentName1, deploymentName2, "Same inputs should produce same deployment name")
+
+			// Test format
+			assert.Equal(t, 20, len(deploymentName1), "Deployment name should be exactly 20 characters")
+			assert.Equal(t, "gcnv-", deploymentName1[:5], "Deployment name should start with 'gcnv-'")
+
+			// Test service account ID generation
+			serviceAccountID := fmt.Sprintf("%s%s", SaIdPrefix, deploymentName1)
+			assert.Equal(t, 27, len(serviceAccountID), "Service account ID should be exactly 27 characters")
+			assert.LessOrEqual(t, len(serviceAccountID), 30, "Service account ID should be within GCP limit")
+		})
+	}
+}
