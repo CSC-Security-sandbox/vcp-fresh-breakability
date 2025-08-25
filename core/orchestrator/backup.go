@@ -487,6 +487,19 @@ func _validateSnapshotForBackup(ctx context.Context, se database.Storage, params
 		if common.SnapmirrorSnapshotPrefix.MatchString(snapshot.Name) {
 			return customerrors.NewUserInputValidationErr("Backups cannot be created from snapshots resulting from volume replication. Please use a non-replication snapshot.")
 		}
+		// Check if snapshot has already been used for creating a backup in available state
+		filters := [][]interface{}{
+			{"volume_uuid = ?", vol.UUID},
+			{"state != ?", models.LifeCycleStateDeleted},
+			{"attributes->>'snapshot_id' = ?", snapshot.SnapshotAttributes.ExternalUUID},
+		}
+		backups, err := se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, vol.DataProtection.BackupVaultID, vol.Account.ID, filters)
+		if err != nil {
+			return err
+		}
+		if len(backups) > 0 {
+			return customerrors.NewUserInputValidationErr("This snapshot has already been used to create a backup")
+		}
 	} else {
 		if params.SnapshotID != "" {
 			return customerrors.NewUserInputValidationErr("Cannot set Snapshot ID when useExistingSnapshot is false")
