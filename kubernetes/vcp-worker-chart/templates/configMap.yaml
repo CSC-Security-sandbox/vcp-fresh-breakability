@@ -101,6 +101,7 @@ data:
   RSM_FIREWALL_PORT_RULES: {{ .Values.workerConfig.rsmFirewallPortRules | quote }}
   IC_FIREWALL_PORT_RULES: {{ .Values.workerConfig.icFirewallPortRules | quote }}
   ISCSI_FIREWALL_PORT_RULES: {{ .Values.workerConfig.iscsiFirewallPortRules | quote }}
+  SNAPMIRROR_FIREWALL_PORT_RULES: {{ .Values.workerConfig.snapmirrorFirewallPortRules | quote }}
   WAIT_TIME_FOR_GCP_OPERATION_IN_SEC: {{ .Values.workerConfig.waitTimeForGcpOperationInSec | quote }}
   VSA_IMAGE_PROJECT: {{ .Values.workerConfig.vsaImageProject | quote }}
   VSA_MEDIATOR_IMAGE_PROJECT: {{ .Values.workerConfig.vsaMediatorImageProject | quote }}

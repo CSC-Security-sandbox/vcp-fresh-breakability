@@ -7,7 +7,7 @@ import (
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -15,6 +15,8 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -26,6 +28,17 @@ var (
 	describeVolume                                          = DescribeVolume
 )
 
+const (
+	snapmirrorFirewallName      = "ingress-snapmirror"
+	snapmirrorFirewallPriority  = int64(1000)
+	snapmirrorFirewallDirection = "INGRESS"
+)
+
+var (
+	snapmirrorFirewallSourceRanges = env.GetString("DATA_FIREWALL_SOURCE_RANGES", "")
+	snapmirrorFirewallPortRules    = env.GetString("SNAPMIRROR_FIREWALL_PORT_RULES", "tcp,10566,11104,11105")
+)
+
 type VolumeReplicationCreateActivity struct {
 	SE database.Storage
 }
@@ -35,7 +48,7 @@ func (a *VolumeReplicationCreateActivity) GetSourceInterclusterLifs(ctx context.
 	logger.Debugf("GetSourcePoolDetails for pool: %s", result.Event.SourcePool.Name)
 	provider, err := hyperscaler.GetProviderByNode(ctx, result.SrcNode)
 	if err != nil {
-		return nil, errors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	interClusterLifs, err := provider.GetInterclusterLIFs("default-intercluster")
 	if err != nil {
@@ -62,7 +75,7 @@ func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.
 
 	res, err := googleProxyClient.Invoker.V1betaInternalDescribePool(ctx, *describePoolParams)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrInternalDescribePoolAPI, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, err)
 	}
 	pool, ok := res.(*googleproxyclient.PoolInternalV1beta)
 	if ok {
@@ -70,7 +83,7 @@ func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.
 		result.DstIps = pool.InterclusterLifs
 		return result, nil
 	}
-	return nil, errors.NewVCPError(errors.ErrInternalDescribePoolNotFound, errors.New("Pool not found"))
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolNotFound, vsaerrors.New("Pool not found"))
 }
 
 func (j *VolumeReplicationCreateActivity) CreateClusterPeering(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
@@ -115,14 +128,14 @@ func (a *VolumeReplicationCreateActivity) AcceptClusterPeering(ctx context.Conte
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalAcceptClusterPeer(ctx, body, *accpetClusterPeerParams)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrInternalAcceptClusterPeerAPI, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, err)
 	}
 	clusterPeer, ok := res.(*googleproxyclient.ClusterPeerV1)
 	if ok {
 		result.JobId = &clusterPeer.Jobs[0].JobId.Value
 		return result, nil
 	}
-	return nil, errors.NewVCPError(errors.ErrInternalAcceptClusterPeerNotFound, errors.New("Cluster peer not found"))
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerNotFound, vsaerrors.New("Cluster peer not found"))
 }
 
 func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
@@ -141,14 +154,14 @@ func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Co
 
 	res, err := googleProxyClient.Invoker.V1betaCreateVolume(ctx, body, *createVolumeParams)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrCreatingDestinationVolume, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, err)
 	}
 	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	if ok {
 		volume := gcpserver.VolumeV1beta{}
 		err := replication.JsonUnMarshal(operation.Response, &volume)
 		if err != nil {
-			return nil, errors.NewVCPError(errors.ErrorFailedToUnmarshal, err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrorFailedToUnmarshal, err)
 		}
 		result.JobId = &strings.Split(operation.Name.Value, "/")[7]
 		result.DstVolume = &volume
@@ -169,7 +182,7 @@ func DescribeVolume(ctx context.Context, result *replication.CreateReplicationRe
 
 	res, err := googleProxyClient.Invoker.V1betaInternalDescribeVolume(ctx, *createVolumeParams)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrDescribingVolume, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDescribingVolume, err)
 	}
 	volumeV1Beta, ok := res.(*googleproxyclient.InternalVolumeV1beta)
 	if ok {
@@ -182,7 +195,7 @@ func (a *VolumeReplicationCreateActivity) HydrateDestinationVolume(ctx context.C
 	if hydrationEnabled {
 		err := hydrateVolume(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber, result.DstPool.ResourceId)
 		if err != nil {
-			return nil, errors.NewVCPError(errors.ErrHydrateVolumeCreate, err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrHydrateVolumeCreate, err)
 		}
 	}
 	return result, nil
@@ -222,7 +235,7 @@ func (a *VolumeReplicationCreateActivity) CreateReplicationOnDestination(ctx con
 
 	res, err := googleProxyClient.Invoker.V1betaInternalCreateVolumeReplication(ctx, &body, *createVolumeParams)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrCreatingDestinationVolume, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, err)
 	}
 	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
 	if ok {
@@ -308,11 +321,11 @@ func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, res
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, result.SrcNode)
 	if err != nil {
-		return nil, errors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	svmPeer, err := provider.GetSVMPeer(result.SrcSvm, result.DstSvm)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrGettingSvmPeer, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGettingSvmPeer, err)
 	}
 	if svmPeer.State == "peered" && svmPeer.PeerSvmName == *result.DstSvm {
 		// SVMs are already peered
@@ -321,7 +334,7 @@ func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, res
 	}
 	err = provider.AcceptSvmPeering(*result.SrcSvm, *result.DstSvm)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrAcceptSvmPeer, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrAcceptSvmPeer, err)
 	}
 
 	return result, nil
@@ -337,7 +350,7 @@ func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context,
 	}
 	if srcVol.Svm == nil || srcVol.Svm.Name == "" {
 		logger.Error("Source volume SVM name not found")
-		return nil, errors.New("Source volume SVM name not found")
+		return nil, vsaerrors.New("Source volume SVM name not found")
 	}
 
 	dstVol, err := describeVolume(ctx, result)
@@ -347,7 +360,7 @@ func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context,
 	}
 	if !dstVol.SvmName.IsSet() {
 		logger.Error("Destination volume SVM name not found")
-		return nil, errors.New("Destination volume SVM name not found")
+		return nil, vsaerrors.New("Destination volume SVM name not found")
 	}
 
 	dstSvm := dstVol.SvmName.Value
@@ -359,7 +372,7 @@ func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context,
 func (a *VolumeReplicationCreateActivity) GetSrcBasePath(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	srcBasePath, err := GetBasePath(ctx, result.Event.LocationID)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGetSrcBasePath, err)
 	}
 	result.SrcBasePath = srcBasePath
 	return result, nil
@@ -368,7 +381,7 @@ func (a *VolumeReplicationCreateActivity) GetSrcBasePath(ctx context.Context, re
 func (a *VolumeReplicationCreateActivity) GetDstBasePath(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	dstBasePath, err := GetBasePath(ctx, result.Event.DestinationLocationID)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGetDstBasePath, err)
 	}
 	result.DstBasePath = dstBasePath
 	return result, nil
@@ -377,7 +390,7 @@ func (a *VolumeReplicationCreateActivity) GetDstBasePath(ctx context.Context, re
 func (a *VolumeReplicationCreateActivity) GetSignedSrcToken(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	srcJwt, err := GetSignedToken(ctx, result.Event.SourceProjectNumber)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGetSignedToken, err)
 	}
 	result.SrcJwtToken = srcJwt
 	return result, nil
@@ -386,7 +399,7 @@ func (a *VolumeReplicationCreateActivity) GetSignedSrcToken(ctx context.Context,
 func (a *VolumeReplicationCreateActivity) GetSignedDstToken(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	dstJwt, err := GetSignedToken(ctx, *result.DstProjectNumber)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGetSignedToken, err)
 	}
 	result.DstJwtToken = dstJwt
 	return result, nil
@@ -404,7 +417,7 @@ func (a *VolumeReplicationCreateActivity) MountReplication(ctx context.Context, 
 
 	res, err := googleProxyClient.Invoker.V1betaInternalMountVolumeReplication(ctx, *createVolumeParams)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, err)
 	}
 	response, ok := res.(*googleproxyclient.InternalJobV1beta)
 	if ok {
@@ -518,4 +531,83 @@ func convertBlockDeviceOsType(in string) googleproxyclient.BlockDeviceV1betaOsTy
 	default:
 		return googleproxyclient.BlockDeviceV1betaOsTypeOSTYPEUNSPECIFIED
 	}
+}
+
+func (a *VolumeReplicationCreateActivity) CreateSnapmirrorFirewall(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+
+	gcpService, err := hyperscaler.GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	snHostProject := result.Event.SourcePool.SnHostProject
+	if snHostProject == "" {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("SnHostProject", nil))
+	}
+
+	network := result.Event.SourcePool.ClusterDetails.Network
+	if network == "" {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("SnHostProjectNetwork", nil))
+	}
+
+	op, err := activities.InsertFirewall(gcpService, snHostProject, snapmirrorFirewallName, network, snapmirrorFirewallPriority, snapmirrorFirewallDirection, strings.Split(snapmirrorFirewallSourceRanges, ","), strings.Split(snapmirrorFirewallPortRules, ","))
+	if err != nil {
+		logger.Errorf("Failed to create firewall %s: %v", snapmirrorFirewallName, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// If operation name is empty, it means the firewall already exists or no operation was needed
+	if op == "" {
+		logger.Infof("Firewall %s already exists", snapmirrorFirewallName)
+		operation := commonparams.Operations{
+			OperationName:      "",
+			OperationType:      "firewall",
+			IsDone:             true,
+			IsRegionalResource: false,
+			Project:            snHostProject,
+		}
+		result.Operation = &operation
+		return result, nil
+	}
+
+	operation := commonparams.Operations{
+		OperationName:      op,
+		OperationType:      "firewall",
+		IsDone:             false,
+		IsRegionalResource: false,
+		Project:            snHostProject,
+	}
+	result.Operation = &operation
+	return result, nil
+}
+
+func (a *VolumeReplicationCreateActivity) PollSnapmirrorFirewallOperation(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+
+	if result.Operation == nil || result.Operation.IsDone == true {
+		return result, nil
+	}
+
+	gcpService, err := hyperscaler.GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	opStatus, err := activities.GetComputeOpStatus(gcpService, result.Event.SourcePool.SnHostProject, result.Operation.IsRegionalResource, result.Operation.OperationName)
+	if err != nil {
+		logger.Errorf("Failed to get operation status for %s: %v", result.Operation.OperationName, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if opStatus == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, vsaerrors.New("Failed to get operation status"))
+	}
+
+	if opStatus.Status == "DONE" {
+		result.Operation.IsDone = true
+		return result, nil
+	}
+
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, vsaerrors.Newf("Firewall operation %s is not completed. Status: %s", result.Operation.OperationName, opStatus.Status))
 }

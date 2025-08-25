@@ -72,6 +72,7 @@ type CreateReplicationResult struct {
 	SrcSvm           *string
 	DstSvm           *string
 	DbVolReplication *datamodel.VolumeReplication
+	Operation        *common.Operations
 }
 type StopReplicationResult struct {
 	Ctx              context.Context

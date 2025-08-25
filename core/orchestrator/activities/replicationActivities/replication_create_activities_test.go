@@ -10,12 +10,18 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
+	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -531,6 +537,76 @@ func TestCreateDestinationVolume(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.Nil(tt, result)
+	})
+	t.Run("WhenJsonUnmarshalError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		destPoolUuid := "uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(destPoolUuid),
+			},
+		}
+
+		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
+			ProjectNumber: *replicationResult.DstProjectNumber,
+			LocationId:    replicationResult.Event.DestinationLocationID,
+		}
+
+		// Create invalid JSON that will cause unmarshaling error
+		invalidJSON := []byte(`{"invalid": "json", "missing": "closing"`)
+		res := &googleproxyclient.OperationV1beta{
+			Name:     googleproxyclient.NewOptString("/v1beta/projects/45110233509/locations/australia-southeast1/operations/job-uuid"),
+			Response: invalidJSON,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaCreateVolume(ctx, mock.Anything, *createVolumeParams).Return(res, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateDestinationVolume(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		// Check that the error is a VCPError with ErrorFailedToUnmarshal
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrorFailedToUnmarshal, customErr.TrackingID)
 	})
 }
 
@@ -3139,5 +3215,467 @@ func TestConvertBlockDeviceOsType(t *testing.T) {
 				assert.Equal(ttt, tc.expected, result)
 			})
 		}
+	})
+}
+
+func TestCreateSnapmirrorFirewall(t *testing.T) {
+	t.Run("WhenSuccessfulWithNewFirewall", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetGCPService := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = originalGetGCPService }()
+
+		mockGcpService := &google.GcpServices{}
+		hyperscaler.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		originalInsertFirewall := activities.InsertFirewall
+		defer func() { activities.InsertFirewall = originalInsertFirewall }()
+
+		expectedOperationName := "operation-123"
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return expectedOperationName, nil
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+					ClusterDetails: datamodel.ClusterDetails{
+						Network: "test-network",
+					},
+				},
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateSnapmirrorFirewall(ctx, replicationResult)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Operation)
+		assert.Equal(tt, expectedOperationName, result.Operation.OperationName)
+		assert.Equal(tt, "firewall", result.Operation.OperationType)
+		assert.False(tt, result.Operation.IsDone)
+		assert.False(tt, result.Operation.IsRegionalResource)
+		assert.Equal(tt, "test-project-123", result.Operation.Project)
+		assert.Equal(tt, replicationResult, result)
+	})
+
+	t.Run("WhenSuccessful_FirewallAlreadyExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetGCPService := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = originalGetGCPService }()
+
+		mockGcpService := &google.GcpServices{}
+		hyperscaler.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		originalInsertFirewall := activities.InsertFirewall
+		defer func() { activities.InsertFirewall = originalInsertFirewall }()
+
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return "", nil
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+					ClusterDetails: datamodel.ClusterDetails{
+						Network: "test-network",
+					},
+				},
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateSnapmirrorFirewall(ctx, replicationResult)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Operation)
+		assert.Equal(tt, "", result.Operation.OperationName)
+		assert.Equal(tt, "firewall", result.Operation.OperationType)
+		assert.True(tt, result.Operation.IsDone)
+		assert.False(tt, result.Operation.IsRegionalResource)
+		assert.Equal(tt, "test-project-123", result.Operation.Project)
+		assert.Equal(tt, replicationResult, result)
+	})
+
+	t.Run("WhenGCPServiceError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetGCPService := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = originalGetGCPService }()
+
+		expectedError := errors.New("GCP service error")
+		hyperscaler.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, expectedError
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+					ClusterDetails: datamodel.ClusterDetails{
+						Network: "test-network",
+					},
+				},
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateSnapmirrorFirewall(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "GCP service error")
+	})
+
+	t.Run("WhenSnHostProjectMissing", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetGCPService := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = originalGetGCPService }()
+
+		mockGcpService := &google.GcpServices{}
+		hyperscaler.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "", // Missing SnHostProject
+					ClusterDetails: datamodel.ClusterDetails{
+						Network: "test-network",
+					},
+				},
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateSnapmirrorFirewall(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Resource not found")
+	})
+
+	t.Run("WhenNetworkMissing", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetGCPService := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = originalGetGCPService }()
+
+		mockGcpService := &google.GcpServices{}
+		hyperscaler.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+					ClusterDetails: datamodel.ClusterDetails{
+						Network: "",
+					},
+				},
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateSnapmirrorFirewall(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Resource not found")
+	})
+
+	t.Run("WhenInsertFirewallError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetGCPService := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = originalGetGCPService }()
+
+		mockGcpService := &google.GcpServices{}
+		hyperscaler.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		originalInsertFirewall := activities.InsertFirewall
+		defer func() { activities.InsertFirewall = originalInsertFirewall }()
+
+		expectedError := errors.New("firewall creation failed")
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return "", expectedError
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+					ClusterDetails: datamodel.ClusterDetails{
+						Network: "test-network",
+					},
+				},
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateSnapmirrorFirewall(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "firewall creation failed")
+	})
+}
+
+func TestPollSnapmirrorFirewallOperation(t *testing.T) {
+	t.Run("WhenSuccessfulOperationPending", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetComputeOpStatus := activities.GetComputeOpStatus
+		defer func() { activities.GetComputeOpStatus = originalGetComputeOpStatus }()
+
+		mockOpStatus := &hyperscaler_models.ComputeOperation{
+			Status: "RUNNING",
+		}
+		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
+			return mockOpStatus, nil
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+				},
+			},
+			Operation: &commonparams.Operations{
+				OperationName:      "operation-123",
+				OperationType:      "firewall",
+				IsDone:             false,
+				Project:            "test-project-123",
+				IsRegionalResource: false,
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.PollSnapmirrorFirewallOperation(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "An internal error occurred")
+	})
+
+	t.Run("WhenNoOperation", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+				},
+			},
+			Operation: nil, // No operation
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.PollSnapmirrorFirewallOperation(ctx, replicationResult)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, replicationResult, result)
+	})
+
+	t.Run("WhenFirewallexists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+				},
+			},
+			Operation: &commonparams.Operations{
+				OperationName:      "", // Empty operation name
+				OperationType:      "firewall",
+				IsDone:             true,
+				Project:            "test-project-123",
+				IsRegionalResource: false,
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.PollSnapmirrorFirewallOperation(ctx, replicationResult)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, replicationResult, result)
+	})
+
+	t.Run("WhenGetComputeOpStatusError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		// Mock activities.GetComputeOpStatus to return error
+		originalGetComputeOpStatus := activities.GetComputeOpStatus
+		defer func() { activities.GetComputeOpStatus = originalGetComputeOpStatus }()
+
+		expectedError := errors.New("GCP API error")
+		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
+			return nil, expectedError
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+				},
+			},
+			Operation: &commonparams.Operations{
+				OperationName:      "operation-123",
+				OperationType:      "firewall",
+				IsDone:             false,
+				Project:            "test-project-123",
+				IsRegionalResource: false,
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.PollSnapmirrorFirewallOperation(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenOpStatusNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetComputeOpStatus := activities.GetComputeOpStatus
+		defer func() { activities.GetComputeOpStatus = originalGetComputeOpStatus }()
+
+		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
+			return nil, nil
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+				},
+			},
+			Operation: &commonparams.Operations{
+				OperationName:      "operation-123",
+				OperationType:      "firewall",
+				IsDone:             false,
+				Project:            "test-project-123",
+				IsRegionalResource: false,
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.PollSnapmirrorFirewallOperation(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "An internal error occurred")
+	})
+	t.Run("WhenGCPServiceError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		originalGetGCPService := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = originalGetGCPService }()
+
+		expectedError := errors.New("GCP service initialization failed")
+		hyperscaler.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, expectedError
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+				},
+			},
+			Operation: &commonparams.Operations{
+				OperationName:      "operation-123",
+				OperationType:      "firewall",
+				IsDone:             false,
+				Project:            "test-project-123",
+				IsRegionalResource: false,
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.PollSnapmirrorFirewallOperation(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "GCP service initialization failed")
+	})
+	t.Run("WhenSuccessfulOperationCompleted", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+
+		// Mock hyperscaler.GetGCPService to return success
+		originalGetGCPService := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = originalGetGCPService }()
+
+		mockGcpService := &google.GcpServices{}
+		hyperscaler.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock activities.GetComputeOpStatus to return DONE status
+		originalGetComputeOpStatus := activities.GetComputeOpStatus
+		defer func() { activities.GetComputeOpStatus = originalGetComputeOpStatus }()
+
+		mockOpStatus := &hyperscaler_models.ComputeOperation{
+			Status: "DONE",
+		}
+		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
+			return mockOpStatus, nil
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourcePool: datamodel.Pool{
+					SnHostProject: "test-project-123",
+				},
+			},
+			Operation: &commonparams.Operations{
+				OperationName:      "operation-123",
+				OperationType:      "firewall",
+				IsDone:             false, // Initially false
+				Project:            "test-project-123",
+				IsRegionalResource: false,
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.PollSnapmirrorFirewallOperation(ctx, replicationResult)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Verify that the operation status was updated to done
+		assert.True(tt, result.Operation.IsDone)
+		// Verify that the original result was returned
+		assert.Equal(tt, replicationResult, result)
 	})
 }

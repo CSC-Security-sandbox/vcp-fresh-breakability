@@ -134,6 +134,7 @@ workerConfig:
   rsmFirewallPortRules: "tcp,udp"
   icFirewallPortRules: "tcp,udp"
   iscsiFirewallPortRules: "tcp,3260"
+  snapmirrorFirewallPortRules: "tcp,10566,11104,11105"
   waitTimeForGcpOperationInSec: "10"
 
   # Default Workflow Retry configuration

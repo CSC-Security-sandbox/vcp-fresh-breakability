@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -41,6 +41,8 @@ func TestRun(t *testing.T) {
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(volumeCreateReplicationActivity.GetSourceInterclusterLifs)
 		env.RegisterActivity(volumeCreateReplicationActivity.GetDestinationPoolDetails)
+		env.RegisterActivity(volumeCreateReplicationActivity.CreateSnapmirrorFirewall)
+		env.RegisterActivity(volumeCreateReplicationActivity.PollSnapmirrorFirewallOperation)
 		env.RegisterActivity(volumeCreateReplicationActivity.CreateClusterPeering)
 		env.RegisterActivity(volumeCreateReplicationActivity.AcceptClusterPeering)
 		env.RegisterActivity(volumeCreateReplicationActivity.DescribeRemoteJob)
@@ -104,6 +106,24 @@ func TestRun(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
 		env.OnActivity("GetSourceInterclusterLifs", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetDestinationPoolDetails", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("CreateSnapmirrorFirewall", mock.Anything, mock.Anything).Return(&replication.CreateReplicationResult{
+			Event: event,
+			Operation: &commonparams.Operations{
+				OperationName: "test-operation-id",
+				OperationType: "firewall",
+				IsDone:        false,
+				Project:       "test-project",
+			},
+		}, nil)
+		env.OnActivity("PollSnapmirrorFirewallOperation", mock.Anything, mock.Anything).Return(&replication.CreateReplicationResult{
+			Event: event,
+			Operation: &commonparams.Operations{
+				OperationName: "test-operation-id",
+				OperationType: "firewall",
+				IsDone:        true,
+				Project:       "test-project",
+			},
+		}, nil)
 		env.OnActivity("CreateClusterPeering", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("AcceptClusterPeering", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DescribeRemoteJob", mock.Anything, mock.Anything).Return(nil)

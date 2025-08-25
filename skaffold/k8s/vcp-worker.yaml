@@ -181,6 +181,8 @@ spec:
               value: "tcp,udp"
             - name: ISCSI_FIREWALL_PORT_RULES
               value: "tcp,3260"
+            - name: SNAPMIRROR_FIREWALL_PORT_RULES
+              value: "tcp,10566,11104,11105"
             - name: WAIT_TIME_FOR_GCP_OPERATION_IN_SEC
               value: "10"
             - name: VSA_IMAGE_PROJECT
