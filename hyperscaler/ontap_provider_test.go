@@ -696,7 +696,7 @@ func Test_GenerateCSR(t *testing.T) {
 		assert.NotNil(t, csrDER)
 		assert.NotNil(t, key)
 		assert.Greater(t, len(csrDER), 0)
-		assert.Equal(t, 3072, key.Size()*8) // Key size should be 3072 bits
+		assert.Equal(t, 4096, key.Size()*8) // Key size should be 4096 bits
 	})
 
 	t.Run("empty common name", func(t *testing.T) {

@@ -283,7 +283,7 @@ var (
 	CertificateLifetime     = GetString("CERTIFICATE_LIFETIME", "94608000s") // Default to 3 years
 	NodePassword            = GetString("VSA_NODE_PASSWORD", "")
 	CloudDNSCacheTTL        = GetInt64("CLOUD_DNS_CACHE_TTL", 300) // Default to 300 seconds
-	PrivateKeyBits          = GetInt("PRIVATE_KEY_BITS", 3072)     // Default to 3072 bits for RSA keys
+	PrivateKeyBits          = GetInt("PRIVATE_KEY_BITS", 4096)     // Default to 4096 bits for RSA keys
 
 	MgmtFirewallSourceRanges = GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
 	RsmFirewallSourceRanges  = GetString("RSM_FIREWALL_SOURCE_RANGES", "")

@@ -67,7 +67,7 @@ workerConfig:
   vsaManagedZone: "au-se1-vsa"
   vsaSecretCacheCleanupIntervalHours: 24
   vsaSecretAuthCacheExpirationHours: 24
-  privateKeyBits: 3072
+  privateKeyBits: 4096
   totalIpPerHaPair: 6
   dataSubnetCidrBlock: 28
   cloudDnsCacheTtl: 300
