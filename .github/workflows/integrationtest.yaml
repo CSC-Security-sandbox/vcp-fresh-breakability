@@ -7,8 +7,6 @@ on:
         required: false
         type: string
         default: 'main'
-  pull_request:
-    types: [opened, synchronize, reopened] 
 
 permissions:
   packages: write
