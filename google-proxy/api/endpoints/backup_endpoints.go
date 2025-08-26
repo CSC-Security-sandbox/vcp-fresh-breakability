@@ -578,6 +578,7 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 		XCorrelationID: gcpgenserver.NewOptString(params.XCorrelationID.Value),
 	}
 	listBackupsResp, err := listBackupsToCVP(ctx, listBackupParams)
+
 	if err != nil {
 		logger.Error("Failed to list backups", "error", err.Error())
 		return listBackupsResp, err
@@ -591,21 +592,31 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 		return listBackupsResp, nil
 	}
 
-	backupList, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, nil)
-	if err != nil {
-		logger.Error("Failed to list backups", "error", err)
-		return &gcpgenserver.V1betaListBackupsInternalServerError{
-			Code:    500,
-			Message: "failed to list backups",
-		}, err
-	}
-
 	var response gcpgenserver.V1betaListBackupsOK
+	_, err = h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
+	if err != nil {
+		if !errors.IsNotFoundErr(err) {
+			logger.Error("Failed to get backup vault", "error", err)
+			return &gcpgenserver.V1betaListBackupsInternalServerError{
+				Code:    500,
+				Message: "Failed to get Backup Vault",
+			}, nil
+		}
+	} else {
+		backupList, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, nil)
+		if err != nil {
+			logger.Error("Failed to list backups", "error", err)
+			return &gcpgenserver.V1betaListBackupsInternalServerError{
+				Code:    500,
+				Message: "failed to list backups",
+			}, err
+		}
+		for _, backup := range backupList {
+			response.Backups = append(response.Backups, convertBackupDataModelToBackupsV1beta(backup))
+		}
+	}
 	response.Backups = append(response.Backups, cvpBackups.GetBackups()...)
 
-	for _, backup := range backupList {
-		response.Backups = append(response.Backups, convertBackupDataModelToBackupsV1beta(backup))
-	}
 	return &response, nil
 }
 

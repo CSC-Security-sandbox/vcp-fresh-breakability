@@ -2312,7 +2312,7 @@ func Test_checkIfBackupExistInCVP(t *testing.T) {
 	})
 }
 func TestV1betaListBackups(t *testing.T) {
-	t.Run("WhenListBackupsToCVPSucceeds", func(t *testing.T) {
+	t.Run("WhenBackupVaultExistsInVSAAndListBackupsSucceeds", func(t *testing.T) {
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListBackupsParams{
 			BackupVaultId:  "test-vault-id",
@@ -2322,12 +2322,46 @@ func TestV1betaListBackups(t *testing.T) {
 		}
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
-		mockOrchestrator.On("ListBackups", ctx, params.BackupVaultId, params.ProjectNumber, mock.Anything).Return([]*datamodel.Backup{}, nil)
 
+		// Mock GetBackupVaultByUUID to return success (vault exists)
+		mockOrchestrator.EXPECT().
+			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
+			Return(&coremodels.BackupVaultV1beta{}, nil)
+
+		// Mock ListBackups to return VSA backups
+		backupVault := &datamodel.BackupVault{
+			Name:             "test-backup-vault",
+			SourceRegionName: nillable.ToPointer("us-east4"),
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+		}
+		vsaBackups := []*datamodel.Backup{
+			{
+				State:         "InProgress",
+				Name:          "vsa-backup-1",
+				VolumeUUID:    "test-vol-1",
+				BackupVault:   backupVault,
+				BackupVaultID: 1,
+				Attributes:    &datamodel.BackupAttributes{},
+			},
+			{
+				State:         "Available",
+				Name:          "vsa-backup-2",
+				VolumeUUID:    "test-vol-2",
+				BackupVault:   backupVault,
+				BackupVaultID: 1,
+				Attributes:    &datamodel.BackupAttributes{},
+			},
+		}
+		mockOrchestrator.EXPECT().
+			ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, mock.Anything).
+			Return(vsaBackups, nil)
+
+		// Mock CVP response
 		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
 			return &gcpgenserver.V1betaListBackupsOK{
 				Backups: []gcpgenserver.BackupV1beta{
-					{ResourceId: gcpgenserver.NewOptString("backup-1")},
+					{ResourceId: gcpgenserver.NewOptString("cvp-backup-1")},
+					{ResourceId: gcpgenserver.NewOptString("cvp-backup-2")},
 				},
 			}, nil
 		}
@@ -2342,7 +2376,148 @@ func TestV1betaListBackups(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.IsType(t, &gcpgenserver.V1betaListBackupsOK{}, result)
-		assert.Len(t, result.(*gcpgenserver.V1betaListBackupsOK).Backups, 1)
+
+		response := result.(*gcpgenserver.V1betaListBackupsOK)
+		assert.Len(t, response.Backups, 4) // 2 VSA + 2 CVP backups
+
+		// Check that VSA backups are included
+		assert.Equal(t, "vsa-backup-1", response.Backups[0].ResourceId.Value)
+		assert.Equal(t, "vsa-backup-2", response.Backups[1].ResourceId.Value)
+
+		// Check that CVP backups are included
+		assert.Equal(t, "cvp-backup-1", response.Backups[2].ResourceId.Value)
+		assert.Equal(t, "cvp-backup-2", response.Backups[3].ResourceId.Value)
+	})
+
+	t.Run("WhenBackupVaultNotFoundInVSA", func(t *testing.T) {
+		ctx := context.Background()
+		params := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  "test-vault-id",
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupVaultByUUID to return NotFoundErr (vault doesn't exist in VSA)
+		mockOrchestrator.EXPECT().
+			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
+			Return(nil, errors.NewNotFoundErr("backup vault", nil))
+
+		// Mock CVP response
+		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{
+					{ResourceId: gcpgenserver.NewOptString("cvp-backup-1")},
+				},
+			}, nil
+		}
+
+		originalListBackupsToCVP := listBackupsToCVP
+		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+		listBackupsToCVP = mockListBackupsToCVP
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackups(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsOK{}, result)
+
+		response := result.(*gcpgenserver.V1betaListBackupsOK)
+		assert.Len(t, response.Backups, 1) // Only CVP backups
+		assert.Equal(t, "cvp-backup-1", response.Backups[0].ResourceId.Value)
+	})
+
+	t.Run("WhenBackupVaultExistsButListBackupsFails", func(t *testing.T) {
+		ctx := context.Background()
+		params := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  "test-vault-id",
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupVaultByUUID to return success (vault exists)
+		mockOrchestrator.EXPECT().
+			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
+			Return(&coremodels.BackupVaultV1beta{}, nil)
+
+		// Mock ListBackups to return error
+		mockOrchestrator.EXPECT().
+			ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, mock.Anything).
+			Return(nil, fmt.Errorf("failed to list backups"))
+
+		// Mock CVP response
+		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{},
+			}, nil
+		}
+
+		originalListBackupsToCVP := listBackupsToCVP
+		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+		listBackupsToCVP = mockListBackupsToCVP
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackups(ctx, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsInternalServerError{}, result)
+
+		internalError := result.(*gcpgenserver.V1betaListBackupsInternalServerError)
+		assert.Equal(t, float64(500), internalError.Code)
+		assert.Equal(t, "failed to list backups", internalError.Message)
+	})
+
+	t.Run("WhenBackupVaultExistsAndListBackupsReturnsEmpty", func(t *testing.T) {
+		ctx := context.Background()
+		params := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  "test-vault-id",
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupVaultByUUID to return success (vault exists)
+		mockOrchestrator.EXPECT().
+			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
+			Return(&coremodels.BackupVaultV1beta{}, nil)
+
+		// Mock ListBackups to return empty list
+		mockOrchestrator.EXPECT().
+			ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, mock.Anything).
+			Return([]*datamodel.Backup{}, nil)
+
+		// Mock CVP response
+		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{
+					{ResourceId: gcpgenserver.NewOptString("cvp-backup-1")},
+				},
+			}, nil
+		}
+
+		originalListBackupsToCVP := listBackupsToCVP
+		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+		listBackupsToCVP = mockListBackupsToCVP
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackups(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsOK{}, result)
+
+		response := result.(*gcpgenserver.V1betaListBackupsOK)
+		assert.Len(t, response.Backups, 1) // Only CVP backups (VSA list is empty)
+		assert.Equal(t, "cvp-backup-1", response.Backups[0].ResourceId.Value)
 	})
 
 	t.Run("WhenListBackupsToCVPFails", func(t *testing.T) {
@@ -2369,7 +2544,7 @@ func TestV1betaListBackups(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
-	t.Run("WhenOrchestratorListBackupsFails", func(t *testing.T) {
+	t.Run("WhenListBackupsToCVPReturnsUnexpectedResponseType", func(t *testing.T) {
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListBackupsParams{
 			BackupVaultId:  "test-vault-id",
@@ -2378,12 +2553,11 @@ func TestV1betaListBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
-		mockOrchestrator.On("ListBackups", ctx, params.BackupVaultId, params.ProjectNumber, mock.Anything).Return(nil, fmt.Errorf("orchestrator error"))
-
+		// Mock CVP to return an error response instead of OK
 		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
-			return &gcpgenserver.V1betaListBackupsOK{
-				Backups: []gcpgenserver.BackupV1beta{},
+			return &gcpgenserver.V1betaListBackupsBadRequest{
+				Code:    400,
+				Message: "Bad Request",
 			}, nil
 		}
 
@@ -2391,90 +2565,16 @@ func TestV1betaListBackups(t *testing.T) {
 		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
 		listBackupsToCVP = mockListBackupsToCVP
 
-		handler := Handler{Orchestrator: mockOrchestrator}
+		handler := Handler{}
 		result, err := handler.V1betaListBackups(ctx, params)
 
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.IsType(t, &gcpgenserver.V1betaListBackupsInternalServerError{}, result)
-	})
-}
-func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
-	t.Run("WhenStateIsAvailable", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-uuid",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Name:        "test-backup",
-			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
-			SizeInBytes: 1024,
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{
-					UUID:      "test-vault-uuid",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				SourceRegionName: nillable.GetStringPtr("us-east1"),
-			},
-			Description: "Test backup description",
-			Type:        "MANUAL",
-			Attributes: &datamodel.BackupAttributes{
-				SnapshotName: "test-snapshot",
-				VolumeName:   "test-volume",
-			},
-		}
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsBadRequest{}, result)
 
-		result := convertBackupDataModelToBackupsV1beta(backup)
-
-		assert.Equal(t, "test-backup", result.ResourceId.Value)
-		assert.Equal(t, "test-volume-uuid", result.VolumeId.Value)
-		assert.Equal(t, gcpgenserver.BackupV1betaStateREADY, result.State.Value)
-		assert.Equal(t, "test-backup-uuid", result.BackupId.Value)
-		assert.Equal(t, int64(1024), result.VolumeUsageBytes.Value)
-		assert.Equal(t, "test-vault-uuid", result.BackupVaultId.Value)
-		assert.Equal(t, "Test backup description", result.Description.Value)
-		assert.Equal(t, gcpgenserver.BackupV1betaBackupTypeMANUAL, result.BackupType.Value)
-		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
-		assert.Equal(t, "test-volume", result.SourceVolume.Value)
-		assert.Equal(t, "us-east1", result.BackupRegion.Value)
-		assert.Equal(t, "us-east1", result.VolumeRegion.Value)
-	})
-
-	t.Run("WhenStateIsNotAvailable", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-uuid",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Name:        "test-backup",
-			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateDeleting,
-			SizeInBytes: 2048,
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{
-					UUID:      "test-vault-uuid",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				SourceRegionName: nillable.GetStringPtr("us-west1"),
-			},
-			Description: "Test backup description",
-			Type:        "SCHEDULED",
-			Attributes: &datamodel.BackupAttributes{
-				SnapshotName: "test-snapshot",
-				VolumeName:   "test-volume",
-			},
-		}
-
-		result := convertBackupDataModelToBackupsV1beta(backup)
-
-		assert.Equal(t, gcpgenserver.BackupV1betaStateDELETING, result.State.Value)
-		assert.Equal(t, "us-west1", result.BackupRegion.Value)
-		assert.Equal(t, "us-west1", result.VolumeRegion.Value)
+		badRequest := result.(*gcpgenserver.V1betaListBackupsBadRequest)
+		assert.Equal(t, float64(400), badRequest.Code)
+		assert.Equal(t, "Bad Request", badRequest.Message)
 	})
 }
 
@@ -2980,5 +3080,84 @@ func TestUpdateBackupToCVP(t *testing.T) {
 		internalServerErrorResult := result.(*gcpgenserver.V1betaUpdateBackupInternalServerError)
 		assert.Equal(t, float64(500), internalServerErrorResult.Code)
 		assert.Equal(t, "unknown error occurred", internalServerErrorResult.Message)
+	})
+}
+
+func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
+	t.Run("WhenStateIsAvailable", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName: "test-snapshot",
+				VolumeName:   "test-volume",
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-uuid", result.VolumeId.Value)
+		assert.Equal(t, gcpgenserver.BackupV1betaStateREADY, result.State.Value)
+		assert.Equal(t, "test-backup-uuid", result.BackupId.Value)
+		assert.Equal(t, int64(1024), result.VolumeUsageBytes.Value)
+		assert.Equal(t, "test-vault-uuid", result.BackupVaultId.Value)
+		assert.Equal(t, "Test backup description", result.Description.Value)
+		assert.Equal(t, gcpgenserver.BackupV1betaBackupTypeMANUAL, result.BackupType.Value)
+		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
+		assert.Equal(t, "test-volume", result.SourceVolume.Value)
+		assert.Equal(t, "us-east1", result.BackupRegion.Value)
+		assert.Equal(t, "us-east1", result.VolumeRegion.Value)
+	})
+
+	t.Run("WhenStateIsNotAvailable", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateDeleting,
+			SizeInBytes: 2048,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-west1"),
+			},
+			Description: "Test backup description",
+			Type:        "SCHEDULED",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName: "test-snapshot",
+				VolumeName:   "test-volume",
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.Equal(t, gcpgenserver.BackupV1betaStateDELETING, result.State.Value)
+		assert.Equal(t, "us-west1", result.BackupRegion.Value)
+		assert.Equal(t, "us-west1", result.VolumeRegion.Value)
 	})
 }
