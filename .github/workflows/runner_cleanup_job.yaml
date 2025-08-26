@@ -32,3 +32,32 @@ jobs:
           echo "Docker system prune completed."
           DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
           echo "Disk usage after cleanup is: $DISK_USAGE%"
+
+  clean-up:
+    strategy:
+      matrix:
+        runner_label: [ cvs-u24-sunilt-01, cvs-u24-sunilt-02, cvs-u24-sunilt-03, cvs-u24-sunilt-04, cvs-u24-sunilt-05 ]
+    runs-on: ${{ matrix.runner_label }}
+    permissions:
+      actions: write
+    steps:
+      - name: Install GitHub CLI
+        run: sudo apt-get update && sudo apt-get install -y gh
+      - name: Authenticate GitHub CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+      - name: Delete Action Caches
+        run: gh cache delete --succeed-on-no-caches --all
+
+      - name: Check Go Installation
+        id: go-check
+        run: |
+          if command -v go >/dev/null 2>&1; then
+            echo "go_version=$(go version)" >> "$GITHUB_OUTPUT"
+          else
+            echo "go_version=none" >> "$GITHUB_OUTPUT" 
+          fi
+      - name: Clean Go Caches
+        if: ${{ steps.go-check.outputs.go_version != 'none' }}
+        run: |
+          go clean -cache
+          go clean -modcache
