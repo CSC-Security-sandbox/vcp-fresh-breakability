@@ -67,10 +67,12 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
+		zone := "test-zone"
 
 		expected := &common.CreateVolumeParams{
 			AccountName:      "test-project",
 			Region:           "test-region",
+			Zone:             "test-zone",
 			Name:             "testvolume",
 			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
 			CreationToken:    "test-token",
@@ -94,7 +96,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -129,10 +131,12 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
+		zone := "test-zone"
 
 		expected := &common.CreateVolumeParams{
 			AccountName:      "test-project",
 			Region:           "test-region",
+			Zone:             "test-zone",
 			Name:             "testvolume",
 			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
 			CreationToken:    "test-token",
@@ -157,7 +161,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -177,7 +181,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
-		result, err := prepareCreateVolumeParams(req, params, region)
+		zone := "test-zone"
+
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
 		assert.Equal(tt, int64(50), result.SnapReserve)
 	})
@@ -198,7 +204,8 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
-		result, err := prepareCreateVolumeParams(req, params, region)
+		zone := "test-zone"
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "SnapReserve cannot be negative")
@@ -220,7 +227,8 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
-		result, err := prepareCreateVolumeParams(req, params, region)
+		zone := "test-zone"
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "Maximum allowed snapshot-reserve-percentage value during create is 90")
@@ -269,10 +277,12 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
+		zone := "test-zone"
 
 		expected := &common.CreateVolumeParams{
 			AccountName:      "test-project",
 			Region:           "test-region",
+			Zone:             "test-zone",
 			Name:             "testvolume",
 			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
 			CreationToken:    "test-token",
@@ -302,7 +312,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region)
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -346,10 +356,11 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
-
+		zone := "test-zone"
 		expected := &common.CreateVolumeParams{
 			AccountName:      "test-project",
 			Region:           "test-region",
+			Zone:             "test-zone",
 			Name:             "testvolume",
 			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
 			CreationToken:    "test-token",
@@ -377,7 +388,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region)
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -417,15 +428,17 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
+		zone := "test-zone"
 
 		expected := &common.CreateVolumeParams{
 			AccountName:   "test-project",
+			Region:        "test-region",
+			Zone:          "test-zone",
 			Name:          "testvolume",
 			PoolID:        "test-pool",
 			QuotaInBytes:  1024,
 			Network:       "",
 			CreationToken: "test-token",
-			Region:        "test-region",
 			VendorID:      "/projects/test-project/locations/test-location/volumes/testvolume",
 			Protocols: []string{
 				"NFSV3",
@@ -452,7 +465,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region)
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -476,15 +489,16 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		region := "test-region"
-
+		zone := "test-zone"
 		expected := &common.CreateVolumeParams{
 			AccountName:   "test-project",
+			Region:        "test-region",
+			Zone:          "test-zone",
 			Name:          "testvolume",
 			PoolID:        "test-pool",
 			QuotaInBytes:  1024,
 			Network:       "",
 			CreationToken: "test-token",
-			Region:        "test-region",
 			VendorID:      "/projects/test-project/locations/test-location/volumes/testvolume",
 			Protocols: []string{
 				"NFSV3", "NFSV4", "SMB",
@@ -496,7 +510,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region)
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -2575,7 +2589,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{}
-		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string) (*common.CreateVolumeParams, error) {
 			return nil, errors.NewUserInputValidationErr("invalid input")
 		}
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
@@ -2615,7 +2629,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{}
-		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string) (*common.CreateVolumeParams, error) {
 			return nil, fmt.Errorf("unexpected error")
 		}
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
@@ -2639,7 +2653,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{}
-		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string) (*common.CreateVolumeParams, error) {
 			return nil, fmt.Errorf("unexpected error")
 		}
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
@@ -3189,7 +3203,7 @@ func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 		prepareCreateVolumeParams = origPrepare
 		utils.ParseAndValidateRegionAndZone = origParseAndValidateRegionAndZone
 	}()
-	prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+	prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string) (*common.CreateVolumeParams, error) {
 		return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
 	}
 	utils.ParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
@@ -3230,7 +3244,7 @@ func TestPrepareCreateVolumeParams_BackupDisabled(t *testing.T) {
 		},
 	}
 
-	out, err := _prepareCreateVolumeParams(req, params, "region")
+	out, err := _prepareCreateVolumeParams(req, params, "region", "zone")
 	assert.Nil(t, out)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
@@ -3318,8 +3332,8 @@ func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) 
 		LocationId:    "test-location",
 	}
 	region := "test-region"
-
-	_, err := _prepareCreateVolumeParams(req, params, region)
+	zone := "test-zone"
+	_, err := _prepareCreateVolumeParams(req, params, region, zone)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
 }
@@ -3342,7 +3356,8 @@ func TestPrepareCreateVolumeParams_SnapReserveMustBePositiveNumber(t *testing.T)
 		LocationId:    "test-location",
 	}
 	region := "test-region"
-	result, err := _prepareCreateVolumeParams(req, params, region)
+	zone := "test-zone"
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "SnapReserve cannot be negative")
@@ -3369,7 +3384,8 @@ func TestPrepareCreateVolumeParams_DeDuplicateHGUUID(t *testing.T) {
 		LocationId:    "test-location",
 	}
 	region := "test-region"
-	result, err := _prepareCreateVolumeParams(req, params, region)
+	zone := "test-zone"
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.BlockProperties.HostGroupUUIDs, 2)
@@ -3390,8 +3406,8 @@ func TestPrepareCreateVolumeParams_ResourceIdWithHyphens_ReturnsError(t *testing
 		LocationId:    "test-location",
 	}
 	region := "test-region"
-
-	result, err := _prepareCreateVolumeParams(req, params, region)
+	zone := "test-zone"
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -3413,8 +3429,8 @@ func TestPrepareCreateVolumeParams_ValidResourceIdWithoutHyphens_Success(t *test
 		LocationId:    "test-location",
 	}
 	region := "test-region"
-
-	result, err := _prepareCreateVolumeParams(req, params, region)
+	zone := "test-zone"
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -3424,6 +3440,7 @@ func TestPrepareCreateVolumeParams_ValidResourceIdWithoutHyphens_Success(t *test
 
 func TestPrepareCreateVolumeParams_ResourceIdEdgeCases(t *testing.T) {
 	errorString := "The Resource ID can only contain lowercase letters, numbers, and underscores. It must start with a letter and cannot end with an underscore."
+	zone := "us-west1-b"
 	testCases := []struct {
 		name          string
 		resourceId    string
@@ -3478,7 +3495,7 @@ func TestPrepareCreateVolumeParams_ResourceIdEdgeCases(t *testing.T) {
 			}
 			region := "test-region"
 
-			result, err := _prepareCreateVolumeParams(req, params, region)
+			result, err := _prepareCreateVolumeParams(req, params, region, zone)
 
 			if tc.expectError {
 				assert.Error(t, err)
@@ -3645,8 +3662,9 @@ func TestRestoreWhenBackupFeatureNotEnabled_ReturnsError(t *testing.T) {
 		LocationId:    "test-location",
 	}
 	region := "test-region"
+	zone := "us-west1-b"
 
-	result, err := _prepareCreateVolumeParams(req, params, region)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
 	assert.Nil(t, result)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")

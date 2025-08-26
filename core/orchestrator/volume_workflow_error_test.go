@@ -41,6 +41,9 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 				Network:     "test-network",
 				State:       models.LifeCycleStateREADY,
 				VendorID:    "/projects/test-project/locations/us-west1/pools/test-pool",
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-west1-a",
+				},
 			},
 			QuotaInBytes: 0,
 		}
@@ -66,6 +69,8 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			Name:         "test-volume",
 			AccountName:  "test-account",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/test-project/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			PoolID:       "pool-uuid",
 			QuotaInBytes: 100000000000,
 			Network:      "test-network",
@@ -85,7 +90,7 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
-		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, account.ID).Return(nil, errors.New("volume not found"))
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone).Return(nil, errors.New("volume not found"))
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
@@ -132,6 +137,9 @@ func TestRevertVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			VendorID:  "/projects/test-project/locations/us-west1/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		volume := &datamodel.Volume{
@@ -219,6 +227,9 @@ func TestDeleteVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			VendorID:  "/projects/test-project/locations/us-west1/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		volume := &datamodel.Volume{
@@ -296,6 +307,9 @@ func TestUpdateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 				Account:          account,
 				SizeInBytes:      1000000000000,
 				AllowAutoTiering: false,
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-west1-a",
+				},
 			},
 			QuotaInBytes: 0,
 		}
@@ -444,6 +458,9 @@ func TestCreateVolume_FailedVolumeUpdateOnError(t *testing.T) {
 				Network:     "test-network",
 				State:       models.LifeCycleStateREADY,
 				VendorID:    "/projects/test-project/locations/us-west1/pools/test-pool",
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-west1-a",
+				},
 			},
 			QuotaInBytes: 0,
 		}
@@ -469,6 +486,8 @@ func TestCreateVolume_FailedVolumeUpdateOnError(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			Name:         "test-volume",
 			AccountName:  "test-account",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/test-project/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			PoolID:       "pool-uuid",
 			QuotaInBytes: 100000000000,
 			Network:      "test-network",
@@ -488,7 +507,7 @@ func TestCreateVolume_FailedVolumeUpdateOnError(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
-		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, account.ID).Return(nil, gorm.ErrRecordNotFound)
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone).Return(nil, gorm.ErrRecordNotFound)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
@@ -544,6 +563,9 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 				Network:     "test-network",
 				State:       models.LifeCycleStateREADY,
 				VendorID:    "/projects/test-project/locations/us-west1/pools/test-pool",
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-west1-a",
+				},
 			},
 			QuotaInBytes: 0,
 		}
@@ -569,6 +591,8 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			Name:         "test-volume",
 			AccountName:  "test-account",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/test-project/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			PoolID:       "pool-uuid",
 			QuotaInBytes: 100000000000,
 			Network:      "test-network",
@@ -588,7 +612,7 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
-		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, account.ID).Return(nil, gorm.ErrRecordNotFound)
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone).Return(nil, gorm.ErrRecordNotFound)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
@@ -637,6 +661,9 @@ func TestRevertVolume_FailedJobUpdateOnError_Line376(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			VendorID:  "/projects/test-project/locations/us-west1/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		volume := &datamodel.Volume{
@@ -726,6 +753,9 @@ func TestRevertVolume_FailedVolumeUpdateBackToReady(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			VendorID:  "/projects/test-project/locations/us-west1/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		volume := &datamodel.Volume{
@@ -814,6 +844,9 @@ func TestRefreshVolume_FailedJobUpdateOnError(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		volume := &datamodel.Volume{
@@ -955,6 +988,9 @@ func TestDeleteVolume_FailedVolumeUpdateOnError_Line1014(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			VendorID:  "/projects/test-project/locations/us-west1/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		volume := &datamodel.Volume{

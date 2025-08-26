@@ -137,7 +137,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 
 		// Check if error contains configured strings that require delete and retry
 		if len(RetryErrorPatterns) > 0 {
-			shouldRetry := checkRetryError(err)
+			shouldRetry := checkRetryError(logger, err)
 
 			if shouldRetry {
 				logger.Info("Detected configured error pattern, attempting delete and retry",
@@ -399,7 +399,7 @@ func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {
 }
 
 // checkRetryError checks if the error message or cause contains any of the configured retry error patterns
-func checkRetryError(err error) bool {
+func checkRetryError(logger log.Logger, err error) bool {
 	if err == nil {
 		return false
 	}
@@ -408,6 +408,8 @@ func checkRetryError(err error) bool {
 	errMsg := strings.ToLower(err.Error())
 	for _, pattern := range RetryErrorPatterns {
 		if strings.Contains(errMsg, strings.ToLower(pattern)) {
+			// log the matched pattern and error message for debugging
+			logger.Info("Matched retry error pattern", "pattern", pattern, "error", errMsg)
 			return true
 		}
 	}
@@ -424,6 +426,7 @@ func checkRetryError(err error) bool {
 					causeStr := strings.ToLower(cause)
 					for _, pattern := range RetryErrorPatterns {
 						if strings.Contains(causeStr, strings.ToLower(pattern)) {
+							logger.Info("Matched retry error pattern in cause", "pattern", pattern, "cause", causeStr)
 							return true
 						}
 					}

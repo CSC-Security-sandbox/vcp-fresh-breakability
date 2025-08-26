@@ -6552,6 +6552,67 @@ func (_c *MockStorage_GetVolumeByName_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// GetVolumeByNameAccountIDAndZone provides a mock function with given fields: ctx, name, accountID, primaryZone
+func (_m *MockStorage) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, primaryZone string) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, name, accountID, primaryZone)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeByNameAccountIDAndZone")
+	}
+
+	var r0 *datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) (*datamodel.Volume, error)); ok {
+		return rf(ctx, name, accountID, primaryZone)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) *datamodel.Volume); ok {
+		r0 = rf(ctx, name, accountID, primaryZone)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, string) error); ok {
+		r1 = rf(ctx, name, accountID, primaryZone)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetVolumeByNameAccountIDAndZone_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeByNameAccountIDAndZone'
+type MockStorage_GetVolumeByNameAccountIDAndZone_Call struct {
+	*mock.Call
+}
+
+// GetVolumeByNameAccountIDAndZone is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - accountID int64
+//   - primaryZone string
+func (_e *MockStorage_Expecter) GetVolumeByNameAccountIDAndZone(ctx interface{}, name interface{}, accountID interface{}, primaryZone interface{}) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
+	return &MockStorage_GetVolumeByNameAccountIDAndZone_Call{Call: _e.mock.On("GetVolumeByNameAccountIDAndZone", ctx, name, accountID, primaryZone)}
+}
+
+func (_c *MockStorage_GetVolumeByNameAccountIDAndZone_Call) Run(run func(ctx context.Context, name string, accountID int64, primaryZone string)) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetVolumeByNameAccountIDAndZone_Call) Return(_a0 *datamodel.Volume, _a1 error) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetVolumeByNameAccountIDAndZone_Call) RunAndReturn(run func(context.Context, string, int64, string) (*datamodel.Volume, error)) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeByNameAndAccountID provides a mock function with given fields: ctx, name, accountID
 func (_m *MockStorage) GetVolumeByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.Volume, error) {
 	ret := _m.Called(ctx, name, accountID)

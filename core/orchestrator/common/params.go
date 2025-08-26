@@ -76,6 +76,7 @@ type RevertVolumeParams struct {
 type CreateVolumeParams struct {
 	AccountName       string
 	Region            string
+	Zone              string
 	Name              string
 	Description       string
 	Network           string

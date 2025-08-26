@@ -927,7 +927,8 @@ func TestCreateVSAClusterDeployment_FileProtocolSupport(t *testing.T) {
 }
 
 func TestCheckRetryError_NilError(t *testing.T) {
-	result := checkRetryError(nil)
+	logger := &log.MockLogger{}
+	result := checkRetryError(logger, nil)
 	assert.False(t, result)
 }
 
@@ -939,14 +940,23 @@ func TestCheckRetryError_SimpleErrorMatch(t *testing.T) {
 
 	// Test with a simple error that matches the pattern
 	err := errors.New("Aggregates are degraded or unmirrored")
-	result := checkRetryError(err)
+	logger := &log.MockLogger{}
+
+	// Set up mock expectations for the Info call
+	logger.On("Info", "Matched retry error pattern", "pattern", "Aggregates are degraded or unmirrored", "error", "aggregates are degraded or unmirrored").Return()
+
+	result := checkRetryError(logger, err)
 	assert.True(t, result)
+
+	// Verify that the mock was called as expected
+	logger.AssertExpectations(t)
 }
 
 func TestCheckRetryError_SimpleErrorNoMatch(t *testing.T) {
 	// Test with a simple error that doesn't match the pattern
 	err := errors.New("some other error")
-	result := checkRetryError(err)
+	logger := &log.MockLogger{}
+	result := checkRetryError(logger, err)
 	assert.False(t, result)
 }
 
@@ -961,9 +971,16 @@ func TestCheckRetryError_TemporalApplicationError(t *testing.T) {
 		VLMClientError{
 			Cause: []string{"Aggregates are degraded or unmirrored"},
 		})
+	logger := &log.MockLogger{}
 
-	result := checkRetryError(appErr)
+	// Set up mock expectations for the Info call
+	logger.On("Info", "Matched retry error pattern in cause", "pattern", "Aggregates are degraded or unmirrored", "cause", "aggregates are degraded or unmirrored").Return()
+
+	result := checkRetryError(logger, appErr)
 	assert.True(t, result)
+
+	// Verify that the mock was called as expected
+	logger.AssertExpectations(t)
 }
 
 func TestCheckRetryError_TemporalApplicationErrorNoMatch(t *testing.T) {
@@ -972,24 +989,24 @@ func TestCheckRetryError_TemporalApplicationErrorNoMatch(t *testing.T) {
 		VLMClientError{
 			Cause: []string{"some other cause"},
 		})
-
-	result := checkRetryError(appErr)
+	logger := &log.MockLogger{}
+	result := checkRetryError(logger, appErr)
 	assert.False(t, result)
 }
 
 func TestCheckRetryError_TemporalApplicationErrorWrongType(t *testing.T) {
 	// Test with a temporal application error of wrong type
 	appErr := temporal.NewApplicationError("some error", "WrongType", "some details")
-
-	result := checkRetryError(appErr)
+	logger := &log.MockLogger{}
+	result := checkRetryError(logger, appErr)
 	assert.False(t, result)
 }
 
 func TestCheckRetryError_TemporalApplicationErrorNoDetails(t *testing.T) {
 	// Test with a temporal application error with no details
 	appErr := temporal.NewApplicationError("VLM client error", "VLMClientError")
-
-	result := checkRetryError(appErr)
+	logger := &log.MockLogger{}
+	result := checkRetryError(logger, appErr)
 	assert.False(t, result)
 }
 

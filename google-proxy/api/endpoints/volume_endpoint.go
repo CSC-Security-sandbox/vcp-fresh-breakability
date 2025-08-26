@@ -106,7 +106,7 @@ func convertModelsToVCPVolumes(volumes []*models.Volume) []gcpgenserver.VolumeV1
 func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams) (gcpgenserver.V1betaCreateVolumeRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	region, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	region, zone, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateVolumeBadRequest{
 			Code:    parsingErr.Code,
@@ -114,7 +114,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}, nil
 	}
 
-	param, err := prepareCreateVolumeParams(req, params, region)
+	param, err := prepareCreateVolumeParams(req, params, region, zone)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaCreateVolumeBadRequest{
@@ -228,7 +228,7 @@ func (h Handler) V1betaRevertVolume(ctx context.Context, req *gcpgenserver.Volum
 	}, nil
 }
 
-func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region, zone string) (*common.CreateVolumeParams, error) {
 	vendorId := fmt.Sprintf("/projects/%v/locations/%v/volumes/%s", params.ProjectNumber, params.LocationId, req.Volume.ResourceId)
 
 	if strings.Contains(req.Volume.ResourceId, "-") {
@@ -268,6 +268,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	param := &common.CreateVolumeParams{
 		AccountName:    params.ProjectNumber,
 		Region:         region,
+		Zone:           zone,
 		Name:           req.Volume.ResourceId,
 		VendorID:       vendorId,
 		CreationToken:  req.Volume.CreationToken.Value,

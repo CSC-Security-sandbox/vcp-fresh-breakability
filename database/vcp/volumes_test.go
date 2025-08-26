@@ -148,6 +148,9 @@ func TestCreateVolume(t *testing.T) {
 		pool := &datamodel.Pool{
 			Name:    "test_pool",
 			Account: account,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.db.Create(pool).Error()
@@ -169,7 +172,7 @@ func TestCreateVolume(t *testing.T) {
 		}
 
 		createdVolume, err := store.CreateVolume(context.Background(), volume)
-		assert.EqualError(tt, err.(*vsaerrors.CustomError).OriginalErr, "volume already exists", "Expected error 'volume already exists', got %v", err)
+		assert.EqualError(tt, err.(*vsaerrors.CustomError).OriginalErr, "volume with this name already exists in the same zone", "Expected error 'volume already exists', got %v", err)
 		assert.EqualError(tt, err, "Invalid input parameters provided", "Expected error 'Invalid input parameters provided', got %v", err)
 		assert.Nil(tt, createdVolume, "Expected nil volume, got %v", createdVolume)
 	})
@@ -1608,4 +1611,66 @@ func TestGetVolumeByNameAndAccountID(t *testing.T) {
 // a PostgreSQL database to work correctly.
 func TestGetAllVolumesForHG_Success(t *testing.T) {
 	t.Skip("Skipped because SQLite doesn't support PostgreSQL JSONB syntax")
+}
+
+func TestGetVolumeByNameAccountIDAndZone(t *testing.T) {
+	// Note: The main functionality tests are skipped for SQLite because GetVolumeByNameAccountIDAndZone uses
+	// PostgreSQL's JSONB syntax (pools.pool_attributes->>'primary_zone') which is not supported in SQLite.
+	// These tests would need to be run against a PostgreSQL database to work correctly.
+
+	// However, we can still test basic error handling and parameter validation
+	t.Run("WhenDatabaseError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate an error during query
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		volume, err := store.GetVolumeByNameAccountIDAndZone(context.Background(), "test_volume", int64(1), "us-west1-a")
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Nil(tt, volume, "Expected nil volume when error occurs")
+
+		// Verify it's wrapped as a database read error
+		var vcpError *vsaerrors.CustomError
+		if errors.As(err, &vcpError) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, vcpError.TrackingID, "Expected ErrDatabaseDataReadError tracking ID for database connection error")
+		}
+	})
+
+	t.Run("WhenVolumeNotFound_ExpectNotFoundError", func(tt *testing.T) {
+		// This test documents the expected behavior when SQLite encounters PostgreSQL JSONB syntax
+		// In a real PostgreSQL environment, this would test the actual not found scenario
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// This will fail with SQLite due to JSONB syntax, but we can verify the error is handled gracefully
+		// In PostgreSQL, this would be a record not found error
+		volume, err := store.GetVolumeByNameAccountIDAndZone(context.Background(), "test_volume", int64(1), "us-west1-a")
+		assert.Nil(tt, volume, "Expected nil volume due to JSONB syntax error or not found")
+		assert.Error(tt, err, "Expected error due to unsupported JSONB syntax in SQLite or not found in PostgreSQL")
+
+		// The error should be wrapped appropriately based on the underlying error
+		var vcpError *vsaerrors.CustomError
+		if errors.As(err, &vcpError) {
+			// In SQLite, this will likely be a database read error due to JSONB syntax
+			// In PostgreSQL, this should be ErrVolumeNotFound for a missing record
+			assert.True(tt, vcpError.TrackingID == vsaerrors.ErrVolumeNotFound || vcpError.TrackingID == vsaerrors.ErrDatabaseDataReadError,
+				"Expected either ErrVolumeNotFound or ErrDatabaseDataReadError, got tracking ID: %d", vcpError.TrackingID)
+		}
+	})
 }

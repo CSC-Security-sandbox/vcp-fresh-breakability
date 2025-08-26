@@ -81,6 +81,7 @@ func TestGetVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -230,6 +231,7 @@ func TestGetVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -340,6 +342,7 @@ func TestGetVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -694,7 +697,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:  "test_account",
 			Region:       "test_region",
 			Name:         "test_pool",
-			VendorID:     "test_vendor",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes: minQuotaInBytesPool,
 			Protocols:    []string{"NFS"},
 			Description:  "Some description",
@@ -738,6 +742,7 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -765,7 +770,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:  "test_account",
 			Region:       "test_region",
 			Name:         "test_pool",
-			VendorID:     "test_vendor",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes: minQuotaInBytesPool,
 			Protocols:    []string{"NFS"},
 			Description:  "Some description",
@@ -823,7 +829,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:  "test_account",
 			Region:       "test_region",
 			Name:         "test_pool",
-			VendorID:     "test_vendor",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes: minQuotaInBytesPool,
 			Protocols:    []string{"NFS"},
 			Description:  "Some description",
@@ -887,6 +894,10 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -898,7 +909,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:  "test_account",
 			Region:       "test_region",
 			Name:         "test_pool",
-			VendorID:     "test_vendor",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes: minQuotaInBytesPool,
 			Protocols:    []string{"NFS"},
 			Description:  "Some description",
@@ -956,6 +968,10 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -980,7 +996,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:  "test_account",
 			Region:       "test_region",
 			Name:         "test_pool",
-			VendorID:     "test_vendor",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes: minQuotaInBytesPool,
 			Protocols:    []string{"NFS"},
 			Description:  "Some description",
@@ -1039,6 +1056,10 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -1063,7 +1084,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:  "test_account",
 			Region:       "test_region",
 			Name:         "test_pool",
-			VendorID:     "test_vendor",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes: minQuotaInBytesPool,
 			Protocols:    []string{"NFS"},
 			Description:  "Some description",
@@ -1193,8 +1215,9 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:  "test_account",
 			Region:       "test_region",
 			Name:         "test_volume",
-			VendorID:     "test_vendor",
-			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50 GiB - smaller than parent volume
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
+			QuotaInBytes: 50 * 1024 * 1024 * 1024,                                         // 50 GiB - smaller than parent volume
 			Protocols:    []string{"NFS"},
 			Description:  "Some description",
 			DisplayName:  "Some display name",
@@ -1296,7 +1319,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:   "test_account",
 			Region:        "test_region",
 			Name:          "test_volume",
-			VendorID:      "test_vendor",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes:  minQuotaInBytesPool,
 			Protocols:     []string{"NFS"},
 			Description:   "Some description",
@@ -1435,7 +1459,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:   "test_account",
 			Region:        "test_region",
 			Name:          "test_volume",
-			VendorID:      "test_vendor",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes:  minQuotaInBytesPool,
 			Protocols:     []string{"NFS"},
 			Description:   "Some description",
@@ -1586,7 +1611,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:   "test_account",
 			Region:        "test_region",
 			Name:          "test_volume",
-			VendorID:      "test_vendor",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes:  minQuotaInBytesPool,
 			Protocols:     []string{"NFS"},
 			Description:   "Some description",
@@ -1731,7 +1757,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:   "test_account",
 			Region:        "test_region",
 			Name:          "test_volume",
-			VendorID:      "test_vendor",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes:  minQuotaInBytesPool,
 			Protocols:     []string{"NFS"},
 			Description:   "Some description",
@@ -1867,7 +1894,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:   "test_account",
 			Region:        "test_region",
 			Name:          "test_volume",
-			VendorID:      "test_vendor",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes:  minQuotaInBytesPool,
 			Protocols:     []string{"NFS"},
 			Description:   "Some description",
@@ -2003,7 +2031,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:   "test_account",
 			Region:        "test_region",
 			Name:          "test_volume",
-			VendorID:      "test_vendor",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes:  minQuotaInBytesPool,
 			Protocols:     []string{"NFS"},
 			Description:   "Some description",
@@ -2080,6 +2109,9 @@ func TestCreateVolume(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2104,7 +2136,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:   "test_account",
 			Region:        "test_region",
 			Name:          "test_volume",
-			VendorID:      "test_vendor",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes:  minQuotaInBytesPool,
 			Protocols:     []string{"NFS"},
 			Description:   "Some description",
@@ -2173,6 +2206,9 @@ func TestCreateVolume(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			VendorID:  "/projects/project123/locations/", // Intentionally invalid VendorID
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2197,7 +2233,8 @@ func TestCreateVolume(t *testing.T) {
 			AccountName:   "test_account",
 			Region:        "test_region",
 			Name:          "test_volume",
-			VendorID:      "test_vendor",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			QuotaInBytes:  minQuotaInBytesPool,
 			Protocols:     []string{"NFS"},
 			Description:   "Some description",
@@ -2230,6 +2267,379 @@ func TestCreateVolume(t *testing.T) {
 		assert.Contains(tt, err.Error(), "invalid vendor ID")
 	})
 
+	t.Run("WhenVendorIDZoneMatchesPoolPrimaryZone", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// VendorID with zone that matches pool's primary zone
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Zone matches pool's primary zone
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+			Name:      "test_account",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		// Mock workflow execution
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		_, workflowID, err := createVolume(ctx, store, temporal, params)
+		assert.NoError(tt, err, "Expected no error when VendorID zone matches pool's primary zone")
+		assert.NotEmpty(tt, workflowID, "Expected workflow ID to be returned")
+	})
+
+	t.Run("WhenVendorIDZoneDoesNotMatchPoolPrimaryZone", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a", // Pool primary zone
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// VendorID with zone that does NOT match pool's primary zone
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-b",
+			VendorID:      "/projects/project123/locations/us-east1-b/volumes/test-volume", // Zone does NOT match pool's primary zone
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+			Name:      "test_account",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.Error(tt, err, "Expected error when VendorID zone does not match pool's primary zone")
+		assert.Contains(tt, err.Error(), "Volume zone 'us-west1-b' does not match pool's primary zone 'us-west1-a'")
+	})
+
+	t.Run("WhenZoneIsEmptyReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Empty zone should return error
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "", // Empty zone should cause validation error
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+			Name:      "test_account",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.Error(tt, err, "Expected error when Zone is empty")
+		assert.Contains(tt, err.Error(), "Volume zone '' does not match pool's primary zone 'us-west1-a'", "Expected error message about zone mismatch")
+	})
+
+	t.Run("WhenVendorIDIsEmptyReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Empty VendorID - should now return error instead of skipping validation
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "", // Empty zone to test zone validation
+			VendorID:      "", // Empty VendorID
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+			Name:      "test_account",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.Error(tt, err, "Expected error when VendorID is empty")
+		assert.Contains(tt, err.Error(), "Volume zone '' does not match pool's primary zone 'us-west1-a'", "Expected error message about zone mismatch")
+	})
+
 	t.Run("WhenVolumeExistsInCreatingStateButJobLookupFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
@@ -2258,6 +2668,7 @@ func TestCreateVolume(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
 			State:     models.LifeCycleStateREADY,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
@@ -2284,6 +2695,8 @@ func TestCreateVolume(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test_volume", // Same name as existing volume
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			PoolID:       "test-pool-uuid",
 			QuotaInBytes: minQuotaInBytesVolume,
 			Protocols:    []string{"ISCSI"},
@@ -2339,6 +2752,7 @@ func TestCreateVolume(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
 			State:     models.LifeCycleStateREADY,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
@@ -2365,6 +2779,8 @@ func TestCreateVolume(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test_volume", // Same name as existing volume
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 			PoolID:       "test-pool-uuid",
 			QuotaInBytes: minQuotaInBytesVolume,
 			Protocols:    []string{"ISCSI"},
@@ -2447,6 +2863,10 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 		assert.NoError(tt, store.DB().Create(pool).Error)
 
@@ -2461,7 +2881,7 @@ func TestCreateVolume(t *testing.T) {
 		assert.Error(tt, err, "Expected error, got nil")
 		assert.Nil(tt, createdVolume, "Expected nil volume")
 		assert.Contains(tt, err.Error(), "Invalid input parameters provided")
-		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "volume already exists")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "volume with this name already exists in the same zone")
 	})
 }
 
@@ -2565,7 +2985,8 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 		AccountName:   "test_account",
 		Region:        "test_region",
 		Name:          "test_volume",
-		VendorID:      "test_vendor",
+		Zone:          "us-west1-a",
+		VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
 		QuotaInBytes:  minQuotaInBytesVolume + 1,
 		Protocols:     []string{"NFS"},
 		Description:   "Some description",
@@ -2985,6 +3406,7 @@ func TestGetMultipleVolumes(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},

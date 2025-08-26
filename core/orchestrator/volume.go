@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -63,12 +64,25 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	vol, volErr := se.GetVolumeByNameAndAccountID(ctx, params.Name, pool.Account.ID)
+	poolPrimaryZone := pool.PoolAttributes.PrimaryZone
+	// Validate that volume zone matches pool's primary zone
+	if params.Zone != poolPrimaryZone {
+		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume zone '%s' does not match pool's primary zone '%s'.", params.Zone, poolPrimaryZone))
+	}
+
+	// Check for existing volume with same name in the determined zone
+	vol, volErr := se.GetVolumeByNameAccountIDAndZone(ctx, params.Name, pool.Account.ID, params.Zone)
 	if volErr != nil {
-		logger.Debug("No existing volume found with the given name, proceeding to create a new volume", "volume_name", params.Name)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(volErr, &customErr) && !customerrors.IsNotFoundErr(customErr.Unwrap()) {
+			// propagate the Non-NotFound errors
+			return nil, "", volErr
+		}
+		logger.Debug("No existing volume found with the given name in the same zone, proceeding to create a new volume",
+			"volume_name", params.Name, "zone", params.Zone)
 	} else {
 		if vol.State != models.LifeCycleStateCreating {
-			return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume with resource_id '%s' already exists", params.Name))
+			return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume with resource_id '%s' already exists in zone '%s'", params.Name, poolPrimaryZone))
 		} else {
 			job, jobErr := se.GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeCreateVolume))
 			if jobErr != nil {

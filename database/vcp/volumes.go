@@ -32,7 +32,15 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 	var err error
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
-	err2 := tx.Where("name = ?", volume.Name).Where("account_id = ?", volume.AccountID).First(&volume).Error
+	// Check for existing volume with same name in the same zone (pool's primary zone)
+	// Using efficient single-query JOIN approach
+	var existingVolume datamodel.Volume
+	err2 := tx.Table("volumes v").
+		Joins("JOIN pools existing_pool ON v.pool_id = existing_pool.id").
+		Joins("JOIN pools target_pool ON target_pool.id = ?", volume.PoolID).
+		Where("v.name = ? AND v.account_id = ? AND existing_pool.pool_attributes->>'primary_zone' = target_pool.pool_attributes->>'primary_zone'",
+			volume.Name, volume.AccountID).
+		First(&existingVolume).Error
 	if errors.Is(err2, gorm.ErrRecordNotFound) {
 		volume.UUID = utils.RandomUUID()
 		if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
@@ -56,9 +64,10 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 		}
 		return volume, nil
 	} else if err2 != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err2)
 	}
-	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("volume already exists"))
+	// Volume already exists in the same zone
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("volume with this name already exists in the same zone"))
 }
 
 // GetVolume retrieves a volume by its UUID and if the deletedAt field is not set, it returns the volume details.
@@ -77,6 +86,28 @@ func (d *DataStoreRepository) GetVolumeWithAccountID(ctx context.Context, volUUI
 
 func (d *DataStoreRepository) GetVolumeByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.Volume, error) {
 	return getVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Volume{Name: name, AccountID: accountID})
+}
+
+func (d *DataStoreRepository) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, primaryZone string) (*datamodel.Volume, error) {
+	volume := &datamodel.Volume{}
+	db := d.db.GORM().WithContext(ctx)
+
+	// Join with pools table and filter by pool's primary zone
+	err := db.Preload("Account").
+		Preload("Pool").
+		Joins("JOIN pools ON volumes.pool_id = pools.id").
+		Where("volumes.name = ? AND volumes.account_id = ? AND pools.pool_attributes->>'primary_zone' = ?",
+			name, accountID, primaryZone).
+		First(&volume).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeNotFound,
+				customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil))
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return volume, nil
 }
 
 func (d *DataStoreRepository) GetVolumeByName(ctx context.Context, volName string) (*datamodel.Volume, error) {
