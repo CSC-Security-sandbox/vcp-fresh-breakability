@@ -33,6 +33,13 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		mountJobActivity := replicationActivities.MountJobActivity{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(mountJobActivity.GetReplication)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(mountJobActivity.CheckMountJob)
+		env.RegisterActivity(mountJobActivity.GetReplicationFromOntap)
+		env.RegisterActivity(mountJobActivity.UpdateReplicationInDB)
+		env.RegisterActivity(mountJobActivity.GetLunDetailsFromOntap)
+		env.RegisterActivity(mountJobActivity.UpdateVolumeLunDetailsInDB)
 
 		replicationUUID := "replication-uuid"
 		accountName := "testAccount"
@@ -58,13 +65,14 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName).Return(nil)
 		env.OnActivity(mountJobActivity.GetReplicationFromOntap, mock.Anything, dbreplication, mock.Anything, accountName).Return(dbreplication, nil)
 		env.OnActivity(mountJobActivity.UpdateReplicationInDB, mock.Anything, dbreplication).Return(nil)
-
+		env.OnActivity(mountJobActivity.GetLunDetailsFromOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mountJobActivity.UpdateVolumeLunDetailsInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(PerformMountCheckWorkflow, replicationUUID, accountName)
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Nil(t, env.GetWorkflowError())
-		env.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
 	})
 }

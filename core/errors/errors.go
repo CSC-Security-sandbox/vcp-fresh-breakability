@@ -219,6 +219,7 @@ const (
 	ErrGoogleProxyInternalResumeReplication                                                  = 6185
 	ErrVolumeNotOnlineForReplicationResume                                                   = 6186
 	ErrDestinationVolumeUsedSizeGreaterThanSourceVolumeAvailableQuota                        = 6187
+	ErrFailedToGetLunDetailsFromOntap                                                        = 6188
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

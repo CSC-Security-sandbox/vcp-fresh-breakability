@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -85,4 +87,46 @@ func (j *MountJobActivity) GetReplication(ctx context.Context, uuid string) (*da
 		return nil, err
 	}
 	return replication, nil
+}
+
+func (j *MountJobActivity) GetLunDetailsFromOntap(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.LunResponse, error) {
+	logger := util.GetLogger(ctx)
+	provider, err := activitiesGetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	lunParams := vsa.LunGetParams{
+		SvmName:    replication.ReplicationAttributes.DestinationSvmName,
+		VolumeName: replication.ReplicationAttributes.DestinationVolumeName,
+		LunName:    "lun_" + replication.ReplicationAttributes.SourceVolumeName,
+	}
+	lunDetails, err := provider.LunGet(lunParams)
+	if err != nil {
+		logger.Errorf("Failed to get LUN details from Ontap %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetLunDetailsFromOntap, err)
+	}
+	return lunDetails, nil
+}
+
+func (j *MountJobActivity) UpdateVolumeLunDetailsInDB(ctx context.Context, replication *datamodel.VolumeReplication, lunDetails *vsa.LunResponse) error {
+	se := j.SE
+	updates := make(map[string]interface{})
+	if replication.Volume.VolumeAttributes != nil && replication.Volume.VolumeAttributes.BlockDevices != nil {
+		blockDevices := *replication.Volume.VolumeAttributes.BlockDevices
+
+		lunPath := strings.Split(lunDetails.Name, "/")
+		lunName := lunPath[len(lunPath)-1]
+		blockDevices[0].Name = lunName
+		blockDevices[0].Size = lunDetails.Size
+		blockDevices[0].LunUUID = lunDetails.ExternalUUID
+		blockDevices[0].Identifier = lunDetails.SerialNumber
+
+		replication.Volume.VolumeAttributes.BlockDevices = &blockDevices
+	}
+	updates["volume_attributes"] = replication.Volume.VolumeAttributes
+	err := se.UpdateVolumeFields(ctx, replication.ReplicationAttributes.DestinationVolumeUUID, updates)
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
 }

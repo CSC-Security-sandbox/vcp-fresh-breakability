@@ -1121,6 +1121,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "6188": {
+    "description": "Failed To Get Lun Details From ONTAP",
+    "message": "Failed to get lun details from ONTAP",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",
