@@ -1678,6 +1678,33 @@ func TestV1betaDeleteBackupUnderBackupVault(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
 	})
+	t.Run("WhenDeleteBackupSuccessInVSAWithEmptyJobId", func(tt *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		params := gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams{
+			BackupVaultId: "vault-id",
+			BackupId:      "backup-id",
+			LocationId:    "valid-location",
+			ProjectNumber: "project-number",
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
+		mockOrchestrator.EXPECT().DeleteBackup(ctx, mock.Anything).Return(nil, "", nil) // Empty jobId
+
+		result, err := handler.V1betaDeleteBackupUnderBackupVault(ctx, params)
+		assert.Nil(tt, err)
+		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
+		operation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, operation.Done.Value) // Should be done when jobId is empty
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/valid-location/operations/")
+	})
 }
 
 func TestFetchBackupUUIDWhichAreNotPartOfListBackups(t *testing.T) {

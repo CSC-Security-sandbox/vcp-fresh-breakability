@@ -375,6 +375,14 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 		logger.Error("Failed to delete backup", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
 	}
+	if jobId == "" {
+		jobId = uuid.UUID{}.String()
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(operationID),
+			Done: gcpgenserver.NewOptBool(true),
+		}, nil
+	}
 	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
 	return &gcpgenserver.OperationV1beta{
 		Name: gcpgenserver.NewOptString(operationID),

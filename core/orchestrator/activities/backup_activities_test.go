@@ -179,7 +179,7 @@ func TestUpdateBackupError_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, models.LifeCycleStateError, backup.State)
-	assert.Equal(t, models.LifeCycleStateCreationErrorDetails, backup.StateDetails)
+	assert.Equal(t, "some error", backup.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -2015,6 +2015,31 @@ func TestPrepareObjectStoreActivity_Success(t *testing.T) {
 	assert.Equal(t, "test-bucket", result.BucketName)
 	assert.NotNil(t, result.BucketDetails)
 	assert.Equal(t, "subnet-1", result.BucketDetails.VendorSubnetID)
+}
+
+func TestMarkBackupAvailable(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		backup := &datamodel.Backup{}
+		mockStorage.On("UpdateBackupState", ctx, backup).Return(backup, nil)
+		err := activity.MarkBackupAvailable(ctx, backup)
+		assert.Nil(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("onFailure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		backup := &datamodel.Backup{}
+		expectedError := errors.New("update failed")
+		mockStorage.On("UpdateBackupState", ctx, backup).Return(nil, expectedError)
+		err := activity.MarkBackupAvailable(ctx, backup)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "update failed")
+		mockStorage.AssertExpectations(t)
+	})
 }
 
 func TestPrepareObjectStoreActivity_GetObjStoreNameFailure(t *testing.T) {

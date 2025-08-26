@@ -26,7 +26,8 @@ type BackupCreateWorkflow struct {
 
 type BackupDeleteWorkflow struct {
 	BaseWorkflow
-	SE *database.Storage
+	SE              *database.Storage
+	deleteInitiated bool
 }
 
 type backupUpdateWorkflow struct {
@@ -46,7 +47,7 @@ const (
 )
 
 // CreateBackupWorkflow  process backup related requests from a customer.
-func CreateBackupWorkflow(ctx workflow.Context, params *commonparams.CreateBackupParams, backup *datamodel.Backup, backupVault *datamodel.BackupVault, volume *datamodel.Volume) (gcpgenserver.V1betaDeletePoolRes, error) {
+func CreateBackupWorkflow(ctx workflow.Context, params *commonparams.CreateBackupParams, backup *datamodel.Backup, backupVault *datamodel.BackupVault, volume *datamodel.Volume) (interface{}, error) {
 	backupWf := new(BackupCreateWorkflow)
 	err := backupWf.Setup(ctx, params)
 	if err != nil {
@@ -270,7 +271,7 @@ func getBucketDetailsForBucket(backupVault *datamodel.BackupVault, bucketName st
 	return nil, ConvertToVSAError(fmt.Errorf("no matching bucket details found for bucket %s in backup vault %s", bucketName, backupVault.Name))
 }
 
-func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBackupParams) (gcpgenserver.V1betaDeletePoolRes, error) {
+func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBackupParams) (interface{}, error) {
 	backupWf := new(BackupDeleteWorkflow)
 	err := backupWf.Setup(ctx, params)
 	if err != nil {
@@ -416,9 +417,13 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if isVolumeDeleted || isSnapmirrorDeleted {
+		adcWorkflow := AdcWF{}
 		// if volume is deleted then we need to delete the backup with adc
-		err = workflow.ExecuteChildWorkflow(ctx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(ctx, nil)
+		err = workflow.ExecuteChildWorkflow(ctx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(ctx, &adcWorkflow)
 		if err != nil {
+			if adcWorkflow.cloudDeletionIntiated {
+				wf.deleteInitiated = true
+			}
 			return nil, ConvertToVSAError(err)
 		}
 	} else {
@@ -450,6 +455,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror: %w", err))
 			}
 
+			wf.deleteInitiated = true
 			err = workflow.ExecuteActivity(ctx, backupActivity.DeleteCloudEndpoint, node, objStore.UUID, dbBackup.Attributes.EndpointUUID).Get(ctx, &ontapAsyncResponse)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
@@ -470,6 +476,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 			if !isBackupShared {
+				wf.deleteInitiated = true
 				err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotFromObjectStore, node, objStore.UUID, dbBackup.Attributes.EndpointUUID, dbBackup.Attributes.SnapshotID).Get(ctx, &ontapAsyncResponse)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
@@ -515,10 +522,22 @@ func (wf *BackupDeleteWorkflow) HandleError(ctx workflow.Context, params *common
 	if err != nil {
 		return fmt.Errorf("failed to get backup: %w", err)
 	}
-	err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupError, dbBackup, errString).Get(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to update backup error: %w", err)
+	dbBackup.Attributes.DeleteInitiated = wf.deleteInitiated
+	if wf.deleteInitiated {
+		wf.Logger.Errorf("Backup to error state as delete has been initiated but failed to complete, backupUUID: %s", dbBackup.UUID)
+		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupError, dbBackup, errString).Get(ctx, nil)
+		if err != nil {
+			return ConvertToVSAError(err)
+		}
+	} else {
+		wf.Logger.Errorf("Reverting backup state to available as delete was not initiated, backupUUID: %s", dbBackup.UUID)
+		// mark the backup back to available state
+		err = workflow.ExecuteActivity(ctx, backupActivity.MarkBackupAvailable, dbBackup).Get(ctx, nil)
+		if err != nil {
+			return ConvertToVSAError(err)
+		}
 	}
+
 	return nil
 }
 

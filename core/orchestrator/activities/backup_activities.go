@@ -94,7 +94,15 @@ func (a BackupActivity) UpdateBackupError(ctx context.Context, backup *datamodel
 	}
 	se := a.SE
 	backup.State = models.LifeCycleStateError
-	backup.StateDetails = models.LifeCycleStateCreationErrorDetails
+	backup.StateDetails = errorString
+	_, err := se.UpdateBackupState(ctx, backup)
+	return err
+}
+
+func (a BackupActivity) MarkBackupAvailable(ctx context.Context, backup *datamodel.Backup) error {
+	se := a.SE
+	backup.State = models.LifeCycleStateAvailable
+	backup.StateDetails = models.LifeCycleStateAvailableDetails
 	_, err := se.UpdateBackupState(ctx, backup)
 	return err
 }

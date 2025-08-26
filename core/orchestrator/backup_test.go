@@ -2510,3 +2510,105 @@ func TestBackupCreationIntegration(t *testing.T) {
 		})
 	})
 }
+
+// TestDeleteBackup_DeleteBackupFailure tests error handling when DeleteBackup fails for error state backup
+func TestDeleteBackup_DeleteBackupFailure(t *testing.T) {
+	ctx := context.Background()
+	store := database.NewMockStorage(t)
+	temporal := new(workflow_engine_mock.MockTemporalTestClient)
+	
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid"},
+		State:     models.LifeCycleStateError,
+		Attributes: &datamodel.BackupAttributes{
+			DeleteInitiated: false,
+		},
+	}
+
+	params := &common.DeleteBackupParams{
+		BackupUUID:      backup.UUID,
+		BackupVaultUUID: "test-vault-uuid",
+		AccountName:     "test-account",
+	}
+
+	// Mock the validation function
+	validateBackupDeleteParams = func(ctx context.Context, se database.Storage, params *common.DeleteBackupParams) error {
+		return nil
+	}
+	defer func() { validateBackupDeleteParams = _validateBackupDeleteParams }()
+
+	// Mock account lookup
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+	// Mock backup retrieval
+	store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+
+	// Mock DeleteBackup to fail
+	expectedError := errors.New("failed to delete backup")
+	store.On("DeleteBackup", ctx, backup.UUID).Return(nil, expectedError)
+
+	// Act
+	result, jobID, err := deleteBackup(ctx, store, temporal, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	assert.Nil(t, result)
+	assert.Equal(t, "", jobID)
+	store.AssertExpectations(t)
+}
+
+// TestDeleteBackup_ListVolumesFailure tests error handling when ListVolumes fails
+func TestDeleteBackup_ListVolumesFailure(t *testing.T) {
+	ctx := context.Background()
+	store := database.NewMockStorage(t)
+	temporal := new(workflow_engine_mock.MockTemporalTestClient)
+	
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid"},
+		State:     models.LifeCycleStateAvailable,
+		Attributes: &datamodel.BackupAttributes{
+			DeleteInitiated: false,
+		},
+	}
+
+	params := &common.DeleteBackupParams{
+		BackupUUID:      backup.UUID,
+		BackupVaultUUID: "test-vault-uuid",
+		AccountName:     "test-account",
+	}
+
+	// Mock the validation function
+	validateBackupDeleteParams = func(ctx context.Context, se database.Storage, params *common.DeleteBackupParams) error {
+		return nil
+	}
+	defer func() { validateBackupDeleteParams = _validateBackupDeleteParams }()
+
+	// Mock account lookup
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+	// Mock backup retrieval
+	store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+
+	// Mock ListVolumes to fail
+	expectedError := errors.New("failed to list volumes")
+	store.On("ListVolumes", ctx, mock.AnythingOfType("[][]interface {}")).Return(nil, expectedError)
+
+	// Act
+	result, jobID, err := deleteBackup(ctx, store, temporal, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	assert.Nil(t, result)
+	assert.Equal(t, "", jobID)
+	store.AssertExpectations(t)
+}

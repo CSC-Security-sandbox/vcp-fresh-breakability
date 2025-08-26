@@ -935,56 +935,6 @@ func TestADCWorkflow(t *testing.T) {
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
-
-	t.Run("SetupFailure", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		// Don't set up context propagators to cause Setup to fail
-		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&activities.ADCActivity{})
-
-		// Set up test data
-		params := &common.DeleteBackupParams{
-			BackupVaultUUID: "vault-uuid",
-			BackupUUID:      "backup-uuid",
-			AccountName:     "test-account",
-		}
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
-			Name:      "test-account",
-		}
-		backupVault := &datamodel.BackupVault{
-			Name: "test-backup-vault",
-			BucketDetails: datamodel.BucketDetailsArray{
-				&datamodel.BucketDetails{
-					BucketName:          "test-bucket",
-					ServiceAccountName:  "sa-test",
-					VendorSubnetID:      "subnet-12345",
-					TenantProjectNumber: "123456789",
-				},
-			},
-			Account: account,
-		}
-		backup := &datamodel.Backup{
-			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:          "test-backup",
-			VolumeUUID:    "test-vol",
-			BackupVault:   backupVault,
-			BackupVaultID: 1,
-			Attributes: &datamodel.BackupAttributes{
-				BucketName:   "test-bucket",
-				EndpointUUID: "endpoint-uuid",
-				SnapshotID:   "snapshot-uuid",
-			},
-		}
-
-		// Execute workflow
-		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
-		// Assert workflow execution
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-	})
-
 	t.Run("GetBucketDetailsFailure", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()

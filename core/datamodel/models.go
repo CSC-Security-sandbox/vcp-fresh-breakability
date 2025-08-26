@@ -626,6 +626,7 @@ type BackupAttributes struct {
 	VolumeName                     string    `json:"volume_name"`
 	AccountIdentifier              string    `json:"account_identifier"`
 	EnforcedRetentionDuration      time.Time `json:"enforced_retention_duration"`
+	DeleteInitiated                bool      `json:"delete_initiated"`
 }
 
 func (b *BackupAttributes) Scan(value interface{}) error {

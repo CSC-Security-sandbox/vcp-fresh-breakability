@@ -214,7 +214,7 @@ func TestBackupAttributes_Value(t *testing.T) {
 	val, err := ba.Value()
 	assert.NoError(t, err)
 
-	expectedJSON := `{"backup_policy_name":"policy1","snapshot_id":"snap123","snapshot_name":"snapshot1","snapshot_creation_time":"2023-01-01T00:00:00Z","completion_time":"2023-01-01T01:00:00Z","life_cycle_tracking_id":"track123","constituent_volumes_per_aggregate":"vol1","use_existing_snapshot":true,"number_of_aggregates":2,"ontap_volume_style":"flexvol","service_account_name":"service1","endpoint_uuid":"endpoint123","bucket_name":"bucket1","protocols":["nfs","cifs"],"volume_name":"volume1","account_identifier":"project123","enforced_retention_duration":"0001-01-01T00:00:00Z"}`
+	expectedJSON := `{"backup_policy_name":"policy1","snapshot_id":"snap123","snapshot_name":"snapshot1","snapshot_creation_time":"2023-01-01T00:00:00Z","completion_time":"2023-01-01T01:00:00Z","life_cycle_tracking_id":"track123","constituent_volumes_per_aggregate":"vol1","delete_initiated":false,"use_existing_snapshot":true,"number_of_aggregates":2,"ontap_volume_style":"flexvol","service_account_name":"service1","endpoint_uuid":"endpoint123","bucket_name":"bucket1","protocols":["nfs","cifs"],"volume_name":"volume1","account_identifier":"project123","enforced_retention_duration":"0001-01-01T00:00:00Z"}`
 	assert.JSONEq(t, expectedJSON, string(val.([]byte)))
 }
 

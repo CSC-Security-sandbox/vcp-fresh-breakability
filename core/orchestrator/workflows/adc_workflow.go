@@ -31,33 +31,34 @@ var (
 	adcMaxCloudRunAttempts        = 20
 )
 
-type adcWorkflow struct {
+type AdcWF struct {
 	BaseWorkflow
+	cloudDeletionIntiated bool
 }
 
 // Enforcing the WorkflowInterface on adcWorkflow
-var _ WorkflowInterface = &adcWorkflow{}
+var _ WorkflowInterface = &AdcWF{}
 
 // ADCWorkflow processes ADC (Application Data Controller) related requests from a customer.
-func ADCWorkflow(ctx workflow.Context, params *common.DeleteBackupParams, backupVault *datamodel.BackupVault, backup *datamodel.Backup, account *datamodel.Account) error {
-	adcWf := new(adcWorkflow)
+func ADCWorkflow(ctx workflow.Context, params *common.DeleteBackupParams, backupVault *datamodel.BackupVault, backup *datamodel.Backup, account *datamodel.Account) (*AdcWF, error) {
+	adcWf := new(AdcWF)
 	// Create a wrapper struct to pass both arguments through the interface
 	err := adcWf.Setup(ctx, params)
 	if err != nil {
-		return err
+		return adcWf, err
 	}
 	adcWf.Status = WorkflowStatusRunning
 	_, customErr := adcWf.Run(ctx, backupVault, backup, account)
 
 	if customErr != nil {
 		adcWf.Status = WorkflowStatusFailed
-		return customErr
+		return adcWf, customErr
 	}
 	adcWf.Status = WorkflowStatusCompleted
-	return nil
+	return adcWf, nil
 }
 
-func (wf *adcWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+func (wf *AdcWF) Setup(ctx workflow.Context, input interface{}) error {
 	// Extract backupVault and backup from the input struct
 	params := input.(*common.DeleteBackupParams)
 	info := workflow.GetInfo(ctx)
@@ -77,7 +78,7 @@ func (wf *adcWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	})
 }
 
-func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 
 	// Extract arguments
@@ -289,6 +290,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 		Port:             int64(adcPort),
 	}
 
+	wf.cloudDeletionIntiated = true
 	// Step 8: Process ADC delete request
 	var adcResponse *common.ADCResponse
 	err = workflow.ExecuteActivity(ctx, adcActivity.InitialDeleteRequestWithCloudRun, adcParams, serviceURL).Get(ctx, &adcResponse)
