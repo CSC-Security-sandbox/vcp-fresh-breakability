@@ -32,23 +32,15 @@ spec:
         {{- include "vcp-dbmigrate.helmchart.labels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
-      containers:
-        - name: vcp-dbmigrate
-          command: ["/bin/sh"]
+      {{- if .Release.IsInstall }}
+      initContainers:
+        - name: vcp-dbmigrate-create
+          command: ["/vcp-db-migrate"]
           args:
-            - "-c"
-            {{- if .Release.IsUpgrade }}
-              {{- if .Values.msiEnabled | default false }}
-            - "/vcp-db-migrate --migrate --admin-msi-user=${MSI_USER}"
-              {{- else }}
-            - "/vcp-db-migrate --migrate --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD}"
-              {{- end }}
+            {{- if .Values.msiEnabled | default false }}
+            - "--setup --admin-msi-user=${MSI_USER}"
             {{- else }}
-              {{- if .Values.msiEnabled | default false }}
-            - "/vcp-db-migrate --setup --admin-msi-user=${MSI_USER} && /vcp-db-migrate --migrate --admin-msi-user=${MSI_USER}"
-              {{- else }}
-            - "/vcp-db-migrate --setup --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD} && /vcp-db-migrate --migrate --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD}"
-              {{- end }}
+            - "--setup --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD}"
             {{- end }}
           {{- if .Values.images.vcpDbMigrate.secondary }}
           image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" true)) | trim -}}"
@@ -96,7 +88,69 @@ spec:
               value: {{ .Values.global.coreConfig.localRegion | default "" | quote }}
             - name: REGION_NUMBER_MAP
               value: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+      {{- end }}
+      containers:
+        - name: vcp-dbmigrate-migrate
+          command: ["/vcp-db-migrate"]
+          args:
+            {{- if .Values.msiEnabled | default false }}
+            - "--migrate --admin-msi-user=${MSI_USER}"
+            {{- else }}
+            - "--migrate --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD}"
+            {{- end }}
+          {{- if .Values.images.vcpDbMigrate.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.images.vcpDbMigrate.pullPolicy }}
+          env:
+            # DB migration admin credentials from Secret
+            - name: DB_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_ADMIN_USERNAME
+            - name: DB_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_ADMIN_PASSWORD
 
+            # MSI user (if enabled)
+            - name: MSI_USER
+              value: {{ .Values.msiUser | default "defaultUser" | quote }}
+
+            # Regular database connection info (user/pass/host etc)
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_PASSWORD
+            - name: DB_HOST
+              value: {{ .Values.database.host | default "localhost" | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | default "5432" | quote }}
+            - name: DB_NAME
+              value: {{ .Values.database.name | default "vcp" | quote }}
+            - name: DB_TYPE
+              value: {{ .Values.database.type | default "postgres" | quote }}
+            - name: LOCAL_REGION
+              value: {{ .Values.global.coreConfig.localRegion | default "" | quote }}
+            - name: REGION_NUMBER_MAP
+              value: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
           resources:
             limits:
               cpu: {{ .Values.resources.limits.cpu }}
