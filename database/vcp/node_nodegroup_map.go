@@ -210,8 +210,14 @@ func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, par
 
 	var mappings []*datamodel.NodeNodeGroupMap
 
-	group1Port, _ := GetFirstAvailablePort(tx, group1.ID)
-	group2Port, _ := GetFirstAvailablePort(tx, group2.ID)
+	group1Port, g1PortErr1 := GetFirstAvailablePort(tx, group1.ID)
+	if g1PortErr1 != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, g1PortErr1)
+	}
+	group2Port, g1PortErr2 := GetFirstAvailablePort(tx, group2.ID)
+	if g1PortErr2 != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, g1PortErr2)
+	}
 
 	// Create mapping for node1 if it doesn't exist
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
@@ -286,7 +292,7 @@ func GetFirstAvailablePort(tx *gorm.DB, groupID int64) (string, error) {
 	assigned := make(map[int]struct{})
 	type result struct{ Port string }
 	var rows []result
-	err := tx.Table("node_node_group_maps").
+	err := tx.Model(&datamodel.NodeNodeGroupMap{}).
 		Select("harvest_config->>'PORT' as port").
 		Where("node_group_id = ? AND harvest_config->>'PORT' IS NOT NULL AND harvest_config->>'PORT' != ''", groupID).
 		Scan(&rows).Error

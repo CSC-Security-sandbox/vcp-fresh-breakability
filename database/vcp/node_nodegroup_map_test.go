@@ -164,6 +164,135 @@ func TestAssignTwoNodesToTwoGroups_CreatesMappings(t *testing.T) {
 	assert.NotEqual(t, mappings[0].NodeGroupID, mappings[1].NodeGroupID)
 }
 
+// Below test case will test if deleted nodeGroupsMaps are not considered during nodeGroup select
+func TestAssignTwoNodesToTwoGroups_GroupLimitWithDelete(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	var nodeNodeGroupsMap1 []*datamodel.NodeNodeGroupMap
+	var nodeNodeGroupsMap2 []*datamodel.NodeNodeGroupMap
+
+	oldPortStart := portStart
+	oldPortEnd := portEnd
+	portStart = 1
+	portEnd = 5
+	defer func() {
+		portStart = oldPortStart
+		portEnd = oldPortEnd
+	}()
+
+	var group1, group2 *datamodel.NodeGroup
+	// Fill group1 and group2
+	for i := 0; i < 5; i++ {
+		node1, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n1-fill-" + uuid.NewString()})
+		assert.NoError(t, err)
+
+		node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n1-fill-" + uuid.NewString()})
+		assert.NoError(t, err)
+
+		mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+			Node1:            node1,
+			Node2:            node2,
+			MaxNodesPerGroup: 5,
+			CustomerProject:  "account-id",
+		})
+		assert.NoError(t, err)
+		assert.Len(t, mappings, 2)
+		assert.NotEqual(t, mappings[0].NodeGroupID, mappings[1].NodeGroupID)
+		if i == 0 {
+			group1 = mappings[0].NodeGroup
+			group2 = mappings[1].NodeGroup
+		}
+		assert.Equal(t, mappings[0].NodeGroupID, group1.ID)
+		assert.Equal(t, mappings[1].NodeGroupID, group2.ID)
+		nodeNodeGroupsMap1 = append(nodeNodeGroupsMap1, mappings[0])
+		nodeNodeGroupsMap2 = append(nodeNodeGroupsMap2, mappings[1])
+	}
+	node1, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n1"})
+	assert.NoError(t, err)
+	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
+	assert.NoError(t, err)
+
+	// Delete one record from group1
+	err = repo.DeleteNodeNodeGroupMap(ctx, nodeNodeGroupsMap1[0].ID)
+	assert.NoError(t, err)
+	// Delete one record from group2
+	err = repo.DeleteNodeNodeGroupMap(ctx, nodeNodeGroupsMap2[0].ID)
+	assert.NoError(t, err)
+
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
+	assert.NoError(t, err)
+	assert.Len(t, mappings, 2)
+	assert.Equal(t, group1.ID, mappings[0].NodeGroupID)
+	assert.Equal(t, group2.ID, mappings[1].NodeGroupID)
+	assert.Equal(t, mappings[0].HarvestConfig.PORT, nodeNodeGroupsMap1[0].HarvestConfig.PORT)
+	assert.Equal(t, mappings[1].HarvestConfig.PORT, nodeNodeGroupsMap2[0].HarvestConfig.PORT)
+}
+
+func TestAssignTwoNodesToTwoGroups_GroupLimitWithPortExhaust(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	var nodeNodeGroupsMap1 []*datamodel.NodeNodeGroupMap
+	var nodeNodeGroupsMap2 []*datamodel.NodeNodeGroupMap
+
+	oldPortStart := portStart
+	oldPortEnd := portEnd
+	portStart = 1
+	portEnd = 5
+	defer func() {
+		portStart = oldPortStart
+		portEnd = oldPortEnd
+	}()
+
+	var group1, group2 *datamodel.NodeGroup
+	// Fill group1 and group2
+	for i := 0; i < 5; i++ {
+		node1, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n1-fill-" + uuid.NewString()})
+		assert.NoError(t, err)
+
+		node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n1-fill-" + uuid.NewString()})
+		assert.NoError(t, err)
+
+		mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+			Node1:            node1,
+			Node2:            node2,
+			MaxNodesPerGroup: 10,
+			CustomerProject:  "account-id",
+		})
+		assert.NoError(t, err)
+		assert.Len(t, mappings, 2)
+		assert.NotEqual(t, mappings[0].NodeGroupID, mappings[1].NodeGroupID)
+		if i == 0 {
+			group1 = mappings[0].NodeGroup
+			group2 = mappings[1].NodeGroup
+		}
+		assert.Equal(t, mappings[0].NodeGroupID, group1.ID)
+		assert.Equal(t, mappings[1].NodeGroupID, group2.ID)
+		nodeNodeGroupsMap1 = append(nodeNodeGroupsMap1, mappings[0])
+		nodeNodeGroupsMap2 = append(nodeNodeGroupsMap2, mappings[1])
+	}
+	node1, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n1"})
+	assert.NoError(t, err)
+	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
+	assert.NoError(t, err)
+
+	// Should return err as ports got exhausted
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "account-id",
+	})
+	assert.Error(t, err)
+	assert.Len(t, mappings, 0)
+}
+
 func TestAssignTwoNodesToTwoGroups_GroupLimit(t *testing.T) {
 	repo, _ := setupNodeNodeGroupMapTestRepo(t)
 	ctx := context.Background()
