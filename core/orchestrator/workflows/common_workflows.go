@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	StartToCloseTimeout = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT", "45m")
+	StartToCloseTimeout = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT", "55m")
 	RetryInterval       = env.GetString("RETRY_INTERVAL", "5s")
 	RetryMaxAttempts    = env.GetInt("RETRY_MAX_ATTEMPTS", 3)
 	RetryMaxInterval    = env.GetString("RETRY_MAX_INTERVAL", "5m")

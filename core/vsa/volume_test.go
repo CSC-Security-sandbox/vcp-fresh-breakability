@@ -1229,3 +1229,33 @@ func TestRevertVolume(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 }
+
+func TestDeleteVolume_WhenVolumeDoesNotExist_ThenReturnNil(t *testing.T) {
+	// Test to cover line 96: return nil when volume doesn't exist
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeUUID := "testUUID"
+	volumeName := "testVolume"
+
+	// Mock VolumeGet to return error indicating volume doesn't exist
+	mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.New("entry doesn't exist"))
+
+	err := rc.DeleteVolume(volumeUUID, volumeName)
+
+	// Should return nil when volume doesn't exist (line 96)
+	assert.NoError(t, err)
+	assert.Nil(t, err)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}

@@ -92,6 +92,9 @@ func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 		},
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "entry doesn't exist") || strings.Contains(err.Error(), "entry not found") {
+			return nil
+		}
 		return err
 	}
 	// Check if the volume is in use for splitting or has clones

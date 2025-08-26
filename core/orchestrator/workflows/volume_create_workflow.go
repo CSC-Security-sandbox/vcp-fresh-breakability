@@ -115,6 +115,21 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	log := util.GetLogger(ctx)
+	rollbackManager := common.NewRollbackManager()
+	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteVolumeInONTAP, volCreateResponse.ExternalUUID, dbVolume.Name, &node) // This will delete the lunMap & lun if exists
+	defer func() {
+		log.Errorf("Error in PostBlockVolumeWorkflow: %v", err)
+		if err != nil {
+			err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			}
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
 	// Create LUN for block volume
 	var lun *vsa.LunResponse
 
@@ -344,6 +359,11 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteVolumeInONTAP, volCreateResponse.ExternalUUID, dbVolume.Name, &node) // This will delete the lunMap & lun if exists
+
+	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 
 	var hostGroups []*datamodel.HostGroup
 	var hostParams []*common.HostParams

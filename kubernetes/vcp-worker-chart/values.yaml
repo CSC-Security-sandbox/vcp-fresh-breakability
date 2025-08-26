@@ -78,7 +78,7 @@ workerConfig:
   maxNodesPerGroup: 200
   filesProtocolSupport: "false"
   fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
-  vsaImageName: "x-9-17-1x49-gcnv"
+  vsaImageName: "x-9-17-1x50-gcnv"
   # this will be removed after AGA
   vsaFilesImageName: "r9-18-1xn-250722-0000"
   vsaImageProject: ""
@@ -96,7 +96,7 @@ workerConfig:
   # Mediator VM Configuration
   vsaMediatorInstanceType: "e2-micro"
   vsaMediatorDiskType: "pd-ssd"
-  vsaMediatorImageName: "cvo-mediator-x-9-17-1x49"
+  vsaMediatorImageName: "cvo-mediator-x-9-17-1x50"
   
   metricsPort: "9090"
 
@@ -139,7 +139,7 @@ workerConfig:
   waitTimeForGcpOperationInSec: "10"
 
   # Default Workflow Retry configuration
-  startToCloseTimeout: "45m"
+  startToCloseTimeout: "55m"
   retryInterval: "5s"
   retryMaxAttempts: "3"
   retryMaxInterval: "5m"
