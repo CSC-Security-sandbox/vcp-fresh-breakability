@@ -38,9 +38,12 @@ spec:
           command: ["/vcp-db-migrate"]
           args:
             {{- if .Values.msiEnabled | default false }}
-            - "--setup --admin-msi-user=${MSI_USER}"
+            - "--setup"
+            - "--admin-msi-user=${MSI_USER}"
             {{- else }}
-            - "--setup --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD}"
+            - "--setup"
+            - "--admin-user=${DB_ADMIN_USERNAME}"
+            - "--admin-pass=${DB_ADMIN_PASSWORD}"
             {{- end }}
           {{- if .Values.images.vcpDbMigrate.secondary }}
           image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" true)) | trim -}}"
@@ -101,9 +104,12 @@ spec:
           command: ["/vcp-db-migrate"]
           args:
             {{- if .Values.msiEnabled | default false }}
-            - "--migrate --admin-msi-user=${MSI_USER}"
+            - "--migrate"
+            - "--admin-msi-user=${MSI_USER}"
             {{- else }}
-            - "--migrate --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD}"
+            - "--migrate"
+            - "--admin-user=${DB_ADMIN_USERNAME}"
+            - "--admin-pass=${DB_ADMIN_PASSWORD}"
             {{- end }}
           {{- if .Values.images.vcpDbMigrate.secondary }}
           image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" true)) | trim -}}"
