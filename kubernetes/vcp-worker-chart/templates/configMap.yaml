@@ -21,6 +21,7 @@ data:
   DB_MAX_OPEN_CONNS: {{ .Values.workerConfig.database.maxConns | quote }}
   DB_MAX_IDLE_CONNS: {{ .Values.workerConfig.database.maxIdleConns | quote }}
   DB_CONN_MAX_LIFETIME: {{ .Values.workerConfig.database.maxConnLifetime | quote }}
+  VLMWORKFLOW_RETRY_MAX_ATTEMPTS: {{ .Values.workerConfig.vlmWorkflowRetryMaxAttempts | quote }}
   RUN_MIGRATION_ON_START: {{ .Values.workerConfig.database.runMigrationOnStart | quote }}
   GCP_CONSUMER_MGMT_ENDPOINT_URL: {{ .Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}

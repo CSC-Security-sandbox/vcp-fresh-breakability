@@ -57,6 +57,7 @@ workerConfig:
   gcpHydrateAuthServiceAccount: ""
   gcpHydrateBaseUrl: ""
   proxyClientTransportSchema: "https"
+  vlmWorkflowRetryMaxAttempts: "1"
   smcProjectId: ""
   gcpSmcSecretName: ""
   gcpSmcSecretVersionName: ""
