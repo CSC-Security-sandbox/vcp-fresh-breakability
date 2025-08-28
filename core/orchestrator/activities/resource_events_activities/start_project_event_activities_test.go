@@ -131,7 +131,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
-		assert.False(tt, applicationError.NonRetryable())  // This error is retryable
+		assert.False(tt, applicationError.NonRetryable()) // This error is retryable
 		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
 	t.Run("StartProjectEventForSDEActivity_WhenCVPClientReturnsUnexpectedResponse", func(tt *testing.T) {

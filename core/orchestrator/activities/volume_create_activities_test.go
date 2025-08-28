@@ -272,6 +272,7 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
 		}}
@@ -307,6 +308,7 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
 		}}
@@ -1181,6 +1183,7 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
 		}}
@@ -1331,8 +1334,9 @@ func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{
-		Name: "dp-volume",
-		Svm:  &datamodel.Svm{Name: "test-svm"},
+		Name:    "dp-volume",
+		Svm:     &datamodel.Svm{Name: "test-svm"},
+		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: true,
 		},
@@ -1365,8 +1369,9 @@ func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{
-		Name: "dp-volume",
-		Svm:  &datamodel.Svm{Name: "test-svm"},
+		Name:    "dp-volume",
+		Svm:     &datamodel.Svm{Name: "test-svm"},
+		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: true,
 		},

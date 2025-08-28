@@ -248,7 +248,7 @@ jobs:
   lint:
     runs-on: [self-hosted, linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v33
       options: --user root
 
     steps:

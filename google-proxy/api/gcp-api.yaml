@@ -8117,6 +8117,11 @@ components:
       type: object
       description: FlexCache type volumes include an object containing details of
         the FlexCache
+      required:
+        - peerVolumeName
+        - peerClusterName
+        - peerSvmName
+        - peerIpAddresses
       properties:
         peerVolumeName:
           type: string

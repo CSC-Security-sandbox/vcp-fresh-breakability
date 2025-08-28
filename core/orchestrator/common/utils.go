@@ -3,6 +3,7 @@ package common
 import (
 	"regexp"
 )
+
 const (
 	LocalEnv = "local"
 )

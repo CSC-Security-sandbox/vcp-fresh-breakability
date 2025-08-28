@@ -39,6 +39,7 @@ data:
   VSA_AUTH_TYPE: "{{ index .Values "vsaAuthType" }}" #0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
   BACKUP_ENABLED: "{{ index .Values "backupEnabled" }}"
   CRR_ENABLED: "{{ index .Values "crrEnabled" }}"
+  FLEXCACHE_ENABLED: "{{ index .Values "flexCacheEnabled" }}"
   REFRESH_ADMIN_JOB_SPECS: "{{ index .Values "refreshAdminJobSpecs" }}"
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"
   IS_PRE_AGA: "{{ index .Values "isPreAga" }}"

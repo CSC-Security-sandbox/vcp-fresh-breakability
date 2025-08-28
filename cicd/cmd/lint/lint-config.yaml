@@ -65,6 +65,11 @@ linters:
       severity: warning
       rules:
         - name: context-as-argument
+  exclusions:
+    rules:
+      - path: '(.+)generate_mocks\.go'
+        linters:
+          - unused
 
 # formatters:
 #   enable:

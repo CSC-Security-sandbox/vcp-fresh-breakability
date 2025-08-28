@@ -12,12 +12,14 @@ import (
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/jobmanagerworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
@@ -211,6 +213,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
+	worker.RegisterWorkflow(flexcache_workflows.CreateFlexCacheWorkflow)
 	worker.RegisterWorkflow(workflows.PreBlockVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.PostBlockVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.PreFileVolumeWorkflow)
@@ -268,6 +271,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
 	worker.RegisterActivity(&workflows.SubnetActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&flexcache_activities.FlexCacheVolumeCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeRevertActivity{SE: dbcon, Scheduler: temporalScheduler})

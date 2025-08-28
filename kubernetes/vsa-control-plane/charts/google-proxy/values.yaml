@@ -26,6 +26,7 @@ loggerLevel: "info"
 cvpHost: ""
 crrEnabled: false
 refreshAdminJobSpecs: true
+flexCacheEnabled: false
 autoTieringEnabled: false
 isPreAga: false
 regionalSupportEnabled: true

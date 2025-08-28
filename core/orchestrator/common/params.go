@@ -101,6 +101,7 @@ type CreateVolumeParams struct {
 	BackupPath        string
 	BackupSchedule    string
 	Labels            *datamodel.JSONB
+	CacheParameters   *models.CacheParameters
 }
 
 type SnapmirrorRelationshipParams struct {

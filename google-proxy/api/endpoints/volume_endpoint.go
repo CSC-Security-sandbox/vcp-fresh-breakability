@@ -36,6 +36,7 @@ var (
 	prepareRevertVolumeParams     = _prepareRevertVolumeParams
 	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
 	qaEnabled                     = env.GetBool("QA_ENABLED", false)
+	flexCacheEnabled              = env.GetBool("FLEXCACHE_ENABLED", false)
 )
 
 const (
@@ -126,7 +127,19 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
-	volume, jobUUID, err := h.Orchestrator.CreateVolume(ctx, param)
+	var volume *models.Volume
+	var jobUUID string
+	if param.CacheParameters != nil {
+		if !flexCacheEnabled {
+			return &gcpgenserver.V1betaCreateVolumeBadRequest{
+				Code:    403,
+				Message: "FlexCache feature is currently not enabled.",
+			}, nil
+		}
+		volume, jobUUID, err = h.Orchestrator.CreateFlexCacheVolume(ctx, param)
+	} else {
+		volume, jobUUID, err = h.Orchestrator.CreateVolume(ctx, param)
+	}
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			return &gcpgenserver.V1betaCreateVolumeConflict{
@@ -430,6 +443,16 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr("Maximum allowed snapshot-reserve-percentage value during create is 90.Use volume update to set it to a higher value after the volume has been created.")
 		}
 		param.SnapReserve = int64(snapReserve)
+	}
+
+	if req.Volume.CacheParameters.IsSet() {
+		reqCacheProperties, _ := req.Volume.CacheParameters.Get()
+		param.CacheParameters = &models.CacheParameters{
+			PeerVolumeName:  reqCacheProperties.PeerVolumeName.Value,
+			PeerClusterName: reqCacheProperties.PeerClusterName.Value,
+			PeerSvmName:     reqCacheProperties.PeerSvmName.Value,
+			PeerAddresses:   reqCacheProperties.PeerIpAddresses,
+		}
 	}
 
 	return param, nil

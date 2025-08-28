@@ -17,9 +17,16 @@ const (
 type JobType string
 
 const (
-	JobTypeCreatePool                        JobType = "CREATE_POOL"
-	JobTypeUpdatePool                        JobType = "UPDATE_POOL"
-	JobTypeDeletePool                        JobType = "DELETE_POOL"
+	JobTypeCreatePool JobType = "CREATE_POOL"
+	JobTypeUpdatePool JobType = "UPDATE_POOL"
+	JobTypeDeletePool JobType = "DELETE_POOL"
+
+	// We will use a single workflow for FC volume creation and it will handle creating/completing these jobs.
+	// These 3 jobs are used to keep consistency with PO workflow/expectations.
+	JobTypeFlexCacheCreateVolume     JobType = "FLEXCACHE_CREATE_VOLUME"
+	JobTypeFlexCacheEstablishPeering JobType = "FLEXCACHE_ESTABLISH_PEERING"
+	JobTypeFlexCacheInternalPeering  JobType = "FLEXCACHE_INTERNAL_PEERING"
+
 	JobTypeCreateVolume                      JobType = "CREATE_VOLUME"
 	JobTypeUpdateVolume                      JobType = "UPDATE_VOLUME"
 	JobTypeRevertVolume                      JobType = "REVERT_VOLUME"

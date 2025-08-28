@@ -230,10 +230,6 @@ const (
 	ErrorSynchronizingServiceAccountKey = 8007
 )
 
-type Error interface {
-	error
-}
-
 // ErrorMessage struct represents the structure of each error message in the JSON file.
 type ErrorMessage struct {
 	Description string `json:"description"`

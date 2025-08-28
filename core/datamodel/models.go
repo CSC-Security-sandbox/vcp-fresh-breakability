@@ -151,6 +151,7 @@ type Volume struct {
 	UsedBytes          uint64             `gorm:"column:used_bytes"`
 	AutoTieringEnabled bool               `gorm:"column:auto_tiering_enabled"`
 	AutoTieringPolicy  *AutoTieringPolicy `gorm:"column:auto_tiering_policy;type:jsonb"`
+	CacheParameters    *CacheParameters   `gorm:"column:cache_parameters;type:jsonb"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL
@@ -760,4 +761,11 @@ func (atp *AutoTieringPolicy) Scan(value interface{}) error {
 // Value implements the driver.Valuer interface for AutoTieringPolicy
 func (atp AutoTieringPolicy) Value() (driver.Value, error) {
 	return json.Marshal(atp)
+}
+
+type CacheParameters struct {
+	PeerVolumeName  string   `json:"peer_volume_name"`
+	PeerClusterName string   `json:"peer_cluster_name"`
+	PeerSvmName     string   `json:"peer_svm_name"`
+	PeerIpAddresses []string `json:"peer_ip_addresses"`
 }

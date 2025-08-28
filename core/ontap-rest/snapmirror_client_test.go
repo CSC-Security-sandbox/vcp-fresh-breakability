@@ -336,12 +336,12 @@ func TestSnapmirrorGetPriv(t *testing.T) {
 		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{Payload: &privModels.SnapmirrorResponse{}}}
 		privClient := snapPriv.New(transport, nil)
 		client := &snapmirrorClient{apiPriv: privClient}
-		
+
 		relationshipGroupType := "flexgroup"
 		ctx := context.Background()
-		
+
 		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", &relationshipGroupType)
-		
+
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 	})
@@ -350,12 +350,12 @@ func TestSnapmirrorGetPriv(t *testing.T) {
 		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{Payload: &privModels.SnapmirrorResponse{}}}
 		privClient := snapPriv.New(transport, nil)
 		client := &snapmirrorClient{apiPriv: privClient}
-		
+
 		relationshipGroupType := "regular"
 		ctx := context.Background()
-		
+
 		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", &relationshipGroupType)
-		
+
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 	})
@@ -364,11 +364,11 @@ func TestSnapmirrorGetPriv(t *testing.T) {
 		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{Payload: &privModels.SnapmirrorResponse{}}}
 		privClient := snapPriv.New(transport, nil)
 		client := &snapmirrorClient{apiPriv: privClient}
-		
+
 		ctx := context.Background()
-		
+
 		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", nil)
-		
+
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 	})
@@ -377,11 +377,11 @@ func TestSnapmirrorGetPriv(t *testing.T) {
 		transport := &mockTransport{err: errors.New("api call failed")}
 		privClient := snapPriv.New(transport, nil)
 		client := &snapmirrorClient{apiPriv: privClient}
-		
+
 		ctx := context.Background()
-		
+
 		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", nil)
-		
+
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.EqualError(tt, err, "api call failed")

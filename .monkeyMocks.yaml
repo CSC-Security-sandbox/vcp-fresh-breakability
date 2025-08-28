@@ -9,3 +9,7 @@ packages:
       mockname: "monkeyMock"
       include-regex: "monkeyMethods"
       recursive: True
+      replace-type:
+        - "go.temporal.io/sdk/internal.Client=go.temporal.io/sdk/client.Client"
+        - "go.temporal.io/sdk/internal.StartWorkflowOptions=go.temporal.io/sdk/client.StartWorkflowOptions"
+        - "go.temporal.io/sdk/internal.ChildWorkflowOptions=go.temporal.io/sdk/workflow.ChildWorkflowOptions"
