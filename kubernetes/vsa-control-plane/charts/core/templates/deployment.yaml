@@ -35,6 +35,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: core-service-env-config
+            - secretRef:
+                name: core-service-env-secret
           volumeMounts:
             - name: env-config-volume
               mountPath: /etc/config
