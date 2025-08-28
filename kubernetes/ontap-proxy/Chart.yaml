@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ontap-proxy
+description: A Helm chart for deploying ONTAP Expert Mode Proxy
+version: "0.0.0"
+appVersion: "v0.0.0"
+deprecated: false 

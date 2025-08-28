@@ -77,7 +77,8 @@ build-all-binaries-dev:
 		vsa-binaries-builder sh -c '\
 		go build -gcflags="all=-N -l" -o /src/app/vcp-worker ./worker/ && \
 		go build -gcflags="all=-N -l" -o /src/app/google-proxy ./google-proxy/ && \
-		go build -gcflags="all=-N -l" -o /src/app/telemetry ./telemetry/'
+		go build -gcflags="all=-N -l" -o /src/app/telemetry ./telemetry/ && \
+		go build -gcflags="all=-N -l" -o /src/app/ontap-proxy ./ontap-proxy/'
 
 .PHONY: skaffold-dev
 skaffold-dev:

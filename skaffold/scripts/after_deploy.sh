@@ -39,7 +39,6 @@ kubectl set env deployment/harvest-farm \
   VSA_NODE_PASSWORD="$VSA_NODE_PASSWORD" \
   VSA_NODE_USERNAME="$VSA_NODE_USERNAME" -n vcp
 
-
 # Wait for 15 seconds before updating deployments
 echo "Waiting 15 seconds for deployments to be ready..."
 sleep 15

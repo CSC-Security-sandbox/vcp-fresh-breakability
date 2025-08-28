@@ -24,6 +24,15 @@ build:
       requires:
         - image: base
           alias: BASE
+    - image: ontap-proxy
+      context: .
+      docker:
+        dockerfile: ontap-proxy/Dockerfile
+        buildArgs:
+          noCache: true
+      requires:
+        - image: base
+          alias: BASE
     - image: core
       context: .
       docker:
@@ -90,6 +99,11 @@ portForward:
     namespace: vcp
     port: 3000
     localPort: 3000
+  - resourceType: service
+    resourceName: ontap-proxy-service
+    namespace: vcp
+    port: 8080
+    localPort: 9003
 profiles:
   - name: gcb
     build:
@@ -120,6 +134,18 @@ profiles:
                 dest: "/app"
           docker:
             dockerfile: worker/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+
+        - image: ontap-proxy
+          context: .
+          sync:
+            manual:
+              - src: "artifacts/ontap-proxy"
+                dest: "/app"
+          docker:
+            dockerfile: ontap-proxy/Dockerfile.dev
           requires:
             - image: base
               alias: BASE
@@ -156,6 +182,14 @@ profiles:
           context: .
           docker:
             dockerfile: worker/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+
+        - image: ontap-proxy
+          context: .
+          docker:
+            dockerfile: ontap-proxy/Dockerfile.dev
           requires:
             - image: base
               alias: BASE

@@ -11,3 +11,4 @@ database/metrics/sewrapper.go
 _mock.go
 tools/
 cmd/
+ontap-proxy/main.go

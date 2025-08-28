@@ -1,0 +1,47 @@
+enabled: true
+replicaCount: 1
+
+images:
+  ontap-proxy:
+    name: ontap-proxy
+    tag: 0.0.0
+    digest: ""
+    secondary: false
+    pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  appPort: 8080
+
+# ONTAP Configuration
+ontap:
+  apiAddress: ""
+  username: ""
+  password: ""
+
+# Environment configuration
+config:
+  env: "production"  # Set to "local" to disable authentication
+  port: "8080"
+
+# GCP Authentication Configuration
+gcp:
+  auth:
+    acceptedServiceAccounts: "service-account1@project.iam.gserviceaccount.com,service-account2@project.iam.gserviceaccount.com"
+  service:
+    url: "https://your-ontap-proxy-service.com"
+  jwk:
+    url: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"
+    timeoutSeconds: 10
+  certCache:
+    expirationMinutes: 120
+    sleepRetryIntervalSeconds: 5
+
+# Resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi

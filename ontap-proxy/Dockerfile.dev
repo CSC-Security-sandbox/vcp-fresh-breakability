@@ -1,0 +1,8 @@
+ARG BASE
+FROM $BASE
+
+COPY app/ontap-proxy /app
+COPY ontap-proxy/air.toml /app/air.toml
+
+ENV GOTRACEBACK=all
+ENTRYPOINT ["air", "-c", "/app/air.toml"] 

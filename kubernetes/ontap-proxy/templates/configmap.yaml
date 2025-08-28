@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ontap-proxy-config
+  labels:
+    app: {{ .Chart.Name }}
+data:
+  # ONTAP Configuration
+  ONTAP_API_ADDRESS: {{ .Values.ontap.apiAddress | quote }}
+  ONTAP_API_USERNAME: {{ .Values.ontap.username | quote }}
+  ONTAP_API_PASSWORD: {{ .Values.ontap.password | quote }}
+  PORT: {{ .Values.config.port | quote }}
+  
+  # Environment Configuration
+  ENV: {{ .Values.config.env | default "production" | quote }}
+  
+  # GCP Authentication Configuration
+  GCP_AUTH_ACCEPTED_SERVICE_ACCOUNTS: {{ .Values.gcp.auth.acceptedServiceAccounts | quote }}
+  GCP_SERVICE_URL: {{ .Values.gcp.service.url | quote }}
+  JWK_KIDS_URL: {{ .Values.gcp.jwk.url | default "https://www.googleapis.com/service_accounts/v1/metadata/x509/" | quote }}
+  
+  # Certificate Cache Configuration
+  CERT_CACHE_EXPIRATION_MINUTES: {{ .Values.gcp.certCache.expirationMinutes | default "120" | quote }}
+  CERT_CACHE_SLEEP_RETRY_INTERVAL_SECONDS: {{ .Values.gcp.certCache.sleepRetryIntervalSeconds | default "5" | quote }}
+  JWK_TIMEOUT_SECONDS: {{ .Values.gcp.jwk.timeoutSeconds | default "10" | quote }} 

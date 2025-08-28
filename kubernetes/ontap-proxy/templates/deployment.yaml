@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ontap-proxy
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+        - name: ontap-proxy
+          image: "{{ .Values.images.ontap-proxy.name }}:{{ .Values.images.ontap-proxy.tag }}"
+          imagePullPolicy: {{ .Values.images.ontap-proxy.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.appPort }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: ontap-proxy-config
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+ 
