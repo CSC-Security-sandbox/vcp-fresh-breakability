@@ -30,6 +30,14 @@ images:
     secondary: true
     pullPolicy: IfNotPresent
 
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 350m
+    memory: 500Mi
+
 # Ontap Version
 ontapVersion: "0.0.0"
 
