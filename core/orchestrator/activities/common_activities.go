@@ -23,6 +23,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+const (
+	VSASubnetPrefix   = "vsa-"
+	VSALVSubnetPrefix = "vsa-lv-"
+)
+
 type CommonActivities struct {
 	SE database.Storage
 }
@@ -166,13 +171,16 @@ func _newGcpServices(ctx context.Context) *google.GcpServices {
 }
 
 // makeSubnetName generates a subnet name based on the project number, region and timestamp
-func _makeSubnetName(projectNumber string) string {
+func _makeSubnetName(projectNumber string, isLargeCapacity bool) string {
 	timeNow := strconv.Itoa(int(time.Now().Unix()))
-	return fmt.Sprintf("vsa-%s-%s", projectNumber, timeNow)
+	if isLargeCapacity {
+		return fmt.Sprintf("%s%s-%s", VSALVSubnetPrefix, projectNumber, timeNow)
+	}
+	return fmt.Sprintf("%s%s-%s", VSASubnetPrefix, projectNumber, timeNow)
 }
 
 // getSubnetToBeUsed examines existing subnets or identifies if existing subnet can be used for creation of new pool
-func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion string) (*hyperscaler_models.Subnet, error) {
+func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion string, isLargeCapacity bool) (*hyperscaler_models.Subnet, error) {
 	logger := service.GetLogger()
 	subnetsReceived, err := service.ListSubnetworks(snHost, tenantProjectRegion)
 	if err != nil {
@@ -187,9 +195,26 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 	if err != nil {
 		return nil, err
 	}
-	subnetPrefix := fmt.Sprintf("vsa-%s", tenantProjectNumber)
+	subnetPrefix := fmt.Sprintf("%s%s", VSASubnetPrefix, tenantProjectNumber)
+	if isLargeCapacity {
+		subnetPrefix = fmt.Sprintf("%s%s", VSALVSubnetPrefix, tenantProjectNumber)
+	}
 	for _, subnet := range *subnetsReceived {
 		if strings.HasPrefix(subnet.Name, subnetPrefix) {
+			// For large capacity pools, check if subnet already has a pool associated with it
+			if isLargeCapacity {
+				pools, err := getPoolsBySubnetwork(ctx, se, strconv.Itoa(int(account.ID)), subnet.Name, "")
+				if err != nil {
+					logger.Errorf("Error checking pools for subnet: %s, Error: %s", subnet.Name, err.Error())
+					return nil, err
+				}
+				// If subnet already has pools associated with it, skip this subnet for large capacity pools
+				if len(pools) > 0 {
+					logger.Debug(fmt.Sprintf("Subnetwork %s already has %d pools associated with it. Skipping for large capacity pool creation", subnet.Name, len(pools)))
+					continue
+				}
+			}
+
 			// get number of free IPs in the subnet
 			reuseSubnet, err := isSubnetReusable(ctx, se, subnet, strconv.Itoa(int(account.ID)), "")
 			if err != nil {

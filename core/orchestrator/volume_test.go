@@ -11303,7 +11303,7 @@ func setupVolumeValidationTest(t *testing.T, poolSizeInTiB int64) (context.Conte
 		Name:        "test_pool",
 		AccountID:   account.ID,
 		State:       models.LifeCycleStateREADY,
-		SizeInBytes: poolSizeInTiB * TibInBytes,
+		SizeInBytes: poolSizeInTiB * utils.TiBInBytes,
 	}
 	err = store.DB().Create(pool).Error
 	assert.NoError(t, err)
@@ -11381,7 +11381,7 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 		{
 			name:              "WhenVolumeCapacityAtNewMinimumBoundary",
 			poolSizeInTiB:     10,
-			quotaInBytes:      uint64(1 * GibInBytes), // 1 GiB - new minimum
+			quotaInBytes:      uint64(1 * utils.GiBInBytes), // 1 GiB - new minimum
 			needsComplexSetup: true,
 			blockDevices: &[]common.BlockDevice{
 				{OSType: "linux"},
@@ -11391,7 +11391,7 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 		{
 			name:              "WhenVolumeCapacityAtNewMaximumBoundary",
 			poolSizeInTiB:     200,
-			quotaInBytes:      uint64(131072 * GibInBytes), // 128 TiB - new maximum (131072 GiB)
+			quotaInBytes:      uint64(131072 * utils.GiBInBytes), // 128 TiB - new maximum (131072 GiB)
 			needsComplexSetup: true,
 			blockDevices: &[]common.BlockDevice{
 				{OSType: "linux"},
@@ -11401,7 +11401,7 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 		{
 			name:              "WhenVolumeCapacityExceedsNewMaximum",
 			poolSizeInTiB:     200,
-			quotaInBytes:      uint64(131073 * GibInBytes), // 131073 GiB - exceeds new maximum
+			quotaInBytes:      uint64(131073 * utils.GiBInBytes), // 131073 GiB - exceeds new maximum
 			needsComplexSetup: false,
 			blockDevices:      nil,
 			expectedError:     "Invalid volume capacity 131073. Must be between 1 GiB and 131072 GiB.",
@@ -11409,7 +11409,7 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 		{
 			name:              "WhenVolumeCapacityBelowNewMinimum",
 			poolSizeInTiB:     10,
-			quotaInBytes:      uint64(GibInBytes - 1), // Just below 1 GiB
+			quotaInBytes:      uint64(utils.GiBInBytes - 1), // Just below 1 GiB
 			needsComplexSetup: false,
 			blockDevices:      nil,
 			expectedError:     "Invalid volume capacity 0. Must be between 1 GiB and 131072 GiB.",

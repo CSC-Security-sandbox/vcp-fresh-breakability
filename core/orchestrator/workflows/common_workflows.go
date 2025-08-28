@@ -39,6 +39,7 @@ const (
 
 var (
 	StartToCloseTimeout = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT", "55m")
+	StartToCloseTimeoutLV = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_LV", "60m")
 	RetryInterval       = env.GetString("RETRY_INTERVAL", "5s")
 	RetryMaxAttempts    = env.GetInt("RETRY_MAX_ATTEMPTS", 3)
 	RetryMaxInterval    = env.GetString("RETRY_MAX_INTERVAL", "5m")
@@ -103,8 +104,20 @@ func (bw *BaseWorkflow) GetDefaultActivityOptions(ctx workflow.Context) workflow
 	}
 }
 
-func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {
-	activityStartToCloseTimeout, err := time.ParseDuration(StartToCloseTimeout)
+func PopulateRetryPolicyParams(largeCapacity ...bool) (*WorkflowRetryPolicy, error) {
+	// Determine if this is for a large capacity pool
+	isLargeCapacity := false
+	if len(largeCapacity) > 0 {
+		isLargeCapacity = largeCapacity[0]
+	}
+
+	// Choose timeout based on pool type
+	timeout := StartToCloseTimeout
+	if isLargeCapacity {
+		timeout = StartToCloseTimeoutLV
+	}
+
+	activityStartToCloseTimeout, err := time.ParseDuration(timeout)
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}

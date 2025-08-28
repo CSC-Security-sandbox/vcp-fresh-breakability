@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -31,9 +30,7 @@ var (
 	regionalPoolEnabled = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
 	minCustomThroughput = utils.MinCustomThroughput
 	maxCustomThroughput = utils.MaxCustomThroughput
-	minCustomIops       = utils.MinCustomIops
 	maxCustomIops       = utils.MaxCustomIops
-	iopsPerMiBps        = utils.IopsPerMiBps
 )
 
 const (
@@ -44,13 +41,7 @@ const (
 	QosTypeAuto               = "auto"
 )
 
-// Helper functions for performance parameter calculation
-func calculateIopsFromThroughput(throughputMibps int64) int64 {
-	calculatedIops := throughputMibps * int64(iopsPerMiBps)
-	return int64(math.Min(float64(calculatedIops), float64(maxCustomIops)))
-}
-
-func resolvePerformanceParams(reqThroughput gcpgenserver.OptNilFloat64, reqIops gcpgenserver.OptNilFloat64) (throughput int64, iops int64) {
+func resolvePerformanceParams(reqThroughput gcpgenserver.OptNilFloat64, reqIops gcpgenserver.OptNilFloat64) (throughput int64, iops *int64) {
 	// Set default throughput if not provided
 	if reqThroughput.IsSet() {
 		throughput = int64(reqThroughput.Value)
@@ -60,9 +51,11 @@ func resolvePerformanceParams(reqThroughput gcpgenserver.OptNilFloat64, reqIops 
 
 	// Set IOPS based on throughput if not provided, otherwise use provided value
 	if reqIops.IsSet() {
-		iops = int64(reqIops.Value)
+		value := int64(reqIops.Value)
+		iops = &value
 	} else {
-		iops = calculateIopsFromThroughput(throughput)
+		// Leave IOPS as nil - orchestrator will calculate from throughput if needed
+		iops = nil
 	}
 
 	return throughput, iops
@@ -175,6 +168,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: totalThroughput, Enabled: req.CustomPerformanceEnabled.Value, Iops: totalIops},
 		KmsConfigId:             req.KmsConfigId.Value,
 		KmsConfigResourceID:     req.KmsConfigResourceId.Value,
+		LargeCapacity:           req.LargeCapacity.Value,
 	}
 	if req.Labels.IsSet() {
 		jsonbLabels, err := validateLabels(req.Labels.Value)
@@ -199,7 +193,6 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 			Message: "Internal server error",
 		}, nil
 	}
-
 	resp, err := encodePoolV1(convertToPoolV1Beta(created))
 	if err != nil {
 		return nil, err
@@ -693,6 +686,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		Zone:                    gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
 		SecondaryZone:           gcpgenserver.NewOptString(secondaryZone),
 		Labels:                  gcpgenserver.NewOptPoolV1betaLabels(labels),
+		LargeCapacity:           gcpgenserver.NewOptBool(pool.LargeCapacity),
 	}
 
 	kmsConfigId := ""
@@ -894,17 +888,6 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 		}
 	}
 
-	err := validateThroughputAndIops(req.TotalThroughputMibps, req.TotalIops)
-	if err != nil {
-		// Type assert to extract the bad request error
-		if badRequest, ok := err.(*gcpgenserver.V1betaUpdatePoolBadRequest); ok {
-			return &gcpgenserver.Error{
-				Code:    badRequest.Code,
-				Message: badRequest.Message,
-			}
-		}
-	}
-
 	// Validate auto-tiering parameters
 	if !autoTieringEnabled && ((req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value) || (req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0)) {
 		return &gcpgenserver.Error{
@@ -914,32 +897,14 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 	}
 
 	if req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value {
-		// 1. HotTierSizeInBytes is required when auto-tiering is enabled
+		// 1. HotTierSizeInBytes is required when auto-tiering is enabled (existence check only)
 		if !req.HotTierSizeInBytes.IsSet() || req.HotTierSizeInBytes.Value == 0 {
 			return &gcpgenserver.Error{
 				Code:    HTTP_BAD_REQUEST_CODE,
 				Message: "HotTierSizeInBytes is a required field to enable auto-tiering",
 			}
 		}
-
-		hotTierSize := uint64(req.HotTierSizeInBytes.Value)
-		poolSize := uint64(req.SizeInBytes)
-
-		// 2. HotTierSizeInBytes must be less than or equal to pool size
-		if hotTierSize > poolSize {
-			return &gcpgenserver.Error{
-				Code:    HTTP_BAD_REQUEST_CODE,
-				Message: fmt.Sprintf("Hot-tier size %s exceeds the total storage pool capacity %s.", utils.FmtUint64Bytes(hotTierSize), utils.FmtUint64Bytes(poolSize)),
-			}
-		}
-
-		// 3. HotTierSizeInBytes must be >= minimum size (1TB)
-		if hotTierSize < MinPoolHotTierSizeInBytes {
-			return &gcpgenserver.Error{
-				Code:    HTTP_BAD_REQUEST_CODE,
-				Message: fmt.Sprintf("HotTierSizeInBytes is a required field to enable auto-tiering and must be between %s and a value less than the pool size %s.", utils.FmtUint64Bytes(MinPoolHotTierSizeInBytes), utils.FmtUint64Bytes(poolSize)),
-			}
-		}
+		// Note: All numerical validations (size comparisons, min/max checks) moved to orchestrator
 	}
 
 	// Auto-tiering params cannot be set without enabling AllowAutoTiering
@@ -1030,29 +995,6 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
-	return nil
-}
-
-func validateThroughputAndIops(throughput gcpgenserver.OptNilFloat64, iops gcpgenserver.OptNilFloat64) gcpgenserver.V1betaUpdatePoolRes {
-	idealMinIops := minCustomIops
-	if throughput.IsSet() {
-		if throughput.Value < float64(minCustomThroughput) || throughput.Value > float64(maxCustomThroughput) {
-			return &gcpgenserver.V1betaUpdatePoolBadRequest{
-				Code:    HTTP_BAD_REQUEST_CODE,
-				Message: fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput),
-			}
-		}
-		idealMinIops = uint64(calculateIopsFromThroughput(int64(throughput.Value)))
-	}
-
-	if iops.IsSet() {
-		if iops.Value < float64(idealMinIops) || iops.Value > float64(maxCustomIops) {
-			return &gcpgenserver.V1betaUpdatePoolBadRequest{
-				Code:    HTTP_BAD_REQUEST_CODE,
-				Message: fmt.Sprintf("TotalIops must be between %d and %d IOPS", idealMinIops, maxCustomIops),
-			}
-		}
-	}
 	return nil
 }
 

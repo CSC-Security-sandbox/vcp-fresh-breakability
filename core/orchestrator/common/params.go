@@ -33,13 +33,14 @@ type CreatePoolParams struct {
 	KmsConfigId             string
 	KmsConfigResourceID     string
 	Labels                  *datamodel.JSONB
+	LargeCapacity           bool
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool
 type CustomPerformanceParams struct {
 	Enabled         bool
 	ThroughputMibps int64
-	Iops            int64
+	Iops            *int64
 }
 
 type TenancyInfo struct {

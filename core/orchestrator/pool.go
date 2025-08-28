@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/validators"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -49,26 +50,7 @@ var (
 const (
 	ServiceLevelNameFLEX = "FLEX"
 	QosTypeAuto          = "auto"
-	GibInBytes           = 1073741824
-	TibInBytes           = 1099511627776
 )
-
-// Helper functions for performance parameters calculation and validation
-func validateThroughputRange(throughput int64) error {
-	if t := uint64(throughput); t < minCustomThroughput || t > maxCustomThroughput {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
-			"TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput))
-	}
-	return nil
-}
-
-func validateIopsRange(iops int64) error {
-	if t := uint64(iops); t < minCustomIops || t > maxCustomIops {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
-			"TotalIops must be between %d and %d IOPS", minCustomIops, maxCustomIops))
-	}
-	return nil
-}
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
 func (o *Orchestrator) CreatePool(ctx context.Context, params *commonparams.CreatePoolParams) (*models.Pool, string, error) {
@@ -117,7 +99,6 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 			ResourceUUID: dbPool.UUID,
 		},
 	}
-
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create job in database", "error", err)
@@ -168,13 +149,14 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 		Description:      params.Description,
 		ServiceLevel:     params.ServiceLevel,
 		QosType:          params.QosType,
+		LargeCapacity:    params.LargeCapacity,
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			HotTierSizeInBytes:      int64(params.HotTierSizeInBytes),
 			EnableHotTierAutoResize: params.EnableHotTierAutoResize,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            *params.CustomPerformanceParams.Iops,
 			PrimaryZone:     params.PrimaryZone,
 			SecondaryZone:   params.SecondaryZone,
 			Labels:          params.Labels,
@@ -320,35 +302,15 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 		return customerrors.NewUserInputValidationErr("Given service level not supported. Supported service level is " + ServiceLevelNameFLEX)
 	}
 
-	if minQuotaInBytesPool > params.SizeInBytes {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be greater than %s and a multiple of 1GiB", utils.FmtUint64Bytes(minQuotaInBytesPool)))
+	// First validate common parameters (QoS type, size granularity, etc.)
+	if err := validators.ValidateCommonPoolParams(params); err != nil {
+		return err
 	}
 
-	if params.SizeInBytes > maxQuotaInBytesPool {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be less than %s", utils.FmtUint64Bytes(maxQuotaInBytesPool)))
-	}
-
-	if params.SizeInBytes%minSizeGranularity != 0 {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity)))
-	}
-
-	if params.QosType != QosTypeAuto {
-		return customerrors.NewUserInputValidationErr("Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is " + QosTypeAuto)
-	}
-
-	// CustomPerformanceParams is always set in endpoints layer
-	if params.CustomPerformanceParams != nil {
-		// Validate throughput range
-		if err := validateThroughputRange(params.CustomPerformanceParams.ThroughputMibps); err != nil {
-			return err
-		}
-
-		// Validate IOPS range
-		if err := validateIopsRange(params.CustomPerformanceParams.Iops); err != nil {
-			return err
-		}
-	}
-	return nil
+	// Then validate pool-specific parameters
+	poolValidator := validators.NewPoolValidator(params.LargeCapacity)
+	pipeline := validators.NewValidationPipeline(poolValidator)
+	return pipeline.Execute(params)
 }
 
 func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *datamodel.Pool) error {
@@ -383,12 +345,12 @@ func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *data
 	}
 
 	// Validate throughput range
-	if err := validateThroughputRange(int64(params.TotalThroughputMibps)); err != nil {
+	if err := validators.ValidateThroughputRange(int64(params.TotalThroughputMibps), minCustomThroughput, maxCustomThroughput); err != nil {
 		return err
 	}
 
 	// Validate IOPS range
-	if err := validateIopsRange(int64(params.TotalIops)); err != nil {
+	if err := validators.ValidateIopsRange(int64(params.TotalIops), minCustomIops, maxCustomIops); err != nil {
 		return err
 	}
 
@@ -650,6 +612,7 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 		ServiceLevel:     pool.ServiceLevel,
 		QosType:          pool.QosType,
 		DeploymentName:   pool.DeploymentName,
+		LargeCapacity:    pool.LargeCapacity,
 		PoolAttributes: &models.PoolAttributes{
 			AllocatedBytes:  float64(pool.QuotaInBytes),
 			NumberOfVolumes: pool.VolumeCount,

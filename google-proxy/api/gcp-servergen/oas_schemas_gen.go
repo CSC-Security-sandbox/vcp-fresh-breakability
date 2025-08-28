@@ -11463,6 +11463,8 @@ type PoolInternalV1beta struct {
 	Unified OptBool `json:"unified"`
 	// Indicates if the pool type is unified (deprecated, use 'type' field instead).
 	UnifiedPool OptBool `json:"unifiedPool"`
+	// Indicates if the pool is a large capacity pool.
+	LargeCapacity OptBool `json:"largeCapacity"`
 	// The name of the cluster.
 	ClusterName OptString `json:"clusterName"`
 	// Intercluster Lifs.
@@ -11667,6 +11669,11 @@ func (s *PoolInternalV1beta) GetUnified() OptBool {
 // GetUnifiedPool returns the value of UnifiedPool.
 func (s *PoolInternalV1beta) GetUnifiedPool() OptBool {
 	return s.UnifiedPool
+}
+
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *PoolInternalV1beta) GetLargeCapacity() OptBool {
+	return s.LargeCapacity
 }
 
 // GetClusterName returns the value of ClusterName.
@@ -11877,6 +11884,11 @@ func (s *PoolInternalV1beta) SetUnified(val OptBool) {
 // SetUnifiedPool sets the value of UnifiedPool.
 func (s *PoolInternalV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *PoolInternalV1beta) SetLargeCapacity(val OptBool) {
+	s.LargeCapacity = val
 }
 
 // SetClusterName sets the value of ClusterName.
@@ -12422,6 +12434,8 @@ type PoolV1beta struct {
 	Unified OptBool `json:"unified"`
 	// Indicates if the pool type is unified (deprecated, use 'type' field instead).
 	UnifiedPool OptBool `json:"unifiedPool"`
+	// Indicates if the pool is a large capacity pool.
+	LargeCapacity OptBool `json:"largeCapacity"`
 }
 
 // GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
@@ -12624,6 +12638,11 @@ func (s *PoolV1beta) GetUnifiedPool() OptBool {
 	return s.UnifiedPool
 }
 
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *PoolV1beta) GetLargeCapacity() OptBool {
+	return s.LargeCapacity
+}
+
 // SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
 func (s *PoolV1beta) SetActiveDirectoryConfigId(val OptNilString) {
 	s.ActiveDirectoryConfigId = val
@@ -12822,6 +12841,11 @@ func (s *PoolV1beta) SetUnified(val OptBool) {
 // SetUnifiedPool sets the value of UnifiedPool.
 func (s *PoolV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *PoolV1beta) SetLargeCapacity(val OptBool) {
+	s.LargeCapacity = val
 }
 
 func (*PoolV1beta) v1betaDescribePoolRes() {}

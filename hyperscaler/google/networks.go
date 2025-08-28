@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	waitTimeoutMinutes       = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
-	minimumTenantNetworkSize = env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
-	defaultSleepTime         = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
+	waitTimeoutMinutes         = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
+	minimumTenantNetworkSize   = env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
+	minimumLVTenantNetworkSize = env.GetInt64("DATA_SUBNET_CIDR_BLOCK_LV", int64(26))
+	defaultSleepTime           = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
 
 	CreateTPSubnetOp       = _createTPSubnetOp
 	getProjectIDFromNumber = _getProjectIDFromNumber
@@ -49,19 +50,30 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 	return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("vpc peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established", consumerNetwork)))
 }
 
+// getNetworkSize returns the appropriate network size based on the isLargeCapacity flag
+func getNetworkSize(isLargeCapacity bool) int64 {
+	if isLargeCapacity {
+		return minimumLVTenantNetworkSize
+	}
+	return minimumTenantNetworkSize
+}
+
 // CreateTPSubnetOp returns GCP operation for creating subnetwork for a tenant project
-func (gcpService *GcpServices) CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName string) (*string, error) {
+func (gcpService *GcpServices) CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName string, isLargeCapacity bool) (*string, error) {
 	consumerProjectNumber, consumerPeeringNetwork, err := utils.ParseProjectId(consumerNetwork)
 	if err != nil {
 		return nil, err
 	}
-	gcpService.Logger.Infof("Calling CreateTPSubnetOp consumerProjectNumber : %s consumerPeeringNetwork : %s tenantProjectNumber : %s region: %s subnet name : %s", consumerProjectNumber, consumerPeeringNetwork, tenantProjectNumber, region, subnetName)
+	gcpService.Logger.Infof("Calling CreateTPSubnetOp consumerProjectNumber : %s consumerPeeringNetwork : %s tenantProjectNumber : %s region: %s subnet name : %s isLargeCapacity: %t", consumerProjectNumber, consumerPeeringNetwork, tenantProjectNumber, region, subnetName, isLargeCapacity)
+
+	// Use the calculator to determine the appropriate network size
+	networkSize := getNetworkSize(isLargeCapacity)
 
 	request := servicenetworking.AddSubnetworkRequest{
 		Consumer:        "projects/" + consumerProjectNumber,
 		ConsumerNetwork: consumerNetwork,
 		Description:     "vsa-network",
-		IpPrefixLength:  minimumTenantNetworkSize,
+		IpPrefixLength:  networkSize,
 		Region:          region,
 		Subnetwork:      subnetName,
 	}

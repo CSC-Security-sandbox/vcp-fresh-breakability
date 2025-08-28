@@ -117,6 +117,28 @@ spec:
               value: "/app/harvest-template.yaml"
             - name: MAX_NODES_PER_GROUP
               value: "200"
+            - name: NUMBER_OF_HA_PAIRS_LARGE_CAPACITY
+              value: "12"
+            - name: VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV
+              value: "45"
+            - name: VLM_MIN_LV_HA_PAIRS
+              value: "2"
+            - name: START_TO_CLOSE_WORKFLOW_TIMEOUT_LV
+              value: "60m"
+            - name: DATA_SUBNET_CIDR_BLOCK_LV
+              value: "26"
+            - name: MIN_LV_POOL_COOL_TIER_CAPACITY
+              value: "13194139533312"
+            - name: MAX_LV_POOL_CAPACITY
+              value: "22517998136852476"
+            - name: MAX_LV_HOT_TIER_POOL_CAPACITY
+              value: "5629499534213119"
+            - name: MIN_LV_THROUGHPUT
+              value: "64"
+            - name: MAX_LV_THROUGHPUT
+              value: "60000"
+            - name: MIN_HOT_TIER_SIZE
+              value: "1099511627776"
             - name: LEASE_NAMESPACE
               value: "vcp"
             - name: HARVEST_HOST

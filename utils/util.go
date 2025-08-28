@@ -37,16 +37,22 @@ import (
 var (
 	localRegion                    = env.GetString("LOCAL_REGION", "local")
 	PairedRegions                  = env.GetString("VCP_PAIRED_REGIONS", "")
-	MinQuotaInBytesPool            = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1*TiBInBytes)      // 1 TiB
-	MaxQuotaInBytesPool            = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 425*TiBInBytes)    // 425 TiB
-	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 1073741824)      // 1 GiB
-	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 140737488355328) // 128 TiB
-	MinSizeGranularity             = env.GetUint64("MIN_SIZE_GRANULARITY", 1*GiBInBytes)         // 1 GiB
-	MinCustomThroughput            = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                  // 64 MiBps
-	MaxCustomThroughput            = env.GetUint64("MAX_CUSTOM_THROUGHPUT", 5120)                // 5120 MiBps
-	MinCustomIops                  = env.GetUint64("MIN_CUSTOM_IOPS", 1024)                      // 1024 IOPS
-	MaxCustomIops                  = env.GetUint64("MAX_CUSTOM_IOPS", 160000)                    // 160000 IOPS
-	IopsPerMiBps                   = env.GetUint64("IOPS_PER_MIBPS", 16)                         // 16 IOPS per MiBps (for auto-calculation)
+	MinQuotaInBytesPool            = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1*TiBInBytes)         // 1 TiB
+	MaxQuotaInBytesPool            = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 425*TiBInBytes)       // 425 TiB
+	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 1073741824)         // 1 GiB
+	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 140737488355328)    // 128 TiB
+	MinSizeGranularity             = env.GetUint64("MIN_SIZE_GRANULARITY", 1*GiBInBytes)            // 1 GiB
+	MinCustomThroughput            = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                     // 64 MiBps
+	MaxCustomThroughput            = env.GetUint64("MAX_CUSTOM_THROUGHPUT", 5120)                   // 5120 MiBps
+	MinCustomIops                  = env.GetUint64("MIN_CUSTOM_IOPS", 1024)                         // 1024 IOPS
+	MaxCustomIops                  = env.GetUint64("MAX_CUSTOM_IOPS", 160000)                       // 160000 IOPS
+	IopsPerMiBps                   = env.GetUint64("IOPS_PER_MIBPS", 16)                            // 16 IOPS per MiBps (for auto-calculation)
+	MinLvCoolTierCapacity          = env.GetUint64("MIN_LV_POOL_COOL_TIER_CAPACITY", 12*TiBInBytes) // 12TiB
+	MaxLvPoolCapacity              = env.GetUint64("MAX_LV_POOL_CAPACITY", 20*PiBInBytes)           // 20PiB
+	MaxLvHotTierCapacity           = env.GetUint64("MAX_LV_HOT_TIER_POOL_CAPACITY", 5*PiBInBytes)   // 5PiB
+	MinLvThroughput                = env.GetUint64("MIN_LV_THROUGHPUT", 64)
+	MaxLvThroughput                = env.GetUint64("MAX_LV_THROUGHPUT", 60*1000)       // convert to megabit per second
+	MinHotTierSize                 = env.GetUint64("MIN_HOT_TIER_SIZE", 1099511627776) // 1 TiB
 	ParseRegionAndZone             = _parseRegionAndZone
 	ParseAndValidateRegionAndZone  = _parseAndValidateRegionAndZone
 	GetPairedRegionURI             = _getPairedRegionURI
@@ -78,8 +84,10 @@ const (
 	uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	digits           = "0123456789"
 	specialChars     = "!@#$%^&*()-_=+[]{}|;:,.<>?/`~"
+	QosTypeAuto      = "auto"
 	GiBInBytes       = 1073741824
 	TiBInBytes       = 1099511627776
+	PiBInBytes       = 1125899906842624
 )
 
 func ValidateIPv4Address(ipAddr string) bool {

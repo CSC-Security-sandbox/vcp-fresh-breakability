@@ -21,15 +21,17 @@ import (
 var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
 
 var (
-	VSALifecycleManagerQueuePrefix = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
-	OntapVersion                   = env.GetString("ONTAP_VERSION", "9.17.1")
-	VSALifecycleManagerQueue       = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
-	IsIntegrationTest              = env.GetBool("INTEGRATION_TEST", false)
-	VlmWorkflowStartToCloseTimeout = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")
-	VlmWorkflowRetryInterval       = env.GetString("VLMWORKFLOW_RETRY_INTERVAL", "1m")
-	VlmWorkflowRetryMaxAttempts    = env.GetInt("VLMWORKFLOW_RETRY_MAX_ATTEMPTS", 3)
-	VlmWorkflowRetryMaxInterval    = env.GetString("VLMWORKFLOW_RETRY_MAX_INTERVAL", "5m")
-	VlmWorkflowRetryBackoff        = env.GetString("VLMWORKFLOW_RETRY_BACKOFF_COEFFICIENT", "2.0")
+	VSALifecycleManagerQueuePrefix    = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
+	OntapVersion                      = env.GetString("ONTAP_VERSION", "9.17.1")
+	VSALifecycleManagerQueue          = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
+	IsIntegrationTest                 = env.GetBool("INTEGRATION_TEST", false)
+	VlmWorkflowStartToCloseTimeout    = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")
+	VlmWorkflowRetryInterval          = env.GetString("VLMWORKFLOW_RETRY_INTERVAL", "1m")
+	VlmWorkflowRetryMaxAttempts       = env.GetInt("VLMWORKFLOW_RETRY_MAX_ATTEMPTS", 3)
+	VlmWorkflowRetryMaxInterval       = env.GetString("VLMWORKFLOW_RETRY_MAX_INTERVAL", "5m")
+	VlmWorkflowRetryBackoff           = env.GetString("VLMWORKFLOW_RETRY_BACKOFF_COEFFICIENT", "2.0")
+	MinLvHAPair                       = env.GetInt("VLM_MIN_LV_HA_PAIRS", 2) // Minimum HA pairs to trigger large capacity workflow time logic
+	CreateVSAClusterLargeCapacityTime = time.Duration(env.GetInt("VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV", 45)) * time.Minute
 
 	// RetryErrorPatterns Configurable error patterns that trigger delete and retry operations
 	RetryErrorPatterns = getRetryErrorPatterns()
@@ -103,6 +105,10 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSAClusterDeploymentWorkflowName]; ok {
 		workflowExecutionTimeout = timeout
+	}
+
+	if createVSAClusterDeploymentRequest.VLMConfig.Deployment.NumHAPair >= MinLvHAPair {
+		workflowExecutionTimeout = CreateVSAClusterLargeCapacityTime
 	}
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones

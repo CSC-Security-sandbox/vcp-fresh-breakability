@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"go.temporal.io/sdk/temporal"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -927,7 +927,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
 		consumerNetworkIncorrect := "projects/123456789/global/networks"
 
-		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName, false)
 		if err == nil || !strings.Contains(err.Error(), "parseProjectId failed for network : "+consumerNetworkIncorrect) {
 			tt.Errorf("Expected parse error, got: %v", err)
 		}
@@ -940,7 +940,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 			return nil, fmt.Errorf("create error")
 		}
 		defer func() { CreateTPSubnetOp = origCreate }()
-		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false)
 		if err == nil || !strings.Contains(err.Error(), "create error") {
 			tt.Errorf("Expected create error, got: %v", err)
 		}
@@ -953,12 +953,111 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 			return &models.ComputeOperation{Name: "op-1", Response: []byte("success")}, nil
 		}
 		defer func() { CreateTPSubnetOp = origCreate }()
-		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName)
+		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
 		if string(*resp) != "op-1" {
 			tt.Errorf("Expected response 'success', got: %s", string(*resp))
+		}
+	})
+
+	t.Run("WhenSuccessWithLargeCapacity", func(tt *testing.T) {
+		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
+		origCreate := CreateTPSubnetOp
+		CreateTPSubnetOp = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Name: "op-large-1", Response: []byte("success")}, nil
+		}
+		defer func() { CreateTPSubnetOp = origCreate }()
+		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if string(*resp) != "op-large-1" {
+			tt.Errorf("Expected response 'op-large-1', got: %s", string(*resp))
+		}
+	})
+
+	t.Run("WhenCreateTPSubnetOpFailsWithLargeCapacity", func(tt *testing.T) {
+		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
+		origCreate := CreateTPSubnetOp
+		CreateTPSubnetOp = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("create error with large capacity")
+		}
+		defer func() { CreateTPSubnetOp = origCreate }()
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true)
+		if err == nil || !strings.Contains(err.Error(), "create error with large capacity") {
+			tt.Errorf("Expected create error with large capacity, got: %v", err)
+		}
+	})
+
+	t.Run("WhenParseProjectIdFailsWithLargeCapacity", func(tt *testing.T) {
+		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
+		consumerNetworkIncorrect := "projects/123456789/global/networks"
+
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName, true)
+		if err == nil || !strings.Contains(err.Error(), "parseProjectId failed for network : "+consumerNetworkIncorrect) {
+			tt.Errorf("Expected parse error with large capacity, got: %v", err)
+		}
+	})
+
+	t.Run("WhenNetworkSizeCalculationIsCorrect", func(tt *testing.T) {
+		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
+		var capturedRequest *servicenetworking.AddSubnetworkRequest
+		origCreate := CreateTPSubnetOp
+		CreateTPSubnetOp = func(gService *GcpServices, request *servicenetworking.AddSubnetworkRequest, tenantProjectNumber string) (*models.ComputeOperation, error) {
+			capturedRequest = request
+			return &models.ComputeOperation{Name: "op-size-test", Response: []byte("success")}, nil
+		}
+		defer func() { CreateTPSubnetOp = origCreate }()
+
+		// Test with isLargeCapacity = false (should use minimumTenantNetworkSize)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if capturedRequest == nil {
+			tt.Error("Expected request to be captured")
+		} else {
+			// Check that the request has the correct network size for regular capacity
+			expectedSize := env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
+			if capturedRequest.IpPrefixLength != expectedSize {
+				tt.Errorf("Expected IpPrefixLength %d for regular capacity, got %d", expectedSize, capturedRequest.IpPrefixLength)
+			}
+		}
+
+		// Test with isLargeCapacity = true (should use minimumLVTenantNetworkSize)
+		_, err = gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if capturedRequest == nil {
+			tt.Error("Expected request to be captured")
+		} else {
+			// Check that the request has the correct network size for large capacity
+			expectedSize := env.GetInt64("DATA_SUBNET_CIDR_BLOCK_LV", int64(26))
+			if capturedRequest.IpPrefixLength != expectedSize {
+				tt.Errorf("Expected IpPrefixLength %d for large capacity, got %d", expectedSize, capturedRequest.IpPrefixLength)
+			}
+		}
+	})
+}
+
+// Test for getNetworkSize function
+func Test_getNetworkSize(t *testing.T) {
+	t.Run("WhenIsLargeCapacityIsTrue", func(tt *testing.T) {
+		size := getNetworkSize(true)
+		expectedSize := env.GetInt64("DATA_SUBNET_CIDR_BLOCK_LV", int64(26))
+		if size != expectedSize {
+			tt.Errorf("Expected network size %d for large capacity, got %d", expectedSize, size)
+		}
+	})
+
+	t.Run("WhenIsLargeCapacityIsFalse", func(tt *testing.T) {
+		size := getNetworkSize(false)
+		expectedSize := env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
+		if size != expectedSize {
+			tt.Errorf("Expected network size %d for regular capacity, got %d", expectedSize, size)
 		}
 	})
 }

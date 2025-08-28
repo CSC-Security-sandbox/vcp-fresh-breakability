@@ -26,6 +26,7 @@ import (
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -73,7 +74,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -82,7 +83,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -212,7 +213,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -221,7 +222,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -344,7 +345,7 @@ func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -353,7 +354,7 @@ func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -416,7 +417,7 @@ func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -425,7 +426,7 @@ func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -489,7 +490,7 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -498,7 +499,7 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -571,7 +572,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -580,7 +581,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -717,7 +718,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 		}
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -726,7 +727,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -858,7 +859,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 		}
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -867,7 +868,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -943,7 +944,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 		}
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -952,7 +953,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -1029,7 +1030,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 		}
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -1038,7 +1039,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -2409,7 +2410,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			Region:                  "test-region",
 			PrimaryZone:             "test-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 		}
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -2417,7 +2418,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 				SecretID: "", AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -2532,7 +2533,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 		}
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -2541,7 +2542,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -2661,7 +2662,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -2672,7 +2673,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -2800,7 +2801,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -2811,7 +2812,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -2951,7 +2952,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -2961,7 +2962,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -3092,7 +3093,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -3102,7 +3103,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -3232,7 +3233,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -3242,7 +3243,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -3378,7 +3379,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -3388,7 +3389,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -3515,7 +3516,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -3525,7 +3526,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -3650,7 +3651,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -3660,7 +3661,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -3786,7 +3787,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -3796,7 +3797,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -3927,7 +3928,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -3937,7 +3938,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -4068,7 +4069,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -4078,7 +4079,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -4209,7 +4210,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PrimaryZone:             "test-zone",
 			SecondaryZone:           "test-secondary-zone",
 			AllowAutoTiering:        true,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
@@ -4219,7 +4220,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
-				Iops:            params.CustomPerformanceParams.Iops,
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
@@ -4331,7 +4332,7 @@ func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -4340,7 +4341,7 @@ func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -4396,7 +4397,7 @@ func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -4405,7 +4406,7 @@ func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -4470,7 +4471,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{ID: 1},
@@ -4480,7 +4481,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -4608,7 +4609,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{ID: 1},
@@ -4618,7 +4619,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -4748,7 +4749,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -4757,7 +4758,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 	}
@@ -4878,7 +4879,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -4887,7 +4888,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 	}
@@ -5005,7 +5006,7 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -5014,7 +5015,7 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 	}
@@ -5130,7 +5131,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -5139,7 +5140,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 	}
@@ -5267,7 +5268,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -5276,7 +5277,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 	}
@@ -5395,7 +5396,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -5404,7 +5405,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 	}
@@ -5524,7 +5525,7 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
 	WaitForServiceNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operationName string, timeout time.Duration) ([]byte, error) {
@@ -5591,7 +5592,7 @@ func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -5648,7 +5649,7 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7156,7 +7157,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{ID: 1},
@@ -7166,7 +7167,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -7317,7 +7318,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
 		Region:                  "test-region",
 		PrimaryZone:             "test-zone",
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{ID: 1},
@@ -7327,7 +7328,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -7431,7 +7432,7 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
 		Region:                  "test-region",
 		PrimaryZone:             "test-zone",
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{ID: 1},
@@ -7441,7 +7442,7 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -7516,7 +7517,7 @@ func TestCreatePoolWorkflow_PopulateRetryPolicyParamsError(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -7525,7 +7526,7 @@ func TestCreatePoolWorkflow_PopulateRetryPolicyParamsError(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -7575,7 +7576,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -7584,7 +7585,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
@@ -7659,7 +7660,7 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 		PrimaryZone:             "test-zone",
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
@@ -7668,7 +7669,7 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
-			Iops:            params.CustomPerformanceParams.Iops,
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",

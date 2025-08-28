@@ -26,6 +26,7 @@ type Pool struct {
 	SaAccountID             string
 	DeploymentName          string
 	SnHostProject           string
+	LargeCapacity           bool
 	KmsConfig               *KmsConfig
 }
 

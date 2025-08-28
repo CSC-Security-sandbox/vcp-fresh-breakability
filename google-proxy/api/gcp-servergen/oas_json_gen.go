@@ -14821,6 +14821,12 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.LargeCapacity.Set {
+			e.FieldStart("largeCapacity")
+			s.LargeCapacity.Encode(e)
+		}
+	}
+	{
 		if s.ClusterName.Set {
 			e.FieldStart("clusterName")
 			s.ClusterName.Encode(e)
@@ -14838,7 +14844,7 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [42]string{
+var jsonFieldsNameOfPoolInternalV1beta = [43]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -14879,8 +14885,9 @@ var jsonFieldsNameOfPoolInternalV1beta = [42]string{
 	37: "type",
 	38: "unified",
 	39: "unifiedPool",
-	40: "clusterName",
-	41: "interclusterLifs",
+	40: "largeCapacity",
+	41: "clusterName",
+	42: "interclusterLifs",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -15298,6 +15305,16 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"unifiedPool\"")
+			}
+		case "largeCapacity":
+			if err := func() error {
+				s.LargeCapacity.Reset()
+				if err := s.LargeCapacity.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"largeCapacity\"")
 			}
 		case "clusterName":
 			if err := func() error {
@@ -16255,9 +16272,15 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 			s.UnifiedPool.Encode(e)
 		}
 	}
+	{
+		if s.LargeCapacity.Set {
+			e.FieldStart("largeCapacity")
+			s.LargeCapacity.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfPoolV1beta = [40]string{
+var jsonFieldsNameOfPoolV1beta = [41]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -16298,6 +16321,7 @@ var jsonFieldsNameOfPoolV1beta = [40]string{
 	37: "type",
 	38: "unified",
 	39: "unifiedPool",
+	40: "largeCapacity",
 }
 
 // Decode decodes PoolV1beta from json.
@@ -16305,7 +16329,7 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode PoolV1beta to nil")
 	}
-	var requiredBitSet [5]uint8
+	var requiredBitSet [6]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -16716,6 +16740,16 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"unifiedPool\"")
 			}
+		case "largeCapacity":
+			if err := func() error {
+				s.LargeCapacity.Reset()
+				if err := s.LargeCapacity.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"largeCapacity\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -16725,9 +16759,10 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [5]uint8{
+	for i, mask := range [6]uint8{
 		0b11010000,
 		0b00000010,
+		0b00000000,
 		0b00000000,
 		0b00000000,
 		0b00000000,

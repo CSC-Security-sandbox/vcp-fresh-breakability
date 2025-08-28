@@ -60,6 +60,7 @@ var (
 	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1x49")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
+	numOfLvHAPairs               = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 12)
 
 	serviceAttachment                 = env.GetString("GIN_SERVICE_ATTACHMENT", "")
 	ginLoggingMetricsProtocol         = env.GetString("GIN_METRICS_PROTOCOL", "tcp-unencrypted")
@@ -147,7 +148,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	pool := args[1].(*datamodel.Pool)
 	poolActivity := &activities.PoolActivity{}
 	subnetActivity := SubnetActivity{}
-	retryPolicy, err := PopulateRetryPolicyParams()
+	retryPolicy, err := PopulateRetryPolicyParams(params.LargeCapacity)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -286,7 +287,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	sizeInGB := utils.BytesToGigabytes(params.HotTierSizeInBytes)
 	// Convert CustomPerformanceParams to CustomerRequestedPerformance.
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
-		DesiredIOPS:             params.CustomPerformanceParams.Iops,
+		DesiredIOPS:             *params.CustomPerformanceParams.Iops,
 		DesiredThroughputInMiBs: params.CustomPerformanceParams.ThroughputMibps,
 		DesiredCapacityInGiB:    int64(sizeInGB),
 	}
@@ -1275,6 +1276,9 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
 		if utils.IsFileProtocolSupported(pool.Account.Name) {
 			// Set the NFS V3 support flag based on the file protocol support
+			if pool.LargeCapacity {
+				vlmConfig.Deployment.NumHAPair = numOfLvHAPairs
+			}
 			vlmConfig.Deployment.DevFlags.EnableNfsV3Support = true
 			vlmConfig.Deployment.Images.VSAImageName = vsaFilesImageName
 		}

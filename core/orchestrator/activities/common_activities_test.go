@@ -276,7 +276,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, errors.New("list error"))
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
 		assert.Nil(t, subnet)
 		assert.Error(t, err)
 		mgs.AssertExpectations(t)
@@ -288,7 +288,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, nil)
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
 		assert.Nil(t, subnet)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
@@ -303,7 +303,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
 		mgs.On("GetContext").Return(ctx)
 		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(&datamodel.Account{}, errors.New("account error"))
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
 		assert.Nil(t, subnet)
 		assert.Error(t, err)
 		mgs.AssertExpectations(t)
@@ -323,7 +323,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
 			return true, nil
 		}
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
 
 		assert.NotNil(t, subnet)
 		assert.NoError(t, err)
@@ -347,7 +347,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 			return false, nil
 		}
 		defer func() {}()
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
 		assert.Nil(t, subnet)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
@@ -368,10 +368,226 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
 			return false, errors.New("reuse error")
 		}
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
 		assert.Nil(t, subnet)
 		assert.Error(t, err, "reuse error")
 		mgs.AssertExpectations(t)
+	})
+
+	// Test cases for large capacity pools (largeCapacity = true)
+	t.Run("ListSubnetworks error - large capacity", func(t *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		mockStorage := database.NewMockStorage(t)
+
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, errors.New("list error"))
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		assert.Nil(t, subnet)
+		assert.Error(t, err)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("No subnets found - large capacity", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, nil)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		assert.Nil(t, subnet)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("GetAccount error - large capacity", func(t *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		mockStorage := database.NewMockStorage(t)
+
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-lv-tenant-456"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(&datamodel.Account{}, errors.New("account error"))
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		assert.Nil(t, subnet)
+		assert.Error(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Large capacity subnet found and reusable", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-lv-tenant-456"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		// Mock ListPools to return empty list (no pools associated with subnet)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
+			return true, nil
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+
+		assert.NotNil(t, subnet)
+		assert.NoError(t, err)
+		assert.Equal(t, "vsa-lv-tenant-456", subnet.Name, "Should find large capacity subnet with vsa-lv- prefix")
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Large capacity subnet found but not reusable", func(t *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		mockStorage := database.NewMockStorage(t)
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-lv-tenant-456"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		// Mock ListPools to return empty list (no pools associated with subnet)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+		origIsSubnetReusable := isSubnetReusable
+		defer func() {
+			isSubnetReusable = origIsSubnetReusable
+		}()
+		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
+			return false, nil
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		assert.Nil(t, subnet)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("Large capacity subnet found but _isSubnetReusable returns error", func(t *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		mockStorage := database.NewMockStorage(t)
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("GetContext").Return(ctx)
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-lv-tenant-456"}}
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		// Mock ListPools to return empty list (no pools associated with subnet)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+		origIsSubnetReusable := isSubnetReusable
+		defer func() {
+			isSubnetReusable = origIsSubnetReusable
+		}()
+		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
+			return false, errors.New("reuse error")
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		assert.Nil(t, subnet)
+		assert.Error(t, err, "reuse error")
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("Standard pool should not find large capacity subnet", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		// Only large capacity subnet available
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-lv-tenant-456"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
+
+		assert.Nil(t, subnet, "Standard pool should not find large capacity subnet")
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Large capacity pool should not find standard subnet", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		// Only standard subnet available
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-tenant-456"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+
+		assert.Nil(t, subnet, "Large capacity pool should not find standard subnet")
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Mixed subnets - large capacity pool finds correct subnet", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		// Mix of standard and large capacity subnets
+		subnets := []hyperscaler_models.Subnet{
+			{Name: "vsa-tenant-456-12345"},
+			{Name: "vsa-lv-tenant-456-12345"}, // Should match this one
+			{Name: "vsa-tenant-456-67890"},
+		}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		// Mock ListPools to return empty list (no pools associated with subnet)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
+			return true, nil
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+
+		assert.NotNil(t, subnet)
+		assert.NoError(t, err)
+		assert.Equal(t, "vsa-lv-tenant-456-12345", subnet.Name, "Should find the large capacity subnet")
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Large capacity subnet found but has pools associated - should skip", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-lv-tenant-456"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		// Mock ListPools to return pools (subnet has pools associated with it)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+
+		assert.Nil(t, subnet)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Large capacity subnet found but ListPools returns error", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-lv-tenant-456"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		// Mock ListPools to return error
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return(nil, errors.New("list pools error"))
+
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+
+		assert.Nil(t, subnet)
+		assert.Error(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
 	})
 }
 

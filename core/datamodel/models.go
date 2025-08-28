@@ -35,6 +35,7 @@ type Pool struct {
 	PoolCredentials   *PoolCredentials   `gorm:"column:pool_credentials;type:jsonb"`
 	SnHostProject     string             `gorm:"column:sn_host_project;index"`
 	VLMConfig         string             `gorm:"vlm_config;type:text"`
+	LargeCapacity     bool               `gorm:"column:large_capacity;default:false"`
 }
 
 type PoolCredentials struct {

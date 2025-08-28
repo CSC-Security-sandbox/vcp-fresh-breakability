@@ -130,6 +130,17 @@ workerConfig:
   proberProjectList: ""
   enableUniqueSerialNumberGeneration: false
   clusterSerialNumberPrefix: "935"
+  numberOfHaPairsLargeCapacity: 2
+  vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv: 45
+  vlmMinLvHaPairs: 2
+  startToCloseWorkflowTimeoutLv: "60m"
+  dataSubnetCidrBlockLv: 26
+  minLvPoolCoolTierCapacity: "13194139533312"
+  maxLvPoolCapacity: "22517998136852476"
+  maxLvHotTierPoolCapacity: "5629499534213119"
+  minLvThroughput: 64
+  maxLvThroughput: 60000
+  minHotTierSize: "1099511627776"
 
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
   mgmtFirewallSourceRanges: "198.18.0.0/15"

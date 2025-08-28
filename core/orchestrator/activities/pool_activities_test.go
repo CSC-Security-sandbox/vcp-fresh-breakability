@@ -4658,7 +4658,7 @@ func Test_makeSubnetName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.projectNumber, func(t *testing.T) {
-			got := activities.MakeSubnetName(tt.projectNumber)
+			got := activities.MakeSubnetName(tt.projectNumber, false) // assuming standard pools for this test
 			// The result should start with the expected prefix, followed by a timestamp
 			if !strings.HasPrefix(got, tt.wantPrefix) {
 				t.Errorf("got %q, want prefix %q", got, tt.wantPrefix)
@@ -4687,14 +4687,14 @@ func Test_createSubnetwork(t *testing.T) {
 		subnetName := "vsa-" + tenantProjectNumber + "-" + strconv.Itoa(int(time.Now().Unix()))
 		makeSubnetName := activities.MakeSubnetName
 		defer func() { activities.MakeSubnetName = makeSubnetName }()
-		activities.MakeSubnetName = func(projectNumber string) string {
+		activities.MakeSubnetName = func(projectNumber string, isLargeCapacity bool) string {
 			return subnetName
 		}
 		operation := "operation-12345"
-		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName).
+		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName, false).
 			Return(&operation, nil)
 
-		operationName, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region)
+		operationName, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region, false) // assuming standard pools
 		assert.NoError(t, err)
 		assert.Equal(t, "operation-12345", *operationName)
 		mockSvc.AssertExpectations(t)
@@ -4706,14 +4706,14 @@ func Test_createSubnetwork(t *testing.T) {
 		subnetName := "vsa-654321-" + strconv.Itoa(int(time.Now().Unix()))
 		makeSubnetName := activities.MakeSubnetName
 		defer func() { activities.MakeSubnetName = makeSubnetName }()
-		activities.MakeSubnetName = func(projectNumber string) string {
+		activities.MakeSubnetName = func(projectNumber string, isLargeCapacity bool) string {
 			return subnetName
 		}
-		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName).
+		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName, false).
 			Return(nil, errors.New("create failed"))
 		mockSvc.On("GetLogger").Return(util.GetLogger(context.Background()))
 
-		_, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region)
+		_, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region, false)
 		assert.Error(t, err)
 		mockSvc.AssertExpectations(t)
 	})
@@ -6505,10 +6505,11 @@ func Test_getCreateDataSubnetworkOp(t *testing.T) {
 		originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
 		defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
 
-		activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*string, error) {
+		activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool) (*string, error) {
 			assert.Equal(t, "123456789", tenantProjectNumber)
 			assert.Equal(t, "test-vpc", consumerVPC)
 			assert.Equal(t, "us-central1", *tenantProjectRegion)
+			assert.False(t, isLargeCapacity) // assuming standard pools for this test
 			return &expectedOperationName, nil
 		}
 
@@ -6539,7 +6540,7 @@ func Test_getCreateDataSubnetworkOp(t *testing.T) {
 		originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
 		defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
 
-		activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*string, error) {
+		activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool) (*string, error) {
 			return nil, expectedError
 		}
 
@@ -6581,10 +6582,11 @@ func Test_getCreateDataSubnetworkOp(t *testing.T) {
 				originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
 				defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
 
-				activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*string, error) {
+				activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool) (*string, error) {
 					assert.Equal(t, tc.tenantProjectNumber, tenantProjectNumber)
 					assert.Equal(t, tc.vendorSubNetID, consumerVPC)
 					assert.Equal(t, tc.region, *tenantProjectRegion)
+					// We can determine if it's large capacity based on the pool type in the test case
 					return &operationName, nil
 				}
 

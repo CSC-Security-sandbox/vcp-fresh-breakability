@@ -6949,6 +6949,11 @@ components:
           description: Indicates if the pool type is unified (deprecated, use 'type' field instead)
           example: false
           x-deprecated-message: "Use 'type' field with value 'UNIFIED' instead. This field will be removed in a future version."
+        largeCapacity:
+          type: boolean
+          description: Indicates if the pool is a large capacity pool
+          default: false
+          example: false
     Volume_v1beta:
       title: Volume v1beta model definition
       required:

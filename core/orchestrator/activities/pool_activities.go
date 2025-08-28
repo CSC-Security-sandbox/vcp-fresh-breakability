@@ -361,9 +361,10 @@ func _checkReusableSubnet(se database.Storage, service hyperscaler2.GoogleServic
 	}
 	customerProjectNumber := params.AccountName
 	tenantProjectRegion := params.Region
+	isLargeCapacity := params.LargeCapacity
 	if snHostProject != "" {
 		// if snHost is found, check if the subnetwork already exists in the SN host project and reuse it if applicable
-		subnet, err = GetSubnetToBeUsed(service, se, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion)
+		subnet, err = GetSubnetToBeUsed(service, se, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion, isLargeCapacity)
 		if err != nil {
 			logger.Errorf("Error getting data subnet for tenant project: %s, SN host : %s, Region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
@@ -386,7 +387,7 @@ func _getCreateDataSubnetworkOp(service hyperscaler2.GoogleServices, params comm
 	consumerVPC := params.VendorSubNetID
 	logger := service.GetLogger()
 	// if snHost is not found or subnet found cannot be used, create a new subnetwork for the tenant project
-	operationName, err := GetCreateSubnetworkOperation(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion)
+	operationName, err := GetCreateSubnetworkOperation(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion, params.LargeCapacity)
 	if err != nil {
 		logger.Errorf("Error creating subnetwork for tenant project: %s, Region %s. Error : %s", tenantProjectNumber, tenantProjectRegion, err.Error())
 		return nil, err
@@ -421,9 +422,9 @@ func (j *PoolActivity) UpdatePoolSubnet(ctx context.Context, poolUUID string, te
 }
 
 // createSubnetwork generates a subnetwork name based on the tenant project number and region and triggers creation the subnet in SN host project. returns operation name
-func _getCreateSubnetworkOperation(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*string, error) {
-	subnetName := MakeSubnetName(tenantProjectNumber)
-	operationName, err := service.CreateTPSubnetOp(tenantProjectNumber, consumerVPC, *tenantProjectRegion, subnetName)
+func _getCreateSubnetworkOperation(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool) (*string, error) {
+	subnetName := MakeSubnetName(tenantProjectNumber, isLargeCapacity)
+	operationName, err := service.CreateTPSubnetOp(tenantProjectNumber, consumerVPC, *tenantProjectRegion, subnetName, isLargeCapacity)
 	if err != nil {
 		service.GetLogger().Errorf("Error adding subnetwork: %v", err)
 		return nil, err
@@ -1175,7 +1176,6 @@ func _mockVlmConfig(vlmConfig *vlm.VLMConfig) (*vlm.VLMConfig, error) {
 	vlmConfig.Cloud.HAPairs[0].VM2.SystemLIFs[vlm.LIFTypeNodeMgmt] = ogConfig
 	return vlmConfig, nil
 }
-
 func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, regionalTenantProjectID, snHostProject string, decision *vmrs.Decision, vsaClusterSaEmail string, autoTierBucket string) error {
 	if err := ValidateVlmConfigInputs(vlmConfig, decision, deploymentID, region, primaryZone, network, subnet, regionalTenantProjectID, snHostProject, vsaClusterSaEmail); err != nil {
 		return err
@@ -2492,7 +2492,6 @@ func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlm
 	logger.Info("Extracted intercluster LIF IPs from VLM config", "lifCount", len(lifIPs))
 	return lifIPs, nil
 }
-
 // DetermineVMScalingDirection determines whether the new VM decision represents scaling up or down
 // by using the decision maker's comparison method.
 // Returns true if scaling up (new VM is more expensive), false if scaling down (new VM is cheaper).

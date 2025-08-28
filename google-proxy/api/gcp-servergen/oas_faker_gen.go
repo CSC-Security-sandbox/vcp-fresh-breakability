@@ -3393,6 +3393,11 @@ func (s *PoolInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.LargeCapacity.SetFake()
+		}
+	}
+	{
+		{
 			s.ClusterName.SetFake()
 		}
 	}
@@ -3730,6 +3735,11 @@ func (s *PoolV1beta) SetFake() {
 	{
 		{
 			s.UnifiedPool.SetFake()
+		}
+	}
+	{
+		{
+			s.LargeCapacity.SetFake()
 		}
 	}
 }
