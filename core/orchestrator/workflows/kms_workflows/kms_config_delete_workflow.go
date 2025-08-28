@@ -92,12 +92,16 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
+
 	ctx = workflow.WithActivityOptions(ctx, defaultActivityOpts)
-	jwtToken, err := getSignedJwtToken(params.AccountName)
+	jwtToken := ""
+	err = workflow.ExecuteActivity(ctx, deleteActivity.GetSignedTokenActivity, params.AccountName).Get(ctx, &jwtToken)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+
 	sdeJobRetryOpts := defaultActivityOpts
 	sdeJobRetryOpts.RetryPolicy.MaximumAttempts = int32(SdeKmsJobRetryMaxAttempts)
 	ctx1 := workflow.WithActivityOptions(ctx, sdeJobRetryOpts)

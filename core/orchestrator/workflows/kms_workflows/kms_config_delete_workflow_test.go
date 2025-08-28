@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -38,27 +38,23 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		// No UpdateKmsConfigState call expected in success case
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		// Set up test data
 		params := &common.DeleteKmsConfigParams{
 			KmsConfigID: "test-config-id",
-			AccountName: "test-account",
+			AccountName: "123456789",
 		}
 		kmsConfig := &datamodel.KmsConfig{
 			Name: "kms1",
 			BaseModel: datamodel.BaseModel{
 				UUID: "kms1-uuid",
 			},
+			CustomerProjectID: "123456789", // Valid project number
 		}
 
 		sdeJobUuid := "job-uuid"
 		// Mock activity responses
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(&sdeJobUuid, nil)
 		env.OnActivity("DescribeSDEDeleteJob", mock.Anything, &sdeJobUuid, params).Return(nil)
 		env.OnActivity("DisableKmsServiceAccount", mock.Anything, kmsConfig).Return(nil)
@@ -89,21 +85,18 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		// No UpdateKmsConfigState call expected in success case
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		// Set up test data
 		params := &common.DeleteKmsConfigParams{
 			KmsConfigID: "test-config-id",
-			AccountName: "test-account",
+			AccountName: "123456789",
 		}
-		kmsConfig := &datamodel.KmsConfig{}
+		kmsConfig := &datamodel.KmsConfig{
+			CustomerProjectID: "123456789", // Valid project number
+		}
 
 		// Mock activity responses
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, nil)
 
 		// Execute workflow
@@ -127,28 +120,24 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		mockStorage := database.NewMockStorage(t)
-		// UpdateKmsConfigState should be called in the defer function when there's an error
-		mockStorage.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
+		// Add mock for UpdateKmsConfigState activity which is called in defer when there's an error
+		mockStorage.On("UpdateKmsConfigState", mock.Anything, "kms1-uuid", models.LifeCycleStateError, mock.AnythingOfType("string")).Return(&datamodel.KmsConfig{}, nil)
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		// Set up test data
 		params := &common.DeleteKmsConfigParams{
 			KmsConfigID: "test-config-id",
-			AccountName: "test-account",
+			AccountName: "123456789",
 		}
 		kmsConfig := &datamodel.KmsConfig{
 			Name: "kms1",
 			BaseModel: datamodel.BaseModel{
 				UUID: "kms1-uuid",
 			},
+			CustomerProjectID: "123456789", // Valid project number
 		}
 		// Mock activity responses
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, errors.New(400, "error returned"))
 
 		// Register the workflow
@@ -190,25 +179,17 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		// Set up test data
 		params := &common.DeleteKmsConfigParams{
 			KmsConfigID: "test-config-id",
-			AccountName: "test-account",
+			AccountName: "123456789",
 		}
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
+		kmsConfig := &datamodel.KmsConfig{
+			KmsAttributes:     &datamodel.KmsAttributes{},
+			CustomerProjectID: "123456789", // Valid project number
 		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
-		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New(400, "error returned"))
 		// Execute workflow
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
