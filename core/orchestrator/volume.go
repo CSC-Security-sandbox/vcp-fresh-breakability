@@ -1119,6 +1119,9 @@ func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []strin
 		// So, to update volume metrics, we call GetVolume here
 		volume, getVolErr := o.GetVolume(ctx, volumeIds[0], true)
 		if getVolErr != nil {
+			if customerrors.IsNotFoundErr(getVolErr) {
+				return result, nil
+			}
 			return nil, getVolErr
 		}
 		result = append(result, volume)

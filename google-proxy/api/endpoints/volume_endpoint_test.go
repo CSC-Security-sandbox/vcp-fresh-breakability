@@ -1234,6 +1234,123 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		assert.Equal(tt, float64(500), internalErr.Code)
 		assert.Equal(tt, "unknown error during get multiple volumes operation", internalErr.Message)
 	})
+
+	t.Run("WhenSingleVolumeNotInVCP_ShouldFallbackToCVPAndReturnVolume", func(tt *testing.T) {
+		// Set CVP_HOST so CVP calls will be made
+		cvp.SetCVPHost("http://cvp-host")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaGetMultipleVolumesParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		// Single volume request
+		req := &gcpgenserver.VolumeIdListV1beta{
+			VolumeUuids: []string{"uuid1"},
+		}
+
+		// Mock VCP to return empty volumes (no error) so CVP will be called
+		mockOrchestrator.EXPECT().GetMultipleVolumes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		// Save and mock createCVPClient
+		originalCreateCVPClient := createCVPClient
+		defer func() { createCVPClient = originalCreateCVPClient }()
+		mockVolumes := volumes.NewMockClientService(tt)
+		mockClient := &cvpapi.Cvp{
+			Volumes: mockVolumes,
+		}
+		createCVPClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *mockClient
+		}
+
+		// Set up the mock for the CVP Volumes client - expect CVP to be called
+		resourceID := "cvp-resource-id"
+		mockVolumes.EXPECT().V1betaGetMultipleVolumes(mock.Anything).Return(&volumes.V1betaGetMultipleVolumesOK{
+			Payload: &volumes.V1betaGetMultipleVolumesOKBody{
+				Volumes: []*cvpmodels.VolumeV1beta{
+					{
+						VolumeID:   "uuid1",
+						ResourceID: &resourceID,
+					},
+				},
+			},
+		}, nil).Once()
+
+		result, err := handler.V1betaGetMultipleVolumes(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultipleVolumesOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Volumes, 1)
+		assert.Equal(tt, "cvp-resource-id", okResp.Volumes[0].ResourceId)
+	})
+
+	t.Run("WhenSingleVolumeNotFoundInBothVCPAndCVP_ShouldReturnEmptyList", func(tt *testing.T) {
+		// Set CVP_HOST so CVP calls will be made
+		cvp.SetCVPHost("http://cvp-host")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaGetMultipleVolumesParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		// Single volume request
+		req := &gcpgenserver.VolumeIdListV1beta{
+			VolumeUuids: []string{"uuid1"},
+		}
+
+		// Mock VCP to return empty volumes (no error) so CVP will be called
+		mockOrchestrator.EXPECT().GetMultipleVolumes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		// Save and mock createCVPClient
+		originalCreateCVPClient := createCVPClient
+		defer func() { createCVPClient = originalCreateCVPClient }()
+		mockVolumes := volumes.NewMockClientService(tt)
+		mockClient := &cvpapi.Cvp{
+			Volumes: mockVolumes,
+		}
+		createCVPClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *mockClient
+		}
+
+		// Set up the mock for the CVP Volumes client - CVP also returns empty (no volumes found)
+		mockVolumes.EXPECT().V1betaGetMultipleVolumes(mock.Anything).Return(&volumes.V1betaGetMultipleVolumesOK{
+			Payload: &volumes.V1betaGetMultipleVolumesOKBody{
+				Volumes: []*cvpmodels.VolumeV1beta{}, // Empty list - no volumes found in CVP either
+			},
+		}, nil).Once()
+
+		result, err := handler.V1betaGetMultipleVolumes(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultipleVolumesOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Volumes, 0) // Should return empty volumes list when neither VCP nor CVP finds the volume
+	})
 }
 
 func TestConvertVolumeV1betaCVPToModel(t *testing.T) {

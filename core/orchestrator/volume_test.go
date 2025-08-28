@@ -4653,7 +4653,7 @@ func TestGetMultipleVolumes(t *testing.T) {
 		assert.Len(tt, volumeResp, 0)
 	})
 
-	t.Run("WhenSingleVolumeGetVolumeFails", func(tt *testing.T) {
+	t.Run("WhenSingleVolumeAndNotFoundInDb", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
 		store, err := database.SetupStorageForTest(mockLogger)
@@ -4689,8 +4689,46 @@ func TestGetMultipleVolumes(t *testing.T) {
 		}()
 
 		volumeResp, err := orch.GetMultipleVolumes(ctx, []string{"non-existent-volume"}, account.Name)
-		assert.Error(tt, err, "Expected error when GetVolume fails for single volume")
+		assert.Empty(tt, err, "Expected no error when volume is not found in VCP DB")
 		assert.Nil(tt, volumeResp, "Expected nil response")
+	})
+
+	t.Run("WhenSingleVolumeAndErrorOtherThanNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		// Create a mock storage that will return a ConflictErr for DescribeVolume
+		mockStorage := &database.MockStorage{}
+
+		// Mock account lookup to succeed
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+
+		// Mock DescribeVolume to return a ConflictErr (not a NotFoundErr)
+		mockStorage.On("DescribeVolume", mock.AnythingOfType("*context.valueCtx"), "test-volume").Return(nil, errors.NewUserInputValidationErr("dummy error")).Once()
+
+		orch := Orchestrator{
+			storage: mockStorage,
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		// Call GetMultipleVolumes with single volume (triggers GetVolume path)
+		volumeResp, err := orch.GetMultipleVolumes(ctx, []string{"test-volume"}, account.Name)
+
+		// Should return the error (not nil) and nil result
+		assert.Error(tt, err, "Expected error when GetVolume fails with non-NotFound error")
+		assert.Contains(tt, err.Error(), "dummy error")
+		assert.Nil(tt, volumeResp, "Expected nil response when error occurs")
+
+		// Verify all mocks were called as expected
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("WhenMultipleVolumesGetMultipleVolumesFails", func(tt *testing.T) {
