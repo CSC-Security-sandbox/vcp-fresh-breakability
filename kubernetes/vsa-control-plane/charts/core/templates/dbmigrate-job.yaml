@@ -73,7 +73,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
-                  key: DB_USERNAME
+                  key: DB_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -139,7 +139,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
-                  key: DB_USERNAME
+                  key: DB_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
