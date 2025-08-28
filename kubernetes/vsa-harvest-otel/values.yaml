@@ -71,9 +71,9 @@ replicaCount: 2
 
 mode: deployment
 
-extraEnvs:
-  - name: ENABLE_VOLUME_ONLINE
-    value: "false"
+harvestConfig:
+  enableVolumeOnline: "false"
+  enableVolumeMetrics: "false"
 
 lifecycleHooks: {}
 

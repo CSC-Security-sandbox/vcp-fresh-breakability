@@ -43,12 +43,10 @@ spec:
           ports:
           - name: http
             containerPort: {{ $.Values.service.targetPort }}
-          {{- if .Values.extraEnvs }}
-          env:
-            {{- range .Values.extraEnvs }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
-            {{- end }}
+          {{- if .Values.harvestConfig }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "harvest.configMapName" . }}
           {{- end }}
           readinessProbe:
             httpGet:

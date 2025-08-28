@@ -87,6 +87,8 @@ spec:
               value: "true"
             - name: ENABLE_VOLUME_ONLINE
               value: "false"
+            - name: ENABLE_VOLUME_METRICS
+              value: "false"
           volumeMounts:
             - mountPath: "/configs/harvest"
               name: harvest-farm-shared

@@ -155,3 +155,10 @@ Decide if container will use tagged image or digest one
 {{- end -}}
 {{- printf "%s/%s%s%s" $registry $image.name $separator $tagOrDigest -}}
 {{- end -}}
+
+{{/*
+Helper function to generate the configMap name by appending "-config" to the app name.
+*/}}
+{{- define "harvest.configMapName" -}}
+{{- printf "%s-config " .Chart.Name -}}
+{{- end -}}
