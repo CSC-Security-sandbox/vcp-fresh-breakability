@@ -101,45 +101,66 @@ jobs:
             chmod +x temporal
             sudo mv temporal /usr/local/bin/
           fi
-          
-      - name: Build google-proxy, temporal and Copy
-        run: |
-          test_dir="tests"
-          # Build applications
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath google-proxy/app.go && chmod +x app && \
-          cp app ${test_dir}/vsa-integration-test-poc/docker_services/infra/google-proxy/ && \
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o temporal-worker -trimpath worker/main.go && \
-          chmod +x temporal-worker && \
-          cp temporal-worker ${test_dir}/vsa-integration-test-poc/docker_services/infra/temporal-worker/ && \
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o vsa-db-setup -trimpath tools/migrate/main.go && \
-          chmod +x vsa-db-setup && \
-          cp vsa-db-setup ${test_dir}/vsa-integration-test-poc/docker_services/infra/vsa-db-setup/vsa-db-setup
 
       - name: Set PROJECT_ROOT
         run: |
           echo "PROJECT_ROOT=$(pwd)/tests/vsa-integration-test-poc" >> $GITHUB_ENV
 
-      - name: Pre-pull base images
+      - name: Build Applications
         run: |
           {
-            docker pull ubuntu:22.04 &
-            docker pull alpine:latest &
-            docker pull golang:1.21-alpine &
-            docker pull postgres:13 &
-            wait
+            set -e
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -trimpath google-proxy/app.go && \
+            chmod +x app && cp app $PROJECT_ROOT/docker_services/infra/google-proxy/ &
+            pid1=$!
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o temporal-worker -trimpath worker/main.go && \
+            chmod +x temporal-worker && cp temporal-worker $PROJECT_ROOT/docker_services/infra/temporal-worker/ &
+            pid2=$!
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o vsa-db-setup -trimpath tools/migrate/main.go && \
+            chmod +x vsa-db-setup && cp vsa-db-setup $PROJECT_ROOT/docker_services/infra/vsa-db-setup/vsa-db-setup &
+            pid3=$!
+            wait $pid1
+            status1=$?
+            wait $pid2
+            status2=$?
+            wait $pid3
+            status3=$?
+            if [ $status1 -ne 0 ] || [ $status2 -ne 0 ] || [ $status3 -ne 0 ]; then
+              echo "One or more builds failed"
+              exit 1
+            fi
           }
 
-      - name: Build All Docker Containers
+      - name: Build Docker Containers
         timeout-minutes: 8
         run: |
+          set -e
           chmod +x $PROJECT_ROOT/docker_services/*/*/build.sh
-          cd $PROJECT_ROOT/docker_services/infra/google-proxy && ./build.sh google-proxy
-          cd $PROJECT_ROOT/docker_services/infra/temporal && ./build.sh temporal
-          cd $PROJECT_ROOT/docker_services/infra/temporal-worker && ./build.sh temporal-worker
-          cd $PROJECT_ROOT/docker_services/infra/vsa-db-setup && ./build.sh vsa-db-setup
-          cd $PROJECT_ROOT/docker_services/infra/vsa-migrator && ./build.sh vsa-migrator
-          cd $PROJECT_ROOT/docker_services/infra/vsa-mock-server && ./build.sh vsa-mock-server
-          cd $PROJECT_ROOT/docker_services/tests/vsa-testcases && ./build.sh vsa-testcases
+          echo "Building containers in parallel batches..."
+          
+          # Build containers in parallel batches
+          {
+            echo "Starting batch 1: google-proxy, temporal, temporal-worker..."
+            (cd $PROJECT_ROOT/docker_services/infra/google-proxy && ./build.sh google-proxy) &
+            (cd $PROJECT_ROOT/docker_services/infra/temporal && ./build.sh temporal) &
+            (cd $PROJECT_ROOT/docker_services/infra/temporal-worker && ./build.sh temporal-worker) &
+            wait
+          }
+          
+          {
+            echo "Starting batch 2: vsa-db-setup, vsa-migrator, vsa-mock-server..."
+            (cd $PROJECT_ROOT/docker_services/infra/vsa-db-setup && ./build.sh vsa-db-setup) &
+            (cd $PROJECT_ROOT/docker_services/infra/vsa-migrator && ./build.sh vsa-migrator) &
+            (cd $PROJECT_ROOT/docker_services/infra/vsa-mock-server && ./build.sh vsa-mock-server) &
+            wait
+          }
+          
+          {
+            echo "Starting batch 3: vsa-testcases..."
+            (cd $PROJECT_ROOT/docker_services/tests/vsa-testcases && ./build.sh vsa-testcases) &
+            wait
+          }
+          echo "All container builds completed successfully"
 
       - name: Starting Test
         env:
