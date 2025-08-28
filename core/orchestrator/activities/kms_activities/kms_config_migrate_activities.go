@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
@@ -78,34 +79,56 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 	}
 
 	for _, volume := range volumes {
+		// We do not wish to encrypt volumes which are not in Ready state, or upon re-entry not in Migrating state
+		if !(volume.State == models.LifeCycleStateREADY || (volume.State == models.LifeCycleStateUpdating && volume.StateDetails == models.LifeCycleStateVolMigratingDetails)) {
+			logger.Errorf("Volume %s is not in Ready state...skipping encryption for this volume; Current state is %s", volume.UUID, volume.State)
+			volumeMigrationFailed = true
+			continue
+		}
+
 		getVolumeParams := vsa.GetVolumeParams{VolumeName: volume.Name}
 		if volume.VolumeAttributes != nil {
 			getVolumeParams.UUID = volume.VolumeAttributes.ExternalUUID
 		} else {
-			logger.Errorf("External UUID not present in Volume attributes of volume %s in VSA", volume.Name)
+			logger.Errorf("External UUID not present in Volume attributes of volume %s in VSA", volume.UUID)
 			volumeMigrationFailed = true
 			continue
 		}
 		if volume.Svm != nil {
 			getVolumeParams.SvmName = volume.Svm.Name
 		} else {
-			logger.Errorf("SVM name not present in Volume data-model of volume %s in VSA", volume.Name)
+			logger.Errorf("SVM name not present in Volume data-model of volume %s in VSA", volume.UUID)
 			volumeMigrationFailed = true
 			continue
 		}
 
 		getEncryptionStatus, errStatus := provider.GetVolumeEncryptionStatus(getVolumeParams)
 		if errStatus != nil {
-			logger.Errorf("Failed to get encryption status for volume %s, aborting encyrption... Error: %s", volume.Name, errStatus.Error())
+			logger.Errorf("Failed to get encryption status for volume %s, aborting encryption... Error: %s", volume.UUID, errStatus.Error())
 			volumeMigrationFailed = true
 			continue
 		}
 		if getEncryptionStatus == nil {
-			logger.Errorf("Failed to get encryption status for volume %s, aborting encyrption", volume.Name)
+			logger.Errorf("Failed to get encryption status for volume %s, aborting encryption", volume.UUID)
 			volumeMigrationFailed = true
 			continue
 		}
 		if *getEncryptionStatus.Encryption.State == EncryptedState {
+			// Check for function re-entry
+			volDetailsDb, errDb := se.GetVolume(ctx, volume.UUID)
+			if errDb != nil {
+				logger.Errorf("Failed to get volume details from DB for encrypted volume %s in VSA: %s", volume.UUID, errDb.Error())
+			} else {
+				if volDetailsDb.State == models.LifeCycleStateUpdating && volDetailsDb.StateDetails == models.LifeCycleStateVolMigratingDetails {
+					errUpdateVolume := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+						"state":         models.LifeCycleStateREADY,
+						"state_details": models.LifeCycleStateAvailableDetails,
+					})
+					if errUpdateVolume != nil {
+						logger.Errorf("Unable to set state of volume %s back to its original state after encryption", volume.UUID)
+					}
+				}
+			}
 			continue
 		} else if *getEncryptionStatus.Encryption.State != EncryptingState {
 			// Encrypt volume
@@ -114,20 +137,22 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 				EncryptionEnable: true,
 			})
 			if errEnableEncryption != nil {
-				logger.Errorf("Failed to initiate encryption of volume %s in VSA: %s", volume.Name, errEnableEncryption.Error())
-				volumeMigrationFailed = true
+				if strings.Contains(errEnableEncryption.Error(), "Volume is encrypted") {
+					logger.Infof("Volume %s already found to be in encrypted format", volume.UUID)
+				} else {
+					logger.Errorf("Failed to initiate encryption of volume %s in VSA: %s", volume.UUID, errEnableEncryption.Error())
+					volumeMigrationFailed = true
+				}
 				continue
 			}
 		}
 
-		stateOfVol := volume.State
-		stateDetailsOfVol := volume.StateDetails
-		errUpdateVol := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+		errUpdateVolState := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
 			"state":         models.LifeCycleStateUpdating,
 			"state_details": models.LifeCycleStateVolMigratingDetails,
 		})
-		if errUpdateVol != nil {
-			logger.Errorf("Unable to set state of volume to updating %s before encryption", volume.Name)
+		if errUpdateVolState != nil {
+			logger.Errorf("Unable to set state of volume %s to updating before encryption", volume.UUID)
 			continue
 		}
 
@@ -138,39 +163,39 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 		for !volumeMigrationFailed && !volumeMigrationComplete {
 			select {
 			case <-pollTimeout:
-				logger.Errorf("Polling timed out for volume %s", volume.Name)
+				logger.Errorf("Polling timed out for volume %s", volume.UUID)
 				volumeMigrationFailed = true
 			default:
 				getEncryptionResponse, errEncryptStatus := provider.GetVolumeEncryptionStatus(getVolumeParams)
 				if errEncryptStatus != nil {
-					logger.Errorf("Failed to get encryption status for volume %s during polling: %s", volume.Name, errEncryptStatus.Error())
+					logger.Errorf("Failed to get encryption status for volume %s during polling: %s", volume.UUID, errEncryptStatus.Error())
 					volumeMigrationFailed = true
 					continue
 				}
 				if getEncryptionResponse != nil {
 					switch *getEncryptionResponse.Encryption.State {
 					case EncryptingState:
-						logger.Infof("Volume encryption ongoing for %s ...", volume.Name)
+						logger.Infof("Volume encryption ongoing for %s ...", volume.UUID)
 						time.Sleep(time.Duration(PollWaitIntervalForVolumeEncryption) * time.Second)
 					case EncryptedState:
-						logger.Infof("Volume encryption completed for %s ...", volume.Name)
+						logger.Infof("Volume encryption completed for %s ...", volume.UUID)
 						volumeMigrationComplete = true
 					default:
-						logger.Errorf("Unexpected encryption state for volume %s during polling: %s", volume.Name, *getEncryptionResponse.Encryption.State)
+						logger.Errorf("Unexpected encryption state for volume %s during polling: %s", volume.UUID, *getEncryptionResponse.Encryption.State)
 						volumeMigrationFailed = true
 					}
 				} else {
-					logger.Errorf("Failed to retrieve encryption status for volume %s during polling", volume.Name)
+					logger.Errorf("Failed to retrieve encryption status for volume %s during polling", volume.UUID)
 					volumeMigrationFailed = true
 				}
 			}
 		}
-		errUpdateVol = se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-			"state":         stateOfVol,
-			"state_details": stateDetailsOfVol,
+		errUpdateVol := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+			"state":         models.LifeCycleStateREADY,
+			"state_details": models.LifeCycleStateAvailableDetails,
 		})
 		if errUpdateVol != nil {
-			logger.Errorf("Unable to reset state and state-details of volume %s after encryption", volume.Name)
+			logger.Errorf("Unable to reset state and state-details of volume %s to ready after encryption", volume.UUID)
 		}
 	}
 

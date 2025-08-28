@@ -132,7 +132,9 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		// KmsConfig state is determined by Verify operation (same as SDE workflow)
 		disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 		workflow.ExecuteActivity(disconnectedCtx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, kmsConfigUUID)
-		kmsWorkflow.Logger.Info(vsaCmekMigrationSkippedPoolReason)
+		if vsaCmekMigrationSkippedPoolReason != MigrationInfoPrefix {
+			kmsWorkflow.Logger.Info(vsaCmekMigrationSkippedPoolReason)
+		}
 	}()
 
 	// Migrate KMS configuration in CVP
@@ -260,21 +262,6 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	var future workflow.Future
 	futures := make([]workflow.Future, 0, len(poolsForMigration))
 	for index, pool := range poolsForMigration {
-		var volumesForMigration []*datamodel.Volume
-
-		errGetVolume := workflow.ExecuteActivity(ctx, volumeActivity.GetVolumesByPoolID, pool.ID).Get(ctx, &volumesForMigration)
-		if errGetVolume != nil {
-			poolMigrationFailed = true
-			kmsWorkflow.Logger.Error(fmt.Sprintf("Failed to retrieve volumes belonging to pool-id %s selected for CMEK migration...skipping migration for this pool", pool.UUID), log.Fields{"error": errGetVolume})
-
-			err = workflow.ExecuteActivity(ctx, poolActivity.FailedPoolActivity, pool, errGetVolume.Error()).Get(ctx, nil)
-			if err != nil {
-				kmsWorkflow.Logger.Error(fmt.Sprintf("Unable to update state of Pool to error, for failed migration of pool-id %s", pool.UUID), log.Fields{"error": err})
-			}
-			futures = append(futures, future)
-			continue
-		}
-
 		// Determine Node for pool
 		var dbNodes []*datamodel.Node
 		errGetNode := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
@@ -342,6 +329,21 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 				kmsWorkflow.Logger.Error(fmt.Sprintf(
 					"Unable to update state of Pool to error, for failed migration of pool-id %s", pool.UUID),
 					log.Fields{"error": errFailedPool})
+			}
+			futures = append(futures, future)
+			continue
+		}
+
+		var volumesForMigration []*datamodel.Volume
+
+		errGetVolume := workflow.ExecuteActivity(ctx, volumeActivity.GetVolumesByPoolID, pool.ID).Get(ctx, &volumesForMigration)
+		if errGetVolume != nil {
+			poolMigrationFailed = true
+			kmsWorkflow.Logger.Error(fmt.Sprintf("Failed to retrieve volumes belonging to pool-id %s selected for CMEK migration...skipping migration for this pool", pool.UUID), log.Fields{"error": errGetVolume})
+
+			err = workflow.ExecuteActivity(ctx, poolActivity.FailedPoolActivity, pool, errGetVolume.Error()).Get(ctx, nil)
+			if err != nil {
+				kmsWorkflow.Logger.Error(fmt.Sprintf("Unable to update state of Pool to error, for failed migration of pool-id %s", pool.UUID), log.Fields{"error": err})
 			}
 			futures = append(futures, future)
 			continue
