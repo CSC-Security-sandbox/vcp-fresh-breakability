@@ -540,7 +540,8 @@ func _convertCreateReplicationParamsToEventParam(in *commonparams.CreateVolumeRe
 		out.DestinationProjectNumber = uri[1]
 	}
 	out.SourceProjectNumber = in.AccountName
-	out.LocationID = in.Region
+	out.LocationID = in.LocationId
+	out.SourceRegion = in.Region
 	out.VolumeResourceID = in.SourceVolumeName
 	out.XCorrelationID = &in.CorrelationId
 

@@ -659,6 +659,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 		replicationParams := &common.CreateVolumeReplicationParams{
 			AccountName:      params.ProjectNumber,
 			Region:           "location-id",
+			LocationId:       "location-id",
 			Name:             req.ResourceId,
 			SourceVolumeName: params.VolumeResourceId,
 			CorrelationId:    params.XCorrelationID.Value,

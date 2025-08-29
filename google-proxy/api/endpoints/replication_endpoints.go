@@ -39,7 +39,7 @@ func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.
 			Message: "CRR is not enabled",
 		}, nil
 	}
-	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateReplicationBadRequest{
 			Code:    parsingErr.Code,
@@ -47,7 +47,7 @@ func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
-	replicationParams := prepareCreateVolumeReplicationParams(req, params, region)
+	replicationParams := prepareCreateVolumeReplicationParams(req, params, region, zone)
 
 	volumeRep, jobUUID, err := h.Orchestrator.CreateVolumeReplication(ctx, replicationParams)
 	if err != nil {
@@ -341,13 +341,17 @@ func convertVolumeInfoToReplicationVolumeInformationV1beta(in *models.Replicatio
 	}
 }
 
-func prepareCreateVolumeReplicationParams(req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams, region string) *common.CreateVolumeReplicationParams {
+func prepareCreateVolumeReplicationParams(req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams, region, zone string) *common.CreateVolumeReplicationParams {
 	replication := common.CreateVolumeReplicationParams{
 		AccountName:      params.ProjectNumber,
 		Region:           region,
+		LocationId:       region,
 		Name:             req.ResourceId,
 		SourceVolumeName: params.VolumeResourceId,
 		CorrelationId:    params.XCorrelationID.Value,
+	}
+	if zone != "" {
+		replication.LocationId = zone
 	}
 
 	replication.Body = req

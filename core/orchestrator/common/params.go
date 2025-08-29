@@ -292,6 +292,7 @@ type UpdateVolumeReplicationInternalParams struct {
 type CreateVolumeReplicationParams struct {
 	AccountName      string
 	Region           string
+	LocationId       string
 	Name             string
 	Description      string
 	SourceVolumeName string

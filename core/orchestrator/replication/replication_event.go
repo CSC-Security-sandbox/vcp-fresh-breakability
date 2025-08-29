@@ -24,7 +24,9 @@ type CreateReplicationEvent struct {
 
 	CreateReplicationParams  *CreateReplicationParamsBody `json:"Body,omitempty"`
 	LocationID               string                       `json:"LocationID,omitempty"`
+	SourceRegion             string                       `json:"SourceRegion,omitempty"`
 	DestinationLocationID    string                       `json:"DestinationLocationID,omitempty"`
+	DestinationRegion        string                       `json:"DestinationRegion,omitempty"`
 	SourceProjectNumber      string                       `json:"SourceProjectNumber,omitempty"`
 	DestinationProjectNumber string                       `json:"DestinationProjectNumber,omitempty"`
 	VolumeResourceID         string                       `json:"VolumeResourceID,omitempty"`

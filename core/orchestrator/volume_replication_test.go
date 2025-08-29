@@ -545,6 +545,7 @@ func TestConvertCreateReplicationParamsToEventParam(t *testing.T) {
 				},
 			},
 			CorrelationId: "test-correlation-id",
+			LocationId:    "test-location",
 		}
 
 		out := &replication.CreateReplicationEvent{}
@@ -555,9 +556,10 @@ func TestConvertCreateReplicationParamsToEventParam(t *testing.T) {
 		assert.Equal(tt, "test-location", out.DestinationLocationID)
 		assert.Equal(tt, "test-project", out.DestinationProjectNumber)
 		assert.Equal(tt, "test-account", out.SourceProjectNumber)
-		assert.Equal(tt, "test-region", out.LocationID)
+		assert.Equal(tt, "test-region", out.SourceRegion)
 		assert.Equal(tt, "test-volume", out.VolumeResourceID)
 		assert.Equal(tt, "test-correlation-id", *out.XCorrelationID)
+		assert.Equal(tt, "test-location", out.LocationID)
 	})
 
 	t.Run("WhenUnmarshalFails", func(tt *testing.T) {

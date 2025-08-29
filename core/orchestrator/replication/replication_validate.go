@@ -129,7 +129,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		logger.Error("Get Paired Destination Region Uri error", common.Error(err))
 		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
 	}
-
+	event.DestinationRegion = destRegion
 	event.CCFEUri = internalUtilGetCCFEURI(event.SourceProjectNumber, event.LocationID, event.VolumeResourceID, *event.CreateReplicationParams.ResourceID)
 
 	err = validateReplicationResourceId(ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, se)

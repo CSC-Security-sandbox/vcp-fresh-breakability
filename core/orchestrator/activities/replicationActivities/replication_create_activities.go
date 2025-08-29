@@ -370,7 +370,7 @@ func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context,
 }
 
 func (a *VolumeReplicationCreateActivity) GetSrcBasePath(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	srcBasePath, err := GetBasePath(ctx, result.Event.LocationID)
+	srcBasePath, err := GetBasePath(ctx, result.Event.SourceRegion)
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGetSrcBasePath, err)
 	}
@@ -379,7 +379,7 @@ func (a *VolumeReplicationCreateActivity) GetSrcBasePath(ctx context.Context, re
 }
 
 func (a *VolumeReplicationCreateActivity) GetDstBasePath(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	dstBasePath, err := GetBasePath(ctx, result.Event.DestinationLocationID)
+	dstBasePath, err := GetBasePath(ctx, result.Event.DestinationRegion)
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGetDstBasePath, err)
 	}
