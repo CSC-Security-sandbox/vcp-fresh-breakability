@@ -192,7 +192,7 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, err
 	}
 	return &gcpgenserver.OperationV1beta{
-		Name:     gcpgenserver.OptString{Value: vault.Payload.Name},
+		Name:     gcpgenserver.NewOptString(vault.Payload.Name),
 		Done:     gcpgenserver.NewOptBool(true),
 		Response: bvJSON,
 	}, nil
