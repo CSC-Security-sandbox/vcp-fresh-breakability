@@ -1,6 +1,8 @@
 name: Release Workflow
 
 on:
+  schedule:
+    - cron: '30 2 * * 5'
   workflow_dispatch:
 
 jobs:
