@@ -625,7 +625,7 @@ func TestGenerateStrongPassword(t *testing.T) {
 	}
 
 	// Check if the password contains at least one character from each category
-	hasLower, hasUpper, hasDigit, hasSpecial := false, false, false, false
+	hasLower, hasUpper, hasDigit := false, false, false
 	for _, char := range password {
 		switch {
 		case unicode.IsLower(char):
@@ -634,11 +634,9 @@ func TestGenerateStrongPassword(t *testing.T) {
 			hasUpper = true
 		case unicode.IsDigit(char):
 			hasDigit = true
-		case unicode.IsPunct(char) || unicode.IsSymbol(char):
-			hasSpecial = true
 		}
 	}
-	if !hasLower || !hasUpper || !hasDigit || !hasSpecial {
+	if !hasLower || !hasUpper || !hasDigit {
 		t.Errorf("password does not contain all required character types: %s", password)
 	}
 

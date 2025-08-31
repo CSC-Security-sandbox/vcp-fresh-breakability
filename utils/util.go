@@ -464,12 +464,12 @@ func _generateStrongPassword(length int) (string, error) {
 		return "", fmt.Errorf("password length should be at least 8 characters")
 	}
 
-	allChars := lowercaseLetters + uppercaseLetters + digits + specialChars
+	allChars := lowercaseLetters + uppercaseLetters + digits
 	password := make([]byte, length)
 
 	// Ensure the password contains at least one character from each category
-	charCategories := []string{lowercaseLetters, uppercaseLetters, digits, specialChars}
-	for i := 0; i < 4; i++ {
+	charCategories := []string{lowercaseLetters, uppercaseLetters, digits}
+	for i := 0; i < len(charCategories); i++ {
 		char, err := randomCharFrom(charCategories[i])
 		if err != nil {
 			return "", err
@@ -478,7 +478,7 @@ func _generateStrongPassword(length int) (string, error) {
 	}
 
 	// Fill the remaining characters randomly
-	for i := 4; i < length; i++ {
+	for i := len(charCategories); i < length; i++ {
 		char, err := randomCharFrom(allChars)
 		if err != nil {
 			return "", err
