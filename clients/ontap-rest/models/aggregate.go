@@ -98,7 +98,7 @@ type Aggregate struct {
 
 	// Number of volumes in the aggregate.
 	// Read Only: true
-	VolumeCount *int64 `json:"volume-count,omitempty"`
+	VolumeCount *int64 `json:"volume_count,omitempty"`
 }
 
 // Validate validates this aggregate
@@ -927,7 +927,7 @@ func (m *Aggregate) contextValidateUUID(ctx context.Context, formats strfmt.Regi
 
 func (m *Aggregate) contextValidateVolumeCount(ctx context.Context, formats strfmt.Registry) error {
 
-	if err := validate.ReadOnly(ctx, "volume-count", "body", m.VolumeCount); err != nil {
+	if err := validate.ReadOnly(ctx, "volume_count", "body", m.VolumeCount); err != nil {
 		return err
 	}
 

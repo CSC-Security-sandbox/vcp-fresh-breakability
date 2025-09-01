@@ -3,6 +3,8 @@ package activities_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"go.temporal.io/sdk/mocks"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,7 +31,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/sdk/mocks"
 )
 
 func TestCreateVolume_Success(t *testing.T) {
@@ -101,7 +102,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
@@ -143,7 +144,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
@@ -192,7 +193,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
@@ -247,7 +248,157 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolumeInONTAP_WhenLargeCapacityWithConstituentCount_FlexGroupStyleAndAggregatesAreSet", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider) // Use the mock provider
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := activities.VolumeCreateActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		constituentCount := int32(8)
+		volume := &datamodel.Volume{
+			Name:    "test-large-volume",
+			Svm:     &datamodel.Svm{Name: "test-svm"},
+			Account: &datamodel.Account{Name: "test-account"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+		}
+		volume.LargeVolumeAttributes = &datamodel.LargeVolumeAttributes{
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: &constituentCount,
+		}
+		node := &models.Node{}
+
+		aggrs := &activities.AggregateDistributionResult{
+			Aggregates:     []string{"aggr1", "aggr2", "aggr3", "aggr4"},
+			AggrMultiplier: 2,
+		}
+
+		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+		// Mock the CreateVolume method with specific checks for large capacity parameters
+		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+			return params.Style != nil &&
+				*params.Style == "flexgroup" &&
+				len(params.Aggregates) == len(aggrs.Aggregates) &&
+				params.ConstituentsPerAggregate != nil &&
+				*params.ConstituentsPerAggregate == aggrs.AggrMultiplier &&
+				params.TieringSupported == nil // Should not set TieringSupported for constituent count mode
+		})).Return(expectedResponse, nil)
+
+		// Act
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, aggrs)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolumeInONTAP_WhenLargeCapacityWithAutoProvisioning_FlexGroupStyleAndTieringSupportedAreSet", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider) // Use the mock provider
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := activities.VolumeCreateActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			Name:                  "test-large-volume-auto",
+			Svm:                   &datamodel.Svm{Name: "test-svm"},
+			Account:               &datamodel.Account{Name: "test-account"},
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{LargeCapacity: true}, // LargeVolumeConstituentCount is nil
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+		}
+		node := &models.Node{}
+
+		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+		// Mock the CreateVolume method with specific checks for auto-provisioning
+		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+			return params.Style != nil &&
+				*params.Style == "flexgroup" &&
+				params.TieringSupported != nil &&
+				*params.TieringSupported == true && // Should set TieringSupported for auto-provisioning
+				params.ConstituentsPerAggregate == nil // Should not set ConstituentsPerAggregate for auto-provisioning
+		})).Return(expectedResponse, nil)
+
+		// Act
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolumeInONTAP_WhenNotLargeCapacity_RegularAggregateIsSet", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider) // Use the mock provider
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := activities.VolumeCreateActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			Name:    "test-regular-volume",
+			Svm:     &datamodel.Svm{Name: "test-svm"},
+			Account: &datamodel.Account{Name: "test-account"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+		}
+		node := &models.Node{}
+
+		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+		// Mock the CreateVolume method with specific checks for regular volumes
+		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+			return params.Style == nil && // Should not set Style for regular volumes
+				len(params.Aggregates) == 1 &&
+				params.Aggregates[0] == "aggr1" && // Should use the default aggregate name
+				params.ConstituentsPerAggregate == nil && // Should not set ConstituentsPerAggregate for regular volumes
+				params.TieringSupported == nil // Should not set TieringSupported for regular volumes
+		})).Return(expectedResponse, nil)
+
+		// Act
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
@@ -283,7 +434,7 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm", IsRestore: false}).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
 
 	// Assert
 	assert.NoError(t, err)
@@ -318,7 +469,7 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	mockProvider.On("CreateVolume", mock.Anything).Return(nil, expectedError)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
 
 	// Assert
 	assert.Error(t, err)
@@ -1193,7 +1344,7 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm", IsRestore: false}).Return(nil, errors.New("volume not found"))
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
 
 	// Assert
 	assert.Error(t, err)
@@ -1348,7 +1499,7 @@ func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
 		return params.VolumeType == "dp"
 	})).Return(expectedResponse, nil)
 
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResponse, result)
@@ -1392,7 +1543,7 @@ func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
 		return params.RestoreFromSnapshot != nil
 	})).Return(expectedResponse, nil)
 
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, snapshot, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, snapshot, nil, nil)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResponse, result)
@@ -2879,5 +3030,459 @@ func TestGetVolumesByPoolID(t *testing.T) {
 		assert.Error(t, err)
 		assert.EqualError(t, err, "get volumes ran into error")
 		assert.Nil(t, result)
+	})
+}
+
+func TestCalculateAggregatesForConstituentVolumes(t *testing.T) {
+	// Helper function to create test aggregates
+	createTestAggregates := func(configs []struct {
+		name        string
+		state       string
+		volumeCount int64
+	}) []*vsa.Aggregate {
+		var aggregates []*vsa.Aggregate
+		for _, config := range configs {
+			aggregates = append(aggregates, &vsa.Aggregate{
+				Name:        config.name,
+				State:       config.state,
+				VolumeCount: config.volumeCount,
+			})
+		}
+		return aggregates
+	}
+
+	// Helper function to create exactly 12 test aggregates with default online state
+	createTwelveTestAggregates := func(volumeCounts []int64) []*vsa.Aggregate {
+		if len(volumeCounts) == 0 {
+			// Default all to 0 volume count
+			volumeCounts = make([]int64, 12)
+		}
+		if len(volumeCounts) != 12 {
+			panic("Must provide exactly 12 volume counts or empty slice for defaults")
+		}
+
+		var aggregates []*vsa.Aggregate
+		for i := 0; i < 12; i++ {
+			aggregates = append(aggregates, &vsa.Aggregate{
+				Name:        fmt.Sprintf("aggr%d", i+1),
+				State:       "online",
+				VolumeCount: volumeCounts[i],
+			})
+		}
+		return aggregates
+	}
+
+	// Helper function to count occurrences of each aggregate name in result
+	countAggregateOccurrences := func(result []string) map[string]int64 {
+		counts := make(map[string]int64)
+		for _, name := range result {
+			counts[name]++
+		}
+		return counts
+	}
+
+	t.Run("Success Cases", func(t *testing.T) {
+		t.Run("SingleConstituent_AssignsToFirstAggregate", func(t *testing.T) {
+			// Arrange - 12 aggregates with all starting at 0
+			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 1, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 1)
+			assert.Equal(t, "aggr1", result.Aggregates[0])
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("TwoConstituents_TwelveAggregates_EvenDistribution", func(t *testing.T) {
+			// Arrange - 12 aggregates all starting at 0
+			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 2, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 2)
+			counts := countAggregateOccurrences(result.Aggregates)
+			assert.Equal(t, int64(1), counts["aggr1"])
+			assert.Equal(t, int64(1), counts["aggr2"])
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("ThreeConstituents_TwelveAggregates_GreedyDistribution", func(t *testing.T) {
+			// Arrange - 12 aggregates all starting at 0
+			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 3, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 3)
+			counts := countAggregateOccurrences(result.Aggregates)
+			assert.Equal(t, int64(1), counts["aggr1"]) // First CV goes to aggr1
+			assert.Equal(t, int64(1), counts["aggr2"]) // Second CV goes to aggr2
+			assert.Equal(t, int64(1), counts["aggr3"]) // Third CV goes to aggr3
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("TwelveConstituents_TwelveAggregates_OnePerAggregate", func(t *testing.T) {
+			// Arrange - 12 aggregates all starting at 0
+			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 12, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 12)
+			counts := countAggregateOccurrences(result.Aggregates)
+			// Each aggregate should get exactly 1 constituent
+			for i := 1; i <= 12; i++ {
+				assert.Equal(t, int64(1), counts[fmt.Sprintf("aggr%d", i)])
+			}
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("ExistingVolumes_ProperDistribution", func(t *testing.T) {
+			// Arrange - 12 aggregates with varying existing volumes
+			aggregates := createTwelveTestAggregates([]int64{10, 5, 0, 20, 15, 2, 8, 12, 3, 25, 1, 7})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 3, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 3)
+			counts := countAggregateOccurrences(result.Aggregates)
+			// Should prioritize aggregates with least existing volumes: aggr3 (0), aggr11 (1), aggr6 (2)
+			assert.Equal(t, int64(2), counts["aggr3"])  // 0 existing volumes
+			assert.Equal(t, int64(1), counts["aggr11"]) // 1 existing volume
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("PartialCapacity_StopsWhenFull", func(t *testing.T) {
+			// Arrange - 12 aggregates with mixed capacity situations
+			aggregates := createTwelveTestAggregates([]int64{199, 0, 198, 6, 195, 10, 190, 15, 185, 20, 180, 25})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 10, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 5)
+			counts := countAggregateOccurrences(result.Aggregates)
+			assert.Equal(t, int64(4), counts["aggr2"])
+			assert.Equal(t, int64(1), counts["aggr4"])
+			assert.Equal(t, int64(2), result.AggrMultiplier)
+		})
+
+		t.Run("OneHundredConstituents_TwelveAggregates_EvenDistribution", func(t *testing.T) {
+			// Arrange - 12 aggregates all starting at 0
+			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 100, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 100)
+			counts := countAggregateOccurrences(result.Aggregates)
+			// Should distribute as evenly as possible across 12 aggregates: 100/12 = 8.33, so some get 8, some get 9
+			minCount := int64(8) // 100 / 12 = 8.33... so minimum is 8
+			maxCount := int64(9) // maximum is 9
+			for i := 1; i <= 12; i++ {
+				aggrName := fmt.Sprintf("aggr%d", i)
+				count := counts[aggrName]
+				assert.True(t, count >= minCount && count <= maxCount, "Aggregate %s should have %d or %d constituents, got %d", aggrName, minCount, maxCount, count)
+			}
+			assert.True(t, result.AggrMultiplier > 0, "HCF should be positive")
+		})
+	})
+
+	t.Run("Edge Cases", func(t *testing.T) {
+		t.Run("ZeroConstituents_ReturnsAvailableAggregates", func(t *testing.T) {
+			// Arrange - 12 aggregates with different volume counts
+			aggregates := createTwelveTestAggregates([]int64{0, 50, 100, 25, 75, 10, 60, 30, 40, 80, 20, 90})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 0, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, []string{}, result.Aggregates)
+		})
+		t.Run("EmptyAggregates_ReturnsError", func(t *testing.T) {
+			// Arrange
+			var aggregates []*vsa.Aggregate
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 5, 24)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "expected exactly 12 aggregates")
+			assert.Nil(t, result)
+		})
+
+		t.Run("AllAggregatesOffline_ReturnsError", func(t *testing.T) {
+			// Arrange - 12 aggregates all offline
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+			}{
+				{"aggr1", "offline", 0}, {"aggr2", "offline", 0}, {"aggr3", "offline", 0},
+				{"aggr4", "offline", 0}, {"aggr5", "offline", 0}, {"aggr6", "offline", 0},
+				{"aggr7", "offline", 0}, {"aggr8", "offline", 0}, {"aggr9", "offline", 0},
+				{"aggr10", "offline", 0}, {"aggr11", "offline", 0}, {"aggr12", "offline", 0},
+			})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 5, 24)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "is not online")
+			assert.Nil(t, result)
+		})
+
+		t.Run("AllAggregatesAtCapacity_ReturnsError", func(t *testing.T) {
+			// Arrange - 12 aggregates all at max capacity (200)
+			aggregates := createTwelveTestAggregates([]int64{200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 5, 24)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "no aggregates with available capacity")
+			assert.Nil(t, result)
+		})
+
+		t.Run("SingleAggregate_ReturnsError", func(t *testing.T) {
+			// Arrange - only one aggregate available (should fail validation)
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+			}{
+				{"aggr1", "online", 0},
+			})
+
+			// Act
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 5, 24)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "expected exactly 12 aggregates")
+			assert.Nil(t, result)
+		})
+
+		t.Run("VeryLargeConstituents_MaxDistribution", func(t *testing.T) {
+			// Arrange - test with max aggregates and large constituent count
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+			}{
+				{"aggr1", "online", 0}, {"aggr2", "online", 0}, {"aggr3", "online", 0},
+				{"aggr4", "online", 0}, {"aggr5", "online", 0}, {"aggr6", "online", 0},
+				{"aggr7", "online", 0}, {"aggr8", "online", 0}, {"aggr9", "online", 0},
+				{"aggr10", "online", 0}, {"aggr11", "online", 0}, {"aggr12", "online", 0},
+			})
+
+			// Act - 1200 constituents (100 per aggregate)
+			result, err := activities.CalculateAggregatesForConstituentVolumes(aggregates, 1200, 24)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 12)
+			counts := countAggregateOccurrences(result.Aggregates)
+			// Each aggregate should get exactly 100 constituents
+			for i := 1; i <= 12; i++ {
+				assert.Equal(t, int64(1), counts[fmt.Sprintf("aggr%d", i)])
+			}
+			assert.Equal(t, int64(100), result.AggrMultiplier, "HCF should be 100 for 1200 constituents")
+		})
+	})
+}
+
+func TestGetAggregatesFromOntap(t *testing.T) {
+	// Setup
+	mockStorage := database.NewMockStorage(t)
+	activity := &activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.Background()
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	// Original function to restore after tests
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	t.Run("Success_WithLargeVolumeConstituentCount", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Setup mock volume
+		constituentCount := int32(8)
+		volume := &datamodel.Volume{
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity:               true,
+				LargeVolumeConstituentCount: &constituentCount,
+			},
+		}
+
+		// Create mock aggregates - exactly 6 aggregates as required
+		mockAggregates := make([]*vsa.Aggregate, 0, 6)
+		for i := 1; i <= 6; i++ {
+			mockAggregates = append(mockAggregates, &vsa.Aggregate{
+				Name:        fmt.Sprintf("aggr%d", i),
+				State:       "online",
+				VolumeCount: 10,
+			})
+		}
+
+		// Setup expected result
+		expectedResult := &activities.AggregateDistributionResult{
+			Aggregates:     []string{"aggr1", "aggr2", "aggr3", "aggr4", "aggr5", "aggr6", "aggr1", "aggr2"},
+			AggrMultiplier: 1,
+		}
+
+		// Mock provider.GetAggregates to return our mock aggregates
+		mockProvider.On("GetAggregates").Return(mockAggregates, nil)
+
+		// Act
+		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int64(8), int64(*volume.LargeVolumeAttributes.LargeVolumeConstituentCount))
+		assert.Len(t, result.Aggregates, len(expectedResult.Aggregates))
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_GetProviderByNodeFails", func(t *testing.T) {
+		// Arrange
+		expectedErr := errors.New("failed to get provider")
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, expectedErr
+		}
+
+		volume := &datamodel.Volume{}
+
+		// Act
+		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.EqualError(t, err, expectedErr.Error())
+	})
+
+	t.Run("Error_GetAggregatesFails", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		expectedErr := errors.New("failed to get aggregates")
+		mockProvider.On("GetAggregates").Return(nil, expectedErr)
+
+		volume := &datamodel.Volume{}
+
+		// Act
+		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.EqualError(t, err, expectedErr.Error())
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_CalculateAggregatesForConstituentVolumesFails", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Create mock aggregates - only 5 aggregates (not the expected 6)
+		mockAggregates := make([]*vsa.Aggregate, 0, 5)
+		for i := 1; i <= 5; i++ {
+			mockAggregates = append(mockAggregates, &vsa.Aggregate{
+				Name:        fmt.Sprintf("aggr%d", i),
+				State:       "online",
+				VolumeCount: 10,
+			})
+		}
+
+		mockProvider.On("GetAggregates").Return(mockAggregates, nil)
+
+		constituentCount := int32(8)
+		volume := &datamodel.Volume{
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity:               true,
+				LargeVolumeConstituentCount: &constituentCount,
+			},
+		}
+
+		// Act
+		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "expected exactly 6 aggregates")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_AggregateNotOnline", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Create mock aggregates with one offline aggregate
+		mockAggregates := make([]*vsa.Aggregate, 0, 6)
+		for i := 1; i <= 6; i++ {
+			state := "online"
+			if i == 3 {
+				state = "offline" // Make one aggregate offline
+			}
+			mockAggregates = append(mockAggregates, &vsa.Aggregate{
+				Name:        fmt.Sprintf("aggr%d", i),
+				State:       state,
+				VolumeCount: 10,
+			})
+		}
+
+		mockProvider.On("GetAggregates").Return(mockAggregates, nil)
+
+		constituentCount := int32(8)
+		volume := &datamodel.Volume{
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity:               true,
+				LargeVolumeConstituentCount: &constituentCount,
+			},
+		}
+
+		// Act
+		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "is not online")
+		mockProvider.AssertExpectations(t)
 	})
 }

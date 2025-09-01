@@ -16,6 +16,7 @@ import (
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -25,7 +26,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+const maxConstituentVolumesPerAggregate = 200
+
 var (
+	numOfLvHAPairs             = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
 	minQuotaInBytesVolume      = utils.MinQuotaInBytesVolumeForVolume
 	maxQuotaInBytesVolume      = utils.MaxQuotaInBytesVolumeForVolume
 	createVolume               = _createVolume
@@ -283,6 +287,15 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		volumeObj.VolumeAttributes.RestoredBackupID = backup.UUID // Set the restored backup ID from the backup object
 	}
 
+	if params.LargeCapacity {
+		volumeObj.LargeVolumeAttributes = &datamodel.LargeVolumeAttributes{
+			LargeCapacity: true,
+		}
+		if params.LargeVolumeConstituentCount > 0 {
+			volumeObj.LargeVolumeAttributes.LargeVolumeConstituentCount = nillable.GetInt32Ptr(params.LargeVolumeConstituentCount)
+		}
+	}
+
 	dbVolume, err := se.CreateVolume(ctx, volumeObj)
 	if err != nil {
 		return nil, "", err
@@ -317,6 +330,10 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: dbVolume.UUID,
 		},
+	}
+
+	if params.LargeCapacity {
+		job.Type = string(models.JobTypeCreateLargeVolume)
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -716,10 +733,40 @@ func GetVolumeTypeValidator(protocols []string, accountName string) (VolumeTypeP
 }
 
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
-	if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %d. Must be between %d GiB and %d GiB.",
-			utils.ConvertBytesToGib(float64(params.QuotaInBytes)), utils.ConvertBytesToGib(float64(minQuotaInBytesVolume)),
-			utils.ConvertBytesToGib(float64(maxQuotaInBytesVolume))))
+	if pool.LargeCapacity != params.LargeCapacity {
+		return customerrors.NewUserInputValidationErr("pool large capacity setting does not match volume large capacity setting")
+	}
+
+	if params.LargeCapacity {
+		if utils.IsSanProtocols(params.Protocols) {
+			return customerrors.NewUserInputValidationErr("SAN protocols are not supported for large capacity volumes")
+		}
+
+		if params.BlockDevices != nil && len(*params.BlockDevices) > 0 {
+			return customerrors.NewUserInputValidationErr("BlockDevices are not supported for large capacity volumes")
+		}
+
+		if params.LargeVolumeConstituentCount > int32(numOfLvHAPairs*maxConstituentVolumesPerAggregate) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(numOfLvHAPairs*maxConstituentVolumesPerAggregate)))
+		}
+
+		if params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
+				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
+				utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
+		}
+	}
+
+	if !params.LargeCapacity {
+		if params.LargeVolumeConstituentCount > 0 {
+			return customerrors.NewUserInputValidationErr("Large Volume constituent count is only supported for large capacity volumes")
+		}
+
+		if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
+				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(minQuotaInBytesVolume),
+				utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
+		}
 	}
 
 	if pool.QuotaInBytes+params.QuotaInBytes > uint64(pool.SizeInBytes) {
@@ -986,6 +1033,11 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]string
 		}
 	}
 
+	if volume.LargeVolumeAttributes != nil {
+		res.LargeCapacity = volume.LargeVolumeAttributes.LargeCapacity
+		res.LargeVolumeConstituentCount = volume.LargeVolumeAttributes.LargeVolumeConstituentCount
+	}
+
 	return res
 }
 
@@ -1033,6 +1085,10 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: volume.UUID,
 		},
+	}
+
+	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
+		job.Type = string(models.JobTypeDeleteLargeVolume)
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

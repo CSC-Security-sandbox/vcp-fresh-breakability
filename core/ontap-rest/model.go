@@ -2082,8 +2082,10 @@ type VolumeCreateParams struct {
 	UnixPermissions                *string
 	Language                       *string
 	Svm                            string
+	Style                          *string
 	RestoreFromSnapshot            *RestoreFromSnapshotParams
 	TieringPolicy                  *TieringPolicy
+	TieringSupported               *bool
 }
 
 // TieringPolicy describes the auto tiering policy for a volume
@@ -2153,6 +2155,7 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		Type:  &params.Type,
 		State: nillable.ToPointer(VolumeStateOnline),
 		Size:  &params.Size,
+		Style: params.Style,
 		Svm: &models.VolumeInlineSvm{
 			Name: &params.Svm,
 		},
@@ -2180,6 +2183,7 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{
 			Name: &params.SnapshotPolicy,
 		},
+		ConstituentsPerAggregate: params.ConstituentsPerAggregate,
 	})
 
 	for _, aggregate := range params.Aggregates {
@@ -2196,10 +2200,18 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		otParams.Info.Tiering = &models.VolumeInlineTiering{
 			Policy:         nillable.ToPointer(params.TieringPolicy.CoolAccessTieringPolicy),
 			MinCoolingDays: nil,
+			Supported:      params.TieringSupported,
 		}
 		if params.TieringPolicy.CoolAccessTieringPolicy == models.VolumeInlineTieringPolicyAuto || params.TieringPolicy.CoolAccessTieringPolicy == models.VolumeInlineTieringPolicySnapshotOnly {
 			otParams.Info.Tiering.MinCoolingDays = &params.TieringPolicy.MinCoolingDays
 			otParams.Info.CloudRetrievalPolicy = &params.TieringPolicy.CloudRetrievalPolicy
+		}
+	}
+
+	// Set the tiering supported flag only for the case when auto provisioning flex-group volumes
+	if params.TieringSupported != nil && otParams.Info.Tiering == nil {
+		otParams.Info.Tiering = &models.VolumeInlineTiering{
+			Supported: params.TieringSupported,
 		}
 	}
 	return otParams

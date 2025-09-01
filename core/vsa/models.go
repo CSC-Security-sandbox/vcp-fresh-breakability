@@ -111,8 +111,9 @@ type Node struct {
 }
 
 type Aggregate struct {
-	Name  string
-	State string
+	Name        string
+	State       string
+	VolumeCount int64
 }
 
 type RestoreFromSnapshotParams struct {
@@ -125,12 +126,13 @@ type RestoreFromSnapshotParams struct {
 }
 
 type CreateVolumeParams struct {
-	VolumeName         string
-	SvmName            string
-	AggregateName      string
-	Size               int64
-	VolumeType         string
-	SnapshotPolicyName string
+	VolumeName               string
+	SvmName                  string
+	Aggregates               []string
+	ConstituentsPerAggregate *int64
+	Size                     int64
+	VolumeType               string
+	SnapshotPolicyName       string
 	// Reference to a snapshot for restore/clone
 	RestoreFromSnapshot *RestoreFromSnapshotParams // Optional: parameters for restoring from a snapshot
 	SnapReserve         int64
@@ -138,6 +140,8 @@ type CreateVolumeParams struct {
 	ExportPolicy        *string
 	Protocol            string
 	JunctionPath        *string
+	Style               *string // Volume style, e.g., "flexvol", "flexgroup"
+	TieringSupported    *bool
 }
 
 type ExportPolicy struct {

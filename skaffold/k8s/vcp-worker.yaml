@@ -118,7 +118,7 @@ spec:
             - name: MAX_NODES_PER_GROUP
               value: "200"
             - name: NUMBER_OF_HA_PAIRS_LARGE_CAPACITY
-              value: "12"
+              value: "2"
             - name: VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV
               value: "45"
             - name: VLM_MIN_LV_HA_PAIRS

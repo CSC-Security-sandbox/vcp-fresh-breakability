@@ -38,6 +38,37 @@ func (rc *OntapRestProvider) IsAggregateOnline(aggregateName string) (bool, erro
 	return aggr.IsOnline(), nil
 }
 
+func (rc *OntapRestProvider) GetAggregates() ([]*Aggregate, error) {
+	resultAggregates := make([]*Aggregate, 0) // Initialize as empty slice instead of nil
+
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	ucbf := func(aggregates []*ontapRest.Aggregate) error {
+		for _, aggregate := range aggregates {
+			agg := &Aggregate{
+				Name:        *aggregate.Name,
+				State:       *aggregate.State,
+				VolumeCount: *aggregate.VolumeCount,
+			}
+			resultAggregates = append(resultAggregates, agg)
+		}
+		return nil
+	}
+
+	err = client.Storage().AggregateCollectionGet(&ontapRest.AggregateCollectionGetParams{
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"state", "volume-count"},
+		},
+	}, ucbf)
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+	return resultAggregates, nil
+}
+
 func (rc *OntapRestProvider) GetAggregateByName(name string) (*Aggregate, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {

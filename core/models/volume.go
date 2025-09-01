@@ -3,35 +3,37 @@ package models
 // Volume describes a volume in the cloud volume model
 type Volume struct {
 	BaseModel
-	AccountName           string
-	PoolID                string
-	PoolName              string
-	VendorID              string
-	VendorSubnetID        string
-	ProtocolTypes         []string
-	Region                string
-	CreationToken         string
-	DisplayName           string
-	Description           string
-	LifeCycleState        string
-	LifeCycleStateDetails string
-	LifeCycleTrackingID   int32
-	QuotaInBytes          uint64
-	IsDataProtection      bool
-	BlockProperties       *BlockProperties
-	BlockDevices          *[]BlockDevice
-	SnapshotPolicy        *SnapshotPolicy
-	IPAddresses           []string
-	DataProtection        *DataProtection
-	Zone                  string
-	UsedBytes             uint64
-	EncryptionType        string
-	SnapReserve           int64
-	AutoTieringPolicy     *AutoTieringPolicy
-	Labels                map[string]string
-	FileProperties        *FileProperties
-	SvmName               string
-	KmsConfig             *KmsConfig
+	AccountName                 string
+	PoolID                      string
+	PoolName                    string
+	VendorID                    string
+	VendorSubnetID              string
+	ProtocolTypes               []string
+	Region                      string
+	CreationToken               string
+	DisplayName                 string
+	Description                 string
+	LargeCapacity               bool
+	LargeVolumeConstituentCount *int32
+	LifeCycleState              string
+	LifeCycleStateDetails       string
+	LifeCycleTrackingID         int32
+	QuotaInBytes                uint64
+	IsDataProtection            bool
+	BlockProperties             *BlockProperties
+	BlockDevices                *[]BlockDevice
+	SnapshotPolicy              *SnapshotPolicy
+	IPAddresses                 []string
+	DataProtection              *DataProtection
+	Zone                        string
+	UsedBytes                   uint64
+	EncryptionType              string
+	SnapReserve                 int64
+	AutoTieringPolicy           *AutoTieringPolicy
+	Labels                      map[string]string
+	FileProperties              *FileProperties
+	SvmName                     string
+	KmsConfig                   *KmsConfig
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

@@ -323,6 +323,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "5009": {
+    "description": "Constituent Volumes Limit Exceeded",
+    "message": "Constituent Volumes Limit Exceeded.",
+    "retriable": false,
+    "http_code": 400
+  },
   "6020": {
     "description": "IAM client Not Found",
     "message": "IAM client Not Found",

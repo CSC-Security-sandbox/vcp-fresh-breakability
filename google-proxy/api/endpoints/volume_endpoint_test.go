@@ -514,6 +514,113 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
+
+	t.Run("ValidInputWithLargeCapacityAndConstituentCount", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:                  "testvolume",
+				CreationToken:               gcpgenserver.NewOptString("test-token"),
+				PoolId:                      gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:                gcpgenserver.NewOptFloat64(1024),
+				LargeCapacity:               gcpgenserver.NewOptNilBool(true),
+				LargeVolumeConstituentCount: gcpgenserver.NewOptNilInt32(8),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+					gcpgenserver.BlockPropertiesV1beta{
+						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					},
+				),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-region"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:                 "test-project",
+			Region:                      "test-region",
+			Zone:                        "test-region",
+			Name:                        "testvolume",
+			VendorID:                    "/projects/test-project/locations/test-location/volumes/testvolume",
+			CreationToken:               "test-token",
+			PoolID:                      "test-pool",
+			QuotaInBytes:                1024,
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 8,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType: "LINUX",
+			},
+			Protocols: []string{
+				"ISCSI",
+			},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+				},
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("ValidInputWithLargeCapacityOnly", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				LargeCapacity: gcpgenserver.NewOptNilBool(true),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+					gcpgenserver.BlockPropertiesV1beta{
+						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					},
+				),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-region"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:                 "test-project",
+			Zone:                        "test-region",
+			Region:                      "test-region",
+			Name:                        "testvolume",
+			VendorID:                    "/projects/test-project/locations/test-location/volumes/testvolume",
+			CreationToken:               "test-token",
+			PoolID:                      "test-pool",
+			QuotaInBytes:                1024,
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 0, // Default value when not set
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType: "LINUX",
+			},
+			Protocols: []string{
+				"ISCSI",
+			},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+				},
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
 }
 
 func TestV1betaGetMultipleVolumes(t *testing.T) {
@@ -3309,6 +3416,104 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 
 		// Verify mount points are NOT created when no BlockDevices
 		assert.Empty(t, out.MountPoints)
+	})
+
+	t.Run("WithLargeCapacityAndConstituentCount", func(t *testing.T) {
+		constituentCount := int32(8)
+		vol := &models.Volume{
+			CreationToken:               "large-volume-token",
+			PoolID:                      "large-pool",
+			QuotaInBytes:                1073741824000, // 1TB
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: &constituentCount,
+			ProtocolTypes:               []string{"ISCSI"},
+			LifeCycleState:              "READY",
+			IPAddresses:                 []string{"10.72.177.17"},
+			BlockProperties:             &models.BlockProperties{OSType: "LINUX"},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify LargeCapacity is properly set
+		assert.True(t, out.LargeCapacity.IsSet())
+		largeCapacity, ok := out.LargeCapacity.Get()
+		assert.True(t, ok)
+		assert.True(t, largeCapacity)
+
+		// Verify LargeVolumeConstituentCount is properly set
+		assert.True(t, out.LargeVolumeConstituentCount.IsSet())
+		assert.Equal(t, constituentCount, out.LargeVolumeConstituentCount.Value)
+	})
+
+	t.Run("WithLargeCapacityTrue_NoConstituentCount", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:               "large-volume-token",
+			PoolID:                      "large-pool",
+			QuotaInBytes:                1073741824000, // 1TB
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: nil, // Not set
+			ProtocolTypes:               []string{"ISCSI"},
+			LifeCycleState:              "READY",
+			IPAddresses:                 []string{"10.72.177.17"},
+			BlockProperties:             &models.BlockProperties{OSType: "LINUX"},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify LargeCapacity is properly set
+		assert.True(t, out.LargeCapacity.IsSet())
+		largeCapacity, ok := out.LargeCapacity.Get()
+		assert.True(t, ok)
+		assert.True(t, largeCapacity)
+
+		// Verify LargeVolumeConstituentCount is not set
+		assert.False(t, out.LargeVolumeConstituentCount.IsSet())
+	})
+
+	t.Run("WithLargeCapacityFalse_WithNoConstituentCount", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:   "regular-volume-token",
+			PoolID:          "regular-pool",
+			QuotaInBytes:    107374182400, // 100GB
+			LargeCapacity:   false,
+			ProtocolTypes:   []string{"ISCSI"},
+			LifeCycleState:  "READY",
+			IPAddresses:     []string{"10.72.177.17"},
+			BlockProperties: &models.BlockProperties{OSType: "LINUX"},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify LargeCapacity is properly set to false
+		assert.True(t, out.LargeCapacity.IsSet())
+		largeCapacity, ok := out.LargeCapacity.Get()
+		assert.True(t, ok)
+		assert.False(t, largeCapacity)
+	})
+
+	t.Run("WithoutLargeCapacityAndConstituentCount", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:               "standard-volume-token",
+			PoolID:                      "standard-pool",
+			QuotaInBytes:                1073741824, // 1GB
+			LargeCapacity:               false,      // Default value
+			LargeVolumeConstituentCount: nil,        // Not set
+			ProtocolTypes:               []string{"ISCSI"},
+			LifeCycleState:              "READY",
+			IPAddresses:                 []string{"10.72.177.17"},
+			BlockProperties:             &models.BlockProperties{OSType: "LINUX"},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify LargeCapacity is properly set to false (default)
+		assert.True(t, out.LargeCapacity.IsSet())
+		largeCapacity, ok := out.LargeCapacity.Get()
+		assert.True(t, ok)
+		assert.False(t, largeCapacity)
+
+		// Verify LargeVolumeConstituentCount is not set
+		assert.False(t, out.LargeVolumeConstituentCount.IsSet())
 	})
 }
 

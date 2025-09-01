@@ -17,15 +17,18 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		return nil, err
 	}
 	volumeCreateParams := &ontapRest.VolumeCreateParams{
-		Name:                   params.VolumeName,
-		Type:                   params.VolumeType,
-		Size:                   params.Size,
-		Svm:                    params.SvmName,
-		Aggregates:             []string{params.AggregateName},
-		SnapshotPolicy:         params.SnapshotPolicyName,
-		SnapshotReservePercent: params.SnapReserve,
-		ExportPolicy:           params.ExportPolicy,
-		JunctionPath:           params.JunctionPath,
+		Name:                     params.VolumeName,
+		Type:                     params.VolumeType,
+		Size:                     params.Size,
+		Svm:                      params.SvmName,
+		Aggregates:               params.Aggregates,
+		ConstituentsPerAggregate: params.ConstituentsPerAggregate,
+		Style:                    params.Style,
+		SnapshotPolicy:           params.SnapshotPolicyName,
+		SnapshotReservePercent:   params.SnapReserve,
+		ExportPolicy:             params.ExportPolicy,
+		JunctionPath:             params.JunctionPath,
+		TieringSupported:         params.TieringSupported,
 	}
 	if params.RestoreFromSnapshot != nil && params.RestoreFromSnapshot.SnapshotUUID != "" {
 		volumeCreateParams.RestoreFromSnapshot = &ontapRest.RestoreFromSnapshotParams{
@@ -67,14 +70,20 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 	}
 
 	// Return the created SVM
-	return &VolumeResponse{
+	volRes := &VolumeResponse{
 		ProviderResponse: ProviderResponse{
 			Name:         *vol.Name,
 			ExternalUUID: *vol.UUID,
 		},
-		AvailableSpace: *vol.Space.Available,
-		State:          *vol.State,
-	}, nil
+		State: *vol.State,
+	}
+
+	// adding nil pointer checks as in some cases it may not be populated like FlexGroup volumes with large number of constituents
+	if vol.Space != nil && vol.Space.Available != nil {
+		volRes.AvailableSpace = *vol.Space.Available
+	}
+
+	return volRes, nil
 }
 
 // DeleteVolume creates a volume by calling the ONTAP REST Client

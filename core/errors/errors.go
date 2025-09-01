@@ -91,13 +91,14 @@ const (
 	ErrMissingRequiredInputError       = 4010
 	ErrUnexpectedNodeCountForPool      = 4011
 
-	ErrONTAPVersionFetchError         = 5001
-	ErrCreatingSVM                    = 5002
-	ErrDeletingSVM                    = 5003
-	ErrSVMNotFound                    = 5004
-	ErrOntapRestAPIError              = 5006
-	ErrOntapInconsistentResourceError = 5007
-	ErrONTAPClientCreationError       = 5008
+	ErrONTAPVersionFetchError          = 5001
+	ErrCreatingSVM                     = 5002
+	ErrDeletingSVM                     = 5003
+	ErrSVMNotFound                     = 5004
+	ErrOntapRestAPIError               = 5006
+	ErrOntapInconsistentResourceError  = 5007
+	ErrONTAPClientCreationError        = 5008
+	ErrConstituentVolumesLimitExceeded = 5009
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021

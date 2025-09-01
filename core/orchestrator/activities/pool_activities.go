@@ -114,6 +114,9 @@ const (
 	FirewallPriority        = 1000
 	IngressTrafficDirection = "INGRESS"
 
+	volStyleFlexGroup = "flexgroup"
+	volStyleFlexVol   = "flexvol"
+
 	keyManagerBootarg = "bootarg.keymanager.ekmip.svm_context=false"
 
 	MgmtVpcName      = "mgmt-e0a-vpc-01"

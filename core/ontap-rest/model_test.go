@@ -876,6 +876,129 @@ func TestVolumeCreateParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestVolumeCreateParamsToONTAPWithTieringPolicy(t *testing.T) {
+	// Case 1: Both TieringPolicy and TieringSupported are set
+	t.Run("WhenBothTieringPolicyAndTieringSupportedAreSet", func(tt *testing.T) {
+		isSupported := true
+		params := &VolumeCreateParams{
+			Name:       "vol1",
+			Type:       "rw",
+			Size:       1024,
+			Svm:        "svm1",
+			Aggregates: []string{"aggr1"},
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: models.VolumeInlineTieringPolicyAuto,
+				MinCoolingDays:          30,
+				CloudRetrievalPolicy:    "default",
+			},
+			TieringSupported: &isSupported,
+		}
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Tiering)
+		assert.Equal(tt, models.VolumeInlineTieringPolicyAuto, *result.Info.Tiering.Policy)
+		assert.Equal(tt, int64(30), *result.Info.Tiering.MinCoolingDays)
+		assert.Equal(tt, "default", *result.Info.CloudRetrievalPolicy)
+		assert.Equal(tt, &isSupported, result.Info.Tiering.Supported)
+	})
+
+	// Case 2: Only TieringPolicy is set (with snapshot-only policy)
+	t.Run("WhenOnlyTieringPolicyIsSetWithSnapshotOnly", func(tt *testing.T) {
+		params := &VolumeCreateParams{
+			Name:       "vol1",
+			Type:       "rw",
+			Size:       1024,
+			Svm:        "svm1",
+			Aggregates: []string{"aggr1"},
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: models.VolumeInlineTieringPolicySnapshotOnly,
+				MinCoolingDays:          45,
+				CloudRetrievalPolicy:    "promote",
+			},
+			TieringSupported: nil,
+		}
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Tiering)
+		assert.Equal(tt, models.VolumeInlineTieringPolicySnapshotOnly, *result.Info.Tiering.Policy)
+		assert.Equal(tt, int64(45), *result.Info.Tiering.MinCoolingDays)
+		assert.Equal(tt, "promote", *result.Info.CloudRetrievalPolicy)
+		assert.Nil(tt, result.Info.Tiering.Supported)
+	})
+
+	// Case 3: Only TieringPolicy is set (with non-auto/snapshot-only policy)
+	t.Run("WhenOnlyTieringPolicyIsSetWithNonAutoPolicy", func(tt *testing.T) {
+		params := &VolumeCreateParams{
+			Name:       "vol1",
+			Type:       "rw",
+			Size:       1024,
+			Svm:        "svm1",
+			Aggregates: []string{"aggr1"},
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: models.VolumeInlineTieringPolicyNone,
+				MinCoolingDays:          45,        // This should not be set in result
+				CloudRetrievalPolicy:    "promote", // This should not be set in result
+			},
+			TieringSupported: nil,
+		}
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Tiering)
+		assert.Equal(tt, models.VolumeInlineTieringPolicyNone, *result.Info.Tiering.Policy)
+		assert.Nil(tt, result.Info.Tiering.MinCoolingDays)
+		assert.Nil(tt, result.Info.CloudRetrievalPolicy)
+		assert.Nil(tt, result.Info.Tiering.Supported)
+	})
+
+	// Case 4: Only TieringSupported is set
+	t.Run("WhenOnlyTieringSupportedIsSet", func(tt *testing.T) {
+		isSupported := true
+		params := &VolumeCreateParams{
+			Name:             "vol1",
+			Type:             "rw",
+			Size:             1024,
+			Svm:              "svm1",
+			Aggregates:       []string{"aggr1"},
+			TieringPolicy:    nil,
+			TieringSupported: &isSupported,
+		}
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Tiering)
+		assert.Nil(tt, result.Info.Tiering.Policy)
+		assert.Nil(tt, result.Info.Tiering.MinCoolingDays)
+		assert.Nil(tt, result.Info.CloudRetrievalPolicy)
+		assert.Equal(tt, &isSupported, result.Info.Tiering.Supported)
+	})
+
+	// Case 5: Neither TieringPolicy nor TieringSupported is set
+	t.Run("WhenNeitherTieringPolicyNorTieringSupportedIsSet", func(tt *testing.T) {
+		params := &VolumeCreateParams{
+			Name:             "vol1",
+			Type:             "rw",
+			Size:             1024,
+			Svm:              "svm1",
+			Aggregates:       []string{"aggr1"},
+			TieringPolicy:    nil,
+			TieringSupported: nil,
+		}
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Nil(tt, result.Info.Tiering)
+		assert.Nil(tt, result.Info.CloudRetrievalPolicy)
+	})
+}
+
 func TestIscsiServiceGetParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
 		result := iscsiServiceGetParamsToONTAP(nil)

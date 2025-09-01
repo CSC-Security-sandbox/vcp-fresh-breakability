@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -282,6 +283,290 @@ func TestIsAggregateOnline_OntapClientFuncError(t *testing.T) {
 	assert.Error(t, err)
 	assert.False(t, aggregate)
 	assert.Equal(t, "OntapClientFunc error", err.Error())
+}
+
+// Helper function to create mock aggregates for testing
+func createMockAggregates(count int, statePattern string) []*ontaprest.Aggregate {
+	aggregates := make([]*ontaprest.Aggregate, count)
+	for i := 0; i < count; i++ {
+		state := "online"
+		if statePattern == "mixed" && i%2 == 1 {
+			state = "offline"
+		} else if statePattern == "offline" {
+			state = "offline"
+		}
+
+		aggregates[i] = &ontaprest.Aggregate{
+			Aggregate: models.Aggregate{
+				Name:        nillable.ToPointer(fmt.Sprintf("aggr%d", i+1)),
+				State:       nillable.ToPointer(state),
+				VolumeCount: nillable.ToPointer(int64(i * 5)),
+			},
+		}
+	}
+	return aggregates
+}
+
+// Helper function to create custom aggregates with specific states
+func createCustomAggregates(configs []struct {
+	name, state string
+	volumeCount int64
+}) []*ontaprest.Aggregate {
+	aggregates := make([]*ontaprest.Aggregate, len(configs))
+	for i, config := range configs {
+		aggregates[i] = &ontaprest.Aggregate{
+			Aggregate: models.Aggregate{
+				Name:        nillable.ToPointer(config.name),
+				State:       nillable.ToPointer(config.state),
+				VolumeCount: nillable.ToPointer(config.volumeCount),
+			},
+		}
+	}
+	return aggregates
+}
+
+// Helper function to setup mock storage with aggregate callback
+func setupMockStorageWithAggregates(aggregates []*ontaprest.Aggregate) (*ontaprest.MockStorageClient, *ontaprest.MockRESTClient) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+
+	mockStorage.On("AggregateCollectionGet", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		callback := args.Get(1).(ontaprest.UserCallbackFunc[[]*ontaprest.Aggregate])
+		err := callback(aggregates)
+		if err != nil {
+			return
+		}
+	}).Return(nil)
+
+	return mockStorage, mockClient
+}
+
+func TestGetAggregates_Success(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	rc := &OntapRestProvider{}
+
+	// Use helper function to create mock aggregates
+	mockAggregates := createMockAggregates(5, "online")
+	mockStorage, mockClient := setupMockStorageWithAggregates(mockAggregates)
+
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+
+	result, err := rc.GetAggregates()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 5)
+
+	// Verify first aggregate
+	assert.Equal(t, "aggr1", result[0].Name)
+	assert.Equal(t, "online", result[0].State)
+	assert.Equal(t, int64(0), result[0].VolumeCount)
+
+	// Verify second aggregate
+	assert.Equal(t, "aggr2", result[1].Name)
+	assert.Equal(t, "online", result[1].State)
+	assert.Equal(t, int64(5), result[1].VolumeCount)
+
+	// Verify last aggregate
+	assert.Equal(t, "aggr5", result[4].Name)
+	assert.Equal(t, "online", result[4].State)
+	assert.Equal(t, int64(20), result[4].VolumeCount)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestGetAggregates_EmptyResult(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	rc := &OntapRestProvider{}
+
+	// Use helper to create empty aggregates list
+	mockAggregates := createMockAggregates(0, "online")
+	mockStorage, mockClient := setupMockStorageWithAggregates(mockAggregates)
+
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+
+	result, err := rc.GetAggregates()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 0)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestGetAggregates_AggregateCollectionGetError(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	// Mock AggregateCollectionGet to return an error
+	mockStorage.On("AggregateCollectionGet", mock.Anything, mock.Anything).Return(errors.New("API error"))
+
+	result, err := rc.GetAggregates()
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	// Verify it's wrapped in CustomError
+	assert.EqualError(t, err, "An internal error occurred.")
+	var customErr *vsaerrors.CustomError
+	if vsaerrors.As(err, &customErr) {
+		assert.Equal(t, customErr.OriginalErr.Error(), "API error")
+		assert.Equal(t, customErr.HttpCode, nillable.ToPointer(500))
+		assert.Equal(t, customErr.TrackingID, 5006)
+		assert.Equal(t, customErr.Message, "An internal error occurred.")
+		assert.Equal(t, customErr.Retriable, false)
+	} else {
+		t.Fatalf("Expected a CustomError, got %T", err)
+	}
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestGetAggregates_OntapClientFuncError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return nil, errors.New("OntapClientFunc error")
+	}
+	rc := &OntapRestProvider{}
+
+	result, err := rc.GetAggregates()
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, "OntapClientFunc error", err.Error())
+}
+
+func TestGetAggregates_CorrectFieldsRequested(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	// Mock the AggregateCollectionGet call and verify the fields parameter
+	mockStorage.On("AggregateCollectionGet", mock.MatchedBy(func(params *ontaprest.AggregateCollectionGetParams) bool {
+		// Verify that the correct fields are requested
+		expectedFields := []string{"state", "volume-count"}
+		if len(params.Fields) != len(expectedFields) {
+			return false
+		}
+		for i, field := range expectedFields {
+			if params.Fields[i] != field {
+				return false
+			}
+		}
+		return true
+	}), mock.Anything).Run(func(args mock.Arguments) {
+		// Get the callback function with correct type and call it with empty data
+		callback := args.Get(1).(ontaprest.UserCallbackFunc[[]*ontaprest.Aggregate])
+		err := callback([]*ontaprest.Aggregate{})
+		if err != nil {
+			return
+		}
+	}).Return(nil)
+
+	result, err := rc.GetAggregates()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 0)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestGetAggregates_WithMixedStates(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	rc := &OntapRestProvider{}
+
+	// Use helper to create aggregates with mixed states (online/offline alternating)
+	mockAggregates := createMockAggregates(6, "mixed")
+	mockStorage, mockClient := setupMockStorageWithAggregates(mockAggregates)
+
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+
+	result, err := rc.GetAggregates()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 6)
+
+	// Verify alternating states
+	assert.Equal(t, "online", result[0].State)  // aggr1
+	assert.Equal(t, "offline", result[1].State) // aggr2
+	assert.Equal(t, "online", result[2].State)  // aggr3
+	assert.Equal(t, "offline", result[3].State) // aggr4
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestGetAggregates_WithCustomConfiguration(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	rc := &OntapRestProvider{}
+
+	// Use helper to create custom aggregates configuration
+	customConfigs := []struct {
+		name, state string
+		volumeCount int64
+	}{
+		{"production-aggr", "online", 100},
+		{"staging-aggr", "offline", 50},
+		{"test-aggr", "online", 0},
+	}
+	mockAggregates := createCustomAggregates(customConfigs)
+	mockStorage, mockClient := setupMockStorageWithAggregates(mockAggregates)
+
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+
+	result, err := rc.GetAggregates()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 3)
+
+	// Verify custom configurations
+	assert.Equal(t, "production-aggr", result[0].Name)
+	assert.Equal(t, "online", result[0].State)
+	assert.Equal(t, int64(100), result[0].VolumeCount)
+
+	assert.Equal(t, "staging-aggr", result[1].Name)
+	assert.Equal(t, "offline", result[1].State)
+	assert.Equal(t, int64(50), result[1].VolumeCount)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
 }
 
 func TestGetAggregateByName_Success(t *testing.T) {

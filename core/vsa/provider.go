@@ -23,6 +23,7 @@ type Provider interface {
 	JobGet(jobUUID string) (*OntapJob, error)
 	AreAllNodeUpAndRunning() (bool, error)
 	IsAggregateOnline(aggregateName string) (bool, error)
+	GetAggregates() ([]*Aggregate, error)
 	GetNodes() ([]*Node, error)
 	GetNodeByName(name string) (*Node, error)
 	CreateSVM(params CreateSvmParams) (*ProviderResponse, error)

@@ -60,7 +60,7 @@ var (
 	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1x49")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
-	numOfLvHAPairs               = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 12)
+	numOfLvHAPairs               = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
 
 	serviceAttachment                 = env.GetString("GIN_SERVICE_ATTACHMENT", "")
 	ginLoggingMetricsProtocol         = env.GetString("GIN_METRICS_PROTOCOL", "tcp-unencrypted")

@@ -75,33 +75,35 @@ type RevertVolumeParams struct {
 
 // CreateVolumeParams describes parameters supplied to CreatePool
 type CreateVolumeParams struct {
-	AccountName       string
-	Region            string
-	Zone              string
-	Name              string
-	Description       string
-	Network           string
-	PoolID            string
-	VendorID          string
-	CreationToken     string
-	DisplayName       string
-	QuotaInBytes      uint64
-	IsDataProtection  bool
-	Protocols         []string
-	BlockProperties   *BlockPropertiesRequest
-	BlockDevices      *[]BlockDevice
-	SnapReserve       int64
-	DataProtection    *models.DataProtection
-	SnapshotID        string
-	SnapshotPolicy    *models.SnapshotPolicy
-	FileProperties    *models.FileProperties
-	Snapshot          *datamodel.Snapshot
-	AutoTieringPolicy *AutoTieringPolicy
-	BackupID          string
-	BackupPath        string
-	BackupSchedule    string
-	Labels            *datamodel.JSONB
-	CacheParameters   *models.CacheParameters
+	AccountName                 string
+	Region                      string
+	Zone              			string
+	Name                        string
+	Description                 string
+	Network                     string
+	PoolID                      string
+	VendorID                    string
+	CreationToken               string
+	DisplayName                 string
+	QuotaInBytes                uint64
+	IsDataProtection            bool
+	Protocols                   []string
+	BlockProperties             *BlockPropertiesRequest
+	BlockDevices                *[]BlockDevice
+	SnapReserve                 int64
+	DataProtection              *models.DataProtection
+	SnapshotID                  string
+	SnapshotPolicy              *models.SnapshotPolicy
+	FileProperties              *models.FileProperties
+	Snapshot                    *datamodel.Snapshot
+	AutoTieringPolicy           *AutoTieringPolicy
+	BackupID                    string
+	LargeCapacity               bool
+	BackupPath                  string
+	BackupSchedule    			string
+	Labels                      *datamodel.JSONB
+	CacheParameters   			*models.CacheParameters
+	LargeVolumeConstituentCount int32
 }
 
 type SnapmirrorRelationshipParams struct {

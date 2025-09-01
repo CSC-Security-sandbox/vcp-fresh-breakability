@@ -28,9 +28,11 @@ const (
 	JobTypeFlexCacheInternalPeering  JobType = "FLEXCACHE_INTERNAL_PEERING"
 
 	JobTypeCreateVolume                      JobType = "CREATE_VOLUME"
+	JobTypeCreateLargeVolume                 JobType = "CREATE_LARGE_VOLUME"
 	JobTypeUpdateVolume                      JobType = "UPDATE_VOLUME"
 	JobTypeRevertVolume                      JobType = "REVERT_VOLUME"
 	JobTypeDeleteVolume                      JobType = "DELETE_VOLUME"
+	JobTypeDeleteLargeVolume                 JobType = "DELETE_LARGE_VOLUME"
 	JobTypeCreateSnapshot                    JobType = "CREATE_SNAPSHOT"
 	JobTypeUpdateSnapshot                    JobType = "UPDATE_SNAPSHOT"
 	JobTypeDeleteSnapshot                    JobType = "DELETE_SNAPSHOT"

@@ -29,11 +29,11 @@ func TestCreateVolume_Success(t *testing.T) {
 		volumeName := "testVolume"
 		volSpace := int64(1024)
 		params := CreateVolumeParams{
-			VolumeName:    volumeName,
-			SvmName:       "testSVM",
-			AggregateName: "testAggregate",
-			Size:          volSpace,
-			VolumeType:    "rw",
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       volSpace,
+			VolumeType: "rw",
 		}
 
 		mockJob := &ontaprest.JobAccepted{
@@ -60,6 +60,7 @@ func TestCreateVolume_Success(t *testing.T) {
 		assert.NotNil(t, resp)
 		assert.Equal(t, volumeName, resp.Name)
 		assert.Equal(t, "testUUID", resp.ExternalUUID)
+		assert.Equal(t, volSpace, resp.AvailableSpace)
 
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
@@ -88,7 +89,7 @@ func TestCreateVolume_Success(t *testing.T) {
 		params := CreateVolumeParams{
 			VolumeName:    volumeName,
 			SvmName:       "testSVM",
-			AggregateName: "testAggregate",
+			Aggregates:    []string{"testAggregate"},
 			Size:          volSpace,
 			VolumeType:    "rw",
 			TieringPolicy: &tieringPolicy,
@@ -118,6 +119,7 @@ func TestCreateVolume_Success(t *testing.T) {
 		assert.NotNil(t, resp)
 		assert.Equal(t, volumeName, resp.Name)
 		assert.Equal(t, "testUUID", resp.ExternalUUID)
+		assert.Equal(t, volSpace, resp.AvailableSpace)
 
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
@@ -139,11 +141,11 @@ func TestCreateVolume_ErrorOnCreate(t *testing.T) {
 
 	volumeName := "testVolume"
 	params := CreateVolumeParams{
-		VolumeName:    volumeName,
-		SvmName:       "testSVM",
-		AggregateName: "testAggregate",
-		Size:          int64(1024),
-		VolumeType:    "rw",
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
 	}
 
 	mockStorage.On("VolumeCreate", mock.Anything).Return(nil, nil, errors.New("creation error"))
@@ -172,11 +174,11 @@ func TestCreateVolume_DuplicateErrorOnCreate(t *testing.T) {
 
 	volumeName := "testVolume"
 	params := CreateVolumeParams{
-		VolumeName:    volumeName,
-		SvmName:       "testSVM",
-		AggregateName: "testAggregate",
-		Size:          int64(1024),
-		VolumeType:    "rw",
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
 	}
 
 	mockStorage.On("VolumeCreate", mock.Anything).Return(nil, nil, errors.New("Duplicate volume name"))
@@ -205,11 +207,11 @@ func TestCreateVolume_ErrorOnNilResponse(t *testing.T) {
 
 	volumeName := "testVolume"
 	params := CreateVolumeParams{
-		VolumeName:    volumeName,
-		SvmName:       "testSVM",
-		AggregateName: "testAggregate",
-		Size:          int64(1024),
-		VolumeType:    "rw",
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
 	}
 
 	mockStorage.On("VolumeCreate", mock.Anything).Return(nil, nil, nil)
@@ -239,11 +241,11 @@ func TestCreateVolume_ErrorOnPoll(t *testing.T) {
 
 	volumeName := "testVolume"
 	params := CreateVolumeParams{
-		VolumeName:    volumeName,
-		SvmName:       "testSVM",
-		AggregateName: "testAggregate",
-		Size:          int64(1024),
-		VolumeType:    "rw",
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
 	}
 
 	mockJob := &ontaprest.JobAccepted{
@@ -289,7 +291,7 @@ func TestCreateVolumesFailure_getOntapClientFuncError(t *testing.T) {
 	params := CreateVolumeParams{
 		VolumeName:    volumeName,
 		SvmName:       "testSVM",
-		AggregateName: "testAggregate",
+		Aggregates:    []string{"testAggregate"},
 		Size:          volSpace,
 		VolumeType:    "rw",
 		TieringPolicy: &tieringPolicy,
@@ -300,6 +302,112 @@ func TestCreateVolumesFailure_getOntapClientFuncError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Equal(t, "getOntapClientFunc error", err.Error())
+}
+
+func TestCreateVolume_NilSpaceHandling(t *testing.T) {
+	t.Run("TestCreateVolume_WithNilSpace", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       int64(1024),
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		// Mock volume with nil Space (like FlexGroup volumes with large number of constituents)
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID:  nillable.ToPointer("testUUID"),
+				Name:  &volumeName,
+				Space: nil, // Nil space to test the nil pointer check
+				State: nillable.ToPointer(models.VolumeStateOnline),
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, volumeName, resp.Name)
+		assert.Equal(t, "testUUID", resp.ExternalUUID)
+		assert.Equal(t, int64(0), resp.AvailableSpace) // Should be 0 when Space is nil
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolume_WithNilAvailableSpace", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       int64(1024),
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		// Mock volume with Space but nil Available
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: nil, // Nil Available to test the nil pointer check
+				},
+				State: nillable.ToPointer(models.VolumeStateOnline),
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, volumeName, resp.Name)
+		assert.Equal(t, "testUUID", resp.ExternalUUID)
+		assert.Equal(t, int64(0), resp.AvailableSpace) // Should be 0 when Available is nil
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
 }
 
 func TestDeleteVolume_Success(t *testing.T) {

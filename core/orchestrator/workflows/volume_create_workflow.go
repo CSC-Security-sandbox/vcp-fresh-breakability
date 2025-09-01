@@ -332,6 +332,15 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
 
+	// Get Aggregates from ONTAP if the volume is large capacity
+	var aggregateResult *activities.AggregateDistributionResult
+	if dbVolume.LargeVolumeAttributes != nil && dbVolume.LargeVolumeAttributes.LargeCapacity && dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.GetAggregatesFromOntap, &dbVolume, &node, len(dbNodes)).Get(ctx, &aggregateResult)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
 	// Pre-provisioning child workflow
 	preWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre, dbVolume.Account.Name)
 	if err != nil {
@@ -354,7 +363,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	var volCreateResponse *vsa.VolumeResponse
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node, &snapshot, backup).Get(ctx, &volCreateResponse)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node, &snapshot, backup, aggregateResult).Get(ctx, &volCreateResponse)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

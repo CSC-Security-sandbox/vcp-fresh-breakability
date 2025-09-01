@@ -455,6 +455,13 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		}
 	}
 
+	if req.Volume.LargeCapacity.IsSet() {
+		param.LargeCapacity, _ = req.Volume.LargeCapacity.Get()
+	}
+
+	if req.Volume.LargeVolumeConstituentCount.IsSet() {
+		param.LargeVolumeConstituentCount = req.Volume.LargeVolumeConstituentCount.Value
+	}
 	return param, nil
 }
 
@@ -821,6 +828,10 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		SnapReserve:        gcpgenserver.NewOptFloat64(float64(volume.SnapReserve)),
 		Zone:               gcpgenserver.NewOptString(volume.Zone),
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
+		LargeCapacity:      gcpgenserver.NewOptNilBool(volume.LargeCapacity),
+	}
+	if volume.LargeVolumeConstituentCount != nil {
+		res.LargeVolumeConstituentCount = gcpgenserver.NewOptNilInt32(*volume.LargeVolumeConstituentCount)
 	}
 	if volume.KmsConfig != nil {
 		res.KmsConfigId = gcpgenserver.NewOptNilString(volume.KmsConfig.UUID)

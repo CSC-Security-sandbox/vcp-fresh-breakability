@@ -97,6 +97,20 @@ func (pa *PoolAttributes) Scan(value interface{}) error {
 }
 
 // Value implements the Valuer interface for PoolAttributes
+func (pa LargeVolumeAttributes) Value() (driver.Value, error) {
+	return json.Marshal(pa)
+}
+
+// Scan implements the Scanner interface for PoolAttributes
+func (pa *LargeVolumeAttributes) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, pa)
+}
+
+// Value implements the Valuer interface for PoolAttributes
 func (pa PoolAttributes) Value() (driver.Value, error) {
 	return json.Marshal(pa)
 }
@@ -131,27 +145,28 @@ func (pc PoolCredentials) Value() (driver.Value, error) {
 
 type Volume struct {
 	BaseModel
-	Name               string             `gorm:"column:name"`
-	Description        string             `gorm:"column:description"`
-	State              string             `gorm:"column:state"`
-	StateDetails       string             `gorm:"column:state_details"`
-	Health             string             `gorm:"column:health"`
-	MountPath          string             `gorm:"column:mount_path"`
-	SizeInBytes        int64              `gorm:"column:size_in_bytes"`
-	Throughput         int64              `gorm:"column:throughput"`
-	AccountID          int64              `gorm:"column:account_id"`
-	PoolID             int64              `gorm:"column:pool_id"`
-	SvmID              int64              `gorm:"column:svm_id"`
-	Account            *Account           `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Pool               *Pool              `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Svm                *Svm               `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	VolumeAttributes   *VolumeAttributes  `gorm:"column:volume_attributes;type:jsonb"`
-	DataProtection     *DataProtection    `gorm:"column:data_protection;type:jsonb"`
-	SnapshotPolicy     *SnapshotPolicy    `gorm:"column:snapshot_policy;type:jsonb"`
-	UsedBytes          uint64             `gorm:"column:used_bytes"`
-	AutoTieringEnabled bool               `gorm:"column:auto_tiering_enabled"`
-	AutoTieringPolicy  *AutoTieringPolicy `gorm:"column:auto_tiering_policy;type:jsonb"`
-	CacheParameters    *CacheParameters   `gorm:"column:cache_parameters;type:jsonb"`
+	Name                  string                 `gorm:"column:name"`
+	Description           string                 `gorm:"column:description"`
+	State                 string                 `gorm:"column:state"`
+	StateDetails          string                 `gorm:"column:state_details"`
+	Health                string                 `gorm:"column:health"`
+	MountPath             string                 `gorm:"column:mount_path"`
+	SizeInBytes           int64                  `gorm:"column:size_in_bytes"`
+	Throughput            int64                  `gorm:"column:throughput"`
+	AccountID             int64                  `gorm:"column:account_id"`
+	PoolID                int64                  `gorm:"column:pool_id"`
+	SvmID                 int64                  `gorm:"column:svm_id"`
+	Account               *Account               `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Pool                  *Pool                  `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Svm                   *Svm                   `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	VolumeAttributes      *VolumeAttributes      `gorm:"column:volume_attributes;type:jsonb"`
+	DataProtection        *DataProtection        `gorm:"column:data_protection;type:jsonb"`
+	SnapshotPolicy        *SnapshotPolicy        `gorm:"column:snapshot_policy;type:jsonb"`
+	UsedBytes             uint64                 `gorm:"column:used_bytes"`
+	AutoTieringEnabled    bool                   `gorm:"column:auto_tiering_enabled"`
+	AutoTieringPolicy     *AutoTieringPolicy     `gorm:"column:auto_tiering_policy;type:jsonb"`
+	CacheParameters       *CacheParameters       `gorm:"column:cache_parameters;type:jsonb"`
+	LargeVolumeAttributes *LargeVolumeAttributes `gorm:"column:large_volume_attributes;type:jsonb"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL
@@ -242,6 +257,11 @@ type ExportRule struct {
 type HostGroupDetail struct {
 	HostGroupUUID string   `json:"host_group_uuid"`
 	HostQNs       []string `json:"host_qns"`
+}
+
+type LargeVolumeAttributes struct {
+	LargeCapacity               bool   `json:"large_capacity"`
+	LargeVolumeConstituentCount *int32 `json:"large_volume_constituent_count"`
 }
 
 func (v *VolumeAttributes) Scan(value interface{}) error {

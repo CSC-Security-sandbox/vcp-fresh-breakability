@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"database/sql"
 	errors2 "errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -685,6 +686,756 @@ func TestGetVolume(t *testing.T) {
 		assert.Equal(tt, volumeId, result.UUID)
 		assert.Equal(tt, []string{"1.1.1.1"}, result.IPAddresses)
 		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
+	t.Run("PoolVolumeCapacityMismatch_PoolLarge_VolumeNot", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
+			LargeCapacity: true,                                   // Pool is large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  12 * 1099511627776, // 12 TiB
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false, // Volume is NOT large capacity - mismatch!
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "pool large capacity setting does not match volume large capacity setting")
+	})
+
+	t.Run("PoolVolumeCapacityMismatch_PoolNotLarge_VolumeIs", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,                                 // Pool is NOT large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  12 * 1099511627776, // 12 TiB
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: true, // Volume IS large capacity - mismatch!
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "pool large capacity setting does not match volume large capacity setting")
+	})
+
+	t.Run("LargeCapacitySANProtocolRestriction", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
+			LargeCapacity: true,                                   // Pool is large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  12 * 1099511627776,            // 12 TiB
+			Protocols:     []string{utils.ProtocolISCSI}, // SAN protocol - not allowed for large capacity!
+			Network:       "test-network",
+			LargeCapacity: true,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "SAN protocols are not supported for large capacity volumes")
+	})
+
+	t.Run("LargeCapacityBlockDevicesNotNIl", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
+			LargeCapacity: true,                                   // Pool is large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  14 * 1099511627776,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: true,
+			BlockDevices: &[]common.BlockDevice{
+				{OSType: "linux", Name: "/dev/sda"},
+				{OSType: "linux", Name: "/dev/sdb"},
+			},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "BlockDevices are not supported for large capacity volumes")
+	})
+
+	t.Run("ConstituentCountForNonLargeCapacity", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,                                 // Pool is NOT large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:                 "test_account",
+			Name:                        "test-volume",
+			PoolID:                      pool.UUID,
+			QuotaInBytes:                107374182400, // 100 GiB (valid for non-large capacity)
+			Protocols:                   []string{utils.ProtocolNFSv3},
+			Network:                     "test-network",
+			LargeCapacity:               false,
+			LargeVolumeConstituentCount: 12, // Constituent count set for non-large capacity - not allowed!
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "Large Volume constituent count is only supported for large capacity volumes")
+	})
+
+	t.Run("MaxConstituentCountForLargeCapacity", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: true,                                  // Pool is NOT large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:                 "test_account",
+			Name:                        "test-volume",
+			PoolID:                      pool.UUID,
+			QuotaInBytes:                107374182400, // 100 GiB (valid for non-large capacity)
+			Protocols:                   []string{utils.ProtocolNFSv3},
+			Network:                     "test-network",
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 1200, // Constituent count set for non-large capacity - not allowed!
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(numOfLvHAPairs*maxConstituentVolumesPerAggregate)))
+	})
+
+	t.Run("LargeCapacityQuotaTooSmall", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
+			LargeCapacity: true,                                   // Pool is large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  1 * 1099511627776, // 1 TiB - too small for large capacity (min is 12 TiB)
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: true,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "Invalid volume capacity")
+		assert.ErrorContains(tt, err, "Must be between")
+		assert.ErrorContains(tt, err, "TiB and")
+		assert.ErrorContains(tt, err, "PiB")
+	})
+
+	t.Run("LargeCapacityQuotaTooLarge", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(20 * 1125899906842624), // 100 PiB (very large pool)
+			LargeCapacity: true,                         // Pool is large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  25 * 1125899906842624, // 25 PiB - too large for large capacity (max is 20 PiB)
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: true,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "Invalid volume capacity")
+		assert.ErrorContains(tt, err, "Must be between")
+		assert.ErrorContains(tt, err, "TiB and")
+		assert.ErrorContains(tt, err, "PiB")
+	})
+
+	t.Run("NonLargeCapacityQuotaTooSmall", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,                                 // Pool is NOT large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  0.5 * 1024 * 1024 * 1024, // 50 GiB - too small (min is 500 MiB)
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "Invalid volume capacity")
+		assert.ErrorContains(tt, err, "Must be between")
+		assert.ErrorContains(tt, err, "GiB and")
+		assert.ErrorContains(tt, err, "GiB")
+	})
+
+	t.Run("NonLargeCapacityQuotaTooLarge", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(200 * 1024 * 1024 * 1024 * 1024), // 200TB (very large pool)
+			LargeCapacity: false,                                  // Pool is NOT large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  200 * 1024 * 1024 * 1024 * 1024, // 120 TiB - too large for non-large capacity (max is ~102,400 GiB)
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "Invalid volume capacity")
+		assert.ErrorContains(tt, err, "Must be between")
+		assert.ErrorContains(tt, err, "GiB and")
+		assert.ErrorContains(tt, err, "GiB")
+	})
+
+	t.Run("ValidLargeCapacityQuota", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
+			LargeCapacity: true,                                   // Pool is large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  15 * 1099511627776, // 15 TiB - valid for large capacity
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: true,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// Should not return an error for this validation branch - other validations might fail but quota validation should pass
+		if err != nil {
+			// If there's an error, it should NOT be about quota validation
+			assert.NotContains(tt, err.Error(), "Invalid volume capacity")
+		}
+	})
+
+	t.Run("ValidNonLargeCapacityQuota", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,                                 // Pool is NOT large capacity
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024, // 500 GiB - valid for non-large capacity
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// Should not return an error for this validation branch - other validations might fail but quota validation should pass
+		if err != nil {
+			// If there's an error, it should NOT be about quota validation
+			assert.NotContains(tt, err.Error(), "Invalid volume capacity")
+		}
 	})
 }
 
@@ -5254,7 +6005,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.EqualError(tt, err, "Invalid volume capacity 0. Must be between 1 GiB and 131072 GiB.")
+		assert.EqualError(tt, err, "Invalid volume capacity 1073741823B. Must be between 1GiB and 128TiB.")
 	})
 	t.Run("WhenVolumeSizeExceedsPoolSize", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -11404,7 +12155,7 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 			quotaInBytes:      uint64(131073 * utils.GiBInBytes), // 131073 GiB - exceeds new maximum
 			needsComplexSetup: false,
 			blockDevices:      nil,
-			expectedError:     "Invalid volume capacity 131073. Must be between 1 GiB and 131072 GiB.",
+			expectedError:     "Invalid volume capacity 131073GiB. Must be between 1GiB and 128TiB.",
 		},
 		{
 			name:              "WhenVolumeCapacityBelowNewMinimum",
@@ -11412,7 +12163,7 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 			quotaInBytes:      uint64(utils.GiBInBytes - 1), // Just below 1 GiB
 			needsComplexSetup: false,
 			blockDevices:      nil,
-			expectedError:     "Invalid volume capacity 0. Must be between 1 GiB and 131072 GiB.",
+			expectedError:     "Invalid volume capacity 1073741823B. Must be between 1GiB and 128TiB.",
 		},
 		{
 			name:              "WhenZeroVolumeCapacity",
@@ -11420,7 +12171,7 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 			quotaInBytes:      0, // Zero capacity
 			needsComplexSetup: false,
 			blockDevices:      nil,
-			expectedError:     "Invalid volume capacity 0. Must be between 1 GiB and 131072 GiB.",
+			expectedError:     "Invalid volume capacity 0B. Must be between 1GiB and 128TiB.",
 		},
 	}
 
