@@ -651,6 +651,38 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Code)
 		assert.Equal(tt, fmt.Sprintf("Host group cannot have more than %d hosts", maxHostsPerHG), result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
 	})
+	t.Run("WhenUpdateHostGroupFailsWithNoIQN", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "valid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "host-group-id",
+		}
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+			Hosts:       []string{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", nil
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(&models.HostGroup{}, nil)
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Code)
+		assert.Equal(tt, "Host group should have at least one IQN", result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
+	})
 	t.Run("WhenUpdateHostGroupSucceeds", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{

@@ -237,6 +237,13 @@ func (h Handler) V1betaUpdateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 		HostGroupUUID: params.HostGroupId,
 	}
 
+	if req.Hosts != nil && len(req.Hosts) < 1 {
+		return &gcpgenserver.V1betaUpdateHostGroupBadRequest{
+			Code:    400,
+			Message: "Host group should have at least one IQN",
+		}, nil
+	}
+
 	if req.Hosts != nil {
 		hosts := DeduplicateSlice(req.Hosts)
 		updateParams.Hosts = &hosts

@@ -217,16 +217,16 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if !utils.IsSliceEqual(primaryBlockDevice.HostGroups, volumeAttachedHG) {
 			toCreate, toDelete := activities.HostGroupsUpdateDiffForVolume(volumeAttachedHG, primaryBlockDevice.HostGroups)
 
-			if len(toCreate) > 0 {
-				err = workflow.ExecuteActivity(ctx, updateActivity.EnsureHostGroupsExistsAndMapDisk, &volume, toCreate, &node).Get(ctx, nil)
+			// Ensure the lun iGroup maps to delete created
+			if len(toDelete) > 0 {
+				err = workflow.ExecuteActivity(ctx, updateActivity.UnmapHostGroupFromDisk, &volume, toDelete, &node).Get(ctx, nil)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
 				}
 			}
 
-			// Ensure the lun iGroup maps to delete created
-			if len(toDelete) > 0 {
-				err = workflow.ExecuteActivity(ctx, updateActivity.UnmapHostGroupFromDisk, &volume, toDelete, &node).Get(ctx, nil)
+			if len(toCreate) > 0 {
+				err = workflow.ExecuteActivity(ctx, updateActivity.EnsureHostGroupsExistsAndMapDisk, &volume, toCreate, &node).Get(ctx, nil)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
 				}
