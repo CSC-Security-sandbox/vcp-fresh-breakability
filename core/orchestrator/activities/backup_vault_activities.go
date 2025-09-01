@@ -166,9 +166,9 @@ func convertToSDEBackupRetentionPolicy(attrs common.BackupRetentionPolicyParams)
 	return &models.BackupRetentionPolicyUpdateV1beta{
 		BackupMinimumEnforcedRetentionDays: backupMinimumEnforcedRetentionDuration,
 		DailyBackupImmutable:               dailyBackupImmutable,
-		ManualBackupImmutable:              weeklyBackupImmutable,
+		ManualBackupImmutable:              adhocBackupImmutable,
 		MonthlyBackupImmutable:             monthlyBackupImmutable,
-		WeeklyBackupImmutable:              adhocBackupImmutable,
+		WeeklyBackupImmutable:              weeklyBackupImmutable,
 	}
 }
 
