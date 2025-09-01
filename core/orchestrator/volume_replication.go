@@ -115,6 +115,15 @@ func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 		return nil, nil, err
 	}
 
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -178,6 +187,15 @@ func _updateVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, nil, err
 	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -246,6 +264,15 @@ func _stopReplicationInternal(ctx context.Context, se database.Storage, temporal
 		return nil, nil, err
 	}
 
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -288,6 +315,11 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 		},
 		ForceStop: params.ForceStop,
 	}
+
+	if params.Zone != "" {
+		event.CommonReplicationEventParams.Location = params.Zone
+	}
+
 	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
 	if err != nil {
 		return nil, "", err
@@ -313,6 +345,15 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -496,6 +537,16 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
 	// Set the workflow ID for the job
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -867,6 +918,15 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 		return nil, nil, err
 	}
 
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -1072,6 +1132,10 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 		},
 	}
 
+	if params.Zone != "" {
+		event.CommonReplicationEventParams.Location = params.Zone
+	}
+
 	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
 	if err != nil {
 		return nil, "", err
@@ -1098,6 +1162,15 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -1174,6 +1247,15 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", err
 	}
 
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -1242,6 +1324,15 @@ func _resumeReplicationInternal(ctx context.Context, se database.Storage, tempor
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, nil, err
 	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -1319,6 +1410,15 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 		return nil, nil, err
 	}
 
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -1362,6 +1462,10 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		},
 	}
 
+	if params.Zone != "" {
+		event.CommonReplicationEventParams.Location = params.Zone
+	}
+
 	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
 	if err != nil {
 		return nil, "", err
@@ -1395,6 +1499,15 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
 
 	if isCleanUp {
 		_, err = temporal.ExecuteWorkflow(ctx,
@@ -1481,6 +1594,15 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{

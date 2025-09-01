@@ -9,19 +9,24 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestGetSrcBasePathUpdate(t *testing.T) {
 	t.Run("ValidSrcBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		result := &replication.UpdateReplicationResult{
 			Event: &replication.UpdateReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceLocation: "location-id",
+							SourceLocation: "us-central1",
 						},
 					},
 				},
@@ -29,7 +34,10 @@ func TestGetSrcBasePathUpdate(t *testing.T) {
 		}
 		activity := VolumeReplicationUpdateActivity{}
 
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "", nil
+		}
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "https://src-base-path.example.com", nil
 		}
 
@@ -40,12 +48,17 @@ func TestGetSrcBasePathUpdate(t *testing.T) {
 		assert.Equal(tt, "https://src-base-path.example.com", *updatedResult.SrcBasePath)
 	})
 	t.Run("ErrorSrcBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		result := &replication.UpdateReplicationResult{
 			Event: &replication.UpdateReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceLocation: "location-id",
+							SourceLocation: "us-central1",
 						},
 					},
 				},
@@ -53,7 +66,10 @@ func TestGetSrcBasePathUpdate(t *testing.T) {
 		}
 		activity := VolumeReplicationUpdateActivity{}
 
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "", nil
+		}
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "", errors.New("failed to get paired region URI")
 		}
 
@@ -66,12 +82,17 @@ func TestGetSrcBasePathUpdate(t *testing.T) {
 
 func TestGetDstBasePathUpdate(t *testing.T) {
 	t.Run("ValidDstBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		result := &replication.UpdateReplicationResult{
 			Event: &replication.UpdateReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation: "location-id",
+							DestinationLocation: "us-east1",
 						},
 					},
 				},
@@ -79,7 +100,10 @@ func TestGetDstBasePathUpdate(t *testing.T) {
 		}
 		activity := VolumeReplicationUpdateActivity{}
 
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-east1", "", nil
+		}
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "https://dst-base-path.example.com", nil
 		}
 
@@ -90,12 +114,17 @@ func TestGetDstBasePathUpdate(t *testing.T) {
 		assert.Equal(tt, "https://dst-base-path.example.com", *updatedResult.DstBasePath)
 	})
 	t.Run("ErrorDstBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		result := &replication.UpdateReplicationResult{
 			Event: &replication.UpdateReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation: "location-id",
+							DestinationLocation: "us-east1",
 						},
 					},
 				},
@@ -103,7 +132,10 @@ func TestGetDstBasePathUpdate(t *testing.T) {
 		}
 		activity := VolumeReplicationUpdateActivity{}
 
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-east1", "", nil
+		}
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "", errors.New("failed to get paired region URI")
 		}
 

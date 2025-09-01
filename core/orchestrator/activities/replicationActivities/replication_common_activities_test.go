@@ -74,6 +74,31 @@ func TestHydrateVolumeReplication(t *testing.T) {
 	})
 }
 
+func TestMapVolumeBetaToVolumeHydrateObject(t *testing.T) {
+	t.Run("WhenVolumeWithAllFields", func(tt *testing.T) {
+		volume := models.Volume{
+			BaseModel: models.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			DisplayName:   "test-volume-display",
+			QuotaInBytes:  1073741824, // 1 GiB in bytes
+			ProtocolTypes: []string{"NFS", "SMB"},
+		}
+		poolResourceId := "test-pool-resource-id"
+
+		result := mapVolumeBetaToVolumeHydrateObject(volume, poolResourceId)
+
+		// Verify all fields are correctly mapped
+		assert.Equal(tt, "test-volume-display", result.ResourceId)
+		assert.Equal(tt, "test-volume-uuid", result.VolumeId)
+		assert.Equal(tt, "test-pool-resource-id", result.PoolId)
+		assert.Equal(tt, []string{"NFS", "SMB"}, result.Protocols)
+		assert.Equal(tt, "READY", result.State)
+		assert.Equal(tt, int64(1), result.QuotaInGib) // 1 GiB
+		assert.Equal(tt, VolumeV1betaServiceLevelFLEX, result.ServiceLevel)
+	})
+}
+
 func TestVolumeReplicationDeHydration(t *testing.T) {
 	createReplicationResponse := &models.VolumeReplication{
 		Name:  "replication-name",

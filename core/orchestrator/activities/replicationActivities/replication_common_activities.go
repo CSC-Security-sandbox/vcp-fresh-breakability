@@ -25,6 +25,8 @@ var (
 	hydrateReplicationStateAndType                              = common.HydrateReplicationStateAndType
 	hydrateReplicationDelete                                    = common.ReplicationDelete
 	getQuotaLimit                                               = common.GetQuotaLimit
+	replicationInternalParseRegionAndZone                       = replication.InternalParseRegionAndZone
+	replicationInternalUtilGetPairedRegionURI                   = replication.InternalUtilGetPairedRegionURI
 )
 
 const (
@@ -39,7 +41,7 @@ func _mapVolumeBetaToVolumeHydrateObject(volume models.Volume, poolResourceId st
 		VolumeId:     volume.UUID,
 		PoolId:       poolResourceId,
 		Protocols:    volume.ProtocolTypes,
-		State:        volume.LifeCycleState,
+		State:        "READY",
 		QuotaInGib:   utils.ConvertBytesToGib(quotaInBytes),
 		ServiceLevel: VolumeV1betaServiceLevelFLEX,
 	}
@@ -188,7 +190,14 @@ func _mapReplicationLifeCycleStateBetaToReplicationHydrationState(state string) 
 func GetBasePath(ctx context.Context, location string) (*string, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("getBasePath")
-	basePath, err := replication.InternalUtilGetPairedRegionURI(location)
+
+	region, _, parseError := replicationInternalParseRegionAndZone(location)
+	if parseError != nil {
+		logger.Error("Parse Source Location Error")
+		return nil, parseError
+	}
+
+	basePath, err := replicationInternalUtilGetPairedRegionURI(region)
 	if err != nil {
 		return nil, err
 	}

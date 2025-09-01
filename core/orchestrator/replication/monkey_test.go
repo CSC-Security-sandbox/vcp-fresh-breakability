@@ -10,7 +10,7 @@ func (_m *monkeyMock) Patch() {
 	InternalUtilGetCallbackToken = _m.InternalUtilGetCallbackToken
 	InternalUtilGetSignedToken = _m.InternalUtilGetSignedToken
 	InternalUtilGetPairedRegionURI = _m.InternalUtilGetPairedRegionURI
-	internalParseRegionAndZone = _m.internalParseRegionAndZone
+	InternalParseRegionAndZone = _m.InternalParseRegionAndZone
 	validateReplicationResourceId = _m.validateReplicationResourceId
 	validateStoragePoolUri = _m.validateStoragePoolUri
 	getDestinationPool = _m.getDestinationPool
@@ -26,7 +26,7 @@ func (_m *monkeyMock) Unpatch() {
 	InternalUtilGetCallbackToken = auth.GetSignedAccessToken
 	InternalUtilGetSignedToken = auth.GetSignedJwtToken
 	InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
-	internalParseRegionAndZone = utils.ParseRegionAndZone
+	InternalParseRegionAndZone = utils.ParseRegionAndZone
 	validateReplicationResourceId = _validateReplicationResourceId
 	validateStoragePoolUri = _validateStoragePoolUri
 	getDestinationPool = _getDestinationPool

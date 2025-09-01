@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -262,13 +263,24 @@ func TestGetMultipleReplicationsInternal(t *testing.T) {
 			t.Fatalf("Failed to create replication 2: %v", err)
 		}
 
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
+		expectedError := errors.New("workflow error")
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError).Once()
 
 		resp, err := orch.GetMultipleReplicationsInternal(ctx, "test_account", replicationUUIDs)
 
 		assert.Error(tt, err)
 		assert.ErrorContains(tt, err, "workflow error")
 		assert.Nil(tt, resp)
+
+		// Verify that the job was created and marked as ERROR due to the defer block
+		var jobs []datamodel.Job
+		err = store.DB().Where("account_id = ? AND type = ?", account.ID, string(models.JobTypeRefreshVolumeReplicationInternal)).Find(&jobs).Error
+		assert.NoError(tt, err)
+		assert.Len(tt, jobs, 1)
+
+		job := jobs[0]
+		assert.Equal(tt, string(models.JobsStateERROR), job.State)
+		assert.Contains(tt, job.ErrorDetails, "workflow error")
 	})
 }
 
@@ -304,11 +316,26 @@ func TestPerformMountCheck(t *testing.T) {
 			},
 			Name: "test_account",
 		}
+		err = store.DB().Create(dbAccount).Error
+		assert.NoError(tt, err, "Failed to create account")
+
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("temporal error"))
+
+		expectedError := errors.New("temporal error")
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 		_, err = performMountCheck(ctx, store, temporal, replicationUUID, accountName)
 		assert.EqualError(tt, err, "temporal error")
+
+		// Verify that the job was created and marked as ERROR due to the defer block
+		var jobs []datamodel.Job
+		err = store.DB().Where("account_id = ? AND type = ?", dbAccount.ID, string(models.JobTypeMountCheck)).Find(&jobs).Error
+		assert.NoError(tt, err)
+		assert.Len(tt, jobs, 1)
+
+		job := jobs[0]
+		assert.Equal(tt, string(models.JobsStateERROR), job.State)
+		assert.Contains(tt, job.ErrorDetails, "temporal error")
 	})
 }

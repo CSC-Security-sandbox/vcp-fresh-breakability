@@ -164,15 +164,70 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 		}
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
-				ID: 1,
+				ID:   1,
+				UUID: "job-uuid-123",
 			},
 		}
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(&datamodel.VolumeReplication{}, nil)
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
+
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 		_, _, err := _createVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenExecuteWorkflowFailsAndUpdateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		mockStorage.On("GetVolume", ctx, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.CreateVolumeReplicationInternalParams{
+			VolumeReplication: &models.VolumeReplication{
+				Account: &models.Account{
+					BaseModel: models.BaseModel{
+						ID: 1,
+					},
+					Name: "test-account",
+				},
+				Name: "test-replication",
+				ReplicationAttributes: &models.ReplicationDetails{
+					DestinationVolumeUUID: "test-volume-uuid",
+				},
+			},
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid-123",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(&datamodel.VolumeReplication{}, nil)
+
+		// Mock the UpdateJob call to fail (this tests the error handling in the defer block)
+		mockStorage.On("UpdateJob", ctx, "job-uuid-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+		_, _, err := _createVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called even though it failed
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
@@ -416,9 +471,21 @@ func TestCreateVolumeReplication(t *testing.T) {
 		}
 		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
 
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid-456",
+			},
+			WorkflowID: "workflow-id",
+		}
+
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "workflow-id"}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid-456", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
+
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 
 		params := &commonparams.CreateVolumeReplicationParams{
@@ -436,6 +503,66 @@ func TestCreateVolumeReplication(t *testing.T) {
 		_, _, err := _createVolumeReplication(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenExecuteWorkflowFailsAndUpdateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		dbVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Pool: &datamodel.Pool{
+				Name: "test-pool",
+			},
+		}
+		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
+
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid-456",
+			},
+			WorkflowID: "workflow-id",
+		}
+
+		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
+
+		// Mock the UpdateJob call to fail (this tests the error handling in the defer block)
+		mockStorage.On("UpdateJob", ctx, "job-uuid-456", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		params := &commonparams.CreateVolumeReplicationParams{
+			AccountName:      "test-account",
+			SourceVolumeName: "test-volume",
+		}
+		convertCreateReplicationParamsToEventParam = func(in *commonparams.CreateVolumeReplicationParams, out *replication.CreateReplicationEvent) error {
+			return nil
+		}
+
+		validateCreateReplicationParams = func(ctx context.Context, event *replication.CreateReplicationEvent, se database.Storage) (*datamodel.VolumeReplication, error) {
+			return dbRep, nil
+		}
+
+		_, _, err := _createVolumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called even though it failed
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("WhenSuccess", func(tt *testing.T) {
@@ -3079,8 +3206,10 @@ func TestResumeReplication(t *testing.T) {
 				UUID: "job-uuid",
 			},
 		}
+		expectedError := errors.New("failed to execute workflow")
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, expectedError.Error()).Return(nil)
 
 		params := &commonparams.ResumeReplicationParams{
 			AccountName: "account-name",
@@ -3148,6 +3277,146 @@ func TestResumeReplication(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenZoneParameterIsProvided", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Capture the event to verify zone parameter handling
+		var capturedEvent *replication.ResumeReplicationEvent
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil
+		}
+		expectedResponse := &models.VolumeReplication{
+			ReplicationAttributes: &models.ReplicationDetails{},
+		}
+
+		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
+			// Capture the event for verification
+			capturedEvent = event
+			return expectedResponse, nil
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+			Zone:        "us-central1-a", // Set zone parameter
+		}
+
+		resp, jobuuid, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse.UUID, jobuuid)
+		assert.Equal(tt, expectedResponse, resp)
+
+		// Verify that the zone parameter was correctly handled
+		// The zone should override the Location field in the event
+		assert.Equal(tt, "us-central1-a", capturedEvent.CommonReplicationEventParams.Location)
+		assert.Equal(tt, "us-central1-a", capturedEvent.CommonReplicationEventParams.Zone)
+	})
+	t.Run("WhenZoneParameterIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Capture the event to verify zone parameter handling
+		var capturedEvent *replication.ResumeReplicationEvent
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil
+		}
+		expectedResponse := &models.VolumeReplication{
+			ReplicationAttributes: &models.ReplicationDetails{},
+		}
+
+		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
+			// Capture the event for verification
+			capturedEvent = event
+			return expectedResponse, nil
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+			Zone:        "", // Empty zone parameter
+		}
+
+		resp, jobuuid, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse.UUID, jobuuid)
+		assert.Equal(tt, expectedResponse, resp)
+
+		// Verify that when zone is empty, Location remains unchanged
+		// Since params.Region is not set in this test, Location should be empty
+		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Location)
+		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Zone)
 	})
 }
 
@@ -3283,10 +3552,13 @@ func TestResumeReplicationInternal(t *testing.T) {
 				UUID: "job-uuid",
 			},
 		}
+		expectedError := errors.New("failed to execute workflow")
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplicationId).Return(replicationDb, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, expectedError.Error()).Return(nil)
+
 		_, _, err := _resumeReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplicationId, accountName, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
@@ -3454,10 +3726,14 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 				Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 			},
 		}
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(dbVolumeReplication, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "workflow-id"}, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, expectedError.Error()).Return(nil)
+
 		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "test-replication")
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
@@ -3728,8 +4004,11 @@ func TestStopReplication(t *testing.T) {
 				UUID: "job-uuid",
 			},
 		}
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, expectedError.Error()).Return(nil)
 
 		params := &commonparams.StopReplicationParams{
 			AccountName: "account-name",
@@ -3798,6 +4077,148 @@ func TestStopReplication(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenZoneParameterIsProvided", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationStop = replication.VerifyDstReplicationStop
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Capture the event to verify zone parameter handling
+		var capturedEvent *replication.StopReplicationEvent
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+			}
+			return nil
+		}
+		expectedResponse := &models.VolumeReplication{
+			ReplicationAttributes: &models.ReplicationDetails{},
+		}
+
+		verifyDstReplicationStop = func(ctx context.Context, event *replication.StopReplicationEvent) (*models.VolumeReplication, error) {
+			// Capture the event for verification
+			capturedEvent = event
+			return expectedResponse, nil
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.StopReplicationParams{
+			AccountName: "account-name",
+			Zone:        "us-central1-a", // Set zone parameter
+		}
+
+		resp, jobuuid, err := _stopReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse.UUID, jobuuid)
+		assert.Equal(tt, expectedResponse, resp)
+
+		// Verify that the zone parameter was correctly handled
+		// The zone should override the Location field in the event
+		assert.Equal(tt, "us-central1-a", capturedEvent.CommonReplicationEventParams.Location)
+		assert.Equal(tt, "us-central1-a", capturedEvent.CommonReplicationEventParams.Zone)
+	})
+	t.Run("WhenZoneParameterIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationStop = replication.VerifyDstReplicationStop
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Capture the event to verify zone parameter handling
+		var capturedEvent *replication.StopReplicationEvent
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+			}
+			return nil
+		}
+		expectedResponse := &models.VolumeReplication{
+			ReplicationAttributes: &models.ReplicationDetails{},
+		}
+
+		verifyDstReplicationStop = func(ctx context.Context, event *replication.StopReplicationEvent) (*models.VolumeReplication, error) {
+			// Capture the event for verification
+			capturedEvent = event
+			return expectedResponse, nil
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.StopReplicationParams{
+			AccountName: "account-name",
+			Zone:        "", // Empty zone parameter
+		}
+
+		resp, jobuuid, err := _stopReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse.UUID, jobuuid)
+		assert.Equal(tt, expectedResponse, resp)
+
+		// Verify that when zone is empty, Location remains unchanged
+		// Since params.Region is not set in this test, Location should be empty
+		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Location)
+		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Zone)
 	})
 }
 
@@ -3982,13 +4403,31 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			State:     models.LifeCycleStateREADY,
 			Volume:    &datamodel.Volume{Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}}},
 		}
+
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid-789",
+			},
+			WorkflowID: "workflow-id",
+		}
+
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "workflow-id"}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid-789", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("Success", func(tt *testing.T) {
 		ctx := context.Background()
@@ -4221,13 +4660,23 @@ func TestStopReplicationInternal(t *testing.T) {
 				UUID: "job-uuid",
 			},
 		}
+
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplicationId).Return(replicationDb, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 		_, _, err := _stopReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplicationId, accountName, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
@@ -4476,8 +4925,15 @@ func TestDeleteReplication(t *testing.T) {
 				UUID: "job-uuid",
 			},
 		}
+
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
@@ -4485,6 +4941,9 @@ func TestDeleteReplication(t *testing.T) {
 		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenExecuteWorkflowFailsForCleanup", func(tt *testing.T) {
 		ctx := context.Background()
@@ -4531,8 +4990,15 @@ func TestDeleteReplication(t *testing.T) {
 				UUID: "job-uuid",
 			},
 		}
+
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
@@ -4540,6 +5006,9 @@ func TestDeleteReplication(t *testing.T) {
 		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, true)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
@@ -4599,6 +5068,148 @@ func TestDeleteReplication(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenZoneParameterIsProvided", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Capture the event to verify zone parameter handling
+		var capturedEvent *replication.DeleteReplicationEvent
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil
+		}
+		expectedResponse := &models.VolumeReplication{
+			ReplicationAttributes: &models.ReplicationDetails{},
+		}
+
+		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			// Capture the event for verification
+			capturedEvent = event
+			return expectedResponse, nil
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+			Zone:        "us-central1-a", // Set zone parameter
+		}
+
+		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse.UUID, jobuuid)
+		assert.Equal(tt, expectedResponse, resp)
+
+		// Verify that the zone parameter was correctly handled
+		// The zone should override the Location field in the event
+		assert.Equal(tt, "us-central1-a", capturedEvent.CommonReplicationEventParams.Location)
+		assert.Equal(tt, "us-central1-a", capturedEvent.CommonReplicationEventParams.Zone)
+	})
+	t.Run("WhenZoneParameterIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Capture the event to verify zone parameter handling
+		var capturedEvent *replication.DeleteReplicationEvent
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil
+		}
+		expectedResponse := &models.VolumeReplication{
+			ReplicationAttributes: &models.ReplicationDetails{},
+		}
+
+		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			// Capture the event for verification
+			capturedEvent = event
+			return expectedResponse, nil
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+			Zone:        "", // Empty zone parameter
+		}
+
+		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse.UUID, jobuuid)
+		assert.Equal(tt, expectedResponse, resp)
+
+		// Verify that when zone is empty, Location remains unchanged
+		// Since params.Region is not set in this test, Location should be empty
+		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Location)
+		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Zone)
 	})
 }
 
@@ -4786,8 +5397,15 @@ func TestSyncReplication(t *testing.T) {
 				UUID: "job-uuid",
 			},
 		}
+
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 
 		params := &commonparams.ResumeReplicationParams{
 			AccountName: "account-name",
@@ -4795,6 +5413,9 @@ func TestSyncReplication(t *testing.T) {
 		_, _, err := _syncReplication(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
@@ -4933,18 +5554,29 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 		}
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
-				ID: 1,
+				ID:   1,
+				UUID: "job-uuid-update",
 			},
 		}
 
 		volumeRep := &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{ID: 2}, Volume: &datamodel.Volume{State: models2.VolumeStateOnline, Pool: &datamodel.Pool{}}}
+
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("GetVolumeReplication", ctx, "replication-uuid-1").Return(volumeRep, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid-update", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 		_, _, err := _updateVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
@@ -5229,8 +5861,15 @@ func TestUpdateReplication(t *testing.T) {
 				UUID: "job-uuid",
 			},
 		}
+
+		expectedError := errors.New("failed to execute workflow")
+
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		// Mock the UpdateJob call that should happen in the defer block
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 
 		params := &commonparams.UpdateReplicationParams{
 			AccountName: "account-name",
@@ -5238,6 +5877,9 @@ func TestUpdateReplication(t *testing.T) {
 		_, _, err := _updateReplication(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
+
+		// Verify that UpdateJob was called to mark the job as ERROR
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()

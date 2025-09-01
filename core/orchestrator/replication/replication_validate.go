@@ -56,7 +56,7 @@ var (
 	InternalUtilGetCallbackToken   = auth.GetSignedAccessToken
 	InternalUtilGetSignedToken     = auth.GetSignedJwtToken
 	InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
-	internalParseRegionAndZone     = utils.ParseRegionAndZone
+	InternalParseRegionAndZone     = utils.ParseRegionAndZone
 
 	regexpCompile    = regexp.Compile
 	JsonMarshal      = json.Marshal
@@ -108,7 +108,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		}
 	}
 
-	sourceRegion, _, parseError := internalParseRegionAndZone(event.LocationID)
+	sourceRegion, _, parseError := InternalParseRegionAndZone(event.LocationID)
 	if parseError != nil {
 		logger.Error("Parse Source Location Error")
 		return nil, errors.NewVCPError(errors.ErrParseSourceLocation, errors.New(parseError.Error()))
@@ -119,7 +119,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
 	}
 
-	destRegion, _, parseError := internalParseRegionAndZone(event.DestinationLocationID)
+	destRegion, _, parseError := InternalParseRegionAndZone(event.DestinationLocationID)
 	if parseError != nil {
 		logger.Error("Parse Destination Location Error", common.Error(errors.New(parseError.Error())))
 		return nil, errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
@@ -448,8 +448,8 @@ func _createReplicationObjects(event *CreateReplicationEvent, remotelocation, re
 	replicationAttributes := datamodel.ReplicationDetails{
 		SourceVolumeUUID:    sourceVolumeUUID.String(),
 		SourceVolumeName:    event.SourceVolume.Name,
-		SourceLocation:      region,
-		DestinationLocation: remoteRegion,
+		SourceLocation:      event.LocationID,
+		DestinationLocation: event.DestinationLocationID,
 		EndpointType:        models.VolumeReplicationCVPV1betaEndpointTypeSrc,
 		ReplicationSchedule: *event.CreateReplicationParams.ReplicationSchedule,
 		SourcePoolUUID:      event.SourcePool.UUID,
@@ -496,7 +496,7 @@ func _replicationJobInProcess(ctx context.Context, srcProjectNumber string, dest
 		srcJobs, err := getReplicationJobs(ctx, srcBasePath, srcToken, srcLocationID, srcProjectNumber, correlationId, srcPoolId)
 		if err != nil {
 			logger.Error("ListCvpReplicationJobsInProcessing source error", common.Error(err))
-			return err
+			return errors.NewVCPError(errors.ErrGetLocalReplicationJobs, err)
 		}
 		if len(srcJobs) > 0 {
 			for _, j := range srcJobs {
@@ -594,13 +594,25 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 		}
 	}
 
-	srcBasePath, err := InternalUtilGetPairedRegionURI(replication.ReplicationAttributes.SourceLocation)
+	sourceRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
+	if parseError != nil {
+		logger.Error("Parse Source Location Error")
+		return errors.NewVCPError(errors.ErrParseSourceLocation, errors.New(parseError.Error()))
+	}
+
+	srcBasePath, err := InternalUtilGetPairedRegionURI(sourceRegion)
 	if err != nil {
 		logger.Error("Get Paired Source Region Uri error", common.Error(err))
 		return errors.NewVCPError(errors.ErrGetSrcBasePath, err)
 	}
 
-	dstBasePath, err := InternalUtilGetPairedRegionURI(replication.ReplicationAttributes.DestinationLocation)
+	destRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
+	if parseError != nil {
+		logger.Error("Parse Destination Location Error", common.Error(errors.New(parseError.Error())))
+		return errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
+	}
+
+	dstBasePath, err := InternalUtilGetPairedRegionURI(destRegion)
 	if err != nil {
 		logger.Error("Get Paired Destination Region Uri error", common.Error(err))
 		return errors.NewVCPError(errors.ErrGetDstBasePath, err)

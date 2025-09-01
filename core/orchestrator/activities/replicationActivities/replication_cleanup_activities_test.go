@@ -3,29 +3,34 @@ package replicationActivities
 import (
 	"context"
 	"encoding/json"
-	"github.com/stretchr/testify/mock"
-	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestGetSrcBasePathCleanup(t *testing.T) {
 	t.Run("ValidSrcBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceLocation: "location-id",
+							SourceLocation: "us-central1",
 						},
 					},
 				},
@@ -33,7 +38,10 @@ func TestGetSrcBasePathCleanup(t *testing.T) {
 		}
 		activity := CleanupVolumeReplicationActivity{}
 
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "", nil
+		}
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "https://src-base-path.example.com", nil
 		}
 
@@ -44,12 +52,17 @@ func TestGetSrcBasePathCleanup(t *testing.T) {
 		assert.Equal(tt, "https://src-base-path.example.com", *updatedResult.SrcBasePath)
 	})
 	t.Run("ErrorSrcBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceLocation: "location-id",
+							SourceLocation: "us-central1",
 						},
 					},
 				},
@@ -57,7 +70,10 @@ func TestGetSrcBasePathCleanup(t *testing.T) {
 		}
 		activity := CleanupVolumeReplicationActivity{}
 
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "", nil
+		}
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "", errors.New("failed to get paired region URI")
 		}
 
@@ -70,12 +86,17 @@ func TestGetSrcBasePathCleanup(t *testing.T) {
 
 func TestGetDstBasePathCleanup(t *testing.T) {
 	t.Run("ValidDstBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation: "location-id",
+							DestinationLocation: "us-east1",
 						},
 					},
 				},
@@ -83,7 +104,10 @@ func TestGetDstBasePathCleanup(t *testing.T) {
 		}
 		activity := CleanupVolumeReplicationActivity{}
 
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-east1", "", nil
+		}
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "https://dst-base-path.example.com", nil
 		}
 
@@ -94,12 +118,17 @@ func TestGetDstBasePathCleanup(t *testing.T) {
 		assert.Equal(tt, "https://dst-base-path.example.com", *updatedResult.DstBasePath)
 	})
 	t.Run("ErrorDstBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation: "location-id",
+							DestinationLocation: "us-east1",
 						},
 					},
 				},
@@ -107,7 +136,10 @@ func TestGetDstBasePathCleanup(t *testing.T) {
 		}
 		activity := CleanupVolumeReplicationActivity{}
 
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-east1", "", nil
+		}
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "", errors.New("failed to get paired region URI")
 		}
 

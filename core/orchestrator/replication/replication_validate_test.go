@@ -282,8 +282,8 @@ func Test_createReplicationObjects_Success(t *testing.T) {
 	assert.NotNil(t, replication.ReplicationAttributes)
 	assert.Equal(t, event.SourceVolume.UUID, replication.ReplicationAttributes.SourceVolumeUUID)
 	assert.Equal(t, "vol-1", replication.ReplicationAttributes.SourceVolumeName)
-	assert.Equal(t, "region-1", replication.ReplicationAttributes.SourceLocation)
-	assert.Equal(t, "region-2", replication.ReplicationAttributes.DestinationLocation)
+	assert.Equal(t, "loc-1", replication.ReplicationAttributes.SourceLocation)
+	assert.Equal(t, "loc-2", replication.ReplicationAttributes.DestinationLocation)
 	assert.Equal(t, models.VolumeReplicationCVPV1betaEndpointTypeSrc, replication.ReplicationAttributes.EndpointType)
 	assert.Equal(t, replicationSchedule, replication.ReplicationAttributes.ReplicationSchedule)
 	assert.Equal(t, "pool-1", replication.ReplicationAttributes.SourcePoolUUID)
@@ -870,7 +870,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("", "", errors.New("parse error")).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("", "", errors.New("parse error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
@@ -885,7 +885,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("", errors.New("paired region uri error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
@@ -901,9 +901,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("", "", errors.New("parse error")).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("", "", errors.New("parse error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
@@ -918,9 +918,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("", errors.New("paired region uri error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
@@ -936,9 +936,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(errors.New("validate replication resource id error")).Once()
 
@@ -955,9 +955,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 
@@ -978,9 +978,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 
@@ -1003,9 +1003,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(errors.New("invalid storage pool URI format")).Once()
@@ -1028,9 +1028,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1056,9 +1056,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1092,9 +1092,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1128,9 +1128,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1165,8 +1165,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1201,8 +1201,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1238,8 +1238,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1277,8 +1277,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1317,8 +1317,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1359,8 +1359,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1401,8 +1401,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1445,8 +1445,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1491,8 +1491,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1537,8 +1537,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1590,8 +1590,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1643,8 +1643,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1695,8 +1695,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1749,8 +1749,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
@@ -1837,6 +1837,10 @@ func TestValidateReplicationParams(t *testing.T) {
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
 			},
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
@@ -1853,6 +1857,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		defer func() {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
 		}()
 		mockStorage := database.NewMockStorage(tt)
 		response := []*datamodel.VolumeReplication{
@@ -1860,7 +1865,10 @@ func TestValidateReplicationParams(t *testing.T) {
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				ReplicationAttributes: &datamodel.ReplicationDetails{},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
 			},
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
@@ -1870,6 +1878,9 @@ func TestValidateReplicationParams(t *testing.T) {
 		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
 			return "", vsaErrors.NewVCPError(vsaErrors.ErrGetSignedToken, errors.New("some error"))
 		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
+		}
 		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
@@ -1878,6 +1889,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		defer func() {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
 			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
 		}()
 		mockStorage := database.NewMockStorage(tt)
@@ -1886,7 +1898,10 @@ func TestValidateReplicationParams(t *testing.T) {
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				ReplicationAttributes: &datamodel.ReplicationDetails{},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
 			},
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
@@ -1895,6 +1910,9 @@ func TestValidateReplicationParams(t *testing.T) {
 		}
 		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
 			return "", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
 		}
 		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
 			return "", errors.New("some error")
@@ -1907,6 +1925,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		defer func() {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
 			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
 			replicationJobInProcess = _replicationJobInProcess
 		}()
@@ -1916,7 +1935,10 @@ func TestValidateReplicationParams(t *testing.T) {
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				ReplicationAttributes: &datamodel.ReplicationDetails{},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
 			},
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
@@ -1925,6 +1947,9 @@ func TestValidateReplicationParams(t *testing.T) {
 		}
 		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
 			return "", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
 		}
 		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
 			return "basePath", nil
@@ -1940,6 +1965,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		defer func() {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
 			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
 			replicationJobInProcess = _replicationJobInProcess
 		}()
@@ -1949,7 +1975,10 @@ func TestValidateReplicationParams(t *testing.T) {
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				ReplicationAttributes: &datamodel.ReplicationDetails{},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east4-1",
+					DestinationLocation: "us-central1-a",
+				},
 			},
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
@@ -1958,6 +1987,9 @@ func TestValidateReplicationParams(t *testing.T) {
 		}
 		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
 			return "", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
 		}
 		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
 			return "basePath", nil

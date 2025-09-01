@@ -299,8 +299,8 @@ func (a *VolumeReplicationCreateActivity) UpdateReplicationDetails(ctx context.C
 	se := a.SE
 
 	volumeRep := result.DbVolReplication
-	volumeRep.State = models.LifeCycleStateCreated
-	volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
+	volumeRep.State = models.LifeCycleStateAvailable
+	volumeRep.StateDetails = models.LifeCycleStateAvailableDetails
 	volumeRep.ReplicationAttributes.SourceSvmName = *result.SrcSvm
 	volumeRep.ReplicationAttributes.DestinationSvmName = *result.DstSvm
 	volumeRep.ReplicationAttributes.SourceHostName = result.Event.SourcePool.ClusterDetails.ExternalName

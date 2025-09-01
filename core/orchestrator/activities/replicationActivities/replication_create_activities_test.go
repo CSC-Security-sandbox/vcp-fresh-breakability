@@ -2124,6 +2124,11 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 
 func TestGetSrcBasePath(t *testing.T) {
 	t.Run("ValidSrcBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		// Arrange
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
@@ -2132,8 +2137,12 @@ func TestGetSrcBasePath(t *testing.T) {
 		}
 		activity := VolumeReplicationCreateActivity{}
 
+		// Mock the InternalParseRegionAndZone function
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "", nil
+		}
 		// Mock the InternalUtilGetPairedRegionURI function
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "https://src-base-path.example.com", nil
 		}
 
@@ -2147,6 +2156,11 @@ func TestGetSrcBasePath(t *testing.T) {
 	})
 
 	t.Run("ErrorSrcBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		// Arrange
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
@@ -2155,8 +2169,12 @@ func TestGetSrcBasePath(t *testing.T) {
 		}
 		activity := VolumeReplicationCreateActivity{}
 
+		// Mock the InternalParseRegionAndZone function
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "", "", errors.New("failed to parse location")
+		}
 		// Mock the InternalUtilGetPairedRegionURI function
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "", errors.New("failed to get paired region URI")
 		}
 
@@ -2171,6 +2189,11 @@ func TestGetSrcBasePath(t *testing.T) {
 
 func TestGetDstBasePath(t *testing.T) {
 	t.Run("ValidDstBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		// Arrange
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
@@ -2179,8 +2202,12 @@ func TestGetDstBasePath(t *testing.T) {
 		}
 		activity := VolumeReplicationCreateActivity{}
 
+		// Mock the InternalParseRegionAndZone function
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "", nil
+		}
 		// Mock the InternalUtilGetPairedRegionURI function
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "https://dst-base-path.example.com", nil
 		}
 
@@ -2194,6 +2221,11 @@ func TestGetDstBasePath(t *testing.T) {
 	})
 
 	t.Run("ErrorDstBasePath", func(tt *testing.T) {
+		defer func() {
+			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
+			replicationInternalUtilGetPairedRegionURI = replication.InternalUtilGetPairedRegionURI
+		}()
+
 		// Arrange
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
@@ -2202,8 +2234,12 @@ func TestGetDstBasePath(t *testing.T) {
 		}
 		activity := VolumeReplicationCreateActivity{}
 
+		// Mock the InternalParseRegionAndZone function
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "", "", errors.New("failed to parse location")
+		}
 		// Mock the InternalUtilGetPairedRegionURI function
-		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+		replicationInternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
 			return "", errors.New("failed to get paired region URI")
 		}
 

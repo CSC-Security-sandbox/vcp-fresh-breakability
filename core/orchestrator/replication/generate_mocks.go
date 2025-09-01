@@ -16,7 +16,7 @@ type monkeyMethods interface {
 	InternalUtilGetCallbackToken() (string, error)
 	InternalUtilGetSignedToken(projectNumber string) (string, error)
 	InternalUtilGetPairedRegionURI(region string) (string, error)
-	internalParseRegionAndZone(location string) (string, string, error)
+	InternalParseRegionAndZone(location string) (string, string, error)
 	validateReplicationResourceId(ctx context.Context, projectNumber string, paramReplicationResourceId string, paramsVolumeResourceId string, se database.Storage) error
 	validateStoragePoolUri(uri string) error
 	getDestinationPool(ctx context.Context, destBasePath string, dstToken string, remoteLocationID string, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolV1beta, error)
