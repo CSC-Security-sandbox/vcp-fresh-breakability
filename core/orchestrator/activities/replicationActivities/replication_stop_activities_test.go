@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -335,7 +336,10 @@ func TestStopReplicationOnDestination(t *testing.T) {
 		result, err := activity.StopReplicationOnDestination(context.Background(), inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		// The error gets wrapped with NewVCPError, so we need to check the wrapped error
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, "some-error", customErr.OriginalErr.Error())
 	})
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()

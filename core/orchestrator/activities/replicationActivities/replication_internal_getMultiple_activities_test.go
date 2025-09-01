@@ -40,7 +40,10 @@ func TestGetReplicationsFromDB(t *testing.T) {
 		_, err := activity.GetReplicationsFromDB(ctx, params)
 
 		assert.Error(t, err)
-		assert.Equal(t, expectedError.Error(), err.Error())
+		// The error gets wrapped with NewVCPError, so we need to check the wrapped error
+		var customErr *vsaerrors.CustomError
+		assert.True(t, vsaerrors.As(err, &customErr))
+		assert.Equal(t, expectedError.Error(), customErr.OriginalErr.Error())
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenListVolumeReplicationsReturnsError", func(tt *testing.T) {

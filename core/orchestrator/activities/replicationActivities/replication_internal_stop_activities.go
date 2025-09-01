@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -21,7 +22,7 @@ func (j *InternalStopVolumeReplicationActivity) GetReplicationFromDB(ctx context
 
 	replication, err := se.GetVolumeReplication(ctx, uuid)
 	if err != nil {
-		return nil, err
+		return nil, vsaerror.NewVCPError(vsaerror.ErrDatabaseDataReadError, err)
 	}
 	return replication, nil
 }
@@ -31,7 +32,7 @@ func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx conte
 	provider, err := activitiesGetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Error("Failed to get provider by node", "error", err)
-		return nil, errors.NewNonRetryableErr(err.Error())
+		return nil, vsaerror.WrapAsTemporalApplicationError(err)
 	}
 	vsaReplication := &vsa.VolumeReplication{
 		ExternalUUID: replication.ReplicationAttributes.ExternalUUID,
@@ -39,17 +40,17 @@ func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx conte
 	snapmirror, err := provider.GetVolumeReplication(vsaReplication)
 	if err != nil {
 		logger.Error("Failed to get volume replication details", "error", err)
-		return nil, errors.NewNonRetryableErr(err.Error())
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderGetVolumeReplication, err))
 	}
 	if snapmirror.RelationshipStatus == models.SnapmirrorRelationshipTransferring {
-		return nil, errors.NewNonRetryableErr(errors.New("Replication is in transferring state, cannot stop replication").Error())
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderBreakVolumeReplication, errors.New("Replication is in transferring state, cannot stop replication")))
 	}
 	snapmirror.MirrorState = models.OntapBrokenOff
 
 	_, err = provider.BreakVolumeReplication(snapmirror)
 	if err != nil {
 		logger.Error("Failed to break volume replication", "error", err)
-		return nil, err
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderBreakVolumeReplication, err))
 	}
 	return snapmirror, nil
 }
@@ -63,7 +64,7 @@ func (j *InternalStopVolumeReplicationActivity) AbortVolumeReplication(ctx conte
 	provider, err := activitiesGetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Error("Failed to get provider by node", "error", err)
-		return nil, errors.NewNonRetryableErr(err.Error())
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrGCPClientInitializationError, err))
 	}
 	vsaReplication := &vsa.VolumeReplication{
 		ExternalUUID: replication.ReplicationAttributes.ExternalUUID,
@@ -71,7 +72,7 @@ func (j *InternalStopVolumeReplicationActivity) AbortVolumeReplication(ctx conte
 	snapmirror, err := provider.GetVolumeReplication(vsaReplication)
 	if err != nil {
 		logger.Error("Failed to get volume replication details", "error", err)
-		return nil, errors.NewNonRetryableErr(err.Error())
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderGetVolumeReplication, err))
 	}
 
 	if snapmirror.RelationshipStatus != models.SnapmirrorRelationshipTransferring {
@@ -88,7 +89,7 @@ func (j *InternalStopVolumeReplicationActivity) AbortVolumeReplication(ctx conte
 	_, err = provider.AbortVolumeReplication(vsaReplication)
 	if err != nil {
 		logger.Error("Failed to abort volume replication", "error", err)
-		return nil, err
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderAbortVolumeReplication, err))
 	}
 	return vsaReplication, nil
 }
@@ -98,13 +99,13 @@ func (j *InternalStopVolumeReplicationActivity) GetSnapMirrorFromOntap(ctx conte
 	provider, err := activitiesGetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Error("Failed to get provider by node", "error", err)
-		return nil, errors.NewNonRetryableErr(err.Error())
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrGCPClientInitializationError, err))
 	}
 	replicationParams := convertToSnapmirrorGetParams(dbReplication, dbReplication.Account.Name)
 	ontapRep, err := provider.GetReplicationDetails(ctx, replicationParams)
 	if err != nil {
 		logger.Errorf("Failed to get replication details from Ontap for replication %s: %v", dbReplication.UUID, err)
-		return nil, errors.NewNonRetryableErr(err.Error())
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderGetVolumeReplication, err))
 	}
 	return ontapRep, nil
 }
@@ -127,7 +128,7 @@ func (j *InternalStopVolumeReplicationActivity) UpdateVolumeReplicationStopDetai
 	replication.ProgressLastUpdated = &replication.LastUpdatedFromOntap
 
 	if err := se.UpdateVolumeReplication(ctx, replication); err != nil {
-		return err
+		return vsaerror.NewVCPError(vsaerror.ErrDatabaseDataUpdateError, err)
 	}
 
 	return nil
@@ -141,5 +142,8 @@ func (j *InternalStopVolumeReplicationActivity) UpdateVolumeToNonDPVolume(ctx co
 	}
 	updates["volume_attributes"] = replication.Volume.VolumeAttributes
 	err := se.UpdateVolumeFields(ctx, replication.ReplicationAttributes.DestinationVolumeUUID, updates)
-	return err
+	if err != nil {
+		return vsaerror.NewVCPError(vsaerror.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
 }

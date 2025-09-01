@@ -7,9 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -38,7 +39,10 @@ func TestUpdateVolumeToNonDPVolume(t *testing.T) {
 		mockStorage.On("UpdateVolumeFields", ctx, params.ReplicationAttributes.DestinationVolumeUUID, updates).Return(errors.New("update error"))
 		err := activity.UpdateVolumeToNonDPVolume(ctx, params)
 		assert.Error(t, err)
-		assert.Equal(t, "update error", err.Error())
+		// The error gets wrapped with NewVCPError, so we need to check the wrapped error
+		var customErr *vsaerrors.CustomError
+		assert.True(t, vsaerrors.As(err, &customErr))
+		assert.Equal(t, "update error", customErr.OriginalErr.Error())
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
@@ -96,7 +100,10 @@ func TestUpdateVolumeReplicationStopDetails(t *testing.T) {
 		mockStorage.On("UpdateVolumeReplication", ctx, params).Return(errors.New("update error"))
 		err := activity.UpdateVolumeReplicationStopDetails(ctx, params, vsaResumeResponse)
 		assert.Error(t, err)
-		assert.Equal(t, "update error", err.Error())
+		// The error gets wrapped with NewVCPError, so we need to check the wrapped error
+		var customErr *vsaerrors.CustomError
+		assert.True(t, vsaerrors.As(err, &customErr))
+		assert.Equal(t, "update error", customErr.OriginalErr.Error())
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
@@ -164,7 +171,10 @@ func TestGetReplicationFromDB(t *testing.T) {
 		replication, err := activity.GetReplicationFromDB(ctx, replicationUUID)
 		assert.Error(tt, err)
 		assert.Nil(tt, replication)
-		assert.Equal(tt, "Replication not found", err.Error())
+		// The error gets wrapped with NewVCPError, so we need to check the wrapped error
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, "Replication not found", customErr.OriginalErr.Error())
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -180,7 +190,10 @@ func TestGetReplicationFromDB(t *testing.T) {
 		replication, err := activity.GetReplicationFromDB(ctx, replicationUUID)
 		assert.Error(tt, err)
 		assert.Nil(tt, replication)
-		assert.Equal(tt, "database error", err.Error())
+		// The error gets wrapped with NewVCPError, so we need to check the wrapped error
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, "database error", customErr.OriginalErr.Error())
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -237,7 +250,10 @@ func TestBreakVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		assert.Equal(tt, "failed to get details", err.Error())
+		// Check that the error is a VCPError with ErrProviderGetVolumeReplication
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrProviderGetVolumeReplication, customErr.TrackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 	t.Run("BreakVolumeReplicationFailsToBreak", func(tt *testing.T) {
@@ -267,7 +283,10 @@ func TestBreakVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		assert.Equal(tt, "failed to break replication", err.Error())
+		// Check that the error is a VCPError with ErrProviderBreakVolumeReplication
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrProviderBreakVolumeReplication, customErr.TrackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 
@@ -296,7 +315,10 @@ func TestBreakVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		assert.Equal(tt, "Replication is in transferring state, cannot stop replication", err.Error())
+		// Check that the error is a VCPError with ErrProviderBreakVolumeReplication
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrProviderBreakVolumeReplication, customErr.TrackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 }
@@ -386,7 +408,10 @@ func TestAbortVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.AbortVolumeReplication(ctx, replication, node, true)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		assert.Equal(tt, "failed to get provider", err.Error())
+		// Check that the error is a VCPError with ErrGCPClientInitializationError
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrGCPClientInitializationError, customErr.TrackingID)
 	})
 
 	t.Run("AbortVolumeReplicationFailsToGetDetails", func(tt *testing.T) {
@@ -410,7 +435,10 @@ func TestAbortVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.AbortVolumeReplication(ctx, replication, node, true)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		assert.Equal(tt, "failed to get details", err.Error())
+		// Check that the error is a VCPError with ErrProviderGetVolumeReplication
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrProviderGetVolumeReplication, customErr.TrackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 	t.Run("AbortVolumeReplicationTransferUUIDMissing", func(tt *testing.T) {
@@ -470,7 +498,10 @@ func TestAbortVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.AbortVolumeReplication(ctx, replication, node, true)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		assert.Equal(tt, "failed to abort replication", err.Error())
+		// Check that the error is a VCPError with ErrProviderAbortVolumeReplication
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrProviderAbortVolumeReplication, customErr.TrackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 }
@@ -537,7 +568,10 @@ func TestGetSnapMirrorFromOntap(t *testing.T) {
 		ontapRep, err := activity.GetSnapMirrorFromOntap(ctx, dbReplication, node)
 		assert.Error(tt, err)
 		assert.Nil(tt, ontapRep)
-		assert.Equal(tt, "failed to get provider", err.Error())
+		// Check that the error is a VCPError with ErrGCPClientInitializationError
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrGCPClientInitializationError, customErr.TrackingID)
 	})
 
 	t.Run("GetSnapMirrorFromOntap_FailsToGetReplicationDetails", func(tt *testing.T) {
@@ -570,6 +604,9 @@ func TestGetSnapMirrorFromOntap(t *testing.T) {
 		ontapRep, err := activity.GetSnapMirrorFromOntap(ctx, dbReplication, node)
 		assert.Error(tt, err)
 		assert.Nil(tt, ontapRep)
-		assert.Equal(tt, "failed to get replication details", err.Error())
+		// Check that the error is a VCPError with ErrProviderGetVolumeReplication
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrProviderGetVolumeReplication, customErr.TrackingID)
 	})
 }

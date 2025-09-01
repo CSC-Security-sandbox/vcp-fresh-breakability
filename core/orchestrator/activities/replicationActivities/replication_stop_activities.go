@@ -70,7 +70,7 @@ func (a *StopVolumeReplicationActivity) StopReplicationOnDestination(ctx context
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalStopVolumeReplication(ctx, stopReplicationReq, *stopReplicationParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopReplication, err)
 	}
 	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
 	if ok {

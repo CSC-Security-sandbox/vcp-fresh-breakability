@@ -30,7 +30,7 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromDB(ctx conte
 
 	account, err := se.GetAccount(ctx, params.AccountName)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 
 	filter := utils.CreateFilterWithConditions(

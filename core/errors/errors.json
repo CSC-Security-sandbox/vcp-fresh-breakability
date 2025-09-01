@@ -1127,6 +1127,30 @@
     "retriable": false,
     "http_code": 500
   },
+  "6189": {
+    "description": "Google Proxy Internal Stop Replication",
+    "message": "Failed to stop replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6190": {
+    "description": "Provider Get Volume Replication Error",
+    "message": "Failed to get volume replication details from provider",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6191": {
+    "description": "Provider Break Volume Replication Error",
+    "message": "Failed to break volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6192": {
+    "description": "Provider Abort Volume Replication Error",
+    "message": "Failed to abort volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",
