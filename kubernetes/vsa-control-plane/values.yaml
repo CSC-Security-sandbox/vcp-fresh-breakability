@@ -78,6 +78,7 @@ global:
     finishProjectCvpRetryInterval: "30s"
     finishProjectBackoffCoefficient: "1.0"
     localRegion: ""
+    coreApiClientTransportSchema: "https"
     # Make sure to update the regionNumberMap if new regions are added. In both Google proxy and vcp-worker-chart
     regionNumberMap:
       africa-south1: "01"

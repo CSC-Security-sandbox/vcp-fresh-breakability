@@ -291,6 +291,193 @@ func decodeV1DeletePoolParams(args [1]string, argsEscaped bool, r *http.Request)
 	return params, nil
 }
 
+// V1GetOntapCredentialsParams is parameters of v1_getOntapCredentials operation.
+type V1GetOntapCredentialsParams struct {
+	// UUID v4 used to identify the pool.
+	PoolId string
+	// User name.
+	UserName OptString
+	// Account name.
+	AccountName OptString
+}
+
+func unpackV1GetOntapCredentialsParams(packed middleware.Parameters) (params V1GetOntapCredentialsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "poolId",
+			In:   "path",
+		}
+		params.PoolId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "userName",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.UserName = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "accountName",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.AccountName = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1GetOntapCredentialsParams(args [1]string, argsEscaped bool, r *http.Request) (params V1GetOntapCredentialsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode path: poolId.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "poolId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.PoolId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.PoolId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "poolId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode query: userName.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "userName",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotUserNameVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotUserNameVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.UserName.SetTo(paramsDotUserNameVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "userName",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: accountName.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "accountName",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAccountNameVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAccountNameVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.AccountName.SetTo(paramsDotAccountNameVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "accountName",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1GetPoolParams is parameters of v1_getPool operation.
 type V1GetPoolParams struct {
 	// UUID v4 used to identify the pool.

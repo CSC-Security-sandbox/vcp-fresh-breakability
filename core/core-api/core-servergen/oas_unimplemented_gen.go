@@ -33,6 +33,15 @@ func (UnimplementedHandler) V1DeletePool(ctx context.Context, params V1DeletePoo
 	return r, ht.ErrNotImplemented
 }
 
+// V1GetOntapCredentials implements v1_getOntapCredentials operation.
+//
+// Returns the credentials of the specified account name.
+//
+// GET /v1/pools/{poolId}/ontap/credentials
+func (UnimplementedHandler) V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (r V1GetOntapCredentialsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1GetPool implements v1_getPool operation.
 //
 // Returns the description of the specified pool by pool ID.

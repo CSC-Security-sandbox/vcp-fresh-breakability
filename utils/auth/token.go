@@ -36,6 +36,10 @@ func _generateCallbackToken(ctx context.Context) (string, error) {
 }
 
 func _getSignedJwtToken(projectNumber string) (string, error) {
+	if env.GetString("ENV", "") == "local" {
+		return "token", nil
+	}
+
 	ctx := context.Background()
 	timeAtStart := timeNow()
 	ttl := time.Duration(env.GetInt("JWT_TTL_MINUTES", 20)) * time.Minute
@@ -105,6 +109,10 @@ func _getSignedJwtToken(projectNumber string) (string, error) {
 }
 
 func _getSignedAccessToken() (string, error) {
+	if env.GetString("ENV", "") == "local" {
+		return "token", nil
+	}
+
 	ctx := context.Background()
 	logger := LogGetLogger(ctx)
 	c, err := createIamClient(ctx)

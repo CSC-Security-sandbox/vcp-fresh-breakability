@@ -3346,3 +3346,239 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		assert.NoError(tt, err, "Valid update params with zone changes should pass validation")
 	})
 }
+
+func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
+	t.Run("WhenSuccessful", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolCredentials: &datamodel.PoolCredentials{
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				Password:      "test-password",
+				AuthType:      1,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		// Execute
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, credentials)
+		assert.Equal(t, "test-secret-id", credentials.SecretID)
+		assert.Equal(t, "test-cert-id", credentials.CertificateID)
+		assert.Equal(t, "test-password", credentials.Password)
+		assert.Equal(t, 1, credentials.AuthType)
+	})
+	t.Run("WhenAccountNotFound", func(t *testing.T) {
+		ctx, _, orch, _ := setup(t)
+
+		// Mock getAccountWithName to return error
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.NewNotFoundErr("account not found", nil)
+		}
+		defer func() { getAccountWithName = _getAccountWithName }()
+
+		// Execute
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "non-existent-account", "test-user")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, credentials)
+		assert.Contains(t, err.Error(), "account not found")
+	})
+	t.Run("WhenPoolNotFound", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		// Mock getAccountWithName to return the test account
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = _getAccountWithName }()
+
+		// Execute
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "non-existent-pool-uuid", "test_account", "test-user")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, credentials)
+		assert.Contains(t, err.Error(), "Pool not found")
+	})
+	t.Run("WhenPoolHasNoCredentials", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:            "test_pool",
+			AccountID:       account.ID,
+			PoolCredentials: nil, // No credentials
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		// Execute
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Nil(t, credentials) // Should return nil when no credentials
+	})
+	t.Run("WhenPoolHasEmptyCredentials", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolCredentials: &datamodel.PoolCredentials{
+				SecretID:      "",
+				CertificateID: "",
+				Password:      "",
+				AuthType:      0,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		// Execute
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, credentials)
+		assert.Equal(t, "", credentials.SecretID)
+		assert.Equal(t, "", credentials.CertificateID)
+		assert.Equal(t, "", credentials.Password)
+		assert.Equal(t, 0, credentials.AuthType)
+	})
+	t.Run("WhenDatabaseErrorOccurs", func(t *testing.T) {
+		ctx, _, orch, _ := setup(t)
+
+		// Mock getAccountWithName to return error
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("database connection failed")
+		}
+		defer func() { getAccountWithName = _getAccountWithName }()
+
+		// Execute
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, credentials)
+		assert.Contains(t, err.Error(), "database connection failed")
+	})
+	t.Run("WhenUserNameIsEmpty", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolCredentials: &datamodel.PoolCredentials{
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				Password:      "test-password",
+				AuthType:      1,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		// Execute with empty userName
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "")
+
+		// Assert - should still work even with empty userName
+		assert.NoError(t, err)
+		assert.NotNil(t, credentials)
+		assert.Equal(t, "test-secret-id", credentials.SecretID)
+	})
+	t.Run("WhenContextIsCancelled", func(t *testing.T) {
+		ctx, _, orch, _ := setup(t)
+
+		// Create cancelled context
+		cancelledCtx, cancel := context.WithCancel(ctx)
+		cancel() // Cancel immediately
+
+		// Execute
+		credentials, err := orch.GetExpertModePoolCreds(cancelledCtx, "test-pool-uuid", "test_account", "test-user")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, credentials)
+		// The exact error depends on the database driver, but it should be an error
+	})
+	t.Run("WhenPoolCredentialsAreNil", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:            "test_pool",
+			AccountID:       account.ID,
+			PoolCredentials: nil, // Explicitly nil
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		// Execute
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Nil(t, credentials)
+	})
+}

@@ -2100,6 +2100,67 @@ func (_c *MockOrchestratorFactory_GetBackupsUnderBackupVault_Call) RunAndReturn(
 	return _c
 }
 
+// GetExpertModePoolCreds provides a mock function with given fields: ctx, poolId, accountName, userName
+func (_m *MockOrchestratorFactory) GetExpertModePoolCreds(ctx context.Context, poolId string, accountName string, userName string) (*datamodel.PoolCredentials, error) {
+	ret := _m.Called(ctx, poolId, accountName, userName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExpertModePoolCreds")
+	}
+
+	var r0 *datamodel.PoolCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*datamodel.PoolCredentials, error)); ok {
+		return rf(ctx, poolId, accountName, userName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *datamodel.PoolCredentials); ok {
+		r0 = rf(ctx, poolId, accountName, userName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.PoolCredentials)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, poolId, accountName, userName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetExpertModePoolCreds_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModePoolCreds'
+type MockOrchestratorFactory_GetExpertModePoolCreds_Call struct {
+	*mock.Call
+}
+
+// GetExpertModePoolCreds is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolId string
+//   - accountName string
+//   - userName string
+func (_e *MockOrchestratorFactory_Expecter) GetExpertModePoolCreds(ctx interface{}, poolId interface{}, accountName interface{}, userName interface{}) *MockOrchestratorFactory_GetExpertModePoolCreds_Call {
+	return &MockOrchestratorFactory_GetExpertModePoolCreds_Call{Call: _e.mock.On("GetExpertModePoolCreds", ctx, poolId, accountName, userName)}
+}
+
+func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) Run(run func(ctx context.Context, poolId string, accountName string, userName string)) *MockOrchestratorFactory_GetExpertModePoolCreds_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) Return(_a0 *datamodel.PoolCredentials, _a1 error) *MockOrchestratorFactory_GetExpertModePoolCreds_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.PoolCredentials, error)) *MockOrchestratorFactory_GetExpertModePoolCreds_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID
 func (_m *MockOrchestratorFactory) GetHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroupUUID, accountID)

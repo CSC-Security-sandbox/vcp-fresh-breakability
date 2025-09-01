@@ -11,10 +11,20 @@ import (
 	credentials2 "cloud.google.com/go/iam/credentials/apiv1/credentialspb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
+
+// Helper functions to avoid errcheck warnings in tests
+func setEnv(key, value string) {
+	_ = os.Setenv(key, value)
+}
+
+func unsetEnv(key string) {
+	_ = os.Unsetenv(key)
+}
 
 func Test_generateCallbackToken(t *testing.T) {
 	t.Run("WhenError", func(tt *testing.T) {
@@ -45,6 +55,64 @@ func Test_generateCallbackToken(t *testing.T) {
 }
 
 func TestGetSignedJwtToken(t *testing.T) {
+	t.Run("WhenLocalEnvironment", func(tt *testing.T) {
+		// Save original ENV value
+		originalEnv := os.Getenv("ENV")
+		defer func() {
+			if originalEnv != "" {
+				setEnv("ENV", originalEnv)
+			} else {
+				unsetEnv("ENV")
+			}
+		}()
+
+		// Set ENV to local
+		setEnv("ENV", "local")
+
+		projectNumber := "123"
+		token, err := GetSignedJwtToken(projectNumber)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "token", token)
+	})
+	t.Run("WhenNonLocalEnvironment", func(tt *testing.T) {
+		// Save original ENV value
+		originalEnv := os.Getenv("ENV")
+		defer func() {
+			if originalEnv != "" {
+				setEnv("ENV", originalEnv)
+			} else {
+				unsetEnv("ENV")
+			}
+		}()
+
+		// Set ENV to production (or unset it)
+		unsetEnv("ENV")
+
+		projectNumber := "123"
+		// This should trigger the normal flow, but we'll mock the dependencies
+		// to avoid actual GCP calls in tests
+		mockLogger := &log.MockLogger{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.UnPatch()
+
+		// Mock the time and logger
+		expectedTime := time.Now()
+		mm.On("timeNow").Return(expectedTime)
+		mm.On("LogGetLogger", mock.Anything).Return(mockLogger, nil)
+
+		// Mock createIamClient to return error to test the error path
+		clientErr := errors.New("SomeError")
+		mm.On("createIamClient", mock.Anything).Return(nil, clientErr)
+
+		token, err := GetSignedJwtToken(projectNumber)
+
+		assert.Equal(tt, "", token)
+		assert.Error(tt, err)
+
+		mm.AssertExpectations(tt)
+	})
 	t.Run("WhenCreateIamClientReturnsError", func(tt *testing.T) {
 		mockLogger := &log.MockLogger{}
 		mm := &monkeyMock{}
@@ -54,6 +122,17 @@ func TestGetSignedJwtToken(t *testing.T) {
 		projectNumber := "123"
 		clientErr := errors.New("SomeError")
 		expectedTime := time.Now()
+
+		// Ensure ENV is not set to local
+		originalEnv := os.Getenv("ENV")
+		defer func() {
+			if originalEnv != "" {
+				setEnv("ENV", originalEnv)
+			} else {
+				unsetEnv("ENV")
+			}
+		}()
+		unsetEnv("ENV")
 
 		mm.On("timeNow").Return(expectedTime)
 		mm.On("LogGetLogger", ctx).Return(mockLogger, nil)
@@ -70,15 +149,9 @@ func TestGetSignedJwtToken(t *testing.T) {
 		projectNumber := "123"
 		privateKeyPath = ""
 		mockAccessToken = ""
-		err := os.Setenv("NKDEV_TEST", "true")
-		if err != nil {
-			tt.Fatalf("Failed to set environment variable: %v", err)
-		}
+		setEnv("NKDEV_TEST", "true")
 		defer func() {
-			err := os.Unsetenv("NKDEV_TEST")
-			if err != nil {
-				tt.Fatalf("Failed to unset environment variable: %v", err)
-			}
+			unsetEnv("NKDEV_TEST")
 			mockAccessToken = ""
 		}()
 		client, _ := createMockIamClient(context.Background())
@@ -214,15 +287,9 @@ func TestGetSignedJwtToken(t *testing.T) {
 		ttlMinutesFromEnv := "15"
 		ttl := 15 * time.Minute
 		defer func() {
-			err := os.Unsetenv("JWT_TTL_MINUTES")
-			if err != nil {
-				return
-			}
+			unsetEnv("JWT_TTL_MINUTES")
 		}()
-		err := os.Setenv("JWT_TTL_MINUTES", ttlMinutesFromEnv)
-		if err != nil {
-			return
-		}
+		setEnv("JWT_TTL_MINUTES", ttlMinutesFromEnv)
 		payload := JwtPayload{
 			Subject:    "",
 			Issuer:     "",
@@ -363,15 +430,9 @@ func TestGetSignedJwtToken(t *testing.T) {
 		projectNumber := "123"
 		privateKeyPath = ""
 		mockAccessToken = "my token is mocked buddy!!"
-		err := os.Setenv("NKDEV_TEST", "true")
-		if err != nil {
-			tt.Fatalf("Failed to set environment variable: %v", err)
-		}
+		setEnv("NKDEV_TEST", "true")
 		defer func() {
-			err := os.Unsetenv("NKDEV_TEST")
-			if err != nil {
-				tt.Fatalf("Failed to unset environment variable: %v", err)
-			}
+			unsetEnv("NKDEV_TEST")
 			mockAccessToken = ""
 		}()
 		token, err := GetSignedJwtToken(projectNumber)
@@ -381,6 +442,60 @@ func TestGetSignedJwtToken(t *testing.T) {
 }
 
 func TestGetSignedAccessToken(t *testing.T) {
+	t.Run("WhenLocalEnvironment", func(tt *testing.T) {
+		// Save original ENV value
+		originalEnv := os.Getenv("ENV")
+		defer func() {
+			if originalEnv != "" {
+				setEnv("ENV", originalEnv)
+			} else {
+				unsetEnv("ENV")
+			}
+		}()
+
+		// Set ENV to local
+		setEnv("ENV", "local")
+
+		token, err := GetSignedAccessToken()
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "token", token)
+	})
+	t.Run("WhenNonLocalEnvironment", func(tt *testing.T) {
+		// Save original ENV value
+		originalEnv := os.Getenv("ENV")
+		defer func() {
+			if originalEnv != "" {
+				setEnv("ENV", originalEnv)
+			} else {
+				unsetEnv("ENV")
+			}
+		}()
+
+		// Set ENV to production (or unset it)
+		unsetEnv("ENV")
+
+		// This should trigger the normal flow, but we'll mock the dependencies
+		// to avoid actual GCP calls in tests
+		mockLogger := &log.MockLogger{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.UnPatch()
+
+		// Mock the logger
+		mm.On("LogGetLogger", mock.Anything).Return(mockLogger, nil)
+
+		// Mock createIamClient to return error to test the error path
+		clientErr := errors.New("SomeError")
+		mm.On("createIamClient", mock.Anything).Return(nil, clientErr)
+
+		token, err := GetSignedAccessToken()
+
+		assert.Equal(tt, "", token)
+		assert.Error(tt, err)
+
+		mm.AssertExpectations(tt)
+	})
 	t.Run("WhenCreateIamClientReturnsError", func(tt *testing.T) {
 		mockLogger := &log.MockLogger{}
 		mm := &monkeyMock{}
@@ -388,6 +503,18 @@ func TestGetSignedAccessToken(t *testing.T) {
 		defer mm.UnPatch()
 		ctx := context.Background()
 		clientErr := errors.New("SomeErrorl")
+
+		// Ensure ENV is not set to local
+		originalEnv := os.Getenv("ENV")
+		defer func() {
+			if originalEnv != "" {
+				setEnv("ENV", originalEnv)
+			} else {
+				unsetEnv("ENV")
+			}
+		}()
+		unsetEnv("ENV")
+
 		mm.On("LogGetLogger", ctx).Return(mockLogger, nil)
 		mm.On("createIamClient", ctx).Return(nil, clientErr)
 		token, _ := GetSignedAccessToken()

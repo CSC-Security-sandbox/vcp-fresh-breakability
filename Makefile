@@ -48,6 +48,10 @@ generate-core-api:
 generate-google-proxy-client:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package googleproxyclient --config clients/google-proxy-client/.ogenserver.yml --target clients/google-proxy-client google-proxy/api/gcp-api.yaml
 
+.PHONY: generate-core-api-client
+generate-core-api-client:
+	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapi --config clients/core-api/.ogenclient.yml --target clients/core-api core/core-api/api.yaml
+
 .PHONY: generate-retry-engine-wrapper
 generate-retry-engine-wrapper:
 	cd cmd/retry-engine-generator; go run main.go vcp core

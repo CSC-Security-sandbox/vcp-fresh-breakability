@@ -591,6 +591,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/pools/{poolId}/ontap/credentials:
+    get:
+      tags:
+        - pools
+      summary: Get ONTAP credentials
+      description: Returns the credentials of the specified account name.
+      operationId: v1_getOntapCredentials
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/userNameQueryParameter'
+        - $ref: '#/components/parameters/accountNameQueryParameter'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntapCredentials_v1'
+              example:
+                secret_id: "secret-12345"
+                certificate_id: "cert-67890"
+                password: "password123"
+                auth_type: 1
+        "400":
+          $ref: '#/components/responses/StandardError-400'
+        "401":
+          $ref: '#/components/responses/StandardError-401'
+        "403":
+          $ref: '#/components/responses/StandardError-403'
+        "404":
+          $ref: '#/components/responses/StandardError-404'
+        "422":
+          $ref: '#/components/responses/StandardError-422'
+        "429":
+          $ref: '#/components/responses/StandardError-429'
+        "409":
+          $ref: '#/components/responses/StandardError-409'
+        "500":
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/Storage/GcpKmsConfig/{uuid}/RotateServiceAccountKey:
     post:
       operationId: v1_rotateGcpKmsConfig
@@ -1471,6 +1516,30 @@ components:
           readOnly: true
           description: Details about the current job state
           example: Error creating snapshot - operation timed out
+    OntapCredentials_v1:
+      title: OntapCredentials
+      type: object
+      properties:
+        secret_id:
+          title: secret_id
+          type: string
+          description: The secret ID for authentication
+          example: "secret-12345"
+        certificate_id:
+          title: certificate_id
+          type: string
+          description: The certificate ID for authentication
+          example: "cert-67890"
+        password:
+          title: password
+          type: string
+          description: The password for authentication
+          example: "password123"
+        auth_type:
+          title: auth_type
+          type: integer
+          description: The authentication type
+          example: 1
   responses:
     StandardError-400:
       description: Bad request
@@ -1639,3 +1708,19 @@ components:
       schema:
         type: boolean
         default: false
+    accountNameQueryParameter:
+      name: accountName
+      in: query
+      description: Account name
+      required: false
+      schema:
+        type: string
+        example: "45110233509"
+    userNameQueryParameter:
+      name: userName
+      in: query
+      description: User name
+      required: false
+      schema:
+        type: string
+        example: "user123"    

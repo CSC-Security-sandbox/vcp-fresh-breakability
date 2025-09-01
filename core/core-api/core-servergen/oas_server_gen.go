@@ -22,6 +22,12 @@ type Handler interface {
 	//
 	// DELETE /v1/pools/{poolId}
 	V1DeletePool(ctx context.Context, params V1DeletePoolParams) (V1DeletePoolRes, error)
+	// V1GetOntapCredentials implements v1_getOntapCredentials operation.
+	//
+	// Returns the credentials of the specified account name.
+	//
+	// GET /v1/pools/{poolId}/ontap/credentials
+	V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error)
 	// V1GetPool implements v1_getPool operation.
 	//
 	// Returns the description of the specified pool by pool ID.

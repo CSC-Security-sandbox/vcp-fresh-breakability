@@ -189,6 +189,65 @@ func (_c *MockHandler_V1DeletePool_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// V1GetOntapCredentials provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1GetOntapCredentials")
+	}
+
+	var r0 V1GetOntapCredentialsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetOntapCredentialsParams) V1GetOntapCredentialsRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1GetOntapCredentialsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1GetOntapCredentialsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1GetOntapCredentials_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1GetOntapCredentials'
+type MockHandler_V1GetOntapCredentials_Call struct {
+	*mock.Call
+}
+
+// V1GetOntapCredentials is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1GetOntapCredentialsParams
+func (_e *MockHandler_Expecter) V1GetOntapCredentials(ctx interface{}, params interface{}) *MockHandler_V1GetOntapCredentials_Call {
+	return &MockHandler_V1GetOntapCredentials_Call{Call: _e.mock.On("V1GetOntapCredentials", ctx, params)}
+}
+
+func (_c *MockHandler_V1GetOntapCredentials_Call) Run(run func(ctx context.Context, params V1GetOntapCredentialsParams)) *MockHandler_V1GetOntapCredentials_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1GetOntapCredentialsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1GetOntapCredentials_Call) Return(_a0 V1GetOntapCredentialsRes, _a1 error) *MockHandler_V1GetOntapCredentials_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1GetOntapCredentials_Call) RunAndReturn(run func(context.Context, V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error)) *MockHandler_V1GetOntapCredentials_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1GetPool provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1GetPool(ctx context.Context, params V1GetPoolParams) (V1GetPoolRes, error) {
 	ret := _m.Called(ctx, params)

@@ -665,3 +665,20 @@ func convertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
 	}
 	return result
 }
+
+func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolId string, accountName string, userName string) (*datamodel.PoolCredentials, error) {
+	se := o.storage
+
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	pool, err := se.DescribePool(ctx, poolId, account.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Return expert mode credentials when VLM changes are available
+	return pool.PoolCredentials, nil
+}
