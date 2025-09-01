@@ -1240,7 +1240,7 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		PoolId:               "test-pool-id",
 		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
 		TotalThroughputMibps: 128,
-		TotalIops:            2048,
+		TotalIops:            nillable.ToPointer(int64(2048)),
 		QosType:              "Manual",
 		Description:          "Updated pool description",
 	}
@@ -1358,7 +1358,7 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 		PoolId:               "test-pool-id",
 		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
 		TotalThroughputMibps: 128,
-		TotalIops:            2048,
+		TotalIops:            nillable.ToPointer(int64(2048)),
 		QosType:              "Manual",
 		Description:          "Updated pool description",
 	}
@@ -1446,7 +1446,7 @@ func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 		PoolId:               "test-pool-id",
 		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
 		TotalThroughputMibps: 128,
-		TotalIops:            2048,
+		TotalIops:            nillable.ToPointer(int64(2048)),
 		QosType:              "Manual",
 		Description:          "Updated pool description",
 	}
@@ -1572,7 +1572,7 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 		PoolId:               "test-pool-id",
 		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
 		TotalThroughputMibps: 128,
-		TotalIops:            2048,
+		TotalIops:            nillable.ToPointer(int64(2048)),
 		QosType:              "Manual",
 		Description:          "Updated pool description",
 	}

@@ -575,7 +575,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// if there is no need of vlm workflow, just perform update pool in db
 	if dbPool.SizeInBytes == int64(updatePoolParams.SizeInBytes) && dbPool.PoolAttributes.ThroughputMibps == int64(updatePoolParams.TotalThroughputMibps) &&
-		dbPool.PoolAttributes.Iops == int64(updatePoolParams.TotalIops) {
+		dbPool.PoolAttributes.Iops == *updatePoolParams.TotalIops {
 		if dbPool.Description != updatePoolParams.Description {
 			dbPool.Description = updatePoolParams.Description
 		}
@@ -601,7 +601,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Find the optimal VMs based on the customer requested performance.
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
-		DesiredIOPS:             int64(updatePoolParams.TotalIops),
+		DesiredIOPS:             *updatePoolParams.TotalIops,
 		DesiredThroughputInMiBs: int64(updatePoolParams.TotalThroughputMibps),
 		DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(updatePoolParams.SizeInBytes)),
 	}
@@ -667,7 +667,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 		updatedPoolAttributes := &datamodel.PoolAttributes{
 			ThroughputMibps: int64(updatePoolParams.TotalThroughputMibps),
-			Iops:            int64(updatePoolParams.TotalIops),
+			Iops:            *updatePoolParams.TotalIops,
 			PrimaryZone:     dbPool.PoolAttributes.PrimaryZone,
 			SecondaryZone:   dbPool.PoolAttributes.SecondaryZone,
 			MediatorZone:    dbPool.PoolAttributes.MediatorZone,
@@ -682,7 +682,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, ConvertToVSAError(err)
 		}
 		dbPool.PoolAttributes.ThroughputMibps = int64(updatePoolParams.TotalThroughputMibps)
-		dbPool.PoolAttributes.Iops = int64(updatePoolParams.TotalIops)
+		dbPool.PoolAttributes.Iops = *updatePoolParams.TotalIops
 	}
 
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()

@@ -33,6 +33,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
@@ -5453,8 +5454,8 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		},
 	}
 	updateParams := &commonparams.UpdatePoolParams{
-		TotalThroughputMibps: 2000, // New throughput requirement
-		TotalIops:            6000, // New IOPS requirement
+		TotalThroughputMibps: 2000,                            // New throughput requirement
+		TotalIops:            nillable.ToPointer(int64(6000)), // New IOPS requirement
 	}
 	node := &coremodel.Node{
 		Name: "test-node",

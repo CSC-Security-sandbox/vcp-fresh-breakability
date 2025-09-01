@@ -29,13 +29,59 @@ var (
 	maxLvHotTierCapacity  = utils.MaxLvHotTierCapacity
 	minLvThroughput       = utils.MinLvThroughput
 	maxLvThroughput       = utils.MaxLvThroughput
+	autoTieringEnabled    = utils.AutoTieringEnabled
 )
+
+// CustomPerformance represents performance parameters that can be used for both create and update operations
+type CustomPerformance struct {
+	SizeInBytes        uint64
+	ThroughputMibps    int64
+	Iops               *int64
+	AllowAutoTiering   bool
+	HotTierSizeInBytes uint64
+	QosType            string
+	LargeCapacity      bool
+}
+
+// NewCustomPerformanceFromCreate creates CustomPerformance from CreatePoolParams
+func NewCustomPerformanceFromCreate(params *commonparams.CreatePoolParams) *CustomPerformance {
+	var throughput int64
+	var iops *int64
+
+	if params.CustomPerformanceParams != nil {
+		throughput = params.CustomPerformanceParams.ThroughputMibps
+		iops = params.CustomPerformanceParams.Iops
+	}
+
+	return &CustomPerformance{
+		SizeInBytes:        params.SizeInBytes,
+		ThroughputMibps:    throughput,
+		Iops:               iops,
+		AllowAutoTiering:   params.AllowAutoTiering,
+		HotTierSizeInBytes: params.HotTierSizeInBytes,
+		QosType:            params.QosType,
+		LargeCapacity:      params.LargeCapacity,
+	}
+}
+
+// NewCustomPerformanceFromUpdate creates CustomPerformance from UpdatePoolParams
+func NewCustomPerformanceFromUpdate(params *commonparams.UpdatePoolParams) *CustomPerformance {
+	return &CustomPerformance{
+		SizeInBytes:        params.SizeInBytes,
+		ThroughputMibps:    params.TotalThroughputMibps,
+		Iops:               params.TotalIops,
+		AllowAutoTiering:   params.AllowAutoTiering,
+		HotTierSizeInBytes: params.HotTierSizeInBytes,
+		QosType:            params.QosType,
+		LargeCapacity:      params.LargeCapacity,
+	}
+}
 
 // PoolValidator defines the interface for pool validation strategies
 type PoolValidator interface {
-	ValidateSize(params *commonparams.CreatePoolParams) error
-	ValidateThroughput(params *commonparams.CreatePoolParams) error
-	ValidateIops(params *commonparams.CreatePoolParams) error
+	ValidateSize(perf *CustomPerformance) error
+	ValidateThroughput(perf *CustomPerformance) error
+	ValidateIops(perf *CustomPerformance) error
 }
 
 // NewPoolValidator creates the appropriate validator based on pool type
@@ -49,23 +95,23 @@ func NewPoolValidator(isLargeCapacity bool) PoolValidator {
 // ValidationPipeline represents a sequence of validation steps
 type ValidationPipeline struct {
 	validator PoolValidator
-	steps     []func(PoolValidator, *commonparams.CreatePoolParams) error
+	steps     []func(PoolValidator, *CustomPerformance) error
 }
 
 func NewValidationPipeline(validator PoolValidator) *ValidationPipeline {
 	return &ValidationPipeline{
 		validator: validator,
-		steps: []func(PoolValidator, *commonparams.CreatePoolParams) error{
-			func(v PoolValidator, p *commonparams.CreatePoolParams) error { return v.ValidateSize(p) },
-			func(v PoolValidator, p *commonparams.CreatePoolParams) error { return v.ValidateThroughput(p) },
-			func(v PoolValidator, p *commonparams.CreatePoolParams) error { return v.ValidateIops(p) },
+		steps: []func(PoolValidator, *CustomPerformance) error{
+			func(v PoolValidator, p *CustomPerformance) error { return v.ValidateSize(p) },
+			func(v PoolValidator, p *CustomPerformance) error { return v.ValidateThroughput(p) },
+			func(v PoolValidator, p *CustomPerformance) error { return v.ValidateIops(p) },
 		},
 	}
 }
 
-func (vp *ValidationPipeline) Execute(params *commonparams.CreatePoolParams) error {
+func (vp *ValidationPipeline) Execute(perf *CustomPerformance) error {
 	for _, step := range vp.steps {
-		if err := step(vp.validator, params); err != nil {
+		if err := step(vp.validator, perf); err != nil {
 			return err
 		}
 	}
@@ -73,24 +119,19 @@ func (vp *ValidationPipeline) Execute(params *commonparams.CreatePoolParams) err
 }
 
 // Common IOPS validation function to eliminate duplication
-func validateIopsCommon(params *commonparams.CreatePoolParams, minIops, maxIops uint64, iopsPerMiBpsValue uint64, errorSuffix string) error {
-	// Handle nil CustomPerformanceParams - skip validation
-	if params.CustomPerformanceParams == nil {
-		return nil
-	}
-
+func validateIopsCommon(perf *CustomPerformance, minIops, maxIops uint64, iopsPerMiBpsValue uint64, errorSuffix string) error {
 	// Check if IOPS needs to be calculated from throughput (when IOPS is nil)
-	if params.CustomPerformanceParams.Iops == nil && params.CustomPerformanceParams.ThroughputMibps > 0 {
+	if perf.Iops == nil && perf.ThroughputMibps > 0 {
 		// Calculate IOPS from throughput
-		calculatedIops := params.CustomPerformanceParams.ThroughputMibps * int64(iopsPerMiBpsValue)
+		calculatedIops := perf.ThroughputMibps * int64(iopsPerMiBpsValue)
 		if calculatedIops > int64(maxIops) {
 			calculatedIops = int64(maxIops)
 		}
-		params.CustomPerformanceParams.Iops = &calculatedIops
+		perf.Iops = &calculatedIops
 	}
 
 	// Check for negative values (after potential calculation)
-	if params.CustomPerformanceParams.Iops != nil && *params.CustomPerformanceParams.Iops < 0 {
+	if perf.Iops != nil && *perf.Iops < 0 {
 		baseMsg := "TotalIops must be set and must be greater than 0"
 		if errorSuffix != "" {
 			baseMsg = fmt.Sprintf("Iops must be set and must be greater than %d%s", minIops, errorSuffix)
@@ -99,8 +140,8 @@ func validateIopsCommon(params *commonparams.CreatePoolParams, minIops, maxIops 
 	}
 
 	// Validate IOPS range and business rules (only if IOPS is set)
-	if params.CustomPerformanceParams.Iops != nil {
-		if err := ValidateIopsRange(*params.CustomPerformanceParams.Iops, minIops, maxIops); err != nil {
+	if perf.Iops != nil {
+		if err := ValidateIopsRange(*perf.Iops, minIops, maxIops); err != nil {
 			if errorSuffix != "" {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf("%s%s", err.Error(), errorSuffix))
 			}
@@ -108,12 +149,12 @@ func validateIopsCommon(params *commonparams.CreatePoolParams, minIops, maxIops 
 		}
 
 		// Validate IOPS meets minimum requirement for throughput (throughput * 16)
-		if params.CustomPerformanceParams.ThroughputMibps > 0 {
-			minimumIops := params.CustomPerformanceParams.ThroughputMibps * 16
-			if *params.CustomPerformanceParams.Iops < minimumIops {
+		if perf.ThroughputMibps > 0 {
+			minimumIops := perf.ThroughputMibps * 16
+			if *perf.Iops < minimumIops {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf(
 					"TotalIops must be at least %d IOPS (minimum for %d MiBps throughput)%s",
-					minimumIops, params.CustomPerformanceParams.ThroughputMibps, errorSuffix))
+					minimumIops, perf.ThroughputMibps, errorSuffix))
 			}
 		}
 	}
@@ -122,19 +163,19 @@ func validateIopsCommon(params *commonparams.CreatePoolParams, minIops, maxIops 
 }
 
 // ValidateCommonPoolParams validates parameters that are common to all pool types
-func ValidateCommonPoolParams(params *commonparams.CreatePoolParams) error {
-	if params.SizeInBytes%minSizeGranularity != 0 {
+func ValidateCommonPoolParams(perf *CustomPerformance) error {
+	if perf.SizeInBytes%minSizeGranularity != 0 {
 		return customerrors.NewUserInputValidationErr(
 			fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity)))
 	}
 
-	if params.QosType != utils.QosTypeAuto {
+	if perf.QosType != utils.QosTypeAuto {
 		return customerrors.NewUserInputValidationErr(
 			"Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is auto")
 	}
 
-	// Validate auto-tiering numerical parameters (moved from endpoint)
-	if err := validateAutoTieringParams(params); err != nil {
+	// Validate auto-tiering numerical parameters
+	if err := validateAutoTieringParams(perf); err != nil {
 		return err
 	}
 
@@ -142,25 +183,27 @@ func ValidateCommonPoolParams(params *commonparams.CreatePoolParams) error {
 }
 
 // validateAutoTieringParams validates auto-tiering numerical parameters
-func validateAutoTieringParams(params *commonparams.CreatePoolParams) error {
-	if !params.AllowAutoTiering {
+func validateAutoTieringParams(perf *CustomPerformance) error {
+	if !perf.AllowAutoTiering {
 		return nil // No validation needed if auto-tiering is disabled
 	}
-
+	if !autoTieringEnabled && (perf.AllowAutoTiering || perf.HotTierSizeInBytes > 0) {
+		return customerrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled")
+	}
 	// 1. HotTierSizeInBytes must be less than or equal to pool size
-	if params.HotTierSizeInBytes > params.SizeInBytes {
+	if perf.HotTierSizeInBytes > perf.SizeInBytes {
 		return customerrors.NewUserInputValidationErr(
 			fmt.Sprintf("Hot-tier size %s exceeds the total storage pool capacity %s.",
-				utils.FmtUint64Bytes(params.HotTierSizeInBytes),
-				utils.FmtUint64Bytes(params.SizeInBytes)))
+				utils.FmtUint64Bytes(perf.HotTierSizeInBytes),
+				utils.FmtUint64Bytes(perf.SizeInBytes)))
 	}
 
 	// 2. HotTierSizeInBytes must be >= minimum size (1TB)
-	if params.HotTierSizeInBytes < minHotTierSize {
+	if perf.HotTierSizeInBytes < minHotTierSize {
 		return customerrors.NewUserInputValidationErr(
 			fmt.Sprintf("HotTierSizeInBytes must be between %s and a value less than the pool size %s.",
 				utils.FmtUint64Bytes(minHotTierSize),
-				utils.FmtUint64Bytes(params.SizeInBytes)))
+				utils.FmtUint64Bytes(perf.SizeInBytes)))
 	}
 
 	return nil
@@ -182,3 +225,6 @@ func ValidateIopsRange(iops int64, minIops uint64, maxIops uint64) error {
 	}
 	return nil
 }
+
+// Note: ValidateCommonPoolParamsForUpdate is no longer used since we now use the unified validation approach
+// with CustomPerformance struct. The function has been removed to eliminate code duplication.

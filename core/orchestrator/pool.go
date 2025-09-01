@@ -29,22 +29,14 @@ var (
 	// Pool size limits
 	minQuotaInBytesPool = utils.MinQuotaInBytesPool
 	maxQuotaInBytesPool = utils.MaxQuotaInBytesPool
-	minSizeGranularity  = utils.MinSizeGranularity
-
-	// Performance limits
-	minCustomThroughput = utils.MinCustomThroughput
-	maxCustomThroughput = utils.MaxCustomThroughput
-	minCustomIops       = utils.MinCustomIops
-	maxCustomIops       = utils.MaxCustomIops
-
 	// Function variables
-	createPool               = _createPool
-	updatePool               = _updatePool
-	ValidateCreatePoolParams = _validateCreatePoolParams
-	ValidateUpdatePoolParams = _validateUpdatePoolParams
-	deletePool               = _deletePool
-	GetPoolByName            = _getPoolByName
-	autoTieringEnabled       = env.GetBool("AUTO_TIERING_ENABLED", false)
+	createPool                     = _createPool
+	updatePool                     = _updatePool
+	ValidatePoolParams             = _validatePoolParams
+	ValidateCreatePoolParams       = _validateCreatePoolParams
+	ValidateAndSetUpdatePoolParams = _validateAndSetUpdatePoolParams
+	deletePool                     = _deletePool
+	GetPoolByName                  = _getPoolByName
 )
 
 const (
@@ -219,7 +211,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", err
 	}
 	dbPool := database.ConvertPoolViewToPool(dbPoolView)
-	err = ValidateUpdatePoolParams(params, dbPool)
+	err = ValidateAndSetUpdatePoolParams(params, dbPool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -297,43 +289,41 @@ func (o *Orchestrator) DescribePool(ctx context.Context, poolId string, accountN
 	return convertDatastorePoolToModel(pool, pool.Account.Name), nil
 }
 
-func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
-	if params.ServiceLevel != ServiceLevelNameFLEX {
+// _validatePoolParams is a unified validation function that works for both create and update operations
+func _validatePoolParams(perf *validators.CustomPerformance, serviceLevel string) error {
+	// Validate service level for create operations (only needed for create)
+	if serviceLevel != "" && serviceLevel != ServiceLevelNameFLEX {
 		return customerrors.NewUserInputValidationErr("Given service level not supported. Supported service level is " + ServiceLevelNameFLEX)
 	}
 
-	// First validate common parameters (QoS type, size granularity, etc.)
-	if err := validators.ValidateCommonPoolParams(params); err != nil {
+	// First validate common parameters
+	if err := validators.ValidateCommonPoolParams(perf); err != nil {
 		return err
 	}
 
 	// Then validate pool-specific parameters
-	poolValidator := validators.NewPoolValidator(params.LargeCapacity)
+	poolValidator := validators.NewPoolValidator(perf.LargeCapacity)
 	pipeline := validators.NewValidationPipeline(poolValidator)
-	return pipeline.Execute(params)
+	return pipeline.Execute(perf)
 }
 
-func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *datamodel.Pool) error {
-	if pool.QosType == QosTypeAuto && params.QosType != QosTypeAuto {
-		return customerrors.NewUserInputValidationErr("Cannot change qos type from auto to manual")
-	}
+// _validateCreatePoolParams now just builds CustomPerformance and calls the unified validator
+func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
+	// Build CustomPerformance params first
+	perf := validators.NewCustomPerformanceFromCreate(params)
 
-	if minQuotaInBytesPool > params.SizeInBytes {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be greater than %s and a multiple of 1GiB", utils.FmtUint64Bytes(minQuotaInBytesPool)))
+	// Call unified validation with service level check
+	err := ValidatePoolParams(perf, params.ServiceLevel)
+	if err != nil {
+		return err
 	}
+	params.CustomPerformanceParams.Iops = perf.Iops
+	return nil
+}
 
-	if params.SizeInBytes > maxQuotaInBytesPool {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be less than %s", utils.FmtUint64Bytes(maxQuotaInBytesPool)))
-	}
-
-	if params.SizeInBytes%minSizeGranularity != 0 {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity)))
-	}
-
-	if !autoTieringEnabled && (params.AllowAutoTiering || params.HotTierSizeInBytes > 0) {
-		return customerrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
-	}
-
+// _validateAndSetUpdatePoolParams now just builds CustomPerformance and calls the unified validator
+func _validateAndSetUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *datamodel.Pool) error {
+	// Auto_tier checks for update with existing pool values
 	if params.AllowAutoTiering {
 		if !pool.AllowAutoTiering && params.HotTierSizeInBytes < uint64(pool.SizeInBytes) {
 			return customerrors.NewUserInputValidationErr("Given hot tier size is not supported. Hot tier size cannot be less than existing pool size")
@@ -343,17 +333,15 @@ func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *data
 	} else if pool.AllowAutoTiering {
 		return customerrors.NewUserInputValidationErr("Auto tiering disable operation is not supported")
 	}
+	// Build CustomPerformance params first
+	perf := validators.NewCustomPerformanceFromUpdate(params)
 
-	// Validate throughput range
-	if err := validators.ValidateThroughputRange(int64(params.TotalThroughputMibps), minCustomThroughput, maxCustomThroughput); err != nil {
+	// Call unified validation (no service level check needed for updates)
+	err := ValidatePoolParams(perf, "")
+	if err != nil {
 		return err
 	}
-
-	// Validate IOPS range
-	if err := validators.ValidateIopsRange(int64(params.TotalIops), minCustomIops, maxCustomIops); err != nil {
-		return err
-	}
-
+	params.TotalIops = perf.Iops
 	return nil
 }
 

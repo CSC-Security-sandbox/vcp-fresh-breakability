@@ -77,6 +77,7 @@ var (
 	// fileProtocolAllowlistedAccounts contains the parsed set of account IDs that are allowlisted for file protocol support
 	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
+	AutoTieringEnabled              = env.GetBool("AUTO_TIERING_ENABLED", false)
 )
 
 const (

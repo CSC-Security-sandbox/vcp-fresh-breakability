@@ -291,8 +291,10 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 	pool.VLMConfig = string(marshalledVlmConfig)
 	pool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
 	pool.Description = updatePoolParams.Description
-	pool.PoolAttributes.ThroughputMibps = int64(updatePoolParams.TotalThroughputMibps)
-	pool.PoolAttributes.Iops = int64(updatePoolParams.TotalIops)
+	pool.PoolAttributes.ThroughputMibps = updatePoolParams.TotalThroughputMibps
+	if updatePoolParams.TotalIops != nil {
+		pool.PoolAttributes.Iops = *updatePoolParams.TotalIops
+	}
 	if updatePoolParams.Labels != nil {
 		pool.PoolAttributes.Labels = updatePoolParams.Labels
 	}
@@ -1001,8 +1003,8 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	qosPolicyName := generateQoSPolicyName(svm.Name)
 
 	// Get the new requirements from the update parameters
-	newMaxThroughput := int64(updateParams.TotalThroughputMibps)
-	newMaxIOPS := int64(updateParams.TotalIops)
+	newMaxThroughput := updateParams.TotalThroughputMibps
+	newMaxIOPS := updateParams.TotalIops
 
 	// Find the existing QoS policy
 	findQosPolicyParams := vsa.FindQoSGroupPolicyParams{
@@ -1017,7 +1019,7 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	}
 
 	// Check if the QoS policy needs to be updated
-	if existingQosPolicy.MaxThroughput == newMaxThroughput && existingQosPolicy.MaxIOPS == newMaxIOPS {
+	if existingQosPolicy.MaxThroughput == newMaxThroughput && existingQosPolicy.MaxIOPS == *newMaxIOPS {
 		logger.Info("QoS policy already matches the new requirements, no update needed",
 			"policyName", qosPolicyName,
 			"currentThroughput", existingQosPolicy.MaxThroughput,
@@ -1040,7 +1042,7 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 		Name:          existingQosPolicy.Name,
 		SvmName:       existingQosPolicy.SvmName,
 		MaxThroughput: newMaxThroughput,
-		MaxIOPS:       newMaxIOPS,
+		MaxIOPS:       *newMaxIOPS,
 	}
 
 	err = provider.UpdateQoSGroupPolicy(updateQosPolicyParams)
@@ -2492,6 +2494,7 @@ func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlm
 	logger.Info("Extracted intercluster LIF IPs from VLM config", "lifCount", len(lifIPs))
 	return lifIPs, nil
 }
+
 // DetermineVMScalingDirection determines whether the new VM decision represents scaling up or down
 // by using the decision maker's comparison method.
 // Returns true if scaling up (new VM is more expensive), false if scaling down (new VM is cheaper).

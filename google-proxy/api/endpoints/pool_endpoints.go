@@ -29,16 +29,13 @@ import (
 var (
 	regionalPoolEnabled = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
 	minCustomThroughput = utils.MinCustomThroughput
-	maxCustomThroughput = utils.MaxCustomThroughput
-	maxCustomIops       = utils.MaxCustomIops
 )
 
 const (
-	HTTP_BAD_REQUEST_CODE     = 400
-	maxRuneCount              = 63
-	maxByteCount              = 128
-	MinPoolHotTierSizeInBytes = 1099511627776 // 1 TiB
-	QosTypeAuto               = "auto"
+	HTTP_BAD_REQUEST_CODE = 400
+	maxRuneCount          = 63
+	maxByteCount          = 128
+	QosTypeAuto           = "auto"
 )
 
 func resolvePerformanceParams(reqThroughput gcpgenserver.OptNilFloat64, reqIops gcpgenserver.OptNilFloat64) (throughput int64, iops *int64) {
@@ -555,7 +552,8 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 			Message: validateErr2.Message,
 		}, nil
 	}
-	param.TotalIops = calculatedIops
+	iopsValue := calculatedIops
+	param.TotalIops = &iopsValue
 
 	if req.Description.IsSet() {
 		param.Description = req.Description.Value
@@ -576,9 +574,9 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 	}
 
 	if req.TotalThroughputMibps.IsSet() {
-		param.TotalThroughputMibps = req.TotalThroughputMibps.Value
+		param.TotalThroughputMibps = int64(req.TotalThroughputMibps.Value)
 	} else {
-		param.TotalThroughputMibps = existingPool.CustomPerformanceParams.Throughput
+		param.TotalThroughputMibps = int64(existingPool.CustomPerformanceParams.Throughput)
 	}
 
 	if req.Labels.IsSet() {
@@ -1000,38 +998,14 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 
 // validateThroughputAndIopsForUpdate validates throughput and IOPS for pool updates
 // It ensures IOPS meets minimum requirements for both new and existing throughput
-func validateThroughputAndIopsForUpdate(ctx context.Context, throughput gcpgenserver.OptNilFloat64, iops gcpgenserver.OptNilFloat64, existingPool *models.Pool) (float64, *gcpgenserver.Error) {
-	// Determine the effective throughput for validation
-	var effectiveThroughput float64
-	if throughput.IsSet() {
-		if throughput.Value < float64(minCustomThroughput) || throughput.Value > float64(maxCustomThroughput) {
-			return 0, &gcpgenserver.Error{
-				Code:    HTTP_BAD_REQUEST_CODE,
-				Message: fmt.Sprintf("TotalThroughputMibps must be between %d and %d MiBps", minCustomThroughput, maxCustomThroughput),
-			}
-		}
-		effectiveThroughput = throughput.Value
-	} else {
-		effectiveThroughput = existingPool.CustomPerformanceParams.Throughput
-	}
-
-	// Calculate minimum IOPS required for the effective throughput
-	minimumIops := effectiveThroughput * 16
-
-	// Handle different cases for IOPS calculation and validation
+func validateThroughputAndIopsForUpdate(ctx context.Context, throughput gcpgenserver.OptNilFloat64, iops gcpgenserver.OptNilFloat64, existingPool *models.Pool) (int64, *gcpgenserver.Error) {
+	// Case 1: IOPS explicitly provided - validate against throughput requirements
 	if iops.IsSet() {
-		// Case 1: IOPS is explicitly provided - validate and return it
-		if iops.Value < minimumIops || iops.Value > float64(maxCustomIops) {
-			return 0, &gcpgenserver.Error{
-				Code: HTTP_BAD_REQUEST_CODE,
-				Message: fmt.Sprintf("TotalIops must be between %.0f and %d IOPS (minimum %.0f IOPS required for %.0f MiBps throughput)",
-					minimumIops, maxCustomIops, minimumIops, effectiveThroughput),
-			}
-		}
-		return iops.Value, nil
+		// Return as it is since the calculation is done in the orchestrator
+		return int64(iops.Value), nil
 	} else if throughput.IsSet() {
 		// Case 2: Only throughput is provided - smart IOPS calculation
-		currentIops := int64(existingPool.CustomPerformanceParams.Iops)
+		currentIops := existingPool.CustomPerformanceParams.Iops
 		newThroughput := int64(throughput.Value)
 		minimumIopsInt := newThroughput * 16
 
@@ -1044,15 +1018,15 @@ func validateThroughputAndIopsForUpdate(ctx context.Context, throughput gcpgense
 		if currentIops > minimumIopsInt {
 			// Current IOPS is already above minimum, keep it as is
 			logger.Info("Keeping current IOPS (above minimum)", "finalIops", currentIops)
-			return float64(currentIops), nil
+			return currentIops, nil
 		} else {
 			// Current IOPS is below minimum, increase to minimum
 			logger.Info("Increasing IOPS to minimum", "finalIops", minimumIopsInt)
-			return float64(minimumIopsInt), nil
+			return minimumIopsInt, nil
 		}
 	} else {
 		// Case 3: Neither throughput nor IOPS provided - use existing IOPS
-		return float64(existingPool.CustomPerformanceParams.Iops), nil
+		return existingPool.CustomPerformanceParams.Iops, nil
 	}
 }
 

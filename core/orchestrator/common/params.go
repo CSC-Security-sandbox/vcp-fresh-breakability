@@ -270,8 +270,9 @@ type UpdatePoolParams struct {
 	HotTierSizeInBytes       uint64
 	EnableHotTierAutoResize  bool
 	CustomPerformanceEnabled bool
-	TotalThroughputMibps     float64
-	TotalIops                float64
+	TotalThroughputMibps     int64
+	TotalIops                *int64
+	LargeCapacity            bool
 }
 
 type CreateVolumeReplicationInternalParams struct {
