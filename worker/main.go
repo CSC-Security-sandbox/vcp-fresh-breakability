@@ -29,6 +29,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	tManagerPkg "github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/temporalmanager"
 	workflowEngine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/sdk/client"
@@ -55,7 +56,8 @@ func main() {
 			logger.Error("Failed to shutdown OpenTelemetry", "error", err.Error())
 		}
 	}()
-
+	// Register your custom metric
+	metrics.RegisterJobStatusCounter()
 	// Start metrics HTTP server
 	metricsPort := os.Getenv("METRICS_PORT")
 	if metricsPort == "" {

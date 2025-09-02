@@ -20,6 +20,7 @@ import (
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -54,6 +55,8 @@ func (ca CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.J
 	logger := util.GetLogger(ctx)
 	se := ca.SE
 	logger.Infof("updating job: %s with status: %s", job.UUID, job.State)
+	// Emit Prometheus metric
+	metrics.IncJobStatusCounter(ctx, job.ErrorDetails, job.State)
 	return se.UpdateJob(ctx, job.UUID, job.State, job.TrackingID, job.ErrorDetails)
 }
 
