@@ -15,12 +15,13 @@ import (
 )
 
 var (
-	deleteHostGroup         = _deleteHostGroup
-	getMultipleHostGroups   = _getMultipleHostGroups
-	updateHostGroupsState   = _updateHostGroupsState
-	updateHostGroup         = _updateHostGroup
-	getHostGroupWithDetails = _getHostGroupWithDetails
-	isHostGroupInUse        = _isHostGroupInUse
+	deleteHostGroup           = _deleteHostGroup
+	getMultipleHostGroups     = _getMultipleHostGroups
+	updateHostGroupsState     = _updateHostGroupsState
+	updateHostGroup           = _updateHostGroup
+	getHostGroupWithDetails   = _getHostGroupWithDetails
+	isHostGroupInUse          = _isHostGroupInUse
+	listHostGroupsByAccountID = _ListHostGroupsByAccountID
 )
 
 func (d *DataStoreRepository) GetHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error) {
@@ -195,4 +196,17 @@ func _updateHostGroup(ctx context.Context, db *gorm.DB, hostGroupUUID string, ac
 	}
 
 	return hostGroup, nil
+}
+
+func (d *DataStoreRepository) ListHostGroupsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.HostGroup, error) {
+	return listHostGroupsByAccountID(d.db.GORM().WithContext(ctx), accountID)
+}
+
+func _ListHostGroupsByAccountID(db *gorm.DB, accountID int64) ([]*datamodel.HostGroup, error) {
+	var dbHostGroups []*datamodel.HostGroup
+	err := db.Where("account_id = ?", accountID).Find(&dbHostGroups).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", nil))
+	}
+	return dbHostGroups, nil
 }

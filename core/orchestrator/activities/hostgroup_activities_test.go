@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -695,6 +696,254 @@ func TestHandleQNsInHostGroup_IgroupDeleteInitiatorFailure(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), assert.AnError.Error())
 		mockProvider.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+// Test cases for ListHostGroups method
+func TestListHostGroups(t *testing.T) {
+	t.Run("ListHostGroups_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		// Use a mock account with proper fields based on the actual datamodel
+		accountID := int64(123)
+		projectNumber := "test-project-123"
+
+		// Create account struct - adjust fields based on actual datamodel.Account structure
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: accountID,
+			},
+		}
+
+		expectedHostGroups := []*datamodel.HostGroup{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "hg-uuid-1",
+				},
+				Name:      "host-group-1",
+				AccountID: 123,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "hg-uuid-2",
+				},
+				Name:      "host-group-2",
+				AccountID: 123,
+			},
+		}
+
+		mockStorage.On("GetAccount", ctx, projectNumber).Return(account, nil)
+		mockStorage.On("ListHostGroupsByAccountID", ctx, accountID).Return(expectedHostGroups, nil)
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.ListHostGroups(ctx, projectNumber)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedHostGroups, result)
+		assert.Len(t, result, 2)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ListHostGroups_EmptyList", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		accountID := int64(123)
+		projectNumber := "test-project-123"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: accountID,
+			},
+		}
+
+		var expectedHostGroups []*datamodel.HostGroup
+
+		mockStorage.On("GetAccount", ctx, projectNumber).Return(account, nil)
+		mockStorage.On("ListHostGroupsByAccountID", ctx, accountID).Return(expectedHostGroups, nil)
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.ListHostGroups(ctx, projectNumber)
+
+		assert.NoError(t, err)
+		assert.Empty(t, result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ListHostGroups_GetAccountError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		projectNumber := "test-project-123"
+		expectedError := errors.New("account not found")
+
+		mockStorage.On("GetAccount", ctx, projectNumber).Return(nil, expectedError)
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.ListHostGroups(ctx, projectNumber)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, expectedError, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ListHostGroups_ListError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		accountID := int64(123)
+		projectNumber := "test-project-123"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: accountID,
+			},
+		}
+
+		expectedError := errors.New("database connection error")
+
+		mockStorage.On("GetAccount", ctx, projectNumber).Return(account, nil)
+		mockStorage.On("ListHostGroupsByAccountID", ctx, accountID).Return(nil, expectedError)
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.ListHostGroups(ctx, projectNumber)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, expectedError, err)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+// Test cases for DeleteHostGroup method
+func TestDeleteHostGroup(t *testing.T) {
+	t.Run("DeleteHostGroup_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		hostGroupUUID := "hg-uuid-123"
+		accountID := int64(123)
+
+		expectedHostGroup := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				UUID: hostGroupUUID,
+			},
+			AccountID: accountID,
+			Name:      "test-host-group",
+		}
+
+		mockStorage.On("DeleteHostGroup", ctx, hostGroupUUID, accountID).Return(expectedHostGroup, nil)
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.DeleteHostGroup(ctx, hostGroupUUID, accountID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedHostGroup, result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DeleteHostGroup_NotFound", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		hostGroupUUID := "non-existent-hg-uuid"
+		accountID := int64(123)
+		expectedError := errors.New("host group not found")
+
+		mockStorage.On("DeleteHostGroup", ctx, hostGroupUUID, accountID).Return(nil, expectedError)
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.DeleteHostGroup(ctx, hostGroupUUID, accountID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, expectedError, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DeleteHostGroup_DatabaseError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		hostGroupUUID := "hg-uuid-123"
+		accountID := int64(123)
+		expectedError := errors.New("database deletion failed")
+
+		mockStorage.On("DeleteHostGroup", ctx, hostGroupUUID, accountID).Return(nil, expectedError)
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.DeleteHostGroup(ctx, hostGroupUUID, accountID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, expectedError, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DeleteHostGroup_EmptyUUID", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		hostGroupUUID := ""
+		accountID := int64(123)
+
+		mockStorage.On("DeleteHostGroup", ctx, hostGroupUUID, accountID).Return(nil, errors.New("invalid host group UUID"))
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.DeleteHostGroup(ctx, hostGroupUUID, accountID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "invalid host group UUID")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DeleteHostGroup_ZeroAccountID", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		hostGroupUUID := "hg-uuid-123"
+		accountID := int64(0)
+
+		mockStorage.On("DeleteHostGroup", ctx, hostGroupUUID, accountID).Return(nil, errors.New("invalid account ID"))
+
+		activity := HostGroupUpdateActivity{
+			SE: mockStorage,
+		}
+
+		result, err := activity.DeleteHostGroup(ctx, hostGroupUUID, accountID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "invalid account ID")
 		mockStorage.AssertExpectations(t)
 	})
 }

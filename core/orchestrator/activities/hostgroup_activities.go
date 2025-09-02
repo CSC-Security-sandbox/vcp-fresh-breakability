@@ -2,7 +2,6 @@ package activities
 
 import (
 	"context"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -168,4 +167,28 @@ func _getAllInitiators(initiators []*models.IgroupInlineInitiatorsInlineArrayIte
 		initiatorNames = append(initiatorNames, *initiator.Name)
 	}
 	return initiatorNames
+}
+
+func (j *HostGroupUpdateActivity) ListHostGroups(ctx context.Context, projectNumber string) ([]*datamodel.HostGroup, error) {
+	se := j.SE
+	account, err := se.GetAccount(ctx, projectNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	hostGroups, err := se.ListHostGroupsByAccountID(ctx, account.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return hostGroups, nil
+}
+
+func (j *HostGroupUpdateActivity) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error) {
+	se := j.SE
+	hostGroup, err := se.DeleteHostGroup(ctx, hostGroupUUID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	return hostGroup, nil
 }

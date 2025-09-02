@@ -339,13 +339,13 @@ func TestEnableAutoVolOfflineCronForGCPKMS(t *testing.T) {
 			return mockClient, nil
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
-		
+
 		mockClient.On("Security").Return(mockSecurity)
 		mockSecurity.On("EnableAutoVolOfflineCronForGCPKMS").Return(nil)
-		
+
 		provider := &OntapRestProvider{}
 		err := provider.EnableAutoVolOfflineCronForGCPKMS()
-		
+
 		assert.NoError(t, err)
 	})
 
@@ -355,10 +355,10 @@ func TestEnableAutoVolOfflineCronForGCPKMS(t *testing.T) {
 			return nil, errors.New("client creation failed")
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
-		
+
 		provider := &OntapRestProvider{}
 		err := provider.EnableAutoVolOfflineCronForGCPKMS()
-		
+
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "client creation failed")
 	})
@@ -371,13 +371,13 @@ func TestEnableAutoVolOfflineCronForGCPKMS(t *testing.T) {
 			return mockClient, nil
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
-		
+
 		mockClient.On("Security").Return(mockSecurity)
 		mockSecurity.On("EnableAutoVolOfflineCronForGCPKMS").Return(errors.New("enable auto vol offline cron failed"))
-		
+
 		provider := &OntapRestProvider{}
 		err := provider.EnableAutoVolOfflineCronForGCPKMS()
-		
+
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "enable auto vol offline cron failed")
 	})

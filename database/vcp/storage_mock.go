@@ -7705,6 +7705,65 @@ func (_c *MockStorage_ListBackupVaults_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// ListHostGroupsByAccountID provides a mock function with given fields: ctx, accountID
+func (_m *MockStorage) ListHostGroupsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.HostGroup, error) {
+	ret := _m.Called(ctx, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListHostGroupsByAccountID")
+	}
+
+	var r0 []*datamodel.HostGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.HostGroup, error)); ok {
+		return rf(ctx, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.HostGroup); ok {
+		r0 = rf(ctx, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.HostGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListHostGroupsByAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListHostGroupsByAccountID'
+type MockStorage_ListHostGroupsByAccountID_Call struct {
+	*mock.Call
+}
+
+// ListHostGroupsByAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID int64
+func (_e *MockStorage_Expecter) ListHostGroupsByAccountID(ctx interface{}, accountID interface{}) *MockStorage_ListHostGroupsByAccountID_Call {
+	return &MockStorage_ListHostGroupsByAccountID_Call{Call: _e.mock.On("ListHostGroupsByAccountID", ctx, accountID)}
+}
+
+func (_c *MockStorage_ListHostGroupsByAccountID_Call) Run(run func(ctx context.Context, accountID int64)) *MockStorage_ListHostGroupsByAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListHostGroupsByAccountID_Call) Return(_a0 []*datamodel.HostGroup, _a1 error) *MockStorage_ListHostGroupsByAccountID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListHostGroupsByAccountID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.HostGroup, error)) *MockStorage_ListHostGroupsByAccountID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListKmsConfigByAccountID provides a mock function with given fields: ctx, accountID
 func (_m *MockStorage) ListKmsConfigByAccountID(ctx context.Context, accountID int64) ([]*datamodel.KmsConfig, error) {
 	ret := _m.Called(ctx, accountID)

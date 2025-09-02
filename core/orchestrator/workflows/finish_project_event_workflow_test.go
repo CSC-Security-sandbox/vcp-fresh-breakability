@@ -56,6 +56,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -66,6 +67,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(hostGroupActivities.DeleteHostGroup)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+	s.env.RegisterActivity(kmsActivities.DeleteKmsConfig)
 
 	// Mock finish project event activity
 	finishResult := &commonparams.FinishProjectEventResult{
@@ -74,6 +79,12 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	}
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
+
+	// Mock KMS activities
 	var kmsConfigs []*datamodel.KmsConfig
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(kmsConfigs, nil)
 
@@ -122,11 +133,182 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }
 
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_WithHostGroups() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(hostGroupActivities.DeleteHostGroup)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+
+	// Mock finish project event activity
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: nillable.GetBoolPtr(false),
+		Name: nillable.GetStringPtr("operations/test-operation-123"),
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return multiple host groups
+	hostGroups := []*datamodel.HostGroup{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"},
+			AccountID: 1,
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-2"},
+			AccountID: 2,
+		},
+	}
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, "test-project-number").Return(hostGroups, nil).Once()
+
+	// Mock DeleteHostGroup activity for each host group
+	s.env.OnActivity(hostGroupActivities.DeleteHostGroup, mock.Anything, "hg-uuid-1", int64(1)).Return(nil, nil).Once()
+	s.env.OnActivity(hostGroupActivities.DeleteHostGroup, mock.Anything, "hg-uuid-2", int64(2)).Return(nil, nil).Once()
+
+	// Mock KMS activities
+	var kmsConfigs []*datamodel.KmsConfig
+	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(kmsConfigs, nil)
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Verify DeleteHostGroup was called for each host group
+	s.env.AssertNumberOfCalls(s.T(), "DeleteHostGroup", 2)
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_HostGroupDeletionFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(hostGroupActivities.DeleteHostGroup)
+
+	// Mock finish project event activity
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: nillable.GetBoolPtr(false),
+		Name: nillable.GetStringPtr("operations/test-operation-123"),
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities
+	hostGroups := []*datamodel.HostGroup{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"},
+			AccountID: 1,
+		},
+	}
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, "test-project-number").Return(hostGroups, nil).Once()
+
+	// Mock DeleteHostGroup to fail
+	s.env.OnActivity(hostGroupActivities.DeleteHostGroup, mock.Anything, "hg-uuid-1", int64(1)).Return(nil, errors.New("failed to delete host group"))
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to delete host group")
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_ListHostGroupsFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+
+	// Mock finish project event activity
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: nillable.GetBoolPtr(false),
+		Name: nillable.GetStringPtr("operations/test-operation-123"),
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock ListHostGroups to fail
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, "test-project-number").Return(nil, errors.New("failed to list host groups"))
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to list host groups")
+}
+
 func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_UpdateJobFailsAfterWorkflowExecution() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -139,6 +321,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
 
 	// Mock finish project event activity
 	finishResult := &commonparams.FinishProjectEventResult{
@@ -147,6 +331,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	}
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
 
 	var kmsConfigs []*datamodel.KmsConfig
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(kmsConfigs, nil)
@@ -295,12 +483,15 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
 	}()
 
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
 	mockStorage.EXPECT().UpdateJob(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock finish project event activity
@@ -311,6 +502,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
 
 	// Create empty KmsConfig list
 	kmsConfigs := []*datamodel.KmsConfig{}
@@ -341,11 +536,15 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
 	}()
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+	s.env.RegisterActivity(kmsActivities.DeleteKmsConfig)
 	mockStorage.EXPECT().UpdateJob(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock finish project event activity
@@ -356,6 +555,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
 
 	// Create KmsConfig list with one config
 	kmsConfig := &datamodel.KmsConfig{
@@ -399,12 +602,15 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
 	}()
 
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
 	mockStorage.EXPECT().UpdateJob(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock finish project event activity
@@ -415,6 +621,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
 
 	// Create KmsConfig list with one nil config
 	kmsConfigs := []*datamodel.KmsConfig{nil}
@@ -445,6 +655,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -453,6 +664,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
 	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
 	s.env.RegisterActivity(kmsActivities.DeleteKmsConfig)
 
@@ -466,6 +678,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
 
 	// Create KmsConfig list with one config
 	kmsConfig := &datamodel.KmsConfig{

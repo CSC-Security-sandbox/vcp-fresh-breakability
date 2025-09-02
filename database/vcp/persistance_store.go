@@ -956,6 +956,10 @@ func (s *PersistenceStore) UpdateHostGroup(ctx context.Context, hostGroupUUID st
 	return s.dataStore.UpdateHostGroup(ctx, hostGroupUUID, accountID, description, Hosts)
 }
 
+func (s *PersistenceStore) ListHostGroupsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.HostGroup, error) {
+	return s.dataStore.ListHostGroupsByAccountID(ctx, accountID)
+}
+
 func (s *PersistenceStore) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
 	return s.dataStore.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
 }

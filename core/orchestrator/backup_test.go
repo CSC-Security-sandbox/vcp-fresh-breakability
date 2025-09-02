@@ -2516,7 +2516,7 @@ func TestDeleteBackup_DeleteBackupFailure(t *testing.T) {
 	ctx := context.Background()
 	store := database.NewMockStorage(t)
 	temporal := new(workflow_engine_mock.MockTemporalTestClient)
-	
+
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid"},
@@ -2567,7 +2567,7 @@ func TestDeleteBackup_ListVolumesFailure(t *testing.T) {
 	ctx := context.Background()
 	store := database.NewMockStorage(t)
 	temporal := new(workflow_engine_mock.MockTemporalTestClient)
-	
+
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid"},

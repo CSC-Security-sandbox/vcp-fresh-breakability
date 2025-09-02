@@ -1,12 +1,11 @@
 package workflows
 
 import (
-	"time"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -15,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+	"time"
 )
 
 var (
@@ -130,6 +130,22 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 		s.Logger.Info("In pre-AGA stage, skipping resource deletion from VCP.")
 		// If the project is in pre-AGA state, we will not delete the resources from VCP.
 		return nil, nil
+	}
+
+	// Delete hostgroup from VCP.
+	HostGroupActivities := &activities.HostGroupUpdateActivity{}
+	var listOfHostGroups []*datamodel.HostGroup
+	errHostGroup := workflow.ExecuteActivity(ctx, HostGroupActivities.ListHostGroups, finishProjectEventParams.ProjectNumber).Get(ctx, &listOfHostGroups)
+	if errHostGroup != nil {
+		return nil, ConvertToVSAError(errHostGroup)
+	}
+	if len(listOfHostGroups) > 0 {
+		for _, hostGroup := range listOfHostGroups {
+			errDeleteHG := workflow.ExecuteActivity(ctx, HostGroupActivities.DeleteHostGroup, hostGroup.UUID, hostGroup.AccountID).Get(ctx, nil)
+			if errDeleteHG != nil {
+				return nil, ConvertToVSAError(errDeleteHG)
+			}
+		}
 	}
 
 	// TODO: Delete Active directory from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.

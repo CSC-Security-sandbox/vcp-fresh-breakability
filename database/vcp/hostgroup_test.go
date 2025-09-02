@@ -693,3 +693,132 @@ func TestUpdateHostGroup(t *testing.T) {
 		assert.EqualError(tt, err, "transaction error", "Expected transaction error")
 	})
 }
+
+func TestListHostGroupsByAccountID(t *testing.T) {
+	t.Run("WhenHostGroupsExist", func(tt *testing.T) {
+		ctx := context.Background()
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		hostGroup1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hostgroup-uuid1"},
+			Name:      "hostgroup1",
+			AccountID: account.ID,
+		}
+		hostGroup2 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hostgroup-uuid2"},
+			Name:      "hostgroup2",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(hostGroup1).Error()
+		assert.NoError(tt, err, "Failed to create host group 1")
+		err = store.db.Create(hostGroup2).Error()
+		assert.NoError(tt, err, "Failed to create host group 2")
+
+		result, err := store.ListHostGroupsByAccountID(ctx, account.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, hostGroup1.UUID, result[0].UUID)
+		assert.Equal(tt, hostGroup2.UUID, result[1].UUID)
+	})
+
+	t.Run("WhenNoHostGroupsExist", func(tt *testing.T) {
+		ctx := context.Background()
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		result, err := store.ListHostGroupsByAccountID(ctx, 999)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, result)
+	})
+
+	t.Run("WhenFindError", func(tt *testing.T) {
+		ctx := context.Background()
+		db, err := SetupTestDB()
+		raiseErrorFlag := db.Statement.RaiseErrorOnNotFound
+		db.Statement.RaiseErrorOnNotFound = true
+		defer func() {
+			db.Statement.RaiseErrorOnNotFound = raiseErrorFlag
+		}()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		_, err = store.ListHostGroupsByAccountID(ctx, 999)
+		assert.Error(tt, err)
+	})
+
+	t.Run("WithMockedFunction", func(tt *testing.T) {
+		ctx := context.Background()
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hostGroups := []*datamodel.HostGroup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "mock-hg1"},
+				Name:      "mock_hg1",
+				AccountID: 1,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "mock-hg2"},
+				Name:      "mock_hg2",
+				AccountID: 1,
+			},
+		}
+
+		listHostGroupsByAccountID = func(db *gorm.DB, accountID int64) ([]*datamodel.HostGroup, error) {
+			return hostGroups, nil
+		}
+		defer func() { listHostGroupsByAccountID = _ListHostGroupsByAccountID }()
+
+		result, err := store.ListHostGroupsByAccountID(ctx, 1)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, "mock-hg1", result[0].UUID)
+		assert.Equal(tt, "mock-hg2", result[1].UUID)
+	})
+
+	t.Run("WithMockedFunctionReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		listHostGroupsByAccountID = func(db *gorm.DB, accountID int64) ([]*datamodel.HostGroup, error) {
+			return nil, errors.New("mocked error")
+		}
+		defer func() { listHostGroupsByAccountID = _ListHostGroupsByAccountID }()
+
+		_, err = store.ListHostGroupsByAccountID(ctx, 1)
+		assert.EqualError(tt, err, "mocked error")
+	})
+}
