@@ -270,9 +270,6 @@ func (o *Orchestrator) GetBackupVaultByUUID(ctx context.Context, bvUUID string, 
 func GetBackupVaultByUUIDAndOwnerID(ctx context.Context, se database.Storage, bvUUID string, accountID int64) (*models.BackupVaultV1beta, error) {
 	bvDetails, err := se.GetBackupVaultByUUIDndOwnerID(ctx, bvUUID, accountID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("backup vault", &bvUUID)
-		}
 		return nil, err
 	}
 

@@ -77,6 +77,9 @@ func _getBackupVaultWithDetails(db *gorm.DB, query *datamodel.BackupVault) (*dat
 	bv := &datamodel.BackupVault{}
 	err := db.Preload("Account").First(&bv, query).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("backup vault", &query.UUID)
+		}
 		return nil, err
 	}
 	return bv, nil
@@ -119,9 +122,6 @@ func (d *DataStoreRepository) GetBackupVaultByUUIDndOwnerID(ctx context.Context,
 	db := d.db.GORM().WithContext(ctx)
 	dbBackupVault, err := getBackupVaultWithDetails(db, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultID}, AccountID: accountID})
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("backup vault", &backupVaultID)
-		}
 		return nil, err
 	}
 	return dbBackupVault, nil

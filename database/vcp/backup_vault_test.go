@@ -79,8 +79,8 @@ func TestGetBackupVaultWithDetails(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		if err.Error() != "backup vault 'non-existent-uuid' not found" {
+			tt.Errorf("Expected error 'backup vault 'non-existent-uuid' not found', got %v", err)
 		}
 	})
 }
@@ -147,7 +147,7 @@ func TestGetBackupVaultByUUID(t *testing.T) {
 		originalGetBackupVaultWithDetails := getBackupVaultWithDetails
 		defer func() { getBackupVaultWithDetails = originalGetBackupVaultWithDetails }()
 		getBackupVaultWithDetails = func(db *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
-			return nil, gorm.ErrRecordNotFound
+			return nil, errors.New("backup vault 'non-existent-uuid' not found")
 		}
 
 		_, err = store.GetBackupVaultByUUIDndOwnerID(context.Background(), "non-existent-uuid", int64(123))
@@ -1098,7 +1098,6 @@ func TestReturnsErrorWhenBackupVaultDoesNotExist(tt *testing.T) {
 
 	_, err = store.DeleteBackupVaultInVCP(context.Background(), "non-existent-uuid")
 	assert.Error(tt, err)
-	assert.True(tt, errors.Is(err, gorm.ErrRecordNotFound))
 }
 
 func TestReturnsErrorWhenTransactionFails(tt *testing.T) {
