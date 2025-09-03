@@ -40,7 +40,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 	for _, tenancy := range tenantProjectsResp.TenancyUnits {
 		for _, tenantResource := range tenancy.TenantResources {
 			tenantProjectNumber := strings.TrimPrefix(tenantResource.Resource, "projects/")
-			if tenantResource.Tag == consumerNetwork+"-"+tenantProjectRegion {
+			if tenantResource.Tag == consumerNetwork+"-"+tenantProjectRegion && tenantProjectNumber != "" {
 				gcpService.Logger.Infof("Found tenancy for 1P for Tenant project: %s, consumer network : %s", tenantProjectNumber, consumerNetwork)
 				return tenantProjectNumber, nil
 			}
@@ -114,16 +114,14 @@ func (gcpService *GcpServices) ReleaseSubnetwork(region, projectName, subnetwork
 func (gcpService *GcpServices) GetSnHost(project string) (string, error) {
 	snProject, err := gcpService.AdminGCPService.computeService.Projects.GetXpnHost(project).Do()
 	if err != nil {
-		gcpService.Logger.Errorf(fmt.Sprintf("error getting SN host for project : %s, Error : %v", project, err))
 		if strings.Contains(err.Error(), "Please create Service Networking connection with service") {
+			gcpService.Logger.Errorf(fmt.Sprintf("error getting SN host for project due to peering. Should not retry for project : %s, Error : %v", project, err))
 			return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("SN Producer Host Project %s Error: %v", project, err)))
 		}
+		gcpService.Logger.Errorf(fmt.Sprintf("error getting SN host for project : %s, Error : %v", project, err))
 		return "", err
 	}
-	// for a new VPC, snhost project will be empty. we need to return empty in this case to establish datalink
-	if snProject != nil && snProject.Name == "" {
-		return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("SN Producer Host Project %s Error: %v", project, err)))
-	}
+	// for a new VPC, sn host project will be empty. we need to return empty in this case to establish datalink
 	return snProject.Name, nil
 }
 
@@ -137,13 +135,13 @@ func _createTPSubnetOp(gcpService *GcpServices, request *servicenetworking.AddSu
 		}
 		if err != nil {
 			if strings.Contains(err.Error(), "are not successfully connected yet") || strings.Contains(err.Error(), "Please create Service Networking connection with service") {
-				gcpService.Logger.Errorf("CreateTPSubnetOp failed : with error : %v", err.Error())
+				gcpService.Logger.Errorf("CreateTPSubnetOp failed : with peering error : %v", err.Error())
 				return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, err))
 			} else if strings.Contains(err.Error(), "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider") {
-				gcpService.Logger.Errorf("CreateTPSubnetOp failed : with error : %v", err.Error())
+				gcpService.Logger.Errorf("CreateTPSubnetOp failed : with IP Exhaustion error : %v", err.Error())
 				return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPCustomerIPExhaustion, err))
 			}
-			gcpService.Logger.Errorf("CreateTPSubnetOp failed with error: %s", err.Error())
+			gcpService.Logger.Errorf("CreateTPSubnetOp failed with retryable error: %s", err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 		}
 	}
@@ -388,8 +386,11 @@ func (gcpService *GcpServices) GetServiceNetOpStatus(operationName string) (*mod
 		return nil, err
 	}
 	if op != nil && op.Error != nil {
-		gcpService.Logger.Debug(fmt.Sprintf("GetServiceNetOpStatus's operation failed with error : %s", op.Error.Message))
+		gcpService.Logger.Errorf(fmt.Sprintf("GetServiceNetOpStatus's operation failed with error : %s", op.Error.Message))
 		err = &googleapi.Error{Message: op.Error.Message}
+		if strings.Contains(err.Error(), "Please create Service Networking connection with service") {
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("GetServiceNetOpStatus SN Producer Host peering Error: %v", err)))
+		}
 		return nil, err
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("GetServiceNetOpStatus successful : %s", op.Name))
@@ -405,7 +406,7 @@ func (gcpService *GcpServices) GetComputeGlobalOpStatus(tenantProject, operation
 	}
 
 	if op != nil && op.Error != nil {
-		gcpService.Logger.Errorf("Failed to get compute global operation status for project %s with operation name %s: %v", tenantProject, operationName, &googleapi.Error{Message: op.Error.Errors[0].Message})
+		gcpService.Logger.Errorf("GetComputeGlobalOpStatus's operation failed for project %s with operation name %s: %v", tenantProject, operationName, &googleapi.Error{Message: op.Error.Errors[0].Message})
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, &googleapi.Error{Message: op.Error.Errors[0].Message})
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("getComputeGlobalOpStatus successful : %s", op.Name))

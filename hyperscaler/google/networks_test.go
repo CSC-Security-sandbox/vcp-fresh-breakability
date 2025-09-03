@@ -2032,12 +2032,8 @@ func Test_GetSnHost(t *testing.T) {
 			Logger: util.GetLogger(ctx),
 		}
 		_, err = gService.GetSnHost(projectName)
-		if err == nil {
-			tt.Error("Expected an error but got nothing")
-		} else {
-			if !strings.Contains(err.Error(), "Setup/Configure Private Service Access (PSA) Peering") {
-				tt.Errorf("Unexpected error: %s", err.Error())
-			}
+		if err != nil {
+			tt.Error("Unexpected error")
 		}
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {

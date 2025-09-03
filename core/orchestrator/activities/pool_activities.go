@@ -361,7 +361,7 @@ func _checkReusableSubnet(se database.Storage, service hyperscaler2.GoogleServic
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
 			service.GetLogger().Errorf("Error getting service networking host project for tenant project: %s Error: %v", tenantProjectNumber, err)
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+			return nil, err
 		}
 	}
 	customerProjectNumber := params.AccountName
