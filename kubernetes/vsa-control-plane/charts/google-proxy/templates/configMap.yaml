@@ -69,6 +69,10 @@ data:
   FINISH_PROJECT_CVP_CLIENT_RETRY_INTERVAL: "{{ index .Values "finishProjectCvpRetryInterval" }}"
   FINISH_PROJECT_CVP_CLIENT_BACKOFF_COEFFICIENT: "{{ index .Values "finishProjectBackoffCoefficient" }}"
   GCP_KMS_KEY_ROTATION_ENABLED: "{{ index .Values "gcpKmsKeyRotationEnabled" }}"
+  MOCK_ACCESS_TOKEN: "{{ index .Values "mockAccessToken" }}"
+  INTEGRATION_TEST: "{{ index .Values "integrationTest" }}"
+  NKDEV_TEST: "{{ index .Values "nkdevTest" }}"
+
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}
