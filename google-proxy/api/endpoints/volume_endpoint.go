@@ -1372,8 +1372,6 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 			}
 		}
 		volume.ExportPolicy = gcpgenserver.NewOptExportPolicyV1beta(exportPolicyV1beta)
-	} else {
-		volume.ExportPolicy = gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{})
 	}
 
 	volume.RestrictedActions = make(gcpgenserver.RestrictedActionsV1beta, len(in.RestrictedActions))

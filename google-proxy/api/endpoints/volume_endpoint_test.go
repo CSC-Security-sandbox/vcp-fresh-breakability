@@ -1621,10 +1621,25 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.True(tt, rule.Nfsv4.Value)
 	})
 
-	t.Run("VolumeWithNilExportPolicy", func(tt *testing.T) {
+	t.Run("WhenVolumeIsInCreatingStateWithNilExportPolicy", func(tt *testing.T) {
 		input := &cvpmodels.VolumeV1beta{
 			VolumeID:     "volume-123",
+			VolumeState:  "CREATING",
 			ExportPolicy: nil,
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.False(tt, result.ExportPolicy.IsSet())
+	})
+
+	t.Run("WhenVolumeIsInReadyStateWithEmptyExportPolicy", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:    "volume-123",
+			VolumeState: "READY",
+			ExportPolicy: &cvpmodels.ExportPolicyV1beta{
+				Rules: []*cvpmodels.SimpleExportPolicyRuleV1beta{},
+			},
 		}
 
 		result := _convertVolumeV1betaCVPToModel(input)
