@@ -34,13 +34,15 @@ type CommonActivities struct {
 }
 
 var (
-	MakeSubnetName       = _makeSubnetName
-	isSubnetReusable     = _isSubnetReusable
-	findEmptySubnet      = _findEmptySubnet
-	getPoolsBySubnetwork = _getPoolsBySubnetwork
-	getIPsInSubnet       = _getIPsInSubnet
-	getSignedJwtToken    = auth.GetSignedJwtToken
-	GetCloudService      = _getCloudService
+	MakeSubnetName         = _makeSubnetName
+	isSubnetReusable       = _isSubnetReusable
+	findEmptySubnet        = _findEmptySubnet
+	getPoolsBySubnetwork   = _getPoolsBySubnetwork
+	getIPsInSubnet         = _getIPsInSubnet
+	getSignedJwtToken      = auth.GetSignedJwtToken
+	GetCloudService        = _getCloudService
+	GetPoolTenantProject   = _getPoolTenantProject
+	GetBackupTenantProject = _getBackupTenantProject
 )
 
 func (ca CommonActivities) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
@@ -298,4 +300,25 @@ func _getIPsInSubnet(ipCidrRange string) (int, error) {
 		return 0, fmt.Errorf("IPCR range must be between 1 and 32. CIDR notation found : %s", ipCidrRange)
 	}
 	return 1 << (32 - cidr), nil
+}
+
+// getPoolTenantProject extracts the tenant project number from the target pool
+func _getPoolTenantProject(pool *datamodel.Pool) (string, error) {
+	if pool.ClusterDetails.RegionalTenantProject != "" {
+		return pool.ClusterDetails.RegionalTenantProject, nil
+	}
+	return "", errors.NewNotFoundErr("tenant project number from pool", nil)
+}
+
+// getBackupTenantProject extracts the tenant project number from the backup
+func _getBackupTenantProject(backup *datamodel.Backup) (string, error) {
+	if backup.BackupVault != nil && backup.BackupVault.BucketDetails != nil {
+		for _, bucketDetail := range backup.BackupVault.BucketDetails {
+			if strings.EqualFold(backup.Attributes.BucketName, bucketDetail.BucketName) {
+				return bucketDetail.TenantProjectNumber, nil
+			}
+		}
+	}
+
+	return "", errors.NewNotFoundErr("tenant project number from backup", nil)
 }

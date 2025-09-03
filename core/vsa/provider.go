@@ -77,6 +77,7 @@ type Provider interface {
 	UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error
 	CloudTargetGet(name *string) (*ontapRest.CloudTarget, error)
 	CloudTargetCreate(name, containerName string) (*ontapRest.CloudTarget, error)
+	CloudTargetDelete(uuid string) (*OntapAsyncResponse, error)
 	SnapmirrorRelationshipCreate(params *commonparams.SnapmirrorRelationshipParams, smcToken *string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string, smcToken *string) error

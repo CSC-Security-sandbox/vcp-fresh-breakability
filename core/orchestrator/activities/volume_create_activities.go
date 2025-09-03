@@ -60,6 +60,8 @@ var (
 	CheckIfBackupPolicyExistsInVCP   = _checkIfBackupPolicyExistsInVCP
 	CreateBackupPolicyFetchedFromSDE = _createBackupPolicyFetchedFromSDE
 	CreateBackupPolicySchedule       = _createBackupPolicySchedule
+	GetPoolServiceAccountName        = _getPoolServiceAccount
+	GrantStorageObjectAdminRole      = _grantStorageObjectAdminRole
 )
 
 const AggregateStateOnline = "online"
@@ -687,6 +689,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 	bvParams := &datamodel.BackupVault{}
 
@@ -836,6 +839,10 @@ func _createBucket(ctx context.Context, resourceName *common.ResourceNames, tena
 }
 
 func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
+	existingBackupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, volume.DataProtection.BackupVaultID, volume.AccountID)
+	if err != nil {
+		return err
+	}
 	saName := bucketDetails.ServiceAccountName + "@" + bucketDetails.TenantProjectNumber + ".iam.gserviceaccount.com"
 	convertCommonToDatamodel := func(bucketDetails *common.BucketDetails) *datamodel.BucketDetails {
 		return &datamodel.BucketDetails{
@@ -845,14 +852,19 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 			VendorSubnetID:      volume.VolumeAttributes.VendorSubnetID,
 		}
 	}
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{
-			UUID: volume.DataProtection.BackupVaultID,
-		},
-	}
-	backupVault.BucketDetails = append(backupVault.BucketDetails, convertCommonToDatamodel(bucketDetails))
 
-	err := se.UpdateBackupVault(ctx, backupVault)
+	if existingBackupVault.BucketDetails != nil {
+		for _, bucket := range existingBackupVault.BucketDetails {
+			if bucket.BucketName == bucketDetails.BucketName && bucket.VendorSubnetID == volume.VolumeAttributes.VendorSubnetID {
+				return nil
+			}
+		}
+	}
+
+	newBucketDetail := convertCommonToDatamodel(bucketDetails)
+	existingBackupVault.BucketDetails = append(existingBackupVault.BucketDetails, newBucketDetail)
+
+	err = se.UpdateBackupVault(ctx, existingBackupVault)
 	if err != nil {
 		return err
 	}
@@ -1144,4 +1156,152 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 	}
 
 	return nil
+}
+
+// CrossPoolOrVPCRestorationActivity handles the VPC pool restoration logic when restoring a backup to a different VPC pool
+func (a *VolumeCreateActivity) CrossPoolOrVPCRestorationActivity(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup) error {
+	log := util.GetLogger(ctx)
+
+	targetPoolTenantProject, err := GetPoolTenantProject(targetPool)
+	if err != nil {
+		log.Errorf("Failed to get target pool tenant project: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	backupTenantProject, err := GetBackupTenantProject(backup)
+	if err != nil {
+		log.Errorf("Failed to get backup tenant project: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if strings.EqualFold(targetPoolTenantProject, backupTenantProject) {
+		return nil
+	}
+
+	log.Infof("Target pool tenant project (%s) differs from backup tenant project (%s), setting up cross-project permissions", targetPoolTenantProject, backupTenantProject)
+
+	err = a.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+	if err != nil {
+		log.Errorf("Failed to setup cross-project permissions: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	log.Infof("Successfully set up cross-project permissions for VPC pool restoration")
+	return nil
+}
+
+// setupCrossTenantProjectPermissions sets up the required IAM permissions for cross-project backup restoration
+func (a *VolumeCreateActivity) SetupCrossTenantProjectPermissions(ctx context.Context, targetPool *datamodel.Pool, backupTenantProject string) error {
+	log := util.GetLogger(ctx)
+
+	// Get the service account from the target pool
+	poolServiceAccount, err := GetPoolServiceAccountName(targetPool, targetPool.ClusterDetails.RegionalTenantProject)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Grant the storage.objectAdmin role to the pool service account in the backup tenant project
+	err = GrantStorageObjectAdminRole(ctx, poolServiceAccount, backupTenantProject)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	log.Infof("Successfully granted storage.objectAdmin role to service account %s in project %s", poolServiceAccount, backupTenantProject)
+
+	return nil
+}
+
+// getPoolServiceAccount extracts the service account from the target pool
+func _getPoolServiceAccount(pool *datamodel.Pool, projectID string) (string, error) {
+	saEmail := utils.ConstructServiceAccountEmail(pool.ServiceAccountId, projectID)
+	return saEmail, nil
+}
+
+// _grantStorageObjectAdminRole  grants the storage.objectAdmin role to a service account in a project
+func _grantStorageObjectAdminRole(ctx context.Context, serviceAccountEmail, projectID string) error {
+	gcpService, err := GetCloudService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Grant the specific role needed for backup restoration
+	roles := []string{"roles/storage.objectAdmin"}
+	err = gcpService.AttachOrUpdateRolesForServiceAccounts(roles, serviceAccountEmail, projectID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
+}
+
+// DeleteServiceAccountInBackupTenantProject deletes the service account in the backup tenant project after restoration is complete
+func (a VolumeCreateActivity) DeleteRolesForServiceAccountInBackupTenantProject(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup) error {
+	log := util.GetLogger(ctx)
+
+	// Get the service account from the target pool
+	poolServiceAccount, err := GetPoolServiceAccountName(targetPool, targetPool.ClusterDetails.RegionalTenantProject)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	backupTenantProject, err := GetBackupTenantProject(backup)
+	if err != nil {
+		log.Errorf("Failed to get backup tenant project: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	gcpService, err := GetCloudService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Grant the specific role needed for backup restoration
+	roles := []string{"roles/storage.objectAdmin"}
+	err = gcpService.RemoveRolesFromServiceAccounts(roles, poolServiceAccount, backupTenantProject)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
+}
+
+// DeleteObjectStoreForCrossVPC deletes object store if the target pool and backup are in different tenant projects
+func (a VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup, node *models.Node, name string) (*vsa.OntapAsyncResponse, error) {
+	log := util.GetLogger(ctx)
+	targetPoolTenantProject, err := GetPoolTenantProject(targetPool)
+	if err != nil {
+		log.Errorf("Failed to get target pool tenant project: %v", err)
+		return nil, nil
+	}
+
+	backupTenantProject, err := GetBackupTenantProject(backup)
+	if err != nil {
+		log.Errorf("Failed to get backup tenant project: %v", err)
+		return nil, nil
+	}
+
+	if strings.EqualFold(targetPoolTenantProject, backupTenantProject) {
+		return nil, nil
+	}
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	// Handle both return values from CloudTargetGet
+	objectStore, err := provider.CloudTargetGet(&name)
+	if err != nil {
+		// If there is an error, it means the object store does not exist
+		log.Infof("Object store %s does not exist, nothing to delete", name)
+		return nil, nil
+	}
+	if objectStore == nil || objectStore.UUID == nil {
+		log.Infof("Object store %s does not exist, nothing to delete", name)
+		return nil, nil
+	}
+	asyncResp, err := provider.CloudTargetDelete(*objectStore.UUID)
+	if err != nil {
+		return nil, err
+	}
+	return asyncResp, nil
 }

@@ -43,3 +43,20 @@ func (rc *OntapRestProvider) CloudTargetGet(name *string) (*ontapRest.CloudTarge
 	// Return the created SVM
 	return cloudTarget, nil
 }
+
+func (rc *OntapRestProvider) CloudTargetDelete(uuid string) (*OntapAsyncResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	_, job, err := client.Cloud().CloudTargetDelete(&ontapRest.CloudTargetDeleteParams{
+		UUID: uuid,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if job != nil {
+		return &OntapAsyncResponse{JobUUID: job.JobUUID}, err
+	}
+	return nil, nil
+}

@@ -117,3 +117,55 @@ func TestCloudTargetGet(t *testing.T) {
 		assert.Nil(tt, response)
 	})
 }
+
+// ... existing code ...
+
+func TestCloudTargetDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		clust := cloud.New(transport, nil)
+		client := &cloudClient{api: clust}
+		params := &CloudTargetDeleteParams{UUID: "target-uuid-123"}
+		response, job, err := client.CloudTargetDelete(params)
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenSuccessfulSyncResponse", func(tt *testing.T) {
+		transport := &mockTransport{response: &cloud.CloudTargetDeleteOK{
+			Payload: &models.CloudTargetJobLinkResponse{
+				Records: []*models.CloudTarget{
+					{Name: nillable.ToPointer("target1")},
+				},
+			},
+		}}
+		clust := cloud.New(transport, nil)
+		client := &cloudClient{api: clust}
+		params := &CloudTargetDeleteParams{UUID: "target-uuid-123"}
+		response, job, err := client.CloudTargetDelete(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Nil(tt, job)
+		assert.Equal(tt, "target1", *response.Name)
+	})
+
+	t.Run("WhenSuccessfulAsyncJob", func(tt *testing.T) {
+		transport := &mockTransport{response: &cloud.CloudTargetDeleteAccepted{
+			Payload: &models.CloudTargetJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID("job-uuid-456"))},
+				Records: []*models.CloudTarget{
+					{Name: nillable.ToPointer("target1")},
+				},
+			},
+		}}
+		clust := cloud.New(transport, nil)
+		client := &cloudClient{api: clust}
+		params := &CloudTargetDeleteParams{UUID: "target-uuid-123"}
+		response, job, err := client.CloudTargetDelete(params)
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, "job-uuid-456", job.JobUUID)
+	})
+}

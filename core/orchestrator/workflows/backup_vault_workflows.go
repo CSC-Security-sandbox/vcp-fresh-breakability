@@ -45,7 +45,7 @@ func UpdateBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 
 	if customErr != nil {
 		bvWF.Status = WorkflowStatusFailed
-		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), customErr)
+		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 		}
@@ -106,7 +106,7 @@ func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface
 
 	defer func() {
 		if err != nil {
-			err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateError, err.Error()).Get(ctx, nil)
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
 		}
 	}()
 
@@ -151,7 +151,7 @@ func DeleteBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 
 	if customErr != nil {
 		bvWF.Status = WorkflowStatusFailed
-		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), customErr)
+		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 		}
@@ -212,7 +212,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 
 	defer func() {
 		if err != nil {
-			err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateError, err.Error()).Get(ctx, nil)
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
 		}
 	}()
 

@@ -309,6 +309,23 @@ func TestMockClientServiceCloudTargetCreate(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceCloudTargetDelete(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *CloudTargetDeleteParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *CloudTargetDeleteOK
+	var ret1 *CloudTargetDeleteAccepted
+	var ret2 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _, _ = mockClientService.CloudTargetDelete(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertCloudTargetDelete(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceCloudTargetDeleteCollection(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *CloudTargetDeleteCollectionParams

@@ -422,6 +422,64 @@ func (_c *MockProvider_CloudTargetCreate_Call) RunAndReturn(run func(string, str
 	return _c
 }
 
+// CloudTargetDelete provides a mock function with given fields: uuid
+func (_m *MockProvider) CloudTargetDelete(uuid string) (*OntapAsyncResponse, error) {
+	ret := _m.Called(uuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CloudTargetDelete")
+	}
+
+	var r0 *OntapAsyncResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*OntapAsyncResponse, error)); ok {
+		return rf(uuid)
+	}
+	if rf, ok := ret.Get(0).(func(string) *OntapAsyncResponse); ok {
+		r0 = rf(uuid)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapAsyncResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(uuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CloudTargetDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CloudTargetDelete'
+type MockProvider_CloudTargetDelete_Call struct {
+	*mock.Call
+}
+
+// CloudTargetDelete is a helper method to define mock.On call
+//   - uuid string
+func (_e *MockProvider_Expecter) CloudTargetDelete(uuid interface{}) *MockProvider_CloudTargetDelete_Call {
+	return &MockProvider_CloudTargetDelete_Call{Call: _e.mock.On("CloudTargetDelete", uuid)}
+}
+
+func (_c *MockProvider_CloudTargetDelete_Call) Run(run func(uuid string)) *MockProvider_CloudTargetDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CloudTargetDelete_Call) Return(_a0 *OntapAsyncResponse, _a1 error) *MockProvider_CloudTargetDelete_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CloudTargetDelete_Call) RunAndReturn(run func(string) (*OntapAsyncResponse, error)) *MockProvider_CloudTargetDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CloudTargetGet provides a mock function with given fields: name
 func (_m *MockProvider) CloudTargetGet(name *string) (*ontap_rest.CloudTarget, error) {
 	ret := _m.Called(name)

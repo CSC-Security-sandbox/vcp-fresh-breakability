@@ -84,6 +84,73 @@ func (_c *MockCloudClient_CloudTargetCreate_Call) RunAndReturn(run func(*CloudTa
 	return _c
 }
 
+// CloudTargetDelete provides a mock function with given fields: params
+func (_m *MockCloudClient) CloudTargetDelete(params *CloudTargetDeleteParams) (*CloudTarget, *JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CloudTargetDelete")
+	}
+
+	var r0 *CloudTarget
+	var r1 *JobAccepted
+	var r2 error
+	if rf, ok := ret.Get(0).(func(*CloudTargetDeleteParams) (*CloudTarget, *JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*CloudTargetDeleteParams) *CloudTarget); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*CloudTarget)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*CloudTargetDeleteParams) *JobAccepted); ok {
+		r1 = rf(params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(*CloudTargetDeleteParams) error); ok {
+		r2 = rf(params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockCloudClient_CloudTargetDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CloudTargetDelete'
+type MockCloudClient_CloudTargetDelete_Call struct {
+	*mock.Call
+}
+
+// CloudTargetDelete is a helper method to define mock.On call
+//   - params *CloudTargetDeleteParams
+func (_e *MockCloudClient_Expecter) CloudTargetDelete(params interface{}) *MockCloudClient_CloudTargetDelete_Call {
+	return &MockCloudClient_CloudTargetDelete_Call{Call: _e.mock.On("CloudTargetDelete", params)}
+}
+
+func (_c *MockCloudClient_CloudTargetDelete_Call) Run(run func(params *CloudTargetDeleteParams)) *MockCloudClient_CloudTargetDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CloudTargetDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockCloudClient_CloudTargetDelete_Call) Return(_a0 *CloudTarget, _a1 *JobAccepted, _a2 error) *MockCloudClient_CloudTargetDelete_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockCloudClient_CloudTargetDelete_Call) RunAndReturn(run func(*CloudTargetDeleteParams) (*CloudTarget, *JobAccepted, error)) *MockCloudClient_CloudTargetDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CloudTargetGet provides a mock function with given fields: name
 func (_m *MockCloudClient) CloudTargetGet(name *string) (*CloudTarget, error) {
 	ret := _m.Called(name)

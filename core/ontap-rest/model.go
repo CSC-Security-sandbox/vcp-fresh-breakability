@@ -72,6 +72,10 @@ type CloudTargetCreateParams struct {
 	SslEnabled     bool
 }
 
+type CloudTargetDeleteParams struct {
+	UUID string
+}
+
 // CloudTargetModifyParams is the input param struct for cloudClient.CloudTargetModify
 type CloudTargetModifyParams struct {
 	BaseParams
@@ -3121,6 +3125,15 @@ func cloudTargetCreateParamsToONTAP(params *CloudTargetCreateParams) *cloud.Clou
 		Name:               params.Name,
 		Container:          params.Container,
 	}
+	return otParams
+}
+
+func cloudTargetDeleteParamsToONTAP(params *CloudTargetDeleteParams) *cloud.CloudTargetDeleteParams {
+	otParams := cloud.NewCloudTargetDeleteParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetUUID(params.UUID)
 	return otParams
 }
 

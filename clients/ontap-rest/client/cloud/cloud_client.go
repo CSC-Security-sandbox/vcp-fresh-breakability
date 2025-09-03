@@ -102,6 +102,8 @@ type ClientService interface {
 
 	CloudTargetCreate(params *CloudTargetCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetCreateCreated, *CloudTargetCreateAccepted, error)
 
+	CloudTargetDelete(params *CloudTargetDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteOK, *CloudTargetDeleteAccepted, error)
+
 	CloudTargetDeleteCollection(params *CloudTargetDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteCollectionOK, *CloudTargetDeleteCollectionAccepted, error)
 
 	CloudTargetModify(params *CloudTargetModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetModifyOK, *CloudTargetModifyAccepted, error)
@@ -244,6 +246,49 @@ func (a *Client) CloudTargetCreate(params *CloudTargetCreateParams, authInfo run
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*CloudTargetCreateDefault)
+	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	CloudTargetDelete Deletes the cloud target specified by the UUID. This request starts a job and returns a link to that job.
+
+### Related ONTAP commands
+* `storage aggregate object-store config delete`
+*/
+func (a *Client) CloudTargetDelete(params *CloudTargetDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CloudTargetDeleteOK, *CloudTargetDeleteAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCloudTargetDeleteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "cloud_target_delete",
+		Method:             "DELETE",
+		PathPattern:        "/cloud/targets/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &CloudTargetDeleteReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch value := result.(type) {
+	case *CloudTargetDeleteOK:
+		return value, nil, nil
+	case *CloudTargetDeleteAccepted:
+		return nil, value, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*CloudTargetDeleteDefault)
 	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

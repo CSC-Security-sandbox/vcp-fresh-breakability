@@ -177,7 +177,7 @@ func (d *DataStoreRepository) UpdateBackupVault(ctx context.Context, bv *datamod
 	dbBv.UpdatedAt = time.Now()
 	dbBv.BucketDetails = bv.BucketDetails
 
-	if err = tx.Updates(dbBv).Error; err != nil {
+	if err = tx.Save(dbBv).Error; err != nil {
 		return err
 	}
 	return nil

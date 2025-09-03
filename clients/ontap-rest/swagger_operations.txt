@@ -33,6 +33,7 @@ client_lock_delete_collection
 cloud_store_create
 cloud_target_collection_get
 cloud_target_create
+cloud_target_delete
 cloud_target_delete_collection
 cloud_target_modify
 cluster_get

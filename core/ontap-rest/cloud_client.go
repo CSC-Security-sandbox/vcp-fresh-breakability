@@ -12,6 +12,7 @@ type CloudTargetModifyOK = cloud.CloudTargetModifyOK
 type CloudClient interface { // generate:mock
 	CloudTargetCreate(params *CloudTargetCreateParams) (*CloudTarget, *JobAccepted, error)
 	CloudTargetGet(name *string) (*CloudTarget, error)
+	CloudTargetDelete(params *CloudTargetDeleteParams) (*CloudTarget, *JobAccepted, error)
 	// CloudTargetCollectionGet(params *CloudTargetCollectionGetParams) (*CloudTargetGetOK, error)
 	// CloudTargetModify(params *CloudTargetModifyParams) (*CloudTargetModifyOK, *JobAccepted, error)
 }
@@ -22,6 +23,21 @@ type cloudClient struct {
 
 func (c *cloudClient) CloudTargetCreate(params *CloudTargetCreateParams) (*CloudTarget, *JobAccepted, error) {
 	syncResponse, asyncResponse, err := c.api.CloudTargetCreate(cloudTargetCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	if asyncResponse != nil {
+		job := &JobAccepted{
+			JobUUID: asyncResponse.Payload.Job.UUID.String(),
+		}
+		return nil, job, nil
+	}
+
+	return &CloudTarget{CloudTarget: *syncResponse.Payload.Records[0]}, nil, nil
+}
+
+func (c *cloudClient) CloudTargetDelete(params *CloudTargetDeleteParams) (*CloudTarget, *JobAccepted, error) {
+	syncResponse, asyncResponse, err := c.api.CloudTargetDelete(cloudTargetDeleteParamsToONTAP(params), nil)
 	if err != nil {
 		return nil, nil, err
 	}

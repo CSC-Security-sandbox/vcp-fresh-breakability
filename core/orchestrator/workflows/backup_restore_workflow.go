@@ -117,11 +117,21 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	rollbackManager := common.NewRollbackManager()
 
 	// No need to defer rollback manager cleanup here, as it will be handled by the workflow engine
 	defer func() {
 		// just a placeholder for rollback manager cleanup
+		disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+		rollbackManager.ExecuteRollback(disconnectedCtx, err)
 	}()
+
+	// Execute VPC pool restoration activity to handle cross-project permissions
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CrossPoolOrVPCRestorationActivity, dbVolume.Pool, backup).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	rollbackManager.AddActivity(activities.VolumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, dbVolume.Pool, backup)
 
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes)
@@ -181,6 +191,11 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, ConvertToVSAError(err)
 	}
 	bucketName := bucketDetails.BucketName
+
+	err = workflow.Sleep(ctx, 60*time.Second)
+	if err != nil {
+		return nil, ConvertToVSAError(fmt.Errorf("failed to sleep before starting snapmirror restore: %w", err))
+	}
 	err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetOrCreateObjectStore, node, objStoreName, bucketName).Get(ctx, &objStore)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -263,6 +278,16 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		dbVolume = updatedVolume
 	}
 	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
+
+	var ontapAsyncResponse *vsa.OntapAsyncResponse
+	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteObjectStoreForCrossVPC, dbVolume.Pool, backup, node, objStoreName).Get(ctx, &ontapAsyncResponse)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+	if err != nil {
+		return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
+	}
 
 	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)
 	if err != nil {

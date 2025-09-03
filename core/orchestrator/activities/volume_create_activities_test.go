@@ -1662,7 +1662,7 @@ func TestUpdateBackupVaultWithBucketDetails_Success(t *testing.T) {
 		},
 	}
 	bucketDetails := &common.BucketDetails{
-		BucketName:          "bucket-name",
+		BucketName:          "bucket-name1",
 		ServiceAccountName:  "service-account",
 		TenantProjectNumber: "project-number",
 		VendorSubnetID:      "subnet-id",
@@ -1678,7 +1678,7 @@ func TestUpdateBackupVaultWithBucketDetails_Success(t *testing.T) {
 			},
 		},
 	}
-
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(backupVault, nil)
 	mockStorage.On("UpdateBackupVault", ctx, backupVault).Return(nil)
 
 	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
@@ -1698,7 +1698,7 @@ func TestUpdateBackupVaultWithBucketDetails_Failure_UpdateError(t *testing.T) {
 		},
 	}
 	bucketDetails := &common.BucketDetails{
-		BucketName:          "bucket-name",
+		BucketName:          "bucket-name1",
 		ServiceAccountName:  "service-account",
 		TenantProjectNumber: "project-number",
 		VendorSubnetID:      "subnet-id",
@@ -1715,6 +1715,7 @@ func TestUpdateBackupVaultWithBucketDetails_Failure_UpdateError(t *testing.T) {
 		},
 	}
 
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(backupVault, nil)
 	expectedError := errors.New("failed to update backup vault")
 	mockStorage.On("UpdateBackupVault", ctx, backupVault).Return(expectedError)
 
@@ -3483,6 +3484,646 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "is not online")
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+func Test_grantStorageObjectAdminRole(t *testing.T) {
+	t.Run("OnSuccess", func(t *testing.T) {
+		ctx := context.Background()
+		projectID := "test-project"
+		serviceAccountEmail := "adc-sa@test-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		mockGCPService.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, projectID).Return(nil)
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+		err := activities.GrantStorageObjectAdminRole(ctx, serviceAccountEmail, projectID)
+		assert.NoError(t, err)
+	})
+	t.Run("GetCloudServiceReturnError", func(t *testing.T) {
+		ctx := context.Background()
+		projectID := "test-project"
+		serviceAccountEmail := "adc-sa@test-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		mockGCPService.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, projectID).Return(nil)
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return nil, errors.New("failed to get cloud service")
+		}
+		err := activities.GrantStorageObjectAdminRole(ctx, serviceAccountEmail, projectID)
+		assert.Error(t, err)
+	})
+	t.Run("OnSuccess", func(t *testing.T) {
+		ctx := context.Background()
+		projectID := "test-project"
+		serviceAccountEmail := "adc-sa@test-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		mockGCPService.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, projectID).Return(errors.New("failed to attach role"))
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+		err := activities.GrantStorageObjectAdminRole(ctx, serviceAccountEmail, projectID)
+		assert.Error(t, err)
+	})
+}
+
+func TestDeleteRolesForServiceAccountInBackupTenantProject(t *testing.T) {
+	t.Run("WhenGetPoolServiceAccountNameFails", func(t *testing.T) {
+		// Mock dependencies
+		activity := activities.VolumeCreateActivity{}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: ""}, // Empty project will cause error
+		}
+		backup := &datamodel.Backup{}
+
+		// Execute the function
+		err := activity.DeleteRolesForServiceAccountInBackupTenantProject(ctx, targetPool, backup)
+
+		// Assertions
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant project number from backup not found")
+	})
+
+	t.Run("WhenGetBackupTenantProjectFails", func(t *testing.T) {
+		// Mock dependencies
+		activity := activities.VolumeCreateActivity{}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "different-bucket", // Mismatch will cause error
+						TenantProjectNumber: "backup-tenant-project",
+					},
+				},
+			},
+		}
+
+		// Execute the function
+		err := activity.DeleteRolesForServiceAccountInBackupTenantProject(ctx, targetPool, backup)
+
+		// Assertions
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant project number from backup")
+	})
+
+	t.Run("WhenBackupAttributesIsNil", func(t *testing.T) {
+		// Mock dependencies
+		activity := activities.VolumeCreateActivity{}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backup := &datamodel.Backup{
+			Attributes: nil, // Nil attributes will cause error
+		}
+
+		// Execute the function
+		err := activity.DeleteRolesForServiceAccountInBackupTenantProject(ctx, targetPool, backup)
+
+		// Assertions
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant project number from backup")
+	})
+
+	t.Run("WhenBackupVaultIsNil", func(t *testing.T) {
+		// Mock dependencies
+		activity := activities.VolumeCreateActivity{}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: nil, // Nil backup vault will cause error
+		}
+
+		// Execute the function
+		err := activity.DeleteRolesForServiceAccountInBackupTenantProject(ctx, targetPool, backup)
+
+		// Assertions
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant project number from backup")
+	})
+
+	t.Run("WhenBucketDetailsIsEmpty", func(t *testing.T) {
+		// Mock dependencies
+		activity := activities.VolumeCreateActivity{}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{}, // Empty bucket details will cause error
+			},
+		}
+
+		// Execute the function
+		err := activity.DeleteRolesForServiceAccountInBackupTenantProject(ctx, targetPool, backup)
+
+		// Assertions
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant project number from backup")
+	})
+	t.Run("WhenSuccess", func(t *testing.T) {
+		// Mock dependencies
+		activity := activities.VolumeCreateActivity{}
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTp := "backup-tenant-project"
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket", // Mismatch will cause error
+						TenantProjectNumber: backupTp,
+					},
+				},
+			},
+		}
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+
+		serviceAccountEmail := "test-service-account-id@test-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+
+		mockGCPService.On("RemoveRolesFromServiceAccounts", roles, serviceAccountEmail, backupTp).Return(nil)
+
+		// Execute the function
+		err := activity.DeleteRolesForServiceAccountInBackupTenantProject(ctx, targetPool, backup)
+		assert.NoError(t, err)
+	})
+	t.Run("WhenGCPServiceError", func(t *testing.T) {
+		// Mock dependencies
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTp := "backup-tenant-project"
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket", // Mismatch will cause error
+						TenantProjectNumber: backupTp,
+					},
+				},
+			},
+		}
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return nil, errors.New("failed to get cloud service")
+		}
+
+		// Execute the function
+		err := activity.DeleteRolesForServiceAccountInBackupTenantProject(ctx, targetPool, backup)
+		assert.Error(t, err)
+	})
+	t.Run("WhenSuccess", func(t *testing.T) {
+		// Mock dependencies
+		activity := activities.VolumeCreateActivity{}
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTp := "backup-tenant-project"
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket", // Mismatch will cause error
+						TenantProjectNumber: backupTp,
+					},
+				},
+			},
+		}
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+
+		serviceAccountEmail := "test-service-account-id@test-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+
+		mockGCPService.On("RemoveRolesFromServiceAccounts", roles, serviceAccountEmail, backupTp).Return(errors.New("failed to remove roles"))
+
+		// Execute the function
+		err := activity.DeleteRolesForServiceAccountInBackupTenantProject(ctx, targetPool, backup)
+		assert.Error(t, err)
+	})
+}
+
+func TestCrossPoolOrVPCRestorationActivity(t *testing.T) {
+	t.Run("WhenSameTenantProject_ThenNoActionNeeded", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "same-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: "same-project",
+					},
+				},
+			},
+		}
+
+		// Act
+		err := activity.CrossPoolOrVPCRestorationActivity(ctx, targetPool, backup)
+
+		// Assert
+		assert.NoError(t, err)
+	})
+
+	t.Run("WhenGetPoolTenantProjectFails_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: ""}, // Empty project will cause error
+		}
+		backup := &datamodel.Backup{}
+
+		// Act
+		err := activity.CrossPoolOrVPCRestorationActivity(ctx, targetPool, backup)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant project number from pool")
+	})
+
+	t.Run("WhenGetBackupTenantProjectFails_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "different-bucket", // Mismatch will cause error
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+
+		// Act
+		err := activity.CrossPoolOrVPCRestorationActivity(ctx, targetPool, backup)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant project number from backup")
+	})
+
+	t.Run("WhenSetupCrossTenantProjectPermissionsFails_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTP := "backup-project"
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: backupTP,
+					},
+				},
+			},
+		}
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+
+		// Mock GetGCPService to return error
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+		projectID := "backup-project"
+		serviceAccountEmail := "test-service-account-id@target-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+		mockGCPService.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, projectID).Return(errors.New("failed to attach role"))
+
+		// Act
+		err := activity.CrossPoolOrVPCRestorationActivity(ctx, targetPool, backup)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to attach role")
+	})
+}
+
+func TestGetPoolServiceAccount(t *testing.T) {
+	t.Run("WhenSuccessful_ThenReturnServiceAccountEmail", func(t *testing.T) {
+		// Arrange
+		pool := &datamodel.Pool{
+			ServiceAccountId: "test-service-account-id",
+		}
+		projectID := "test-project"
+
+		// Act
+		result, err := activities.GetPoolServiceAccountName(pool, projectID)
+
+		// Assert
+		assert.NoError(t, err)
+		expectedEmail := "test-service-account-id@test-project.iam.gserviceaccount.com"
+		assert.Equal(t, expectedEmail, result)
+	})
+
+	t.Run("WhenServiceAccountIdIsEmpty_ThenReturnEmptyEmail", func(t *testing.T) {
+		// Arrange
+		pool := &datamodel.Pool{
+			ServiceAccountId: "",
+		}
+		projectID := "test-project"
+
+		// Act
+		result, err := activities.GetPoolServiceAccountName(pool, projectID)
+
+		// Assert
+		assert.NoError(t, err)
+		expectedEmail := "@test-project.iam.gserviceaccount.com"
+		assert.Equal(t, expectedEmail, result)
+	})
+}
+
+func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
+	t.Run("WhenSameTenantProject_ThenReturnNil", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "same-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: "same-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("WhenGetPoolTenantProjectFails_ThenReturnNil", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: ""}, // Empty will cause error
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("WhenGetBackupTenantProjectFails_ThenReturnNil", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "different-bucket", // Mismatch will cause error
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("WhenGetProviderByNodeFails_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+
+		// Mock GetProviderByNode to return error
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to get provider")
+	})
+
+	t.Run("WhenCloudTargetGetReturnsError_ThenReturnNil", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+		mockProvider := new(vsa.MockProvider)
+
+		// Mock GetProviderByNode to return the mock provider
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Mock CloudTargetGet to return error
+		mockProvider.On("CloudTargetGet", mock.Anything).Return(nil, errors.New("object store not found"))
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenCloudTargetGetReturnsNil_ThenReturnNil", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+		mockProvider := new(vsa.MockProvider)
+
+		// Mock GetProviderByNode to return the mock provider
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Mock CloudTargetGet to return nil
+		mockProvider.On("CloudTargetGet", mock.Anything).Return(nil, nil)
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Nil(t, result)
 		mockProvider.AssertExpectations(t)
 	})
 }
