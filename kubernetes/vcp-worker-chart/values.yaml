@@ -195,6 +195,12 @@ workerConfig:
     maxIdleConns: 20
     maxConnLifetime: "1h"
 
+  adc:
+    image: "" # path of ADC image in gcp cloud image registry
+    project: "" # project in which ADC cloud run to be deployed
+    region: "" # region in which ADC cloud run to be deployed
+    certSecretName: "" # name of the secret containing ADC certificate
+
 #Enabling or Disabling Secret Manager for Microservice Secrets
 secretManagerEnabled: false
 
@@ -245,9 +251,3 @@ regionNumberMap:
   us-west2: "40"
   us-west3: "41"
   us-west4: "42"
-
-adc:
-  image: "" # path of ADC image in gcp cloud image registry
-  project: "" # project in which ADC cloud run to be deployed
-  region: "" # region in which ADC cloud run to be deployed
-  certSecretName: "" # name of the secret containing ADC certificate
