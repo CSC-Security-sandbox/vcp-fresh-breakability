@@ -504,6 +504,9 @@ func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *m
 }
 
 func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
+	if snapshotUUID == "" || volumeUUID == "" {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(fmt.Errorf("invalid input: snapshotUUID and volumeUUID cannot be empty"))
+	}
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)

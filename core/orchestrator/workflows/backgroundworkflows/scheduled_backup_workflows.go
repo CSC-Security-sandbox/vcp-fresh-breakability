@@ -358,8 +358,8 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-
 	done := false
+	waitTime := workflows.Wait
 	var status string
 	for !done {
 		err = workflow.ExecuteActivity(ctx, backupActivities.GetSnapmirrorTransferStatus, node, snapmirrorRelationship.UUID, snapshotName).Get(ctx, &status)
@@ -368,9 +368,14 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		}
 		switch status {
 		case activities.SmStatusTransferring:
-			err = workflow.Sleep(ctx, workflows.Wait) // Wait before polling again
+			err = workflow.Sleep(ctx, waitTime) // Wait before polling again
 			if err != nil {
 				return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err))
+			}
+			// Exponential backoff: double the wait time, but cap it at maxWaitTime
+			waitTime = time.Duration(float64(waitTime) * 2)
+			if waitTime > workflows.BackupMaxWaitTimeCap {
+				waitTime = workflows.BackupMaxWaitTimeCap
 			}
 		case activities.SmStatusSuccess:
 			done = true

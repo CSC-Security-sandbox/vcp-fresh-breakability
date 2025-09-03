@@ -733,6 +733,42 @@ func TestSnapshotActivities(t *testing.T) {
 		assert.Contains(tt, err.Error(), "delete failed")
 		mockProvider.AssertExpectations(tt)
 	})
+
+	t.Run("DeleteSnapshot_WhenSnapshotUUIDEmpty_ThenReturnError", func(tt *testing.T) {
+		activity := activities.BackupActivity{}
+		node := &models.Node{}
+		snapshotUUID := ""
+		volumeUUID := "volume-uuid"
+
+		err := activity.DeleteBackupSnapshot(context.Background(), node, snapshotUUID, volumeUUID)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid input: snapshotUUID and volumeUUID cannot be empty")
+	})
+
+	t.Run("DeleteSnapshot_WhenVolumeUUIDEmpty_ThenReturnError", func(tt *testing.T) {
+		activity := activities.BackupActivity{}
+		node := &models.Node{}
+		snapshotUUID := "snapshot-uuid"
+		volumeUUID := ""
+
+		err := activity.DeleteBackupSnapshot(context.Background(), node, snapshotUUID, volumeUUID)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid input: snapshotUUID and volumeUUID cannot be empty")
+	})
+
+	t.Run("DeleteSnapshot_WhenBothUUIDsEmpty_ThenReturnError", func(tt *testing.T) {
+		activity := activities.BackupActivity{}
+		node := &models.Node{}
+		snapshotUUID := ""
+		volumeUUID := ""
+
+		err := activity.DeleteBackupSnapshot(context.Background(), node, snapshotUUID, volumeUUID)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid input: snapshotUUID and volumeUUID cannot be empty")
+	})
 	t.Run("SnapmirrorTransfer_WhenGetSmcLicenseFails_ThenReturnError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode

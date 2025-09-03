@@ -2,6 +2,8 @@ package workflows
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -14,7 +16,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
-	"time"
 )
 
 // Volume State constants
@@ -195,6 +196,7 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 
 	done := false
 	var status string
+	waitTime := Wait
 	for !done {
 		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetSnapmirrorTransferStatus, node, snapmirrorRelationship.UUID, "").Get(ctx, &status)
 		if err != nil {
@@ -202,9 +204,14 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		}
 		switch status {
 		case activities.SmStatusTransferring:
-			err := workflow.Sleep(ctx, Wait) // Wait before polling again
+			err := workflow.Sleep(ctx, waitTime) // Wait before polling again with exponential backoff
 			if err != nil {
 				return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err))
+			}
+			// Exponential backoff: double the wait time, but cap it at maxWaitTime
+			waitTime = time.Duration(float64(waitTime) * 2)
+			if waitTime > BackupMaxWaitTimeCap {
+				waitTime = BackupMaxWaitTimeCap
 			}
 		case activities.SmStatusSuccess:
 			log.Debugf("Snapmirror transfer completed successfully")

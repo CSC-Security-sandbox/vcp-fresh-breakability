@@ -43,7 +43,9 @@ var (
 )
 
 const (
-	BackupComment = "VCP-Backup"
+	BackupComment        = "VCP-Backup"
+	BackupMaxWaitTimeCap = 15 * time.Minute // Maximum wait time cap
+
 )
 
 // CreateBackupWorkflow  process backup related requests from a customer.
@@ -180,6 +182,9 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	rollbackManager := commonparams.NewRollbackManager()
+	rollbackManager.AddActivity(backupActivity.DeleteBackupSnapshot, node, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
+
 	// Transfer snapshot
 	err = workflow.ExecuteActivity(ctx, backupActivity.TransferSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 	if err != nil {
@@ -188,6 +193,7 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	// Poll for transfer completion
 	done := false
+	waitTime := Wait
 	for !done {
 		err = workflow.ExecuteActivity(ctx, backupActivity.CheckTransferStatusActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 		if err != nil {
@@ -196,9 +202,14 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		switch backupActivitiesContext.TransferStatus {
 		case activities.SmStatusTransferring:
-			err := workflow.Sleep(ctx, Wait) // Wait before polling again
+			err := workflow.Sleep(ctx, waitTime) // Wait before polling again with exponential backoff
 			if err != nil {
 				return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err))
+			}
+			// Exponential backoff: double the wait time, but cap it at maxWaitTime
+			waitTime = time.Duration(float64(waitTime) * 2)
+			if waitTime > BackupMaxWaitTimeCap {
+				waitTime = BackupMaxWaitTimeCap
 			}
 		case activities.SmStatusSuccess:
 			done = true
@@ -245,19 +256,6 @@ func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.B
 	err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupError, &backup, errString).Get(ctx, nil)
 	if err != nil {
 		return err
-	}
-	// If the backup has a snapshot ID, delete the snapshot
-	if backup.Attributes.SnapshotID != "" {
-		var dbNodes []*datamodel.Node
-		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
-		if err != nil {
-			return err
-		}
-		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
-		err = workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshot, node, backup.Attributes.SnapshotID, volume.VolumeAttributes.ExternalUUID).Get(ctx, nil)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }

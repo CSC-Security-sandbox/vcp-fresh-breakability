@@ -1383,9 +1383,10 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 
 	if in.BackupConfig != nil {
 		backupConfigV1beta := gcpgenserver.BackupConfigV1beta{
-			BackupPolicyId:   utils.SafeString(in.BackupConfig.BackupPolicyID),
-			BackupVaultId:    utils.SafeString(in.BackupConfig.BackupVaultID),
-			BackupChainBytes: utils.SafeInt64(in.BackupConfig.BackupChainBytes),
+			BackupPolicyId:         utils.SafeString(in.BackupConfig.BackupPolicyID),
+			BackupVaultId:          utils.SafeString(in.BackupConfig.BackupVaultID),
+			BackupChainBytes:       utils.SafeInt64(in.BackupConfig.BackupChainBytes),
+			ScheduledBackupEnabled: utils.SafeBool(in.BackupConfig.ScheduledBackupEnabled),
 		}
 
 		volume.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(backupConfigV1beta)
