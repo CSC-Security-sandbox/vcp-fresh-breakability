@@ -237,8 +237,16 @@ type V1betaInternalResumeVolumeReplicationRes interface {
 	v1betaInternalResumeVolumeReplicationRes()
 }
 
+type V1betaInternalReverseVolumeReplicationRes interface {
+	v1betaInternalReverseVolumeReplicationRes()
+}
+
 type V1betaInternalStopVolumeReplicationRes interface {
 	v1betaInternalStopVolumeReplicationRes()
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesRes interface {
+	v1betaInternalUpdateVolumeReplicationAttributesRes()
 }
 
 type V1betaInternalUpdateVolumeReplicationRes interface {

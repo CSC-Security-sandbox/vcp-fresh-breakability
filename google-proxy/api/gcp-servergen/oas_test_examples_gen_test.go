@@ -8920,6 +8920,102 @@ func TestV1betaInternalResumeVolumeReplicationUnprocessableEntity_EncodeDecode(t
 	var typ2 V1betaInternalResumeVolumeReplicationUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaInternalReverseVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalReverseVolumeReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalReverseVolumeReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalReverseVolumeReplicationConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalReverseVolumeReplicationConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalReverseVolumeReplicationConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalReverseVolumeReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalReverseVolumeReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalReverseVolumeReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalReverseVolumeReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalReverseVolumeReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalReverseVolumeReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalReverseVolumeReplicationMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalReverseVolumeReplicationMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalReverseVolumeReplicationMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalReverseVolumeReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalReverseVolumeReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalReverseVolumeReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalReverseVolumeReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalReverseVolumeReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalReverseVolumeReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalReverseVolumeReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalReverseVolumeReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalReverseVolumeReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaInternalStopVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaInternalStopVolumeReplicationBadRequest
 	typ.SetFake()
@@ -9026,6 +9122,102 @@ func TestV1betaInternalStopVolumeReplicationUnprocessableEntity_EncodeDecode(t *
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaInternalStopVolumeReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalUpdateVolumeReplicationAttributesBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalUpdateVolumeReplicationAttributesBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalUpdateVolumeReplicationAttributesBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalUpdateVolumeReplicationAttributesConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalUpdateVolumeReplicationAttributesConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalUpdateVolumeReplicationAttributesConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalUpdateVolumeReplicationAttributesForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalUpdateVolumeReplicationAttributesForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalUpdateVolumeReplicationAttributesForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalUpdateVolumeReplicationAttributesInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalUpdateVolumeReplicationAttributesInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalUpdateVolumeReplicationAttributesInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalUpdateVolumeReplicationAttributesMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalUpdateVolumeReplicationAttributesMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalUpdateVolumeReplicationAttributesMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalUpdateVolumeReplicationAttributesNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalUpdateVolumeReplicationAttributesNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalUpdateVolumeReplicationAttributesNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalUpdateVolumeReplicationAttributesUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalUpdateVolumeReplicationAttributesUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalUpdateVolumeReplicationAttributesUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalUpdateVolumeReplicationAttributesUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalUpdateVolumeReplicationAttributesUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalUpdateVolumeReplicationAttributesUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaInternalUpdateVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {

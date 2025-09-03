@@ -232,6 +232,10 @@ func (s *PoolInternalV1beta) setDefaults() {
 		val := bool(false)
 		s.LdapEnabled.SetTo(val)
 	}
+	{
+		val := bool(false)
+		s.LargeCapacity.SetTo(val)
+	}
 }
 
 // setDefaults set default value of fields.
@@ -259,6 +263,10 @@ func (s *PoolV1beta) setDefaults() {
 	{
 		val := bool(false)
 		s.LdapEnabled.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LargeCapacity.SetTo(val)
 	}
 }
 
@@ -371,10 +379,6 @@ func (s *VolumeV1beta) setDefaults() {
 	{
 		val := float64(0)
 		s.UsedBytes.SetTo(val)
-	}
-	{
-		val := float64(1000000000000)
-		s.QuotaInBytes.SetTo(val)
 	}
 	{
 		val := float64(0)

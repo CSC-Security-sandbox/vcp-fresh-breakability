@@ -555,6 +555,17 @@ func (UnimplementedHandler) V1betaInternalResumeVolumeReplication(ctx context.Co
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalReverseVolumeReplication implements v1beta_internalReverseVolumeReplication operation.
+//
+// Reverse the replication relationship between source and destination in this volume replication,
+// effectively swapping the source and destination paths. Can only be invoked from the destination
+// end of the relationship.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/reverse
+func (UnimplementedHandler) V1betaInternalReverseVolumeReplication(ctx context.Context, params V1betaInternalReverseVolumeReplicationParams) (r V1betaInternalReverseVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalStopVolumeReplication implements v1beta_internalStopVolumeReplication operation.
 //
 // Stop the replication relationship between source and destination in this volume replication and
@@ -572,6 +583,16 @@ func (UnimplementedHandler) V1betaInternalStopVolumeReplication(ctx context.Cont
 //
 // PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 func (UnimplementedHandler) V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (r V1betaInternalUpdateVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalUpdateVolumeReplicationAttributes implements v1beta_internalUpdateVolumeReplicationAttributes operation.
+//
+// Update volume replication attributes in the database with the provided replication details. This
+// is used internally during replication operations to update database state.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateVolumeReplicationAttributes
+func (UnimplementedHandler) V1betaInternalUpdateVolumeReplicationAttributes(ctx context.Context, req *VolumeReplicationInternalV1beta, params V1betaInternalUpdateVolumeReplicationAttributesParams) (r V1betaInternalUpdateVolumeReplicationAttributesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

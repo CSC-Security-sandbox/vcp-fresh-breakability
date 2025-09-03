@@ -328,6 +328,7 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{},
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				DestinationSvmName:    "svm-name",
 				DestinationVolumeName: "volume-name",
@@ -362,6 +363,50 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 			Volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{
 					BlockDevices: &[]datamodel.BlockDevice{{}},
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+			},
+		}
+		res, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
+		assert.NoError(tt, err)
+		assert.Equal(tt, lunDetails, res)
+	})
+	t.Run("WhenVolumeAttributesContainsLun", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		lunDetails := &vsa.LunResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "/test/vol/lun_vol",
+				ExternalUUID: "lun-uuid",
+			},
+			Size:         1073741824,
+			SerialNumber: "123412214",
+		}
+		lunParams := vsa.LunGetParams{
+			SvmName:    "svm-name",
+			VolumeName: "volume-name",
+			LunName:    "lun_source-volume-name1",
+		}
+		mockProvider.On("LunGet", lunParams).Return(lunDetails, nil)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					BlockDevices: &[]datamodel.BlockDevice{{
+						Name: "lun_source-volume-name1",
+					}},
 				},
 			},
 			ReplicationAttributes: &datamodel.ReplicationDetails{

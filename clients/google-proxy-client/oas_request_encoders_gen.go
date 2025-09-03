@@ -423,6 +423,20 @@ func encodeV1betaInternalUpdateVolumeReplicationRequest(
 	return nil
 }
 
+func encodeV1betaInternalUpdateVolumeReplicationAttributesRequest(
+	req *VolumeReplicationInternalV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaResourceStateUpdateRequest(
 	req *ResourceStateUpdateV1beta,
 	r *http.Request,

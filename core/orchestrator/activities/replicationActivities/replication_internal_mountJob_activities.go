@@ -95,10 +95,20 @@ func (j *MountJobActivity) GetLunDetailsFromOntap(ctx context.Context, replicati
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	var lunName string
+	if replication.Volume.VolumeAttributes != nil && replication.Volume.VolumeAttributes.BlockDevices != nil {
+		blockDevices := *replication.Volume.VolumeAttributes.BlockDevices
+		if len(blockDevices) > 0 {
+			lunName = blockDevices[0].Name
+		}
+	}
+	if lunName == "" {
+		lunName = "lun_" + replication.ReplicationAttributes.SourceVolumeName
+	}
 	lunParams := vsa.LunGetParams{
 		SvmName:    replication.ReplicationAttributes.DestinationSvmName,
 		VolumeName: replication.ReplicationAttributes.DestinationVolumeName,
-		LunName:    "lun_" + replication.ReplicationAttributes.SourceVolumeName,
+		LunName:    lunName,
 	}
 	lunDetails, err := provider.LunGet(lunParams)
 	if err != nil {

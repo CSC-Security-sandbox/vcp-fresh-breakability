@@ -856,3 +856,60 @@ func TestListVolumeReplications(t *testing.T) {
 		assert.Equal(t, "external-cluster", replications[0].Volume.Pool.ClusterDetails.ExternalName, "Expected cluster name %v, got %v", "external-cluster", replications[0].Volume.Pool.ClusterDetails.ExternalName)
 	})
 }
+
+// TestUpdateVolumeReplicationFields tests the UpdateVolumeReplicationFields method
+func TestUpdateVolumeReplicationFields(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err, "Failed to set up test database")
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err, "Failed to clean up test database")
+
+	account, _, volume, err := CreateTestData(store)
+	assert.NoError(t, err, "Failed to create test data")
+
+	volumeRep := &datamodel.VolumeReplication{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+		Name:      "test_volume_rep",
+		AccountID: account.ID,
+		VolumeID:  volume.ID,
+	}
+	err = store.db.Create(volumeRep).Error()
+	assert.NoError(t, err, "Failed to create volume replication")
+
+	t.Run("UpdateSingleField", func(tt *testing.T) {
+		updates := map[string]interface{}{
+			"name": "updated_volume_rep",
+		}
+		err := store.UpdateVolumeReplicationFields(context.Background(), volumeRep.UUID, updates)
+		assert.NoError(tt, err, "Expected no error updating field")
+
+		updated, err := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "updated_volume_rep", updated.Name)
+	})
+
+	t.Run("UpdateMultipleFields", func(tt *testing.T) {
+		updates := map[string]interface{}{
+			"state":         models.LifeCycleStateUpdating,
+			"state_details": "updating details",
+		}
+		err := store.UpdateVolumeReplicationFields(context.Background(), volumeRep.UUID, updates)
+		assert.NoError(tt, err, "Expected no error updating fields")
+
+		updated, err := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateUpdating, updated.State)
+		assert.Equal(tt, "updating details", updated.StateDetails)
+	})
+
+	t.Run("UpdateNonExistentReplication", func(tt *testing.T) {
+		updates := map[string]interface{}{
+			"name": "should_not_exist",
+		}
+		err := store.UpdateVolumeReplicationFields(context.Background(), "non-existent-uuid", updates)
+		assert.Error(tt, err, "Expected error for non-existent replication")
+	})
+}

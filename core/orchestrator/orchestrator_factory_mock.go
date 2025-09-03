@@ -4155,6 +4155,143 @@ func (_c *MockOrchestratorFactory_ResumeReplicationInternal_Call) RunAndReturn(r
 	return _c
 }
 
+// ReverseAndResumeReplication provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) ReverseAndResumeReplication(ctx context.Context, params *common.ReverseAndResumeReplicationParams) (*models.VolumeReplication, *string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReverseAndResumeReplication")
+	}
+
+	var r0 *models.VolumeReplication
+	var r1 *string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ReverseAndResumeReplicationParams) (*models.VolumeReplication, *string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ReverseAndResumeReplicationParams) *models.VolumeReplication); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.ReverseAndResumeReplicationParams) *string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*string)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.ReverseAndResumeReplicationParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_ReverseAndResumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReverseAndResumeReplication'
+type MockOrchestratorFactory_ReverseAndResumeReplication_Call struct {
+	*mock.Call
+}
+
+// ReverseAndResumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.ReverseAndResumeReplicationParams
+func (_e *MockOrchestratorFactory_Expecter) ReverseAndResumeReplication(ctx interface{}, params interface{}) *MockOrchestratorFactory_ReverseAndResumeReplication_Call {
+	return &MockOrchestratorFactory_ReverseAndResumeReplication_Call{Call: _e.mock.On("ReverseAndResumeReplication", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_ReverseAndResumeReplication_Call) Run(run func(ctx context.Context, params *common.ReverseAndResumeReplicationParams)) *MockOrchestratorFactory_ReverseAndResumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.ReverseAndResumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ReverseAndResumeReplication_Call) Return(_a0 *models.VolumeReplication, _a1 *string, _a2 error) *MockOrchestratorFactory_ReverseAndResumeReplication_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ReverseAndResumeReplication_Call) RunAndReturn(run func(context.Context, *common.ReverseAndResumeReplicationParams) (*models.VolumeReplication, *string, error)) *MockOrchestratorFactory_ReverseAndResumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ReverseReplicationInternal provides a mock function with given fields: ctx, volumeReplicationId, accountName
+func (_m *MockOrchestratorFactory) ReverseReplicationInternal(ctx context.Context, volumeReplicationId string, accountName string) (*models.VolumeReplication, *datamodel.Job, error) {
+	ret := _m.Called(ctx, volumeReplicationId, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReverseReplicationInternal")
+	}
+
+	var r0 *models.VolumeReplication
+	var r1 *datamodel.Job
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.VolumeReplication, *datamodel.Job, error)); ok {
+		return rf(ctx, volumeReplicationId, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.VolumeReplication); ok {
+		r0 = rf(ctx, volumeReplicationId, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) *datamodel.Job); ok {
+		r1 = rf(ctx, volumeReplicationId, accountName)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, string) error); ok {
+		r2 = rf(ctx, volumeReplicationId, accountName)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_ReverseReplicationInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReverseReplicationInternal'
+type MockOrchestratorFactory_ReverseReplicationInternal_Call struct {
+	*mock.Call
+}
+
+// ReverseReplicationInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeReplicationId string
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) ReverseReplicationInternal(ctx interface{}, volumeReplicationId interface{}, accountName interface{}) *MockOrchestratorFactory_ReverseReplicationInternal_Call {
+	return &MockOrchestratorFactory_ReverseReplicationInternal_Call{Call: _e.mock.On("ReverseReplicationInternal", ctx, volumeReplicationId, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_ReverseReplicationInternal_Call) Run(run func(ctx context.Context, volumeReplicationId string, accountName string)) *MockOrchestratorFactory_ReverseReplicationInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ReverseReplicationInternal_Call) Return(_a0 *models.VolumeReplication, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_ReverseReplicationInternal_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ReverseReplicationInternal_Call) RunAndReturn(run func(context.Context, string, string) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_ReverseReplicationInternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RevertVolume provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) RevertVolume(ctx context.Context, params *common.RevertVolumeParams) (*models.Volume, string, error) {
 	ret := _m.Called(ctx, params)
@@ -5131,6 +5268,65 @@ func (_c *MockOrchestratorFactory_UpdateVolume_Call) Return(_a0 *models.Volume, 
 }
 
 func (_c *MockOrchestratorFactory_UpdateVolume_Call) RunAndReturn(run func(context.Context, *common.UpdateVolumeParams) (*models.Volume, string, error)) *MockOrchestratorFactory_UpdateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVolumeReplicationAttributes provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateVolumeReplicationAttributes(ctx context.Context, params models.UpdateVolumeReplicationAttributesParams) (*models.Job, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumeReplicationAttributes")
+	}
+
+	var r0 *models.Job
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, models.UpdateVolumeReplicationAttributesParams) (*models.Job, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, models.UpdateVolumeReplicationAttributesParams) *models.Job); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, models.UpdateVolumeReplicationAttributesParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumeReplicationAttributes'
+type MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumeReplicationAttributes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params models.UpdateVolumeReplicationAttributesParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateVolumeReplicationAttributes(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call {
+	return &MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call{Call: _e.mock.On("UpdateVolumeReplicationAttributes", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call) Run(run func(ctx context.Context, params models.UpdateVolumeReplicationAttributesParams)) *MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(models.UpdateVolumeReplicationAttributesParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call) Return(_a0 *models.Job, _a1 error) *MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call) RunAndReturn(run func(context.Context, models.UpdateVolumeReplicationAttributesParams) (*models.Job, error)) *MockOrchestratorFactory_UpdateVolumeReplicationAttributes_Call {
 	_c.Call.Return(run)
 	return _c
 }

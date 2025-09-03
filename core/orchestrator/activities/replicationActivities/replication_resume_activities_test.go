@@ -325,7 +325,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			SrcJwtToken: &srcToken,
 		}
 		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrDescribingVolume, errors.New("volume not found"))
-		verifyDstVolume = func(ctx context.Context, event *replication.ResumeReplicationEvent, srcBasePath, dstBasePath, srcJwtToken, dstJwtToken string) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
+		verifyDstVolume = func(ctx context.Context, attributes *datamodel.ReplicationDetails, srcBasePath string, destBasePath string, srcToken string, dstToken string, srcProjectNumber, dstProjectNumber string, correlationId *string, isReverse bool) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, expectedError
 		}
 		updatedResult, err := activity.VerifyDstVolume(ctx, result)
@@ -357,7 +357,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			SrcJwtToken: &srcToken,
 		}
 		verifyError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotFound, errors.New("volume not found"))
-		verifyDstVolume = func(ctx context.Context, event *replication.ResumeReplicationEvent, srcBasePath, dstBasePath, srcJwtToken, dstJwtToken string) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
+		verifyDstVolume = func(ctx context.Context, attributes *datamodel.ReplicationDetails, srcBasePath string, destBasePath string, srcToken string, dstToken string, srcProjectNumber, dstProjectNumber string, correlationId *string, isReverse bool) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, verifyError
 		}
 		updatedResult, err := activity.VerifyDstVolume(ctx, result)
@@ -392,7 +392,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			SrcJwtToken:      &srcToken,
 		}
 
-		verifyDstVolume = func(ctx context.Context, event *replication.ResumeReplicationEvent, srcBasePath, dstBasePath, srcJwtToken, dstJwtToken string) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
+		verifyDstVolume = func(ctx context.Context, attributes *datamodel.ReplicationDetails, srcBasePath string, destBasePath string, srcToken string, dstToken string, srcProjectNumber, dstProjectNumber string, correlationId *string, isReverse bool) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, nil
 		}
 

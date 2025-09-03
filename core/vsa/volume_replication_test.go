@@ -2515,3 +2515,123 @@ func TestCleanupSvmPeering(t *testing.T) {
 		}
 	})
 }
+
+func TestReverseVolumeReplication(t *testing.T) {
+	relationshipID := "snapmirror-uuid"
+	srcVolumeName := "srcvol"
+	dstVolumeName := "dstvol"
+	srcSVMName := "srcsvm"
+	dstSVMName := "dstsvm"
+	snapmirrorState := "broken_off"
+
+	volRep := &VolumeReplication{
+		RelationshipID:        relationshipID,
+		SourceVolumeName:      srcVolumeName,
+		DestinationVolumeName: dstVolumeName,
+		SourceSVMName:         srcSVMName,
+		DestinationSVMName:    dstSVMName,
+	}
+
+	snapmirror := &ontaprest.SnapmirrorRelationship{
+		SnapmirrorRelationship: models.SnapmirrorRelationship{
+			State: &snapmirrorState,
+			UUID:  nillable.ToPointer(strfmt.UUID(relationshipID)),
+			Source: &models.SnapmirrorSourceEndpoint{
+				Path: nillable.GetStringPtr(srcSVMName + ":" + srcVolumeName),
+				Svm: &models.SnapmirrorSourceEndpointInlineSvm{
+					Name: nillable.GetStringPtr(srcSVMName),
+				},
+			},
+			Destination: &models.SnapmirrorEndpoint{
+				Path: nillable.GetStringPtr(dstSVMName + ":" + dstVolumeName),
+				Svm: &models.SnapmirrorEndpointInlineSvm{
+					Name: nillable.GetStringPtr(dstSVMName),
+				},
+			},
+		},
+	}
+
+	getParams := &ontaprest.SnapmirrorRelationshipGetParams{UUID: relationshipID}
+
+	setupMocks := func(tt *testing.T) (provider *OntapRestProvider, mockClient *ontaprest.MockRESTClient, mockSnapmirrorClient *ontaprest.MockSnapmirrorClient) {
+		mockClient = new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient = new(ontaprest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider = &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+
+		return provider, mockClient, mockSnapmirrorClient
+	}
+
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+
+	t.Run("WhenGetOntapClientReturnsError", func(tt *testing.T) {
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("Failed to get client")
+		}
+
+		provider := &OntapRestProvider{}
+
+		result, err := provider.ReverseVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, "Failed to get client")
+	})
+
+	t.Run("WhenSnapmirrorGetReturnsError", func(tt *testing.T) {
+		provider, _, mockSnapmirrorClient := setupMocks(tt)
+
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(nil, errors.New("Failed to get snapmirror")).Times(1)
+
+		result, err := provider.ReverseVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, "Failed to get snapmirror")
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSnapmirrorGetReturnsNil", func(tt *testing.T) {
+		provider, _, mockSnapmirrorClient := setupMocks(tt)
+
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(nil, nil).Times(1)
+
+		result, err := provider.ReverseVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		provider, _, mockSnapmirrorClient := setupMocks(tt)
+
+		reverseParams := &ontaprest.SnapmirrorRelationshipReverseParams{
+			UUID:            relationshipID,
+			SourcePath:      dstSVMName + ":" + dstVolumeName, // Current destination becomes new source
+			DestinationPath: srcSVMName + ":" + srcVolumeName, // Current source becomes new destination
+		}
+
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipReverse", reverseParams).Return(nil, nil, nil).Times(1)
+
+		result, err := provider.ReverseVolumeReplication(volRep)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Implementation currently only populates RelationshipUUID
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+}

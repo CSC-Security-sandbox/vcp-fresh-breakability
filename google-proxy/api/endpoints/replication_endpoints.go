@@ -350,6 +350,7 @@ func prepareCreateVolumeReplicationParams(req *gcpgenserver.ReplicationCreateV1b
 		SourceVolumeName: params.VolumeResourceId,
 		CorrelationId:    params.XCorrelationID.Value,
 	}
+
 	if zone != "" {
 		replication.LocationId = zone
 	}
@@ -762,5 +763,72 @@ func (h Handler) V1betaSyncReplication(ctx context.Context, params gcpgenserver.
 		Name:     gcpgenserver.NewOptString(operationID),
 		Response: resp,
 		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func (h Handler) V1betaReverseAndResumeReplication(ctx context.Context, params gcpgenserver.V1betaReverseAndResumeReplicationParams) (gcpgenserver.V1betaReverseAndResumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	if !crrEnabled {
+		return &gcpgenserver.V1betaReverseAndResumeReplicationBadRequest{
+			Code:    400,
+			Message: "CRR is not enabled",
+		}, nil
+	}
+
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaReverseAndResumeReplicationBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	reverseAndResumeParams := &common.ReverseAndResumeReplicationParams{
+		AccountName:           params.ProjectNumber,
+		Region:                region,
+		Zone:                  zone,
+		CorrelationId:         params.XCorrelationID.Value,
+		VolumeResourceId:      params.VolumeResourceId,
+		ReplicationResourceId: params.ReplicationResourceId,
+	}
+
+	volumeRep, jobUUID, err := h.Orchestrator.ReverseAndResumeReplication(ctx, reverseAndResumeParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaReverseAndResumeReplicationBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to reverse and resume replication", "error", err)
+		return &gcpgenserver.V1betaReverseAndResumeReplicationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, *jobUUID)
+
+	resp, err := encodeVolumeReplicationV1(convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeRep))
+	if err != nil {
+		logger.Error("Failed to encode volume replication", "error", err)
+		return &gcpgenserver.V1betaReverseAndResumeReplicationInternalServerError{
+			Code:    500,
+			Message: "Internal server error while encoding replication response",
+		}, nil
+	}
+
+	if volumeRep.State == models2.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(true),
 	}, nil
 }

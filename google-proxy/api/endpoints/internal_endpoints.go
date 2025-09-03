@@ -241,6 +241,42 @@ func (h Handler) V1betaInternalUpdateVolumeReplication(ctx context.Context, req 
 	return res, nil
 }
 
+func (h Handler) V1betaInternalUpdateVolumeReplicationAttributes(ctx context.Context, req *gcpgenserver.VolumeReplicationInternalV1beta, params gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesParams) (gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	// Convert the request to internal parameters for updating volume replication attributes
+	updateParams := models.UpdateVolumeReplicationAttributesParams{
+		ProjectNumber:              params.ProjectNumber,
+		LocationId:                params.LocationId,
+		VolumeReplicationId:       params.VolumeReplicationId,
+		VolumeReplicationInternal: req,
+	}
+
+	// Call the orchestrator to update volume replication attributes
+	job, err := h.Orchestrator.UpdateVolumeReplicationAttributes(ctx, updateParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to update volume replication attributes", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, err
+	}
+
+	// Return operation response instead of 204 No Content
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)),
+		Response: nil,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
 func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeReplication, job *datamodel.Job) *gcpgenserver.VolumeReplicationInternalV1beta {
 	return &gcpgenserver.VolumeReplicationInternalV1beta{
 		VolumeReplicationUuid: gcpgenserver.NewOptString(volumeReplication.UUID),
@@ -400,6 +436,33 @@ func (h Handler) V1betaInternalResumeVolumeReplication(ctx context.Context, para
 		return &gcpgenserver.V1betaInternalResumeVolumeReplicationInternalServerError{
 			Code:    500,
 			Message: "Internal server error while resuming replication",
+		}, nil
+	}
+
+	return convertToInternalV1betaVolumeReplication(volumeReplication, job), nil
+}
+
+func (h Handler) V1betaInternalReverseVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalReverseVolumeReplicationParams) (gcpgenserver.V1betaInternalReverseVolumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	volumeReplication, job, err := h.Orchestrator.ReverseReplicationInternal(ctx, params.VolumeReplicationId, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Failed to reverse replication", "error", err.Error())
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalReverseVolumeReplicationNotFound{
+				Code:    404,
+				Message: "Volume replication not found",
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaInternalReverseVolumeReplicationBadRequest{
+				Code:    400,
+				Message: "Invalid request parameters",
+			}, nil
+		}
+		return &gcpgenserver.V1betaInternalReverseVolumeReplicationInternalServerError{
+			Code:    500,
+			Message: "Internal server error while reversing replication",
 		}, nil
 	}
 

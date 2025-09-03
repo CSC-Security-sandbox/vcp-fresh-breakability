@@ -2241,6 +2241,7 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 }
 
 func TestVerifyDstVolume(t *testing.T) {
+	correlationId := "correlationID"
 	event := &ResumeReplicationEvent{
 		CommonReplicationEventParams: CommonReplicationEventParams{
 			SrcBasePath:              "srcPath",
@@ -2257,6 +2258,7 @@ func TestVerifyDstVolume(t *testing.T) {
 					SourceVolumeUUID:           "srcVolumeUUID",
 				},
 			},
+			XCorrelationID: &correlationId,
 		},
 	}
 	t.Run("WhenDescribeVolumeError", func(tt *testing.T) {
@@ -2267,7 +2269,7 @@ func TestVerifyDstVolume(t *testing.T) {
 		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, errors.New("some error")
 		}
-		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.Error(tt, err)
 	})
 	t.Run("WhenDescribeDestinationVolumeError", func(tt *testing.T) {
@@ -2283,7 +2285,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			}
 			return googleproxyclient.VolumeV1beta{}, errors.New("some error")
 		}
-		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.Error(tt, err)
 	})
 	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
@@ -2295,7 +2297,7 @@ func TestVerifyDstVolume(t *testing.T) {
 		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
 		}
-		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -2313,7 +2315,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			}
 			return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
 		}
-		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -2331,7 +2333,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			}, nil
 		}
 		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotOnlineForReplicationResume, errors.New("Volume is not online for replication"))
-		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.Error(tt, err)
 		assert.Equal(tt, err, expectedError)
 	})
@@ -2355,7 +2357,7 @@ func TestVerifyDstVolume(t *testing.T) {
 			}
 		}
 		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrDestinationVolumeUsedSizeGreaterThanSourceVolumeAvailableQuota, errors.New("Destination volume used size is greater than source volume available quota"))
-		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -2367,7 +2369,7 @@ func TestVerifyDstVolume(t *testing.T) {
 		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
 			return googleproxyclient.VolumeV1beta{}, nil
 		}
-		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.NoError(tt, err)
 	})
 }
@@ -2694,6 +2696,74 @@ func TestValidateReplicationUpdate(t *testing.T) {
 			return dstReplication, nil
 		}
 		resp, err := _validateReplicationUpdate(ctx, event)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+}
+
+func Test_verifyDstReplicationReverse(t *testing.T) {
+	event := &ReverseReplicationEvent{
+		CommonReplicationEventParams: CommonReplicationEventParams{
+			ReplicationModel: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-east1",
+					DestinationReplicationUUID: "dest-repl-uuid",
+				},
+			},
+			DstBasePath:              "dstPath",
+			DestinationProjectNumber: "dest-proj",
+			DstToken:                 "dstToken",
+		},
+	}
+
+	t.Run("WhenGetReplicationError", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("get replication error")
+		}
+
+		_, err := _verifyDstReplicationReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+	})
+
+	t.Run("WhenReplicationIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, nil
+		}
+
+		_, err := _verifyDstReplicationReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := models.ReplicationV1betaMirrorStateSTOPPED
+		relationshipStatus := "idle"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		resp, err := _verifyDstReplicationReverse(ctx, event)
 		assert.NoError(tt, err)
 		assert.Equal(tt, dstReplication, resp)
 	})

@@ -739,7 +739,7 @@ type BackupCreateV1beta struct {
 	// UUID v4 of the volume.
 	VolumeId string `json:"volumeId"`
 	// UUID v4 of the snapshot.
-	SnapshotId OptString `json:"SnapshotId"`
+	SnapshotId OptString `json:"snapshotId"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -2960,7 +2960,7 @@ type FlexCacheConfigV1beta struct {
 	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
 	AtimeScrubEnabled OptNilBool `json:"atimeScrubEnabled"`
 	// Duration in days after which inactive files can be scrubbed from FlexCache volume.
-	AtimeScrubDays OptNilInt16 `json:"atimeScrubDays"`
+	AtimeScrubMinutes OptNilInt16 `json:"atimeScrubMinutes"`
 	// Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
 	CifsChangeNotifyEnabled OptNilBool `json:"cifsChangeNotifyEnabled"`
 }
@@ -2980,9 +2980,9 @@ func (s *FlexCacheConfigV1beta) GetAtimeScrubEnabled() OptNilBool {
 	return s.AtimeScrubEnabled
 }
 
-// GetAtimeScrubDays returns the value of AtimeScrubDays.
-func (s *FlexCacheConfigV1beta) GetAtimeScrubDays() OptNilInt16 {
-	return s.AtimeScrubDays
+// GetAtimeScrubMinutes returns the value of AtimeScrubMinutes.
+func (s *FlexCacheConfigV1beta) GetAtimeScrubMinutes() OptNilInt16 {
+	return s.AtimeScrubMinutes
 }
 
 // GetCifsChangeNotifyEnabled returns the value of CifsChangeNotifyEnabled.
@@ -3005,9 +3005,9 @@ func (s *FlexCacheConfigV1beta) SetAtimeScrubEnabled(val OptNilBool) {
 	s.AtimeScrubEnabled = val
 }
 
-// SetAtimeScrubDays sets the value of AtimeScrubDays.
-func (s *FlexCacheConfigV1beta) SetAtimeScrubDays(val OptNilInt16) {
-	s.AtimeScrubDays = val
+// SetAtimeScrubMinutes sets the value of AtimeScrubMinutes.
+func (s *FlexCacheConfigV1beta) SetAtimeScrubMinutes(val OptNilInt16) {
+	s.AtimeScrubMinutes = val
 }
 
 // SetCifsChangeNotifyEnabled sets the value of CifsChangeNotifyEnabled.
@@ -3061,12 +3061,12 @@ func (s *FlexCachePrePopulateV1beta) SetRecursion(val OptNilBool) {
 // Ref: #/components/schemas/FlexCache_v1beta
 type FlexCacheV1beta struct {
 	// Name of origin volume for FlexCache.
-	PeerVolumeName OptString `json:"peerVolumeName"`
+	PeerVolumeName string `json:"peerVolumeName"`
 	// Name of origin volume's ONTAP cluster for FlexCache.
-	PeerClusterName OptString `json:"peerClusterName"`
+	PeerClusterName string `json:"peerClusterName"`
 	// Name of origin volume's SVM for FlexCache.
-	PeerSvmName     OptString `json:"peerSvmName"`
-	PeerIpAddresses []string  `json:"peerIpAddresses"`
+	PeerSvmName     string   `json:"peerSvmName"`
+	PeerIpAddresses []string `json:"peerIpAddresses"`
 	// Specify whether this FlexCache volume has global file lock enabled.
 	EnableGlobalFileLock OptNilBool               `json:"enableGlobalFileLock"`
 	CacheConfig          OptFlexCacheConfigV1beta `json:"cacheConfig"`
@@ -3081,23 +3081,23 @@ type FlexCacheV1beta struct {
 	// Command used to establish peering for the FlexCache.
 	Command OptString `json:"command"`
 	// DateTime value for when cluster peering command should expire.
-	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
+	CommandExpiryTime OptNilDateTime `json:"commandExpiryTime"`
 	// Temporary passphrase generated to accept cluster peering command.
 	Passphrase OptNilString `json:"passphrase"`
 }
 
 // GetPeerVolumeName returns the value of PeerVolumeName.
-func (s *FlexCacheV1beta) GetPeerVolumeName() OptString {
+func (s *FlexCacheV1beta) GetPeerVolumeName() string {
 	return s.PeerVolumeName
 }
 
 // GetPeerClusterName returns the value of PeerClusterName.
-func (s *FlexCacheV1beta) GetPeerClusterName() OptString {
+func (s *FlexCacheV1beta) GetPeerClusterName() string {
 	return s.PeerClusterName
 }
 
 // GetPeerSvmName returns the value of PeerSvmName.
-func (s *FlexCacheV1beta) GetPeerSvmName() OptString {
+func (s *FlexCacheV1beta) GetPeerSvmName() string {
 	return s.PeerSvmName
 }
 
@@ -3141,9 +3141,9 @@ func (s *FlexCacheV1beta) GetCommand() OptString {
 	return s.Command
 }
 
-// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
-func (s *FlexCacheV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
-	return s.PeeringCommandExpiryTime
+// GetCommandExpiryTime returns the value of CommandExpiryTime.
+func (s *FlexCacheV1beta) GetCommandExpiryTime() OptNilDateTime {
+	return s.CommandExpiryTime
 }
 
 // GetPassphrase returns the value of Passphrase.
@@ -3152,17 +3152,17 @@ func (s *FlexCacheV1beta) GetPassphrase() OptNilString {
 }
 
 // SetPeerVolumeName sets the value of PeerVolumeName.
-func (s *FlexCacheV1beta) SetPeerVolumeName(val OptString) {
+func (s *FlexCacheV1beta) SetPeerVolumeName(val string) {
 	s.PeerVolumeName = val
 }
 
 // SetPeerClusterName sets the value of PeerClusterName.
-func (s *FlexCacheV1beta) SetPeerClusterName(val OptString) {
+func (s *FlexCacheV1beta) SetPeerClusterName(val string) {
 	s.PeerClusterName = val
 }
 
 // SetPeerSvmName sets the value of PeerSvmName.
-func (s *FlexCacheV1beta) SetPeerSvmName(val OptString) {
+func (s *FlexCacheV1beta) SetPeerSvmName(val string) {
 	s.PeerSvmName = val
 }
 
@@ -3206,9 +3206,9 @@ func (s *FlexCacheV1beta) SetCommand(val OptString) {
 	s.Command = val
 }
 
-// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
-func (s *FlexCacheV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
-	s.PeeringCommandExpiryTime = val
+// SetCommandExpiryTime sets the value of CommandExpiryTime.
+func (s *FlexCacheV1beta) SetCommandExpiryTime(val OptNilDateTime) {
+	s.CommandExpiryTime = val
 }
 
 // SetPassphrase sets the value of Passphrase.
@@ -5803,44 +5803,45 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1beta) v1betaCreateActiveDirectoryRes()                  {}
-func (*OperationV1beta) v1betaCreateBackupPolicyRes()                     {}
-func (*OperationV1beta) v1betaCreateBackupRes()                           {}
-func (*OperationV1beta) v1betaCreateBackupVaultRes()                      {}
-func (*OperationV1beta) v1betaCreateKmsConfigurationRes()                 {}
-func (*OperationV1beta) v1betaCreatePoolRes()                             {}
-func (*OperationV1beta) v1betaCreateReplicationRes()                      {}
-func (*OperationV1beta) v1betaCreateSnapshotRes()                         {}
-func (*OperationV1beta) v1betaCreateVolumeRes()                           {}
-func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()                  {}
-func (*OperationV1beta) v1betaDeleteBackupPolicyRes()                     {}
-func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes()           {}
-func (*OperationV1beta) v1betaDeleteBackupVaultRes()                      {}
-func (*OperationV1beta) v1betaDeleteHostGroupRes()                        {}
-func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()                 {}
-func (*OperationV1beta) v1betaDeletePoolRes()                             {}
-func (*OperationV1beta) v1betaDeleteReplicationRes()                      {}
-func (*OperationV1beta) v1betaDeleteSnapshotRes()                         {}
-func (*OperationV1beta) v1betaDeleteVolumeRes()                           {}
-func (*OperationV1beta) v1betaDescribeOperationRes()                      {}
-func (*OperationV1beta) v1betaEncryptVolumesRes()                         {}
-func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {}
-func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()       {}
-func (*OperationV1beta) v1betaResumeReplicationRes()                      {}
-func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()            {}
-func (*OperationV1beta) v1betaRevertVolumeRes()                           {}
-func (*OperationV1beta) v1betaStopReplicationRes()                        {}
-func (*OperationV1beta) v1betaSyncReplicationRes()                        {}
-func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                  {}
-func (*OperationV1beta) v1betaUpdateBackupPolicyRes()                     {}
-func (*OperationV1beta) v1betaUpdateBackupRes()                           {}
-func (*OperationV1beta) v1betaUpdateBackupVaultRes()                      {}
-func (*OperationV1beta) v1betaUpdateHostGroupRes()                        {}
-func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()                 {}
-func (*OperationV1beta) v1betaUpdatePoolRes()                             {}
-func (*OperationV1beta) v1betaUpdateReplicationRes()                      {}
-func (*OperationV1beta) v1betaUpdateSnapshotRes()                         {}
-func (*OperationV1beta) v1betaUpdateVolumeRes()                           {}
+func (*OperationV1beta) v1betaCreateActiveDirectoryRes()                     {}
+func (*OperationV1beta) v1betaCreateBackupPolicyRes()                        {}
+func (*OperationV1beta) v1betaCreateBackupRes()                              {}
+func (*OperationV1beta) v1betaCreateBackupVaultRes()                         {}
+func (*OperationV1beta) v1betaCreateKmsConfigurationRes()                    {}
+func (*OperationV1beta) v1betaCreatePoolRes()                                {}
+func (*OperationV1beta) v1betaCreateReplicationRes()                         {}
+func (*OperationV1beta) v1betaCreateSnapshotRes()                            {}
+func (*OperationV1beta) v1betaCreateVolumeRes()                              {}
+func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()                     {}
+func (*OperationV1beta) v1betaDeleteBackupPolicyRes()                        {}
+func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes()              {}
+func (*OperationV1beta) v1betaDeleteBackupVaultRes()                         {}
+func (*OperationV1beta) v1betaDeleteHostGroupRes()                           {}
+func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()                    {}
+func (*OperationV1beta) v1betaDeletePoolRes()                                {}
+func (*OperationV1beta) v1betaDeleteReplicationRes()                         {}
+func (*OperationV1beta) v1betaDeleteSnapshotRes()                            {}
+func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
+func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
+func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
+func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
+func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()          {}
+func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
+func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
+func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
+func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
+func (*OperationV1beta) v1betaStopReplicationRes()                           {}
+func (*OperationV1beta) v1betaSyncReplicationRes()                           {}
+func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                     {}
+func (*OperationV1beta) v1betaUpdateBackupPolicyRes()                        {}
+func (*OperationV1beta) v1betaUpdateBackupRes()                              {}
+func (*OperationV1beta) v1betaUpdateBackupVaultRes()                         {}
+func (*OperationV1beta) v1betaUpdateHostGroupRes()                           {}
+func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()                    {}
+func (*OperationV1beta) v1betaUpdatePoolRes()                                {}
+func (*OperationV1beta) v1betaUpdateReplicationRes()                         {}
+func (*OperationV1beta) v1betaUpdateSnapshotRes()                            {}
+func (*OperationV1beta) v1betaUpdateVolumeRes()                              {}
 
 // NewOptActiveDirectoryV1betaActiveDirectoryState returns new OptActiveDirectoryV1betaActiveDirectoryState with value set to v.
 func NewOptActiveDirectoryV1betaActiveDirectoryState(v ActiveDirectoryV1betaActiveDirectoryState) OptActiveDirectoryV1betaActiveDirectoryState {
@@ -11488,6 +11489,8 @@ type PoolInternalV1beta struct {
 	Unified OptBool `json:"unified"`
 	// Indicates if the pool type is unified (deprecated, use 'type' field instead).
 	UnifiedPool OptBool `json:"unifiedPool"`
+	// Indicates if the pool is a large capacity pool.
+	LargeCapacity OptBool `json:"largeCapacity"`
 	// The name of the cluster.
 	ClusterName OptString `json:"clusterName"`
 	// Intercluster Lifs.
@@ -11692,6 +11695,11 @@ func (s *PoolInternalV1beta) GetUnified() OptBool {
 // GetUnifiedPool returns the value of UnifiedPool.
 func (s *PoolInternalV1beta) GetUnifiedPool() OptBool {
 	return s.UnifiedPool
+}
+
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *PoolInternalV1beta) GetLargeCapacity() OptBool {
+	return s.LargeCapacity
 }
 
 // GetClusterName returns the value of ClusterName.
@@ -11902,6 +11910,11 @@ func (s *PoolInternalV1beta) SetUnified(val OptBool) {
 // SetUnifiedPool sets the value of UnifiedPool.
 func (s *PoolInternalV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *PoolInternalV1beta) SetLargeCapacity(val OptBool) {
+	s.LargeCapacity = val
 }
 
 // SetClusterName sets the value of ClusterName.
@@ -12447,6 +12460,8 @@ type PoolV1beta struct {
 	Unified OptBool `json:"unified"`
 	// Indicates if the pool type is unified (deprecated, use 'type' field instead).
 	UnifiedPool OptBool `json:"unifiedPool"`
+	// Indicates if the pool is a large capacity pool.
+	LargeCapacity OptBool `json:"largeCapacity"`
 }
 
 // GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
@@ -12649,6 +12664,11 @@ func (s *PoolV1beta) GetUnifiedPool() OptBool {
 	return s.UnifiedPool
 }
 
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *PoolV1beta) GetLargeCapacity() OptBool {
+	return s.LargeCapacity
+}
+
 // SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
 func (s *PoolV1beta) SetActiveDirectoryConfigId(val OptNilString) {
 	s.ActiveDirectoryConfigId = val
@@ -12847,6 +12867,11 @@ func (s *PoolV1beta) SetUnified(val OptBool) {
 // SetUnifiedPool sets the value of UnifiedPool.
 func (s *PoolV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *PoolV1beta) SetLargeCapacity(val OptBool) {
+	s.LargeCapacity = val
 }
 
 func (*PoolV1beta) v1betaDescribePoolRes() {}
@@ -17596,6 +17621,43 @@ type V1betaInternalResumeVolumeReplicationUnprocessableEntity Error
 func (*V1betaInternalResumeVolumeReplicationUnprocessableEntity) v1betaInternalResumeVolumeReplicationRes() {
 }
 
+type V1betaInternalReverseVolumeReplicationBadRequest Error
+
+func (*V1betaInternalReverseVolumeReplicationBadRequest) v1betaInternalReverseVolumeReplicationRes() {
+}
+
+type V1betaInternalReverseVolumeReplicationConflict Error
+
+func (*V1betaInternalReverseVolumeReplicationConflict) v1betaInternalReverseVolumeReplicationRes() {}
+
+type V1betaInternalReverseVolumeReplicationForbidden Error
+
+func (*V1betaInternalReverseVolumeReplicationForbidden) v1betaInternalReverseVolumeReplicationRes() {}
+
+type V1betaInternalReverseVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalReverseVolumeReplicationInternalServerError) v1betaInternalReverseVolumeReplicationRes() {
+}
+
+type V1betaInternalReverseVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalReverseVolumeReplicationMethodNotAllowed) v1betaInternalReverseVolumeReplicationRes() {
+}
+
+type V1betaInternalReverseVolumeReplicationNotFound Error
+
+func (*V1betaInternalReverseVolumeReplicationNotFound) v1betaInternalReverseVolumeReplicationRes() {}
+
+type V1betaInternalReverseVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalReverseVolumeReplicationUnauthorized) v1betaInternalReverseVolumeReplicationRes() {
+}
+
+type V1betaInternalReverseVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalReverseVolumeReplicationUnprocessableEntity) v1betaInternalReverseVolumeReplicationRes() {
+}
+
 type V1betaInternalStopVolumeReplicationBadRequest Error
 
 func (*V1betaInternalStopVolumeReplicationBadRequest) v1betaInternalStopVolumeReplicationRes() {}
@@ -17645,6 +17707,46 @@ func (*V1betaInternalStopVolumeReplicationUnauthorized) v1betaInternalStopVolume
 type V1betaInternalStopVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalStopVolumeReplicationUnprocessableEntity) v1betaInternalStopVolumeReplicationRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesBadRequest Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesBadRequest) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesConflict Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesConflict) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesForbidden Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesForbidden) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesInternalServerError Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesInternalServerError) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesMethodNotAllowed Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesMethodNotAllowed) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesNotFound Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesNotFound) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesUnauthorized Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesUnauthorized) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesUnprocessableEntity Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesUnprocessableEntity) v1betaInternalUpdateVolumeReplicationAttributesRes() {
 }
 
 type V1betaInternalUpdateVolumeReplicationBadRequest Error
@@ -20346,6 +20448,7 @@ func (*VolumeReplicationInternalV1beta) v1betaInternalCreateVolumeReplicationRes
 func (*VolumeReplicationInternalV1beta) v1betaInternalDeleteVolumeReplicationRes()    {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalDescribeVolumeReplicationRes()  {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalResumeVolumeReplicationRes()    {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalReverseVolumeReplicationRes()   {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalStopVolumeReplicationRes()      {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalUpdateVolumeReplicationRes()    {}
 

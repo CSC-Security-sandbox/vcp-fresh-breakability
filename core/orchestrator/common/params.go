@@ -551,3 +551,20 @@ type Operations struct {
 	IsRegionalResource bool
 	OperationType      string
 }
+
+type ReverseAndResumeReplicationParams struct {
+	AccountName           string
+	Zone                  string
+	Region                string
+	CorrelationId         string
+	VolumeResourceId      string
+	ReplicationResourceId string
+}
+
+type UpdateVolumeReplicationAttributesParams struct {
+	AccountName            string
+	Region                 string
+	Zone                   string
+	VolumeReplicationId    string
+	UpdateAttributesParams *models.UpdateVolumeReplicationAttributesParams
+}

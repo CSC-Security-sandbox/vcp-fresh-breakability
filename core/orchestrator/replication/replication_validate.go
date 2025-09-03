@@ -52,6 +52,7 @@ var (
 	VerifyDstVolume             = _verifyDstVolume
 	VerifyDstReplication        = _verifyDstReplication
 	VerifyDstReplicationSync    = _verifyDstReplicationSync
+	VerifyDstReplicationReverse = _verifyDstReplicationReverse
 
 	InternalUtilGetCallbackToken   = auth.GetSignedAccessToken
 	InternalUtilGetSignedToken     = auth.GetSignedJwtToken
@@ -675,6 +676,25 @@ func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent)
 	return dstReplication, nil
 }
 
+func _verifyDstReplicationReverse(ctx context.Context, event *ReverseReplicationEvent) (*coreModels.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
+	if err != nil || dstReplication == nil {
+		logger.Error("getReplication error", common.Error(err))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+	}
+
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateMIRRORED {
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication mirror state should be %s", models.ReplicationV1betaMirrorStateSTOPPED))
+	}
+
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED {
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
+	}
+
+	return dstReplication, nil
+}
+
 func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEvent) (*coreModels.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 
@@ -697,9 +717,17 @@ func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEve
 	return dstReplication, nil
 }
 
-func _verifyDstVolume(ctx context.Context, event *ResumeReplicationEvent, srcBasePath string, destBasePath string, srcToken string, dstToken string) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
+func _verifyDstVolume(ctx context.Context, attributes *datamodel.ReplicationDetails, srcBasePath string, destBasePath string, srcToken string, dstToken string, srcProjectNumber, dstProjectNumber string, correlationId *string, isReverse bool) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
 	logger := util.GetLogger(ctx)
-	srcVolume, err := describeVolume(ctx, srcBasePath, srcToken, event.ReplicationModel.ReplicationAttributes.SourceLocation, event.SourceProjectNumber, event.XCorrelationID, event.ReplicationModel.ReplicationAttributes.SourceVolumeUUID)
+	var srcVolume, dstVolume googleproxyclient.VolumeV1beta
+	var err error
+	// if isReverse is true, swap source and destination volume for verification
+	// this is because during reverse replication, source volume becomes destination and vice versa
+	if isReverse {
+		srcVolume, err = describeVolume(ctx, destBasePath, dstToken, attributes.DestinationLocation, dstProjectNumber, correlationId, attributes.DestinationVolumeUUID)
+	} else {
+		srcVolume, err = describeVolume(ctx, srcBasePath, srcToken, attributes.SourceLocation, srcProjectNumber, correlationId, attributes.SourceVolumeUUID)
+	}
 	if err != nil {
 		if err.Error() != "volume not found" {
 			logger.Error("getSourceVolume error", common.Error(err))
@@ -708,7 +736,11 @@ func _verifyDstVolume(ctx context.Context, event *ResumeReplicationEvent, srcBas
 		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrVolumeNotFound, err)
 	}
 
-	dstVolume, err := describeVolume(ctx, destBasePath, dstToken, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.DestinationProjectNumber, event.XCorrelationID, event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID)
+	if isReverse {
+		dstVolume, err = describeVolume(ctx, srcBasePath, srcToken, attributes.SourceLocation, srcProjectNumber, correlationId, attributes.SourceVolumeUUID)
+	} else {
+		dstVolume, err = describeVolume(ctx, destBasePath, dstToken, attributes.DestinationLocation, dstProjectNumber, correlationId, attributes.DestinationVolumeUUID)
+	}
 	if err != nil {
 		if err.Error() != "volume not found" {
 			logger.Error("getDestinationVolume error", common.Error(err))

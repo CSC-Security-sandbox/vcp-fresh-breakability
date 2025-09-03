@@ -1555,10 +1555,10 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX), res.ServiceLevel)
 		assert.Equal(tt, "us-central1", res.Zone.Value)
 		assert.Equal(tt, "test-passphrase", res.CacheParameters.Value.Passphrase.Value)
-		assert.Equal(tt, "peer-svm", res.CacheParameters.Value.PeerSvmName.Value)
-		assert.Equal(tt, "peer-volume", res.CacheParameters.Value.PeerVolumeName.Value)
+		assert.Equal(tt, "peer-svm", res.CacheParameters.Value.PeerSvmName)
+		assert.Equal(tt, "peer-volume", res.CacheParameters.Value.PeerVolumeName)
 		assert.Equal(tt, "test-command", res.CacheParameters.Value.Command.Value)
-		assert.Equal(tt, "alderan", res.CacheParameters.Value.PeerClusterName.Value)
+		assert.Equal(tt, "alderan", res.CacheParameters.Value.PeerClusterName)
 		assert.Equal(tt, "test-passphrase", res.CacheParameters.Value.Passphrase.Value)
 		assert.Equal(tt, "network-id", res.Network.Value)
 		assert.Equal(tt, "pool-id", res.PoolId.Value)
@@ -1772,7 +1772,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.True(tt, result.CacheParameters.IsSet())
 		cache := result.CacheParameters.Value
 
-		assert.Equal(tt, "origin-volume", cache.PeerVolumeName.Value)
+		assert.Equal(tt, "origin-volume", cache.PeerVolumeName)
 		assert.False(tt, cache.EnableGlobalFileLock.IsSet())
 		assert.False(tt, cache.CommandExpiryTime.IsSet())
 		assert.False(tt, cache.Passphrase.IsSet())

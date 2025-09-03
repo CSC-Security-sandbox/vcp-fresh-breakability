@@ -225,6 +225,8 @@ const (
 	ErrProviderGetVolumeReplication                                                          = 6190
 	ErrProviderBreakVolumeReplication                                                        = 6191
 	ErrProviderAbortVolumeReplication                                                        = 6192
+	ErrGoogleProxyInternalReverseReplication                                                 = 6193
+	ErrGoogleProxyUpdateReplicationAttributes                                                = 6194
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

@@ -732,6 +732,47 @@ func (rc *OntapRestProvider) ResyncVolumeReplication(volRep *VolumeReplication) 
 	return convertSnapMirrorToVolumeReplication(*snapmirror, volRep)
 }
 
+func (rc *OntapRestProvider) ReverseVolumeReplication(volRep *VolumeReplication) (*SnapmirrorDestination, error) {
+	getParams := ontaprest.SnapmirrorRelationshipGetParams{UUID: volRep.RelationshipID}
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	snapmirror, err := client.Snapmirror().SnapmirrorRelationshipGet(&getParams)
+	if err != nil {
+		return nil, err
+	}
+
+	if snapmirror == nil {
+		return nil, errors.NewNotFoundErr("snapmirror relationship", &volRep.RelationshipID)
+	}
+
+	// Validate that the snapmirror can be reversed (typically should be in broken-off state)
+	if snapmirror.State == nil || *snapmirror.State != models.SnapmirrorRelationshipStateBrokenOff {
+		return nil, errors.NewConflictErr("Cannot perform a reverse operation unless the relationship is in broken-off state")
+	}
+
+	reverseParams := ontaprest.SnapmirrorRelationshipReverseParams{
+		UUID:            volRep.RelationshipID,
+		SourcePath:      *snapmirror.Destination.Path, // Current destination becomes new source
+		DestinationPath: *snapmirror.Source.Path,      // Current source becomes new destination
+	}
+
+	_, job, err := client.Snapmirror().SnapmirrorRelationshipReverse(&reverseParams)
+	if err != nil {
+		return nil, err
+	}
+
+	if job != nil {
+		err = waitForJobIfNeeded(rc, job)
+		if err != nil {
+			return nil, err
+		}
+	}
+	
+	return &SnapmirrorDestination{}, nil
+}
+
 // validateResyncVolumeReplication validates if snapmirror is eligible for resync
 func validateResyncVolumeReplication(provider *OntapRestProvider, snapmirror *ontaprest.SnapmirrorRelationship, volRep *VolumeReplication) (*ontaprest.Volume, error) {
 	// Check to see if a resync operation can be performed. Can be performed if the mirror state is broken, if the force flag is set to true or if the replication was stopped during initial transfer.
@@ -930,4 +971,28 @@ func (provider *OntapRestProvider) GetVolumeReplication(replication *VolumeRepli
 		return nil, err
 	}
 	return convertSnapMirrorToVolumeReplication(*snapmirror, replication)
+}
+
+func (provider *OntapRestProvider) GetVolumeReplicationFromSrcAndDstPath(replication *VolumeReplication) (*VolumeReplication, error) {
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	getParams := ontaprest.SnapmirrorRelationshipListParams{
+		DestinationPath: replication.DestinationPath(),
+		SourcePath:      replication.SourcePath(),
+	}
+	snapmirrorList, err := client.Snapmirror().SnapmirrorRelationshipList(&getParams)
+	if err != nil {
+		return nil, err
+	}
+	if len(snapmirrorList) > 0 {
+		getParams := ontaprest.SnapmirrorRelationshipGetParams{UUID: snapmirrorList[0].UUID.String()}
+		snapmirror, err := client.Snapmirror().SnapmirrorRelationshipGet(&getParams)
+		if err != nil {
+			return nil, err
+		}
+		return convertSnapMirrorToVolumeReplication(*snapmirror, replication)
+	}
+	return nil, errors.NewNotFoundErr("snapmirror", nillable.GetStringPtr(replication.SourcePath()))
 }

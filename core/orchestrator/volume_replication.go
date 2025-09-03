@@ -35,15 +35,17 @@ var (
 	stopReplicationInternal         = _stopReplicationInternal
 	resumeReplicationInternal       = _resumeReplicationInternal
 	deleteReplicationInternal       = _deleteReplicationInternal
+	reverseReplicationInternal      = _reverseReplicationInternal
 
-	createVolumeReplication  = _createVolumeReplication
-	stopReplication          = _stopReplication
-	resumeReplication        = _resumeReplication
-	deleteReplication        = _deleteReplication
-	releaseVolumeReplication = _releaseVolumeReplication
-	syncReplication          = _syncReplication
-	updateReplication        = _updateReplication
-	getActiveReplicationJobs = _getActiveReplicationJobs
+	createVolumeReplication     = _createVolumeReplication
+	stopReplication             = _stopReplication
+	resumeReplication           = _resumeReplication
+	deleteReplication           = _deleteReplication
+	releaseVolumeReplication    = _releaseVolumeReplication
+	syncReplication             = _syncReplication
+	reverseAndResumeReplication = _reverseAndResumeReplication
+	updateReplication           = _updateReplication
+	getActiveReplicationJobs    = _getActiveReplicationJobs
 
 	validateCreateReplicationParams = replication.ValidateCreateReplicationParams
 	validateReplicationParams       = replication.ValidateReplicationParams
@@ -52,6 +54,7 @@ var (
 	VerifyDstReplicationDelete      = replication.VerifyDstReplication
 	verifyDstReplicationSync        = replication.VerifyDstReplicationSync
 	validateReplicationUpdate       = replication.ValidateReplicationUpdate
+	verifyDstReplicationReverse     = replication.VerifyDstReplicationReverse
 
 	convertCreateReplicationParamsToEventParam = _convertCreateReplicationParamsToEventParam
 	getReplicationObjects                      = _getReplicationObjects
@@ -1220,6 +1223,10 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 		Description:         params.Description,
 	}
 
+	if params.Zone != "" {
+		event.CommonReplicationEventParams.Location = params.Zone
+	}
+
 	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
 	if err != nil {
 		return nil, "", err
@@ -1568,6 +1575,10 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 		},
 	}
 
+	if params.Zone != "" {
+		event.CommonReplicationEventParams.Location = params.Zone
+	}
+
 	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
 	if err != nil {
 		return nil, "", err
@@ -1625,4 +1636,165 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
 
 	return dstReplication, createdJob.UUID, nil
+}
+
+func (o *Orchestrator) ReverseReplicationInternal(ctx context.Context, volumeReplicationId, accountName string) (*models.VolumeReplication, *datamodel.Job, error) {
+	return reverseReplicationInternal(ctx, o.storage, o.temporal, volumeReplicationId, accountName)
+}
+
+func _reverseReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId, accountName string) (*models.VolumeReplication, *datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		logger.Error("Failed to get or create account", "error", err)
+		return nil, nil, err
+	}
+
+	replicationDb, err := se.GetVolumeReplication(ctx, volumeReplicationId)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	replicationDb.State = models.LifeCycleStateUpdating
+	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+
+	err = se.UpdateVolumeReplicationStates(ctx, replicationDb)
+	if err != nil {
+		logger.Error("Failed to update volume replication states in database", "error", err)
+		return nil, nil, err
+	}
+
+	replicationDb.Account = &datamodel.Account{
+		Name: accountName,
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeReverseVolumeReplicationInternal),
+		State:        string(models.JobsStateNEW),
+		ResourceName: replicationDb.Uri,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: replicationDb.UUID,
+			PoolUUID:     replicationDb.Volume.Pool.UUID,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, nil, err
+	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		replicationWorkflows.ReverseInternalVolumeReplicationWorkflow,
+		replicationDb,
+	)
+	if err != nil {
+		logger.Error("Failed to execute workflow for reversing volume replication", "error", err)
+		return nil, nil, err
+	}
+
+	return convertDataStoreReplicationToModel(replicationDb), createdJob, nil
+}
+
+func (o *Orchestrator) ReverseAndResumeReplication(ctx context.Context, params *commonparams.ReverseAndResumeReplicationParams) (*models.VolumeReplication, *string, error) {
+	return reverseAndResumeReplication(ctx, o.storage, o.temporal, params)
+}
+
+func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ReverseAndResumeReplicationParams) (*models.VolumeReplication, *string, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to get or create account", "error", err)
+		return nil, nil, err
+	}
+
+	event := replication.ReverseReplicationEvent{
+		CommonReplicationEventParams: replication.CommonReplicationEventParams{
+			VolumeResourceID:      params.VolumeResourceId,
+			ReplicationResourceID: params.ReplicationResourceId,
+			AccountName:           params.AccountName,
+			XCorrelationID:        &params.CorrelationId,
+			Location:              params.Region,
+			Zone:                  params.Zone,
+		},
+	}
+
+	if params.Zone != "" {
+		event.CommonReplicationEventParams.Location = params.Zone
+	}
+
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	replicationDb, err := verifyDstReplicationReverse(ctx, &event)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeReverseResumeVolumeReplication),
+		State:        string(models.JobsStateNEW),
+		ResourceName: event.ReplicationModel.Uri,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: event.ReplicationModel.UUID,
+			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, nil, err
+	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		replicationWorkflows.ReverseAndResumeVolumeReplicationWorkflow,
+		params,
+		&event,
+	)
+
+	if err != nil {
+		logger.Error("Failed to execute workflow", "error", err)
+		return nil, nil, err
+	}
+
+	replicationDb.State = models.LifeCycleStateUpdating
+	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+	replicationDb.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+	return replicationDb, &createdJob.UUID, nil
 }

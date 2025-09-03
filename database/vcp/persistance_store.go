@@ -433,6 +433,10 @@ func (s *PersistenceStore) UpdateVolumeReplication(ctx context.Context, volumeRe
 	return s.dataStore.UpdateVolumeReplication(ctx, volumeRep)
 }
 
+func (s *PersistenceStore) UpdateVolumeReplicationFields(ctx context.Context, volumeRepUUID string, updates map[string]interface{}) error {
+	return s.dataStore.UpdateVolumeReplicationFields(ctx, volumeRepUUID, updates)
+}
+
 func (s *PersistenceStore) UpdateVolumeReplicationStates(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
 	return s.dataStore.UpdateVolumeReplicationStates(ctx, volumeRep)
 }

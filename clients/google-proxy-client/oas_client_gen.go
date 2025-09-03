@@ -386,6 +386,14 @@ type Invoker interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/resume
 	V1betaInternalResumeVolumeReplication(ctx context.Context, params V1betaInternalResumeVolumeReplicationParams) (V1betaInternalResumeVolumeReplicationRes, error)
+	// V1betaInternalReverseVolumeReplication invokes v1beta_internalReverseVolumeReplication operation.
+	//
+	// Reverse the replication relationship between source and destination in this volume replication,
+	// effectively swapping the source and destination paths. Can only be invoked from the destination
+	// end of the relationship.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/reverse
+	V1betaInternalReverseVolumeReplication(ctx context.Context, params V1betaInternalReverseVolumeReplicationParams) (V1betaInternalReverseVolumeReplicationRes, error)
 	// V1betaInternalStopVolumeReplication invokes v1beta_internalStopVolumeReplication operation.
 	//
 	// Stop the replication relationship between source and destination in this volume replication and
@@ -400,6 +408,13 @@ type Invoker interface {
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 	V1betaInternalUpdateVolumeReplication(ctx context.Context, request *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error)
+	// V1betaInternalUpdateVolumeReplicationAttributes invokes v1beta_internalUpdateVolumeReplicationAttributes operation.
+	//
+	// Update volume replication attributes in the database with the provided replication details. This
+	// is used internally during replication operations to update database state.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateVolumeReplicationAttributes
+	V1betaInternalUpdateVolumeReplicationAttributes(ctx context.Context, request *VolumeReplicationInternalV1beta, params V1betaInternalUpdateVolumeReplicationAttributesParams) (V1betaInternalUpdateVolumeReplicationAttributesRes, error)
 	// V1betaListActiveDirectories invokes v1beta_listActiveDirectories operation.
 	//
 	// Returns descriptions of all Active Directory credentials owned by the caller.
@@ -1804,6 +1819,20 @@ func (c *Client) sendV1betaCreateVolume(ctx context.Context, request *VolumeCrea
 		}
 		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Netapp-Backup-Schedule",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XNetappBackupSchedule.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -7200,6 +7229,117 @@ func (c *Client) sendV1betaInternalResumeVolumeReplication(ctx context.Context, 
 	return result, nil
 }
 
+// V1betaInternalReverseVolumeReplication invokes v1beta_internalReverseVolumeReplication operation.
+//
+// Reverse the replication relationship between source and destination in this volume replication,
+// effectively swapping the source and destination paths. Can only be invoked from the destination
+// end of the relationship.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/reverse
+func (c *Client) V1betaInternalReverseVolumeReplication(ctx context.Context, params V1betaInternalReverseVolumeReplicationParams) (V1betaInternalReverseVolumeReplicationRes, error) {
+	res, err := c.sendV1betaInternalReverseVolumeReplication(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalReverseVolumeReplication(ctx context.Context, params V1betaInternalReverseVolumeReplicationParams) (res V1betaInternalReverseVolumeReplicationRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumeReplication/"
+	{
+		// Encode "volumeReplicationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeReplicationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeReplicationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/reverse"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalReverseVolumeReplicationResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaInternalStopVolumeReplication invokes v1beta_internalStopVolumeReplication operation.
 //
 // Stop the replication relationship between source and destination in this volume replication and
@@ -7427,6 +7567,128 @@ func (c *Client) sendV1betaInternalUpdateVolumeReplication(ctx context.Context, 
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaInternalUpdateVolumeReplicationResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaInternalUpdateVolumeReplicationAttributes invokes v1beta_internalUpdateVolumeReplicationAttributes operation.
+//
+// Update volume replication attributes in the database with the provided replication details. This
+// is used internally during replication operations to update database state.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateVolumeReplicationAttributes
+func (c *Client) V1betaInternalUpdateVolumeReplicationAttributes(ctx context.Context, request *VolumeReplicationInternalV1beta, params V1betaInternalUpdateVolumeReplicationAttributesParams) (V1betaInternalUpdateVolumeReplicationAttributesRes, error) {
+	res, err := c.sendV1betaInternalUpdateVolumeReplicationAttributes(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalUpdateVolumeReplicationAttributes(ctx context.Context, request *VolumeReplicationInternalV1beta, params V1betaInternalUpdateVolumeReplicationAttributesParams) (res V1betaInternalUpdateVolumeReplicationAttributesRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumeReplication/"
+	{
+		// Encode "volumeReplicationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeReplicationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeReplicationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/updateVolumeReplicationAttributes"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaInternalUpdateVolumeReplicationAttributesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalUpdateVolumeReplicationAttributesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -10594,6 +10856,20 @@ func (c *Client) sendV1betaUpdateVolume(ctx context.Context, request *VolumeUpda
 		}
 		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Netapp-Backup-Schedule",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XNetappBackupSchedule.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil

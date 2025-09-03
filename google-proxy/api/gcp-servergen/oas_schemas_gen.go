@@ -2953,6 +2953,7 @@ func (s *ExportPolicyV1beta) SetRules(val []SimpleExportPolicyRuleV1beta) {
 // FlexCache volume configuration options.
 // Ref: #/components/schemas/FlexCacheConfig_v1beta
 type FlexCacheConfigV1beta struct {
+	// Prepopulate FlexCache volume.
 	PrePopulate OptFlexCachePrePopulateV1beta `json:"prePopulate"`
 	// Flag indicating whether writeback is enabled for the FlexCache volume.
 	WritebackEnabled OptNilBool `json:"writebackEnabled"`
@@ -3060,17 +3061,21 @@ func (s *FlexCachePrePopulateV1beta) SetRecursion(val OptNilBool) {
 // Ref: #/components/schemas/FlexCache_v1beta
 type FlexCacheV1beta struct {
 	// Name of origin volume for FlexCache.
-	PeerVolumeName OptString `json:"peerVolumeName"`
+	PeerVolumeName string `json:"peerVolumeName"`
 	// Name of origin volume's ONTAP cluster for FlexCache.
-	PeerClusterName OptString `json:"peerClusterName"`
+	PeerClusterName string `json:"peerClusterName"`
 	// Name of origin volume's SVM for FlexCache.
-	PeerSvmName     OptString `json:"peerSvmName"`
-	PeerIpAddresses []string  `json:"peerIpAddresses"`
+	PeerSvmName     string   `json:"peerSvmName"`
+	PeerIpAddresses []string `json:"peerIpAddresses"`
 	// Specify whether this FlexCache volume has global file lock enabled.
 	EnableGlobalFileLock OptNilBool               `json:"enableGlobalFileLock"`
 	CacheConfig          OptFlexCacheConfigV1beta `json:"cacheConfig"`
 	// Current state of the FlexCache.
 	CacheState OptFlexCacheV1betaCacheState `json:"cacheState"`
+	// Details about the current lifecycle state.
+	StateDetails OptString `json:"stateDetails"`
+	// Numeric representation of current state details.
+	StateDetailsCode OptInt32 `json:"stateDetailsCode"`
 	// Previous state of the FlexCache.
 	PreviousCacheState OptFlexCacheV1betaPreviousCacheState `json:"previousCacheState"`
 	// Command used to establish peering for the FlexCache.
@@ -3082,17 +3087,17 @@ type FlexCacheV1beta struct {
 }
 
 // GetPeerVolumeName returns the value of PeerVolumeName.
-func (s *FlexCacheV1beta) GetPeerVolumeName() OptString {
+func (s *FlexCacheV1beta) GetPeerVolumeName() string {
 	return s.PeerVolumeName
 }
 
 // GetPeerClusterName returns the value of PeerClusterName.
-func (s *FlexCacheV1beta) GetPeerClusterName() OptString {
+func (s *FlexCacheV1beta) GetPeerClusterName() string {
 	return s.PeerClusterName
 }
 
 // GetPeerSvmName returns the value of PeerSvmName.
-func (s *FlexCacheV1beta) GetPeerSvmName() OptString {
+func (s *FlexCacheV1beta) GetPeerSvmName() string {
 	return s.PeerSvmName
 }
 
@@ -3116,6 +3121,16 @@ func (s *FlexCacheV1beta) GetCacheState() OptFlexCacheV1betaCacheState {
 	return s.CacheState
 }
 
+// GetStateDetails returns the value of StateDetails.
+func (s *FlexCacheV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetStateDetailsCode returns the value of StateDetailsCode.
+func (s *FlexCacheV1beta) GetStateDetailsCode() OptInt32 {
+	return s.StateDetailsCode
+}
+
 // GetPreviousCacheState returns the value of PreviousCacheState.
 func (s *FlexCacheV1beta) GetPreviousCacheState() OptFlexCacheV1betaPreviousCacheState {
 	return s.PreviousCacheState
@@ -3137,17 +3152,17 @@ func (s *FlexCacheV1beta) GetPassphrase() OptNilString {
 }
 
 // SetPeerVolumeName sets the value of PeerVolumeName.
-func (s *FlexCacheV1beta) SetPeerVolumeName(val OptString) {
+func (s *FlexCacheV1beta) SetPeerVolumeName(val string) {
 	s.PeerVolumeName = val
 }
 
 // SetPeerClusterName sets the value of PeerClusterName.
-func (s *FlexCacheV1beta) SetPeerClusterName(val OptString) {
+func (s *FlexCacheV1beta) SetPeerClusterName(val string) {
 	s.PeerClusterName = val
 }
 
 // SetPeerSvmName sets the value of PeerSvmName.
-func (s *FlexCacheV1beta) SetPeerSvmName(val OptString) {
+func (s *FlexCacheV1beta) SetPeerSvmName(val string) {
 	s.PeerSvmName = val
 }
 
@@ -3169,6 +3184,16 @@ func (s *FlexCacheV1beta) SetCacheConfig(val OptFlexCacheConfigV1beta) {
 // SetCacheState sets the value of CacheState.
 func (s *FlexCacheV1beta) SetCacheState(val OptFlexCacheV1betaCacheState) {
 	s.CacheState = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *FlexCacheV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetStateDetailsCode sets the value of StateDetailsCode.
+func (s *FlexCacheV1beta) SetStateDetailsCode(val OptInt32) {
+	s.StateDetailsCode = val
 }
 
 // SetPreviousCacheState sets the value of PreviousCacheState.
@@ -5778,44 +5803,45 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1beta) v1betaCreateActiveDirectoryRes()                  {}
-func (*OperationV1beta) v1betaCreateBackupPolicyRes()                     {}
-func (*OperationV1beta) v1betaCreateBackupRes()                           {}
-func (*OperationV1beta) v1betaCreateBackupVaultRes()                      {}
-func (*OperationV1beta) v1betaCreateKmsConfigurationRes()                 {}
-func (*OperationV1beta) v1betaCreatePoolRes()                             {}
-func (*OperationV1beta) v1betaCreateReplicationRes()                      {}
-func (*OperationV1beta) v1betaCreateSnapshotRes()                         {}
-func (*OperationV1beta) v1betaCreateVolumeRes()                           {}
-func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()                  {}
-func (*OperationV1beta) v1betaDeleteBackupPolicyRes()                     {}
-func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes()           {}
-func (*OperationV1beta) v1betaDeleteBackupVaultRes()                      {}
-func (*OperationV1beta) v1betaDeleteHostGroupRes()                        {}
-func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()                 {}
-func (*OperationV1beta) v1betaDeletePoolRes()                             {}
-func (*OperationV1beta) v1betaDeleteReplicationRes()                      {}
-func (*OperationV1beta) v1betaDeleteSnapshotRes()                         {}
-func (*OperationV1beta) v1betaDeleteVolumeRes()                           {}
-func (*OperationV1beta) v1betaDescribeOperationRes()                      {}
-func (*OperationV1beta) v1betaEncryptVolumesRes()                         {}
-func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {}
-func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()       {}
-func (*OperationV1beta) v1betaResumeReplicationRes()                      {}
-func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()            {}
-func (*OperationV1beta) v1betaRevertVolumeRes()                           {}
-func (*OperationV1beta) v1betaStopReplicationRes()                        {}
-func (*OperationV1beta) v1betaSyncReplicationRes()                        {}
-func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                  {}
-func (*OperationV1beta) v1betaUpdateBackupPolicyRes()                     {}
-func (*OperationV1beta) v1betaUpdateBackupRes()                           {}
-func (*OperationV1beta) v1betaUpdateBackupVaultRes()                      {}
-func (*OperationV1beta) v1betaUpdateHostGroupRes()                        {}
-func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()                 {}
-func (*OperationV1beta) v1betaUpdatePoolRes()                             {}
-func (*OperationV1beta) v1betaUpdateReplicationRes()                      {}
-func (*OperationV1beta) v1betaUpdateSnapshotRes()                         {}
-func (*OperationV1beta) v1betaUpdateVolumeRes()                           {}
+func (*OperationV1beta) v1betaCreateActiveDirectoryRes()                     {}
+func (*OperationV1beta) v1betaCreateBackupPolicyRes()                        {}
+func (*OperationV1beta) v1betaCreateBackupRes()                              {}
+func (*OperationV1beta) v1betaCreateBackupVaultRes()                         {}
+func (*OperationV1beta) v1betaCreateKmsConfigurationRes()                    {}
+func (*OperationV1beta) v1betaCreatePoolRes()                                {}
+func (*OperationV1beta) v1betaCreateReplicationRes()                         {}
+func (*OperationV1beta) v1betaCreateSnapshotRes()                            {}
+func (*OperationV1beta) v1betaCreateVolumeRes()                              {}
+func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()                     {}
+func (*OperationV1beta) v1betaDeleteBackupPolicyRes()                        {}
+func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes()              {}
+func (*OperationV1beta) v1betaDeleteBackupVaultRes()                         {}
+func (*OperationV1beta) v1betaDeleteHostGroupRes()                           {}
+func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()                    {}
+func (*OperationV1beta) v1betaDeletePoolRes()                                {}
+func (*OperationV1beta) v1betaDeleteReplicationRes()                         {}
+func (*OperationV1beta) v1betaDeleteSnapshotRes()                            {}
+func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
+func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
+func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
+func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
+func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()          {}
+func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
+func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
+func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
+func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
+func (*OperationV1beta) v1betaStopReplicationRes()                           {}
+func (*OperationV1beta) v1betaSyncReplicationRes()                           {}
+func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                     {}
+func (*OperationV1beta) v1betaUpdateBackupPolicyRes()                        {}
+func (*OperationV1beta) v1betaUpdateBackupRes()                              {}
+func (*OperationV1beta) v1betaUpdateBackupVaultRes()                         {}
+func (*OperationV1beta) v1betaUpdateHostGroupRes()                           {}
+func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()                    {}
+func (*OperationV1beta) v1betaUpdatePoolRes()                                {}
+func (*OperationV1beta) v1betaUpdateReplicationRes()                         {}
+func (*OperationV1beta) v1betaUpdateSnapshotRes()                            {}
+func (*OperationV1beta) v1betaUpdateVolumeRes()                              {}
 
 // NewOptActiveDirectoryV1betaActiveDirectoryState returns new OptActiveDirectoryV1betaActiveDirectoryState with value set to v.
 func NewOptActiveDirectoryV1betaActiveDirectoryState(v ActiveDirectoryV1betaActiveDirectoryState) OptActiveDirectoryV1betaActiveDirectoryState {
@@ -17595,6 +17621,43 @@ type V1betaInternalResumeVolumeReplicationUnprocessableEntity Error
 func (*V1betaInternalResumeVolumeReplicationUnprocessableEntity) v1betaInternalResumeVolumeReplicationRes() {
 }
 
+type V1betaInternalReverseVolumeReplicationBadRequest Error
+
+func (*V1betaInternalReverseVolumeReplicationBadRequest) v1betaInternalReverseVolumeReplicationRes() {
+}
+
+type V1betaInternalReverseVolumeReplicationConflict Error
+
+func (*V1betaInternalReverseVolumeReplicationConflict) v1betaInternalReverseVolumeReplicationRes() {}
+
+type V1betaInternalReverseVolumeReplicationForbidden Error
+
+func (*V1betaInternalReverseVolumeReplicationForbidden) v1betaInternalReverseVolumeReplicationRes() {}
+
+type V1betaInternalReverseVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalReverseVolumeReplicationInternalServerError) v1betaInternalReverseVolumeReplicationRes() {
+}
+
+type V1betaInternalReverseVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalReverseVolumeReplicationMethodNotAllowed) v1betaInternalReverseVolumeReplicationRes() {
+}
+
+type V1betaInternalReverseVolumeReplicationNotFound Error
+
+func (*V1betaInternalReverseVolumeReplicationNotFound) v1betaInternalReverseVolumeReplicationRes() {}
+
+type V1betaInternalReverseVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalReverseVolumeReplicationUnauthorized) v1betaInternalReverseVolumeReplicationRes() {
+}
+
+type V1betaInternalReverseVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalReverseVolumeReplicationUnprocessableEntity) v1betaInternalReverseVolumeReplicationRes() {
+}
+
 type V1betaInternalStopVolumeReplicationBadRequest Error
 
 func (*V1betaInternalStopVolumeReplicationBadRequest) v1betaInternalStopVolumeReplicationRes() {}
@@ -17644,6 +17707,46 @@ func (*V1betaInternalStopVolumeReplicationUnauthorized) v1betaInternalStopVolume
 type V1betaInternalStopVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalStopVolumeReplicationUnprocessableEntity) v1betaInternalStopVolumeReplicationRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesBadRequest Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesBadRequest) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesConflict Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesConflict) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesForbidden Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesForbidden) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesInternalServerError Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesInternalServerError) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesMethodNotAllowed Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesMethodNotAllowed) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesNotFound Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesNotFound) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesUnauthorized Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesUnauthorized) v1betaInternalUpdateVolumeReplicationAttributesRes() {
+}
+
+type V1betaInternalUpdateVolumeReplicationAttributesUnprocessableEntity Error
+
+func (*V1betaInternalUpdateVolumeReplicationAttributesUnprocessableEntity) v1betaInternalUpdateVolumeReplicationAttributesRes() {
 }
 
 type V1betaInternalUpdateVolumeReplicationBadRequest Error
@@ -20345,6 +20448,7 @@ func (*VolumeReplicationInternalV1beta) v1betaInternalCreateVolumeReplicationRes
 func (*VolumeReplicationInternalV1beta) v1betaInternalDeleteVolumeReplicationRes()    {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalDescribeVolumeReplicationRes()  {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalResumeVolumeReplicationRes()    {}
+func (*VolumeReplicationInternalV1beta) v1betaInternalReverseVolumeReplicationRes()   {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalStopVolumeReplicationRes()      {}
 func (*VolumeReplicationInternalV1beta) v1betaInternalUpdateVolumeReplicationRes()    {}
 

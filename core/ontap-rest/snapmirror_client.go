@@ -20,6 +20,7 @@ type SnapmirrorClient interface { // generate:mock
 	SnapmirrorRelationshipList(params *SnapmirrorRelationshipListParams) ([]*SnapmirrorRelationship, error)
 	SnapmirrorRelationshipListDestinations(params *SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorRelationship, error)
 	SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModifyParams) (*SnapmirrorRelationship, *JobAccepted, error)
+	SnapmirrorRelationshipReverse(params *SnapmirrorRelationshipReverseParams) (*SnapmirrorRelationship, *JobAccepted, error)
 	SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams) error
 	SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams) error
 	SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error)
@@ -280,4 +281,25 @@ func (c *snapmirrorClient) SnapmirrorObjectStoreSnapshotGet(params *SnapmirrorCl
 		}, nil
 	}
 	return nil, nil
+}
+
+func (s *snapmirrorClient) SnapmirrorRelationshipReverse(params *SnapmirrorRelationshipReverseParams) (*SnapmirrorRelationship, *JobAccepted, error) {
+	source := &models.SnapmirrorSourceEndpoint{
+		Path: &params.SourcePath,
+	}
+
+	destination := &models.SnapmirrorEndpoint{
+		Path: &params.DestinationPath,
+	}
+
+	snapmirroredState := models.SnapmirrorRelationshipStateSnapmirrored
+
+	reverseParams := &SnapmirrorRelationshipModifyParams{
+		UUID:        params.UUID,
+		Source:      source,
+		Destination: destination,
+		State:       &snapmirroredState,
+	}
+
+	return s.SnapmirrorRelationshipModify(reverseParams)
 }

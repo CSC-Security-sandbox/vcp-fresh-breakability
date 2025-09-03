@@ -1765,6 +1765,8 @@ type SnapmirrorRelationshipModifyParams struct {
 	UUID             string
 	TransferSchedule *string
 	State            *string
+	Source           *models.SnapmirrorSourceEndpoint
+	Destination      *models.SnapmirrorEndpoint
 }
 
 // SnapmirrorRelationshipModifyParams represents snapmirror relationship modify parameters
@@ -1772,6 +1774,13 @@ type SnapmirrorRelationshipTransferModifyParams struct {
 	UUID         string
 	TransferUUID string
 	State        *string
+}
+
+// SnapmirrorRelationshipReverseParams represents snapmirror relationship reverse parameters
+type SnapmirrorRelationshipReverseParams struct {
+	UUID            string
+	SourcePath      string
+	DestinationPath string
 }
 
 // SnapmirrorRelationship represents a snapmirror relationship object
@@ -3006,6 +3015,12 @@ func snapmirrorRelationshipModifyParamsToONTAP(params *SnapmirrorRelationshipMod
 	}
 	if params.State != nil {
 		info.State = params.State
+	}
+	if params.Source != nil {
+		info.Source = params.Source
+	}
+	if params.Destination != nil {
+		info.Destination = params.Destination
 	}
 
 	otParams.SetUUID(params.UUID)

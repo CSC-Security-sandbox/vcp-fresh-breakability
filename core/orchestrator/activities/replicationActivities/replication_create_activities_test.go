@@ -2132,7 +2132,7 @@ func TestGetSrcBasePath(t *testing.T) {
 		// Arrange
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
-				LocationID: "us-central1",
+				SourceRegion: "us-east1",
 			},
 		}
 		activity := VolumeReplicationCreateActivity{}
@@ -2197,7 +2197,7 @@ func TestGetDstBasePath(t *testing.T) {
 		// Arrange
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
-				DestinationLocationID: "us-central1",
+				DestinationRegion: "us-central1",
 			},
 		}
 		activity := VolumeReplicationCreateActivity{}

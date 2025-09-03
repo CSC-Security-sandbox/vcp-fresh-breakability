@@ -245,3 +245,25 @@ func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter
 	}
 	return volumeReplications, nil
 }
+
+func (d *DataStoreRepository) UpdateVolumeReplicationFields(ctx context.Context, volumeRepUUID string, updates map[string]interface{}) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbVolumeReplication, err := getVolumeReplicationDetails(tx, &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: volumeRepUUID}})
+	if err != nil {
+		return err
+	}
+
+	err = tx.Model(&dbVolumeReplication).Updates(updates).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

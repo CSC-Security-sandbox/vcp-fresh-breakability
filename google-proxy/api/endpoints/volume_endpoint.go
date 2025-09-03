@@ -448,9 +448,9 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	if req.Volume.CacheParameters.IsSet() {
 		reqCacheProperties, _ := req.Volume.CacheParameters.Get()
 		param.CacheParameters = &models.CacheParameters{
-			PeerVolumeName:  reqCacheProperties.PeerVolumeName.Value,
-			PeerClusterName: reqCacheProperties.PeerClusterName.Value,
-			PeerSvmName:     reqCacheProperties.PeerSvmName.Value,
+			PeerVolumeName:  reqCacheProperties.PeerVolumeName,
+			PeerClusterName: reqCacheProperties.PeerClusterName,
+			PeerSvmName:     reqCacheProperties.PeerSvmName,
 			PeerAddresses:   reqCacheProperties.PeerIpAddresses,
 		}
 	}
@@ -1499,9 +1499,9 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 
 	if in.CacheParameters != nil {
 		cacheParams := gcpgenserver.FlexCacheV1beta{
-			PeerVolumeName:  gcpgenserver.NewOptString(in.CacheParameters.PeerVolumeName),
-			PeerClusterName: gcpgenserver.NewOptString(in.CacheParameters.PeerClusterName),
-			PeerSvmName:     gcpgenserver.NewOptString(in.CacheParameters.PeerSvmName),
+			PeerVolumeName:  in.CacheParameters.PeerVolumeName,
+			PeerClusterName: in.CacheParameters.PeerClusterName,
+			PeerSvmName:     in.CacheParameters.PeerSvmName,
 			PeerIpAddresses: in.CacheParameters.PeerIPAddresses,
 			CacheState:      gcpgenserver.NewOptFlexCacheV1betaCacheState(gcpgenserver.FlexCacheV1betaCacheState(in.CacheParameters.CacheState)),
 			Command:         gcpgenserver.NewOptString(in.CacheParameters.Command),

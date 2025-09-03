@@ -845,6 +845,25 @@ func (re *retryEngine) UpdateVolumeReplication(ctx context.Context, volumeRep *d
 	return err
 }
 
+func (re *retryEngine) UpdateVolumeReplicationFields(ctx context.Context, volumeRepUUID string, updates map[string]interface{}) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateVolumeReplicationFields(ctx, volumeRepUUID, updates)
+		if err != nil {
+			re.logError("UpdateVolumeReplicationFields", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) UpdateVolumeReplicationStates(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

@@ -373,6 +373,14 @@ type Handler interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/resume
 	V1betaInternalResumeVolumeReplication(ctx context.Context, params V1betaInternalResumeVolumeReplicationParams) (V1betaInternalResumeVolumeReplicationRes, error)
+	// V1betaInternalReverseVolumeReplication implements v1beta_internalReverseVolumeReplication operation.
+	//
+	// Reverse the replication relationship between source and destination in this volume replication,
+	// effectively swapping the source and destination paths. Can only be invoked from the destination
+	// end of the relationship.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/reverse
+	V1betaInternalReverseVolumeReplication(ctx context.Context, params V1betaInternalReverseVolumeReplicationParams) (V1betaInternalReverseVolumeReplicationRes, error)
 	// V1betaInternalStopVolumeReplication implements v1beta_internalStopVolumeReplication operation.
 	//
 	// Stop the replication relationship between source and destination in this volume replication and
@@ -387,6 +395,13 @@ type Handler interface {
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 	V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error)
+	// V1betaInternalUpdateVolumeReplicationAttributes implements v1beta_internalUpdateVolumeReplicationAttributes operation.
+	//
+	// Update volume replication attributes in the database with the provided replication details. This
+	// is used internally during replication operations to update database state.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateVolumeReplicationAttributes
+	V1betaInternalUpdateVolumeReplicationAttributes(ctx context.Context, req *VolumeReplicationInternalV1beta, params V1betaInternalUpdateVolumeReplicationAttributesParams) (V1betaInternalUpdateVolumeReplicationAttributesRes, error)
 	// V1betaListActiveDirectories implements v1beta_listActiveDirectories operation.
 	//
 	// Returns descriptions of all Active Directory credentials owned by the caller.

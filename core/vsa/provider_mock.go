@@ -2590,6 +2590,64 @@ func (_c *MockProvider_GetVolumeReplication_Call) RunAndReturn(run func(*VolumeR
 	return _c
 }
 
+// GetVolumeReplicationFromSrcAndDstPath provides a mock function with given fields: replication
+func (_m *MockProvider) GetVolumeReplicationFromSrcAndDstPath(replication *VolumeReplication) (*VolumeReplication, error) {
+	ret := _m.Called(replication)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeReplicationFromSrcAndDstPath")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*VolumeReplication, error)); ok {
+		return rf(replication)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) *VolumeReplication); ok {
+		r0 = rf(replication)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
+		r1 = rf(replication)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeReplicationFromSrcAndDstPath'
+type MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call struct {
+	*mock.Call
+}
+
+// GetVolumeReplicationFromSrcAndDstPath is a helper method to define mock.On call
+//   - replication *VolumeReplication
+func (_e *MockProvider_Expecter) GetVolumeReplicationFromSrcAndDstPath(replication interface{}) *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call {
+	return &MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call{Call: _e.mock.On("GetVolumeReplicationFromSrcAndDstPath", replication)}
+}
+
+func (_c *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call) Run(run func(replication *VolumeReplication)) *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumes provides a mock function with no fields
 func (_m *MockProvider) GetVolumes() ([]*Volume, error) {
 	ret := _m.Called()
@@ -3836,6 +3894,64 @@ func (_c *MockProvider_ResyncVolumeReplication_Call) Return(_a0 *VolumeReplicati
 }
 
 func (_c *MockProvider_ResyncVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_ResyncVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ReverseVolumeReplication provides a mock function with given fields: volRep
+func (_m *MockProvider) ReverseVolumeReplication(volRep *VolumeReplication) (*SnapmirrorDestination, error) {
+	ret := _m.Called(volRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReverseVolumeReplication")
+	}
+
+	var r0 *SnapmirrorDestination
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*SnapmirrorDestination, error)); ok {
+		return rf(volRep)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) *SnapmirrorDestination); ok {
+		r0 = rf(volRep)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SnapmirrorDestination)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
+		r1 = rf(volRep)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_ReverseVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReverseVolumeReplication'
+type MockProvider_ReverseVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// ReverseVolumeReplication is a helper method to define mock.On call
+//   - volRep *VolumeReplication
+func (_e *MockProvider_Expecter) ReverseVolumeReplication(volRep interface{}) *MockProvider_ReverseVolumeReplication_Call {
+	return &MockProvider_ReverseVolumeReplication_Call{Call: _e.mock.On("ReverseVolumeReplication", volRep)}
+}
+
+func (_c *MockProvider_ReverseVolumeReplication_Call) Run(run func(volRep *VolumeReplication)) *MockProvider_ReverseVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ReverseVolumeReplication_Call) Return(_a0 *SnapmirrorDestination, _a1 error) *MockProvider_ReverseVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_ReverseVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*SnapmirrorDestination, error)) *MockProvider_ReverseVolumeReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }

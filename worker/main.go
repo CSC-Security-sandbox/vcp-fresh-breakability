@@ -244,6 +244,8 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.CreateSMCTokenRotationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ResumeInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ResumeReplicationWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.ReverseAndResumeVolumeReplicationWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.ReverseInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateHostGroupWorkflow)
 	worker.RegisterWorkflow(workflows.StartProjectEventOffStateWorkflow)
 	worker.RegisterWorkflow(workflows.StartProjectEventOnStateWorkflow)
@@ -267,6 +269,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.DeleteBackupPolicyWorkflow)
 	worker.RegisterWorkflow(workflows.RestoreBackupWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReplicationCleanupWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.UpdateVolumeReplicationAttributesWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
@@ -292,6 +295,8 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.SmcTokenRotationActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.HostGroupUpdateActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationResumeActivity{SE: dbcon})
+	worker.RegisterActivity(&replicationActivities.ReverseVolumeReplicationActivity{SE: dbcon})
+	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationReverseActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ResumeVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&resource_events_activities.StartProjectEventActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationRowDeleteActivity{SE: dbcon})
@@ -311,4 +316,5 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: dbcon})
 	worker.RegisterActivity(ontaprest.PollOntapJobActivity)
 	worker.RegisterActivity(&replicationActivities.CleanupVolumeReplicationActivity{SE: dbcon})
+	worker.RegisterActivity(&replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: dbcon})
 }

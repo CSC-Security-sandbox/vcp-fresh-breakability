@@ -762,6 +762,73 @@ func (_c *MockSnapmirrorClient_SnapmirrorRelationshipResyncOrInitializeOrResume_
 	return _c
 }
 
+// SnapmirrorRelationshipReverse provides a mock function with given fields: params
+func (_m *MockSnapmirrorClient) SnapmirrorRelationshipReverse(params *SnapmirrorRelationshipReverseParams) (*SnapmirrorRelationship, *JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorRelationshipReverse")
+	}
+
+	var r0 *SnapmirrorRelationship
+	var r1 *JobAccepted
+	var r2 error
+	if rf, ok := ret.Get(0).(func(*SnapmirrorRelationshipReverseParams) (*SnapmirrorRelationship, *JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SnapmirrorRelationshipReverseParams) *SnapmirrorRelationship); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SnapmirrorRelationship)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*SnapmirrorRelationshipReverseParams) *JobAccepted); ok {
+		r1 = rf(params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(*SnapmirrorRelationshipReverseParams) error); ok {
+		r2 = rf(params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorRelationshipReverse'
+type MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorRelationshipReverse is a helper method to define mock.On call
+//   - params *SnapmirrorRelationshipReverseParams
+func (_e *MockSnapmirrorClient_Expecter) SnapmirrorRelationshipReverse(params interface{}) *MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call {
+	return &MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call{Call: _e.mock.On("SnapmirrorRelationshipReverse", params)}
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call) Run(run func(params *SnapmirrorRelationshipReverseParams)) *MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SnapmirrorRelationshipReverseParams))
+	})
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call) Return(_a0 *SnapmirrorRelationship, _a1 *JobAccepted, _a2 error) *MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call) RunAndReturn(run func(*SnapmirrorRelationshipReverseParams) (*SnapmirrorRelationship, *JobAccepted, error)) *MockSnapmirrorClient_SnapmirrorRelationshipReverse_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapmirrorRelationshipTransferCreate provides a mock function with given fields: params
 func (_m *MockSnapmirrorClient) SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams) error {
 	ret := _m.Called(params)

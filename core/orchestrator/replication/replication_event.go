@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 )
 
@@ -104,6 +105,7 @@ type CommonReplicationEventParams struct {
 	ReplicationModel         *datamodel.VolumeReplication
 	SourceProjectNumber      string  `json:"SourceProjectNumber,omitempty"`
 	DestinationProjectNumber string  `json:"DestinationProjectNumber,omitempty"`
+	AccountID                int64   `json:"AccountID,omitempty"`
 	XCorrelationID           *string `json:"XCorrelationID,omitempty"`
 	VolumeResourceID         string  `json:"VolumeResourceID,omitempty"`
 	ReplicationResourceID    string  `json:"ReplicationResourceID,omitempty"`
@@ -182,4 +184,44 @@ type UpdateReplicationResult struct {
 	Error            error
 	JobId            *string
 	DbVolReplication *datamodel.VolumeReplication
+}
+
+type ReverseReplicationEvent struct {
+	ReplicationEventBase
+	CommonReplicationEventParams
+}
+
+type ReverseReplicationResult struct {
+	Ctx              context.Context
+	Event            *ReverseReplicationEvent
+	EventBytes       []byte
+	DstBasePath      *string
+	SrcBasePath      *string
+	DstProjectNumber *string
+	SrcProjectNumber *string
+	DstJwtToken      *string
+	SrcJwtToken      *string
+	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
+	NewDstVolume     *googleproxyclient.VolumeV1beta
+	NewSrcVolume     *googleproxyclient.VolumeV1beta
+	Error            error
+	JobId            *string
+	DBUpdateJobId    *string
+	DbVolReplication *datamodel.VolumeReplication
+	// ReplicationDetails stores the fetched replication details from destination
+	ReplicationDetails *vsa.VolumeReplication
+}
+
+type UpdateVolumeReplicationAttributesEvent struct {
+	ReplicationEventBase
+	UpdateVolumeReplicationAttributesParams *models.UpdateVolumeReplicationAttributesParams
+}
+
+type UpdateVolumeReplicationAttributesResult struct {
+	Ctx                context.Context
+	Event              *UpdateVolumeReplicationAttributesEvent
+	EventBytes         []byte
+	DbVolReplication   *datamodel.VolumeReplication
+	ReplicationDetails *vsa.VolumeReplication
+	Error              error
 }

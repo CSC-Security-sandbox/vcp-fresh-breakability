@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+)
 
 type HybridReplicationHydrateType string
 type VolumeReplicationHydrateState string
@@ -120,4 +124,11 @@ type VolumeHydrateObject struct {
 	Protocols     []string `json:"protocols"`
 	State         string   `json:"state"`
 	LargeCapacity bool     `json:"large_capacity"`
+}
+
+type UpdateVolumeReplicationAttributesParams struct {
+	ProjectNumber             string
+	LocationId                string
+	VolumeReplicationId       string
+	VolumeReplicationInternal *gcpgenserver.VolumeReplicationInternalV1beta
 }

@@ -118,6 +118,8 @@ type V1betaCreateVolumeParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
+	// Backup schedule cron expression.
+	XNetappBackupSchedule OptString
 }
 
 // V1betaDeleteActiveDirectoryParams is parameters of v1beta_deleteActiveDirectory operation.
@@ -684,6 +686,17 @@ type V1betaInternalResumeVolumeReplicationParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaInternalReverseVolumeReplicationParams is parameters of v1beta_internalReverseVolumeReplication operation.
+type V1betaInternalReverseVolumeReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId          string
+	VolumeReplicationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaInternalStopVolumeReplicationParams is parameters of v1beta_internalStopVolumeReplication operation.
 type V1betaInternalStopVolumeReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -697,6 +710,17 @@ type V1betaInternalStopVolumeReplicationParams struct {
 
 // V1betaInternalUpdateVolumeReplicationParams is parameters of v1beta_internalUpdateVolumeReplication operation.
 type V1betaInternalUpdateVolumeReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId          string
+	VolumeReplicationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaInternalUpdateVolumeReplicationAttributesParams is parameters of v1beta_internalUpdateVolumeReplicationAttributes operation.
+type V1betaInternalUpdateVolumeReplicationAttributesParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.
@@ -1037,6 +1061,8 @@ type V1betaUpdateVolumeParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
+	// Backup schedule cron expression.
+	XNetappBackupSchedule OptString
 	// Uuid v4 used to identify the volume.
 	VolumeId string
 }

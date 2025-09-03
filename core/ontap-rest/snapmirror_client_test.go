@@ -473,3 +473,61 @@ func TestSnapmirrorObjectStoreSnapshotDelete(t *testing.T) {
 		assert.Nil(tt, job)
 	})
 }
+
+func TestSnapmirrorRelationshipReverse(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		_, _, err := client.SnapmirrorRelationshipReverse(&SnapmirrorRelationshipReverseParams{
+			UUID:            "test-uuid",
+			SourcePath:      "source-path",
+			DestinationPath: "dest-path",
+		})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+	t.Run("WhenSyncResponseSuccessful", func(tt *testing.T) {
+		ontapResponse := &snapmirror.SnapmirrorRelationshipModifyOK{
+			Payload: &models.SnapmirrorRelationshipJobLinkResponse{
+				Records: []*models.SnapmirrorRelationship{
+					{
+						UUID: nillable.ToPointer(strfmt.UUID("snapmirror-uuid")),
+					},
+				},
+			},
+		}
+		transport := &mockTransport{response: ontapResponse}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		snapmirror, asyncResponse, err := client.SnapmirrorRelationshipReverse(&SnapmirrorRelationshipReverseParams{
+			UUID:            "test-uuid",
+			SourcePath:      "source-path",
+			DestinationPath: "dest-path",
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, snapmirror)
+		assert.Equal(tt, ontapResponse.Payload.Records[0].UUID, snapmirror.UUID)
+		assert.Nil(tt, asyncResponse)
+	})
+	t.Run("WhenAsyncResponseSuccessful", func(tt *testing.T) {
+		ontapResponse := &snapmirror.SnapmirrorRelationshipModifyAccepted{
+			Payload: &models.SnapmirrorRelationshipJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: nillable.ToPointer(strfmt.UUID("job-uuid")),
+				},
+			},
+		}
+		transport := &mockTransport{response: ontapResponse}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		snapmirror, asyncResponse, err := client.SnapmirrorRelationshipReverse(&SnapmirrorRelationshipReverseParams{
+			UUID:            "test-uuid",
+			SourcePath:      "source-path",
+			DestinationPath: "dest-path",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, snapmirror)
+		assert.NotNil(tt, asyncResponse)
+		assert.Equal(tt, ontapResponse.Payload.Job.UUID.String(), asyncResponse.JobUUID)
+	})
+}
