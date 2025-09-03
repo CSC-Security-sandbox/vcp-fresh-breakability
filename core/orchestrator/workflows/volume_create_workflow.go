@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -488,14 +489,24 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		if !backupPolicyExists {
+			backupPolicyActivity := &activities.BackupPolicyActivity{}
 			var vcpBackupPolicy *datamodel.BackupPolicy
 			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicyFetchedFromSDE, &dbVolume, region).Get(ctx, &vcpBackupPolicy)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+			rollbackManager.AddActivity(backupPolicyActivity.DeleteBackupPolicyInVCP, vcpBackupPolicy.UUID)
 			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicySchedule, &vcpBackupPolicy, createVolumeParams.BackupSchedule).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
+			}
+			rollbackManager.AddActivity(backupPolicyActivity.DeleteBackupPolicySchedule, vcpBackupPolicy.UUID)
+
+			if !vcpBackupPolicy.PolicyEnabled {
+				err = workflow.ExecuteActivity(ctx, backupPolicyActivity.PauseBackupPolicySchedule, vcpBackupPolicy).Get(ctx, nil)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
 			}
 		}
 	}
