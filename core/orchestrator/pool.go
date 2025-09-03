@@ -335,6 +335,7 @@ func _validateAndSetUpdatePoolParams(params *commonparams.UpdatePoolParams, pool
 	}
 	// Build CustomPerformance params first
 	perf := validators.NewCustomPerformanceFromUpdate(params)
+	perf.LargeCapacity = pool.LargeCapacity // Use existing pool type for validation
 
 	// Call unified validation (no service level check needed for updates)
 	err := ValidatePoolParams(perf, "")

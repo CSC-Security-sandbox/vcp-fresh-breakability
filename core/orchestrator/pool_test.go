@@ -3345,6 +3345,67 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		err := _validateAndSetUpdatePoolParams(params, pool)
 		assert.NoError(tt, err, "Valid update params with zone changes should pass validation")
 	})
+
+	// Test for the specific line: perf.LargeCapacity = pool.LargeCapacity
+	t.Run("LargeCapacityFieldIsSetFromExistingPool", func(tt *testing.T) {
+		// Test case 1: Update params specify LargeCapacity=false but pool has LargeCapacity=true
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(20 * utils.TiBInBytes), // Use valid large capacity size
+			QosType:              QosTypeAuto,
+			LargeCapacity:        false, // Update params specify standard capacity
+			TotalThroughputMibps: 1000,
+			TotalIops:            nillable.ToPointer(int64(16000)),
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(15 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    true, // Existing pool is large capacity
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		// Should pass validation because validation uses pool.LargeCapacity=true, not params.LargeCapacity=false
+		assert.NoError(tt, err, "Validation should use existing pool's LargeCapacity value")
+
+		// Test case 2: Update params specify LargeCapacity=true but pool has LargeCapacity=false
+		params2 := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(4 * utils.TiBInBytes), // Use valid standard capacity size
+			QosType:              QosTypeAuto,
+			LargeCapacity:        true, // Update params specify large capacity
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
+		}
+
+		pool2 := &datamodel.Pool{
+			SizeInBytes:      int64(2 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false, // Existing pool is standard capacity
+		}
+
+		err2 := _validateAndSetUpdatePoolParams(params2, pool2)
+		// Should pass validation because validation uses pool.LargeCapacity=false, not params.LargeCapacity=true
+		assert.NoError(tt, err2, "Validation should use existing pool's LargeCapacity value")
+
+		// Test case 3: Verify that the validation actually uses the pool's LargeCapacity value
+		// by testing with invalid parameters that would fail for large capacity but pass for standard
+		params3 := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(500 * utils.TiBInBytes), // Exceeds standard pool maximum (425 TiB)
+			QosType:              QosTypeAuto,
+			LargeCapacity:        false,                            // Update params specify standard capacity
+			TotalThroughputMibps: 2000,                             // Large capacity throughput
+			TotalIops:            nillable.ToPointer(int64(32000)), // Large capacity IOPS
+		}
+
+		pool3 := &datamodel.Pool{
+			SizeInBytes:      int64(100 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false, // Existing pool is standard capacity
+		}
+
+		err3 := _validateAndSetUpdatePoolParams(params3, pool3)
+		// Should fail validation because the parameters are for large capacity but pool is standard capacity
+		assert.Error(tt, err3, "Validation should fail when large capacity params are used with standard capacity pool")
+	})
 }
 
 func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
