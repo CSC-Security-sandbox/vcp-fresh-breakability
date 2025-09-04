@@ -3102,12 +3102,15 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 					UpdatedAt: time.Now(),
 				},
 				SourceRegionName: nillable.GetStringPtr("us-east1"),
+				BackupRegionName: nillable.GetStringPtr("us-east1"), // Same region - not cross-region
 			},
 			Description: "Test backup description",
 			Type:        "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
-				SnapshotName: "test-snapshot",
-				VolumeName:   "test-volume",
+				SnapshotName:        "test-snapshot",
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: true, // Backup created from existing snapshot
 			},
 		}
 
@@ -3121,9 +3124,18 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 		assert.Equal(t, "test-vault-uuid", result.BackupVaultId.Value)
 		assert.Equal(t, "Test backup description", result.Description.Value)
 		assert.Equal(t, gcpgenserver.BackupV1betaBackupTypeMANUAL, result.BackupType.Value)
-		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
-		assert.Equal(t, "test-volume", result.SourceVolume.Value)
-		assert.Equal(t, "us-east1", result.BackupRegion.Value)
+
+		// Should show snapshot since backup was created from existing snapshot
+		assert.True(t, result.SourceSnapshot.Set)
+		assert.Equal(t, "projects/123456789/locations/us-east1/volumes/test-volume/snapshots/test-snapshot", result.SourceSnapshot.Value)
+
+		// Should show full volume path
+		assert.Equal(t, "projects/123456789/locations/us-east1/volumes/test-volume", result.SourceVolume.Value)
+
+		// Should NOT show backup region since it's not cross-region
+		assert.False(t, result.BackupRegion.Set)
+
+		// Should show volume region
 		assert.Equal(t, "us-east1", result.VolumeRegion.Value)
 	})
 
@@ -3145,19 +3157,170 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 					UpdatedAt: time.Now(),
 				},
 				SourceRegionName: nillable.GetStringPtr("us-west1"),
+				BackupRegionName: nillable.GetStringPtr("us-east1"), // Different region - cross-region
 			},
 			Description: "Test backup description",
 			Type:        "SCHEDULED",
 			Attributes: &datamodel.BackupAttributes{
-				SnapshotName: "test-snapshot",
-				VolumeName:   "test-volume",
+				SnapshotName:        "", // Empty snapshot name
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: false, // Backup not created from existing snapshot
 			},
 		}
 
 		result := convertBackupDataModelToBackupsV1beta(backup)
 
 		assert.Equal(t, gcpgenserver.BackupV1betaStateDELETING, result.State.Value)
-		assert.Equal(t, "us-west1", result.BackupRegion.Value)
+
+		// Should NOT show snapshot since backup was not created from existing snapshot
+		assert.False(t, result.SourceSnapshot.Set)
+
+		// Should show backup region since it's cross-region
+		assert.True(t, result.BackupRegion.Set)
+		assert.Equal(t, "us-east1", result.BackupRegion.Value)
+
 		assert.Equal(t, "us-west1", result.VolumeRegion.Value)
+	})
+
+	t.Run("WhenBackupCreatedFromSnapshot", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName:        "my-snapshot-123",
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: true, // Backup created from existing snapshot
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		// Should show snapshot since backup was created from existing snapshot
+		assert.True(t, result.SourceSnapshot.Set)
+		assert.Equal(t, "projects/123456789/locations/us-east1/volumes/test-volume/snapshots/my-snapshot-123", result.SourceSnapshot.Value)
+	})
+
+	t.Run("WhenBackupNotCreatedFromSnapshot", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName:        "", // Empty snapshot name
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: false, // Backup not created from existing snapshot
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		// Should NOT show snapshot since backup was not created from existing snapshot
+		assert.False(t, result.SourceSnapshot.Set)
+	})
+
+	t.Run("WhenUseExistingSnapshotIsFalseButSnapshotNameIsPresent", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName:        "some-snapshot-name", // Snapshot name present
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: false, // But UseExistingSnapshot is false
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		// Should NOT show snapshot since UseExistingSnapshot is false, even though SnapshotName is present
+		assert.False(t, result.SourceSnapshot.Set)
+	})
+
+	t.Run("WhenUseExistingSnapshotIsTrueButSnapshotNameIsEmpty", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName:        "", // Empty snapshot name
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: true, // But UseExistingSnapshot is true
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		// Should NOT show snapshot since SnapshotName is empty, even though UseExistingSnapshot is true
+		assert.False(t, result.SourceSnapshot.Set)
 	})
 }

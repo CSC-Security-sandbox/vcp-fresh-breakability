@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backups"
@@ -683,6 +682,33 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 	default:
 		state = gcpgenserver.BackupV1betaState(backup.State)
 	}
+
+	sourceVolumePath := fmt.Sprintf("projects/%s/locations/%s/volumes/%s",
+		backup.Attributes.AccountIdentifier,
+		*backup.BackupVault.SourceRegionName,
+		backup.Attributes.VolumeName)
+
+	sourceSnapshot := gcpgenserver.OptString{Set: false}
+	if backup.Attributes.UseExistingSnapshot && backup.Attributes.SnapshotName != "" {
+		snapshotPath := fmt.Sprintf("projects/%s/locations/%s/volumes/%s/snapshots/%s",
+			backup.Attributes.AccountIdentifier,
+			*backup.BackupVault.SourceRegionName,
+			backup.Attributes.VolumeName,
+			backup.Attributes.SnapshotName)
+		sourceSnapshot = gcpgenserver.OptString{
+			Value: snapshotPath,
+			Set:   true,
+		}
+	}
+
+	backupRegion := gcpgenserver.OptString{Set: false}
+	if backup.BackupVault.BackupRegionName != nil && *backup.BackupVault.BackupRegionName != *backup.BackupVault.SourceRegionName {
+		backupRegion = gcpgenserver.OptString{
+			Value: *backup.BackupVault.BackupRegionName,
+			Set:   true,
+		}
+	}
+
 	return gcpgenserver.BackupV1beta{
 		ResourceId: gcpgenserver.OptString{
 			Value: backup.Name,
@@ -723,18 +749,12 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Value: gcpgenserver.BackupV1betaBackupType(backup.Type),
 			Set:   true,
 		},
-		SourceSnapshot: gcpgenserver.OptString{
-			Value: backup.Attributes.SnapshotName,
-			Set:   true,
-		},
+		SourceSnapshot: sourceSnapshot,
 		SourceVolume: gcpgenserver.OptString{
-			Value: backup.Attributes.VolumeName,
+			Value: sourceVolumePath,
 			Set:   true,
 		},
-		BackupRegion: gcpgenserver.OptString{
-			Value: *backup.BackupVault.SourceRegionName,
-			Set:   true,
-		},
+		BackupRegion: backupRegion,
 		VolumeRegion: gcpgenserver.OptString{
 			Value: *backup.BackupVault.SourceRegionName,
 			Set:   true,
