@@ -198,7 +198,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 		Annotations: map[string]string{
 			"description": "ADC service for backup and restore operations",
 		},
-		Ingress: "INGRESS_TRAFFIC_INTERNAL_ONLY", // Equivalent to "internal" annotation
+		Ingress: "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER", // Use internal load balancer ingress
 		EnvVars: map[string]string{
 			"RUN_REST":           "1",
 			"REST_PORT":          "80",
