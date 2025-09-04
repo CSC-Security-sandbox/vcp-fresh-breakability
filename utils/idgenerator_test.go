@@ -1,9 +1,13 @@
 package utils
 
 import (
-	"github.com/stretchr/testify/assert"
+	"os"
 	"regexp"
+	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 func TestGenerateRandomAlphanumeric(t *testing.T) {
@@ -164,4 +168,26 @@ func TestGenerateDeterministicDeploymentName(t *testing.T) {
 
 	name5 := GenerateDeterministicDeploymentName(accountID, poolID, region+"-diff")
 	assert.NotEqual(t, name, name5, "Expected different output for different region")
+}
+
+func TestGenerateDeterministicDeploymentNameForIntegrationTests(t *testing.T) {
+	accountID := int64(12345)
+	poolID := "test-pool"
+	region := "us-central1"
+
+	originalEnv := strconv.FormatBool(env.GetBool("INTEGRATION_TEST", false))
+	// Restore the original value after the test
+	err := os.Setenv("INTEGRATION_TEST", "true")
+	if err != nil {
+		return
+	}
+	defer func() {
+		err := os.Setenv("INTEGRATION_TEST", originalEnv)
+		if err != nil {
+			return
+		}
+	}()
+
+	name := GenerateDeterministicDeploymentName(accountID, poolID, region)
+	assert.Equal(t, name, "integration-test", "Expected deterministic output to be 'integration-test'")
 }

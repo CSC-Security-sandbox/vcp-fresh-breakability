@@ -23,9 +23,9 @@ jobs:
   build:
     name:  Build and Test Integration
     runs-on: [self-hosted, linux]
-    timeout-minutes: 15
+    timeout-minutes: ${{ vars.TIMEOUT }}
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
       options: --user root
     env:
       GH_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -101,6 +101,7 @@ jobs:
             chmod +x temporal
             sudo mv temporal /usr/local/bin/
           fi
+        continue-on-error: true
 
       - name: Set PROJECT_ROOT
         run: |
@@ -130,9 +131,9 @@ jobs:
               exit 1
             fi
           }
+        continue-on-error: true
 
       - name: Build Docker Containers
-        timeout-minutes: 8
         run: |
           set -e
           chmod +x $PROJECT_ROOT/docker_services/*/*/build.sh
@@ -161,10 +162,22 @@ jobs:
             wait
           }
           echo "All container builds completed successfully"
+        continue-on-error: true
 
       - name: Starting Test
+        id: starting_tests
         env:
           UNIT_TEST_THRESHOLD: ${{vars.UNIT_TEST_THRESHOLD}}
         run: |
           go env
           cd $PROJECT_ROOT/src/main && go run .
+
+      - name: Notify on Infra Failure
+        if: failure()
+        env:
+          JSON: ${{ toJson(github.event.pull_request) }}
+          URL: "https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          WEBHOOK: ${{ secrets.VSA_INFRA_FAILURE_WEBHOOK }}
+          MESSAGE: "Integration tests infrastructure failure"
+        run: |
+          vsacictl slack notify

@@ -21,11 +21,6 @@ func (vlmManager *VSAClientWorkflowManagerMock) CreateVSAClusterDeployment(ctx w
 func (vlmManager *VSAClientWorkflowManagerMock) CreateVSASVM(ctx workflow.Context, createSVMRequest *CreateSVMRequest) (*CreateSVMResponse, error) {
 	logger := util.GetLogger(ctx)
 	logger.Info("Mock CreateVSASVM")
-	name := createSVMRequest.VLMConfig.Deployment.DeploymentID + "-datasvm-" + createSVMRequest.Name
-	for _, v := range createSVMRequest.VLMConfig.Svm {
-		createSVMRequest.VLMConfig.Svm[name] = v
-		break // Exit the loop after the first iteration
-	}
 	createSVMResponse := &CreateSVMResponse{
 		VLMConfig: createSVMRequest.VLMConfig,
 	}

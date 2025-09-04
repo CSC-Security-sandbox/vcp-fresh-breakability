@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 func init() {
@@ -82,6 +83,9 @@ func GetOperationUUID(operationID string) string {
 
 // GenerateDeterministicDeploymentName generates a deterministic deployment name based on accountID and poolID
 func GenerateDeterministicDeploymentName(accountID int64, poolID string, region string) string {
+	if env.GetBool("INTEGRATION_TEST", false) {
+		return env.GetString("DEPLOYMENT_NAME", "integration-test")
+	}
 	data := fmt.Sprintf("%d-%s-%s", accountID, poolID, region)
 	hash := sha256.Sum256([]byte(data))
 	return "gcnv-" + hex.EncodeToString(hash[:8])[:15]

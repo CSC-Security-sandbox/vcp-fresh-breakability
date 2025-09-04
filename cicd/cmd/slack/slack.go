@@ -11,4 +11,5 @@ var SlackCmd = &cobra.Command{
 
 func init() {
 	SlackCmd.AddCommand(NotifyBuildReportCommand)
+	SlackCmd.AddCommand(NotifyCommand)
 }
