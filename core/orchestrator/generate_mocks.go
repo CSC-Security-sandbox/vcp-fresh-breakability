@@ -21,6 +21,7 @@ type monkeyMethods interface {
 	getOrCreateAccount(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error)
 	validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error
 	workflowsExecuteWorkflowSequentially(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error
+	envIsLocalEnv() bool
 
 	// FlexCache specific methods
 	createFlexCacheVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error)

@@ -23,10 +23,6 @@ type volumeCreateWorkflow struct {
 	BaseWorkflow
 }
 
-var (
-	runningEnv = env.GetString("ENV", "")
-)
-
 // Volume provisioning phases
 const (
 	PhasePre  = "pre"  // Pre-provisioning phase
@@ -436,7 +432,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" {
-		if runningEnv != "local" {
+		if !env.IsLocalEnv() {
 			var token string
 			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, createVolumeParams.AccountName).Get(ctx, &token)
 			if err != nil {

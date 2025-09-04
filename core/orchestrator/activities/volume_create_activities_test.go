@@ -1533,6 +1533,7 @@ func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
 		Volume: &datamodel.Volume{
 			Name:             "source-volume",
 			Svm:              &datamodel.Svm{Name: "test-svm"},
+			Account:          &datamodel.Account{Name: "test-account"},
 			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "uuid-123"},
 		},
 		SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "uuid-123"},

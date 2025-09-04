@@ -917,7 +917,7 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 	if err != nil {
 		var appErr *temporal.ApplicationError
 		if errors.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound {
-			if runningEnv != "local" {
+			if !env.IsLocalEnv() {
 				// get the JWT token for authorization; this function needs GCP_AUTH_SERVICE_ACCOUNT and GCP_SERVICE_URL to be set for the environment
 				jwtToken, err := getSignedJwtToken(params.AccountName)
 				if err != nil {

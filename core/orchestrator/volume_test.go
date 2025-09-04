@@ -5729,6 +5729,140 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err, "some error")
 	})
+	t.Run("WhenValidateCreateVolumeParamsSuccessWith1Node", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "somevpc",
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "a"},
+			Name:         "a",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			SvmID:        svm.ID,
+			Svm:          svm,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-id"},
+			Name:      "test_backup_vault",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create bv")
+
+		volume = &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "b"},
+			Name:         "b",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		bd := []common.BlockDevice{
+			{
+				Name:   "test_block_device",
+				OSType: "linux",
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:           "dummy-name",
+			PoolID:         pool.UUID,
+			QuotaInBytes:   minQuotaInBytesPool + 1,
+			Protocols:      []string{utils.ProtocolISCSI},
+			DataProtection: &models.DataProtection{BackupVaultID: bv.UUID},
+			BlockDevices:   &bd,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		mm.EXPECT().envIsLocalEnv().Return(true)
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.Nil(tt, err, "some error")
+	})
 	t.Run("WhenValidateCreateVolumeParamsFailsWhileAttachingErroredBackupVaultToVolume", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -5874,7 +6008,6 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Error(tt, err)
 	})
-
 	t.Run("WhenPoolStateNotReady", func(tt *testing.T) {
 		testCases := []struct {
 			name          string
@@ -5957,7 +6090,6 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			})
 		}
 	})
-
 	t.Run("WhenQuotaIsTooSmall", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -7120,7 +7252,6 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err)
 	})
-
 	t.Run("WhenAutoTieringIsNotAllowed", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -7244,7 +7375,6 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
 	})
-
 	t.Run("WhenCoolnessPeriodBelowTheRange", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -7371,7 +7501,6 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 	})
-
 	t.Run("WhenCoolnessPeriodAboveTheRange", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -7498,7 +7627,6 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 	})
-
 	t.Run("WhenAutoTieringIsIsFalse", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 

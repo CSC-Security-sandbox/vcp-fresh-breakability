@@ -38,3 +38,23 @@ spec:
     app.kubernetes.io/name: temporal
     app.kubernetes.io/component: web
 
+---
+# postgres NodePort Service
+apiVersion: v1
+kind: Service
+metadata:
+    name: postgres-nodeport
+    namespace: default
+    labels:
+        app: postgres
+        service-type: nodeport
+spec:
+    type: NodePort
+    ports:
+        - port: 5432
+          targetPort: 5432
+          nodePort: 30901
+          name: postgres
+    selector:
+        app: postgres
+

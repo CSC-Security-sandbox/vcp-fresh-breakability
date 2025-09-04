@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"testing"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -13,6 +14,7 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 
 	utilGetLogger = mm.utilGetLogger
 	utilsGetLocationFromVendorID = mm.utilsGetLocationFromVendorID
+	envIsLocalEnv = mm.envIsLocalEnv
 
 	getOrCreateAccount = mm.getOrCreateAccount
 	validateCreateVolumeParams = mm.validateCreateVolumeParams
@@ -23,6 +25,7 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 	t.Cleanup(func() {
 		utilGetLogger = util.GetLogger
 		utilsGetLocationFromVendorID = utils.GetLocationFromVendorID
+		envIsLocalEnv = env.IsLocalEnv
 
 		getOrCreateAccount = _getOrCreateAccount
 		validateCreateVolumeParams = _validateCreateVolumeParams

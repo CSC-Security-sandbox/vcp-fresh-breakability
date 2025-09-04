@@ -185,7 +185,6 @@ profiles:
           requires:
             - image: base
               alias: BASE
-
         - image: ontap-proxy
           context: .
           docker:

@@ -40,6 +40,8 @@ var (
 	deleteVolume               = _deleteVolume
 	validateDeleteVolumeParams = _validateDeleteVolumeParams
 	updateVolumeStatus         = _updateVolumeStatus
+
+	envIsLocalEnv = env.IsLocalEnv
 )
 
 const (
@@ -800,7 +802,13 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return err
 	}
 
-	if len(nodes) < 2 {
+	minNodeCount := 2
+	if envIsLocalEnv() {
+		// VSIMs may have 1 node, VSA clusters should have at least 2 nodes
+		minNodeCount = 1
+	}
+
+	if len(nodes) < minNodeCount {
 		return customerrors.NewUserInputValidationErr("required count of nodes not found")
 	}
 

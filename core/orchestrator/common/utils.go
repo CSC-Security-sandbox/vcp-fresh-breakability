@@ -4,10 +4,6 @@ import (
 	"regexp"
 )
 
-const (
-	LocalEnv = "local"
-)
-
 var (
 	SnapmirrorSnapshotPrefix = regexp.MustCompile("^snapmirror.*$")
 )

@@ -102,6 +102,51 @@ func (_c *monkeyMock_createFlexCacheVolume_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// envIsLocalEnv provides a mock function with no fields
+func (_m *monkeyMock) envIsLocalEnv() bool {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for envIsLocalEnv")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// monkeyMock_envIsLocalEnv_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'envIsLocalEnv'
+type monkeyMock_envIsLocalEnv_Call struct {
+	*mock.Call
+}
+
+// envIsLocalEnv is a helper method to define mock.On call
+func (_e *monkeyMock_Expecter) envIsLocalEnv() *monkeyMock_envIsLocalEnv_Call {
+	return &monkeyMock_envIsLocalEnv_Call{Call: _e.mock.On("envIsLocalEnv")}
+}
+
+func (_c *monkeyMock_envIsLocalEnv_Call) Run(run func()) *monkeyMock_envIsLocalEnv_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *monkeyMock_envIsLocalEnv_Call) Return(_a0 bool) *monkeyMock_envIsLocalEnv_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_envIsLocalEnv_Call) RunAndReturn(run func() bool) *monkeyMock_envIsLocalEnv_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // getOrCreateAccount provides a mock function with given fields: ctx, se, accountName
 func (_m *monkeyMock) getOrCreateAccount(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 	ret := _m.Called(ctx, se, accountName)

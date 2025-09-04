@@ -4225,11 +4225,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 			DeploymentName: "test-deployment",
 		}
-		runningEnv = "local"
 		svmName := "svmName"
 		defer func() {
 			getSignedJwtToken = auth.GetSignedJwtToken
-			runningEnv = envs.GetString("ENV", "")
 		}()
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)

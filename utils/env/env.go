@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	Admin = "admin"
+	Admin    = "admin"
+	LocalEnv = "local"
 )
 
 func init() {
@@ -272,6 +273,7 @@ const (
 )
 
 var (
+	Env                     = GetString("ENV", "")
 	AuthType                = GetInt("VSA_AUTH_TYPE", USERNAME_PWD) // 0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
 	Region                  = GetString("LOCAL_REGION", "")
 	CaName                  = GetString("CA_NAME", "")
@@ -391,4 +393,10 @@ func validateIpRange(ipRange, basicErrorString, envVariableName string) error {
 		return errors.New(500, "%s%s. Invalid CIDR format in: %s", envVariableName, basicErrorString, ipRange)
 	}
 	return nil
+}
+
+var IsLocalEnv = isLocalEnv
+
+func isLocalEnv() bool {
+	return Env == LocalEnv
 }
