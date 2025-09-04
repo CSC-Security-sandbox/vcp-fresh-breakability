@@ -101,18 +101,32 @@ func (a *ResumeVolumeReplicationActivity) ResumeReplicationOnDestination(ctx con
 		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
 		ForceResume:         googleproxyclient.NewOptBool(params.Force),
+		XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, err)
 	}
-	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
-	if ok {
-		result.DstReplication = response
-		result.JobId = &response.Jobs[0].JobId.Value
+	switch r := res.(type) {
+	case *googleproxyclient.VolumeReplicationInternalV1beta:
+		result.DstReplication = r
+		result.JobId = &r.Jobs[0].JobId.Value
 		return result, nil
+	case *googleproxyclient.V1betaInternalResumeVolumeReplicationBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalResumeVolumeReplicationUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalResumeVolumeReplicationForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalResumeVolumeReplicationNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalResumeVolumeReplicationConflict:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalResumeVolumeReplicationInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalResumeReplication, errors.New("unexpected response type from Google Proxy"))
 	}
-	return nil, nil
 }
 
 func (a *ResumeVolumeReplicationActivity) DescribeRemoteJobResume(ctx context.Context, result *replication.ResumeReplicationResult) error {

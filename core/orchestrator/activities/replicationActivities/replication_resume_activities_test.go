@@ -429,13 +429,15 @@ func TestResumeReplicationOnDestination(t *testing.T) {
 			},
 		}
 		params := &common.ResumeReplicationParams{
-			Force: false,
+			Force:         false,
+			CorrelationId: "correlation-id",
 		}
 		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
 			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
 			ForceResume:         googleproxyclient.NewOptBool(params.Force),
+			XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
 		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
@@ -447,6 +449,294 @@ func TestResumeReplicationOnDestination(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenBadRequestError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.ResumeReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		params := &common.ResumeReplicationParams{
+			Force:         false,
+			CorrelationId: "correlation-id",
+		}
+		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			ForceResume:         googleproxyclient.NewOptBool(params.Force),
+			XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		badRequestResponse := &googleproxyclient.V1betaInternalResumeVolumeReplicationBadRequest{
+			Code:    400,
+			Message: "invalid parameter",
+		}
+
+		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(badRequestResponse, nil)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Failed to resume replication", err.Error())
+	})
+	t.Run("WhenUnauthorizedError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.ResumeReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		params := &common.ResumeReplicationParams{
+			Force:         false,
+			CorrelationId: "correlation-id",
+		}
+		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			ForceResume:         googleproxyclient.NewOptBool(params.Force),
+			XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		unauthorizedResponse := &googleproxyclient.V1betaInternalResumeVolumeReplicationUnauthorized{
+			Code:    401,
+			Message: "Authentication failed",
+		}
+
+		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(unauthorizedResponse, nil)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Failed to resume replication", err.Error())
+	})
+	t.Run("WhenForbiddenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.ResumeReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		params := &common.ResumeReplicationParams{
+			Force:         false,
+			CorrelationId: "correlation-id",
+		}
+		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			ForceResume:         googleproxyclient.NewOptBool(params.Force),
+			XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		forbiddenResponse := &googleproxyclient.V1betaInternalResumeVolumeReplicationForbidden{
+			Code:    403,
+			Message: "Access denied",
+		}
+
+		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(forbiddenResponse, nil)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Failed to resume replication", err.Error())
+	})
+	t.Run("WhenNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.ResumeReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		params := &common.ResumeReplicationParams{
+			Force:         false,
+			CorrelationId: "correlation-id",
+		}
+		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			ForceResume:         googleproxyclient.NewOptBool(params.Force),
+			XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		notFoundResponse := &googleproxyclient.V1betaInternalResumeVolumeReplicationNotFound{
+			Code:    404,
+			Message: "Not found",
+		}
+
+		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(notFoundResponse, nil)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Failed to resume replication", err.Error())
+	})
+	t.Run("WhenConflictError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.ResumeReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		params := &common.ResumeReplicationParams{
+			Force:         false,
+			CorrelationId: "correlation-id",
+		}
+		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			ForceResume:         googleproxyclient.NewOptBool(params.Force),
+			XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		conflictResponse := &googleproxyclient.V1betaInternalResumeVolumeReplicationConflict{
+			Code:    409,
+			Message: "conflict",
+		}
+
+		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(conflictResponse, nil)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Failed to resume replication", err.Error())
+	})
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.ResumeReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		params := &common.ResumeReplicationParams{
+			Force:         false,
+			CorrelationId: "correlation-id",
+		}
+		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			ForceResume:         googleproxyclient.NewOptBool(params.Force),
+			XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		internalErrorResponse := &googleproxyclient.V1betaInternalResumeVolumeReplicationInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}
+
+		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(internalErrorResponse, nil)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Failed to resume replication", err.Error())
 	})
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()
@@ -478,13 +768,15 @@ func TestResumeReplicationOnDestination(t *testing.T) {
 			},
 		}
 		params := &common.ResumeReplicationParams{
-			Force: true,
+			Force:         true,
+			CorrelationId: "correlation-id",
 		}
 		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
 			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
 			ForceResume:         googleproxyclient.NewOptBool(params.Force),
+			XCorrelationID:      googleproxyclient.NewOptString(params.CorrelationId),
 		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc

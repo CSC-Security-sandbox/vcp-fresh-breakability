@@ -65,6 +65,7 @@ func (a *VolumeReplicationUpdateActivity) UpdateReplicationOnDestination(ctx con
 		ProjectNumber:       *result.DstProjectNumber,
 		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.Event.XCorrelationID),
 	}
 	body := &googleproxyclient.VolumeReplicationUpdateInternalV1beta{}
 	if result.Event.Description != nil {
@@ -77,13 +78,26 @@ func (a *VolumeReplicationUpdateActivity) UpdateReplicationOnDestination(ctx con
 	if err != nil {
 		return nil, err
 	}
-	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
-	if ok {
-		result.DstReplication = response
-		result.JobId = &response.Jobs[0].JobId.Value
+	switch r := res.(type) {
+	case *googleproxyclient.VolumeReplicationInternalV1beta:
+		result.DstReplication = r
+		result.JobId = &r.Jobs[0].JobId.Value
 		return result, nil
+	case *googleproxyclient.V1betaInternalUpdateVolumeReplicationBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateVolumeReplicationUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateVolumeReplicationForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateVolumeReplicationNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateVolumeReplicationConflict:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateVolumeReplicationInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolumeReplication, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolumeReplication, errors.New("unexpected response type from Google Proxy"))
 	}
-	return nil, nil
 }
 
 func (a *VolumeReplicationUpdateActivity) DescribeRemoteUpdateJob(ctx context.Context, result *replication.UpdateReplicationResult) error {

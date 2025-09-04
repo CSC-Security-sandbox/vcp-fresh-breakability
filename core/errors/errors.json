@@ -1169,6 +1169,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6195": {
+    "description": "Google Proxy Internal Update Volume Replication",
+    "message": "Failed to update volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",
