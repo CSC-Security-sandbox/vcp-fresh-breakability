@@ -65,12 +65,15 @@ func (a *VolumeReplicationCreateActivity) GetSourceInterclusterLifs(ctx context.
 
 func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
+	logger.Debugf("GetDestinationPoolDetails for pool: %s", result.Event.DestinationPoolName)
+
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 
 	describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
-		PoolName:      result.Event.DestinationPoolName,
-		ProjectNumber: *result.DstProjectNumber,
-		LocationId:    result.Event.DestinationLocationID,
+		PoolName:       result.Event.DestinationPoolName,
+		ProjectNumber:  *result.DstProjectNumber,
+		LocationId:     result.Event.DestinationLocationID,
+		XCorrelationID: googleproxyclient.NewOptString(*result.Event.XCorrelationID),
 	}
 
 	res, err := googleProxyClient.Invoker.V1betaInternalDescribePool(ctx, *describePoolParams)
@@ -88,7 +91,7 @@ func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.
 
 func (j *VolumeReplicationCreateActivity) CreateClusterPeering(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("CreateClusterPeer called")
+	logger.Debugf("CreateClusterPeering")
 
 	node := result.SrcNode
 	expiryTime := time.Now().Add(time.Minute * 10) // Default expiry time of 10 mins
@@ -111,6 +114,7 @@ func (a *VolumeReplicationCreateActivity) AcceptClusterPeering(ctx context.Conte
 		return result, nil
 	}
 	logger := util.GetLogger(ctx)
+	logger.Debugf("AcceptClusterPeering")
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 
 	accpetClusterPeerParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
@@ -140,11 +144,14 @@ func (a *VolumeReplicationCreateActivity) AcceptClusterPeering(ctx context.Conte
 
 func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
+	logger.Debugf("CreateDestinationVolume")
+
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 
 	createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
-		ProjectNumber: *result.DstProjectNumber,
-		LocationId:    result.Event.DestinationLocationID,
+		ProjectNumber:  *result.DstProjectNumber,
+		LocationId:     result.Event.DestinationLocationID,
+		XCorrelationID: googleproxyclient.NewOptString(*result.Event.XCorrelationID),
 	}
 
 	body := &googleproxyclient.VolumeCreateV1beta{
@@ -193,8 +200,11 @@ func DescribeVolume(ctx context.Context, result *replication.CreateReplicationRe
 
 func (a *VolumeReplicationCreateActivity) HydrateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	if hydrationEnabled {
+		logger := util.GetLogger(ctx)
+		logger.Debugf("HydrateDestinationVolume")
 		err := hydrateVolume(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber, result.DstPool.ResourceId)
 		if err != nil {
+			logger.Errorf("Failed to hydrate destination volume: %v", err)
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrHydrateVolumeCreate, err)
 		}
 	}
@@ -224,11 +234,14 @@ func convertVolumeV1BetaToVolumeModel(vol gcpserver.VolumeV1beta, dstLocation st
 
 func (a *VolumeReplicationCreateActivity) CreateReplicationOnDestination(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
+	logger.Debugf("CreateReplicationOnDestination")
+
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 
 	createVolumeParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
-		ProjectNumber: *result.DstProjectNumber,
-		LocationId:    result.Event.DestinationLocationID,
+		ProjectNumber:  *result.DstProjectNumber,
+		LocationId:     result.Event.DestinationLocationID,
+		XCorrelationID: googleproxyclient.NewOptString(*result.Event.XCorrelationID),
 	}
 
 	body := convertVolumeReplicationCreateParams(*result)
@@ -254,7 +267,7 @@ func (a *VolumeReplicationCreateActivity) UpdateReplicationState(ctx context.Con
 	if err != nil {
 		return err
 	}
-	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
+	logger.Debugf("Volume Replication state: %s updated successfully in the db", volumeRep.Name)
 
 	return nil
 }
@@ -271,7 +284,7 @@ func (a *VolumeReplicationCreateActivity) UpdateDestinationVolumeDetails(ctx con
 	}
 	result.DbVolReplication = volumeRep
 
-	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
+	logger.Debugf("Volume Replication state: %s updated successfully in the db", volumeRep.Name)
 
 	return result, nil
 }
@@ -289,7 +302,7 @@ func (a *VolumeReplicationCreateActivity) UpdateDestinationVolumeReplicationDeta
 	}
 	result.DbVolReplication = volumeRep
 
-	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
+	logger.Debugf("Volume Replication state: %s update successfully in the db", volumeRep.Name)
 
 	return result, nil
 }
@@ -312,13 +325,15 @@ func (a *VolumeReplicationCreateActivity) UpdateReplicationDetails(ctx context.C
 		return nil, err
 	}
 	result.DbVolReplication = volumeRep
-	logger.Debug("Volume Replication state:%s update successfully in the db", volumeRep.Name)
+	logger.Debugf("Volume Replication state: %s update successfully in the db", volumeRep.Name)
 
 	return result, nil
 }
 
 func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
+	logger.Debugf("AcceptSvmPeer")
+
 	provider, err := hyperscaler.GetProviderByNode(ctx, result.SrcNode)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -342,6 +357,8 @@ func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, res
 
 func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
+	logger.Debugf("GetVolumeSVMNames")
+
 	se := a.SE
 	srcVol, err := se.DescribeVolume(ctx, result.Event.SourceVolume.UUID)
 	if err != nil {
@@ -366,6 +383,7 @@ func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context,
 	dstSvm := dstVol.SvmName.Value
 	result.SrcSvm = &srcVol.Svm.Name
 	result.DstSvm = &dstSvm
+	logger.Infof("Src svm name : %s, Dst svm name : %s", *result.SrcSvm, *result.DstSvm)
 	return result, nil
 }
 
@@ -407,12 +425,15 @@ func (a *VolumeReplicationCreateActivity) GetSignedDstToken(ctx context.Context,
 
 func (a *VolumeReplicationCreateActivity) MountReplication(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
+	logger.Debugf("MountReplication")
+	
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 
 	createVolumeParams := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
 		ProjectNumber:       *result.DstProjectNumber,
 		LocationId:          result.Event.DestinationLocationID,
 		VolumeReplicationId: result.DstReplication.VolumeReplicationUuid.Value,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.Event.XCorrelationID),
 	}
 
 	res, err := googleProxyClient.Invoker.V1betaInternalMountVolumeReplication(ctx, *createVolumeParams)
@@ -429,7 +450,7 @@ func (a *VolumeReplicationCreateActivity) MountReplication(ctx context.Context, 
 
 // DescribeRemoteJob gives the status of a remote job
 func (a *VolumeReplicationCreateActivity) DescribeRemoteJob(ctx context.Context, result *replication.CreateReplicationResult) error {
-	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, result.Event.XCorrelationID)
 	if err != nil {
 		return err
 	}

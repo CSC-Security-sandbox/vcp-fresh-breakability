@@ -67,7 +67,7 @@ func (a *ReverseVolumeReplicationActivity) GetSignedDstTokenReverse(ctx context.
 // ReverseAndResumeReplication reverses and resumes replication (combined operation)
 func (a *ReverseVolumeReplicationActivity) ReverseAndResumeReplication(ctx context.Context, result *replication.ReverseReplicationResult, params *common.ReverseAndResumeReplicationParams) (*replication.ReverseReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("reverseAndResumeReplicationOnCurrentSource")
+	logger.Debugf("ReverseAndResumeReplicationOnDestination")
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 	// Call the combined reverse and resume endpoint on current source location (which will become the new destination)
@@ -108,7 +108,7 @@ func (a *ReverseVolumeReplicationActivity) ReverseAndResumeReplication(ctx conte
 // UpdateVolumeReplicationAttributes calls the new updateVolumeReplicationAttributes endpoint
 func (a *ReverseVolumeReplicationActivity) UpdateVolumeReplicationAttributes(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("update replicationDB with new values")
+	logger.Debugf("UpdateVolumeReplicationAttributes called on new destination")
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.SrcBasePath, *result.SrcJwtToken, logger)
 
@@ -166,6 +166,7 @@ func (a *ReverseVolumeReplicationActivity) UpdateVolumeReplicationAttributes(ctx
 		ProjectNumber:       *result.SrcProjectNumber,
 		LocationId:          originalAttrs.SourceLocation,
 		VolumeReplicationId: originalAttrs.SourceReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.Event.CommonReplicationEventParams.XCorrelationID),
 	}
 
 	logger.Info("Calling updateVolumeReplicationAttributes with reversed attributes")
@@ -194,7 +195,10 @@ func (a *ReverseVolumeReplicationActivity) UpdateVolumeReplicationAttributes(ctx
 func (a *ReverseVolumeReplicationActivity) DescribeRemoteJobOnDst(ctx context.Context, result *replication.ReverseReplicationResult) error {
 	// Describe the reverse job if it exists
 	if result.JobId != nil {
-		err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
+		logger := util.GetLogger(ctx)
+		logger.Debugf("DescribeRemoteJobOnDst: JobId=%v", result.JobId)
+
+		err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.XCorrelationID)
 		if err != nil {
 			return err
 		}
@@ -206,7 +210,10 @@ func (a *ReverseVolumeReplicationActivity) DescribeRemoteJobOnDst(ctx context.Co
 func (a *ReverseVolumeReplicationActivity) DescribeRemoteJobOnSrc(ctx context.Context, result *replication.ReverseReplicationResult) error {
 	// Describe the reverse job if it exists
 	if result.JobId != nil {
-		err := activities.DescribeJob(ctx, result.JobId, result.SrcBasePath, result.SrcJwtToken, result.SrcProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.SourceLocation)
+		logger := util.GetLogger(ctx)
+		logger.Debugf("DescribeRemoteJobOnSrc: JobId=%v", result.JobId)
+
+		err := activities.DescribeJob(ctx, result.JobId, result.SrcBasePath, result.SrcJwtToken, result.SrcProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.SourceLocation, result.Event.XCorrelationID)
 		if err != nil {
 			return err
 		}
@@ -215,6 +222,9 @@ func (a *ReverseVolumeReplicationActivity) DescribeRemoteJobOnSrc(ctx context.Co
 }
 
 func (a *ReverseVolumeReplicationActivity) VerifyNewDstVolume(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("verifyNewDstVolume")
+
 	srcVolume, dstVolume, err := verifyDstVolume(ctx, result.Event.ReplicationModel.ReplicationAttributes, *result.SrcBasePath, *result.DstBasePath, *result.SrcJwtToken, *result.DstJwtToken, result.Event.SourceProjectNumber, result.Event.DestinationProjectNumber, result.Event.XCorrelationID, true)
 	if err != nil {
 		if err.(*errors.CustomError).TrackingID == errors.ErrVolumeNotFound {
@@ -230,6 +240,8 @@ func (a *ReverseVolumeReplicationActivity) VerifyNewDstVolume(ctx context.Contex
 
 func (a *ReverseVolumeReplicationActivity) ResizeNewDstVolumeIfNeeded(ctx context.Context, result *replication.ReverseReplicationResult) error {
 	logger := util.GetLogger(ctx)
+	logger.Debugf("resizeNewDstVolumeIfNeeded")
+
 	var srcVolumeQuota float64
 	var dstVolumeQuota float64
 	if result.NewSrcVolume.QuotaInBytes.Set {
@@ -248,6 +260,8 @@ func (a *ReverseVolumeReplicationActivity) ResizeNewDstVolumeIfNeeded(ctx contex
 func (a *ReverseVolumeReplicationActivity) MountReplicationAfterReverse(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
 	// Run mountVolumeReplication on the new destination (original source)
 	logger := util.GetLogger(ctx)
+	logger.Debugf("MountReplicationAfterReverse")
+
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.SrcBasePath, *result.SrcJwtToken, logger)
 
 	createVolumeParams := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{

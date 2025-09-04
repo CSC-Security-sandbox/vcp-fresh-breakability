@@ -505,6 +505,7 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 		ReplicationEventBase: baseEvent,
 		SourceVolume:         *srcVolume,
 		SourcePool:           *srcVolume.Pool,
+		XCorrelationID:       &params.CorrelationId,
 	}
 
 	err = convertCreateReplicationParamsToEventParam(params, &event)

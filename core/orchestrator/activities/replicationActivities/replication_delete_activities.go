@@ -236,7 +236,7 @@ func convertVolumeReplicationV1BetaToVolumeModel(destinationReplicationUUID stri
 }
 
 func (a *DeleteVolumeReplicationActivity) DescribeRemoteJobForDelete(ctx context.Context, result *replication.DeleteReplicationResult) error {
-	err := activities.DescribeJob(ctx, &result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
+	err := activities.DescribeJob(ctx, &result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.XCorrelationID)
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func (a *DeleteVolumeReplicationActivity) DescribeRemoteJobForDelete(ctx context
 }
 
 func (a *DeleteVolumeReplicationActivity) DescribeSourceJobForDelete(ctx context.Context, result *replication.DeleteReplicationResult) error {
-	err := activities.DescribeJob(ctx, &result.JobId, result.SrcBasePath, result.SrcJwtToken, result.SrcProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.SourceLocation)
+	err := activities.DescribeJob(ctx, &result.JobId, result.SrcBasePath, result.SrcJwtToken, result.SrcProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.SourceLocation, result.Event.XCorrelationID)
 	if err != nil {
 		return err
 	}

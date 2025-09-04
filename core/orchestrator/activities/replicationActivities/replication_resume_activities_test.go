@@ -517,6 +517,7 @@ func TestDescribeRemoteJobResume(t *testing.T) {
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
 			Event: &replication.ResumeReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
 							DestinationLocation: "test-location-id",
@@ -529,9 +530,10 @@ func TestDescribeRemoteJobResume(t *testing.T) {
 		}
 
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
@@ -558,6 +560,7 @@ func TestDescribeRemoteJobResume(t *testing.T) {
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
 			Event: &replication.ResumeReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
 							DestinationLocation: "test-location-id",
@@ -570,9 +573,10 @@ func TestDescribeRemoteJobResume(t *testing.T) {
 		}
 
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
@@ -598,6 +602,7 @@ func TestDescribeRemoteJobResume(t *testing.T) {
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
 			Event: &replication.ResumeReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
 							DestinationLocation: "test-location-id",
@@ -610,9 +615,10 @@ func TestDescribeRemoteJobResume(t *testing.T) {
 		}
 
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))

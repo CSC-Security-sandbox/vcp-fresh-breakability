@@ -21,6 +21,8 @@ type InternalVolumeReplicationActivity struct {
 
 func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx context.Context, params *common.CreateVolumeReplicationInternalParams, node *models.Node, volumeExternalUUID string) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
+	logger.Debug("CreateVolumeReplicationInternal")
+
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -36,6 +38,7 @@ func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx 
 
 func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx context.Context, replication *datamodel.VolumeReplication, replicationCreateResponseONTAP *vsa.VolumeReplication, description *string) error {
 	se := a.SE
+	logger := util.GetLogger(ctx)
 
 	replication.State = models.LifeCycleStateAvailable
 	replication.StateDetails = models.LifeCycleStateAvailableDetails
@@ -62,6 +65,7 @@ func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx c
 	if err := se.UpdateVolumeReplication(ctx, replication); err != nil {
 		return err
 	}
+	logger.Debug("Successfully updated VolumeReplicationDetails after creation on ONTAP")
 
 	return nil
 }
@@ -89,7 +93,9 @@ func prepareCreateVolumeReplicationParamsVSA(params *common.CreateVolumeReplicat
 }
 
 func (a *InternalVolumeReplicationActivity) HydrateReplicationCreate(ctx context.Context, replicationDb *datamodel.VolumeReplication, accountName string) error {
+	logger := util.GetLogger(ctx)
 	if hydrationEnabled {
+		logger.Debug("HydrateReplicationCreate")
 		err := HydrateVolumeReplication(ctx, convertReplicationDbModelToDataModel(replicationDb), accountName)
 		if err != nil {
 			util.GetLogger(ctx).Error("Error hydrating replication create", "error", err)

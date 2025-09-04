@@ -82,7 +82,7 @@ func (a *StopVolumeReplicationActivity) StopReplicationOnDestination(ctx context
 }
 
 func (a *StopVolumeReplicationActivity) DescribeDestJobStop(ctx context.Context, result *replication.StopReplicationResult) error {
-	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
+	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.XCorrelationID)
 	if err != nil {
 		return err
 	}

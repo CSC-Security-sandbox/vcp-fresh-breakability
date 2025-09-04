@@ -21,6 +21,8 @@ type InternalVolumeReplicationReverseActivity struct {
 
 func (a *InternalVolumeReplicationReverseActivity) ReverseVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.SnapmirrorDestination, error) {
 	logger := util.GetLogger(ctx)
+	logger.Infof("Starting reversal of volume replication : %s on ontap", replication.Name)
+
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -52,11 +54,13 @@ func (a *InternalVolumeReplicationReverseActivity) ReverseVolumeReplication(ctx 
 
 func (a *InternalVolumeReplicationReverseActivity) UpdateVolumeReplicationReverseDetails(ctx context.Context, replication *datamodel.VolumeReplication) error {
 	logger := util.GetLogger(ctx)
+	logger.Infof("Updating volume replication %s details in the database after reversal", replication.Name)
+
 	replicationAttributes := replication.ReplicationAttributes
 	// Swap all source and destination details after reversal
 	if replicationAttributes != nil {
 		oldReplicationAttributes := *replicationAttributes
-		
+
 		// Swap source and destination fields
 		replicationAttributes.SourcePoolUUID = oldReplicationAttributes.DestinationPoolUUID
 		replicationAttributes.SourceVolumeUUID = oldReplicationAttributes.DestinationVolumeUUID
@@ -107,6 +111,8 @@ func (a *InternalVolumeReplicationReverseActivity) UpdateVolumeReplicationRevers
 
 func (a *InternalVolumeReplicationReverseActivity) UpdateVolumeTypeForReverse(ctx context.Context, replication *datamodel.VolumeReplication) error {
 	se := a.SE
+	logger := util.GetLogger(ctx)
+	logger.Infof("UpdateVolumeTypeForReverse")
 
 	destUpdates := make(map[string]interface{})
 	if replication.Volume.VolumeAttributes != nil {

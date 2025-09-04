@@ -39,6 +39,7 @@ func TestAcceptClusterPeering(t *testing.T) {
 		dstToken := "dstToken"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 			},
@@ -48,9 +49,10 @@ func TestAcceptClusterPeering(t *testing.T) {
 		}
 
 		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
-			PoolName:      replicationResult.Event.DestinationPoolName,
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		icLifs := []string{"10.1.1.1", "10.1.1.2"}
@@ -84,6 +86,7 @@ func TestAcceptClusterPeering(t *testing.T) {
 		dstToken := "dstToken"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 			},
@@ -93,9 +96,10 @@ func TestAcceptClusterPeering(t *testing.T) {
 		}
 
 		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
-			PoolName:      replicationResult.Event.DestinationPoolName,
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mc := &googleproxyclient.ProxyClient{
@@ -123,6 +127,7 @@ func TestAcceptClusterPeering(t *testing.T) {
 		dstToken := "dstToken"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 			},
@@ -132,9 +137,10 @@ func TestAcceptClusterPeering(t *testing.T) {
 		}
 
 		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
-			PoolName:      replicationResult.Event.DestinationPoolName,
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mc := &googleproxyclient.ProxyClient{
@@ -363,6 +369,7 @@ func TestCreateDestinationVolume(t *testing.T) {
 		destPoolUuid := "uuid"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 				SourcePool: datamodel.Pool{
@@ -393,8 +400,9 @@ func TestCreateDestinationVolume(t *testing.T) {
 		}
 
 		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		volume := &googleproxyclient.VolumeV1beta{}
@@ -430,6 +438,7 @@ func TestCreateDestinationVolume(t *testing.T) {
 		destPoolUuid := "uuid"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 				SourcePool: datamodel.Pool{
@@ -460,8 +469,9 @@ func TestCreateDestinationVolume(t *testing.T) {
 		}
 
 		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mc := &googleproxyclient.ProxyClient{
@@ -490,6 +500,7 @@ func TestCreateDestinationVolume(t *testing.T) {
 		destPoolUuid := "uuid"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 				SourcePool: datamodel.Pool{
@@ -520,8 +531,9 @@ func TestCreateDestinationVolume(t *testing.T) {
 		}
 
 		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mc := &googleproxyclient.ProxyClient{
@@ -549,6 +561,7 @@ func TestCreateDestinationVolume(t *testing.T) {
 		destPoolUuid := "uuid"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 				SourcePool: datamodel.Pool{
@@ -579,8 +592,9 @@ func TestCreateDestinationVolume(t *testing.T) {
 		}
 
 		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		// Create invalid JSON that will cause unmarshaling error
@@ -627,6 +641,7 @@ func TestCreateReplicationOnDestination(t *testing.T) {
 
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 				SourcePool: datamodel.Pool{
@@ -670,8 +685,9 @@ func TestCreateReplicationOnDestination(t *testing.T) {
 		}
 
 		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		res := &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -703,6 +719,7 @@ func TestCreateReplicationOnDestination(t *testing.T) {
 		mockClient := googleproxyclient.NewMockInvoker(t)
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 				SourcePool: datamodel.Pool{
@@ -742,8 +759,9 @@ func TestCreateReplicationOnDestination(t *testing.T) {
 		}
 
 		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mc := &googleproxyclient.ProxyClient{
@@ -772,6 +790,7 @@ func TestCreateReplicationOnDestination(t *testing.T) {
 		mockClient := googleproxyclient.NewMockInvoker(t)
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationPoolName:   "pool1",
 				DestinationLocationID: "us-est1",
 				SourcePool: datamodel.Pool{
@@ -811,8 +830,9 @@ func TestCreateReplicationOnDestination(t *testing.T) {
 		}
 
 		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
-			ProjectNumber: *replicationResult.DstProjectNumber,
-			LocationId:    replicationResult.Event.DestinationLocationID,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mc := &googleproxyclient.ProxyClient{
@@ -2772,15 +2792,17 @@ func TestDescribeRemoteJob(t *testing.T) {
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
 			Event: &replication.CreateReplicationEvent{
 				DestinationLocationID: "test-location-id",
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 			},
 			DstBasePath: nillable.GetStringPtr("base-path"),
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.DestinationLocationID,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
@@ -2808,15 +2830,17 @@ func TestDescribeRemoteJob(t *testing.T) {
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
 			Event: &replication.CreateReplicationEvent{
 				DestinationLocationID: "test-location-id",
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 			},
 			DstBasePath: nillable.GetStringPtr("base-path"),
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.DestinationLocationID,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
 		err := activity.DescribeRemoteJob(ctx, result)
@@ -2841,6 +2865,7 @@ func TestDescribeRemoteJob(t *testing.T) {
 			JobId:            nillable.GetStringPtr("test-job-id"),
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationLocationID: "test-location-id",
 			},
 			DstBasePath: nillable.GetStringPtr("base-path"),
@@ -2848,9 +2873,10 @@ func TestDescribeRemoteJob(t *testing.T) {
 		}
 
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.DestinationLocationID,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
 		err := activity.DescribeRemoteJob(ctx, result)
@@ -2874,6 +2900,7 @@ func TestDescribeRemoteJob(t *testing.T) {
 			JobId:            nillable.GetStringPtr("test-job-id"),
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationLocationID: "test-location-id",
 			},
 			DstBasePath: nillable.GetStringPtr("base-path"),
@@ -2881,9 +2908,10 @@ func TestDescribeRemoteJob(t *testing.T) {
 		}
 
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.DestinationLocationID,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true), Error: googleproxyclient.NewOptStatusV1Beta(googleproxyclient.StatusV1Beta{Message: googleproxyclient.NewOptString("failed")})}, nil)
@@ -2905,6 +2933,7 @@ func TestMountReplication(t *testing.T) {
 		dstToken := "dstToken"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationLocationID: "us-central1",
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -2925,6 +2954,7 @@ func TestMountReplication(t *testing.T) {
 			ProjectNumber:       dstProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 		res := &googleproxyclient.InternalJobV1beta{
 			JobUuid: googleproxyclient.NewOptString("job-uuid"),
@@ -2948,6 +2978,7 @@ func TestMountReplication(t *testing.T) {
 		dstToken := "dstToken"
 		replicationResult := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
 				DestinationLocationID: "us-central1",
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -2968,6 +2999,7 @@ func TestMountReplication(t *testing.T) {
 			ProjectNumber:       dstProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(nil, errors.New("mount error"))
 

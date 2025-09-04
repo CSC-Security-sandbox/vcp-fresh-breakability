@@ -87,7 +87,7 @@ func (a *VolumeReplicationUpdateActivity) UpdateReplicationOnDestination(ctx con
 }
 
 func (a *VolumeReplicationUpdateActivity) DescribeRemoteUpdateJob(ctx context.Context, result *replication.UpdateReplicationResult) error {
-	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
+	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.XCorrelationID)
 	if err != nil {
 		return err
 	}

@@ -337,7 +337,8 @@ func TestCreateVolumeReplication(t *testing.T) {
 		}
 
 		params := &commonparams.CreateVolumeReplicationParams{
-			AccountName: "test-account",
+			AccountName:   "test-account",
+			CorrelationId: "test-correlation-id",
 		}
 
 		_, _, err := _createVolumeReplication(ctx, mockStorage, mockTemporal, params)

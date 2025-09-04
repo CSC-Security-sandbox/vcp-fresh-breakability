@@ -183,6 +183,9 @@ func createReplicationObjectForUpdate(dbReplication *datamodel.VolumeReplication
 
 func (a *UpdateVolumeReplicationAttributesActivity) UpdateVolumeTypeOnNewDestination(ctx context.Context, result *replication.UpdateVolumeReplicationAttributesResult) error {
 	se := a.SE
+	logger := util.GetLogger(ctx)
+	logger.Infof("Updating volume type on new destination for volume %s", result.DbVolReplication.Volume.Name)
+	
 	volume, err := se.GetVolume(ctx, result.DbVolReplication.Volume.UUID)
 	if err != nil {
 		return err

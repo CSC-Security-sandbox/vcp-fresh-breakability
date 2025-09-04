@@ -837,15 +837,17 @@ func TestDescribeRemoteJob(t *testing.T) {
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
+		correlationID := "test-correlation-id"
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.DestinationLocationID,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
 
-		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 
 		assert.NoError(tt, err)
 	})
@@ -871,13 +873,15 @@ func TestDescribeRemoteJob(t *testing.T) {
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
+		correlationID := "test-correlation-id"
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.DestinationLocationID,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
-		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 
 		assert.Error(tt, err)
 	})
@@ -903,13 +907,15 @@ func TestDescribeRemoteJob(t *testing.T) {
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
+		correlationID := "test-correlation-id"
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.DestinationLocationID,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
-		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 
 		assert.Error(tt, err)
 	})
@@ -934,15 +940,17 @@ func TestDescribeRemoteJob(t *testing.T) {
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
+		correlationID := "test-correlation-id"
 		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-			OperationId:   *result.JobId,
-			ProjectNumber: *result.DstProjectNumber,
-			LocationId:    result.Event.DestinationLocationID,
+			OperationId:    *result.JobId,
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 
 		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true), Error: googleproxyclient.NewOptStatusV1Beta(googleproxyclient.StatusV1Beta{Message: googleproxyclient.NewOptString("failed")})}, nil)
 
-		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID)
+		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 
 		assert.Error(tt, err)
 	})

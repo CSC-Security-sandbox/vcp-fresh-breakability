@@ -75,7 +75,7 @@ func (ca CommonActivities) GetJob(ctx context.Context, jobUUID string) (*datamod
 }
 
 // DescribeJob gives the status of a job in the database.
-func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, location *string) error {
+func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, location, correlationId *string) error {
 	if jobId == nil {
 		return nil
 	}
@@ -83,9 +83,10 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 	googleProxyClient := googleproxyclient.GetGProxyClient(*basepath, *jwtToken, logger)
 
 	describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
-		OperationId:   *jobId,
-		ProjectNumber: *projectNumber,
-		LocationId:    *location,
+		OperationId:    *jobId,
+		ProjectNumber:  *projectNumber,
+		LocationId:     *location,
+		XCorrelationID: googleproxyclient.NewOptString(*correlationId),
 	}
 
 	res, err := googleProxyClient.Invoker.V1betaDescribeOperation(ctx, describeOperationParams)

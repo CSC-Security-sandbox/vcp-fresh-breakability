@@ -116,7 +116,7 @@ func (a *ResumeVolumeReplicationActivity) ResumeReplicationOnDestination(ctx con
 }
 
 func (a *ResumeVolumeReplicationActivity) DescribeRemoteJobResume(ctx context.Context, result *replication.ResumeReplicationResult) error {
-	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
+	err := activities.DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.XCorrelationID)
 	if err != nil {
 		return err
 	}
