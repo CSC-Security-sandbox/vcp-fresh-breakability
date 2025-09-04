@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -301,44 +302,8 @@ func TestDeleteReplicationOnDestinationForCleanup(t *testing.T) {
 	dstProj := "projDst"
 	dstPath := "dstPath"
 	dstToken := "dstToken"
-	t.Run("WhenError", func(tt *testing.T) {
-		ctx := context.Background()
-		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
-		mc := &googleproxyclient.ProxyClient{
-			Invoker: mockClient,
-		}
-		inputResult := &replication.DeleteReplicationResult{
-			DstBasePath:      &dstPath,
-			DstProjectNumber: &dstProj,
-			DstJwtToken:      &dstToken,
-			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
-			Event: &replication.DeleteReplicationEvent{
-				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					ReplicationModel: &datamodel.VolumeReplication{
-						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "location-id",
-							DestinationReplicationUUID: "replication-uuid",
-						},
-					},
-				},
-			},
-		}
-		deleteReplicationParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
-			ProjectNumber:       *inputResult.DstProjectNumber,
-			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
-			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
-		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
-			return mc
-		}
-		mockClient.EXPECT().V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams).Return(nil, errors.New("some-error"))
-		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
-		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
-	})
+	correlationID := "correlation-id"
+
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
@@ -357,6 +322,7 @@ func TestDeleteReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstProj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -373,6 +339,7 @@ func TestDeleteReplicationOnDestinationForCleanup(t *testing.T) {
 			ProjectNumber:       *inputResult.DstProjectNumber,
 			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
 		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
@@ -384,6 +351,316 @@ func TestDeleteReplicationOnDestinationForCleanup(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, result.JobId, "job-uuid")
 	})
+
+	t.Run("WhenBadRequestError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		badRequestResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationBadRequest{
+			Message: "Bad request error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams).Return(badRequestResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume replication")
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		internalServerErrorResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationInternalServerError{
+			Message: "Internal server error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams).Return(internalServerErrorResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Internal server error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume replication")
+	})
+
+	t.Run("WhenUnauthorizedError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		unauthorizedResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationUnauthorized{
+			Message: "Unauthorized error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams).Return(unauthorizedResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Unauthorized error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume replication")
+	})
+
+	t.Run("WhenForbiddenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		forbiddenResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationForbidden{
+			Message: "Forbidden error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams).Return(forbiddenResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Forbidden error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume replication")
+	})
+
+	t.Run("WhenNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		notFoundResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationNotFound{
+			Message: "Not found error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams).Return(notFoundResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Not found error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume replication")
+	})
+
+	t.Run("WhenUnknownResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		// Return a different response type that's not handled in the switch
+		unknownResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationNoContent{}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams).Return(unknownResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "unknown response type")
+		assert.Contains(tt, err.Error(), "Error deleting volume replication")
+	})
+
+	t.Run("WhenGenericError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			DstReplication:   &googleproxyclient.VolumeReplicationInternalV1beta{},
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams).Return(nil, errors.New("some-error"))
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "some-error", err.Error())
+	})
 }
 
 func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
@@ -392,6 +669,31 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 	dstToken := "dstToken"
 	replicationUUID := "replication-uuid"
 	locationID := "location-id"
+	correlationID := "correlation-id"
+
+	t.Run("WhenDestinationReplicationUUIDEmpty", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        locationID,
+							DestinationReplicationUUID: "", // Empty UUID
+						},
+					},
+				},
+			},
+		}
+		updatedResult, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, updatedResult) // Should return the same result without making API call
+	})
 
 	t.Run("Success", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
@@ -405,8 +707,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{replicationObj},
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
@@ -418,6 +721,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -442,8 +746,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			return mc
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
@@ -455,6 +760,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -479,8 +785,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		}
 		okResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalNotFound{}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
@@ -492,6 +799,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -519,8 +827,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			Message: "dfdgh",
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
@@ -532,6 +841,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -559,8 +869,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			Message: "dfdgh",
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
@@ -572,6 +883,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -599,8 +911,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			Message: "dfdgh",
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
@@ -612,6 +925,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -639,8 +953,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			Message: "dfdgh",
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
@@ -652,6 +967,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -676,6 +992,7 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 	replicationUUID := "replication-uuid"
 	locationID := "location-id"
 	volumeId := "vol-1"
+	correlationID := "correlation-id"
 	t.Run("Success", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
 		mockClient := googleproxyclient.NewMockInvoker(tt)
@@ -687,9 +1004,10 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			ResourceId: "vol-1",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volumeId,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volumeId,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
 			mock.Anything, params,
@@ -700,6 +1018,7 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -725,9 +1044,10 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			return mc
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volumeId,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volumeId,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
 			mock.Anything, params,
@@ -738,6 +1058,7 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -763,9 +1084,10 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 		}
 		okResp := &googleproxyclient.V1betaDescribeVolumeNotFound{}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volumeId,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volumeId,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
 			mock.Anything, params,
@@ -776,6 +1098,7 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -804,9 +1127,10 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			Message: "dfdgh",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volumeId,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volumeId,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
 			mock.Anything, params,
@@ -817,6 +1141,7 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -845,9 +1170,10 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			Message: "dfdgh",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volumeId,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volumeId,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
 			mock.Anything, params,
@@ -858,6 +1184,7 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -886,9 +1213,10 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			Message: "dfdgh",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volumeId,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volumeId,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
 			mock.Anything, params,
@@ -899,6 +1227,7 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -927,9 +1256,10 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			Message: "dfdgh",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volumeId,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volumeId,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
 			mock.Anything, params,
@@ -940,6 +1270,7 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -962,43 +1293,8 @@ func TestReleaseReplicationOnSourceForCleanup(t *testing.T) {
 	dstProj := "projDst"
 	dstPath := "dstPath"
 	dstToken := "dstToken"
-	t.Run("WhenError", func(tt *testing.T) {
-		ctx := context.Background()
-		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
-		mc := &googleproxyclient.ProxyClient{
-			Invoker: mockClient,
-		}
-		inputResult := &replication.DeleteReplicationResult{
-			SrcBasePath:      &dstPath,
-			SrcProjectNumber: &dstProj,
-			SrcJwtToken:      &dstToken,
-			Event: &replication.DeleteReplicationEvent{
-				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					ReplicationModel: &datamodel.VolumeReplication{
-						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceLocation:        "location-id",
-							SourceReplicationUUID: "replication-uuid",
-						},
-					},
-				},
-			},
-		}
-		deleteReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
-			ProjectNumber:       *inputResult.SrcProjectNumber,
-			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
-			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
-		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
-			return mc
-		}
-		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(nil, errors.New("some-error"))
-		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
-		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
-	})
+	correlationID := "correlation-id"
+
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
@@ -1011,6 +1307,7 @@ func TestReleaseReplicationOnSourceForCleanup(t *testing.T) {
 			SrcBasePath:      &dstPath,
 			SrcProjectNumber: &dstProj,
 			SrcJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -1026,6 +1323,7 @@ func TestReleaseReplicationOnSourceForCleanup(t *testing.T) {
 			ProjectNumber:       *inputResult.SrcProjectNumber,
 			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
 			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
 		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
@@ -1037,12 +1335,316 @@ func TestReleaseReplicationOnSourceForCleanup(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, result.JobId, "job-uuid")
 	})
+
+	t.Run("WhenBadRequestError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		badRequestResp := &googleproxyclient.V1betaInternalReleaseVolumeReplicationBadRequest{
+			Message: "Bad request error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			SrcBasePath:      &dstPath,
+			SrcProjectNumber: &dstProj,
+			SrcJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:        "location-id",
+							SourceReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+			ProjectNumber:       *inputResult.SrcProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(badRequestResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
+		assert.Contains(tt, err.Error(), "Error releasing volume replication")
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		internalServerErrorResp := &googleproxyclient.V1betaInternalReleaseVolumeReplicationInternalServerError{
+			Message: "Internal server error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			SrcBasePath:      &dstPath,
+			SrcProjectNumber: &dstProj,
+			SrcJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:        "location-id",
+							SourceReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+			ProjectNumber:       *inputResult.SrcProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(internalServerErrorResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Internal server error message")
+		assert.Contains(tt, err.Error(), "Error releasing volume replication")
+	})
+
+	t.Run("WhenUnauthorizedError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		unauthorizedResp := &googleproxyclient.V1betaInternalReleaseVolumeReplicationUnauthorized{
+			Message: "Unauthorized error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			SrcBasePath:      &dstPath,
+			SrcProjectNumber: &dstProj,
+			SrcJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:        "location-id",
+							SourceReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+			ProjectNumber:       *inputResult.SrcProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(unauthorizedResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Unauthorized error message")
+		assert.Contains(tt, err.Error(), "Error releasing volume replication")
+	})
+
+	t.Run("WhenForbiddenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		forbiddenResp := &googleproxyclient.V1betaInternalReleaseVolumeReplicationForbidden{
+			Message: "Forbidden error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			SrcBasePath:      &dstPath,
+			SrcProjectNumber: &dstProj,
+			SrcJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:        "location-id",
+							SourceReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+			ProjectNumber:       *inputResult.SrcProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(forbiddenResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Forbidden error message")
+		assert.Contains(tt, err.Error(), "Error releasing volume replication")
+	})
+
+	t.Run("WhenNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		notFoundResp := &googleproxyclient.V1betaInternalReleaseVolumeReplicationNotFound{
+			Message: "Not found error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			SrcBasePath:      &dstPath,
+			SrcProjectNumber: &dstProj,
+			SrcJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:        "location-id",
+							SourceReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+			ProjectNumber:       *inputResult.SrcProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(notFoundResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Not found error message")
+		assert.Contains(tt, err.Error(), "Error releasing volume replication")
+	})
+
+	t.Run("WhenUnknownResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		// Return a different response type that's not handled in the switch
+		unknownResp := &googleproxyclient.V1betaInternalReleaseVolumeReplicationMethodNotAllowed{}
+		inputResult := &replication.DeleteReplicationResult{
+			SrcBasePath:      &dstPath,
+			SrcProjectNumber: &dstProj,
+			SrcJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:        "location-id",
+							SourceReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+			ProjectNumber:       *inputResult.SrcProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(unknownResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "unknown response type")
+		assert.Contains(tt, err.Error(), "Error releasing volume replication")
+	})
+
+	t.Run("WhenGenericError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			SrcBasePath:      &dstPath,
+			SrcProjectNumber: &dstProj,
+			SrcJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:        "location-id",
+							SourceReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+			ProjectNumber:       *inputResult.SrcProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalReleaseVolumeReplication(ctx, *deleteReplicationParams).Return(nil, errors.New("some-error"))
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "some-error", err.Error())
+	})
 }
 
 func TestDeHydrateDestinationVolumeReplicationForCleanup(t *testing.T) {
 	dstProj := "projDst"
 	dstPath := "dstPath"
 	dstToken := "dstToken"
+	correlationID := "correlation-id"
 	t.Run("WhenError", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		hydrationEnabled = true
@@ -1052,6 +1654,7 @@ func TestDeHydrateDestinationVolumeReplicationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstProj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -1087,6 +1690,7 @@ func TestDeHydrateDestinationVolumeReplicationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstProj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -1119,6 +1723,7 @@ func TestDeHydrateDestinationVolumeForCleanup(t *testing.T) {
 	dstProj := "projDst"
 	dstPath := "dstPath"
 	dstToken := "dstToken"
+	correlationID := "correlation-id"
 	volume := &googleproxyclient.VolumeV1beta{}
 
 	t.Run("WhenError", func(tt *testing.T) {
@@ -1131,6 +1736,7 @@ func TestDeHydrateDestinationVolumeForCleanup(t *testing.T) {
 			DstProjectNumber: &dstProj,
 			DstJwtToken:      &dstToken,
 			DstVolume:        volume,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -1166,6 +1772,7 @@ func TestDeHydrateDestinationVolumeForCleanup(t *testing.T) {
 			DstProjectNumber: &dstProj,
 			DstJwtToken:      &dstToken,
 			DstVolume:        volume,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -1198,46 +1805,7 @@ func TestStopReplicationOnDestinationForCleanup(t *testing.T) {
 	dstToken := "dstToken"
 	replicationUUID := "replication-uuid"
 	locationID := "location-id"
-
-	t.Run("WhenError", func(tt *testing.T) {
-		ctx := context.Background()
-		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
-		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
-			return mc
-		}
-		params := googleproxyclient.V1betaInternalStopVolumeReplicationParams{
-			ProjectNumber:       dstPrj,
-			LocationId:          locationID,
-			VolumeReplicationId: replicationUUID,
-		}
-		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
-			Force: googleproxyclient.NewOptBool(true),
-		}
-		mockClient.EXPECT().V1betaInternalStopVolumeReplication(ctx, &req, params).Return(nil, errors.New("some-error"))
-		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
-		inputResult := &replication.DeleteReplicationResult{
-			DstBasePath:      &dstPath,
-			DstProjectNumber: &dstPrj,
-			DstJwtToken:      &dstToken,
-			Event: &replication.DeleteReplicationEvent{
-				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					ReplicationModel: &datamodel.VolumeReplication{
-						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "location-id",
-							DestinationReplicationUUID: "replication-uuid",
-							DestinationVolumeUUID:      "vol-uuid",
-						},
-					},
-				},
-			},
-		}
-		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
-	})
+	correlationID := "correlation-id"
 
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1256,6 +1824,7 @@ func TestStopReplicationOnDestinationForCleanup(t *testing.T) {
 			ProjectNumber:       dstPrj,
 			LocationId:          locationID,
 			VolumeReplicationId: replicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
 		}
 		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
 			Force: googleproxyclient.NewOptBool(true),
@@ -1266,6 +1835,7 @@ func TestStopReplicationOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -1283,16 +1853,8 @@ func TestStopReplicationOnDestinationForCleanup(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "job-uuid", result.JobId)
 	})
-}
 
-func TestDeleteVolumeOnDestinationForCleanup(t *testing.T) {
-	dstPrj := "projDst"
-	dstPath := "dstPath"
-	dstToken := "dstToken"
-	volUUID := "vol-uuid"
-	locationID := "location-id"
-
-	t.Run("WhenError", func(tt *testing.T) {
+	t.Run("WhenBadRequestError", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
 		mockStorage := &database.MockStorage{}
@@ -1300,21 +1862,25 @@ func TestDeleteVolumeOnDestinationForCleanup(t *testing.T) {
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		params := googleproxyclient.V1betaDeleteVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volUUID,
+		badRequestResp := &googleproxyclient.V1betaInternalStopVolumeReplicationBadRequest{
+			Message: "Bad request error message",
 		}
-		body := googleproxyclient.OptV1betaDeleteVolumeReq{
-			Set:   true,
-			Value: googleproxyclient.V1betaDeleteVolumeReq{DeleteAssociatedBackups: googleproxyclient.OptBool{Set: true, Value: false}},
+		params := googleproxyclient.V1betaInternalStopVolumeReplicationParams{
+			ProjectNumber:       dstPrj,
+			LocationId:          locationID,
+			VolumeReplicationId: replicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
 		}
-		mockClient.EXPECT().V1betaDeleteVolume(ctx, body, params).Return(nil, errors.New("some-error"))
+		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
+			Force: googleproxyclient.NewOptBool(true),
+		}
+		mockClient.EXPECT().V1betaInternalStopVolumeReplication(ctx, &req, params).Return(badRequestResp, nil)
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		inputResult := &replication.DeleteReplicationResult{
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -1327,11 +1893,292 @@ func TestDeleteVolumeOnDestinationForCleanup(t *testing.T) {
 				},
 			},
 		}
-		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
+		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
+		assert.Contains(tt, err.Error(), "Error stopping volume replication")
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		internalServerErrorResp := &googleproxyclient.V1betaInternalStopVolumeReplicationInternalServerError{
+			Message: "Internal server error message",
+		}
+		params := googleproxyclient.V1betaInternalStopVolumeReplicationParams{
+			ProjectNumber:       dstPrj,
+			LocationId:          locationID,
+			VolumeReplicationId: replicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
+			Force: googleproxyclient.NewOptBool(true),
+		}
+		mockClient.EXPECT().V1betaInternalStopVolumeReplication(ctx, &req, params).Return(internalServerErrorResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Internal server error message")
+		assert.Contains(tt, err.Error(), "Error stopping volume replication")
+	})
+
+	t.Run("WhenUnauthorizedError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		unauthorizedResp := &googleproxyclient.V1betaInternalStopVolumeReplicationUnauthorized{
+			Message: "Unauthorized error message",
+		}
+		params := googleproxyclient.V1betaInternalStopVolumeReplicationParams{
+			ProjectNumber:       dstPrj,
+			LocationId:          locationID,
+			VolumeReplicationId: replicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
+			Force: googleproxyclient.NewOptBool(true),
+		}
+		mockClient.EXPECT().V1betaInternalStopVolumeReplication(ctx, &req, params).Return(unauthorizedResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Unauthorized error message")
+		assert.Contains(tt, err.Error(), "Error stopping volume replication")
+	})
+
+	t.Run("WhenForbiddenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		forbiddenResp := &googleproxyclient.V1betaInternalStopVolumeReplicationForbidden{
+			Message: "Forbidden error message",
+		}
+		params := googleproxyclient.V1betaInternalStopVolumeReplicationParams{
+			ProjectNumber:       dstPrj,
+			LocationId:          locationID,
+			VolumeReplicationId: replicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
+			Force: googleproxyclient.NewOptBool(true),
+		}
+		mockClient.EXPECT().V1betaInternalStopVolumeReplication(ctx, &req, params).Return(forbiddenResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Forbidden error message")
+		assert.Contains(tt, err.Error(), "Error stopping volume replication")
+	})
+
+	t.Run("WhenNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		notFoundResp := &googleproxyclient.V1betaInternalStopVolumeReplicationNotFound{
+			Message: "Not found error message",
+		}
+		params := googleproxyclient.V1betaInternalStopVolumeReplicationParams{
+			ProjectNumber:       dstPrj,
+			LocationId:          locationID,
+			VolumeReplicationId: replicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
+			Force: googleproxyclient.NewOptBool(true),
+		}
+		mockClient.EXPECT().V1betaInternalStopVolumeReplication(ctx, &req, params).Return(notFoundResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Not found error message")
+		assert.Contains(tt, err.Error(), "Error stopping volume replication")
+	})
+
+	t.Run("WhenUnknownResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		// Return a different response type that's not handled in the switch
+		unknownResp := &googleproxyclient.V1betaInternalStopVolumeReplicationMethodNotAllowed{}
+		params := googleproxyclient.V1betaInternalStopVolumeReplicationParams{
+			ProjectNumber:       dstPrj,
+			LocationId:          locationID,
+			VolumeReplicationId: replicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
+			Force: googleproxyclient.NewOptBool(true),
+		}
+		mockClient.EXPECT().V1betaInternalStopVolumeReplication(ctx, &req, params).Return(unknownResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "unknown response type")
+		assert.Contains(tt, err.Error(), "Error stopping volume replication")
+	})
+
+	t.Run("WhenGenericError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := googleproxyclient.V1betaInternalStopVolumeReplicationParams{
+			ProjectNumber:       dstPrj,
+			LocationId:          locationID,
+			VolumeReplicationId: replicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+		req := googleproxyclient.V1betaInternalStopVolumeReplicationReq{
+			Force: googleproxyclient.NewOptBool(true),
+		}
+		mockClient.EXPECT().V1betaInternalStopVolumeReplication(ctx, &req, params).Return(nil, errors.New("some-error"))
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Equal(tt, "some-error", err.Error())
 	})
+}
+
+func TestDeleteVolumeOnDestinationForCleanup(t *testing.T) {
+	dstPrj := "projDst"
+	dstPath := "dstPath"
+	dstToken := "dstToken"
+	volUUID := "vol-uuid"
+	locationID := "location-id"
+	correlationID := "correlation-id"
 
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1348,9 +2195,10 @@ func TestDeleteVolumeOnDestinationForCleanup(t *testing.T) {
 			Response: byte,
 		}
 		params := googleproxyclient.V1betaDeleteVolumeParams{
-			ProjectNumber: dstPrj,
-			LocationId:    locationID,
-			VolumeId:      volUUID,
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volUUID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		body := googleproxyclient.OptV1betaDeleteVolumeReq{
 			Set:   true,
@@ -1362,6 +2210,7 @@ func TestDeleteVolumeOnDestinationForCleanup(t *testing.T) {
 			DstBasePath:      &dstPath,
 			DstProjectNumber: &dstPrj,
 			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -1378,6 +2227,330 @@ func TestDeleteVolumeOnDestinationForCleanup(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "job-uuid", result.JobId)
+	})
+
+	t.Run("WhenBadRequestError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		badRequestResp := &googleproxyclient.V1betaDeleteVolumeBadRequest{
+			Message: "Bad request error message",
+		}
+		params := googleproxyclient.V1betaDeleteVolumeParams{
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volUUID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
+		}
+		body := googleproxyclient.OptV1betaDeleteVolumeReq{
+			Set:   true,
+			Value: googleproxyclient.V1betaDeleteVolumeReq{DeleteAssociatedBackups: googleproxyclient.OptBool{Set: true, Value: false}},
+		}
+		mockClient.EXPECT().V1betaDeleteVolume(ctx, body, params).Return(badRequestResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume")
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		internalServerErrorResp := &googleproxyclient.V1betaDeleteVolumeInternalServerError{
+			Message: "Internal server error message",
+		}
+		params := googleproxyclient.V1betaDeleteVolumeParams{
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volUUID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
+		}
+		body := googleproxyclient.OptV1betaDeleteVolumeReq{
+			Set:   true,
+			Value: googleproxyclient.V1betaDeleteVolumeReq{DeleteAssociatedBackups: googleproxyclient.OptBool{Set: true, Value: false}},
+		}
+		mockClient.EXPECT().V1betaDeleteVolume(ctx, body, params).Return(internalServerErrorResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Internal server error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume")
+	})
+
+	t.Run("WhenUnauthorizedError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		unauthorizedResp := &googleproxyclient.V1betaDeleteVolumeUnauthorized{
+			Message: "Unauthorized error message",
+		}
+		params := googleproxyclient.V1betaDeleteVolumeParams{
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volUUID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
+		}
+		body := googleproxyclient.OptV1betaDeleteVolumeReq{
+			Set:   true,
+			Value: googleproxyclient.V1betaDeleteVolumeReq{DeleteAssociatedBackups: googleproxyclient.OptBool{Set: true, Value: false}},
+		}
+		mockClient.EXPECT().V1betaDeleteVolume(ctx, body, params).Return(unauthorizedResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Unauthorized error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume")
+	})
+
+	t.Run("WhenForbiddenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		forbiddenResp := &googleproxyclient.V1betaDeleteVolumeForbidden{
+			Message: "Forbidden error message",
+		}
+		params := googleproxyclient.V1betaDeleteVolumeParams{
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volUUID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
+		}
+		body := googleproxyclient.OptV1betaDeleteVolumeReq{
+			Set:   true,
+			Value: googleproxyclient.V1betaDeleteVolumeReq{DeleteAssociatedBackups: googleproxyclient.OptBool{Set: true, Value: false}},
+		}
+		mockClient.EXPECT().V1betaDeleteVolume(ctx, body, params).Return(forbiddenResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Forbidden error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume")
+	})
+
+	t.Run("WhenNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		notFoundResp := &googleproxyclient.V1betaDeleteVolumeNotFound{
+			Message: "Not found error message",
+		}
+		params := googleproxyclient.V1betaDeleteVolumeParams{
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volUUID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
+		}
+		body := googleproxyclient.OptV1betaDeleteVolumeReq{
+			Set:   true,
+			Value: googleproxyclient.V1betaDeleteVolumeReq{DeleteAssociatedBackups: googleproxyclient.OptBool{Set: true, Value: false}},
+		}
+		mockClient.EXPECT().V1betaDeleteVolume(ctx, body, params).Return(notFoundResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Not found error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume")
+	})
+
+	t.Run("WhenUnknownResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		// Return a different response type that's not handled in the switch
+		unknownResp := &googleproxyclient.V1betaDeleteVolumeNoContent{}
+		params := googleproxyclient.V1betaDeleteVolumeParams{
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volUUID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
+		}
+		body := googleproxyclient.OptV1betaDeleteVolumeReq{
+			Set:   true,
+			Value: googleproxyclient.V1betaDeleteVolumeReq{DeleteAssociatedBackups: googleproxyclient.OptBool{Set: true, Value: false}},
+		}
+		mockClient.EXPECT().V1betaDeleteVolume(ctx, body, params).Return(unknownResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "unknown response type")
+		assert.Contains(tt, err.Error(), "Error deleting volume")
+	})
+
+	t.Run("WhenGenericError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := googleproxyclient.V1betaDeleteVolumeParams{
+			ProjectNumber:  dstPrj,
+			LocationId:     locationID,
+			VolumeId:       volUUID,
+			XCorrelationID: googleproxyclient.NewOptString(correlationID),
+		}
+		body := googleproxyclient.OptV1betaDeleteVolumeReq{
+			Set:   true,
+			Value: googleproxyclient.V1betaDeleteVolumeReq{DeleteAssociatedBackups: googleproxyclient.OptBool{Set: true, Value: false}},
+		}
+		mockClient.EXPECT().V1betaDeleteVolume(ctx, body, params).Return(nil, errors.New("some-error"))
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "some-error", err.Error())
 	})
 }
 
@@ -1398,6 +2571,7 @@ func TestDescribeRemoteJobForCleanup(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			JobId:            "test-job-id",
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
+			CorrelationID:    nillable.GetStringPtr("test-correlation-id"),
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
@@ -1441,6 +2615,7 @@ func TestDescribeRemoteJobForCleanup(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			JobId:            "test-job-id",
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
+			CorrelationID:    nillable.GetStringPtr("test-correlation-id"),
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
@@ -1482,6 +2657,7 @@ func TestDescribeRemoteJobForCleanup(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			JobId:            "test-job-id",
 			DstProjectNumber: nillable.GetStringPtr("test-project-number"),
+			CorrelationID:    nillable.GetStringPtr("test-correlation-id"),
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
@@ -1527,6 +2703,7 @@ func TestDescribeSourceJobForCleanup(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			JobId:            "test-job-id",
 			SrcProjectNumber: nillable.GetStringPtr("test-project-number"),
+			CorrelationID:    nillable.GetStringPtr("test-correlation-id"),
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
@@ -1570,6 +2747,7 @@ func TestDescribeSourceJobForCleanup(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			JobId:            "test-job-id",
 			SrcProjectNumber: nillable.GetStringPtr("test-project-number"),
+			CorrelationID:    nillable.GetStringPtr("test-correlation-id"),
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
@@ -1611,6 +2789,7 @@ func TestDescribeSourceJobForCleanup(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			JobId:            "test-job-id",
 			SrcProjectNumber: nillable.GetStringPtr("test-project-number"),
+			CorrelationID:    nillable.GetStringPtr("test-correlation-id"),
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),

@@ -93,6 +93,7 @@ type StopReplicationResult struct {
 	Error            error
 	JobId            *string
 	DbVolReplication *datamodel.VolumeReplication
+	CorrelationID    *string
 }
 
 type StopReplicationEvent struct {
@@ -166,6 +167,7 @@ type DeleteReplicationResult struct {
 	DstVolume        *googleproxyclient.VolumeV1beta
 	Error            error
 	JobId            string
+	CorrelationID    *string
 }
 
 type UpdateReplicationResult struct {

@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -92,6 +92,7 @@ func (wf *ReplicationStopWorkflow) Run(ctx workflow.Context, args ...interface{}
 		DstProjectNumber: &event.DestinationProjectNumber,
 		Event:            event,
 		DbVolReplication: event.ReplicationModel,
+		CorrelationID:    event.CommonReplicationEventParams.XCorrelationID,
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathStop, &replicationResult).Get(ctx, &replicationResult)

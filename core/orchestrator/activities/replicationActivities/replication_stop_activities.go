@@ -7,7 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -64,6 +64,7 @@ func (a *StopVolumeReplicationActivity) StopReplicationOnDestination(ctx context
 		ProjectNumber:       *result.DstProjectNumber,
 		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
 	}
 	stopReplicationReq := &googleproxyclient.V1betaInternalStopVolumeReplicationReq{
 		Force: googleproxyclient.NewOptBool(result.Event.ForceStop),
@@ -72,13 +73,25 @@ func (a *StopVolumeReplicationActivity) StopReplicationOnDestination(ctx context
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopReplication, err)
 	}
-	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
-	if ok {
-		result.DstReplication = response
-		result.JobId = &response.Jobs[0].JobId.Value
+
+	switch r := res.(type) {
+	case *googleproxyclient.VolumeReplicationInternalV1beta:
+		result.DstReplication = r
+		result.JobId = &r.Jobs[0].JobId.Value
 		return result, nil
+	case *googleproxyclient.V1betaInternalStopVolumeReplicationBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalStopVolumeReplicationInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalStopVolumeReplicationUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalStopVolumeReplicationForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalStopVolumeReplicationNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopVolumeReplicationError, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopVolumeReplicationError, errors.New("unknown response type"))
 	}
-	return nil, nil
 }
 
 func (a *StopVolumeReplicationActivity) DescribeDestJobStop(ctx context.Context, result *replication.StopReplicationResult) error {

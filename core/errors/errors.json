@@ -1174,6 +1174,48 @@
     "message": "Failed to update volume replication",
     "retriable": false,
     "http_code": 500
+    },
+  "6196": {
+    "description": "Google Proxy Internal Delete Volume Replication Error",
+    "message": "Error deleting volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6197": {
+    "description": "Google Proxy Internal Stop Volume Replication Error",
+    "message": "Error stopping volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6198": {
+    "description": "Google Proxy Internal Release Volume Replication Error",
+    "message": "Error releasing volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6199": {
+    "description": "Google Proxy Delete Volume Error",
+    "message": "Error deleting volume",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6200": {
+    "description": "Google Proxy Internal Delete Volume Snapmirror Snapshot Destination Error",
+    "message": "Error deleting volume snapmirror snapshot on destination",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6201": {
+    "description": "Google Proxy Internal Delete Volume Snapmirror Snapshot Source Error",
+    "message": "Error deleting volume snapmirror snapshot on source",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6202": {
+    "description": "Google Proxy Internal Get Multiple Replications For Delete Error",
+    "message": "Error getting multiple replications for delete",
+    "retriable": false,
+    "http_code": 500
   },
   "8001": {
     "description": "Kms key rotation failure",

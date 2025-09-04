@@ -228,6 +228,13 @@ const (
 	ErrGoogleProxyInternalReverseReplication                                                 = 6193
 	ErrGoogleProxyUpdateReplicationAttributes                                                = 6194
 	ErrGoogleProxyInternalUpdateVolumeReplication                                            = 6195
+	ErrGoogleProxyInternalDeleteVolumeReplicationError                                       = 6196
+	ErrGoogleProxyInternalStopVolumeReplicationError                                         = 6197
+	ErrGoogleProxyInternalReleaseVolumeReplicationError                                      = 6198
+	ErrGoogleProxyDeleteVolumeError                                                          = 6199
+	ErrGoogleProxyInternalDeleteVolumeSnapmirrorSnapshotDestinationError                     = 6200
+	ErrGoogleProxyInternalDeleteVolumeSnapmirrorSnapshotSourceError                          = 6201
+	ErrGoogleProxyInternalGetMultipleReplicationsForDeleteError                              = 6202
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

@@ -9,7 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -92,6 +92,7 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		SrcProjectNumber: &event.SourceProjectNumber,
 		DstProjectNumber: &event.DestinationProjectNumber,
 		Event:            event,
+		CorrelationID:    event.CommonReplicationEventParams.XCorrelationID,
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathCleanup, &replicationResult).Get(ctx, &replicationResult)
