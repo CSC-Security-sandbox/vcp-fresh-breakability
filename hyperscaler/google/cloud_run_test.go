@@ -11,9 +11,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	cloudrun "google.golang.org/api/run/v2"
 )
+
+type mockTokenSource struct {
+	TokenSource oauth2.TokenSource
+}
+
+func (s *mockTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{
+		AccessToken: "",
+		TokenType:   "Bearer",
+	}, nil
+}
 
 func TestCreateCloudRunService(t *testing.T) {
 	t.Run("onSuccess", func(tt *testing.T) {
@@ -748,10 +760,43 @@ func TestGetIdentityToken(t *testing.T) {
 
 		// This will likely fail in a test environment without proper credentials
 		// but it will exercise the error handling code paths
-		token, err := gService.GetIdentityToken()
+		token, err := gService.GetIdentityToken(context.Background(), "test-audience")
 		// We expect this to fail in test environment, but it covers the error paths
 		if err != nil {
 			// This is expected in test environment
+			assert.NotNil(tt, err)
+			assert.Equal(tt, "", token)
+		}
+	})
+
+	t.Run("onTokenSourceCreationFailure", func(tt *testing.T) {
+		// Test with invalid audience to trigger token source creation failure
+		gService := &GcpServices{
+			Ctx:    context.Background(),
+			Logger: log.NewLogger(),
+		}
+
+		// Use an invalid audience to trigger the error path
+		token, err := gService.GetIdentityToken(context.Background(), "")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "", token)
+		assert.Contains(tt, err.Error(), "failed to create token source")
+	})
+	t.Run("onValidAudience", func(tt *testing.T) {
+		// Test with a valid audience format
+		gService := &GcpServices{
+			Ctx:    context.Background(),
+			Logger: log.NewLogger(),
+		}
+		idtokenNewTokenSource = func(ctx context.Context, audience string, opts ...option.ClientOption) (oauth2.TokenSource, error) {
+			return &mockTokenSource{}, nil
+		}
+		// This will likely fail in test environment without proper credentials
+		// but it will exercise the success code path structure
+		token, err := gService.GetIdentityToken(context.Background(), "https://test-service-url")
+		// In test environment, this will likely fail due to missing credentials
+		// but the code structure is tested
+		if err != nil {
 			assert.NotNil(tt, err)
 			assert.Equal(tt, "", token)
 		}

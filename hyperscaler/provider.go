@@ -73,7 +73,7 @@ type Services interface {
 	CheckOperationStatus(ctx context.Context, operationName string) (bool, error)
 	GetCloudRunServiceURL(ctx context.Context, projectID, locationID, serviceName string) (string, error)
 	DeleteCloudRunService(ctx context.Context, projectID, locationID, serviceName string) (*models.CloudRunOperationResponse, error)
-	GetIdentityToken() (string, error)
+	GetIdentityToken(ctx context.Context, audience string) (string, error)
 }
 
 type GoogleServices interface {

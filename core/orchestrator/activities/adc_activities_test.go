@@ -806,7 +806,7 @@ func TestInitialDeleteRequestWithCloudRun(t *testing.T) {
 
 		// Mock the identity token generation
 		originalGetStandardAuthToken := activities.GetStandardAuthToken
-		activities.GetStandardAuthToken = func(ctx context.Context) (string, error) {
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
 			return "test-token", nil
 		}
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
@@ -830,7 +830,7 @@ func TestInitialDeleteRequestWithCloudRun(t *testing.T) {
 		serviceURL := server.URL
 
 		originalGetStandardAuthToken := activities.GetStandardAuthToken
-		activities.GetStandardAuthToken = func(ctx context.Context) (string, error) {
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
 			return "test-token", nil
 		}
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
@@ -862,7 +862,7 @@ func TestInitialDeleteRequestWithCloudRun(t *testing.T) {
 		serviceURL := "http://test.com"
 
 		originalGetStandardAuthToken := activities.GetStandardAuthToken
-		activities.GetStandardAuthToken = func(ctx context.Context) (string, error) {
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
 			return "", fmt.Errorf("failed to get token")
 		}
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
@@ -884,7 +884,7 @@ func TestInitialDeleteRequestWithCloudRun(t *testing.T) {
 		serviceURL := server.URL
 
 		originalGetStandardAuthToken := activities.GetStandardAuthToken
-		activities.GetStandardAuthToken = func(ctx context.Context) (string, error) {
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
 			return "test-token", nil
 		}
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
@@ -910,7 +910,7 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 		redirectURL := "/api/status/123"
 
 		originalGetStandardAuthToken := activities.GetStandardAuthToken
-		activities.GetStandardAuthToken = func(ctx context.Context) (string, error) {
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
 			return "test-token", nil
 		}
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
@@ -935,7 +935,7 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 		redirectURL := "/api/status/123"
 
 		originalGetStandardAuthToken := activities.GetStandardAuthToken
-		activities.GetStandardAuthToken = func(ctx context.Context) (string, error) {
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
 			return "test-token", nil
 		}
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
@@ -982,7 +982,7 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 		redirectURL := "/api/status/123"
 
 		originalGetStandardAuthToken := activities.GetStandardAuthToken
-		activities.GetStandardAuthToken = func(ctx context.Context) (string, error) {
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
 			return "", fmt.Errorf("failed to get token")
 		}
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
@@ -1001,14 +1001,14 @@ func TestGetStandardAuthToken(t *testing.T) {
 
 		originalGetCloudService := activities.GetCloudService
 		mockGCPService := new(hyperscaler.MockGoogleServices)
-		mockGCPService.On("GetIdentityToken").Return(expectedToken, nil)
+		mockGCPService.On("GetIdentityToken", mock.Anything, mock.Anything).Return(expectedToken, nil)
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil
 		}
 		defer func() { activities.GetCloudService = originalGetCloudService }()
 
-		token, err := activities.GetStandardAuthToken(ctx)
+		token, err := activities.GetStandardAuthToken(ctx, "https://test-service-url")
 		assert.Nil(t, err)
 		assert.Equal(t, expectedToken, token)
 	})
@@ -1022,7 +1022,7 @@ func TestGetStandardAuthToken(t *testing.T) {
 		}
 		defer func() { activities.GetCloudService = originalGetCloudService }()
 
-		token, err := activities.GetStandardAuthToken(ctx)
+		token, err := activities.GetStandardAuthToken(ctx, "https://test-service-url")
 		assert.NotNil(t, err)
 		assert.Empty(t, token)
 	})
@@ -1032,14 +1032,14 @@ func TestGetStandardAuthToken(t *testing.T) {
 
 		originalGetCloudService := activities.GetCloudService
 		mockGCPService := new(hyperscaler.MockGoogleServices)
-		mockGCPService.On("GetIdentityToken").Return("", fmt.Errorf("failed to get identity token"))
+		mockGCPService.On("GetIdentityToken", mock.Anything, mock.Anything).Return("", fmt.Errorf("failed to get identity token"))
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil
 		}
 		defer func() { activities.GetCloudService = originalGetCloudService }()
 
-		token, err := activities.GetStandardAuthToken(ctx)
+		token, err := activities.GetStandardAuthToken(ctx, "https://test-service-url")
 		assert.NotNil(t, err)
 		assert.Empty(t, token)
 	})

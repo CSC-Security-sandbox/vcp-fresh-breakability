@@ -1806,9 +1806,9 @@ func (_c *MockGoogleServices_GetForwardingRule_Call) RunAndReturn(run func(strin
 	return _c
 }
 
-// GetIdentityToken provides a mock function with no fields
-func (_m *MockGoogleServices) GetIdentityToken() (string, error) {
-	ret := _m.Called()
+// GetIdentityToken provides a mock function with given fields: ctx, audience
+func (_m *MockGoogleServices) GetIdentityToken(ctx context.Context, audience string) (string, error) {
+	ret := _m.Called(ctx, audience)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetIdentityToken")
@@ -1816,17 +1816,17 @@ func (_m *MockGoogleServices) GetIdentityToken() (string, error) {
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (string, error)); ok {
-		return rf()
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return rf(ctx, audience)
 	}
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, audience)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, audience)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1840,13 +1840,15 @@ type MockGoogleServices_GetIdentityToken_Call struct {
 }
 
 // GetIdentityToken is a helper method to define mock.On call
-func (_e *MockGoogleServices_Expecter) GetIdentityToken() *MockGoogleServices_GetIdentityToken_Call {
-	return &MockGoogleServices_GetIdentityToken_Call{Call: _e.mock.On("GetIdentityToken")}
+//   - ctx context.Context
+//   - audience string
+func (_e *MockGoogleServices_Expecter) GetIdentityToken(ctx interface{}, audience interface{}) *MockGoogleServices_GetIdentityToken_Call {
+	return &MockGoogleServices_GetIdentityToken_Call{Call: _e.mock.On("GetIdentityToken", ctx, audience)}
 }
 
-func (_c *MockGoogleServices_GetIdentityToken_Call) Run(run func()) *MockGoogleServices_GetIdentityToken_Call {
+func (_c *MockGoogleServices_GetIdentityToken_Call) Run(run func(ctx context.Context, audience string)) *MockGoogleServices_GetIdentityToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -1856,7 +1858,7 @@ func (_c *MockGoogleServices_GetIdentityToken_Call) Return(_a0 string, _a1 error
 	return _c
 }
 
-func (_c *MockGoogleServices_GetIdentityToken_Call) RunAndReturn(run func() (string, error)) *MockGoogleServices_GetIdentityToken_Call {
+func (_c *MockGoogleServices_GetIdentityToken_Call) RunAndReturn(run func(context.Context, string) (string, error)) *MockGoogleServices_GetIdentityToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

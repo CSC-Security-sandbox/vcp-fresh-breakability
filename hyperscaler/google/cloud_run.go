@@ -5,32 +5,13 @@ import (
 	"fmt"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+	"google.golang.org/api/idtoken"
 	cloudrun "google.golang.org/api/run/v2"
 )
 
-type idTokenSource struct {
-	TokenSource oauth2.TokenSource
-}
-
-func (s *idTokenSource) Token() (*oauth2.Token, error) {
-	token, err := s.TokenSource.Token()
-	if err != nil {
-		return nil, err
-	}
-
-	idToken, ok := token.Extra("id_token").(string)
-	if !ok {
-		return nil, fmt.Errorf("token did not contain an id_token")
-	}
-
-	return &oauth2.Token{
-		AccessToken: idToken,
-		TokenType:   "Bearer",
-		Expiry:      token.Expiry,
-	}, nil
-}
+var (
+	idtokenNewTokenSource = idtoken.NewTokenSource
+)
 
 // CloudRunServiceConfig represents the configuration for a Cloud Run service
 
@@ -229,17 +210,18 @@ func (gcpService *GcpServices) DeleteCloudRunService(ctx context.Context, projec
 }
 
 // GetIdentityToken gets a Google Cloud identity token for the specified audience
-func (gcpService *GcpServices) GetIdentityToken() (string, error) {
-	gts, err := google.DefaultTokenSource(gcpService.Ctx)
+func (gcpService *GcpServices) GetIdentityToken(ctx context.Context, audience string) (string, error) {
+	// Create a token source for the specified audience
+	tokenSource, err := idtokenNewTokenSource(ctx, audience)
 	if err != nil {
-		gcpService.Logger.Errorf("Failed to get default token source: %v", err)
-		return "", err
+		gcpService.Logger.Errorf("Failed to create token source: %v", err)
+		return "", fmt.Errorf("failed to create token source: %w", err)
 	}
-	source := oauth2.ReuseTokenSource(nil, &idTokenSource{TokenSource: gts})
-	token, err := source.Token()
+
+	// Get the token
+	token, err := tokenSource.Token()
 	if err != nil {
-		gcpService.Logger.Errorf("Failed to fetch token: %v", err)
-		return "", err
+		return "", fmt.Errorf("failed to get identity token: %w", err)
 	}
 	return token.AccessToken, nil
 }

@@ -204,8 +204,8 @@ func (a *ADCActivity) InitialDeleteRequestWithCloudRun(ctx context.Context, adcP
 		return nil, err
 	}
 
-	// Generate identity token
-	identityToken, err := GetStandardAuthToken(ctx)
+	// Generate identity token for the Cloud Run service
+	identityToken, err := GetStandardAuthToken(ctx, serviceURL)
 	if err != nil {
 		logger.Errorf("Failed to get identity token: %v", err)
 		return nil, err
@@ -270,8 +270,8 @@ func (a *ADCActivity) CheckDeleteStatusWithCloudRun(ctx context.Context, params 
 		return nil, err
 	}
 
-	// Generate identity token
-	identityToken, err := GetStandardAuthToken(ctx)
+	// Generate identity token for the Cloud Run service
+	identityToken, err := GetStandardAuthToken(ctx, serviceURL)
 	if err != nil {
 		logger.Errorf("Failed to get identity token: %v", err)
 		return nil, err
@@ -382,7 +382,7 @@ func ConvertADCParamsToRequest(adcParams *common.ADCParams) (BackupDeleteAdcReq,
 }
 
 // GetStandardAuthToken fetches a standard Google Cloud identity token for authentication
-func _getStandardAuthToken(ctx context.Context) (string, error) {
+func _getStandardAuthToken(ctx context.Context, audience string) (string, error) {
 	logger := util.GetLogger(ctx)
 
 	// Get GCP service to use the wrapper method
@@ -391,7 +391,7 @@ func _getStandardAuthToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("failed to get GCP service: %w", err)
 	}
 
-	token, err := cloudService.GetIdentityToken()
+	token, err := cloudService.GetIdentityToken(ctx, audience)
 	if err != nil {
 		logger.Errorf("Failed to get identity token: %v", err)
 		return "", fmt.Errorf("failed to get identity token: %w", err)
