@@ -22,11 +22,6 @@ const (
 // Sink is any destination for the metrics
 type Sink interface {
 	DeliverMetrics(ctx context.Context, metrics []entity.HydratedMetric) int
-	FilterAcceptedMetrics(metrics []entity.HydratedMetric) []entity.HydratedMetric
-	isValidHydratedMetric(metric entity.HydratedMetric, warnings *[]string) bool
-	push(googleMetricList []entity.HydratedMetric)
-	processResponse(wg *sync.WaitGroup, resultChan chan []common.MetricsResult)
-	processMetricsResults(results []common.MetricsResult)
 }
 
 // GoogleSink is responsible for delivering metrics to Google.
@@ -47,7 +42,7 @@ func NewSink(ctx context.Context, config *common.TelemetryConfig) *GoogleSink {
 }
 
 func (s *GoogleSink) DeliverMetrics(ctx context.Context, hydratedMetrics []entity.HydratedMetric) (validMetricsCount int) {
-	validMetrics := s.FilterAcceptedMetrics(hydratedMetrics)
+	validMetrics := s.FilterAndConvertToGoogleMetrics(hydratedMetrics)
 	invalidMetricCount := len(hydratedMetrics) - len(validMetrics)
 	if invalidMetricCount > 0 {
 		s.logger.Infof("Skipped invalid metrics. Invalid Metric Count %d", invalidMetricCount)
@@ -58,18 +53,20 @@ func (s *GoogleSink) DeliverMetrics(ctx context.Context, hydratedMetrics []entit
 	return validMetricsCount
 }
 
-// FilterAcceptedMetrics filters out invalid metrics from the provided list.
+// FilterAndConvertToGoogleMetrics filters out invalid metrics from the provided list and convert to google metrics.
 // Parameters:
 // - metrics: The list of hydrated metrics to filter.
 // Returns:
 // - A list of valid hydrated metrics.
-func (s *GoogleSink) FilterAcceptedMetrics(metrics []entity.HydratedMetric) []entity.HydratedMetric {
+func (s *GoogleSink) FilterAndConvertToGoogleMetrics(metrics []entity.HydratedMetric) []common.GoogleMetric {
 	var warnings []string
-	var validMetrics []entity.HydratedMetric
+	var validMetrics []common.GoogleMetric
 
 	for _, m := range metrics {
+		metric := m
+		googleMetric := common.GoogleMetric{Record: &metric}
 		if s.isValidHydratedMetric(m, &warnings) {
-			validMetrics = append(validMetrics, m)
+			validMetrics = append(validMetrics, googleMetric)
 		} else {
 			s.logger.Infof("Ignoring invalid metric", "Metric: ", m, "Warnings: ", strings.Join(warnings, "; "))
 		}
@@ -105,7 +102,7 @@ func (s *GoogleSink) isValidHydratedMetric(metric entity.HydratedMetric, warning
 // push sends the given lists of first-party and third-party Google metrics.
 // Parameters:
 // - googleMetricList: The list of Google metrics to send.
-func (s *GoogleSink) push(googleMetricList []entity.HydratedMetric) {
+func (s *GoogleSink) push(googleMetricList []common.GoogleMetric) {
 	wg := sync.WaitGroup{}
 	resultChan := make(chan []common.MetricsResult, 200)
 
@@ -146,7 +143,12 @@ func (s *GoogleSink) processAndFilterMetricsResults(results []common.MetricsResu
 	s.logger.Infof("Reported %d metrics.", len(results))
 
 	for _, result := range results {
-		id := result.GoogleMetric.Metadata.AccountName
+		id, err := result.GoogleMetric.GetCustomerId()
+		if err != nil {
+			s.logger.Warnf("An error occurred while getting the Customer ID for:", "GoogleMetric:",
+				result.GoogleMetric, "error:", err)
+			continue
+		}
 
 		if result.Exception != nil {
 			resultCode := common.GetCode(&result)

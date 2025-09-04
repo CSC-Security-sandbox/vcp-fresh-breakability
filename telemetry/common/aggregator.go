@@ -1,4 +1,4 @@
-package aggregator
+package common
 
 import (
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"

@@ -4,38 +4,49 @@ import (
 	"strings"
 )
 
-type CombinedKeyResourceTypeMeasuredType struct {
-	ResourceType ResourceType
-	MeasuredType MeasuredType
-}
-
 // MeasuredType comment
 type MeasuredType string
 
 var CombinedKeyResourceTypeMeasuredTypeMap map[string]CombinedKeyResourceTypeMeasuredType
+
+type CombinedKeyResourceTypeMeasuredType struct {
+	ResourceType ResourceType
+	MeasuredType MeasuredType
+}
 
 func (mt MeasuredType) String() string {
 	return string(mt)
 }
 
 const (
-	UnknownMeasuredType      MeasuredType = "UNKNOWN_MEASURED_TYPE"
-	PoolAllocatedSize        MeasuredType = "POOL_ALLOCATED_SIZE"
-	FileSystemReadOps        MeasuredType = "FILE_SYSTEM_READ_OPS"
-	FileSystemWriteOps       MeasuredType = "FILE_SYSTEM_WRITE_OPS"
-	FileSystemOtherOps       MeasuredType = "FILE_SYSTEM_OTHER_OPS"
-	ReadIo                   MeasuredType = "READ_IO"
-	WriteIo                  MeasuredType = "WRITE_IO"
-	OtherIo                  MeasuredType = "OTHER_IO"
-	AverageReadLatency       MeasuredType = "AVERAGE_READ_LATENCY"
-	AverageWriteLatency      MeasuredType = "AVERAGE_WRITE_LATENCY"
-	AverageOtherLatency      MeasuredType = "AVERAGE_OTHER_LATENCY"
-	VolumeAllcatedThroughput MeasuredType = "VOLUME_ALLOCATED_THROUGHPUT"
-	LogicalSize              MeasuredType = "LOGICAL_SIZE"
-	SnapshotSize             MeasuredType = "SNAPSHOT_SIZE"
-	AllocatedSize            MeasuredType = "ALLOCATED_SIZE"
-	VolumeInodeTotal         MeasuredType = "VOLUME_INODE_TOTAL"
-	VolumeInodesUsed         MeasuredType = "VOLUME_INODES_USED"
+	UnknownMeasuredType                                  MeasuredType = "UNKNOWN_MEASURED_TYPE"
+	PoolAllocatedSize                                    MeasuredType = "POOL_ALLOCATED_SIZE"
+	FileSystemReadOps                                    MeasuredType = "FILE_SYSTEM_READ_OPS"
+	FileSystemWriteOps                                   MeasuredType = "FILE_SYSTEM_WRITE_OPS"
+	FileSystemOtherOps                                   MeasuredType = "FILE_SYSTEM_OTHER_OPS"
+	ReadIo                                               MeasuredType = "READ_IO"
+	WriteIo                                              MeasuredType = "WRITE_IO"
+	OtherIo                                              MeasuredType = "OTHER_IO"
+	AverageReadLatency                                   MeasuredType = "AVERAGE_READ_LATENCY"
+	AverageWriteLatency                                  MeasuredType = "AVERAGE_WRITE_LATENCY"
+	AverageOtherLatency                                  MeasuredType = "AVERAGE_OTHER_LATENCY"
+	VolumeAllcatedThroughput                             MeasuredType = "VOLUME_ALLOCATED_THROUGHPUT"
+	LogicalSize                                          MeasuredType = "LOGICAL_SIZE"
+	SnapshotSize                                         MeasuredType = "SNAPSHOT_SIZE"
+	AllocatedSize                                        MeasuredType = "ALLOCATED_SIZE"
+	VolumeInodeTotal                                     MeasuredType = "VOLUME_INODE_TOTAL"
+	VolumeInodesUsed                                     MeasuredType = "VOLUME_INODES_USED"
+	XregionReplicationHealthy                            MeasuredType = "XREGION_REPLICATION_HEALTHY"
+	XregionReplicationLagTime                            MeasuredType = "XREGION_REPLICATION_LAG_TIME"
+	XregionReplicationLastTransferDuration               MeasuredType = "XREGION_REPLICATION_LAST_TRANSFER_DURATION"
+	XregionReplicationLastTransferSize                   MeasuredType = "XREGION_REPLICATION_LAST_TRANSFER_SIZE"
+	XregionReplicationRelationshipConcurrentTransferring MeasuredType = "XREGION_REPLICATION_RELATIONSHIP_CONCURRENT_TRANSFERRING"
+	XregionReplicationRelationshipProgress               MeasuredType = "XREGION_REPLICATION_RELATIONSHIP_PROGRESS"
+	XregionReplicationRelationshipTransferring           MeasuredType = "XREGION_REPLICATION_RELATIONSHIP_TRANSFERRING"
+	XregionReplicationReplicationSchedule                MeasuredType = "XREGION_REPLICATION_REPLICATION_SCHEDULE"
+	XregionReplicationTotalTransferBytes                 MeasuredType = "XREGION_REPLICATION_TOTAL_TRANSFER_BYTES"
+	CbsVolumeBackupSize                                  MeasuredType = "CBS_VOLUME_BACKUP_SIZE"
+	TotalLogicalSize                                     MeasuredType = "TOTAL_LOGICAL_SIZE"
 )
 
 func init() {

@@ -8,7 +8,6 @@ import (
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -21,29 +20,40 @@ type ResourceUniqueIdentifier struct {
 type BillingProvider struct {
 	metricsdb database2.Storage
 	config    *common.TelemetryConfig
+	usageSink common.UsageSink
 }
 
-func NewBillingProvider(db database2.Storage, config *common.TelemetryConfig) *BillingProvider {
+func NewBillingProvider(db database2.Storage, config *common.TelemetryConfig, usageSink common.UsageSink) *BillingProvider {
 	return &BillingProvider{
 		metricsdb: db,
 		config:    config,
+		usageSink: usageSink,
 	}
 }
 
 // ProcessBillingMetrics processes raw metrics from cvt_metrics table and aggregates them
 func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregationEndTime time.Time) error {
 	logger := util.GetLogger(ctx)
+	var aggregatedRecords []datamodel2.AggregatedUsage
 	aggregationStartTime := aggregationEndTime.Add(-1 * time.Hour)
 	logger.Infof("Processing metrics from %v to %v", aggregationStartTime, aggregationEndTime)
 
+	// Get unsent/retry records from database
+	aggregatedRecordsToRetry, err := p.getUnsentGoogleUsages(ctx, p.config.MaxGoogleBillingPushRetry)
+	if err != nil {
+		logger.Errorf("error getting unsent google usages", "error", err)
+	} else {
+		aggregatedRecords = append(aggregatedRecords, aggregatedRecordsToRetry...)
+	}
+
 	// Process each job definition
-	for _, jobDef := range defaultAggregationJobDefinitions {
+	for key, jobDef := range common.DefaultAggregationJobDefinitions {
 		// Create filter with conditions using our helper method
 		filter := p.CreateFilterWithConditions(
 			aggregationStartTime,
 			aggregationEndTime,
-			string(jobDef.ResourceType),
-			string(jobDef.MeasuredType),
+			key.ResourceType.String(),
+			key.MeasuredType.String(),
 		)
 
 		// Fetch metrics with filter conditions
@@ -53,20 +63,22 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 			return err
 		}
 		logger.Debugf("Fetched metrics for aggregation", "metrics:", metrics)
-		// Skip if no metrics found
-		if len(metrics) == 0 {
-			continue
-		}
-
 		// Group metrics by resource
 		resourceGroups := p.groupMetricsByResource(metrics)
 
 		// Process each resource group
 		for resourceIdentifier, resourceMetrics := range resourceGroups {
-			if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime); err != nil {
+			if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, &aggregatedRecords); err != nil {
 				logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
 				continue
 			}
+		}
+	}
+
+	// Deliver all aggregated metrics at the end
+	if len(aggregatedRecords) > 0 {
+		if _, err := p.usageSink.DeliverMetrics(ctx, aggregatedRecords); err != nil {
+			logger.Errorf("Failed to deliver aggregated metrics: %v", err)
 		}
 	}
 	return nil
@@ -140,7 +152,7 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 	return groups
 }
 
-func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceUniqueIdentifier ResourceUniqueIdentifier, metrics []datamodel2.HydratedMetrics, jobDef AggregationJobDefinition, start, end time.Time) error {
+func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceUniqueIdentifier ResourceUniqueIdentifier, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, aggregatedRecords *[]datamodel2.AggregatedUsage) error {
 	logger := util.GetLogger(ctx)
 	if len(metrics) == 0 {
 		logger.Infof("No metrics found for resource %s and customer id %s", resourceUniqueIdentifier.ResourceName, resourceUniqueIdentifier.ConsumerID)
@@ -150,28 +162,28 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	// Calculate aggregated value based on job type
 	var quantity float64
 	switch jobDef.AggregationType {
-	case IntegralAggregation:
-		quantity = Integral(metrics)
-	case CounterAggregation:
-		quantity = CounterDelta(metrics)
-	case SumAggregation:
-		quantity = Sum(metrics)
-	case FirstAggregation:
-		quantity = First(metrics)
+	case common.IntegralAggregation:
+		quantity = common.Integral(metrics)
+	case common.CounterAggregation:
+		quantity = common.CounterDelta(metrics)
+	case common.SumAggregation:
+		quantity = common.Sum(metrics)
+	case common.FirstAggregation:
+		quantity = common.First(metrics)
 	default:
 		return fmt.Errorf("unsupported job type: %s", jobDef.AggregationType)
 	}
 
 	// Get last counter value for counter metrics
 	var lastCounterValue *float64
-	if jobDef.AggregationType == CounterAggregation && len(metrics) > 0 {
+	if jobDef.AggregationType == common.CounterAggregation && len(metrics) > 0 {
 		val := metrics[len(metrics)-1].Quantity
 		lastCounterValue = &val
 	}
 
 	// Create aggregated record with all available fields
 	aggregated := &datamodel2.AggregatedUsage{
-		AccountUuid:            &resourceUniqueIdentifier.ConsumerID,
+		VendorCustomerID:       &resourceUniqueIdentifier.ConsumerID,
 		AggregationStart:       start,
 		AggregationEnd:         end,
 		MeasuredType:           metrics[0].MeasuredType,
@@ -185,31 +197,57 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		BillingLabels:          nil,
 		ReplicationDstVolumeID: nil,
 		DoubleEncryption:       nil,
-		State:                  common.Unsubmitted,
+		State:                  datamodel2.Unsubmitted,
 		ErrorCount:             0,
 		ErrorMessage:           nil,
-		IsBillable:             isBillableMetric(ctx, metrics[0].ResourceType, metrics[0].MeasuredType),
+		IsBillable:             common.IsBillableMetric(ctx, metrics[0].ResourceType, metrics[0].MeasuredType),
 		AggregationType:        string(jobDef.AggregationType),
 	}
 
 	logger.Infof("Processing metrics for resource %s and customer id %s with aggregation type %s and %s", resourceUniqueIdentifier.ResourceName, resourceUniqueIdentifier.ConsumerID, jobDef.AggregationType, aggregated)
 	// Store aggregated metrics
-	return p.metricsdb.CreateAggregatedUsage(ctx, aggregated)
+	err := p.metricsdb.CreateAggregatedUsage(ctx, aggregated)
+	if err != nil {
+		logger.Errorf("Failed to create aggregated usage for resource %s and customer id %s: %v", resourceUniqueIdentifier.ResourceName, resourceUniqueIdentifier.ConsumerID, err)
+		return err
+	}
+	if aggregated.IsBillable {
+		*aggregatedRecords = append(*aggregatedRecords, *aggregated)
+	}
+	return nil
 }
 
-func isBillableMetric(ctx context.Context, resourceType metadata.ResourceType, measuredType metadata.MeasuredType) bool {
-	logger := util.GetLogger(ctx)
-	// Create the lookup key
-	key := metadata.CombinedKeyResourceTypeMeasuredType{
-		ResourceType: resourceType,
-		MeasuredType: measuredType,
+func (p *BillingProvider) getUnsentGoogleUsages(ctx context.Context, maxRetries int64) ([]datamodel2.AggregatedUsage, error) {
+	var allRecords []datamodel2.AggregatedUsage
+
+	// Get records with UNSUBMITTED state
+	unsubmittedFilter := map[string]interface{}{
+		"state":       datamodel2.Unsubmitted,
+		"is_billable": true,
+	}
+	unsubmittedRecords, err := p.metricsdb.GetAggregatedUsage(ctx, unsubmittedFilter)
+	if err != nil {
+		return nil, err
+	}
+	allRecords = append(allRecords, unsubmittedRecords...)
+
+	// Get records with ERROR state and error_count <= maxRetries
+	// Since we can't do complex comparisons with current interface, we'll fetch all ERROR records
+	// and filter in memory
+	errorFilter := map[string]interface{}{
+		"state": datamodel2.Error,
+	}
+	errorRecords, err := p.metricsdb.GetAggregatedUsage(ctx, errorFilter)
+	if err != nil {
+		return nil, err
 	}
 
-	// Look up the key in the pre-computed map
-	jobDef, exists := defaultAggregationJobDefinitions[key]
-	if !exists {
-		logger.Warnf("No job definition found for resource type %s and measured type %s", resourceType, measuredType)
-		return false // If the key does not exist, return false
+	// Filter error records by error_count in memory
+	for _, record := range errorRecords {
+		if int64(record.ErrorCount) < maxRetries {
+			allRecords = append(allRecords, record)
+		}
 	}
-	return jobDef.IsBillable // Return true if the key exists, false otherwise
+
+	return allRecords, nil
 }

@@ -10,15 +10,6 @@ import (
 	"google.golang.org/api/servicecontrol/v1"
 )
 
-type TrackingState int32
-
-const (
-	Unsubmitted TrackingState = iota
-	Submitted
-	Error
-	Ignored
-)
-
 // GetErrorMessage returns the error message from the result.
 // Parameters:
 // - result: The result to get the error message from.

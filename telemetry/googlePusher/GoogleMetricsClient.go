@@ -10,7 +10,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -25,7 +24,6 @@ import (
 type Operation servicecontrol.Operation
 
 type MetricValue *servicecontrol.MetricValue
-
 type MetricValueSet servicecontrol.MetricValueSet
 
 var (
@@ -54,7 +52,7 @@ func NewGoogleMetricsClient(ctx context.Context, rootURL string, config *common.
 	}
 }
 
-func (client *GoogleMetricsClient) ReportMetrics(metrics []entity.HydratedMetric, operationStartTime, operationEndTime int64, wg *sync.WaitGroup, resultChan chan []common.MetricsResult) {
+func (client *GoogleMetricsClient) ReportMetrics(metrics []common.GoogleMetric, operationStartTime, operationEndTime int64, wg *sync.WaitGroup, resultChan chan []common.MetricsResult) {
 	defer wg.Done()
 	defer close(resultChan)
 
@@ -96,7 +94,7 @@ func (client *GoogleMetricsClient) ReportMetrics(metrics []entity.HydratedMetric
 	client.reportOperationList(operationBatchList, operationsToPush, operationMap, resultChan)
 }
 
-func (client *GoogleMetricsClient) reportOperationList(operationBatchList [][]*Operation, operationsToPush map[*Operation][]entity.HydratedMetric, operationMap map[string]*Operation, resultChan chan []common.MetricsResult) {
+func (client *GoogleMetricsClient) reportOperationList(operationBatchList [][]*Operation, operationsToPush map[*Operation][]common.GoogleMetric, operationMap map[string]*Operation, resultChan chan []common.MetricsResult) {
 	for _, operationList := range operationBatchList {
 		var results []common.MetricsResult
 		func() {
@@ -162,33 +160,30 @@ func (client *GoogleMetricsClient) reportOperationList(operationBatchList [][]*O
 		resultChan <- results
 	}
 }
-func (client *GoogleMetricsClient) createOperationsForMetrics(metrics []entity.HydratedMetric, opStart, opEnd int64) map[*Operation][]entity.HydratedMetric {
-	metricsByVolume := make(map[ResourceInfo][]entity.HydratedMetric)
-	var customerId, resourceId string
+
+func (client *GoogleMetricsClient) createOperationsForMetrics(metrics []common.GoogleMetric, opStart, opEnd int64) map[*Operation][]common.GoogleMetric {
+	metricsByVolume := make(map[ResourceInfo][]common.GoogleMetric)
 	for _, metric := range metrics {
-		if metric.Metadata.AccountName == nil || metric.Metadata.ResourceUUID == nil {
-			client.logger.Warnf("Metric metadata missing AccountUUID or ResourceUUID: %v", metric)
+		customerId, err := metric.GetCustomerId()
+		if err != nil {
+			client.logger.Errorf("Error getting customer ID: %v", err)
 			continue
 		}
-		if metric.Metadata.AccountName != nil {
-			customerId = *metric.Metadata.AccountName
-		}
-		if metric.Metadata.ResourceUUID != nil {
-			resourceId = *metric.Metadata.ResourceUUID
+
+		resourceName, err := metric.GetResourceName()
+		if err != nil {
+			client.logger.Errorf("Error getting resource ID: %v", err)
+			continue
 		}
 
 		info := ResourceInfo{
-			CustomerId: customerId,
-			ResourceId: resourceId,
+			CustomerId:   customerId,
+			ResourceName: resourceName,
 		}
-		if metric.Metadata.ResourceDisplayName != nil {
-			info.ResourceName = *metric.Metadata.ResourceDisplayName
-		}
-
 		metricsByVolume[info] = append(metricsByVolume[info], metric)
 	}
 
-	operationAndMetrics := make(map[*Operation][]entity.HydratedMetric)
+	operationAndMetrics := make(map[*Operation][]common.GoogleMetric)
 
 	for info, googleMetrics := range metricsByVolume {
 		if len(googleMetrics) == 0 {
@@ -197,7 +192,7 @@ func (client *GoogleMetricsClient) createOperationsForMetrics(metrics []entity.H
 		}
 
 		totalDropCount := 0
-		partitionedMetrics := partitionMetrics(googleMetrics)
+		partitionedMetrics := partitionMetrics(googleMetrics, client.logger)
 		for _, partition := range partitionedMetrics {
 			operation, droppedMetrics, err := client.createOperationForMetric(uuid.New().String(), partition, info.CustomerId, info.ResourceId, opStart, opEnd)
 			if err != nil {
@@ -218,25 +213,28 @@ func (client *GoogleMetricsClient) createOperationsForMetrics(metrics []entity.H
 			client.logger.Infof("Dropped %d ignored or invalid metrics from operations this run.", totalDropCount)
 		}
 	}
-
 	return operationAndMetrics
 }
 
-func (client *GoogleMetricsClient) createOperationForMetric(operationId string, googleMetrics []entity.HydratedMetric, customerId string, resourceUuid string, opStart int64, opEnd int64) (*Operation, []entity.HydratedMetric, error) {
+func (client *GoogleMetricsClient) createOperationForMetric(operationId string, googleMetrics []common.GoogleMetric, customerId string, resourceUuid string, opStart int64, opEnd int64) (*Operation, []common.GoogleMetric, error) {
 	if len(googleMetrics) == 0 {
 		return nil, nil, nil
 	}
 
 	op := &Operation{}
 	googleMetric := googleMetrics[0]
-	var dataCenter string
-	if googleMetric.Metadata.RegionName != nil {
-		dataCenter = *googleMetric.Metadata.RegionName
-	}
+	metricType := googleMetric.GetType()
+	dataCenter := client.config.RegionName
 
 	err := SetCommonLabels(op, customerId, dataCenter, resourceUuid, googleMetric)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if metricType == common.BillingMetric { // TODO Implement Billing Labels
+		if err != nil {
+			client.logger.Warnf("Error getting billing labels: %v", err)
+		}
 	}
 
 	op.OperationName = fmt.Sprintf("OperationMetrics_%s-%d", resourceUuid, opStart)
@@ -253,22 +251,25 @@ func (client *GoogleMetricsClient) createOperationForMetric(operationId string, 
 	}
 
 	var metricValueSets []*MetricValueSet
-	metricsByName := make(map[string][]entity.HydratedMetric)
-	droppedMetrics := make(map[metadata.MeasuredType][]entity.HydratedMetric)
+	metricsByName := make(map[string][]common.GoogleMetric)
+	droppedMetrics := make(map[metadata.MeasuredType][]common.GoogleMetric)
 
-	for _, CombinedMap := range metadata.CombinedKeyResourceTypeMeasuredTypeMap {
-		droppedMetrics[CombinedMap.MeasuredType] = []entity.HydratedMetric{}
+	for _, value := range metadata.CombinedKeyResourceTypeMeasuredTypeMap {
+		droppedMetrics[value.MeasuredType] = []common.GoogleMetric{}
 	}
 
 	for _, metric := range googleMetrics {
-		googleMetricName, err := client.GetMetricName(metric.MeasuredType, metric.Metadata.ResourceType)
+		googleMetricName, err := client.GetMetricName(metric)
 		if err != nil {
-			client.logger.Errorf("Valid google endpoint not found for metric for resource type %s and measured type %s", metric.Metadata.ResourceType, metric.MeasuredType)
+			resourceType, _ := metric.GetResourceType()
+			measuredType, _ := metric.GetMeasuredType()
+			client.logger.Errorf("Valid google endpoint not found for metric for resource type %s and measured type %s", resourceType, measuredType)
 		}
 		if googleMetricName != "" {
 			metricsByName[googleMetricName] = append(metricsByName[googleMetricName], metric)
 		} else {
-			droppedMetrics[metric.MeasuredType] = append(droppedMetrics[metric.MeasuredType], metric)
+			measuredType, _ := metric.GetMeasuredType()
+			droppedMetrics[measuredType] = append(droppedMetrics[measuredType], metric)
 		}
 	}
 
@@ -286,40 +287,44 @@ func (client *GoogleMetricsClient) createOperationForMetric(operationId string, 
 		serviceControlMetricValueSets = append(serviceControlMetricValueSets, (*servicecontrol.MetricValueSet)(mvs))
 	}
 
-	// logDroppedMetrics(droppedMetrics, logger)
+	logDroppedMetrics(droppedMetrics, client.logger)
 	op.MetricValueSets = serviceControlMetricValueSets
 
 	return op, flattenDroppedMetrics(droppedMetrics), nil
 }
 
-func flattenDroppedMetrics(droppedMetrics map[metadata.MeasuredType][]entity.HydratedMetric) []entity.HydratedMetric {
-	var result []entity.HydratedMetric
+func flattenDroppedMetrics(droppedMetrics map[metadata.MeasuredType][]common.GoogleMetric) []common.GoogleMetric {
+	var result []common.GoogleMetric
 	for _, droppedMetric := range droppedMetrics {
 		result = append(result, droppedMetric...)
 	}
 	return result
 }
 
-func partitionMetrics(googleMetrics []entity.HydratedMetric) [][]entity.HydratedMetric {
-	if !hasDuplicateMeasuredTypes(googleMetrics) {
-		return [][]entity.HydratedMetric{googleMetrics}
+func partitionMetrics(googleMetrics []common.GoogleMetric, logger log.Logger) [][]common.GoogleMetric {
+	if !hasDuplicateMeasuredTypes(googleMetrics, logger) {
+		return [][]common.GoogleMetric{googleMetrics}
 	}
 
-	metricsByMeasuredType := make(map[metadata.MeasuredType][]entity.HydratedMetric)
+	metricsByMeasuredType := make(map[metadata.MeasuredType][]common.GoogleMetric)
 	for _, metric := range googleMetrics {
-		measuredType := metric.MeasuredType
+		measuredType, err := metric.GetMeasuredType()
+		if err != nil {
+			logger.Debugf("Error getting measured type in partition metrics method.", "error", err, "metric", metric)
+			continue
+		}
 		metricsByMeasuredType[measuredType] = append(metricsByMeasuredType[measuredType], metric)
 	}
 
-	var partitionedMetrics [][]entity.HydratedMetric
+	var partitionedMetrics [][]common.GoogleMetric
 	for len(metricsByMeasuredType) > 0 {
-		var partition []entity.HydratedMetric
-		for _, CombinedType := range metadata.CombinedKeyResourceTypeMeasuredTypeMap {
-			if metricsOfType, exists := metricsByMeasuredType[CombinedType.MeasuredType]; exists && len(metricsOfType) > 0 {
+		var partition []common.GoogleMetric
+		for _, value := range metadata.CombinedKeyResourceTypeMeasuredTypeMap {
+			if metricsOfType, exists := metricsByMeasuredType[value.MeasuredType]; exists && len(metricsOfType) > 0 {
 				metric := metricsOfType[0]
-				metricsByMeasuredType[CombinedType.MeasuredType] = metricsOfType[1:]
-				if len(metricsByMeasuredType[CombinedType.MeasuredType]) == 0 {
-					delete(metricsByMeasuredType, CombinedType.MeasuredType)
+				metricsByMeasuredType[value.MeasuredType] = metricsOfType[1:]
+				if len(metricsByMeasuredType[value.MeasuredType]) == 0 {
+					delete(metricsByMeasuredType, value.MeasuredType)
 				}
 				partition = append(partition, metric)
 			}
@@ -329,11 +334,14 @@ func partitionMetrics(googleMetrics []entity.HydratedMetric) [][]entity.Hydrated
 	return partitionedMetrics
 }
 
-func hasDuplicateMeasuredTypes(googleMetrics []entity.HydratedMetric) bool {
+func hasDuplicateMeasuredTypes(googleMetrics []common.GoogleMetric, logger log.Logger) bool {
 	measuredTypeMap := make(map[metadata.MeasuredType]bool)
 	for _, metric := range googleMetrics {
-		measuredType := metric.MeasuredType
-
+		measuredType, err := metric.GetMeasuredType()
+		if err != nil {
+			logger.Debugf("Error getting measured type in has duplicate measured types method.", "error", err, "metric", metric)
+			continue
+		}
 		val, ok := measuredTypeMap[measuredType]
 		if ok && val {
 			return true
@@ -343,7 +351,13 @@ func hasDuplicateMeasuredTypes(googleMetrics []entity.HydratedMetric) bool {
 	return false
 }
 
-func (client *GoogleMetricsClient) createMetricValueSet(metricName string, metrics []entity.HydratedMetric) (*MetricValueSet, error) {
+func logDroppedMetrics(droppedMetrics map[metadata.MeasuredType][]common.GoogleMetric, logger log.Logger) {
+	for measuredType, metric := range droppedMetrics {
+		logger.Debugf("Dropped %d metric of unsupported metric type %s.", len(metric), measuredType)
+	}
+}
+
+func (client *GoogleMetricsClient) createMetricValueSet(metricName string, metrics []common.GoogleMetric) (*MetricValueSet, error) {
 	if len(metrics) == 0 {
 		return nil, nil
 	}
@@ -363,41 +377,71 @@ func (client *GoogleMetricsClient) createMetricValueSet(metricName string, metri
 	return metricValueSet, nil
 }
 
-func (client *GoogleMetricsClient) CreateMetricValue(metric entity.HydratedMetric) (MetricValue, error) {
+func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric) (MetricValue, error) {
 	metricValue := &servicecontrol.MetricValue{}
 
-	metricMeasuredType := metric.MeasuredType
+	metricMeasuredType, _ := metric.GetMeasuredType()
 	switch metricMeasuredType {
 	default:
-		val := int64(metric.Quantity)
+		val, _ := metric.GetQuantity()
 		metricValue.Int64Value = nillable.ToPointer(val)
 
 		client.logger.Debugf("Set Metric Value for MeasuredType %s as %d", metricMeasuredType, val)
 	}
 
-	startTime := metric.Timestamp.ToTime().Unix()
-	var endTime int64
+	startTime, err := metric.GetStartTime()
+	if err != nil {
+		client.logger.Errorf("error getting start time for MeasuredType %s", metricMeasuredType)
+	}
 
-	secondsRemaining := startTime % 60
-	startTime -= secondsRemaining
-	endTime = startTime + 59
+	var endTime int64
+	if metric.GetType() == common.HydratedMetric {
+		secondsRemaining := startTime % 60
+		startTime -= secondsRemaining
+		endTime = startTime + 59
+	} else {
+		endTime, err = metric.GetEndTime()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	metricValue.StartTime = time.Unix(startTime, 0).Format(time.RFC3339)
 	metricValue.EndTime = time.Unix(endTime, 0).Format(time.RFC3339)
+
+	labelKeys := GetLabelKey(metric)
+	if err != nil {
+		return nil, err
+	}
+	valueLabels := make(map[string]string)
+	if labelKeys != nil {
+		for _, labelKey := range labelKeys {
+			metricLabelValue, err := GetLabelValue(labelKey, metric, client.logger)
+			if err != nil {
+				return nil, err
+			}
+			if metricLabelValue != "" {
+				valueLabels[labelKey] = metricLabelValue
+			}
+		}
+	}
+	metricValue.Labels = valueLabels
 
 	client.logger.Debugf("setting metricValue as %+v", metricValue)
 	return metricValue, nil
 }
 
-func SetCommonLabels(op *Operation, consumerId, dataCenter, resourceId string, googleMetric entity.HydratedMetric) error {
+func SetCommonLabels(op *Operation, consumerId, dataCenter, resourceId string, googleMetric common.GoogleMetric) error {
 	labels := make(map[string]string)
 
-	labels["location"] = dataCenter
-	labels["resource_container"] = "projects/" + consumerId
-	if googleMetric.Metadata.ResourceDisplayName != nil {
-		labels["name"] = *googleMetric.Metadata.ResourceDisplayName
+	metricType := googleMetric.GetType()
+	if metricType == common.BillingMetric {
+		labels["cloud.googleapis.com/location"] = dataCenter
+	} else {
+		labels["location"] = dataCenter
+		labels["resource_container"] = "projects/" + consumerId
+		labels["name"], _ = googleMetric.GetResourceName()
 	}
-
 	op.Labels = labels
 	return nil
 }
@@ -476,18 +520,70 @@ func removeOperation(operations []*Operation, operation *Operation) []*Operation
 	return operations
 }
 
-func (client *GoogleMetricsClient) GetMetricName(measuredType metadata.MeasuredType, resourceType metadata.ResourceType) (string, error) {
-	nameAndKeyLabel, exists := client.nameAndKeyLabelOfMetric[metadata.CombinedKeyResourceTypeMeasuredType{ResourceType: resourceType, MeasuredType: measuredType}]
-	if !exists {
-		return "", fmt.Errorf("unsupported measured type or resource type received: %s, %s", measuredType, resourceType)
-	}
+func (client *GoogleMetricsClient) GetMetricName(metric common.GoogleMetric) (string, error) {
+	resourceType, _ := metric.GetResourceType()
+	measuredType, _ := metric.GetMeasuredType()
+	if metric.GetType() == common.BillingMetric {
+		jobDef, exists := common.DefaultAggregationJobDefinitions[metadata.CombinedKeyResourceTypeMeasuredType{ResourceType: resourceType, MeasuredType: measuredType}]
+		if !exists {
+			client.logger.Warnf("No job definition found for resource type %s and measured type %s", resourceType, measuredType)
+			return "", fmt.Errorf("unsupported measured type or resource type received: %s, %s", measuredType, resourceType) // If the key does not exist
+		}
+		return common.BillingMetricsNamePrefix + jobDef.SKU, nil
+	} else {
+		nameAndKeyLabel, exists := client.nameAndKeyLabelOfMetric[metadata.CombinedKeyResourceTypeMeasuredType{ResourceType: resourceType, MeasuredType: measuredType}]
+		if !exists {
+			return "", fmt.Errorf("unsupported measured type or resource type received: %s, %s", measuredType, resourceType)
+		}
 
-	var metricsName string
-	switch resourceType {
-	case metadata.VolumePool:
-		metricsName = metadata.MetricsNamePrefixPoolFirstParty + nameAndKeyLabel.Left
-	default:
-		return "", fmt.Errorf("unrecognized resource type: %s", resourceType)
+		var metricsName string
+		switch resourceType {
+		case metadata.VolumePool:
+			metricsName = metadata.MetricsNamePrefixPoolFirstParty + nameAndKeyLabel.Left
+		default:
+			return "", fmt.Errorf("unrecognized resource type: %s", resourceType)
+		}
+		return metricsName, nil
 	}
-	return metricsName, nil
+}
+
+func GetLabelKey(metric common.GoogleMetric) []string {
+	metricMeasuredType, _ := metric.GetMeasuredType()
+	metricResourceType, _ := metric.GetResourceType()
+	switch metricResourceType {
+	case metadata.VolumeReplicationRelationship:
+		return []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level"}
+	case metadata.Volume:
+		switch metricMeasuredType {
+		case metadata.CbsVolumeBackupSize:
+			return []string{"/resource_id", "/backups/location"}
+		}
+	}
+	return nil
+}
+
+func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (string, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Infof("Recovered in GetLabelValue: %v", r)
+		}
+	}()
+
+	metricResourceType, _ := metric.GetResourceType()
+	switch metricResourceType {
+	case metadata.VolumeReplicationRelationship:
+		switch key {
+		case "/resource_id":
+			return "dummyLabelValue", nil
+		case "/replication/frequency":
+			return "dummyLabelValue", nil
+		case "/replication/source_continent":
+			return "dummyLabelValue", nil
+		case "/replication/destination_continent":
+			return "dummyLabelValue", nil
+		case "/replication/source_service_level", "/replication/destination_service_level":
+			return "dummyLabelValue", nil
+		}
+	}
+	return "", nil
 }

@@ -1,7 +1,6 @@
 package datamodel
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"time"
 )
@@ -20,7 +19,7 @@ type HydratedMetrics struct {
 
 type AggregatedUsage struct {
 	ID                     int64                 `gorm:"primaryKey;autoIncrement" json:"id"`
-	AccountUuid            *string               `gorm:"column:account_uuid;size:255;index" json:"account_uuid"`
+	VendorCustomerID       *string               `gorm:"column:vendor_customer_id;size:255;index" json:"vendor_customer_id"`
 	AggregationEnd         time.Time             `gorm:"column:aggregation_end;not null;index" json:"aggregation_end"`
 	AggregationStart       time.Time             `gorm:"column:aggregation_start;not null;index" json:"aggregation_start"`
 	MeasuredType           metadata.MeasuredType `gorm:"column:measured_type;not null;index" json:"measured_type"`
@@ -35,7 +34,7 @@ type AggregatedUsage struct {
 	BillingLabels          *string               `gorm:"column:billing_labels;type:jsonb" json:"billing_labels"`
 	ReplicationDstVolumeID *string               `gorm:"column:replication_dst_volume_id;size:255" json:"replication_dst_volume_id"`
 	DoubleEncryption       *bool                 `gorm:"column:double_encryption;default:false" json:"double_encryption"`
-	State                  common.TrackingState  `gorm:"column:state;not null;default:0" json:"state"`
+	State                  TrackingState         `gorm:"column:state;not null;default:0" json:"state"`
 	ErrorCount             int32                 `gorm:"column:error_count;default:0" json:"error_count"`
 	ErrorMessage           *string               `gorm:"column:error_message;type:text" json:"error_message"`
 	Submission             *string               `gorm:"column:submission;type:jsonb" json:"submission"`
@@ -58,3 +57,13 @@ type Job struct {
 	FinishedAt  time.Time
 	ScheduledAt time.Time
 }
+
+type TrackingState int32
+
+const (
+	Unsubmitted TrackingState = iota
+	Submitted
+	Error
+	Ignored
+	Invalid
+)

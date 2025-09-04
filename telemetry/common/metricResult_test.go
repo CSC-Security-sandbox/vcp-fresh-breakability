@@ -8,7 +8,8 @@ import (
 )
 
 func TestCreatesMetricsResultWithValidResponse(t *testing.T) {
-	googleMetric := entity.HydratedMetric{}
+	hydratedMetric := &entity.HydratedMetric{}
+	googleMetric := *NewGoogleMetric(hydratedMetric)
 	reportResponse := &ReportResponse{}
 	operationID := "operation-123"
 
@@ -23,7 +24,8 @@ func TestCreatesMetricsResultWithValidResponse(t *testing.T) {
 }
 
 func TestCreatesMetricsResultWithValidException(t *testing.T) {
-	googleMetric := entity.HydratedMetric{}
+	hydratedMetric := &entity.HydratedMetric{}
+	googleMetric := *NewGoogleMetric(hydratedMetric)
 	exception := fmt.Errorf("sample exception")
 	operationID := "operation-456"
 
@@ -79,5 +81,22 @@ func TestRetrievesExceptionSuccessfully(t *testing.T) {
 
 	if retrievedException != exception {
 		t.Fatalf("Expected Exception to be %v, got %v", exception, retrievedException)
+	}
+}
+
+func TestRetrievesGoogleMetricSuccessfully(t *testing.T) {
+	hydratedMetric := &entity.HydratedMetric{}
+	googleMetric := *NewGoogleMetric(hydratedMetric)
+	result := &MetricsResult{GoogleMetric: googleMetric}
+
+	retrievedMetric := result.GetGoogleMetric()
+
+	// Since GoogleMetric contains a pointer to HydratedMetric, we should compare them properly
+	retrievedHydrated, err := retrievedMetric.GetAsHydratedMetric()
+	if err != nil {
+		t.Fatalf("Failed to get hydrated metric: %v", err)
+	}
+	if retrievedHydrated != hydratedMetric {
+		t.Fatalf("Expected GoogleMetric to contain %v, got %v", hydratedMetric, retrievedHydrated)
 	}
 }

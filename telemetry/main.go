@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/usage"
 	"net/http"
 	"os"
 	"os/signal"
@@ -61,6 +62,7 @@ func main() {
 	logger.Info("Successfully connected to Telemetry database...")
 
 	googleSink := performance.NewSink(ctx, metricscommon.LoadConfig())
+	billingSink := usage.NewSink(ctx, metricscommon.LoadConfig(), telemetryDbConn)
 	tenantProvider := collector.NewGoogleTenantProjectProvider(VCPDbConn)
 	client, err := monitoring.NewMetricClient(ctx)
 	if err != nil {
@@ -69,7 +71,7 @@ func main() {
 	wrapper := collector.NewMetricClientWrapper(client)
 	config := metricscommon.LoadMetricsConfigFromBytes()
 	provider := collector.NewGoogleProvider(tenantProvider, wrapper, config.VolumeMetrics)
-	billingProvidor := aggregator.NewBillingProvider(telemetryDbConn, metricscommon.LoadConfig())
+	billingProvidor := aggregator.NewBillingProvider(telemetryDbConn, metricscommon.LoadConfig(), billingSink)
 	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvidor)
 	tdb := telemetryDbConn.SQLDB()
 

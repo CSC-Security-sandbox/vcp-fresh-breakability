@@ -11,13 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-func createDummyGoogleMetrics(count int) []entity.HydratedMetric {
-	var hydratedM []entity.HydratedMetric
+func createDummyGoogleMetrics(count int) []common.GoogleMetric {
+	var googleM []common.GoogleMetric
 	for i := 0; i < count; i++ {
 		rm := metadata.ResourceMetadata{
 			ResourceUUID:        nillable.ToPointer(uuid.New().String()),
@@ -28,14 +30,16 @@ func createDummyGoogleMetrics(count int) []entity.HydratedMetric {
 			ResourceType:        metadata.VolumePool,
 		}
 
-		hydratedM = append(hydratedM, entity.HydratedMetric{
+		hydratedM := &entity.HydratedMetric{
 			Metadata:     rm,
 			MeasuredType: metadata.PoolAllocatedSize,
 			Quantity:     float64(i),
 			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
-		})
+		}
+
+		googleM = append(googleM, *common.NewGoogleMetric(hydratedM))
 	}
-	return hydratedM
+	return googleM
 }
 
 func Test_reportMetrics(t *testing.T) {
@@ -71,7 +75,7 @@ func Test_reportMetrics(t *testing.T) {
 	})
 
 	t.Run("Report empty metrics", func(t *testing.T) {
-		var metrics []entity.HydratedMetric
+		var metrics []common.GoogleMetric
 		operationStartTime := time.Now().Unix()
 		operationEndTime := time.Now().Add(time.Hour).Unix()
 
@@ -125,7 +129,7 @@ func Test_createOperationForMetric(t *testing.T) {
 	})
 
 	t.Run("Create operation with empty metrics", func(t *testing.T) {
-		var metrics []entity.HydratedMetric
+		var metrics []common.GoogleMetric
 		operationId := uuid.New().String()
 		customerId := "customer123"
 		resourceUuid := "resource123"
@@ -141,8 +145,9 @@ func Test_createOperationForMetric(t *testing.T) {
 
 	t.Run("Create operation with invalid metric type", func(t *testing.T) {
 		metrics := createDummyGoogleMetrics(3)
-		// Simulate invalid metric by setting a field to an invalid value
-		metrics[0].MeasuredType = "Unknown"
+		// Simulate invalid metric by modifying the underlying HydratedMetric
+		hydratedMetric, _ := metrics[0].GetAsHydratedMetric()
+		hydratedMetric.MeasuredType = "Unknown"
 		operationId := uuid.New().String()
 		customerId := "customer123"
 		resourceUuid := "resource123"
@@ -170,15 +175,16 @@ func Test_getMetricName(t *testing.T) {
 			ResourceType:        metadata.VolumePool,
 		}
 
-		hydratedM := entity.HydratedMetric{
+		hydratedM := &entity.HydratedMetric{
 			Metadata:     rm,
 			MeasuredType: metadata.PoolAllocatedSize,
 			Quantity:     float64(1234),
 			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
 		}
 
+		googleMetric := *common.NewGoogleMetric(hydratedM)
 		expectedMetricName := "netapp.googleapis.com/storage_pool/capacity"
-		metricName, err := client.GetMetricName(hydratedM.MeasuredType, hydratedM.Metadata.ResourceType)
+		metricName, err := client.GetMetricName(googleMetric)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedMetricName, metricName)
 	})
@@ -193,42 +199,86 @@ func Test_getMetricName(t *testing.T) {
 			ResourceType:        metadata.VolumePool,
 		}
 
-		hydratedM := entity.HydratedMetric{
+		hydratedM := &entity.HydratedMetric{
 			Metadata:     rm,
 			MeasuredType: metadata.UnknownMeasuredType,
 			Quantity:     float64(1234),
 			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
 		}
 
-		metricName, err := client.GetMetricName(hydratedM.MeasuredType, hydratedM.Metadata.ResourceType)
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+		metricName, err := client.GetMetricName(googleMetric)
 		assert.Error(t, err)
 		assert.Empty(t, metricName)
 	})
 }
 
+// Test GetMetricName with unsupported resource type/measured type combination
+func Test_GetMetricName_UnsupportedCombination(t *testing.T) {
+	config := common.LoadConfig()
+	ctx := context.Background()
+	client := NewGoogleMetricsClient(ctx, "", config)
+
+	// Create a hydrated metric with a combination that doesn't exist in the mapping
+	rm := metadata.ResourceMetadata{
+		ResourceUUID:        nillable.ToPointer(uuid.New().String()),
+		ResourceName:        nillable.ToPointer("dummy-resource"),
+		ResourceDisplayName: nillable.ToPointer("Dummy Resource"),
+		AccountName:         nillable.ToPointer("test-account"),
+		RegionName:          nillable.ToPointer("us-central1"),
+		ResourceType:        metadata.CBS, // This combination CBS + LogicalSize doesn't exist in the mapping
+	}
+
+	hydratedM := &entity.HydratedMetric{
+		Metadata:     rm,
+		MeasuredType: metadata.LogicalSize,
+		Quantity:     float64(1234),
+		Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+	}
+
+	googleMetric := *common.NewGoogleMetric(hydratedM)
+	metricName, err := client.GetMetricName(googleMetric)
+
+	assert.Error(t, err)
+	assert.Empty(t, metricName)
+	assert.Contains(t, err.Error(), "unsupported measured type or resource type received")
+}
+
 func Test_partitionMetrics(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
 	t.Run("Multiple metric types", func(t *testing.T) {
 		metrics := createDummyGoogleMetrics(3)
-		partitionedMetrics := partitionMetrics(metrics)
+		partitionedMetrics := partitionMetrics(metrics, logger)
 		require.Len(t, partitionedMetrics, 3)
 	})
 
 	t.Run("Empty metrics", func(t *testing.T) {
-		var metrics []entity.HydratedMetric
-		partitionedMetrics := partitionMetrics(metrics)
+		var metrics []common.GoogleMetric
+		partitionedMetrics := partitionMetrics(metrics, logger)
 		require.Len(t, partitionedMetrics, 1)
 		assert.Empty(t, partitionedMetrics[0])
 	})
 }
 
 func Test_partitionMetrics_duplicates(t *testing.T) {
-	metrics := []entity.HydratedMetric{
-		{MeasuredType: metadata.PoolAllocatedSize},
-		{MeasuredType: metadata.UnknownMeasuredType},
-		{MeasuredType: metadata.PoolAllocatedSize},
-		{MeasuredType: metadata.UnknownMeasuredType},
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
+	// Create GoogleMetrics with different MeasuredTypes by creating HydratedMetrics first
+	hm1 := &entity.HydratedMetric{MeasuredType: metadata.PoolAllocatedSize}
+	hm2 := &entity.HydratedMetric{MeasuredType: metadata.UnknownMeasuredType}
+	hm3 := &entity.HydratedMetric{MeasuredType: metadata.PoolAllocatedSize}
+	hm4 := &entity.HydratedMetric{MeasuredType: metadata.UnknownMeasuredType}
+
+	metrics := []common.GoogleMetric{
+		*common.NewGoogleMetric(hm1),
+		*common.NewGoogleMetric(hm2),
+		*common.NewGoogleMetric(hm3),
+		*common.NewGoogleMetric(hm4),
 	}
-	partitions := partitionMetrics(metrics)
+	partitions := partitionMetrics(metrics, logger)
 	assert.True(t, len(partitions) > 1)
 	all := 0
 	for _, p := range partitions {
@@ -238,11 +288,18 @@ func Test_partitionMetrics_duplicates(t *testing.T) {
 }
 
 func Test_partitionMetrics_singleType(t *testing.T) {
-	metrics := []entity.HydratedMetric{
-		{MeasuredType: metadata.PoolAllocatedSize},
-		{MeasuredType: metadata.PoolAllocatedSize},
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
+	// Create GoogleMetrics with same MeasuredType
+	hm1 := &entity.HydratedMetric{MeasuredType: metadata.PoolAllocatedSize}
+	hm2 := &entity.HydratedMetric{MeasuredType: metadata.PoolAllocatedSize}
+
+	metrics := []common.GoogleMetric{
+		*common.NewGoogleMetric(hm1),
+		*common.NewGoogleMetric(hm2),
 	}
-	partitions := partitionMetrics(metrics)
+	partitions := partitionMetrics(metrics, logger)
 	assert.Len(t, partitions, 2)
 	for _, p := range partitions {
 		assert.Len(t, p, 1)
@@ -281,6 +338,48 @@ func Test_toGoogleProject(t *testing.T) {
 		result := toGoogleProject(customerId)
 		assert.Equal(t, expected, result)
 	})
+}
+
+// Test toGoogleProject edge cases
+func Test_toGoogleProject_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "Already prefixed with project:",
+			input:    "project:my-project",
+			expected: "project:my-project",
+		},
+		{
+			name:     "Already prefixed with project_number:",
+			input:    "project_number:123456789",
+			expected: "project_number:123456789",
+		},
+		{
+			name:     "Numeric customer ID",
+			input:    "123456789",
+			expected: "project_number:123456789",
+		},
+		{
+			name:     "Non-numeric customer ID",
+			input:    "my-project-name",
+			expected: "project:my-project-name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := toGoogleProject(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 func Test_startsWith(t *testing.T) {
@@ -435,11 +534,12 @@ func TestSetCommonLabelsScenarios(t *testing.T) {
 		consumerId := "123456"
 		dataCenter := "us-central1"
 		resourceId := "resource123"
-		googleMetric := entity.HydratedMetric{
+		hydratedMetric := &entity.HydratedMetric{
 			Metadata: metadata.ResourceMetadata{
 				ResourceDisplayName: nillable.ToPointer("Test Resource"),
 			},
 		}
+		googleMetric := *common.NewGoogleMetric(hydratedMetric)
 
 		err := SetCommonLabels(op, consumerId, dataCenter, resourceId, googleMetric)
 		require.NoError(t, err)
@@ -453,11 +553,12 @@ func TestSetCommonLabelsScenarios(t *testing.T) {
 		consumerId := "123456"
 		dataCenter := "us-central1"
 		resourceId := "resource123"
-		googleMetric := entity.HydratedMetric{
+		hydratedMetric := &entity.HydratedMetric{
 			Metadata: metadata.ResourceMetadata{
 				ResourceDisplayName: nil,
 			},
 		}
+		googleMetric := *common.NewGoogleMetric(hydratedMetric)
 
 		err := SetCommonLabels(op, consumerId, dataCenter, resourceId, googleMetric)
 		require.NoError(t, err)
@@ -468,11 +569,12 @@ func TestSetCommonLabelsScenarios(t *testing.T) {
 		consumerId := ""
 		dataCenter := "us-central1"
 		resourceId := "resource123"
-		googleMetric := entity.HydratedMetric{
+		hydratedMetric := &entity.HydratedMetric{
 			Metadata: metadata.ResourceMetadata{
 				ResourceDisplayName: nillable.ToPointer("Test Resource"),
 			},
 		}
+		googleMetric := *common.NewGoogleMetric(hydratedMetric)
 
 		err := SetCommonLabels(op, consumerId, dataCenter, resourceId, googleMetric)
 		require.NoError(t, err)
@@ -486,11 +588,12 @@ func TestSetCommonLabelsScenarios(t *testing.T) {
 		consumerId := "123456"
 		dataCenter := ""
 		resourceId := "resource123"
-		googleMetric := entity.HydratedMetric{
+		hydratedMetric := &entity.HydratedMetric{
 			Metadata: metadata.ResourceMetadata{
 				ResourceDisplayName: nillable.ToPointer("Test Resource"),
 			},
 		}
+		googleMetric := *common.NewGoogleMetric(hydratedMetric)
 
 		err := SetCommonLabels(op, consumerId, dataCenter, resourceId, googleMetric)
 		require.NoError(t, err)
@@ -523,7 +626,8 @@ func Test_createMetricValueSet(t *testing.T) {
 	t.Run("CreateMetricValue returns error", func(t *testing.T) {
 		// Pass a metric that will cause CreateMetricValue to error
 		metrics := createDummyGoogleMetrics(1)
-		metrics[0].MeasuredType = "invalid_type"
+		hydratedMetric, _ := metrics[0].GetAsHydratedMetric()
+		hydratedMetric.MeasuredType = "invalid_type"
 		// Patch client to error for this type if needed, or rely on implementation
 		_, _ = client.createMetricValueSet("metric", metrics)
 		// Accept either error or not, depending on implementation
@@ -534,32 +638,53 @@ func Test_createMetricValueSet(t *testing.T) {
 }
 
 func Test_hasDuplicateMeasuredTypes(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
 	metrics := createDummyGoogleMetrics(3)
-	// Ensure all MeasuredTypes are unique
-	metrics[0].MeasuredType = metadata.PoolAllocatedSize
-	metrics[1].MeasuredType = metadata.UnknownMeasuredType
-	metrics[2].MeasuredType = "SOME_OTHER_MEASURED_TYPE" // Replace with a real one if available
-	assert.False(t, hasDuplicateMeasuredTypes(metrics))
+	// Ensure all MeasuredTypes are unique by modifying the underlying HydratedMetrics
+	hm1, _ := metrics[0].GetAsHydratedMetric()
+	hm1.MeasuredType = metadata.PoolAllocatedSize
+	hm2, _ := metrics[1].GetAsHydratedMetric()
+	hm2.MeasuredType = metadata.UnknownMeasuredType
+	hm3, _ := metrics[2].GetAsHydratedMetric()
+	hm3.MeasuredType = metadata.FileSystemReadOps
+
+	assert.False(t, hasDuplicateMeasuredTypes(metrics, logger))
 	// Add a duplicate MeasuredType
 	metrics = append(metrics, metrics[0])
-	assert.True(t, hasDuplicateMeasuredTypes(metrics))
+	assert.True(t, hasDuplicateMeasuredTypes(metrics, logger))
 }
 
 func Test_flattenDroppedMetrics(t *testing.T) {
-	dropped := map[metadata.MeasuredType][]entity.HydratedMetric{
-		"type1": createDummyGoogleMetrics(2),
-		"type2": createDummyGoogleMetrics(1),
+	// Create GoogleMetrics and convert to HydratedMetrics for dropped metrics map
+	googleMetrics1 := createDummyGoogleMetrics(2)
+	googleMetrics2 := createDummyGoogleMetrics(1)
+
+	// Convert GoogleMetrics to HydratedMetrics for the dropped map
+	hydratedMetrics1 := make([]common.GoogleMetric, len(googleMetrics1))
+	for i, gm := range googleMetrics1 {
+		hydratedMetrics1[i] = gm
+	}
+	hydratedMetrics2 := make([]common.GoogleMetric, len(googleMetrics2))
+	for i, gm := range googleMetrics2 {
+		hydratedMetrics2[i] = gm
+	}
+
+	dropped := map[metadata.MeasuredType][]common.GoogleMetric{
+		"type1": hydratedMetrics1,
+		"type2": hydratedMetrics2,
 	}
 	result := flattenDroppedMetrics(dropped)
 	assert.Len(t, result, 3)
 
-	empty := map[metadata.MeasuredType][]entity.HydratedMetric{}
+	empty := map[metadata.MeasuredType][]common.GoogleMetric{}
 	result = flattenDroppedMetrics(empty)
 	assert.Empty(t, result)
 }
 
 func Test_flattenDroppedMetrics_nilInput(t *testing.T) {
-	var dropped map[metadata.MeasuredType][]entity.HydratedMetric
+	var dropped map[metadata.MeasuredType][]common.GoogleMetric
 	result := flattenDroppedMetrics(dropped)
 	assert.Nil(t, result)
 }
@@ -568,9 +693,10 @@ func Test_CreateMetricValue_Timestamps(t *testing.T) {
 	config := common.LoadConfig()
 	ctx := context.Background()
 	client := NewGoogleMetricsClient(ctx, "", config)
-	metric := createDummyGoogleMetrics(1)[0]
-	metric.Timestamp = entity.UnixNano(time.Now().UnixNano())
-	mv, err := client.CreateMetricValue(metric)
+	googleMetric := createDummyGoogleMetrics(1)[0]
+	hydratedMetric, _ := googleMetric.GetAsHydratedMetric()
+	hydratedMetric.Timestamp = entity.UnixNano(time.Now().UnixNano())
+	mv, err := client.CreateMetricValue(googleMetric)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, mv.StartTime)
 	assert.NotEmpty(t, mv.EndTime)
@@ -598,9 +724,10 @@ func Test_CreateMetricValue_NegativeQuantity(t *testing.T) {
 	config := common.LoadConfig()
 	ctx := context.Background()
 	client := NewGoogleMetricsClient(ctx, "", config)
-	metric := createDummyGoogleMetrics(1)[0]
-	metric.Quantity = -42
-	mv, err := client.CreateMetricValue(metric)
+	googleMetric := createDummyGoogleMetrics(1)[0]
+	hydratedMetric, _ := googleMetric.GetAsHydratedMetric()
+	hydratedMetric.Quantity = -42
+	mv, err := client.CreateMetricValue(googleMetric)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(-42), *mv.Int64Value)
 }
@@ -609,9 +736,61 @@ func Test_CreateMetricValue_ZeroQuantity(t *testing.T) {
 	config := common.LoadConfig()
 	ctx := context.Background()
 	client := NewGoogleMetricsClient(ctx, "", config)
-	metric := createDummyGoogleMetrics(1)[0]
-	metric.Quantity = 0
-	mv, err := client.CreateMetricValue(metric)
+	googleMetric := createDummyGoogleMetrics(1)[0]
+	hydratedMetric, _ := googleMetric.GetAsHydratedMetric()
+	hydratedMetric.Quantity = 0
+	mv, err := client.CreateMetricValue(googleMetric)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), *mv.Int64Value)
+}
+
+// Test CreateMetricValue with error cases
+func Test_CreateMetricValue_ErrorHandling(t *testing.T) {
+	config := common.LoadConfig()
+	ctx := context.Background()
+	client := NewGoogleMetricsClient(ctx, "", config)
+
+	t.Run("GetEndTime error for billing metric", func(t *testing.T) {
+		// Create an invalid billing metric that will cause GetEndTime to fail
+		invalidGoogleMetric := common.NewGoogleMetric("invalid-record")
+
+		mv, err := client.CreateMetricValue(*invalidGoogleMetric)
+		assert.Error(t, err)
+		assert.Nil(t, mv)
+	})
+}
+
+// Test error paths in SetCommonLabels
+func Test_SetCommonLabels_ErrorPaths(t *testing.T) {
+	// Create test data
+	customerID := "test-customer"
+	validBillingMetric := common.NewGoogleMetric(&datamodel.AggregatedUsage{
+		VendorCustomerID: &customerID,
+		MeasuredType:     metadata.LogicalSize,
+	})
+
+	accountName := "test-account"
+	validHydratedMetric := common.NewGoogleMetric(&entity.HydratedMetric{
+		Metadata: metadata.ResourceMetadata{
+			AccountName:         &accountName,
+			ResourceDisplayName: nillable.ToPointer("test-resource"),
+		},
+		MeasuredType: metadata.LogicalSize,
+	})
+
+	op := &Operation{}
+
+	t.Run("Billing metric labels", func(t *testing.T) {
+		err := SetCommonLabels(op, customerID, "us-central1", "resource-123", *validBillingMetric)
+		assert.NoError(t, err)
+		assert.Equal(t, "us-central1", op.Labels["cloud.googleapis.com/location"])
+	})
+
+	t.Run("Hydrated metric labels", func(t *testing.T) {
+		err := SetCommonLabels(op, customerID, "us-central1", "resource-123", *validHydratedMetric)
+		assert.NoError(t, err)
+		assert.Equal(t, "us-central1", op.Labels["location"])
+		assert.Equal(t, "projects/"+customerID, op.Labels["resource_container"])
+		assert.Equal(t, "test-resource", op.Labels["name"])
+	})
 }

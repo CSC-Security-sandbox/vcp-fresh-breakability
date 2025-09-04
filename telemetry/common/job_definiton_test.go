@@ -1,21 +1,20 @@
-package aggregator
+package common
 
 import (
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
 func TestDefaultAggregationJobDefinitions(t *testing.T) {
 	// Test that the default job definitions are not empty
-	assert.NotEmpty(t, common.DefaultAggregationJobDefinitions, "Default aggregation job definitions should not be empty")
+	assert.NotEmpty(t, DefaultAggregationJobDefinitions, "Default aggregation job definitions should not be empty")
 
 	// Test that at least one resource type has job definitions
 	foundDefinitions := false
-	for key := range common.DefaultAggregationJobDefinitions {
+	for key := range DefaultAggregationJobDefinitions {
 		if key.ResourceType == metadata.Volume {
 			foundDefinitions = true
 			break
@@ -49,8 +48,8 @@ func TestIsBillableMetric(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := common.IsBillableMetric(ctx, tt.resourceType, tt.measuredType)
-			assert.Equal(t, tt.expected, got, "isBillableMetric returned unexpected value")
+			got := IsBillableMetric(ctx, tt.resourceType, tt.measuredType)
+			assert.Equal(t, tt.expected, got, "IsBillableMetric returned unexpected value")
 		})
 	}
 }
@@ -62,9 +61,9 @@ func TestGetJobDefinition(t *testing.T) {
 		MeasuredType: metadata.AllocatedSize,
 	}
 
-	job, exists := common.DefaultAggregationJobDefinitions[key]
+	job, exists := DefaultAggregationJobDefinitions[key]
 	assert.True(t, exists, "Should find job definition for volume allocated size")
-	assert.Equal(t, common.IntegralAggregation, job.AggregationType, "Job should have correct aggregation type")
+	assert.Equal(t, IntegralAggregation, job.AggregationType, "Job should have correct aggregation type")
 	assert.Equal(t, false, job.IsBillable, "Job should have correct billable flag")
 
 	// Test looking up a job definition that doesn't exist
@@ -73,7 +72,7 @@ func TestGetJobDefinition(t *testing.T) {
 		MeasuredType: metadata.UnknownMeasuredType,
 	}
 
-	_, exists = common.DefaultAggregationJobDefinitions[nonExistingKey]
+	_, exists = DefaultAggregationJobDefinitions[nonExistingKey]
 	assert.False(t, exists, "Should not find job definition for non-existing combination")
 }
 
@@ -87,8 +86,8 @@ func TestInitBillableMetricsMap(t *testing.T) {
 		MeasuredType: metadata.AllocatedSize,
 	}
 
-	jobDef, exists := common.DefaultAggregationJobDefinitions[key]
+	jobDef, exists := DefaultAggregationJobDefinitions[key]
 	assert.True(t, exists, "Default job definitions should contain entry for Volume-AllocatedSize")
 	assert.Equal(t, false, jobDef.IsBillable, "Volume-AllocatedSize should match the billable flag in DefaultAggregationJobDefinitions")
-	assert.Equal(t, common.IntegralAggregation, jobDef.AggregationType, "Volume-AllocatedSize should have correct aggregation type")
+	assert.Equal(t, IntegralAggregation, jobDef.AggregationType, "Volume-AllocatedSize should have correct aggregation type")
 }

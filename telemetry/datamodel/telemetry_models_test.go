@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
@@ -68,7 +67,7 @@ func TestAggregatedUsage(t *testing.T) {
 
 		usage := AggregatedUsage{
 			ID:                     1,
-			AccountUuid:            &accountUuid,
+			VendorCustomerID:       &accountUuid,
 			AggregationStart:       start,
 			AggregationEnd:         end,
 			MeasuredType:           metadata.MeasuredType("ALLOCATED_SIZE"),
@@ -85,7 +84,7 @@ func TestAggregatedUsage(t *testing.T) {
 			UpdatedAt:              end,
 			ReplicationDstVolumeID: &replicationDstVolumeID,
 			DoubleEncryption:       &doubleEncryption,
-			State:                  common.Unsubmitted,
+			State:                  Unsubmitted,
 			ErrorCount:             0,
 			ErrorMessage:           &errorMessage,
 			Submission:             &submission,
@@ -94,7 +93,7 @@ func TestAggregatedUsage(t *testing.T) {
 
 		// Verify all fields with assertions
 		assert.Equal(t, int64(1), usage.ID)
-		assert.Equal(t, "123e4567-e89b-12d3-a456-426614174000", *usage.AccountUuid)
+		assert.Equal(t, "123e4567-e89b-12d3-a456-426614174000", *usage.VendorCustomerID)
 		assert.Equal(t, start, usage.AggregationStart)
 		assert.Equal(t, end, usage.AggregationEnd)
 		assert.Equal(t, metadata.MeasuredType("ALLOCATED_SIZE"), usage.MeasuredType)
@@ -111,7 +110,7 @@ func TestAggregatedUsage(t *testing.T) {
 		assert.Equal(t, end, usage.UpdatedAt)
 		assert.Equal(t, "dst-vol-1", *usage.ReplicationDstVolumeID)
 		assert.True(t, *usage.DoubleEncryption)
-		assert.Equal(t, common.Unsubmitted, usage.State)
+		assert.Equal(t, Unsubmitted, usage.State)
 		assert.Equal(t, int32(0), usage.ErrorCount)
 		assert.Equal(t, "", *usage.ErrorMessage)
 		assert.Equal(t, "sub-123", *usage.Submission)
@@ -129,7 +128,7 @@ func TestAggregatedUsage(t *testing.T) {
 			Quantity:         50.0,
 			ResourceType:     metadata.ResourceType("VOLUME"),
 			AggregationType:  "DAILY",
-			State:            common.Submitted,
+			State:            Submitted,
 			CreatedAt:        now,
 			UpdatedAt:        now,
 		}
@@ -137,12 +136,12 @@ func TestAggregatedUsage(t *testing.T) {
 		assert.Equal(t, int64(100), usage.ID)
 		assert.Equal(t, metadata.MeasuredType("THROUGHPUT"), usage.MeasuredType)
 		assert.Equal(t, metadata.ResourceType("VOLUME"), usage.ResourceType)
-		assert.Equal(t, common.Submitted, usage.State)
+		assert.Equal(t, Submitted, usage.State)
 		assert.Equal(t, 50.0, usage.Quantity)
 		assert.Equal(t, "DAILY", usage.AggregationType)
 
 		// Verify nil pointer fields are nil
-		assert.Nil(t, usage.AccountUuid)
+		assert.Nil(t, usage.VendorCustomerID)
 		assert.Nil(t, usage.ResourceName)
 		assert.Nil(t, usage.LastCounterValue)
 		assert.Nil(t, usage.RegionName)

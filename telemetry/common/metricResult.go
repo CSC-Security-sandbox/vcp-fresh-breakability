@@ -1,21 +1,20 @@
 package common
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"google.golang.org/api/servicecontrol/v1"
 )
 
 type ReportResponse servicecontrol.ReportResponse
 
 type MetricsResult struct {
-	GoogleMetric   entity.HydratedMetric
+	GoogleMetric   GoogleMetric
 	ReportResponse *ReportResponse
 	OperationID    string
 	OperationName  string
 	Exception      error
 }
 
-func NewGoogleMetricsResultWithResponse(googleMetric entity.HydratedMetric, reportResponse *ReportResponse, operationID string) *MetricsResult {
+func NewGoogleMetricsResultWithResponse(googleMetric GoogleMetric, reportResponse *ReportResponse, operationID string) *MetricsResult {
 	return &MetricsResult{
 		GoogleMetric:   googleMetric,
 		ReportResponse: reportResponse,
@@ -23,7 +22,7 @@ func NewGoogleMetricsResultWithResponse(googleMetric entity.HydratedMetric, repo
 	}
 }
 
-func NewGoogleMetricsResultWithException(googleMetric entity.HydratedMetric, exception error, operationID string) *MetricsResult {
+func NewGoogleMetricsResultWithException(googleMetric GoogleMetric, exception error, operationID string) *MetricsResult {
 	return &MetricsResult{
 		GoogleMetric: googleMetric,
 		OperationID:  operationID,
@@ -31,7 +30,7 @@ func NewGoogleMetricsResultWithException(googleMetric entity.HydratedMetric, exc
 	}
 }
 
-func (g *MetricsResult) GetGoogleMetric() entity.HydratedMetric {
+func (g *MetricsResult) GetGoogleMetric() GoogleMetric {
 	return g.GoogleMetric
 }
 
