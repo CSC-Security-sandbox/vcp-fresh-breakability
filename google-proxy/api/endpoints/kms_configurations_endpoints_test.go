@@ -538,7 +538,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
-		
+
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -583,7 +583,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
-		
+
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -627,7 +627,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
-		
+
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -671,7 +671,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
-		
+
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -701,7 +701,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		
+
 		// Mock successful CVP response
 		mockResponse := &kms_configurations.V1betaCreateKmsConfigurationAccepted{
 			Payload: &models.OperationV1beta{
@@ -718,7 +718,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
 		// Mock orchestrator CreateKmsConfig to return error
 		mockOrchestrator.EXPECT().CreateKmsConfig(mock.Anything, mock.Anything).Return(nil, "", errors.New("orchestrator failed to create kms config"))
-		
+
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -3776,7 +3776,7 @@ func TestConvertErrorToKmsConfigCheckV1beta_ReturnsUnhealthyWithErrorMessage(t *
 
 func TestCategorizeCvpClientErrorsForUpdate(t *testing.T) {
 	logger := log.NewLogger()
-	
+
 	t.Run("ReturnsBadRequestOnBadRequestError", func(t *testing.T) {
 		code := float64(400)
 		msg := "bad request"

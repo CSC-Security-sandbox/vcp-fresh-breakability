@@ -330,7 +330,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 			params.TieringSupported = nillable.GetBoolPtr(true)
 		}
 	} else {
-		params.Aggregates = []string{aggregateName}
+		params.Aggregates = []string{AggregateName}
 	}
 
 	if utils.IsFileProtocolSupported(volume.Account.Name) && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {

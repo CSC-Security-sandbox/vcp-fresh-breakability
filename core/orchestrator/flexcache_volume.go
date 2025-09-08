@@ -98,6 +98,15 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		}
 	}
 
+	if params.CacheParameters != nil {
+		volumeObj.CacheParameters = &datamodel.CacheParameters{
+			PeerSvmName:     params.CacheParameters.PeerSvmName,
+			PeerVolumeName:  params.CacheParameters.PeerVolumeName,
+			PeerClusterName: params.CacheParameters.PeerClusterName,
+			PeerIpAddresses: params.CacheParameters.PeerIPAddresses,
+		}
+	}
+
 	dbVolume, err := se.CreateVolume(ctx, volumeObj)
 	if err != nil {
 		return nil, "", err
@@ -119,7 +128,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
-		logger.Error("Failed to create job in database", "error", err)
+		logger.Errorf("Failed to create job in database, error: %v", err)
 		return nil, "", err
 	}
 
@@ -142,7 +151,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		dbVolume,
 	)
 	if err != nil {
-		logger.Error("Failed to start create FlexCache volume workflow: ", "error", err)
+		logger.Errorf("Failed to start create FlexCache volume workflow, error: %v", err)
 		return nil, "", err
 	}
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil

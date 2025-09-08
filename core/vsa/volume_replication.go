@@ -961,8 +961,8 @@ func (rc *OntapRestProvider) GetReplicationDetails(ctx context.Context, volRep *
 	return volRep, nil
 }
 
-func (provider *OntapRestProvider) GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error) {
-	client, err := getOntapClientFunc(provider.ClientParams)
+func (rc *OntapRestProvider) GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
 		return nil, err
 	}

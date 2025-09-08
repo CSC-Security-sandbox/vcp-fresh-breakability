@@ -265,3 +265,32 @@ func TestNodeNodeGroupMap_Fields(t *testing.T) {
 	assert.Equal(t, createdAt, m.CreatedAt)
 	assert.Equal(t, updatedAt, m.UpdatedAt)
 }
+
+func TestCacheParameters(t *testing.T) {
+	t.Run("ValueSuccess", func(tt *testing.T) {
+		cp := CacheParameters{
+			PeerClusterName: "cluster-name",
+		}
+		val, err := cp.Value()
+		assert.NoError(tt, err)
+		assert.Equal(tt, `{"peer_volume_name":"","peer_cluster_name":"cluster-name","peer_svm_name":"","peer_ip_addresses":null}`, string(val.([]byte)))
+	})
+	t.Run("ScanSuccess", func(tt *testing.T) {
+		var cp CacheParameters
+		err := cp.Scan([]byte(`{"peer_cluster_name": "cluster-name"}`))
+		assert.NoError(tt, err)
+		assert.Equal(tt, "cluster-name", cp.PeerClusterName)
+	})
+	t.Run("ScanError", func(tt *testing.T) {
+		var cp CacheParameters
+		err := cp.Scan([]byte(`invalid json`))
+		assert.Error(tt, err)
+		assert.Equal(tt, CacheParameters{}, cp)
+	})
+	t.Run("ScanNil", func(tt *testing.T) {
+		var cp CacheParameters
+		err := cp.Scan(nil)
+		assert.NoError(tt, err)
+		assert.Equal(tt, CacheParameters{}, cp)
+	})
+}

@@ -144,6 +144,15 @@ type CreateVolumeParams struct {
 	TieringSupported    *bool
 }
 
+type CreateFlexCacheVolumeParams struct {
+	Name             string
+	OriginSVMName    string
+	OriginVolumeName string
+	AggregateName    string
+	SvmName          string
+	JunctionPath     *string
+}
+
 type ExportPolicy struct {
 	ExportPolicyName string
 	SvmName          string

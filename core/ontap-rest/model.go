@@ -2101,6 +2101,28 @@ type VolumeCreateParams struct {
 	TieringSupported               *bool
 }
 
+type FlexCacheVolumeCreateParams struct {
+	Name                     string
+	SvmName                  string
+	Size                     *int64
+	Aggregates               []string
+	OriginSvmName            string
+	OriginVolumeName         string
+	Path                     *string
+	AtimeScrubEnabled        *bool
+	AtimeScrubPeriod         *int16
+	CifsChangeNotifyEnabled  *bool
+	GlobalFileLockingEnabled *bool
+	Prepopulate              *PrepopulateConfig
+	WritebackEnabled         *bool
+}
+
+type PrepopulateConfig struct {
+	DirPaths        []*string
+	ExcludeDirPaths []*string
+	Recurse         *bool
+}
+
 // TieringPolicy describes the auto tiering policy for a volume
 type TieringPolicy struct {
 	CoolAccessTieringPolicy string
@@ -2227,6 +2249,64 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 			Supported: params.TieringSupported,
 		}
 	}
+	return otParams
+}
+
+func flexCacheVolumeCreateParamsToONTAP(params *FlexCacheVolumeCreateParams) *storage.FlexcacheCreateParams {
+	otParams := storage.NewFlexcacheCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	flexCache := &models.Flexcache{
+		Name: &params.Name,
+		Svm: &models.FlexcacheInlineSvm{
+			Name: &params.SvmName,
+		},
+		Size: params.Size,
+		FlexcacheInlineOrigins: []*models.FlexcacheRelationship{
+			{
+				Svm: &models.FlexcacheRelationshipInlineSvm{
+					Name: &params.OriginSvmName,
+				},
+				Volume: &models.FlexcacheRelationshipInlineVolume{
+					Name: &params.OriginVolumeName,
+				},
+			},
+		},
+		Path: params.Path,
+		AtimeScrub: &models.FlexcacheInlineAtimeScrub{
+			Enabled: params.AtimeScrubEnabled,
+			Period:  params.AtimeScrubPeriod,
+		},
+		CifsChangeNotify: &models.FlexcacheInlineCifsChangeNotify{
+			Enabled: params.CifsChangeNotifyEnabled,
+		},
+		GlobalFileLockingEnabled: params.GlobalFileLockingEnabled,
+		Writeback: &models.FlexcacheInlineWriteback{
+			Enabled: params.WritebackEnabled,
+		},
+	}
+
+	if params.Prepopulate != nil {
+		flexCache.Prepopulate = &models.FlexcacheInlinePrepopulate{
+			DirPaths:        params.Prepopulate.DirPaths,
+			ExcludeDirPaths: params.Prepopulate.ExcludeDirPaths,
+			Recurse:         params.Prepopulate.Recurse,
+		}
+	}
+
+	otParams.SetInfo(flexCache)
+
+	for _, aggregate := range params.Aggregates {
+		otParams.Info.FlexcacheInlineAggregates = append(otParams.Info.FlexcacheInlineAggregates,
+			&models.FlexcacheInlineAggregatesInlineArrayItem{
+				Name: nillable.ToPointer(aggregate),
+			})
+	}
+
+	otParams.SetReturnTimeout(&returnTimeout)
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
 	return otParams
 }
 

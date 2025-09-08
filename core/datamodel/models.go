@@ -789,3 +789,19 @@ type CacheParameters struct {
 	PeerSvmName     string   `json:"peer_svm_name"`
 	PeerIpAddresses []string `json:"peer_ip_addresses"`
 }
+
+func (cp *CacheParameters) Scan(value interface{}) error {
+	if value == nil {
+		*cp = CacheParameters{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, cp)
+}
+
+func (cp CacheParameters) Value() (driver.Value, error) {
+	return json.Marshal(cp)
+}

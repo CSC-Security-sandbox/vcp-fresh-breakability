@@ -746,6 +746,64 @@ func (_c *MockProvider_CreateExportPolicy_Call) RunAndReturn(run func(*ExportPol
 	return _c
 }
 
+// CreateFlexCacheVolume provides a mock function with given fields: params
+func (_m *MockProvider) CreateFlexCacheVolume(params CreateFlexCacheVolumeParams) (*VolumeResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateFlexCacheVolume")
+	}
+
+	var r0 *VolumeResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(CreateFlexCacheVolumeParams) (*VolumeResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(CreateFlexCacheVolumeParams) *VolumeResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(CreateFlexCacheVolumeParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateFlexCacheVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateFlexCacheVolume'
+type MockProvider_CreateFlexCacheVolume_Call struct {
+	*mock.Call
+}
+
+// CreateFlexCacheVolume is a helper method to define mock.On call
+//   - params CreateFlexCacheVolumeParams
+func (_e *MockProvider_Expecter) CreateFlexCacheVolume(params interface{}) *MockProvider_CreateFlexCacheVolume_Call {
+	return &MockProvider_CreateFlexCacheVolume_Call{Call: _e.mock.On("CreateFlexCacheVolume", params)}
+}
+
+func (_c *MockProvider_CreateFlexCacheVolume_Call) Run(run func(params CreateFlexCacheVolumeParams)) *MockProvider_CreateFlexCacheVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(CreateFlexCacheVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateFlexCacheVolume_Call) Return(_a0 *VolumeResponse, _a1 error) *MockProvider_CreateFlexCacheVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateFlexCacheVolume_Call) RunAndReturn(run func(CreateFlexCacheVolumeParams) (*VolumeResponse, error)) *MockProvider_CreateFlexCacheVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateKmsConfig provides a mock function with given fields: params
 func (_m *MockProvider) CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error) {
 	ret := _m.Called(params)

@@ -17,7 +17,7 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			logger := log.NewLogger()
-			
+
 			ontapPath := extractOntapPath(req.URL.Path)
 			if ontapPath == "" {
 				logger.Error("Could not extract ONTAP path")
@@ -60,9 +60,9 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
-				ModifyResponse: func(resp *http.Response) error {
+		ModifyResponse: func(resp *http.Response) error {
 			logger := log.NewLogger()
-			
+
 			if ctx := resp.Request.Context().Value("ruleContext"); ctx != nil {
 				if action, ok := ctx.(actions.IAction); ok {
 					if err := action.ProcessResponse(resp); err != nil {
@@ -133,7 +133,7 @@ func buildTargetURL(ontapAddress, ontapPath, rawQuery string) string {
 
 func logCurlCommand(req *http.Request, targetURL string) {
 	logger := log.NewLogger()
-	
+
 	curlCmd := fmt.Sprintf("curl -X %s", req.Method)
 
 	for key, values := range req.Header {

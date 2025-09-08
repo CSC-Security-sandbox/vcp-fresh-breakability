@@ -451,7 +451,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			PeerVolumeName:  reqCacheProperties.PeerVolumeName,
 			PeerClusterName: reqCacheProperties.PeerClusterName,
 			PeerSvmName:     reqCacheProperties.PeerSvmName,
-			PeerAddresses:   reqCacheProperties.PeerIpAddresses,
+			PeerIPAddresses: reqCacheProperties.PeerIpAddresses,
 		}
 	}
 

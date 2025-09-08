@@ -30,6 +30,7 @@ type Provider interface {
 	CreateDataLIF(params CreateLifParams) (*Lif, error)
 	CreateNetworkIpRoute(params CreateNetworkIPRouteParams) error
 	CreateVolume(params CreateVolumeParams) (*VolumeResponse, error)
+	CreateFlexCacheVolume(params CreateFlexCacheVolumeParams) (*VolumeResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error)

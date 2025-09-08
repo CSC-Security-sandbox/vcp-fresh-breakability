@@ -999,6 +999,98 @@ func TestVolumeCreateParamsToONTAPWithTieringPolicy(t *testing.T) {
 	})
 }
 
+func Test_flexCacheVolumeCreateParamsToONTAP(t *testing.T) {
+	t.Run("AllParamsProvided", func(tt *testing.T) {
+		dir1 := "dir1"
+		dir2 := "dir2"
+		exclude1 := "ex1"
+		recurse := true
+		size := int64(12345)
+		atimeScrubEnabled := true
+		atimeScrubPeriod := int16(7)
+		cifsChangeNotifyEnabled := true
+		globalFileLockingEnabled := true
+		writebackEnabled := true
+		params := &FlexCacheVolumeCreateParams{
+			Name:                     "fcvol",
+			SvmName:                  "svm1",
+			Size:                     &size,
+			Aggregates:               []string{"aggr1", "aggr2"},
+			OriginSvmName:            "originSvm",
+			OriginVolumeName:         "originVol",
+			Path:                     nillable.ToPointer("/custom/path"),
+			AtimeScrubEnabled:        &atimeScrubEnabled,
+			AtimeScrubPeriod:         &atimeScrubPeriod,
+			CifsChangeNotifyEnabled:  &cifsChangeNotifyEnabled,
+			GlobalFileLockingEnabled: &globalFileLockingEnabled,
+			Prepopulate: &PrepopulateConfig{
+				DirPaths:        []*string{&dir1, &dir2},
+				ExcludeDirPaths: []*string{&exclude1},
+				Recurse:         &recurse,
+			},
+			WritebackEnabled: &writebackEnabled,
+		}
+		ot := flexCacheVolumeCreateParamsToONTAP(params)
+
+		assert.Equal(tt, params.Name, *ot.Info.Name)
+		assert.Equal(tt, params.SvmName, *ot.Info.Svm.Name)
+		assert.Equal(tt, params.OriginSvmName, *ot.Info.FlexcacheInlineOrigins[0].Svm.Name)
+		assert.Equal(tt, params.OriginVolumeName, *ot.Info.FlexcacheInlineOrigins[0].Volume.Name)
+
+		// assert path
+		assert.Equal(tt, params.Path, ot.Info.Path)
+
+		// assert writeback, cifs, global file locking, atime scrub
+		assert.Equal(tt, params.WritebackEnabled, ot.Info.Writeback.Enabled)
+		assert.Equal(tt, params.CifsChangeNotifyEnabled, ot.Info.CifsChangeNotify.Enabled)
+		assert.Equal(tt, params.GlobalFileLockingEnabled, ot.Info.GlobalFileLockingEnabled)
+		assert.Equal(tt, params.AtimeScrubEnabled, ot.Info.AtimeScrub.Enabled)
+		assert.Equal(tt, params.AtimeScrubPeriod, ot.Info.AtimeScrub.Period)
+
+		// assert prepopulate fields
+		assert.Equal(tt, params.Prepopulate.DirPaths, ot.Info.Prepopulate.DirPaths)
+		assert.Equal(tt, params.Prepopulate.ExcludeDirPaths, ot.Info.Prepopulate.ExcludeDirPaths)
+		assert.Equal(tt, params.Prepopulate.Recurse, ot.Info.Prepopulate.Recurse)
+	})
+
+	t.Run("PrepopulateMissing", func(tt *testing.T) {
+		params := &FlexCacheVolumeCreateParams{
+			Name:       "fcvol",
+			SvmName:    "svm1",
+			Aggregates: []string{"aggr1"},
+		}
+		ot := flexCacheVolumeCreateParamsToONTAP(params)
+		assert.Nil(tt, ot.Info.Prepopulate)
+	})
+
+	t.Run("AggregatesTable", func(tt *testing.T) {
+		tests := []struct {
+			name    string
+			aggs    []string
+			wantLen int
+		}{
+			{"zero aggregates", nil, 0},
+			{"one aggregate", []string{"aggr1"}, 1},
+			{"multiple aggregates", []string{"aggr1", "aggr2", "aggr3"}, 3},
+		}
+		for _, test := range tests {
+			tt.Run(test.name, func(ttt *testing.T) {
+				params := &FlexCacheVolumeCreateParams{
+					Name:       "fcvol",
+					SvmName:    "svm1",
+					Aggregates: test.aggs,
+				}
+				ot := flexCacheVolumeCreateParamsToONTAP(params)
+				assert.Len(ttt, ot.Info.FlexcacheInlineAggregates, test.wantLen)
+			})
+		}
+	})
+
+	t.Run("ParamsNil", func(tt *testing.T) {
+		ot := flexCacheVolumeCreateParamsToONTAP(nil)
+		assert.Nil(tt, ot.Info)
+	})
+}
 func TestIscsiServiceGetParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
 		result := iscsiServiceGetParamsToONTAP(nil)

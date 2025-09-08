@@ -379,7 +379,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Pool: &datamodel.Pool{},
 		}, nil)
 		store.EXPECT().CreateJob(ctx, mock.Anything).Return(nil, assert.AnError)
-		mockLogger.EXPECT().Error("Failed to create job in database", "error", mock.Anything)
+		mockLogger.EXPECT().Errorf("Failed to create job in database, error: %v", mock.Anything)
 
 		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
 		assert.Nil(tt, volume)
@@ -421,7 +421,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			temporal, ctx, mock.Anything,
 			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume) error"),
 			mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
-		mockLogger.EXPECT().Error("Failed to start create FlexCache volume workflow: ", "error", assert.AnError)
+		mockLogger.EXPECT().Errorf("Failed to start create FlexCache volume workflow, error: %v", assert.AnError)
 
 		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
 		assert.Nil(tt, volume)
@@ -504,16 +504,16 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
+			AccountName:    "test_account",
+			Region:         "test_region",
+			Name:           "test_volume",
+			VendorID:       "test_vendor",
+			QuotaInBytes:   minQuotaInBytesPool,
+			Protocols:      []string{"NFS"},
+			Description:    "Some description",
+			DisplayName:    "Some display name",
+			PoolID:         "test-pool-uuid",
+			CreationToken:  "test-creation-token",
 			FileProperties: &models.FileProperties{
 				// No ExportPolicy set
 			},

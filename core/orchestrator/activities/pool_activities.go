@@ -108,8 +108,7 @@ type InternalVSANetwork struct {
 }
 
 const (
-	aggregateName  = "aggr1"
-	DefaultSvmName = "gcnv"
+	AggregateName = "aggr1"
 
 	FirewallPriority        = 1000
 	IngressTrafficDirection = "INGRESS"
@@ -133,8 +132,7 @@ const (
 
 	iscsiDataFirewallName = "ingress-data-iscsi"
 
-	DefaultDataFiles = "default-data-files"
-	AllowAllPorts    = "all"
+	AllowAllPorts = "all"
 )
 
 // Minimum allowed values for SPConfig throughput (in MiBs) and IOPS.

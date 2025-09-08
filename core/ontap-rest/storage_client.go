@@ -34,6 +34,7 @@ type StorageClient interface {
 	VolumeCollectionGet(params *VolumeCollectionGetParams, ucbf UserCallbackFunc[[]*Volume]) error
 	VolumeModify(params *VolumeModifyParams) (bool, *JobAccepted, error)
 	VolumeCreate(params *VolumeCreateParams) (*Volume, *JobAccepted, error)
+	FlexCacheVolumeCreate(params *FlexCacheVolumeCreateParams) (*Flexcache, *JobAccepted, error)
 	VolumeDelete(params *VolumeDeleteParams) error
 
 	SnapshotCreate(params *SnapshotCreateParams) (*Snapshot, *JobAccepted, error)
@@ -448,6 +449,39 @@ func (sc *storageClient) VolumeCreate(params *VolumeCreateParams) (*Volume, *Job
 	}
 
 	return &Volume{Volume: *accepted.Payload.Records[0]}, &JobAccepted{
+		JobUUID: string(*accepted.Payload.Job.UUID),
+	}, nil
+}
+
+// FlexCacheVolumeCreate invokes pkg/ontap-rest/client/storage/Client.VolumeCreate
+func (sc *storageClient) FlexCacheVolumeCreate(params *FlexCacheVolumeCreateParams) (*Flexcache, *JobAccepted, error) {
+	created, accepted, err := sc.api.FlexcacheCreate(flexCacheVolumeCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	noInfoError := "unexpected response from server while creating FlexCache volume - received no FlexCache volume info"
+	notExactlyOneError := "unexpected response from server while creating FlexCache volume - did not receive exactly one FlexCache volume"
+	if created != nil {
+		if len(created.Payload.Records) == 0 {
+			return nil, nil, errors.New(noInfoError)
+		}
+
+		if len(created.Payload.Records) > 1 {
+			return nil, nil, errors.New(notExactlyOneError)
+		}
+		return &Flexcache{Flexcache: *created.Payload.Records[0]}, nil, nil
+	}
+
+	if len(accepted.Payload.Records) == 0 {
+		return nil, nil, errors.New(noInfoError)
+	}
+
+	if len(accepted.Payload.Records) > 1 {
+		return nil, nil, errors.New(notExactlyOneError)
+	}
+
+	return &Flexcache{Flexcache: *accepted.Payload.Records[0]}, &JobAccepted{
 		JobUUID: string(*accepted.Payload.Job.UUID),
 	}, nil
 }
