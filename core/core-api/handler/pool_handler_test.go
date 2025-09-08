@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 )
 
-func TestV1betaGetOntapCredentials(t *testing.T) {
+func TestV1GetOntapCredentials(t *testing.T) {
 	t.Run("WhenSuccessful", func(t *testing.T) {
 		// Setup
 		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
@@ -23,11 +23,15 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 		poolID := "test-pool-uuid"
 		accountName := "test-account"
 		userName := "test-user"
-		poolCredentials := &datamodel.PoolCredentials{
+		poolCredentials := &models.UserCredentials{
 			SecretID:      "test-secret-id",
 			CertificateID: "test-cert-id",
 			Password:      "test-password",
 			AuthType:      1,
+			OntapEndpoints: []models.OntapEndpoint{
+				{IP: "10.0.0.1", DNS: "host1.example.com"},
+				{IP: "10.0.0.2", DNS: "host2.example.com"},
+			},
 		}
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
@@ -41,7 +45,7 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1betaGetOntapCredentials(ctx, params)
+		result, err := handler.V1GetOntapCredentials(ctx, params)
 
 		// Assert
 		assert.NoError(t, err)
@@ -60,6 +64,11 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 		assert.Equal(t, "test-password", response.Password.Value)
 		assert.True(t, response.AuthType.IsSet())
 		assert.Equal(t, 1, response.AuthType.Value)
+		assert.Len(t, response.OntapEndpoints, 2)
+		assert.Equal(t, "10.0.0.1", response.OntapEndpoints[0].IP)
+		assert.Equal(t, "host1.example.com", response.OntapEndpoints[0].DNS)
+		assert.Equal(t, "10.0.0.2", response.OntapEndpoints[1].IP)
+		assert.Equal(t, "host2.example.com", response.OntapEndpoints[1].DNS)
 	})
 	t.Run("WhenAccountNameMissing", func(t *testing.T) {
 		// Setup
@@ -74,7 +83,7 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1betaGetOntapCredentials(ctx, params)
+		result, err := handler.V1GetOntapCredentials(ctx, params)
 
 		// Assert
 		assert.NoError(t, err)
@@ -108,7 +117,7 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1betaGetOntapCredentials(ctx, params)
+		result, err := handler.V1GetOntapCredentials(ctx, params)
 
 		// Assert
 		assert.NoError(t, err)
@@ -142,7 +151,7 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1betaGetOntapCredentials(ctx, params)
+		result, err := handler.V1GetOntapCredentials(ctx, params)
 
 		// Assert
 		assert.NoError(t, err)
@@ -176,7 +185,7 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1betaGetOntapCredentials(ctx, params)
+		result, err := handler.V1GetOntapCredentials(ctx, params)
 
 		// Assert
 		assert.NoError(t, err)
@@ -198,11 +207,12 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 		poolID := "test-pool-uuid"
 		accountName := "test-account"
 		userName := "test-user"
-		poolCredentials := &datamodel.PoolCredentials{
-			SecretID:      "",
-			CertificateID: "",
-			Password:      "",
-			AuthType:      0,
+		poolCredentials := &models.UserCredentials{
+			SecretID:       "",
+			CertificateID:  "",
+			Password:       "",
+			AuthType:       0,
+			OntapEndpoints: []models.OntapEndpoint{},
 		}
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
@@ -216,7 +226,7 @@ func TestV1betaGetOntapCredentials(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1betaGetOntapCredentials(ctx, params)
+		result, err := handler.V1GetOntapCredentials(ctx, params)
 
 		// Assert
 		assert.NoError(t, err)

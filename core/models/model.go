@@ -114,3 +114,16 @@ type Certificate struct {
 	InterMediateCertificates []string
 	CommonName               string
 }
+
+type OntapEndpoint struct {
+	IP  string `json:"ip"`
+	DNS string `json:"dns"`
+}
+
+type UserCredentials struct {
+	SecretID       string          `json:"secret_id"`
+	CertificateID  string          `json:"certificate_id"`
+	Password       string          `json:"password"`
+	AuthType       int             `json:"auth_type"`
+	OntapEndpoints []OntapEndpoint `json:"ontap_endpoints"`
+}

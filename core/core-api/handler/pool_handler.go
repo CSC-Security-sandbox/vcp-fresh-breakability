@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -15,7 +16,7 @@ func (h Handler) V1betaDescribePool(ctx context.Context, params oasgenserver.V1G
 	}, nil
 }
 
-func (h Handler) V1betaGetOntapCredentials(ctx context.Context, params oasgenserver.V1GetOntapCredentialsParams) (oasgenserver.V1GetOntapCredentialsRes, error) {
+func (h Handler) V1GetOntapCredentials(ctx context.Context, params oasgenserver.V1GetOntapCredentialsParams) (oasgenserver.V1GetOntapCredentialsRes, error) {
 	// Get account name from query parameters
 	if !params.AccountName.IsSet() {
 		return &oasgenserver.V1GetOntapCredentialsBadRequest{
@@ -41,10 +42,42 @@ func (h Handler) V1betaGetOntapCredentials(ctx context.Context, params oasgenser
 		}, nil
 	}
 
+	if poolCredentials == nil {
+		return &oasgenserver.V1GetOntapCredentialsNotFound{
+			Message: "Pool credentials not found",
+			Code:    404,
+		}, nil
+	}
+
+	ontapCreds := convertUserCredentialsToOntapCredentialsV1(poolCredentials)
+	return ontapCreds, nil
+}
+
+func convertUserCredentialsToOntapCredentialsV1(poolCredentials *models.UserCredentials) *oasgenserver.OntapCredentialsV1 {
+	if poolCredentials == nil {
+		return nil
+	}
+
+	secretID := oasgenserver.NewOptString(poolCredentials.SecretID)
+	certificateID := oasgenserver.NewOptString(poolCredentials.CertificateID)
+	password := oasgenserver.NewOptString(poolCredentials.Password)
+	authType := oasgenserver.NewOptInt(poolCredentials.AuthType)
+
+	var endpointMappings []oasgenserver.OntapEndpoint
+	if poolCredentials.OntapEndpoints != nil {
+		for _, mapping := range poolCredentials.OntapEndpoints {
+			endpointMappings = append(endpointMappings, oasgenserver.OntapEndpoint{
+				IP:  mapping.IP,
+				DNS: mapping.DNS,
+			})
+		}
+	}
+
 	return &oasgenserver.OntapCredentialsV1{
-		SecretID:      oasgenserver.NewOptString(poolCredentials.SecretID),
-		CertificateID: oasgenserver.NewOptString(poolCredentials.CertificateID),
-		Password:      oasgenserver.NewOptString(poolCredentials.Password),
-		AuthType:      oasgenserver.NewOptInt(poolCredentials.AuthType),
-	}, nil
+		SecretID:       secretID,
+		CertificateID:  certificateID,
+		Password:       password,
+		AuthType:       authType,
+		OntapEndpoints: endpointMappings,
+	}
 }

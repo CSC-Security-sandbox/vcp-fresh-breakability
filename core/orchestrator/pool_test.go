@@ -3428,22 +3428,46 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 				SecretID:      "test-secret-id",
 				CertificateID: "test-cert-id",
 				Password:      "test-password",
-				AuthType:      1,
+				AuthType:      2, // USER_CERTIFICATE
 			},
 		}
 		err = store.DB().Create(pool).Error
 		assert.NoError(t, err)
 
-		// Execute
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "test-node-1-uuid"},
+			Name:            "test-node-1",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.1",
+			HostDNSName:     "host1.example.com",
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(t, err)
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 2, UUID: "test-node-2-uuid"},
+			Name:            "test-node-2",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.2",
+			HostDNSName:     "host2.example.com",
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(t, err)
+
 		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
 
-		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, credentials)
 		assert.Equal(t, "test-secret-id", credentials.SecretID)
 		assert.Equal(t, "test-cert-id", credentials.CertificateID)
 		assert.Equal(t, "test-password", credentials.Password)
-		assert.Equal(t, 1, credentials.AuthType)
+		assert.Equal(t, 2, credentials.AuthType)
+		assert.NotNil(t, credentials.OntapEndpoints)
+		assert.Len(t, credentials.OntapEndpoints, 2)
+		assert.Equal(t, "10.0.0.1", credentials.OntapEndpoints[0].IP)
+		assert.Equal(t, "host1.example.com", credentials.OntapEndpoints[0].DNS)
+		assert.Equal(t, "10.0.0.2", credentials.OntapEndpoints[1].IP)
+		assert.Equal(t, "host2.example.com", credentials.OntapEndpoints[1].DNS)
 	})
 	t.Run("WhenAccountNotFound", func(t *testing.T) {
 		ctx, _, orch, _ := setup(t)

@@ -760,6 +760,8 @@ type OntapCredentialsV1 struct {
 	Password OptString `json:"password"`
 	// The authentication type.
 	AuthType OptInt `json:"auth_type"`
+	// Array of endpoint address to host name mappings.
+	OntapEndpoints []OntapEndpoint `json:"ontapEndpoints"`
 }
 
 // GetSecretID returns the value of SecretID.
@@ -782,6 +784,11 @@ func (s *OntapCredentialsV1) GetAuthType() OptInt {
 	return s.AuthType
 }
 
+// GetOntapEndpoints returns the value of OntapEndpoints.
+func (s *OntapCredentialsV1) GetOntapEndpoints() []OntapEndpoint {
+	return s.OntapEndpoints
+}
+
 // SetSecretID sets the value of SecretID.
 func (s *OntapCredentialsV1) SetSecretID(val OptString) {
 	s.SecretID = val
@@ -802,7 +809,40 @@ func (s *OntapCredentialsV1) SetAuthType(val OptInt) {
 	s.AuthType = val
 }
 
+// SetOntapEndpoints sets the value of OntapEndpoints.
+func (s *OntapCredentialsV1) SetOntapEndpoints(val []OntapEndpoint) {
+	s.OntapEndpoints = val
+}
+
 func (*OntapCredentialsV1) v1GetOntapCredentialsRes() {}
+
+// Ref: #/components/schemas/ontapEndpoint
+type OntapEndpoint struct {
+	// The IP address of the endpoint.
+	IP string `json:"ip"`
+	// The DNS name of the endpoint.
+	DNS string `json:"dns"`
+}
+
+// GetIP returns the value of IP.
+func (s *OntapEndpoint) GetIP() string {
+	return s.IP
+}
+
+// GetDNS returns the value of DNS.
+func (s *OntapEndpoint) GetDNS() string {
+	return s.DNS
+}
+
+// SetIP sets the value of IP.
+func (s *OntapEndpoint) SetIP(val string) {
+	s.IP = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *OntapEndpoint) SetDNS(val string) {
+	s.DNS = val
+}
 
 // Ref: #/components/schemas/Operation_v1
 type OperationV1 struct {

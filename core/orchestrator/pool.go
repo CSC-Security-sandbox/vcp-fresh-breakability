@@ -667,7 +667,7 @@ func convertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
 	return result
 }
 
-func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolId string, accountName string, userName string) (*datamodel.PoolCredentials, error) {
+func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolId string, accountName string, userName string) (*models.UserCredentials, error) {
 	se := o.storage
 
 	account, err := getAccountWithName(ctx, se, accountName)
@@ -680,6 +680,42 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolId string
 		return nil, err
 	}
 
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO: Return expert mode credentials when VLM changes are available
-	return pool.PoolCredentials, nil
+	if pool.PoolCredentials == nil {
+		return nil, nil
+	}
+
+	useHostDNS := pool.PoolCredentials.AuthType == env.USER_CERTIFICATE
+	endpointMappings := buildOntapEndpoints(nodes, useHostDNS)
+
+	result := &models.UserCredentials{
+		SecretID:       pool.PoolCredentials.SecretID,
+		CertificateID:  pool.PoolCredentials.CertificateID,
+		Password:       pool.PoolCredentials.Password,
+		AuthType:       pool.PoolCredentials.AuthType,
+		OntapEndpoints: endpointMappings,
+	}
+
+	return result, nil
+}
+
+func buildOntapEndpoints(nodes []*datamodel.Node, useHostDNS bool) []models.OntapEndpoint {
+	var endpointMappings []models.OntapEndpoint
+	for _, node := range nodes {
+		mapping := models.OntapEndpoint{
+			IP: node.EndpointAddress,
+		}
+		if useHostDNS {
+			mapping.DNS = node.HostDNSName
+		} else {
+			mapping.DNS = node.EndpointAddress
+		}
+		endpointMappings = append(endpointMappings, mapping)
+	}
+	return endpointMappings
 }

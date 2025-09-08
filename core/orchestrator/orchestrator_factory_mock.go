@@ -2101,23 +2101,23 @@ func (_c *MockOrchestratorFactory_GetBackupsUnderBackupVault_Call) RunAndReturn(
 }
 
 // GetExpertModePoolCreds provides a mock function with given fields: ctx, poolId, accountName, userName
-func (_m *MockOrchestratorFactory) GetExpertModePoolCreds(ctx context.Context, poolId string, accountName string, userName string) (*datamodel.PoolCredentials, error) {
+func (_m *MockOrchestratorFactory) GetExpertModePoolCreds(ctx context.Context, poolId string, accountName string, userName string) (*models.UserCredentials, error) {
 	ret := _m.Called(ctx, poolId, accountName, userName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetExpertModePoolCreds")
 	}
 
-	var r0 *datamodel.PoolCredentials
+	var r0 *models.UserCredentials
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*datamodel.PoolCredentials, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*models.UserCredentials, error)); ok {
 		return rf(ctx, poolId, accountName, userName)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *datamodel.PoolCredentials); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *models.UserCredentials); ok {
 		r0 = rf(ctx, poolId, accountName, userName)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.PoolCredentials)
+			r0 = ret.Get(0).(*models.UserCredentials)
 		}
 	}
 
@@ -2151,12 +2151,12 @@ func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) Run(run func(ctx 
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) Return(_a0 *datamodel.PoolCredentials, _a1 error) *MockOrchestratorFactory_GetExpertModePoolCreds_Call {
+func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) Return(_a0 *models.UserCredentials, _a1 error) *MockOrchestratorFactory_GetExpertModePoolCreds_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.PoolCredentials, error)) *MockOrchestratorFactory_GetExpertModePoolCreds_Call {
+func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) RunAndReturn(run func(context.Context, string, string, string) (*models.UserCredentials, error)) *MockOrchestratorFactory_GetExpertModePoolCreds_Call {
 	_c.Call.Return(run)
 	return _c
 }

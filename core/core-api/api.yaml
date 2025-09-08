@@ -1540,6 +1540,34 @@ components:
           type: integer
           description: The authentication type
           example: 1
+        ontapEndpoints:
+          title: ontapEndpoints
+          type: array
+          items:
+            $ref: '#/components/schemas/ontapEndpoint'
+          description: Array of endpoint address to host name mappings
+          example:
+            - ip: "10.0.0.1"
+              dns: "host1.example.com"
+            - ip: "10.0.0.2"
+              dns: "host2.example.com"
+    ontapEndpoint:
+      title: ontapEndpoint
+      type: object
+      properties:
+        ip:
+          title: ip
+          type: string
+          description: The IP address of the endpoint
+          example: "10.0.0.1"
+        dns:
+          title: dns
+          type: string
+          description: The DNS name of the endpoint
+          example: "host1.example.com"
+      required:
+        - ip
+        - dns
   responses:
     StandardError-400:
       description: Bad request

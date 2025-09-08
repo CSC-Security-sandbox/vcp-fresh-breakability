@@ -246,6 +246,32 @@ func (s *OntapCredentialsV1) SetFake() {
 			s.AuthType.SetFake()
 		}
 	}
+	{
+		{
+			s.OntapEndpoints = nil
+			for i := 0; i < 0; i++ {
+				var elem OntapEndpoint
+				{
+					elem.SetFake()
+				}
+				s.OntapEndpoints = append(s.OntapEndpoints, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *OntapEndpoint) SetFake() {
+	{
+		{
+			s.IP = "string"
+		}
+	}
+	{
+		{
+			s.DNS = "string"
+		}
+	}
 }
 
 // SetFake set fake values.
