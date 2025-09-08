@@ -10243,6 +10243,182 @@ func (s *Server) handleV1betaInternalStopVolumeReplicationRequest(args [3]string
 	}
 }
 
+// handleV1betaInternalUpdateVolumeRequest handles v1beta_internalUpdateVolume operation.
+//
+// Update the volume (Internal endpoint).
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+func (s *Server) handleV1betaInternalUpdateVolumeRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_internalUpdateVolume"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaInternalUpdateVolumeOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaInternalUpdateVolumeOperation,
+			ID:   "v1beta_internalUpdateVolume",
+		}
+	)
+	params, err := decodeV1betaInternalUpdateVolumeParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaInternalUpdateVolumeRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaInternalUpdateVolumeRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaInternalUpdateVolumeOperation,
+			OperationSummary: "Update a volume (Internal)",
+			OperationID:      "v1beta_internalUpdateVolume",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *VolumeUpdateV1beta
+			Params   = V1betaInternalUpdateVolumeParams
+			Response = V1betaInternalUpdateVolumeRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaInternalUpdateVolumeParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaInternalUpdateVolume(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaInternalUpdateVolume(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeV1betaInternalUpdateVolumeResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaInternalUpdateVolumeReplicationRequest handles v1beta_internalUpdateVolumeReplication operation.
 //
 // Update the volume replication.

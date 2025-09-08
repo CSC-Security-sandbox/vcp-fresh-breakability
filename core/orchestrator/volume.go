@@ -1208,12 +1208,34 @@ func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []strin
 	return result, nil
 }
 
-// UpdateVolume updates the specified volume with the new parameters
-func (o *Orchestrator) UpdateVolume(ctx context.Context, param *common.UpdateVolumeParams) (*models.Volume, string, error) {
-	return updateVolume(ctx, o.storage, o.temporal, param)
+func (o *Orchestrator) UpdateVolumeV2(ctx context.Context, param *common.UpdateVolumeParams) (*models.Volume, string, error) {
+	logger := util.GetLogger(ctx)
+	se := o.storage
+	dbVolume, err := se.GetVolume(ctx, param.VolumeId)
+	if err != nil {
+		return nil, "", err
+	}
+
+	isReplication := false
+	count, err := se.GetVolumeReplicationCountByVolumeID(ctx, dbVolume.ID)
+	if err != nil {
+		logger.Error("Failed to get volume replication", "error", err)
+		return nil, "", err
+	}
+
+	if count != 0 {
+		isReplication = true
+	}
+
+	return updateVolume(ctx, se, o.temporal, param, isReplication)
 }
 
-func _updateVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateVolumeParams) (*models.Volume, string, error) {
+// UpdateVolume updates the specified volume with the new parameters
+func (o *Orchestrator) UpdateVolume(ctx context.Context, param *common.UpdateVolumeParams) (*models.Volume, string, error) {
+	return updateVolume(ctx, o.storage, o.temporal, param, false)
+}
+
+func _updateVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateVolumeParams, isReplication bool) (*models.Volume, string, error) {
 	logger := util.GetLogger(ctx)
 
 	dbVolume, err := se.GetVolume(ctx, params.VolumeId)
@@ -1278,6 +1300,12 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
+	wf := workflows.UpdateVolumeWorkflow
+	if isReplication {
+		job.Type = string(models.JobTypeUpdateVolumeInReplication)
+		wf = workflows.UpdateVolumeInReplicationWorkflow
+	}
+
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create volume update job in database", "error", err)
@@ -1326,7 +1354,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
-		workflows.UpdateVolumeWorkflow,
+		wf,
 		params,
 		dbVolume,
 	)

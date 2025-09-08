@@ -77,7 +77,7 @@ type RevertVolumeParams struct {
 type CreateVolumeParams struct {
 	AccountName                 string
 	Region                      string
-	Zone              			string
+	Zone                        string
 	Name                        string
 	Description                 string
 	Network                     string
@@ -100,9 +100,9 @@ type CreateVolumeParams struct {
 	BackupID                    string
 	LargeCapacity               bool
 	BackupPath                  string
-	BackupSchedule    			string
+	BackupSchedule              string
 	Labels                      *datamodel.JSONB
-	CacheParameters   			*models.CacheParameters
+	CacheParameters             *models.CacheParameters
 	LargeVolumeConstituentCount int32
 }
 
@@ -159,6 +159,7 @@ type UpdateVolumeParams struct {
 	AutoTieringPolicy *AutoTieringPolicy
 	FileProperties    *models.FileProperties
 	BackupSchedule    string
+	CorrelationID     string
 }
 
 type CreateLunMapParams struct {
@@ -567,4 +568,21 @@ type UpdateVolumeReplicationAttributesParams struct {
 	Zone                   string
 	VolumeReplicationId    string
 	UpdateAttributesParams *models.UpdateVolumeReplicationAttributesParams
+}
+
+type ProjectInfo struct {
+	ProjectNumber string
+	Region        string
+	Location      string
+	JwtToken      string
+	BasePath      string
+	PoolUUID      string
+	VolumeUUID    string
+}
+
+type VolumeUpdateEventParams struct {
+	URI           string
+	CorrelationID string
+	Local         ProjectInfo
+	Remote        ProjectInfo
 }

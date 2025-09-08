@@ -5827,6 +5827,7 @@ func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
 func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
 func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()          {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
+func (*OperationV1beta) v1betaInternalUpdateVolumeRes()                      {}
 func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
 func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
@@ -17709,6 +17710,31 @@ type V1betaInternalStopVolumeReplicationUnprocessableEntity Error
 func (*V1betaInternalStopVolumeReplicationUnprocessableEntity) v1betaInternalStopVolumeReplicationRes() {
 }
 
+type V1betaInternalUpdateVolumeBadRequest Error
+
+func (*V1betaInternalUpdateVolumeBadRequest) v1betaInternalUpdateVolumeRes() {}
+
+type V1betaInternalUpdateVolumeConflict Error
+
+func (*V1betaInternalUpdateVolumeConflict) v1betaInternalUpdateVolumeRes() {}
+
+type V1betaInternalUpdateVolumeForbidden Error
+
+func (*V1betaInternalUpdateVolumeForbidden) v1betaInternalUpdateVolumeRes() {}
+
+type V1betaInternalUpdateVolumeInternalServerError Error
+
+func (*V1betaInternalUpdateVolumeInternalServerError) v1betaInternalUpdateVolumeRes() {}
+
+// V1betaInternalUpdateVolumeNoContent is response for V1betaInternalUpdateVolume operation.
+type V1betaInternalUpdateVolumeNoContent struct{}
+
+func (*V1betaInternalUpdateVolumeNoContent) v1betaInternalUpdateVolumeRes() {}
+
+type V1betaInternalUpdateVolumeNotFound Error
+
+func (*V1betaInternalUpdateVolumeNotFound) v1betaInternalUpdateVolumeRes() {}
+
 type V1betaInternalUpdateVolumeReplicationAttributesBadRequest Error
 
 func (*V1betaInternalUpdateVolumeReplicationAttributesBadRequest) v1betaInternalUpdateVolumeReplicationAttributesRes() {
@@ -17789,6 +17815,18 @@ type V1betaInternalUpdateVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalUpdateVolumeReplicationUnprocessableEntity) v1betaInternalUpdateVolumeReplicationRes() {
 }
+
+type V1betaInternalUpdateVolumeTooManyRequests Error
+
+func (*V1betaInternalUpdateVolumeTooManyRequests) v1betaInternalUpdateVolumeRes() {}
+
+type V1betaInternalUpdateVolumeUnauthorized Error
+
+func (*V1betaInternalUpdateVolumeUnauthorized) v1betaInternalUpdateVolumeRes() {}
+
+type V1betaInternalUpdateVolumeUnprocessableEntity Error
+
+func (*V1betaInternalUpdateVolumeUnprocessableEntity) v1betaInternalUpdateVolumeRes() {}
 
 type V1betaListActiveDirectoriesBadRequest Error
 

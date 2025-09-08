@@ -633,8 +633,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												args[1],
 												args[2],
 											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleV1betaInternalUpdateVolumeRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
 										default:
-											s.notAllowed(w, r, "GET")
+											s.notAllowed(w, r, "GET,PUT")
 										}
 
 										return
@@ -2865,6 +2871,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											r.name = V1betaInternalDescribeVolumeOperation
 											r.summary = "Describe a volume"
 											r.operationID = "v1beta_internalDescribeVolume"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "PUT":
+											r.name = V1betaInternalUpdateVolumeOperation
+											r.summary = "Update a volume (Internal)"
+											r.operationID = "v1beta_internalUpdateVolume"
 											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
 											r.args = args
 											r.count = 3

@@ -362,7 +362,7 @@ func TestUpdateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		}).Return(nil)
 
 		// Execute test
-		_, _, err := _updateVolume(ctx, mockStorage, mockTemporal, params)
+		_, _, err := _updateVolume(ctx, mockStorage, mockTemporal, params, false)
 
 		// Assertions
 		assert.Error(tt, err)
@@ -1123,7 +1123,7 @@ func TestUpdateVolume_FailedJobUpdateOnError_Line1163(t *testing.T) {
 		}).Return(nil)
 
 		// Execute test
-		_, _, err := _updateVolume(ctx, mockStorage, mockTemporal, params)
+		_, _, err := _updateVolume(ctx, mockStorage, mockTemporal, params, false)
 
 		// Assertions
 		assert.Error(tt, err)
@@ -1206,7 +1206,7 @@ func TestUpdateVolume_FailedVolumeUpdateOnError_Line1185(t *testing.T) {
 		}).Return(volumeUpdateErr)
 
 		// Execute test
-		_, _, err := _updateVolume(ctx, mockStorage, mockTemporal, params)
+		_, _, err := _updateVolume(ctx, mockStorage, mockTemporal, params, false)
 
 		// Assertions
 		assert.Error(tt, err)

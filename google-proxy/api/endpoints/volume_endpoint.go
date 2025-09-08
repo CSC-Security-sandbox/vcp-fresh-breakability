@@ -509,7 +509,7 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
-	volume, jobUUID, err := h.Orchestrator.UpdateVolume(ctx, param)
+	volume, jobUUID, err := h.Orchestrator.UpdateVolumeV2(ctx, param)
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			return &gcpgenserver.V1betaUpdateVolumeConflict{
@@ -563,6 +563,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		PoolID:         req.PoolId.Value,
 		VolumeId:       params.VolumeId,
 		BackupSchedule: backupSchedule,
+		CorrelationID:  params.XCorrelationID.Value,
 	}
 
 	if req.Description.IsSet() {

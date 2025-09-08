@@ -577,6 +577,15 @@ func (UnimplementedHandler) V1betaInternalStopVolumeReplication(ctx context.Cont
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalUpdateVolume implements v1beta_internalUpdateVolume operation.
+//
+// Update the volume (Internal endpoint).
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+func (UnimplementedHandler) V1betaInternalUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaInternalUpdateVolumeParams) (r V1betaInternalUpdateVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalUpdateVolumeReplication implements v1beta_internalUpdateVolumeReplication operation.
 //
 // Update the volume replication.

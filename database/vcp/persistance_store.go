@@ -457,6 +457,10 @@ func (s *PersistenceStore) GetVolumeReplicationCount(ctx context.Context, accoun
 	return s.dataStore.GetVolumeReplicationCount(ctx, accountName)
 }
 
+func (s *PersistenceStore) GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error) {
+	return s.dataStore.GetVolumeReplicationCountByVolumeID(ctx, volumeID)
+}
+
 func (s *PersistenceStore) ListVolumeReplications(ctx context.Context, filter dbutils.Filter) ([]*datamodel.VolumeReplication, error) {
 	return s.dataStore.ListVolumeReplications(ctx, filter)
 }

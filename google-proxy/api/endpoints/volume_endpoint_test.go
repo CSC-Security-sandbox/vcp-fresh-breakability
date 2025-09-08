@@ -1941,7 +1941,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			QuotaInBytes:   107374182499,
 		}
 		jobUUID := "job-uuid"
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -2033,7 +2033,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
 		}
 
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
+		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -2057,7 +2057,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
 		}
 
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
+		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.Nil(tt, err)
@@ -2081,7 +2081,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
 		}
 
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume update conflict"))
+		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume update conflict"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -2109,7 +2109,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			LifeCycleState: "UPDATING",
 		}
 		jobUUID := "job-uuid"
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -2147,7 +2147,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			QuotaInBytes:   107374182400,
 		}
 		jobUUID := "job-uuid"
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -2183,7 +2183,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			QuotaInBytes:   107374182400,
 		}
 		jobUUID := "job-uuid"
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)

@@ -8751,6 +8751,51 @@ func (s *V1betaInternalStopVolumeReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaInternalUpdateVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateVolumeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaInternalUpdateVolumeReplicationAttributesBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -8892,6 +8937,33 @@ func (s *V1betaInternalUpdateVolumeReplicationUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaInternalUpdateVolumeReplicationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateVolumeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateVolumeUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

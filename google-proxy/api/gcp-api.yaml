@@ -2701,6 +2701,107 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - v1Beta_internal
+      summary: Update a volume (Internal)
+      description: Update the volume (Internal endpoint)
+      operationId: v1beta_internalUpdateVolume
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: volumeId
+          in: path
+          description: Uuid v4 used to identify the volume
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      requestBody:
+        description: The parameters that can be updated
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeUpdate_v1beta'
+        required: true
+      responses:
+        "202":
+          description: Updating volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location/operations/775a1ae3-fbf9-8104-a912-4f592d64692f
+                response:
+                  resourceId: my-volume
+                  volumeId: 87ace4c4-7344-37f6-ad08-80aa6a1c1ef8
+                  createdAt: 2025-08-25T11:42:53+05:30
+                  creationToken: some-volume
+                  poolId: 0984deb4-0026-7232-0355-25f123fb7c71
+                  poolResourceId: pool-name
+                  network: projects/123456789/global/networks/systemic-qa-vpc
+                  serviceLevel: FLEX
+                  usedBytes: 0
+                  quotaInBytes: 107374182400
+                  snapReserve: 0
+                  snapshotDirectory: false
+                  volumeState: UPDATING
+                  volumeStateDetails: Update in progress
+                  isDataProtection: false
+                  snapshotPolicy:
+                    enabled: false
+                    hourlySchedule: { }
+                    dailySchedule: { }
+                    weeklySchedule: { }
+                    monthlySchedule: { }
+                  storageClass: SOFTWARE
+                  backupConfig:
+                    backupPolicyId: ""
+                    backupVaultId: ""
+                    scheduledBackupEnabled: false
+                    backupChainBytes: 0
+                  blockDevices:
+                    - name: lun_testvolume
+                      identifier: 6c573830345d596e6159574b
+                      sizeInBytes: 107373867008
+                      osType: LINUX
+                  protocols:
+                    - ISCSI
+                  labels: { }
+                  encryptionType: SERVICE_MANAGED
+                  description: My Volume description
+                  zone: some-zone-a
+        "204":
+          description: No content
+          content: { }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/count:
     get:
       operationId: v1beta_getVolumeCount
@@ -8288,8 +8389,7 @@ components:
           readOnly: true
           example: cluster peer create -peer-addrs 10.196.0.1 -initial-allowed-vserver-peers
             svm_87654321463811e79bdb123456789012_a1b2c3d4
-        peeringCommandExpiryTime:
-          title: peeringCommandExpiryTime
+        commandExpiryTime:
           type: string
           description: DateTime value for when cluster peering command should expire.
           format: date-time
@@ -8321,7 +8421,7 @@ components:
           description: Flag indicating whether the atime based scrub is enabled for
             the FlexCache volume.
           nullable: true
-        atimeScrubDays:
+        atimeScrubMinutes:
           maximum: 1000
           minimum: 1
           type: integer

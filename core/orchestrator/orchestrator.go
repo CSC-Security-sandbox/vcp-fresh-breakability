@@ -34,6 +34,7 @@ type OrchestratorFactory interface {
 	RevertVolume(ctx context.Context, params *commonparams.RevertVolumeParams) (*models.Volume, string, error)
 	GetVolume(ctx context.Context, volumeId string, updateVolumeMetrics bool) (*models.Volume, error)
 	UpdateVolume(ctx context.Context, param *commonparams.UpdateVolumeParams) (*models.Volume, string, error)
+	UpdateVolumeV2(ctx context.Context, param *commonparams.UpdateVolumeParams) (*models.Volume, string, error)
 	GetVolumeCount(ctx context.Context, projectNumber string) (int64, error)
 	DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error)
 	GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error)

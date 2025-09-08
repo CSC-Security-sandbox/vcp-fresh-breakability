@@ -497,3 +497,64 @@ func (h Handler) V1betaInternalDescribeVolume(ctx context.Context, params gcpgen
 	res.SvmName = gcpgenserver.NewOptNilString(volume.SvmName)
 	return &res, nil
 }
+
+func (h Handler) V1betaInternalUpdateVolume(ctx context.Context, req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaInternalUpdateVolumeParams) (gcpgenserver.V1betaInternalUpdateVolumeRes, error) {
+	logger := util.GetLogger(ctx)
+	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaInternalUpdateVolumeBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+	volumeUpdateParams := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber:  params.ProjectNumber,
+		LocationId:     params.LocationId,
+		VolumeId:       params.VolumeId,
+		XCorrelationID: params.XCorrelationID,
+	}
+	param, err := prepareUpdateVolumeParams(req, volumeUpdateParams, region)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalUpdateVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to update volume", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	volume, jobUUID, err := h.Orchestrator.UpdateVolume(ctx, param)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalUpdateVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to update volume", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volume.LifeCycleState == models.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}

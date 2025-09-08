@@ -232,6 +232,15 @@ func (d *DataStoreRepository) GetVolumeReplicationCount(ctx context.Context, acc
 	return count, nil
 }
 
+func (d *DataStoreRepository) GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().WithContext(ctx).Model(&datamodel.VolumeReplication{}).Where("volume_id = ?", volumeID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter utils2.Filter) ([]*datamodel.VolumeReplication, error) {
 	if len(filter.Conditions) == 0 {
 		return nil, customerrors.NewUserInputValidationErr("no filter conditions provided for listing volume replications")

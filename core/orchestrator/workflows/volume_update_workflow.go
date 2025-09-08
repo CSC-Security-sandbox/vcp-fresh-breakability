@@ -170,7 +170,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Avoid updating the lun if the size is not changed
-	if params.QuotaInBytes > volume.SizeInBytes || (params.SnapReserve != nil && volume.VolumeAttributes != nil && *params.SnapReserve != volume.VolumeAttributes.SnapReserve) {
+	if (params.QuotaInBytes > volume.SizeInBytes || (params.SnapReserve != nil && volume.VolumeAttributes != nil && *params.SnapReserve != volume.VolumeAttributes.SnapReserve)) && !volume.VolumeAttributes.IsDataProtection {
 		updatedLun := &vsa.LunResponse{}
 		err = workflow.ExecuteActivity(ctx, updateActivity.GetVolumeFromONTAP, volume, &node).Get(ctx, &volResponse)
 		if err != nil {

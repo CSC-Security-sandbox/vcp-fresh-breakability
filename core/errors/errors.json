@@ -1217,6 +1217,24 @@
     "retriable": false,
     "http_code": 500
   },
+  "6203": {
+    "description": "Google Proxy Get Multiple Replications Error",
+    "message": "Failed to get replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6204": {
+    "description": "Google Proxy Describe Pool Error",
+    "message": "Failed to describe pool",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6205": {
+    "description": "Google Proxy Internal Update Volume Error",
+    "message": "Failed to update volume internal",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

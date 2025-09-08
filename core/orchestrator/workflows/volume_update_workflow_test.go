@@ -86,6 +86,61 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success() {
 			Name: "test_account",
 		},
 		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 2000,
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithDataProtectionTrue() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: true,
+		},
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 2000,
@@ -2757,6 +2812,9 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateJobStatusDoneErr
 			Name: "test_account",
 		},
 		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 2000,

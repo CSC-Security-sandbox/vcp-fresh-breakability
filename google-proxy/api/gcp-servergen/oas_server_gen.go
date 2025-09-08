@@ -389,6 +389,12 @@ type Handler interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop
 	V1betaInternalStopVolumeReplication(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error)
+	// V1betaInternalUpdateVolume implements v1beta_internalUpdateVolume operation.
+	//
+	// Update the volume (Internal endpoint).
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+	V1betaInternalUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaInternalUpdateVolumeParams) (V1betaInternalUpdateVolumeRes, error)
 	// V1betaInternalUpdateVolumeReplication implements v1beta_internalUpdateVolumeReplication operation.
 	//
 	// Update the volume replication.

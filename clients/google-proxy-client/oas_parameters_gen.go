@@ -708,6 +708,18 @@ type V1betaInternalStopVolumeReplicationParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaInternalUpdateVolumeParams is parameters of v1beta_internalUpdateVolume operation.
+type V1betaInternalUpdateVolumeParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Uuid v4 used to identify the volume.
+	VolumeId string
+}
+
 // V1betaInternalUpdateVolumeReplicationParams is parameters of v1beta_internalUpdateVolumeReplication operation.
 type V1betaInternalUpdateVolumeReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
