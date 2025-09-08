@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
@@ -445,6 +447,7 @@ func TestSnapshotCreate_Failure(t *testing.T) {
 	assert.Contains(t, err.Error(), "snapshot creation failed")
 	mockProvider.AssertExpectations(t)
 }
+
 func TestGetOrCreateObjectStore_Success(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider)
@@ -478,6 +481,7 @@ func TestGetOrCreateObjectStore_Success(t *testing.T) {
 	assert.Equal(t, *expectedResponse.Name, result.Name)
 	mockProvider.AssertExpectations(t)
 }
+
 func TestGetOrCreateObjectStore_GetProviderByNodeFailure(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider)
@@ -567,6 +571,7 @@ func TestGetOrCreateObjectStore_Failure(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to get or create")
 	mockProvider.AssertExpectations(t)
 }
+
 func TestSnapshotActivities(t *testing.T) {
 	t.Run("SnapmirrorTransfer_WhenTransferSucceeds_ThenReturnNil", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
@@ -945,6 +950,7 @@ func TestGetObjectStore_GetProviderByNodeFailure(t *testing.T) {
 		assert.EqualError(t, err, "object store does not exist")
 	})
 }
+
 func TestGetObjectStore(t *testing.T) {
 	t.Run("onSuccess", func(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
@@ -1741,6 +1747,7 @@ func TestUpdateSnapshotActivity_Success(t *testing.T) {
 	assert.Equal(t, state, result)
 	mockStorage.AssertExpectations(t)
 }
+
 func TestUpdateSnapshotActivity_NilDbSnapshot(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
@@ -3488,5 +3495,543 @@ func TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs(t *testing.T) {
 	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
 	assert.False(t, deleted)
 	assert.Error(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+// Tests for CleanupOldAdhocBackupSnapshotsActivity
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_Success_MultipleSnapshots(t *testing.T) {
+	// Test case 1: Successfully clean up older snapshots when multiple snapshots exist
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "volume-uuid-1",
+		},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots - newest first (as returned by DB query)
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 3, UUID: "snapshot-uuid-3"},
+			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-3"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-older1", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older2", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
+		},
+	}
+
+	// Mock database call to get snapshots
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock successful deletion from database for older snapshots
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-2").
+		Return(&datamodel.Snapshot{}, nil)
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").
+		Return(&datamodel.Snapshot{}, nil)
+
+	// Mock hyperscaler provider for ONTAP deletion
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock successful ONTAP deletion
+	mockProvider.On("DeleteSnapshot", "snap-uuid-2", "volume-uuid-1").Return(nil)
+	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "volume-uuid-1").Return(nil)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_Success_SingleSnapshot(t *testing.T) {
+	// Test case 2: No cleanup needed when only one snapshot exists
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create single snapshot
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-only", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	// No deletion calls should be made
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_Success_NoSnapshots(t *testing.T) {
+	// Test case 3: No cleanup needed when no snapshots exist
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Return empty snapshot list
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return([]*datamodel.Snapshot{}, nil)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_OntapError_ContinueProcessing(t *testing.T) {
+	// Test case 5: Handle ONTAP deletion error - should mark snapshot as error and continue
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock ONTAP deletion failure
+	ontapError := errors.New("ONTAP service unavailable")
+	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "volume-uuid-1").Return(ontapError)
+
+	// Mock marking snapshot as error
+	mockStorage.On("UpdateSnapshot", ctx, mock.MatchedBy(func(snapshot *datamodel.Snapshot) bool {
+		return snapshot.UUID == "snapshot-uuid-1" &&
+			snapshot.State == models.LifeCycleStateError &&
+			snapshot.StateDetails == "Failed to delete from ONTAP: ONTAP service unavailable"
+	})).Return(&datamodel.Snapshot{}, nil)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err) // Should not fail the entire operation
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_SnapshotAttributesNil(t *testing.T) {
+	// Test case 7: Handle snapshot with nil SnapshotAttributes
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots with nil SnapshotAttributes
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: nil, // Nil attributes
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock database deletion (should skip ONTAP deletion due to nil attributes)
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").
+		Return(&datamodel.Snapshot{}, nil)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_EmptyExternalUUID(t *testing.T) {
+	// Test case 8: Handle snapshot with empty ExternalUUID
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots with empty ExternalUUID
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: ""}, // Empty external UUID
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock database deletion (should skip ONTAP deletion due to empty ExternalUUID)
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").
+		Return(&datamodel.Snapshot{}, nil)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_MarkSnapshotAsErrorFails(t *testing.T) {
+	// Test case 9: Handle failure when marking snapshot as error
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock ONTAP deletion failure
+	ontapError := errors.New("ONTAP service unavailable")
+	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "volume-uuid-1").Return(ontapError)
+
+	// Mock failure when marking snapshot as error
+	updateError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, errors.New("database update failed"))
+	mockStorage.On("UpdateSnapshot", ctx, mock.AnythingOfType("*datamodel.Snapshot")).Return(nil, updateError)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err) // Should still not fail the entire operation
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_Integration_FullWorkflow(t *testing.T) {
+	// Integration test: Test the full cleanup workflow with mixed success and failure scenarios
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create multiple test snapshots
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 5, UUID: "snapshot-uuid-5"},
+			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-5"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 4, UUID: "snapshot-uuid-4"},
+			Name:      "backup-adhoc-older1", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-4"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 3, UUID: "snapshot-uuid-3"},
+			Name:      "backup-adhoc-older2", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-3"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-older3", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+		},
+		// Snapshot with nil attributes
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older4", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: nil,
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mixed ONTAP results
+	mockProvider.On("DeleteSnapshot", "snap-uuid-4", "volume-uuid-1").Return(nil)                         // Success
+	mockProvider.On("DeleteSnapshot", "snap-uuid-3", "volume-uuid-1").Return(errors.New("ONTAP timeout")) // Failure
+	mockProvider.On("DeleteSnapshot", "snap-uuid-2", "volume-uuid-1").Return(nil)                         // Success
+	// snap-uuid-1 won't be called due to nil attributes
+
+	// Mixed database results
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-4").Return(&datamodel.Snapshot{}, nil) // Success
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-2").Return(&datamodel.Snapshot{}, nil) // Success
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").Return(&datamodel.Snapshot{}, nil) // Success (nil attributes case)
+
+	// Mock marking snapshot as error for failed ONTAP deletion
+	mockStorage.On("UpdateSnapshot", ctx, mock.MatchedBy(func(snapshot *datamodel.Snapshot) bool {
+		return snapshot.UUID == "snapshot-uuid-3" &&
+			snapshot.State == models.LifeCycleStateError
+	})).Return(&datamodel.Snapshot{}, nil)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err) // Should not fail despite partial failures
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError(t *testing.T) {
+	// Test case: Handle database deletion error and mark snapshot as error
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1", ID: 1},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-volume-uuid",
+		},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid-latest", CreatedAt: time.Now()},
+			Name:      "latest-snapshot",
+			VolumeID:  1,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				ExternalUUID: "snap-uuid-latest",
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{CreatedAt: time.Now().Add(-1 * time.Hour), UUID: "snapshot-uuid-1"},
+			Name:      "old-snapshot-1",
+			VolumeID:  1,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				ExternalUUID: "snap-uuid-1",
+			},
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock successful ONTAP deletion
+	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "external-volume-uuid").Return(nil)
+
+	// Mock database deletion failure
+	dbError := errors.New("database connection error")
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").Return(nil, dbError)
+
+	// Mock marking snapshot as error
+	mockStorage.On("UpdateSnapshot", ctx, mock.MatchedBy(func(snapshot *datamodel.Snapshot) bool {
+		return snapshot.UUID == "snapshot-uuid-1" &&
+			snapshot.State == models.LifeCycleStateError &&
+			strings.Contains(snapshot.StateDetails, "Failed to delete from database: database connection error")
+	})).Return(&datamodel.Snapshot{}, nil)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err) // Should not fail the entire operation
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError_MarkAsErrorFails(t *testing.T) {
+	// Test case: Handle database deletion error when marking snapshot as error also fails
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1", ID: 1},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-volume-uuid",
+		},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid-latest", CreatedAt: time.Now()},
+			Name:      "latest-snapshot",
+			VolumeID:  1,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				ExternalUUID: "snap-uuid-latest",
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{CreatedAt: time.Now().Add(-1 * time.Hour), UUID: "snapshot-uuid-1"},
+			Name:      "old-snapshot-1",
+			VolumeID:  1,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				ExternalUUID: "snap-uuid-1",
+			},
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock successful ONTAP deletion
+	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "external-volume-uuid").Return(nil)
+
+	// Mock database deletion failure
+	dbError := errors.New("database connection error")
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").Return(nil, dbError)
+
+	// Mock failure when marking snapshot as error
+	updateError := errors.New("failed to update snapshot")
+	mockStorage.On("UpdateSnapshot", ctx, mock.AnythingOfType("*datamodel.Snapshot")).Return(nil, updateError)
+
+	// Execute the activity
+	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err) // Should still not fail the entire operation
+	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }

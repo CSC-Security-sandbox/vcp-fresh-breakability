@@ -6080,6 +6080,66 @@ func (_c *MockStorage_GetSnapshotByUUID_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// GetSnapshotsByTypeAndVolumeID provides a mock function with given fields: ctx, snapshotType, volumeID
+func (_m *MockStorage) GetSnapshotsByTypeAndVolumeID(ctx context.Context, snapshotType string, volumeID int64) ([]*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, snapshotType, volumeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshotsByTypeAndVolumeID")
+	}
+
+	var r0 []*datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) ([]*datamodel.Snapshot, error)); ok {
+		return rf(ctx, snapshotType, volumeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) []*datamodel.Snapshot); ok {
+		r0 = rf(ctx, snapshotType, volumeID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, snapshotType, volumeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetSnapshotsByTypeAndVolumeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshotsByTypeAndVolumeID'
+type MockStorage_GetSnapshotsByTypeAndVolumeID_Call struct {
+	*mock.Call
+}
+
+// GetSnapshotsByTypeAndVolumeID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshotType string
+//   - volumeID int64
+func (_e *MockStorage_Expecter) GetSnapshotsByTypeAndVolumeID(ctx interface{}, snapshotType interface{}, volumeID interface{}) *MockStorage_GetSnapshotsByTypeAndVolumeID_Call {
+	return &MockStorage_GetSnapshotsByTypeAndVolumeID_Call{Call: _e.mock.On("GetSnapshotsByTypeAndVolumeID", ctx, snapshotType, volumeID)}
+}
+
+func (_c *MockStorage_GetSnapshotsByTypeAndVolumeID_Call) Run(run func(ctx context.Context, snapshotType string, volumeID int64)) *MockStorage_GetSnapshotsByTypeAndVolumeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetSnapshotsByTypeAndVolumeID_Call) Return(_a0 []*datamodel.Snapshot, _a1 error) *MockStorage_GetSnapshotsByTypeAndVolumeID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetSnapshotsByTypeAndVolumeID_Call) RunAndReturn(run func(context.Context, string, int64) ([]*datamodel.Snapshot, error)) *MockStorage_GetSnapshotsByTypeAndVolumeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSnapshotsByVolumeID provides a mock function with given fields: ctx, volumeID
 func (_m *MockStorage) GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, volumeID)

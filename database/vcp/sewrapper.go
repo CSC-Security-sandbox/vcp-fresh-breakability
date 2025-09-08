@@ -1931,6 +1931,26 @@ func (re *retryEngine) GetAppConsistentSnapshotsForVolume(ctx context.Context, a
 	return var0, err
 }
 
+func (re *retryEngine) GetSnapshotsByTypeAndVolumeID(ctx context.Context, snapshotType string, volumeID int64) ([]*datamodel.Snapshot, error) {
+	var var0 []*datamodel.Snapshot
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSnapshotsByTypeAndVolumeID(ctx, snapshotType, volumeID)
+		if err != nil {
+			re.logError("GetSnapshotsByTypeAndVolumeID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error) {
 	var var0 *datamodel.Snapshot
 	err := retry.Do(func(attempt int) (bool, error) {

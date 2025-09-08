@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -1278,4 +1279,290 @@ func TestBatchGetWronglyDeletedSnapshots(t *testing.T) {
 	if len(fetched) != 2 {
 		t.Fatalf("Expected 2 wrongly deleted snapshots, got %d", len(fetched))
 	}
+}
+func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
+	logger := log.NewLogger()
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	t.Run("WhenSnapshotsOfSpecificTypeExistForVolume", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create snapshots with different types
+		snapshot1 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{},
+			Name:         "adhoc-backup-snap1",
+			Type:         "adhoc-backup",
+			VolumeID:     volume.ID,
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateReadyDetails,
+		}
+		snapshot2 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{},
+			Name:         "adhoc-backup-snap2",
+			Type:         "adhoc-backup",
+			VolumeID:     volume.ID,
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateReadyDetails,
+		}
+		snapshot3 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{},
+			Name:         "scheduled-backup-snap",
+			Type:         "scheduled-backup",
+			VolumeID:     volume.ID,
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		// Create snapshots with time delay to test ordering
+		_, err = store.CreatingSnapshot(ctx, snapshot1)
+		assert.NoError(tt, err, "Failed to create snapshot1")
+		time.Sleep(10 * time.Millisecond)
+
+		_, err = store.CreatingSnapshot(ctx, snapshot2)
+		assert.NoError(tt, err, "Failed to create snapshot2")
+		time.Sleep(10 * time.Millisecond)
+
+		_, err = store.CreatingSnapshot(ctx, snapshot3)
+		assert.NoError(tt, err, "Failed to create snapshot3")
+
+		// Get snapshots by type
+		snapshots, err := store.GetSnapshotsByTypeAndVolumeID(ctx, "adhoc-backup", volume.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, snapshots, "Expected non-nil snapshots")
+		assert.Equal(tt, 2, len(snapshots), "Expected 2 adhoc-backup snapshots")
+
+		// Verify ordering (newest first)
+		assert.Equal(tt, "adhoc-backup-snap2", snapshots[0].Name, "Expected snap2 to be first (newest)")
+		assert.Equal(tt, "adhoc-backup-snap1", snapshots[1].Name, "Expected snap1 to be second (oldest)")
+
+		// Verify preloaded data
+		assert.NotNil(tt, snapshots[0].Volume, "Expected Volume to be preloaded")
+		assert.NotNil(tt, snapshots[0].Account, "Expected Account to be preloaded")
+		assert.Equal(tt, volume.Name, snapshots[0].Volume.Name, "Expected correct volume name")
+		assert.Equal(tt, account.Name, snapshots[0].Account.Name, "Expected correct account name")
+	})
+
+	t.Run("WhenSnapshotsInErrorStateExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create snapshots with different states
+		snapshot1 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{},
+			Name:         "adhoc-backup-ready",
+			Type:         "adhoc-backup",
+			VolumeID:     volume.ID,
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateReadyDetails,
+		}
+		snapshot2 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{},
+			Name:         "adhoc-backup-error",
+			Type:         "adhoc-backup",
+			VolumeID:     volume.ID,
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateError,
+			StateDetails: "Some error occurred",
+		}
+		snapshot3 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{},
+			Name:         "adhoc-backup-creating",
+			Type:         "adhoc-backup",
+			VolumeID:     volume.ID,
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+
+		_, err = store.CreatingSnapshot(ctx, snapshot1)
+		assert.NoError(tt, err, "Failed to create snapshot1")
+
+		err = store.db.Create(snapshot2).Error()
+		assert.NoError(tt, err, "Failed to create snapshot2")
+
+		_, err = store.CreatingSnapshot(ctx, snapshot3)
+		assert.NoError(tt, err, "Failed to create snapshot3")
+
+		// Get snapshots by type (should exclude error state)
+		snapshots, err := store.GetSnapshotsByTypeAndVolumeID(ctx, "adhoc-backup", volume.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, snapshots, "Expected non-nil snapshots")
+		assert.Equal(tt, 2, len(snapshots), "Expected 2 snapshots (excluding error state)")
+
+		// Verify no error state snapshots are returned
+		for _, snap := range snapshots {
+			assert.NotEqual(tt, models.LifeCycleStateError, snap.State, "Should not return snapshots in error state")
+		}
+	})
+
+	t.Run("WhenNoSnapshotsOfTypeExistForVolume", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create a snapshot with different type
+		snapshot := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{},
+			Name:         "scheduled-backup-snap",
+			Type:         "scheduled-backup",
+			VolumeID:     volume.ID,
+			AccountID:    1,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateReadyDetails,
+		}
+		_, err = store.CreatingSnapshot(ctx, snapshot)
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		// Get snapshots by different type
+		snapshots, err := store.GetSnapshotsByTypeAndVolumeID(ctx, "adhoc-backup", volume.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, snapshots, "Expected non-nil snapshots slice")
+		assert.Equal(tt, 0, len(snapshots), "Expected 0 snapshots of type adhoc-backup")
+	})
+
+	t.Run("WhenVolumeDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Get snapshots for non-existent volume
+		nonExistentVolumeID := int64(999)
+		snapshots, err := store.GetSnapshotsByTypeAndVolumeID(ctx, "adhoc-backup", nonExistentVolumeID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, snapshots, "Expected non-nil snapshots slice")
+		assert.Equal(tt, 0, len(snapshots), "Expected 0 snapshots for non-existent volume")
+	})
+
+	t.Run("WhenMultipleSnapshotsExistVerifyOrdering", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create multiple snapshots with specific creation times
+		baseTime := time.Now()
+		snapshots := []struct {
+			name      string
+			createdAt time.Time
+		}{
+			{"snap1", baseTime.Add(-3 * time.Hour)},
+			{"snap2", baseTime.Add(-2 * time.Hour)},
+			{"snap3", baseTime.Add(-1 * time.Hour)},
+			{"snap4", baseTime},
+		}
+
+		for i, s := range snapshots {
+			snapshot := &datamodel.Snapshot{
+				BaseModel: datamodel.BaseModel{
+					UUID:      fmt.Sprintf("snapshot-uuid-%d", i+1),
+					CreatedAt: s.createdAt,
+				},
+				Name:         s.name,
+				VolumeID:     volume.ID,
+				AccountID:    account.ID,
+				Type:         "adhoc-backup",
+				State:        models.LifeCycleStateREADY,
+				StateDetails: models.LifeCycleStateAvailable,
+			}
+			err = store.db.Create(snapshot).Error()
+			assert.NoError(tt, err, "Failed to create snapshot %s", s.name)
+		}
+
+		// Get snapshots and verify ordering
+		retrievedSnapshots, err := store.GetSnapshotsByTypeAndVolumeID(ctx, "adhoc-backup", volume.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 4, len(retrievedSnapshots), "Expected 4 snapshots")
+
+		// Verify descending order by creation time
+		assert.Equal(tt, "snap4", retrievedSnapshots[0].Name, "Expected newest snapshot first")
+		assert.Equal(tt, "snap3", retrievedSnapshots[1].Name)
+		assert.Equal(tt, "snap2", retrievedSnapshots[2].Name)
+		assert.Equal(tt, "snap1", retrievedSnapshots[3].Name, "Expected oldest snapshot last")
+	})
 }

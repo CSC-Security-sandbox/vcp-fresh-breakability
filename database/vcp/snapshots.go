@@ -15,9 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	deleteSnapshot = _deleteSnapshot
-)
+var deleteSnapshot = _deleteSnapshot
 
 func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
 	db := d.db.GORM().WithContext(ctx)
@@ -99,7 +97,6 @@ func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *data
 		State:              snapshot.State,
 		StateDetails:       snapshot.StateDetails,
 	}).Error
-
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
@@ -136,7 +133,6 @@ func (d *DataStoreRepository) GetSnapshotByPoolID(ctx context.Context, uuid stri
 		AccountID: accountID,
 		BaseModel: datamodel.BaseModel{UUID: uuid},
 	}).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "snapshot", nil)
@@ -190,7 +186,6 @@ func (d *DataStoreRepository) UnDeleteSnapshot(ctx context.Context, snapshot *da
 	snapshot.DeletedAt = &gorm.DeletedAt{}
 
 	err = tx.Model(&snapshot).Where("uuid = ?", snapshot.UUID).Updates(snapshot).Error
-
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
@@ -292,6 +287,7 @@ func (d *DataStoreRepository) GetReplicationSnapshotsByVolumeID(ctx context.Cont
 	}
 	return snapshots, nil
 }
+
 func (d *DataStoreRepository) GetSnapshotsByVolumeIDs(ctx context.Context, volumeIDs []int64) ([]*datamodel.Snapshot, error) {
 	var snapshots []*datamodel.Snapshot
 	db := d.db.GORM().WithContext(ctx)
@@ -416,6 +412,21 @@ func (d *DataStoreRepository) BatchGetWronglyDeletedSnapshots(ctx context.Contex
 	}
 
 	err := query.Find(&snapshots).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return snapshots, nil
+}
+
+// GetSnapshotsByTypeAndVolumeID retrieves snapshots by type and volume ID, ordered by creation time (newest first)
+func (d *DataStoreRepository) GetSnapshotsByTypeAndVolumeID(ctx context.Context, snapshotType string, volumeID int64) ([]*datamodel.Snapshot, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var snapshots []*datamodel.Snapshot
+
+	err := db.Preload("Volume").Preload("Account").
+		Where("type = ? AND volume_id = ? AND state != ?", snapshotType, volumeID, models.LifeCycleStateError).
+		Order("created_at DESC").
+		Find(&snapshots).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

@@ -25,9 +25,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var (
-	logSQLEnabled = env.GetBool("LOG_SQL", false)
-)
+var logSQLEnabled = env.GetBool("LOG_SQL", false)
 
 type PersistenceStore struct {
 	config dbutils.DbConfig
@@ -757,6 +755,10 @@ func (s *PersistenceStore) GetSnapshotsByVolumeIDs(ctx context.Context, volumeID
 	return s.dataStore.GetSnapshotsByVolumeIDs(ctx, volumeIDs)
 }
 
+func (s *PersistenceStore) GetSnapshotsByTypeAndVolumeID(ctx context.Context, snapshotType string, volumeID int64) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshotsByTypeAndVolumeID(ctx, snapshotType, volumeID)
+}
+
 func (s *PersistenceStore) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {
 	return s.dataStore.GetMultipleKmsConfigs(ctx, conditions)
 }
@@ -792,6 +794,7 @@ func (s *PersistenceStore) GetKmsConfigByUUID(ctx context.Context, uuid string) 
 func (s *PersistenceStore) UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error) {
 	return s.dataStore.UpdateKmsConfigAttributes(ctx, uuid, attributes)
 }
+
 func (s *PersistenceStore) GetJobByResourceUUID(ctx context.Context, resourceUUID string, jobType string) (*datamodel.Job, error) {
 	return s.dataStore.GetJobByResourceUUID(ctx, resourceUUID, jobType)
 }

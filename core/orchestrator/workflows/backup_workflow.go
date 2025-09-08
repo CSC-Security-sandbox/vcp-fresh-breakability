@@ -230,6 +230,13 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Cleanup older adhoc-backup snapshots for this volume
+	err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldAdhocBackupSnapshotsActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to cleanup older adhoc-backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+	}
+
 	return backupActivitiesContext, nil
 }
 
@@ -545,7 +552,6 @@ func UpdateBackupWorkflow(ctx workflow.Context, backup *datamodel.Backup) (gcpge
 	logger := util.GetLogger(ctx)
 	backupWf := new(backupUpdateWorkflow)
 	err := backupWf.Setup(ctx, backup)
-
 	if err != nil {
 		logger.Infof("Backup update workflow setup executed with error: %v", err)
 		return nil, err

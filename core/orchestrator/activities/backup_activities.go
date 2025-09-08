@@ -78,10 +78,12 @@ func (a BackupActivity) GetBackup(ctx context.Context, backupVaultUUID, backupUU
 	se := a.SE
 	return se.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 }
+
 func (a BackupActivity) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
 	se := a.SE
 	return se.DeleteBackup(ctx, backupUUID)
 }
+
 func (a BackupActivity) FinishBackup(ctx context.Context, backup *datamodel.Backup) error {
 	se := a.SE
 	_, err := se.FinishBackup(ctx, backup)
@@ -755,4 +757,68 @@ func (a BackupActivity) GetSmDestinationPathActivity(ctx context.Context, backup
 
 func (a BackupActivity) GetSmSourcePathForRestoreActivity(ctx context.Context, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
 	return GetSmSourcePathForRestore(backupVault, backup)
+}
+
+// CleanupOldAdhocBackupSnapshotsActivity cleans up older adhoc-backup snapshots for a volume, keeping only the latest one
+func (a BackupActivity) CleanupOldAdhocBackupSnapshotsActivity(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+
+	// Get all adhoc-backup snapshots for this volume, ordered by creation time (newest first)
+	snapshots, err := a.SE.GetSnapshotsByTypeAndVolumeID(ctx, SnapshotTypeBackupAdhoc, volume.ID)
+	if err != nil {
+		logger.Errorf("Failed to get adhoc-backup snapshots for volume %s: %v", volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// If we have more than 1 snapshot, delete the older ones (skip the first one which is the latest)
+	if len(snapshots) > 1 {
+		logger.Infof("Found %d adhoc-backup snapshots for volume %s, cleaning up %d older snapshots",
+			len(snapshots), volume.Name, len(snapshots)-1)
+
+		// Process older snapshots (skip the first one which is the latest)
+		for i := 1; i < len(snapshots); i++ {
+			snapshot := snapshots[i]
+			logger.Infof("Deleting older adhoc-backup snapshot %s for volume %s", snapshot.Name, volume.Name)
+
+			// Try to delete the snapshot from ONTAP first
+			if snapshot.SnapshotAttributes != nil && snapshot.SnapshotAttributes.ExternalUUID != "" && volume.VolumeAttributes != nil && volume.VolumeAttributes.ExternalUUID != "" {
+				err := a.DeleteBackupSnapshot(ctx, node, snapshot.SnapshotAttributes.ExternalUUID, volume.VolumeAttributes.ExternalUUID)
+				if err != nil {
+					logger.Errorf("Failed to delete snapshot %s from ONTAP: %v", snapshot.Name, err)
+					// Mark snapshot as error state instead of failing the entire operation
+					err = a.markSnapshotAsError(ctx, snapshot, fmt.Sprintf("Failed to delete from ONTAP: %v", err))
+					if err != nil {
+						logger.Errorf("Failed to mark snapshot %s as error: %v", snapshot.Name, err)
+					}
+					continue
+				}
+			}
+
+			// Delete the snapshot from database
+			_, err := a.SE.DeleteSnapshot(ctx, snapshot.UUID)
+			if err != nil {
+				logger.Errorf("Failed to delete snapshot %s from database: %v", snapshot.Name, err)
+				// Mark snapshot as error state instead of failing the entire operation
+				err = a.markSnapshotAsError(ctx, snapshot, fmt.Sprintf("Failed to delete from database: %v", err))
+				if err != nil {
+					logger.Errorf("Failed to mark snapshot %s as error: %v", snapshot.Name, err)
+				}
+				continue
+			}
+
+			logger.Infof("Successfully deleted older adhoc-backup snapshot %s for volume %s", snapshot.Name, volume.Name)
+		}
+	} else {
+		logger.Infof("No cleanup needed for volume %s - found %d adhoc-backup snapshots", volume.Name, len(snapshots))
+	}
+
+	return nil
+}
+
+// markSnapshotAsError marks a snapshot as error state
+func (a BackupActivity) markSnapshotAsError(ctx context.Context, snapshot *datamodel.Snapshot, errorMessage string) error {
+	snapshot.State = models.LifeCycleStateError
+	snapshot.StateDetails = errorMessage
+	_, err := a.SE.UpdateSnapshot(ctx, snapshot)
+	return err
 }

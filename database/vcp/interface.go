@@ -141,6 +141,7 @@ type (
 		GetReplicationSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error)
 		GetSnapshotsWithCondition(ctx context.Context, filter dbutils.Filter) ([]*datamodel.Snapshot, error)
 		GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error)
+		GetSnapshotsByTypeAndVolumeID(ctx context.Context, snapshotType string, volumeID int64) ([]*datamodel.Snapshot, error)
 		DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error)
 		DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
 		BatchDeleteSnapshots(ctx context.Context, snapshotIDs []int64) ([]*datamodel.Snapshot, error)
