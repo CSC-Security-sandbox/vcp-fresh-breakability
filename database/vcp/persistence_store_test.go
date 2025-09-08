@@ -1946,7 +1946,7 @@ func TestListSnHostsReturnsEmptyWhenNoPoolsPresent(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
-	hosts, err := store.ListSnHosts(ctx)
+	hosts, err := store.ListTpProjects(ctx)
 	assert.NoError(t, err)
 	assert.Empty(t, hosts)
 }

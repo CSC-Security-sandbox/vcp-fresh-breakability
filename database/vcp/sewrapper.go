@@ -388,13 +388,13 @@ func (re *retryEngine) GetNextSerialNumberInRegion(ctx context.Context, region s
 	return var0, err
 }
 
-func (re *retryEngine) ListSnHosts(ctx context.Context) ([]string, error) {
+func (re *retryEngine) ListTpProjects(ctx context.Context) ([]string, error) {
 	var var0 []string
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.ListSnHosts(ctx)
+		var0, err = re.dataStore.ListTpProjects(ctx)
 		if err != nil {
-			re.logError("ListSnHosts", err)
+			re.logError("ListTpProjects", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

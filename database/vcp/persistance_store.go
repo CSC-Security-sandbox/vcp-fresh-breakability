@@ -1055,6 +1055,6 @@ func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, pref
 	return s.dataStore.GetNextSerialNumberInRegion(ctx, prefix)
 }
 
-func (s *PersistenceStore) ListSnHosts(ctx context.Context) ([]string, error) {
-	return s.dataStore.ListSnHosts(ctx)
+func (s *PersistenceStore) ListTpProjects(ctx context.Context) ([]string, error) {
+	return s.dataStore.ListTpProjects(ctx)
 }

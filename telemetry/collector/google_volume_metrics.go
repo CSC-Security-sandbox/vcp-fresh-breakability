@@ -110,7 +110,7 @@ func (g *GoogleVolumeMetricsProvider) collectProjectMetrics(ctx context.Context,
 }
 
 func GetTenantProject(ctx context.Context, logger log.Logger, vcpDatastore database.Storage) ([]string, error) {
-	projects, err := vcpDatastore.ListSnHosts(ctx)
+	projects, err := vcpDatastore.ListTpProjects(ctx)
 	if err != nil {
 		logger.Error("Failed to list SnHostsProjects", "error", err.Error())
 		return nil, fmt.Errorf("failed to list SnHostsProjects: %v", err)

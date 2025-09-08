@@ -53,7 +53,7 @@ type (
 		UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)
 		GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error)
 		GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error)
-		ListSnHosts(ctx context.Context) ([]string, error)
+		ListTpProjects(ctx context.Context) ([]string, error)
 
 		CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
 		GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)

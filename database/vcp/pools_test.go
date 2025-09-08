@@ -1652,7 +1652,7 @@ func TestGetNextSerialNumberInRegion(t *testing.T) {
 	})
 }
 
-func TestListSnHosts_ReturnsDistinctNonEmptyProjects(t *testing.T) {
+func TestListTpProjects_ReturnsDistinctNonEmptyProjects(t *testing.T) {
 	db, err := SetupTestDB()
 	if err != nil {
 		t.Fatalf("Failed to set up test database: %v", err)
@@ -1679,6 +1679,9 @@ func TestListSnHosts_ReturnsDistinctNonEmptyProjects(t *testing.T) {
 		Account:        account,
 		SnHostProject:  "project-1",
 		DeploymentName: "deployment-1",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "project-1",
+		},
 	}
 	pool2 := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "uuid-2"},
@@ -1687,6 +1690,9 @@ func TestListSnHosts_ReturnsDistinctNonEmptyProjects(t *testing.T) {
 		Account:        account,
 		SnHostProject:  "project-2",
 		DeploymentName: "deployment-2",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "project-2",
+		},
 	}
 	pool3 := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "uuid-3"},
@@ -1695,6 +1701,9 @@ func TestListSnHosts_ReturnsDistinctNonEmptyProjects(t *testing.T) {
 		Account:        account,
 		SnHostProject:  "project-1",
 		DeploymentName: "deployment-3",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "project-1",
+		},
 	}
 	if err = store.db.Create(pool1).Error(); err != nil {
 		t.Fatalf("Failed to create pool1: %v", err)
@@ -1706,12 +1715,12 @@ func TestListSnHosts_ReturnsDistinctNonEmptyProjects(t *testing.T) {
 		t.Fatalf("Failed to create pool3: %v", err)
 	}
 
-	projects, err := store.ListSnHosts(context.Background())
+	projects, err := store.ListTpProjects(context.Background())
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"project-1", "project-2"}, projects)
 }
 
-func TestListSnHosts_ExcludesEmptyAndNullProjects(t *testing.T) {
+func TestListTpProjects_ExcludesEmptyAndNullProjects(t *testing.T) {
 	db, err := SetupTestDB()
 	if err != nil {
 		t.Fatalf("Failed to set up test database: %v", err)
@@ -1738,6 +1747,9 @@ func TestListSnHosts_ExcludesEmptyAndNullProjects(t *testing.T) {
 		Account:        account,
 		SnHostProject:  "project-1",
 		DeploymentName: "deployment-1",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "project-1",
+		},
 	}
 	poolWithEmpty := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "uuid-2"},
@@ -1746,6 +1758,9 @@ func TestListSnHosts_ExcludesEmptyAndNullProjects(t *testing.T) {
 		Account:        account,
 		SnHostProject:  "",
 		DeploymentName: "deployment-2",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "",
+		},
 	}
 	poolWithNull := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "uuid-3"},
@@ -1754,6 +1769,9 @@ func TestListSnHosts_ExcludesEmptyAndNullProjects(t *testing.T) {
 		Account:        account,
 		SnHostProject:  "project-1",
 		DeploymentName: "deployment-3",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "project-1",
+		},
 	}
 	if err = store.db.Create(poolWithProject).Error(); err != nil {
 		t.Fatalf("Failed to create poolWithProject: %v", err)
@@ -1765,12 +1783,12 @@ func TestListSnHosts_ExcludesEmptyAndNullProjects(t *testing.T) {
 		t.Fatalf("Failed to create poolWithNull: %v", err)
 	}
 
-	projects, err := store.ListSnHosts(context.Background())
+	projects, err := store.ListTpProjects(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"project-1"}, projects)
 }
 
-func TestListSnHosts_ReturnsEmptySliceWhenNoProjects(t *testing.T) {
+func TestListTpProjects_ReturnsEmptySliceWhenNoProjects(t *testing.T) {
 	db, err := SetupTestDB()
 	if err != nil {
 		t.Fatalf("Failed to set up test database: %v", err)
@@ -1782,12 +1800,12 @@ func TestListSnHosts_ReturnsEmptySliceWhenNoProjects(t *testing.T) {
 		t.Fatalf("Failed to clean up test database: %v", err)
 	}
 
-	projects, err := store.ListSnHosts(context.Background())
+	projects, err := store.ListTpProjects(context.Background())
 	assert.NoError(t, err)
 	assert.Empty(t, projects)
 }
 
-func TestListSnHosts_ReturnsErrorOnDBFailure(t *testing.T) {
+func TestListTpProjects_ReturnsErrorOnDBFailure(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("Failed to create sqlmock: %v", err)
@@ -1806,7 +1824,7 @@ func TestListSnHosts_ReturnsErrorOnDBFailure(t *testing.T) {
 		t.Errorf("failed to close sqlDB: %v", err)
 	}
 
-	projects, err := store.ListSnHosts(context.Background())
+	projects, err := store.ListTpProjects(context.Background())
 	assert.Error(t, err)
 	assert.Nil(t, projects)
 }

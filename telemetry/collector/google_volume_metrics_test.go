@@ -25,7 +25,7 @@ func TestGoogleTenantProjectProvider_GetTenantProjects_DelegatesToGetTenantProje
 	vcpStore := &database.MockStorage{}
 	expectedProjects := []string{"projectX", "projectY"}
 
-	vcpStore.On("ListSnHosts", ctx).Return(expectedProjects, nil)
+	vcpStore.On("ListTpProjects", ctx).Return(expectedProjects, nil)
 	provider := &GoogleTenantProjectProvider{vcpDatastore: vcpStore}
 
 	projects, err := provider.GetTenantProjects(ctx, logger)
@@ -38,7 +38,7 @@ func TestGetTenantProject_LogsErrorOnFailure(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewLogger()
 	vcpStore := &database.MockStorage{}
-	vcpStore.On("ListSnHosts", ctx).Return([]string{}, fmt.Errorf("db error"))
+	vcpStore.On("ListTpProjects", ctx).Return([]string{}, fmt.Errorf("db error"))
 
 	projects, err := GetTenantProject(ctx, logger, vcpStore)
 	assert.Error(t, err)
@@ -51,7 +51,7 @@ func TestGetTenantProject_ReturnsProjectsSuccessfully(t *testing.T) {
 	vcpStore := &database.MockStorage{}
 	expectedProjects := []string{"project1", "project2"}
 
-	vcpStore.On("ListSnHosts", ctx).Return(expectedProjects, nil)
+	vcpStore.On("ListTpProjects", ctx).Return(expectedProjects, nil)
 
 	projects, err := GetTenantProject(ctx, logger, vcpStore)
 	assert.NoError(t, err)
@@ -59,12 +59,12 @@ func TestGetTenantProject_ReturnsProjectsSuccessfully(t *testing.T) {
 	vcpStore.AssertExpectations(t)
 }
 
-func TestGetTenantProject_ReturnsErrorWhenListSnHostsFails(t *testing.T) {
+func TestGetTenantProject_ReturnsErrorWhenListTpProjectsFails(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewLogger()
 	vcpStore := &database.MockStorage{}
 
-	vcpStore.On("ListSnHosts", ctx).Return([]string{}, fmt.Errorf("db error"))
+	vcpStore.On("ListTpProjects", ctx).Return([]string{}, fmt.Errorf("db error"))
 
 	projects, err := GetTenantProject(ctx, logger, vcpStore)
 	assert.Error(t, err)
@@ -78,7 +78,7 @@ func TestGetTenantProject_ReturnsErrorWhenNoProjectsFound(t *testing.T) {
 	logger := log.NewLogger()
 	vcpStore := &database.MockStorage{}
 
-	vcpStore.On("ListSnHosts", ctx).Return([]string{}, nil)
+	vcpStore.On("ListTpProjects", ctx).Return([]string{}, nil)
 
 	projects, err := GetTenantProject(ctx, logger, vcpStore)
 	assert.Error(t, err)

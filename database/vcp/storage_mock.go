@@ -8177,12 +8177,12 @@ func (_c *MockStorage_ListPools_Call) RunAndReturn(run func(context.Context, *ut
 	return _c
 }
 
-// ListSnHosts provides a mock function with given fields: ctx
-func (_m *MockStorage) ListSnHosts(ctx context.Context) ([]string, error) {
+// ListTpProjects provides a mock function with given fields: ctx
+func (_m *MockStorage) ListTpProjects(ctx context.Context) ([]string, error) {
 	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ListSnHosts")
+		panic("no return value specified for ListTpProjects")
 	}
 
 	var r0 []string
@@ -8207,30 +8207,30 @@ func (_m *MockStorage) ListSnHosts(ctx context.Context) ([]string, error) {
 	return r0, r1
 }
 
-// MockStorage_ListSnHosts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSnHosts'
-type MockStorage_ListSnHosts_Call struct {
+// MockStorage_ListTpProjects_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTpProjects'
+type MockStorage_ListTpProjects_Call struct {
 	*mock.Call
 }
 
-// ListSnHosts is a helper method to define mock.On call
+// ListTpProjects is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockStorage_Expecter) ListSnHosts(ctx interface{}) *MockStorage_ListSnHosts_Call {
-	return &MockStorage_ListSnHosts_Call{Call: _e.mock.On("ListSnHosts", ctx)}
+func (_e *MockStorage_Expecter) ListTpProjects(ctx interface{}) *MockStorage_ListTpProjects_Call {
+	return &MockStorage_ListTpProjects_Call{Call: _e.mock.On("ListTpProjects", ctx)}
 }
 
-func (_c *MockStorage_ListSnHosts_Call) Run(run func(ctx context.Context)) *MockStorage_ListSnHosts_Call {
+func (_c *MockStorage_ListTpProjects_Call) Run(run func(ctx context.Context)) *MockStorage_ListTpProjects_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context))
 	})
 	return _c
 }
 
-func (_c *MockStorage_ListSnHosts_Call) Return(_a0 []string, _a1 error) *MockStorage_ListSnHosts_Call {
+func (_c *MockStorage_ListTpProjects_Call) Return(_a0 []string, _a1 error) *MockStorage_ListTpProjects_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorage_ListSnHosts_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockStorage_ListSnHosts_Call {
+func (_c *MockStorage_ListTpProjects_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockStorage_ListTpProjects_Call {
 	_c.Call.Return(run)
 	return _c
 }
