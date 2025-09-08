@@ -36,12 +36,6 @@ type FlexCacheV1beta struct {
 	// Read Only: true
 	Command string `json:"command,omitempty"`
 
-	// commandExpiryTime
-	//
-	// DateTime value for when cluster peering command should expire.
-	// Format: date-time
-	CommandExpiryTime *strfmt.DateTime `json:"commandExpiryTime,omitempty"`
-
 	// Specify whether this FlexCache volume has global file lock enabled
 	EnableGlobalFileLock *bool `json:"enableGlobalFileLock,omitempty"`
 
@@ -64,10 +58,26 @@ type FlexCacheV1beta struct {
 	// Name of origin volume for FlexCache
 	PeerVolumeName string `json:"peerVolumeName,omitempty"`
 
+	// peeringCommandExpiryTime
+	//
+	// DateTime value for when cluster peering command should expire.
+	// Format: date-time
+	PeeringCommandExpiryTime *strfmt.DateTime `json:"peeringCommandExpiryTime,omitempty"`
+
 	// Previous state of the FlexCache
 	// Read Only: true
 	// Enum: [CACHE_STATE_UNSPECIFIED PENDING_CLUSTER_PEERING PENDING_SVM_PEERING PEERED ERROR]
 	PreviousCacheState string `json:"previousCacheState,omitempty"`
+
+	// stateDetails
+	//
+	// Details about the current lifecycle state
+	// Read Only: true
+	StateDetails string `json:"stateDetails,omitempty"`
+
+	// Numeric representation of current state details
+	// Read Only: true
+	StateDetailsCode int32 `json:"stateDetailsCode,omitempty"`
 }
 
 // Validate validates this flex cache v1beta
@@ -82,11 +92,11 @@ func (m *FlexCacheV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
-	if err := m.validateCommandExpiryTime(formats); err != nil {
+	if err := m.validatePeerIPAddresses(formats); err != nil {
 		res = append(res, err)
 	}
 
-	if err := m.validatePeerIPAddresses(formats); err != nil {
+	if err := m.validatePeeringCommandExpiryTime(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -170,19 +180,6 @@ func (m *FlexCacheV1beta) validateCacheState(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *FlexCacheV1beta) validateCommandExpiryTime(formats strfmt.Registry) error {
-
-	if swag.IsZero(m.CommandExpiryTime) { // not required
-		return nil
-	}
-
-	if err := validate.FormatOf("commandExpiryTime", "body", "date-time", m.CommandExpiryTime.String(), formats); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (m *FlexCacheV1beta) validatePeerIPAddresses(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.PeerIPAddresses) { // not required
@@ -201,6 +198,19 @@ func (m *FlexCacheV1beta) validatePeerIPAddresses(formats strfmt.Registry) error
 			return err
 		}
 
+	}
+
+	return nil
+}
+
+func (m *FlexCacheV1beta) validatePeeringCommandExpiryTime(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.PeeringCommandExpiryTime) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("peeringCommandExpiryTime", "body", "date-time", m.PeeringCommandExpiryTime.String(), formats); err != nil {
+		return err
 	}
 
 	return nil

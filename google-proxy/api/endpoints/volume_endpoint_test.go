@@ -1476,7 +1476,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 
 		cacheConfig := &cvpmodels.FlexCacheConfigV1beta{
 			AtimeScrubEnabled:       nillable.GetBoolPtr(true),
-			AtimeScrubMinutes:       nillable.GetInt16Ptr(30),
+			AtimeScrubDays:          nillable.GetInt16Ptr(30),
 			CifsChangeNotifyEnabled: nillable.GetBoolPtr(true),
 			PrePopulate:             cachePrepopulate,
 			WritebackEnabled:        nillable.GetBoolPtr(true),
@@ -1485,15 +1485,15 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		timeNowStrfmt := strfmt.DateTime(time.Now())
 
 		cachePrams := &cvpmodels.FlexCacheV1beta{
-			CacheConfig:          cacheConfig,
-			Command:              "test-command",
-			CommandExpiryTime:    &timeNowStrfmt,
-			EnableGlobalFileLock: nillable.GetBoolPtr(true),
-			Passphrase:           nillable.GetStringPtr("test-passphrase"),
-			PeerClusterName:      "alderan",
-			PeerIPAddresses:      []string{"10.0.0.1", "10.0.0.2"},
-			PeerSvmName:          "peer-svm",
-			PeerVolumeName:       "peer-volume",
+			CacheConfig:              cacheConfig,
+			Command:                  "test-command",
+			PeeringCommandExpiryTime: &timeNowStrfmt,
+			EnableGlobalFileLock:     nillable.GetBoolPtr(true),
+			Passphrase:               nillable.GetStringPtr("test-passphrase"),
+			PeerClusterName:          "alderan",
+			PeerIPAddresses:          []string{"10.0.0.1", "10.0.0.2"},
+			PeerSvmName:              "peer-svm",
+			PeerVolumeName:           "peer-volume",
 		}
 
 		input := &cvpmodels.VolumeV1beta{
@@ -1771,14 +1771,14 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		input := &cvpmodels.VolumeV1beta{
 			VolumeID: "volume-123",
 			CacheParameters: &cvpmodels.FlexCacheV1beta{
-				PeerVolumeName:       "origin-volume",
-				PeerClusterName:      "origin-cluster",
-				PeerSvmName:          "origin-svm",
-				CacheState:           "online",
-				Command:              "flexcache create",
-				EnableGlobalFileLock: nil, // nil
-				CommandExpiryTime:    nil, // nil
-				Passphrase:           nil, // nil
+				PeerVolumeName:           "origin-volume",
+				PeerClusterName:          "origin-cluster",
+				PeerSvmName:              "origin-svm",
+				CacheState:               "online",
+				Command:                  "flexcache create",
+				EnableGlobalFileLock:     nil, // nil
+				PeeringCommandExpiryTime: nil, // nil
+				Passphrase:               nil, // nil
 			},
 		}
 
@@ -1789,7 +1789,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 
 		assert.Equal(tt, "origin-volume", cache.PeerVolumeName)
 		assert.False(tt, cache.EnableGlobalFileLock.IsSet())
-		assert.False(tt, cache.CommandExpiryTime.IsSet())
+		assert.False(tt, cache.PeeringCommandExpiryTime.IsSet())
 		assert.False(tt, cache.Passphrase.IsSet())
 	})
 }

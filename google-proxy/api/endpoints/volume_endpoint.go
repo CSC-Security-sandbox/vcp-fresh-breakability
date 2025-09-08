@@ -1510,8 +1510,8 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		if in.CacheParameters.EnableGlobalFileLock != nil {
 			cacheParams.EnableGlobalFileLock = gcpgenserver.NewOptNilBool(*in.CacheParameters.EnableGlobalFileLock)
 		}
-		if in.CacheParameters.CommandExpiryTime != nil {
-			cacheParams.CommandExpiryTime = gcpgenserver.NewOptNilDateTime(time.Time(*in.CacheParameters.CommandExpiryTime))
+		if in.CacheParameters.PeeringCommandExpiryTime != nil {
+			cacheParams.PeeringCommandExpiryTime = gcpgenserver.NewOptNilDateTime(time.Time(*in.CacheParameters.PeeringCommandExpiryTime))
 		}
 		if in.CacheParameters.Passphrase != nil {
 			cacheParams.Passphrase = gcpgenserver.NewOptNilString(*in.CacheParameters.Passphrase)
@@ -1527,8 +1527,8 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 			if in.CacheParameters.CacheConfig.AtimeScrubEnabled != nil {
 				cacheConfigV1beta.AtimeScrubEnabled = gcpgenserver.NewOptNilBool(*in.CacheParameters.CacheConfig.AtimeScrubEnabled)
 			}
-			if in.CacheParameters.CacheConfig.AtimeScrubMinutes != nil {
-				cacheConfigV1beta.AtimeScrubMinutes = gcpgenserver.NewOptNilInt16(*in.CacheParameters.CacheConfig.AtimeScrubMinutes)
+			if in.CacheParameters.CacheConfig.AtimeScrubDays != nil {
+				cacheConfigV1beta.AtimeScrubDays = gcpgenserver.NewOptNilInt16(*in.CacheParameters.CacheConfig.AtimeScrubDays)
 			}
 			if in.CacheParameters.CacheConfig.CifsChangeNotifyEnabled != nil {
 				cacheConfigV1beta.CifsChangeNotifyEnabled = gcpgenserver.NewOptNilBool(*in.CacheParameters.CacheConfig.CifsChangeNotifyEnabled)

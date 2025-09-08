@@ -1193,7 +1193,7 @@ func (s *FlexCacheConfigV1beta) SetFake() {
 	}
 	{
 		{
-			s.AtimeScrubMinutes.SetFake()
+			s.AtimeScrubDays.SetFake()
 		}
 	}
 	{
@@ -1288,7 +1288,7 @@ func (s *FlexCacheV1beta) SetFake() {
 	}
 	{
 		{
-			s.CommandExpiryTime.SetFake()
+			s.PeeringCommandExpiryTime.SetFake()
 		}
 	}
 	{

@@ -2,6 +2,9 @@ imageVersion ?= latest
 IMAGE_TAG_GOOGLE_PROXY_MIGRATE := vcp-db-migrate:${imageVersion}
 GHVSA_PAT := ${GHVSA_PAT}
 
+# Tool versions
+MOCKERY_VERSION := v2.53.4
+
 # Registry and timestamp configuration
 DEV_REGISTRY ?= ghcr.io/vcp-vsa-control-plane
 TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
@@ -14,17 +17,18 @@ fix-imports:
 
 .PHONY: generate-mocks
 generate-mocks:
-	go get github.com/vektra/mockery/v2@v2.53.4
+	go install github.com/vektra/mockery/v2@$(MOCKERY_VERSION)
 	mockery --config .mockery.yaml
 	mockery --config .monkeyMocks.yaml
 
 .PHONY: generate-monkey-mocks
 generate-monkey-mocks:
-	go get github.com/vektra/mockery/v2@v2.53.4
+	go install github.com/vektra/mockery/v2@$(MOCKERY_VERSION)
 	mockery --config .monkeyMocks.yaml
 
 .PHONY: generate-cvp-client
 generate-cvp-client:
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.25.0
 	rm -rf clients/cvp/cvpapi clients/cvp/models
 	cd clients/cvp;swagger generate client -f swagger-gcp.yaml -c cvpapi -A cvp
 

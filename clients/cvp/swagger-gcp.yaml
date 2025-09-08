@@ -9742,6 +9742,18 @@ definitions:
           - ERROR
         example: PEERED
         readOnly: true
+      stateDetails:
+        title: stateDetails
+        type: string
+        readOnly: true
+        description: Details about the current lifecycle state
+        example: Available for use
+      stateDetailsCode:
+        type: integer
+        description: Numeric representation of current state details
+        format: int32
+        readOnly: true
+        example: 100001
       previousCacheState:
         type: string
         description: Previous state of the FlexCache
@@ -9760,8 +9772,8 @@ definitions:
         example: cluster peer create -peer-addrs 10.196.0.1 -initial-allowed-vserver-peers
           svm_87654321463811e79bdb123456789012_a1b2c3d4
         readOnly: true
-      commandExpiryTime:
-        title: commandExpiryTime
+      peeringCommandExpiryTime:
+        title: peeringCommandExpiryTime
         format: date-time
         type: string
         x-nullable: true
@@ -9793,12 +9805,12 @@ definitions:
         x-nullable: true
         description: Flag indicating whether the atime based scrub is enabled for
           the FlexCache volume.
-      atimeScrubMinutes:
+      atimeScrubDays:
         type: integer
         format: int16
         x-nullable: true
-        description: Duration in minutes after which inactive files can be scrubbed
-          from FlexCache volume.
+        description: Duration in days after which inactive files can be scrubbed from
+          FlexCache volume.
         minimum: 1
         maximum: 1000
       cifsChangeNotifyEnabled:

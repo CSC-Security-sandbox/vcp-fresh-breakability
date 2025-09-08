@@ -19,13 +19,13 @@ import (
 // swagger:model FlexCacheConfig_v1beta
 type FlexCacheConfigV1beta struct {
 
-	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
-	AtimeScrubEnabled *bool `json:"atimeScrubEnabled,omitempty"`
-
-	// Duration in minutes after which inactive files can be scrubbed from FlexCache volume.
+	// Duration in days after which inactive files can be scrubbed from FlexCache volume.
 	// Maximum: 1000
 	// Minimum: 1
-	AtimeScrubMinutes *int16 `json:"atimeScrubMinutes,omitempty"`
+	AtimeScrubDays *int16 `json:"atimeScrubDays,omitempty"`
+
+	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
+	AtimeScrubEnabled *bool `json:"atimeScrubEnabled,omitempty"`
 
 	// Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
 	CifsChangeNotifyEnabled *bool `json:"cifsChangeNotifyEnabled,omitempty"`
@@ -41,7 +41,7 @@ type FlexCacheConfigV1beta struct {
 func (m *FlexCacheConfigV1beta) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateAtimeScrubMinutes(formats); err != nil {
+	if err := m.validateAtimeScrubDays(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -55,17 +55,17 @@ func (m *FlexCacheConfigV1beta) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *FlexCacheConfigV1beta) validateAtimeScrubMinutes(formats strfmt.Registry) error {
+func (m *FlexCacheConfigV1beta) validateAtimeScrubDays(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.AtimeScrubMinutes) { // not required
+	if swag.IsZero(m.AtimeScrubDays) { // not required
 		return nil
 	}
 
-	if err := validate.MinimumInt("atimeScrubMinutes", "body", int64(*m.AtimeScrubMinutes), 1, false); err != nil {
+	if err := validate.MinimumInt("atimeScrubDays", "body", int64(*m.AtimeScrubDays), 1, false); err != nil {
 		return err
 	}
 
-	if err := validate.MaximumInt("atimeScrubMinutes", "body", int64(*m.AtimeScrubMinutes), 1000, false); err != nil {
+	if err := validate.MaximumInt("atimeScrubDays", "body", int64(*m.AtimeScrubDays), 1000, false); err != nil {
 		return err
 	}
 

@@ -5604,9 +5604,9 @@ func (s *FlexCacheConfigV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.AtimeScrubMinutes.Set {
-			e.FieldStart("atimeScrubMinutes")
-			s.AtimeScrubMinutes.Encode(e)
+		if s.AtimeScrubDays.Set {
+			e.FieldStart("atimeScrubDays")
+			s.AtimeScrubDays.Encode(e)
 		}
 	}
 	{
@@ -5621,7 +5621,7 @@ var jsonFieldsNameOfFlexCacheConfigV1beta = [5]string{
 	0: "prePopulate",
 	1: "writebackEnabled",
 	2: "atimeScrubEnabled",
-	3: "atimeScrubMinutes",
+	3: "atimeScrubDays",
 	4: "cifsChangeNotifyEnabled",
 }
 
@@ -5663,15 +5663,15 @@ func (s *FlexCacheConfigV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"atimeScrubEnabled\"")
 			}
-		case "atimeScrubMinutes":
+		case "atimeScrubDays":
 			if err := func() error {
-				s.AtimeScrubMinutes.Reset()
-				if err := s.AtimeScrubMinutes.Decode(d); err != nil {
+				s.AtimeScrubDays.Reset()
+				if err := s.AtimeScrubDays.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"atimeScrubMinutes\"")
+				return errors.Wrap(err, "decode field \"atimeScrubDays\"")
 			}
 		case "cifsChangeNotifyEnabled":
 			if err := func() error {
@@ -5876,9 +5876,9 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.CommandExpiryTime.Set {
-			e.FieldStart("commandExpiryTime")
-			s.CommandExpiryTime.Encode(e, json.EncodeDateTime)
+		if s.PeeringCommandExpiryTime.Set {
+			e.FieldStart("peeringCommandExpiryTime")
+			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
 		}
 	}
 	{
@@ -5901,7 +5901,7 @@ var jsonFieldsNameOfFlexCacheV1beta = [13]string{
 	8:  "stateDetailsCode",
 	9:  "previousCacheState",
 	10: "command",
-	11: "commandExpiryTime",
+	11: "peeringCommandExpiryTime",
 	12: "passphrase",
 }
 
@@ -6041,15 +6041,15 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"command\"")
 			}
-		case "commandExpiryTime":
+		case "peeringCommandExpiryTime":
 			if err := func() error {
-				s.CommandExpiryTime.Reset()
-				if err := s.CommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+				s.PeeringCommandExpiryTime.Reset()
+				if err := s.PeeringCommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"commandExpiryTime\"")
+				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
 			}
 		case "passphrase":
 			if err := func() error {
