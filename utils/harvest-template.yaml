@@ -74,6 +74,11 @@ Pollers:
     auth_type: {{.AUTH_TYPE}}
     secret_id: {{.SECRET_ID}}
     secret_project_number: {{.SECRET_PROJECT}}
+    collectors:
+      - Ems
+      - Rest
+      - RestPerf
+      - KeyPerf
 
 
     labels:
