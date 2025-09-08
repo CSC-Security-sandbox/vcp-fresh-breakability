@@ -21,6 +21,7 @@ func (mt MeasuredType) String() string {
 const (
 	UnknownMeasuredType                                  MeasuredType = "UNKNOWN_MEASURED_TYPE"
 	PoolAllocatedSize                                    MeasuredType = "POOL_ALLOCATED_SIZE"
+	AllocatedUsed                                        MeasuredType = "ALLOCATED_USED"
 	FileSystemReadOps                                    MeasuredType = "FILE_SYSTEM_READ_OPS"
 	FileSystemWriteOps                                   MeasuredType = "FILE_SYSTEM_WRITE_OPS"
 	FileSystemOtherOps                                   MeasuredType = "FILE_SYSTEM_OTHER_OPS"
@@ -55,6 +56,7 @@ func init() {
 		MeasuredType: UnknownMeasuredType,
 	}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_allocated_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolAllocatedSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["allocated_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: AllocatedUsed}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_read_ops"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: FileSystemReadOps}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_write_ops"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: FileSystemWriteOps}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_other_ops"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: FileSystemOtherOps}

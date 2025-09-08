@@ -38,7 +38,11 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 		IsBillable:      true,
 		SKU:             BillingMetricNameReplication,
 	},
-	{ResourceType: metadata.VolumePool, MeasuredType: metadata.TotalLogicalSize}: {
+	{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolAllocatedSize}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      false,
+	},
+	{ResourceType: metadata.VolumePool, MeasuredType: metadata.AllocatedUsed}: {
 		AggregationType: CounterAggregation,
 		IsBillable:      false,
 	},

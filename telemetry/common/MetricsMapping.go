@@ -13,6 +13,9 @@ func CreateMetricsMappingMap() map[metadata.CombinedKeyResourceTypeMeasuredType]
 		{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolAllocatedSize}: {
 			Left: "capacity", Middle: "", Right: "",
 		},
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.AllocatedUsed}: {
+			Left: "allocated", Middle: "", Right: "",
+		},
 	}
 	return metricsMappingMap
 }

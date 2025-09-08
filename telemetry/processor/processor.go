@@ -3,6 +3,8 @@ package processor
 import (
 	"context"
 	"fmt"
+	"time"
+
 	metricdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
@@ -11,7 +13,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"time"
 )
 
 type VCPProcessor interface {
@@ -37,12 +38,16 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 	telemetryConfig := common.LoadConfig()
 	logger.Infof("Process %s!\n", "Performance Metrics")
 
-	poolMetrics, err := collector.GetPoolMetrics(ctx, mp.vcpDatastore, telemetryConfig)
+	poolMetricsResult, err := collector.GetPoolMetrics(ctx, mp.vcpDatastore, telemetryConfig)
 	if err != nil {
 		logger.Error("Failed to get pool metrics", "error", err.Error())
 		return err
 	}
-	mp.sink.DeliverMetrics(ctx, poolMetrics)
+	if err := mp.telemetryDatastore.CreateHydratedMetricsBatch(ctx, poolMetricsResult.HydratedMetricsDataModel, int(telemetryConfig.PushBatchSize)); err != nil {
+		logger.Errorf("Failed to insert hydrated metrics batch: %v", err)
+		return err
+	}
+	mp.sink.DeliverMetrics(ctx, poolMetricsResult.HydratedMetrics)
 	if telemetryConfig.EnableVolumeMetrics {
 		metricClient := mp.googleMetricProvider.GetClient()
 		if metricClient == nil {
