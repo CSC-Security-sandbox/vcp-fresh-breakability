@@ -415,11 +415,12 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if isVolumeDeleted || isSnapmirrorDeleted {
-		adcWorkflow := AdcWF{}
+		cloudDeletionIntiated := false
 		// if volume is deleted then we need to delete the backup with adc
-		err = workflow.ExecuteChildWorkflow(ctx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(ctx, &adcWorkflow)
+		err = workflow.ExecuteChildWorkflow(ctx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(ctx, &cloudDeletionIntiated)
 		if err != nil {
-			if adcWorkflow.cloudDeletionIntiated {
+			wf.Logger.Errorf("Backup deletion failed with ADC, backupUUID: %s, error: %v", dbBackup.UUID, err)
+			if cloudDeletionIntiated {
 				wf.deleteInitiated = true
 			}
 			return nil, ConvertToVSAError(err)

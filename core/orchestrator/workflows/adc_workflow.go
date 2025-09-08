@@ -40,22 +40,22 @@ type AdcWF struct {
 var _ WorkflowInterface = &AdcWF{}
 
 // ADCWorkflow processes ADC (Application Data Controller) related requests from a customer.
-func ADCWorkflow(ctx workflow.Context, params *common.DeleteBackupParams, backupVault *datamodel.BackupVault, backup *datamodel.Backup, account *datamodel.Account) (*AdcWF, error) {
+func ADCWorkflow(ctx workflow.Context, params *common.DeleteBackupParams, backupVault *datamodel.BackupVault, backup *datamodel.Backup, account *datamodel.Account) (bool, error) {
 	adcWf := new(AdcWF)
 	// Create a wrapper struct to pass both arguments through the interface
 	err := adcWf.Setup(ctx, params)
 	if err != nil {
-		return adcWf, err
+		return adcWf.cloudDeletionIntiated, err
 	}
 	adcWf.Status = WorkflowStatusRunning
 	_, customErr := adcWf.Run(ctx, backupVault, backup, account)
 
 	if customErr != nil {
 		adcWf.Status = WorkflowStatusFailed
-		return adcWf, customErr
+		return adcWf.cloudDeletionIntiated, customErr
 	}
 	adcWf.Status = WorkflowStatusCompleted
-	return adcWf, nil
+	return adcWf.cloudDeletionIntiated, nil
 }
 
 func (wf *AdcWF) Setup(ctx workflow.Context, input interface{}) error {
