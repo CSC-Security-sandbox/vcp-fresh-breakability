@@ -610,11 +610,19 @@ func (a BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.No
 }
 
 // Enhanced DeleteSnapshotForBackup with idempotency
-func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
+func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string, useExistingSnapshot bool) error {
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	logger := util.GetLogger(ctx)
+	if useExistingSnapshot {
+		// If using an existing snapshot, do not delete it
+		logger.Warnf("Skipping deletion of snapshot with external uuid %s", snapshotUUID)
+		return nil
+	}
+
+	logger.Infof("Deleting snapshot with external uuid %s", snapshotUUID)
 
 	err = provider.DeleteSnapshot(snapshotUUID, volumeUUID)
 	if err != nil {

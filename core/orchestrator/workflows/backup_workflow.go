@@ -471,7 +471,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
 			}
 
-			err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotForBackup, node, dbBackup.Attributes.SnapshotID, volume.VolumeAttributes.ExternalUUID).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotForBackup, node, dbBackup.Attributes.SnapshotID, volume.VolumeAttributes.ExternalUUID, dbBackup.Attributes.UseExistingSnapshot).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

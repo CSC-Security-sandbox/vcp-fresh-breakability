@@ -3,6 +3,8 @@ package workflows
 import (
 	"context"
 	"errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -919,7 +921,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSnapmirror", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 		env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
-		env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
 
 		// Execute workflow
@@ -1897,4 +1899,120 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T) {
+	// Test case: When useExistingSnapshot is true, it should skip deletion
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	node := &models.Node{EndpointAddress: "test-node-address"}
+	snapshotUUID := "snapshot-uuid-1"
+	volumeUUID := "volume-uuid-1"
+	useExistingSnapshot := true
+
+	// DeleteSnapshot should NOT be called when useExistingSnapshot is true
+	// No expectation set for DeleteSnapshot
+
+	// Execute
+	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+
+	// Assertions
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteSnapshotForBackup_NotUseExistingSnapshot_DeletesSnapshot(t *testing.T) {
+	// Test case: When useExistingSnapshot is false, it should delete the snapshot
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	node := &models.Node{EndpointAddress: "test-node-address"}
+	snapshotUUID := "snapshot-uuid-1"
+	volumeUUID := "volume-uuid-1"
+	useExistingSnapshot := false
+
+	// DeleteSnapshot should be called when useExistingSnapshot is false
+	mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(nil)
+
+	// Execute
+	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+
+	// Assertions
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteSnapshotForBackup_GetProviderByNodeFailure(t *testing.T) {
+	// Test case: When GetProviderByNode fails
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+
+	// Mock hyperscaler provider to return error
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("failed to get provider")
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	node := &models.Node{EndpointAddress: "test-node-address"}
+	snapshotUUID := "snapshot-uuid-1"
+	volumeUUID := "volume-uuid-1"
+	useExistingSnapshot := false
+
+	// Execute
+	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get provider")
+}
+
+func TestDeleteSnapshotForBackup_DeleteSnapshotFailure(t *testing.T) {
+	// Test case: When DeleteSnapshot fails
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	node := &models.Node{EndpointAddress: "test-node-address"}
+	snapshotUUID := "snapshot-uuid-1"
+	volumeUUID := "volume-uuid-1"
+	useExistingSnapshot := false
+
+	// DeleteSnapshot returns error
+	mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(errors.New("failed to delete snapshot"))
+
+	// Execute
+	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete snapshot")
+	mockProvider.AssertExpectations(t)
 }

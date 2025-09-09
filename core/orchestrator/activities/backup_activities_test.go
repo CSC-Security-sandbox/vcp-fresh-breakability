@@ -1420,7 +1420,7 @@ func TestDeleteSnapshotForBackup(t *testing.T) {
 		snapshotUUID := "snapshot-uuid"
 		volumeUUID := "volume-uuid"
 		mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(nil)
-		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID)
+		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, false)
 		assert.Nil(t, err)
 	})
 	t.Run("onFailure", func(t *testing.T) {
@@ -1436,7 +1436,7 @@ func TestDeleteSnapshotForBackup(t *testing.T) {
 		snapshotUUID := "snapshot-uuid"
 		volumeUUID := "volume-uuid"
 		mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(errors.New("delete failed"))
-		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID)
+		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, false)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "delete failed")
 	})
@@ -1451,7 +1451,7 @@ func TestDeleteSnapshotForBackup(t *testing.T) {
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		volumeUUID := "volume-uuid"
-		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID)
+		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, false)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to get provider")
 	})
@@ -4034,4 +4034,60 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError_MarkAsErro
 	assert.NoError(t, err) // Should still not fail the entire operation
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
+}
+func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	node := &models.Node{Name: "test-node"}
+	snapshotUUID := "snapshot-uuid-123"
+	volumeUUID := "volume-uuid-456"
+	useExistingSnapshot := true
+
+	// Mock the provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Act
+	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+
+	// Assert
+	assert.NoError(t, err)
+	// Ensure DeleteSnapshot was NOT called on the provider
+	mockProvider.AssertNotCalled(t, "DeleteSnapshot", mock.Anything, mock.Anything)
+}
+
+func TestDeleteSnapshotForBackup_UseExistingSnapshot_GetProviderError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	node := &models.Node{Name: "test-node"}
+	snapshotUUID := "snapshot-uuid-123"
+	volumeUUID := "volume-uuid-456"
+	useExistingSnapshot := true
+
+	// Mock provider lookup failure
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	providerError := errors.New("provider lookup failed")
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, providerError
+	}
+
+	// Act
+	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "provider lookup failed")
 }
