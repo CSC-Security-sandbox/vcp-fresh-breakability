@@ -13,10 +13,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -146,7 +147,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		hotTierSizeInBytes = uint64(req.HotTierSizeInBytes.Value)
 	}
 
-	param := &common.CreatePoolParams{
+	param := &commonparams.CreatePoolParams{
 		AccountName:             params.ProjectNumber,
 		Region:                  region,
 		PrimaryZone:             primaryZone,
@@ -162,7 +163,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		AllowAutoTiering:        req.AllowAutoTiering.Value,
 		HotTierSizeInBytes:      hotTierSizeInBytes,
 		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
-		CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: totalThroughput, Enabled: req.CustomPerformanceEnabled.Value, Iops: totalIops},
+		CustomPerformanceParams: &commonparams.CustomPerformanceParams{ThroughputMibps: totalThroughput, Enabled: req.CustomPerformanceEnabled.Value, Iops: totalIops},
 		KmsConfigId:             req.KmsConfigId.Value,
 		KmsConfigResourceID:     req.KmsConfigResourceId.Value,
 		LargeCapacity:           req.LargeCapacity.Value,
@@ -219,7 +220,9 @@ func handleExistingPool(ctx context.Context, req *gcpgenserver.PoolV1beta, param
 			return &gcpgenserver.V1betaCreatePoolInternalServerError{}, err
 		}
 		// Pool is in creating state, find the existing job and return same operation
-		job, jobErr := orchestrator.GetJobByResourceUUID(ctx, existingPool.UUID, string(models.JobTypeCreatePool))
+		poolCategory := models.GetPoolCategory(common.GetBoolOrDefault(req.LargeCapacity, false))
+		jobType := string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, poolCategory))
+		job, jobErr := orchestrator.GetJobByResourceUUID(ctx, existingPool.UUID, jobType)
 		if jobErr != nil {
 			logger.Error("Failed to find job for creating pool", "poolUUID", existingPool.UUID, "error", jobErr.Error())
 			// Return the pool response even if job lookup fails
@@ -271,7 +274,8 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 		switch existingPool.State {
 		case models.LifeCycleStateDeleting:
 			log := util.GetLogger(ctx)
-			job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, existingPool.UUID, string(models.JobTypeDeletePool))
+			poolCategory := models.GetPoolCategory(existingPool.LargeCapacity)
+			job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, existingPool.UUID, string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory)))
 			if jobErr != nil {
 				log.Error("Failed to find job for deleting pool", "poolUUID", existingPool.UUID, "error", jobErr.Error())
 				// Return the pool response even if job lookup fails
@@ -300,7 +304,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 			Done: gcpgenserver.NewOptBool(true),
 		}, nil
 	}
-	deletePoolParams := &common.DeletePoolParams{
+	deletePoolParams := &commonparams.DeletePoolParams{
 		AccountName: params.ProjectNumber,
 		PoolID:      params.PoolId,
 	}
@@ -531,7 +535,7 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		return validateErr, nil
 	}
 
-	param := &common.UpdatePoolParams{
+	param := &commonparams.UpdatePoolParams{
 		AccountName: params.ProjectNumber,
 		Region:      region,
 		CurrentZone: zone,

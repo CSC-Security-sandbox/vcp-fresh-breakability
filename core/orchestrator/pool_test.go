@@ -3667,3 +3667,383 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.Nil(t, credentials)
 	})
 }
+
+func TestCreatePool_JobTypeSelection(t *testing.T) {
+	// Test the job type determination logic directly using the helper functions from line 90
+
+	t.Run("LargeCapacityPool_UsesCreateLargePoolJobType", func(tt *testing.T) {
+		jobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, models.PoolCategoryLargeCapacity)
+		assert.Equal(tt, models.JobTypeCreateLargePool, jobType)
+	})
+
+	t.Run("StandardPool_UsesCreatePoolJobType", func(tt *testing.T) {
+		jobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, models.PoolCategoryStandard)
+		assert.Equal(tt, models.JobTypeCreatePool, jobType)
+	})
+
+	t.Run("DefaultPool_UsesCreatePoolJobType", func(tt *testing.T) {
+		jobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, models.PoolCategoryDefault)
+		assert.Equal(tt, models.JobTypeCreatePool, jobType) // Default maps to standard
+	})
+}
+
+func TestGetResourceJobType_PoolOperations_ComprehensiveMapping(t *testing.T) {
+	// Test all combinations of pool operations and capacity types
+
+	testCases := []struct {
+		name            string
+		operation       models.ResourceOperation
+		isLargeCapacity bool
+		expectedJobType models.JobType
+	}{
+		// CREATE operations
+		{
+			name:            "Create_RegularCapacity",
+			operation:       models.ResourceOperationCreate,
+			isLargeCapacity: false,
+			expectedJobType: models.JobTypeCreatePool,
+		},
+		{
+			name:            "Create_LargeCapacity",
+			operation:       models.ResourceOperationCreate,
+			isLargeCapacity: true,
+			expectedJobType: models.JobTypeCreateLargePool,
+		},
+		// UPDATE operations
+		{
+			name:            "Update_RegularCapacity",
+			operation:       models.ResourceOperationUpdate,
+			isLargeCapacity: false,
+			expectedJobType: models.JobTypeUpdatePool,
+		},
+		{
+			name:            "Update_LargeCapacity",
+			operation:       models.ResourceOperationUpdate,
+			isLargeCapacity: true,
+			expectedJobType: models.JobTypeUpdateLargePool,
+		},
+		// DELETE operations
+		{
+			name:            "Delete_RegularCapacity",
+			operation:       models.ResourceOperationDelete,
+			isLargeCapacity: false,
+			expectedJobType: models.JobTypeDeletePool,
+		},
+		{
+			name:            "Delete_LargeCapacity",
+			operation:       models.ResourceOperationDelete,
+			isLargeCapacity: true,
+			expectedJobType: models.JobTypeDeleteLargePool,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			poolCategory := models.GetPoolCategory(tc.isLargeCapacity)
+			jobType := models.GetResourceJobType(models.ResourceTypePool, tc.operation, poolCategory)
+			assert.Equal(tt, tc.expectedJobType, jobType,
+				"Expected operation %s with largeCapacity=%t to return %s, got %s",
+				tc.operation, tc.isLargeCapacity, tc.expectedJobType, jobType)
+		})
+	}
+}
+
+func TestGetResourceJobType_PoolOperations_EdgeCases(t *testing.T) {
+	// Test edge cases and boundary conditions for pool operations
+
+	t.Run("InvalidOperation_FallsBackToCreatePool", func(tt *testing.T) {
+		// Test what happens with invalid operation
+		jobType := models.GetResourceJobType(models.ResourceTypePool, "INVALID_OPERATION", models.PoolCategoryStandard)
+		assert.Equal(tt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation")
+	})
+
+	t.Run("InvalidOperation_WithLargeCapacity_FallsBackToCreatePool", func(tt *testing.T) {
+		// Test what happens with invalid operation and large capacity
+		jobType := models.GetResourceJobType(models.ResourceTypePool, "INVALID_OPERATION", models.PoolCategoryLargeCapacity)
+		assert.Equal(tt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation even with large capacity")
+	})
+
+	t.Run("EmptyOperation_FallsBackToCreatePool", func(tt *testing.T) {
+		// Test what happens with empty operation
+		jobType := models.GetResourceJobType(models.ResourceTypePool, "", models.PoolCategoryStandard)
+		assert.Equal(tt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for empty operation")
+	})
+}
+
+func TestGetResourceJobType_PoolOperations_AllValidCombinations(t *testing.T) {
+	// Comprehensive test of all valid pool operation and capacity combinations
+
+	testCases := []struct {
+		name            string
+		operation       models.ResourceOperation
+		isLargeCapacity bool
+		expectedJobType models.JobType
+		description     string
+	}{
+		{
+			name:            "CreateRegular",
+			operation:       models.ResourceOperationCreate,
+			isLargeCapacity: false,
+			expectedJobType: models.JobTypeCreatePool,
+			description:     "Create operation with regular capacity should return CREATE_POOL",
+		},
+		{
+			name:            "CreateLarge",
+			operation:       models.ResourceOperationCreate,
+			isLargeCapacity: true,
+			expectedJobType: models.JobTypeCreateLargePool,
+			description:     "Create operation with large capacity should return CREATE_LARGE_POOL",
+		},
+		{
+			name:            "UpdateRegular",
+			operation:       models.ResourceOperationUpdate,
+			isLargeCapacity: false,
+			expectedJobType: models.JobTypeUpdatePool,
+			description:     "Update operation with regular capacity should return UPDATE_POOL",
+		},
+		{
+			name:            "UpdateLarge",
+			operation:       models.ResourceOperationUpdate,
+			isLargeCapacity: true,
+			expectedJobType: models.JobTypeUpdateLargePool,
+			description:     "Update operation with large capacity should return UPDATE_LARGE_POOL",
+		},
+		{
+			name:            "DeleteRegular",
+			operation:       models.ResourceOperationDelete,
+			isLargeCapacity: false,
+			expectedJobType: models.JobTypeDeletePool,
+			description:     "Delete operation with regular capacity should return DELETE_POOL",
+		},
+		{
+			name:            "DeleteLarge",
+			operation:       models.ResourceOperationDelete,
+			isLargeCapacity: true,
+			expectedJobType: models.JobTypeDeleteLargePool,
+			description:     "Delete operation with large capacity should return DELETE_LARGE_POOL",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			poolCategory := models.GetPoolCategory(tc.isLargeCapacity)
+			jobType := models.GetResourceJobType(models.ResourceTypePool, tc.operation, poolCategory)
+			assert.Equal(tt, tc.expectedJobType, jobType, tc.description)
+		})
+	}
+}
+
+func TestGetResourceJobType_PoolOperations_OperationConstants(t *testing.T) {
+	// Test that the pool operation constants are correctly defined and used
+
+	t.Run("OperationConstantsAreDefined", func(tt *testing.T) {
+		// Verify all operation constants exist and have expected values
+		assert.Equal(tt, models.ResourceOperation("CREATE"), models.ResourceOperationCreate)
+		assert.Equal(tt, models.ResourceOperation("UPDATE"), models.ResourceOperationUpdate)
+		assert.Equal(tt, models.ResourceOperation("DELETE"), models.ResourceOperationDelete)
+	})
+
+	t.Run("JobTypeConstantsAreDefined", func(tt *testing.T) {
+		// Verify all job type constants exist and have expected values
+		assert.Equal(tt, models.JobType("CREATE_POOL"), models.JobTypeCreatePool)
+		assert.Equal(tt, models.JobType("CREATE_LARGE_POOL"), models.JobTypeCreateLargePool)
+		assert.Equal(tt, models.JobType("UPDATE_POOL"), models.JobTypeUpdatePool)
+		assert.Equal(tt, models.JobType("UPDATE_LARGE_POOL"), models.JobTypeUpdateLargePool)
+		assert.Equal(tt, models.JobType("DELETE_POOL"), models.JobTypeDeletePool)
+		assert.Equal(tt, models.JobType("DELETE_LARGE_POOL"), models.JobTypeDeleteLargePool)
+	})
+}
+
+func TestGetResourceJobType_PoolOperations_CapacityFlagBehavior(t *testing.T) {
+	// Test the behavior of the isLargeCapacity flag across all pool operations
+
+	operations := []models.ResourceOperation{
+		models.ResourceOperationCreate,
+		models.ResourceOperationUpdate,
+		models.ResourceOperationDelete,
+	}
+
+	for _, operation := range operations {
+		t.Run(fmt.Sprintf("%s_CapacityFlagDifference", operation), func(tt *testing.T) {
+			regularJobType := models.GetResourceJobType(models.ResourceTypePool, operation, models.PoolCategoryStandard)
+			largeJobType := models.GetResourceJobType(models.ResourceTypePool, operation, models.PoolCategoryLargeCapacity)
+
+			// Verify that the capacity flag actually changes the result
+			assert.NotEqual(tt, regularJobType, largeJobType,
+				"Regular and large capacity should return different job types for operation %s", operation)
+
+			// Verify the job types contain the expected patterns
+			regularStr := string(regularJobType)
+			largeStr := string(largeJobType)
+
+			assert.NotContains(tt, regularStr, "LARGE",
+				"Regular capacity job type should not contain 'LARGE' for operation %s", operation)
+			assert.Contains(tt, largeStr, "LARGE",
+				"Large capacity job type should contain 'LARGE' for operation %s", operation)
+		})
+	}
+}
+
+func TestGetResourceJobType_PoolOperations_Consistency(t *testing.T) {
+	// Test consistency and predictability of the pool job type function
+
+	t.Run("FunctionIsIdempotent", func(tt *testing.T) {
+		// Test that calling the function multiple times with same inputs returns same result
+		operation := models.ResourceOperationCreate
+		isLargeCapacity := true
+
+		poolCategory := models.GetPoolCategory(isLargeCapacity)
+		result1 := models.GetResourceJobType(models.ResourceTypePool, operation, poolCategory)
+		result2 := models.GetResourceJobType(models.ResourceTypePool, operation, poolCategory)
+		result3 := models.GetResourceJobType(models.ResourceTypePool, operation, poolCategory)
+
+		assert.Equal(tt, result1, result2, "Function should be idempotent")
+		assert.Equal(tt, result2, result3, "Function should be idempotent")
+	})
+
+	t.Run("JobTypeMapping_IsComplete", func(tt *testing.T) {
+		// Verify that every valid operation has both regular and large capacity mappings
+		operations := []models.ResourceOperation{
+			models.ResourceOperationCreate,
+			models.ResourceOperationUpdate,
+			models.ResourceOperationDelete,
+		}
+
+		for _, operation := range operations {
+			regularJobType := models.GetResourceJobType(models.ResourceTypePool, operation, models.PoolCategoryStandard)
+			largeJobType := models.GetResourceJobType(models.ResourceTypePool, operation, models.PoolCategoryLargeCapacity)
+
+			// Neither should fallback to the default CREATE_POOL (unless it's actually CREATE operation)
+			if operation != models.ResourceOperationCreate {
+				assert.NotEqual(tt, models.JobTypeCreatePool, regularJobType,
+					"Operation %s should not fallback to CREATE_POOL", operation)
+				assert.NotEqual(tt, models.JobTypeCreatePool, largeJobType,
+					"Operation %s with large capacity should not fallback to CREATE_POOL", operation)
+			}
+
+			// Both should return valid, non-empty job types
+			assert.NotEmpty(tt, string(regularJobType), "Should return non-empty job type for %s regular", operation)
+			assert.NotEmpty(tt, string(largeJobType), "Should return non-empty job type for %s large", operation)
+		}
+	})
+}
+
+func TestGetResourceJobType_Comprehensive(t *testing.T) {
+	// Test the new generic resource job type function
+
+	t.Run("PoolOperations", func(tt *testing.T) {
+		// Test all pool operations with both capacity types
+		poolTestCases := []struct {
+			name            string
+			operation       models.ResourceOperation
+			isLargeCapacity bool
+			expectedJobType models.JobType
+			description     string
+		}{
+			{
+				name:            "Pool_Create_Regular",
+				operation:       models.ResourceOperationCreate,
+				isLargeCapacity: false,
+				expectedJobType: models.JobTypeCreatePool,
+				description:     "Pool create with regular capacity",
+			},
+			{
+				name:            "Pool_Create_Large",
+				operation:       models.ResourceOperationCreate,
+				isLargeCapacity: true,
+				expectedJobType: models.JobTypeCreateLargePool,
+				description:     "Pool create with large capacity",
+			},
+			{
+				name:            "Pool_Update_Regular",
+				operation:       models.ResourceOperationUpdate,
+				isLargeCapacity: false,
+				expectedJobType: models.JobTypeUpdatePool,
+				description:     "Pool update with regular capacity",
+			},
+			{
+				name:            "Pool_Update_Large",
+				operation:       models.ResourceOperationUpdate,
+				isLargeCapacity: true,
+				expectedJobType: models.JobTypeUpdateLargePool,
+				description:     "Pool update with large capacity",
+			},
+			{
+				name:            "Pool_Delete_Regular",
+				operation:       models.ResourceOperationDelete,
+				isLargeCapacity: false,
+				expectedJobType: models.JobTypeDeletePool,
+				description:     "Pool delete with regular capacity",
+			},
+			{
+				name:            "Pool_Delete_Large",
+				operation:       models.ResourceOperationDelete,
+				isLargeCapacity: true,
+				expectedJobType: models.JobTypeDeleteLargePool,
+				description:     "Pool delete with large capacity",
+			},
+		}
+
+		for _, tc := range poolTestCases {
+			tt.Run(tc.name, func(ttt *testing.T) {
+				poolCategory := models.GetPoolCategory(tc.isLargeCapacity)
+				jobType := models.GetResourceJobType(models.ResourceTypePool, tc.operation, poolCategory)
+				assert.Equal(ttt, tc.expectedJobType, jobType, tc.description)
+			})
+		}
+	})
+
+	t.Run("SubnetOperations", func(tt *testing.T) {
+		// Test subnet operations (only CREATE is supported)
+		subnetTestCases := []struct {
+			name            string
+			operation       models.ResourceOperation
+			isLargeCapacity bool
+			expectedJobType models.JobType
+			description     string
+		}{
+			{
+				name:            "Subnet_Create_Regular",
+				operation:       models.ResourceOperationCreate,
+				isLargeCapacity: false,
+				expectedJobType: models.JobTypeCreateSubnet,
+				description:     "Subnet create with regular capacity",
+			},
+			{
+				name:            "Subnet_Create_Large",
+				operation:       models.ResourceOperationCreate,
+				isLargeCapacity: true,
+				expectedJobType: models.JobTypeCreateLargeSubnet,
+				description:     "Subnet create with large capacity",
+			},
+		}
+
+		for _, tc := range subnetTestCases {
+			tt.Run(tc.name, func(ttt *testing.T) {
+				poolCategory := models.GetPoolCategory(tc.isLargeCapacity)
+				jobType := models.GetResourceJobType(models.ResourceTypeSubnet, tc.operation, poolCategory)
+				assert.Equal(ttt, tc.expectedJobType, jobType, tc.description)
+			})
+		}
+	})
+
+	t.Run("EdgeCases", func(tt *testing.T) {
+		// Test invalid combinations fall back to default
+
+		t.Run("InvalidResourceType", func(ttt *testing.T) {
+			jobType := models.GetResourceJobType("INVALID_RESOURCE", models.ResourceOperationCreate, models.PoolCategoryStandard)
+			assert.Equal(ttt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid resource type")
+		})
+
+		t.Run("InvalidOperation", func(ttt *testing.T) {
+			jobType := models.GetResourceJobType(models.ResourceTypePool, "INVALID_OPERATION", models.PoolCategoryStandard)
+			assert.Equal(ttt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation")
+		})
+
+		t.Run("UnsupportedSubnetOperation", func(ttt *testing.T) {
+			// Subnets don't support UPDATE operations
+			jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationUpdate, models.PoolCategoryStandard)
+			assert.Equal(ttt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for unsupported subnet operation")
+		})
+	})
+}

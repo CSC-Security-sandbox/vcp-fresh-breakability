@@ -79,9 +79,10 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 			}
 		}
 	}()
-
+	poolCategory := models.GetPoolCategory(params.LargeCapacity)
+	jobType := string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, poolCategory))
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreatePool),
+		Type:          jobType,
 		State:         string(models.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
@@ -216,8 +217,9 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", err
 	}
 
+	poolCategory := models.GetPoolCategory(dbPool.LargeCapacity)
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdatePool),
+		Type:         string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
 		State:        string(models.JobsStateNEW),
 		ResourceName: params.PoolId,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
@@ -372,8 +374,9 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		return nil, "", customerrors.NewConflictErr("pool cannot be deleted with active volumes")
 	}
 
+	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeletePool),
+		Type:          string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory)),
 		State:         string(models.JobsStateNEW),
 		ResourceName:  pool.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},

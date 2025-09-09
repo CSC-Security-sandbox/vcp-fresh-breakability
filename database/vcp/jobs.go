@@ -99,7 +99,7 @@ func (d *DataStoreRepository) ListOngoingPoolJobsWithKmsConfigId(ctx context.Con
 	db := d.db.GORM().WithContext(ctx)
 	jobs := make([]*datamodel.Job, 0)
 
-	err := db.Joins("INNER JOIN pools on pools.name = jobs.resource_name").Where("jobs.state = ? and jobs.type = ? and pools.kms_config_id = ? and pools.account_id = ?", models.JobsStatePROCESSING, models.JobTypeCreatePool, kmsId, accountId).Find(&jobs).Error
+	err := db.Joins("INNER JOIN pools on pools.name = jobs.resource_name").Where("jobs.state = ? and jobs.type IN (?, ?) and pools.kms_config_id = ? and pools.account_id = ?", models.JobsStatePROCESSING, models.JobTypeCreatePool, models.JobTypeCreateLargePool, kmsId, accountId).Find(&jobs).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

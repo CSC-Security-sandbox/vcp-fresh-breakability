@@ -16,10 +16,41 @@ const (
 
 type JobType string
 
+// ResourceOperation represents the type of operation being performed on a resource
+type ResourceOperation string
+
+// ResourceType represents the type of resource being operated on
+type ResourceType string
+
 const (
-	JobTypeCreatePool JobType = "CREATE_POOL"
-	JobTypeUpdatePool JobType = "UPDATE_POOL"
-	JobTypeDeletePool JobType = "DELETE_POOL"
+	// Resource operation types
+	ResourceOperationCreate ResourceOperation = "CREATE"
+	ResourceOperationUpdate ResourceOperation = "UPDATE"
+	ResourceOperationDelete ResourceOperation = "DELETE"
+)
+
+const (
+	// Resource types
+	ResourceTypePool   ResourceType = "POOL"
+	ResourceTypeSubnet ResourceType = "SUBNET"
+)
+
+type PoolCategory string
+
+const (
+	// Pool categories for extensible classification
+	PoolCategoryStandard      PoolCategory = "standardPool"      // Standard/regular pools
+	PoolCategoryLargeCapacity PoolCategory = "largeCapacityPool" // Large capacity pools
+	PoolCategoryDefault       PoolCategory = "default"           // Default fallback (maps to standard)
+)
+
+const (
+	JobTypeCreatePool      JobType = "CREATE_POOL"
+	JobTypeCreateLargePool JobType = "CREATE_LARGE_POOL"
+	JobTypeUpdatePool      JobType = "UPDATE_POOL"
+	JobTypeUpdateLargePool JobType = "UPDATE_LARGE_POOL"
+	JobTypeDeletePool      JobType = "DELETE_POOL"
+	JobTypeDeleteLargePool JobType = "DELETE_LARGE_POOL"
 
 	// We will use a single workflow for FC volume creation and it will handle creating/completing these jobs.
 	// These 3 jobs are used to keep consistency with PO workflow/expectations.
@@ -72,6 +103,7 @@ const (
 	JobTypeUpdateBackupVault                 JobType = "UPDATE_BACKUP_VAULT"
 	JobTypeDeleteSnapmirrorSnapshotsInternal JobType = "DELETE_SM_SNAPSHOTS_INTERNAL"
 	JobTypeCreateSubnet                      JobType = "CREATE_SUBNET"
+	JobTypeCreateLargeSubnet                 JobType = "CREATE_LARGE_SUBNET"
 	JobTypeHandleResourceEvent               JobType = "HANDLE_RESOURCE_EVENT"
 	JobTypeHandleResourceEventOffState       JobType = "HANDLE_RESOURCE_EVENT_OFF_STATE"
 	JobTypeHandleResourceEventOnState        JobType = "HANDLE_RESOURCE_EVENT_ON_STATE"
@@ -84,6 +116,61 @@ const (
 	JobTypeUpdateBackupPolicy                JobType = "UPDATE_BACKUP_POLICY"
 	JobTypeDeleteBackupPolicy                JobType = "DELETE_BACKUP_POLICY"
 )
+
+// GetResourceJobType returns the appropriate job type based on the resource type, operation, and pool category
+func GetResourceJobType(resourceType ResourceType, operation ResourceOperation, poolCategory PoolCategory) JobType {
+	// Handle default category by mapping to standard pool
+	if poolCategory == PoolCategoryDefault {
+		poolCategory = PoolCategoryStandard
+	}
+
+	// Define the job type mapping based on resource type, operation, and pool category
+	// This extensible design allows adding new pool categories without breaking existing code
+	jobTypeMap := map[ResourceType]map[ResourceOperation]map[PoolCategory]JobType{
+		ResourceTypePool: {
+			ResourceOperationCreate: {
+				PoolCategoryStandard:      JobTypeCreatePool,      // Standard pool create
+				PoolCategoryLargeCapacity: JobTypeCreateLargePool, // Large capacity pool create
+			},
+			ResourceOperationUpdate: {
+				PoolCategoryStandard:      JobTypeUpdatePool,      // Standard pool update
+				PoolCategoryLargeCapacity: JobTypeUpdateLargePool, // Large capacity pool update
+			},
+			ResourceOperationDelete: {
+				PoolCategoryStandard:      JobTypeDeletePool,      // Standard pool delete
+				PoolCategoryLargeCapacity: JobTypeDeleteLargePool, // Large capacity pool delete
+			},
+		},
+		ResourceTypeSubnet: {
+			ResourceOperationCreate: {
+				PoolCategoryStandard:      JobTypeCreateSubnet,      // Standard subnet create
+				PoolCategoryLargeCapacity: JobTypeCreateLargeSubnet, // Large capacity subnet create
+			},
+			// Note: Subnets only support CREATE operations currently
+			// Future operations can be added here as needed
+		},
+	}
+
+	// Get the job type from the mapping
+	if resourceMap, exists := jobTypeMap[resourceType]; exists {
+		if operationMap, exists := resourceMap[operation]; exists {
+			if jobType, exists := operationMap[poolCategory]; exists {
+				return jobType
+			}
+		}
+	}
+
+	// Default fallback (should not reach here with valid inputs)
+	return JobTypeCreatePool
+}
+
+// GetPoolCategory is a concise helper function that maps boolean capacity to PoolCategory
+func GetPoolCategory(isLargeCapacity bool) PoolCategory {
+	if isLargeCapacity {
+		return PoolCategoryLargeCapacity
+	}
+	return PoolCategoryStandard
+}
 
 // Job describes a job DB model
 type Job struct {

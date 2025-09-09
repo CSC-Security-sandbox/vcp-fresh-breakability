@@ -344,6 +344,102 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		assert.Equal(tt, job.UUID, jobs[0].UUID, "Expected job UUID %v, got %v", job.UUID, jobs[0].UUID)
 	})
 
+	t.Run("WhenLargeCapacityPoolJobExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create pool and large capacity job with matching kms_config_id
+		pool := &datamodel.Pool{
+			Name:        "test-large-pool",
+			KmsConfigID: sql.NullInt64{Int64: 123, Valid: true},
+			AccountID:   456,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool: %v", err)
+
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "large-job-uuid"},
+			ResourceName: "test-large-pool",
+			State:        string(models.JobsStatePROCESSING),
+			Type:         string(models.JobTypeCreateLargePool), // Large capacity job type
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		jobs, err := store.ListOngoingPoolJobsWithKmsConfigId(context.Background(), 123, 456)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 1, "Expected 1 job, got %d", len(jobs))
+		assert.Equal(tt, job.UUID, jobs[0].UUID, "Expected job UUID %v, got %v", job.UUID, jobs[0].UUID)
+		assert.Equal(tt, string(models.JobTypeCreateLargePool), jobs[0].Type, "Expected job type %v, got %v", models.JobTypeCreateLargePool, jobs[0].Type)
+	})
+
+	t.Run("WhenBothRegularAndLargeCapacityJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create pools for both regular and large capacity
+		regularPool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "regular-pool-uuid"},
+			Name:           "test-regular-pool",
+			KmsConfigID:    sql.NullInt64{Int64: 123, Valid: true},
+			AccountID:      456,
+			DeploymentName: "regular-deployment",
+		}
+		err = store.db.Create(regularPool).Error()
+		assert.NoError(tt, err, "Failed to create regular pool: %v", err)
+
+		largePool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "large-pool-uuid"},
+			Name:           "test-large-pool",
+			KmsConfigID:    sql.NullInt64{Int64: 123, Valid: true},
+			AccountID:      456,
+			DeploymentName: "large-deployment",
+		}
+		err = store.db.Create(largePool).Error()
+		assert.NoError(tt, err, "Failed to create large pool: %v", err)
+
+		// Create both types of jobs
+		regularJob := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "regular-job-uuid"},
+			ResourceName: "test-regular-pool",
+			State:        string(models.JobsStatePROCESSING),
+			Type:         string(models.JobTypeCreatePool),
+		}
+		_, err = store.CreateJob(context.Background(), regularJob)
+		assert.NoError(tt, err, "Failed to create regular job: %v", err)
+
+		largeJob := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "large-job-uuid"},
+			ResourceName: "test-large-pool",
+			State:        string(models.JobsStatePROCESSING),
+			Type:         string(models.JobTypeCreateLargePool),
+		}
+		_, err = store.CreateJob(context.Background(), largeJob)
+		assert.NoError(tt, err, "Failed to create large job: %v", err)
+
+		jobs, err := store.ListOngoingPoolJobsWithKmsConfigId(context.Background(), 123, 456)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 2, "Expected 2 jobs, got %d", len(jobs))
+
+		// Verify both job types are returned
+		jobTypes := make(map[string]bool)
+		for _, job := range jobs {
+			jobTypes[job.Type] = true
+		}
+		assert.True(tt, jobTypes[string(models.JobTypeCreatePool)], "Expected regular pool job type to be present")
+		assert.True(tt, jobTypes[string(models.JobTypeCreateLargePool)], "Expected large pool job type to be present")
+	})
+
 	t.Run("WhenJobsExistButKmsIdDoesNotMatch", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")

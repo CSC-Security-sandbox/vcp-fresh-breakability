@@ -1862,6 +1862,174 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.True(tt, operation.Done.Value, "Operation should be marked as done when job lookup fails")
 		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/us-east4-a/operations/00000000-0000-0000-0000-000000000000")
 	})
+
+	t.Run("WhenPoolIsInCreatingStateWithLargeCapacity_UsesCorrectJobType", func(tt *testing.T) {
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:    "test-large-pool",
+			Unified:       gcpgenserver.NewOptBool(true),
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   13194139533312, // 12TiB - large capacity
+			Network:       "test-network",
+			Zone:          gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+			LargeCapacity: gcpgenserver.NewOptBool(true), // This is the key - large capacity pool
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		existingPool := &models.Pool{
+			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		job := &models.Job{
+			BaseModel: models.BaseModel{UUID: "job-uuid"},
+			Type:      models.JobTypeCreateLargePool, // Should use large pool job type
+			JobAttributes: &models.JobAttributes{
+				ResourceUUID: "creating-pool-uuid",
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		// This is the key assertion - line 225 should use JobTypeCreateLargePool for large capacity pools
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreateLargePool)).Return(job, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		operation, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "Expected OperationV1beta response")
+		assert.False(tt, operation.Done.Value, "Operation should not be marked as done")
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/us-east4-a/operations/job-uuid")
+	})
+
+	t.Run("WhenPoolIsInCreatingStateWithoutLargeCapacity_UsesCorrectJobType", func(tt *testing.T) {
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:    "test-regular-pool",
+			Unified:       gcpgenserver.NewOptBool(true),
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   2199023255552, // 2TiB - regular pool
+			Network:       "test-network",
+			Zone:          gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+			LargeCapacity: gcpgenserver.NewOptBool(false), // Regular pool
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		existingPool := &models.Pool{
+			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		job := &models.Job{
+			BaseModel: models.BaseModel{UUID: "job-uuid"},
+			Type:      models.JobTypeCreatePool, // Should use regular pool job type
+			JobAttributes: &models.JobAttributes{
+				ResourceUUID: "creating-pool-uuid",
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		// This is the key assertion - line 225 should use JobTypeCreatePool for regular pools
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreatePool)).Return(job, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		operation, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "Expected OperationV1beta response")
+		assert.False(tt, operation.Done.Value, "Operation should not be marked as done")
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/us-east4-a/operations/job-uuid")
+	})
+
+	t.Run("WhenPoolIsInCreatingStateWithLargeCapacityNotSet_UsesDefaultJobType", func(tt *testing.T) {
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:    "test-regular-pool",
+			Unified:       gcpgenserver.NewOptBool(true),
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   2199023255552, // 2TiB - regular pool
+			Network:       "test-network",
+			Zone:          gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+			// LargeCapacity not set - should default to false
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		existingPool := &models.Pool{
+			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		job := &models.Job{
+			BaseModel: models.BaseModel{UUID: "job-uuid"},
+			Type:      models.JobTypeCreatePool, // Should default to regular pool job type
+			JobAttributes: &models.JobAttributes{
+				ResourceUUID: "creating-pool-uuid",
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		// This verifies that common.GetBoolOrDefault(req.LargeCapacity, false) defaults to false when LargeCapacity is not set
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreatePool)).Return(job, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		operation, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "Expected OperationV1beta response")
+		assert.False(tt, operation.Done.Value, "Operation should not be marked as done")
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/us-east4-a/operations/job-uuid")
+	})
 }
 
 func TestV1betaUpdatePoolValidationErrors(t *testing.T) {

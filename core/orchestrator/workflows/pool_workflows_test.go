@@ -314,6 +314,28 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestCreateSubnetJob_JobTypeSelection(t *testing.T) {
+	// Test the job type selection using the generic GetResourceJobType function
+
+	t.Run("StandardCategory_ReturnsCreateSubnetJobType", func(tt *testing.T) {
+		// Test using the generic function with standard category
+		jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationCreate, models.PoolCategoryStandard)
+		assert.Equal(tt, models.JobTypeCreateSubnet, jobType, "Should use standard subnet job type for standard category")
+	})
+
+	t.Run("LargeCapacityCategory_ReturnsCreateLargeSubnetJobType", func(tt *testing.T) {
+		// Test using the generic function with large capacity category
+		jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationCreate, models.PoolCategoryLargeCapacity)
+		assert.Equal(tt, models.JobTypeCreateLargeSubnet, jobType, "Should use large subnet job type for large capacity category")
+	})
+
+	t.Run("DefaultCategory_ReturnsCreateSubnetJobType", func(tt *testing.T) {
+		// Test using the generic function with default category
+		jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationCreate, models.PoolCategoryDefault)
+		assert.Equal(tt, models.JobTypeCreateSubnet, jobType, "Should use standard subnet job type for default category (maps to standard)")
+	})
+}
+
 func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()

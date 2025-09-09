@@ -1183,8 +1183,12 @@ func (sa *SubnetActivity) CreateSubnetJob(ctx context.Context, params *common.Cr
 	temporalClient := fetchTemporalClient(ctx)
 	vpcName := utils.GetVPCNameFromSubnetID(params.VendorSubNetID)
 
+	// Use appropriate job type based on pool capacity
+	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
+	jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationCreate, poolCategory)
+
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateSubnet),
+		Type:          string(jobType),
 		State:         string(models.JobsStateNEW),
 		ResourceName:  params.Name + "-subnet",
 		AccountID:     sql.NullInt64{Int64: pool.Account.ID, Valid: true},
