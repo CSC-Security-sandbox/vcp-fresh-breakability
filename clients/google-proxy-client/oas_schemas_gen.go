@@ -2960,7 +2960,7 @@ type FlexCacheConfigV1beta struct {
 	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
 	AtimeScrubEnabled OptNilBool `json:"atimeScrubEnabled"`
 	// Duration in days after which inactive files can be scrubbed from FlexCache volume.
-	AtimeScrubMinutes OptNilInt16 `json:"atimeScrubMinutes"`
+	AtimeScrubDays OptNilInt16 `json:"atimeScrubDays"`
 	// Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
 	CifsChangeNotifyEnabled OptNilBool `json:"cifsChangeNotifyEnabled"`
 }
@@ -2980,9 +2980,9 @@ func (s *FlexCacheConfigV1beta) GetAtimeScrubEnabled() OptNilBool {
 	return s.AtimeScrubEnabled
 }
 
-// GetAtimeScrubMinutes returns the value of AtimeScrubMinutes.
-func (s *FlexCacheConfigV1beta) GetAtimeScrubMinutes() OptNilInt16 {
-	return s.AtimeScrubMinutes
+// GetAtimeScrubDays returns the value of AtimeScrubDays.
+func (s *FlexCacheConfigV1beta) GetAtimeScrubDays() OptNilInt16 {
+	return s.AtimeScrubDays
 }
 
 // GetCifsChangeNotifyEnabled returns the value of CifsChangeNotifyEnabled.
@@ -3005,9 +3005,9 @@ func (s *FlexCacheConfigV1beta) SetAtimeScrubEnabled(val OptNilBool) {
 	s.AtimeScrubEnabled = val
 }
 
-// SetAtimeScrubMinutes sets the value of AtimeScrubMinutes.
-func (s *FlexCacheConfigV1beta) SetAtimeScrubMinutes(val OptNilInt16) {
-	s.AtimeScrubMinutes = val
+// SetAtimeScrubDays sets the value of AtimeScrubDays.
+func (s *FlexCacheConfigV1beta) SetAtimeScrubDays(val OptNilInt16) {
+	s.AtimeScrubDays = val
 }
 
 // SetCifsChangeNotifyEnabled sets the value of CifsChangeNotifyEnabled.

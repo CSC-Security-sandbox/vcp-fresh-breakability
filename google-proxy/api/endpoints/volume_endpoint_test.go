@@ -2943,6 +2943,62 @@ func TestConvertToSnapshotPolicyV2(t *testing.T) {
 	})
 }
 
+func TestConvertToFlexCacheV1(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"192.168.1.1", "192.168.1.2"},
+			CacheConfig: &models.CacheConfig{
+				WritebackEnabled: nillable.ToPointer(true),
+				PrePopulate: &models.CachePrePopulate{
+					Recursion: nillable.ToPointer(true),
+				},
+			},
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.Equal(tt, "test-peer-cluster", result.PeerClusterName)
+		assert.Equal(tt, "test-peer-svm", result.PeerSvmName)
+		assert.Equal(tt, []string{"192.168.1.1", "192.168.1.2"}, result.PeerIpAddresses)
+		assert.True(tt, result.CacheConfig.IsSet())
+		assert.True(tt, result.CacheConfig.Value.PrePopulate.IsSet())
+	})
+	t.Run("WhenPrepopulateNotSet", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"1.1.1.1"},
+			CacheConfig: &models.CacheConfig{
+				WritebackEnabled: nillable.ToPointer(false),
+			},
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.True(tt, result.CacheConfig.IsSet())
+		assert.False(tt, result.CacheConfig.Value.PrePopulate.IsSet())
+	})
+	t.Run("WhenCacheConfigNotSet", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"1.1.1.1"},
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.False(tt, result.CacheConfig.IsSet())
+	})
+}
+
 func TestV1betaCreateVolume(t *testing.T) {
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	mockParseAndValidateRegionAndZone := func(region string) (string, string, *gcpgenserver.Error) {

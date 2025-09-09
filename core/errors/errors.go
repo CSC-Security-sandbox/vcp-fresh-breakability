@@ -248,6 +248,9 @@ const (
 	ErrGettingKmsServiceAccount         = 8005
 	ErrDecryptingServiceAccountPassword = 8006
 	ErrorSynchronizingServiceAccountKey = 8007
+
+	// FlexCache specific errors (10000-10999 range)
+	ErrCreatingFlexCacheVolume = 10001
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.

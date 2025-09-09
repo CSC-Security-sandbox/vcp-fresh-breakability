@@ -34,6 +34,7 @@ type Volume struct {
 	FileProperties              *FileProperties
 	SvmName                     string
 	KmsConfig                   *KmsConfig
+	CacheParameters             *CacheParameters
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -1095,9 +1096,17 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		},
 	}
 
+	workflowFunc := workflows.DeleteVolumeWorkflow
+
 	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
 		job.Type = string(models.JobTypeDeleteLargeVolume)
 	}
+
+	if volume.CacheParameters != nil {
+		job.Type = string(models.JobTypeFlexCacheDeleteVolume)
+		workflowFunc = flexcache_workflows.DeleteFlexCacheVolumeWorkflow
+	}
+
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create volume delete job in database", "error", err)
@@ -1150,7 +1159,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			TaskQueue: workflowengine.CustomerTaskQueue,
 			ID:        controlWorkflowID,
 		},
-		workflows.DeleteVolumeWorkflow,
+		workflowFunc,
 		workflow.ChildWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			WorkflowID:            createdJob.WorkflowID,

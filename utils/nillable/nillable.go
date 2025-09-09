@@ -41,6 +41,14 @@ func GetInt(s *int, def int) int {
 	return def
 }
 
+// GetInt16 returns the specified 16-bit integer if it's not nil, otherwise it returns the specified default
+func GetInt16(s *int16, def int16) int16 {
+	if s != nil {
+		return *s
+	}
+	return def
+}
+
 // GetInt32 returns the specified 32-bit integer if it's not nil, otherwise it returns the specified default
 func GetInt32(s *int32, def int32) int32 {
 	if s != nil {

@@ -3016,7 +3016,7 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.AtimeScrubMinutes.Get(); ok {
+		if value, ok := s.AtimeScrubDays.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
@@ -3038,7 +3038,7 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "atimeScrubMinutes",
+			Name:  "atimeScrubDays",
 			Error: err,
 		})
 	}

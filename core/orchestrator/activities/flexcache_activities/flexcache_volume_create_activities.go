@@ -21,7 +21,7 @@ var (
 )
 
 // CreateFlexCacheVolumeInOntapActivity creates a FlexCache volume in ONTAP
-func (a *FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := util.GetLogger(ctx)
 	volume := result.DBVolume
 	cacheParams := volume.CacheParameters
@@ -41,7 +41,7 @@ func (a *FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx
 
 	res, err := provider.CreateFlexCacheVolume(params)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreatingFlexCacheVolume, err)
 	}
 
 	logger.Debug("flexcache volume created successfully")

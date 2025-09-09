@@ -8418,7 +8418,7 @@ components:
           description: Flag indicating whether the atime based scrub is enabled for
             the FlexCache volume.
           nullable: true
-        atimeScrubMinutes:
+        atimeScrubDays:
           maximum: 1000
           minimum: 1
           type: integer

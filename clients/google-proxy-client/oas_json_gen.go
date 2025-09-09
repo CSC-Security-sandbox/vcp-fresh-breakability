@@ -5604,9 +5604,9 @@ func (s *FlexCacheConfigV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.AtimeScrubMinutes.Set {
-			e.FieldStart("atimeScrubMinutes")
-			s.AtimeScrubMinutes.Encode(e)
+		if s.AtimeScrubDays.Set {
+			e.FieldStart("atimeScrubDays")
+			s.AtimeScrubDays.Encode(e)
 		}
 	}
 	{
@@ -5621,7 +5621,7 @@ var jsonFieldsNameOfFlexCacheConfigV1beta = [5]string{
 	0: "prePopulate",
 	1: "writebackEnabled",
 	2: "atimeScrubEnabled",
-	3: "atimeScrubMinutes",
+	3: "atimeScrubDays",
 	4: "cifsChangeNotifyEnabled",
 }
 
@@ -5663,15 +5663,15 @@ func (s *FlexCacheConfigV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"atimeScrubEnabled\"")
 			}
-		case "atimeScrubMinutes":
+		case "atimeScrubDays":
 			if err := func() error {
-				s.AtimeScrubMinutes.Reset()
-				if err := s.AtimeScrubMinutes.Decode(d); err != nil {
+				s.AtimeScrubDays.Reset()
+				if err := s.AtimeScrubDays.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"atimeScrubMinutes\"")
+				return errors.Wrap(err, "decode field \"atimeScrubDays\"")
 			}
 		case "cifsChangeNotifyEnabled":
 			if err := func() error {

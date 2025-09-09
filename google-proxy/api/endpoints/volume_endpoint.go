@@ -1011,6 +1011,10 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			})
 	}
 
+	if volume.CacheParameters != nil {
+		res.CacheParameters = gcpgenserver.NewOptFlexCacheV1beta(convertToFlexCacheV1(volume.CacheParameters))
+	}
+
 	return res
 }
 
@@ -1794,6 +1798,38 @@ func convertToSnapshotPolicyV2(pol *models.SnapshotPolicy) *gcpgenserver.Snapsho
 		DailySchedule:   gcpgenserver.NewOptDailyScheduleV1beta(daily),
 		HourlySchedule:  gcpgenserver.NewOptHourlyScheduleV1beta(hourly),
 	}
+}
+
+func convertToFlexCacheV1(cp *models.CacheParameters) gcpgenserver.FlexCacheV1beta {
+	cacheParameters := gcpgenserver.FlexCacheV1beta{
+		PeerVolumeName:  cp.PeerVolumeName,
+		PeerClusterName: cp.PeerClusterName,
+		PeerSvmName:     cp.PeerSvmName,
+		PeerIpAddresses: cp.PeerIPAddresses,
+	}
+
+	if cp.CacheConfig != nil {
+		incomingConfig := cp.CacheConfig
+		cacheConfig := gcpgenserver.FlexCacheConfigV1beta{
+			WritebackEnabled:        gcpgenserver.NewOptNilBool(nillable.GetBool(incomingConfig.WritebackEnabled, false)),
+			AtimeScrubDays:          gcpgenserver.NewOptNilInt16(nillable.GetInt16(incomingConfig.AtimeScrubDays, 0)),
+			AtimeScrubEnabled:       gcpgenserver.NewOptNilBool(nillable.GetBool(incomingConfig.AtimeScrubEnabled, false)),
+			CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(nillable.GetBool(incomingConfig.CifsChangeNotifyEnabled, false)),
+		}
+
+		if incomingConfig.PrePopulate != nil {
+			prepopulate := gcpgenserver.FlexCachePrePopulateV1beta{
+				PathList:        gcpgenserver.NewOptNilStringArray(incomingConfig.PrePopulate.PathList),
+				ExcludePathList: gcpgenserver.NewOptNilStringArray(incomingConfig.PrePopulate.ExcludePathList),
+				Recursion:       gcpgenserver.NewOptNilBool(nillable.GetBool(incomingConfig.PrePopulate.Recursion, false)),
+			}
+			cacheConfig.PrePopulate = gcpgenserver.NewOptFlexCachePrePopulateV1beta(prepopulate)
+		}
+
+		cacheParameters.CacheConfig = gcpgenserver.NewOptFlexCacheConfigV1beta(cacheConfig)
+	}
+
+	return cacheParameters
 }
 
 func convertDaysOfWeekFromIntArray(days []int) string {

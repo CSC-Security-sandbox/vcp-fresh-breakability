@@ -1288,5 +1288,11 @@
     "message": "Error while creating kms service account key",
     "retriable": false,
     "http_code": 500
+  },
+  "10001": {
+    "description": "Error creating FlexCache volume",
+    "message": "Error creating FlexCache volume",
+    "retriable": false,
+    "http_code": 400
   }
 }

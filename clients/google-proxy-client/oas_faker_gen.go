@@ -1193,7 +1193,7 @@ func (s *FlexCacheConfigV1beta) SetFake() {
 	}
 	{
 		{
-			s.AtimeScrubMinutes.SetFake()
+			s.AtimeScrubDays.SetFake()
 		}
 	}
 	{

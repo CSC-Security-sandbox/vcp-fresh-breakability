@@ -57,6 +57,7 @@ const (
 	JobTypeFlexCacheCreateVolume     JobType = "FLEXCACHE_CREATE_VOLUME"
 	JobTypeFlexCacheEstablishPeering JobType = "FLEXCACHE_ESTABLISH_PEERING"
 	JobTypeFlexCacheInternalPeering  JobType = "FLEXCACHE_INTERNAL_PEERING"
+	JobTypeFlexCacheDeleteVolume     JobType = "FLEXCACHE_DELETE_VOLUME"
 
 	JobTypeCreateVolume                      JobType = "CREATE_VOLUME"
 	JobTypeCreateLargeVolume                 JobType = "CREATE_LARGE_VOLUME"
