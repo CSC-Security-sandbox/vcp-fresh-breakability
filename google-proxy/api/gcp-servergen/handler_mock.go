@@ -3696,6 +3696,66 @@ func (_c *MockHandler_V1betaInternalStopVolumeReplication_Call) RunAndReturn(run
 	return _c
 }
 
+// V1betaInternalUpdateVolume provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaInternalUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaInternalUpdateVolumeParams) (V1betaInternalUpdateVolumeRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalUpdateVolume")
+	}
+
+	var r0 V1betaInternalUpdateVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeUpdateV1beta, V1betaInternalUpdateVolumeParams) (V1betaInternalUpdateVolumeRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeUpdateV1beta, V1betaInternalUpdateVolumeParams) V1betaInternalUpdateVolumeRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalUpdateVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeUpdateV1beta, V1betaInternalUpdateVolumeParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalUpdateVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalUpdateVolume'
+type MockHandler_V1betaInternalUpdateVolume_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalUpdateVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *VolumeUpdateV1beta
+//   - params V1betaInternalUpdateVolumeParams
+func (_e *MockHandler_Expecter) V1betaInternalUpdateVolume(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalUpdateVolume_Call {
+	return &MockHandler_V1betaInternalUpdateVolume_Call{Call: _e.mock.On("V1betaInternalUpdateVolume", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaInternalUpdateVolume_Call) Run(run func(ctx context.Context, req *VolumeUpdateV1beta, params V1betaInternalUpdateVolumeParams)) *MockHandler_V1betaInternalUpdateVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeUpdateV1beta), args[2].(V1betaInternalUpdateVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalUpdateVolume_Call) Return(_a0 V1betaInternalUpdateVolumeRes, _a1 error) *MockHandler_V1betaInternalUpdateVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalUpdateVolume_Call) RunAndReturn(run func(context.Context, *VolumeUpdateV1beta, V1betaInternalUpdateVolumeParams) (V1betaInternalUpdateVolumeRes, error)) *MockHandler_V1betaInternalUpdateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaInternalUpdateVolumeReplication provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error) {
 	ret := _m.Called(ctx, req, params)

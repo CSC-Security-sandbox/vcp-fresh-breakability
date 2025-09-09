@@ -7193,9 +7193,6 @@ components:
           x-omitempty: true
         creationToken:
           title: creationToken
-          maxLength: 80
-          minLength: 1
-          pattern: "^[a-zA-Z][a-zA-Z0-9-_]{0,79}$"
           type: string
           description: A creation token must be supplied by the caller and is used
             by the API to ensure idempotent creation of a volume. Subsequent calls
