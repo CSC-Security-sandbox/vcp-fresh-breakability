@@ -511,7 +511,7 @@ func updateBackupToCVP(ctx context.Context, req *gcpgenserver.BackupUpdateV1beta
 		},
 	}
 
-	resp, _, _, err := cvpClient.Backups.V1betaUpdateBackup(cvpParams)
+	cvpBackupOK, cvpBackupAccepted, cvpBackupNoContent, err := cvpClient.Backups.V1betaUpdateBackup(cvpParams)
 	if err != nil {
 		switch e := err.(type) {
 		case *backups.V1betaUpdateBackupBadRequest:
@@ -559,10 +559,31 @@ func updateBackupToCVP(ctx context.Context, req *gcpgenserver.BackupUpdateV1beta
 		}
 	}
 
-	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, resp.Payload.ResourceID)
-	return &gcpgenserver.OperationV1beta{
-		Name: gcpgenserver.NewOptString(operationID),
-		Done: gcpgenserver.NewOptBool(false),
+	if cvpBackupOK != nil {
+		backupV1beta := convertToBackupsV1beta(cvpBackupOK.Payload)
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, uuid.New().String())
+		done := true
+		resp := &models.OperationV1beta{
+			Name:     operationID,
+			Done:     &done,
+			Response: backupV1beta,
+		}
+		return convertToOperationV1beta(resp), nil
+	}
+	if cvpBackupAccepted != nil {
+		return convertOperationToOperationV1Beta(cvpBackupAccepted.Payload), nil
+	}
+	if cvpBackupNoContent != nil {
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, uuid.New().String())
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(operationID),
+			Done: gcpgenserver.NewOptBool(true),
+		}, nil
+	}
+	msg := "An unexpected error occurred while updating the backup"
+	return &gcpgenserver.V1betaUpdateBackupInternalServerError{
+		Code:    500,
+		Message: msg,
 	}, nil
 }
 

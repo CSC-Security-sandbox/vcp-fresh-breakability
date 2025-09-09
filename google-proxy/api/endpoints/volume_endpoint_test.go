@@ -1463,9 +1463,10 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 	t.Run("ConvertVolumeV1betaCVPToModelWithFlexCacheParams", func(tt *testing.T) {
 		backupConfig := &cvpmodels.BackupConfigV1beta{
-			BackupChainBytes: nillable.GetInt64Ptr(10199181),
-			BackupPolicyID:   nillable.GetStringPtr("backup-policy-id"),
-			BackupVaultID:    nillable.GetStringPtr("backup-vault-id"),
+			BackupChainBytes:       nillable.GetInt64Ptr(10199181),
+			BackupPolicyID:         nillable.GetStringPtr("backup-policy-id"),
+			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
+			ScheduledBackupEnabled: nillable.GetBoolPtr(true),
 		}
 
 		cachePrepopulate := &cvpmodels.FlexCachePrePopulateV1beta{
@@ -1567,6 +1568,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, int64(10199181), res.BackupConfig.Value.BackupChainBytes.Value)
 		assert.Equal(tt, "backup-policy-id", res.BackupConfig.Value.BackupPolicyId.Value)
 		assert.Equal(tt, "backup-vault-id", res.BackupConfig.Value.BackupVaultId.Value)
+		assert.Equal(tt, true, res.BackupConfig.Value.ScheduledBackupEnabled.Value)
 	})
 
 	t.Run("BasicVolumeConversionWithNilFields", func(tt *testing.T) {
@@ -1791,6 +1793,125 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.False(tt, cache.EnableGlobalFileLock.IsSet())
 		assert.False(tt, cache.PeeringCommandExpiryTime.IsSet())
 		assert.False(tt, cache.Passphrase.IsSet())
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithNilScheduledBackupEnabled", func(tt *testing.T) {
+		backupConfig := &cvpmodels.BackupConfigV1beta{
+			BackupChainBytes:       nillable.GetInt64Ptr(10199181),
+			BackupPolicyID:         nillable.GetStringPtr("backup-policy-id"),
+			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
+			ScheduledBackupEnabled: nil, // Test nil ScheduledBackupEnabled
+		}
+	
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:      "vol-123",
+			VolumeState:   "active",
+			BackupConfig:  backupConfig,
+		}
+	
+		result := _convertVolumeV1betaCVPToModel(input)
+	
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.BackupConfig)
+		assert.True(tt, result.BackupConfig.IsSet())
+		
+		// When BackupPolicyID is not nil, both fields should be set
+		assert.True(tt, result.BackupConfig.Value.BackupPolicyId.IsSet())
+		assert.Equal(tt, "backup-policy-id", result.BackupConfig.Value.BackupPolicyId.Value)
+		assert.Equal(tt, "backup-vault-id", result.BackupConfig.Value.BackupVaultId.Value)
+		
+		// ScheduledBackupEnabled should be set even when nil (utils.SafeBool handles nil)
+		assert.True(tt, result.BackupConfig.Value.ScheduledBackupEnabled.IsSet())
+		// The value will be false when the input is nil
+		assert.False(tt, result.BackupConfig.Value.ScheduledBackupEnabled.Value)
+	})
+	t.Run("ConvertVolumeV1betaCVPToModelWithNilBackupChainBytes", func(tt *testing.T) {
+		backupConfig := &cvpmodels.BackupConfigV1beta{
+			BackupChainBytes:       nil, // Test nil BackupChainBytes
+			BackupPolicyID:         nillable.GetStringPtr("backup-policy-id"),
+			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
+			ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+		}
+	
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:      "vol-123",
+			VolumeState:   "active",
+			BackupConfig:  backupConfig,
+		}
+	
+		result := _convertVolumeV1betaCVPToModel(input)
+	
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.BackupConfig)
+		assert.True(tt, result.BackupConfig.IsSet())
+		
+		// Verify BackupChainBytes is NOT set when nil (since it's not in the initial struct)
+		assert.False(tt, result.BackupConfig.Value.BackupChainBytes.IsSet())
+		assert.Equal(tt, "backup-policy-id", result.BackupConfig.Value.BackupPolicyId.Value)
+		assert.Equal(tt, "backup-vault-id", result.BackupConfig.Value.BackupVaultId.Value)
+		assert.True(tt, result.BackupConfig.Value.ScheduledBackupEnabled.Value)
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithNilBackupChainBytesAndNilScheduledBackup", func(tt *testing.T) {
+		backupConfig := &cvpmodels.BackupConfigV1beta{
+			BackupChainBytes:       nil, // Test nil BackupChainBytes
+			BackupPolicyID:         nillable.GetStringPtr("backup-policy-id"),
+			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
+			ScheduledBackupEnabled: nil, // Also test nil ScheduledBackupEnabled
+		}
+	
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:      "vol-123",
+			VolumeState:   "active",
+			BackupConfig:  backupConfig,
+		}
+	
+		result := _convertVolumeV1betaCVPToModel(input)
+	
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.BackupConfig)
+		assert.True(tt, result.BackupConfig.IsSet())
+		
+		// Verify BackupChainBytes is NOT set when nil (since it's not in the initial struct)
+		assert.False(tt, result.BackupConfig.Value.BackupChainBytes.IsSet())
+		
+		// When BackupPolicyID is not nil, both fields should be set
+		assert.True(tt, result.BackupConfig.Value.BackupPolicyId.IsSet())
+		assert.Equal(tt, "backup-policy-id", result.BackupConfig.Value.BackupPolicyId.Value)
+		assert.Equal(tt, "backup-vault-id", result.BackupConfig.Value.BackupVaultId.Value)
+		
+		// ScheduledBackupEnabled should be set even when nil (utils.SafeBool handles nil)
+		assert.True(tt, result.BackupConfig.Value.ScheduledBackupEnabled.IsSet())
+		// The value will be false when the input is nil
+		assert.False(tt, result.BackupConfig.Value.ScheduledBackupEnabled.Value)
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithBackupChainBytesSet", func(tt *testing.T) {
+		backupConfig := &cvpmodels.BackupConfigV1beta{
+			BackupChainBytes:       nillable.GetInt64Ptr(10199181), // Test with actual value
+			BackupPolicyID:         nillable.GetStringPtr("backup-policy-id"),
+			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
+			ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+		}
+	
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:      "vol-123",
+			VolumeState:   "active",
+			BackupConfig:  backupConfig,
+		}
+	
+		result := _convertVolumeV1betaCVPToModel(input)
+	
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.BackupConfig)
+		assert.True(tt, result.BackupConfig.IsSet())
+		
+		// Verify BackupChainBytes IS set when not nil
+		assert.True(tt, result.BackupConfig.Value.BackupChainBytes.IsSet())
+		assert.Equal(tt, int64(10199181), result.BackupConfig.Value.BackupChainBytes.Value)
+		assert.Equal(tt, "backup-policy-id", result.BackupConfig.Value.BackupPolicyId.Value)
+		assert.Equal(tt, "backup-vault-id", result.BackupConfig.Value.BackupVaultId.Value)
+		assert.True(tt, result.BackupConfig.Value.ScheduledBackupEnabled.Value)
 	})
 }
 
@@ -2220,6 +2341,49 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		assert.Equal(tt, float64(400), badReq.Code)
 		assert.Contains(tt, badReq.Message, "Auto-Tiering feature is currently not enabled.")
 	})
+}
+
+func TestPrepareUpdateVolumeParamsWithNilBackupChainBytes(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "proj",
+		LocationId:    "loc",
+		VolumeId:      "vol",
+	}
+	region := "region"
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		PoolId:       gcpgenserver.NewOptNilString("pool"),
+		QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
+		Description:  gcpgenserver.NewOptNilString("desc"),
+		Protocols:    []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+		BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+			gcpgenserver.BlockPropertiesV1beta{
+				OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+			},
+		),
+		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+			gcpgenserver.BackupConfigV1beta{
+				BackupVaultId:          gcpgenserver.NewOptNilString("backup-vault-id"),
+				BackupPolicyId:         gcpgenserver.NewOptNilString("backup-policy-id"),
+				BackupChainBytes:       gcpgenserver.NewOptNilInt64(0), // Use 0 instead of nil
+				ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(true),
+			}),
+	}
+
+	out, err := _prepareUpdateVolumeParams(req, params, region)
+	assert.NoError(t, err)
+	assert.NotNil(t, out)
+
+	// Verify the function completes successfully with nil BackupChainBytes
+	assert.Equal(t, "pool", out.PoolID)
+	assert.Equal(t, int64(107374182400), out.QuotaInBytes)
+	assert.Equal(t, "desc", out.Description)
+	assert.Equal(t, []string{"ISCSI"}, out.Protocols)
+	assert.NotNil(t, out.BlockProperties)
+	assert.Equal(t, "LINUX", out.BlockProperties.OSType)
 }
 
 func TestPrepareUpdateVolumeParams(t *testing.T) {

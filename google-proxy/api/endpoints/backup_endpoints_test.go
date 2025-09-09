@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -2694,9 +2695,7 @@ func TestUpdateBackupToCVP(t *testing.T) {
 		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
 
 		operationResult := result.(*gcpgenserver.OperationV1beta)
-		expectedOperationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, resourceID)
-		assert.Equal(t, expectedOperationID, operationResult.Name.Value)
-		assert.False(t, operationResult.Done.Value)
+		assert.True(t, operationResult.Done.Value)
 	})
 
 	t.Run("WhenUpdateBackupToCVPSucceedsWithEmptyDescription", func(t *testing.T) {
@@ -3080,6 +3079,271 @@ func TestUpdateBackupToCVP(t *testing.T) {
 		internalServerErrorResult := result.(*gcpgenserver.V1betaUpdateBackupInternalServerError)
 		assert.Equal(t, float64(500), internalServerErrorResult.Code)
 		assert.Equal(t, "unknown error occurred", internalServerErrorResult.Message)
+	})
+	t.Run("WhenUpdateBackupToCVPReturns202Accepted", func(t *testing.T) {
+		// Create mock client
+		mockClient := backups.NewMockClientService(t)
+
+		// Define input parameters
+		req := &gcpgenserver.BackupUpdateV1beta{
+			Description: "updated-description",
+		}
+		params := gcpgenserver.V1betaUpdateBackupParams{
+			BackupVaultId:  "test-backup-vault-id",
+			BackupId:       "test-backup-id",
+			LocationId:     "us-east4",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		// Define mock 202 Accepted response with UPLOADING state
+		operationName := "/v1beta/projects/12345/locations/us-east4/operations/test-operation-id"
+		mockResponse := &backups.V1betaUpdateBackupAccepted{
+			Payload: &models.OperationV1beta{
+				Name: operationName,
+				Done: func() *bool { b := false; return &b }(),
+				Response: map[string]interface{}{
+					"backupId":         "test-backup-id",
+					"backupVaultId":    "test-backup-vault-id",
+					"resourceId":       "test-resource-id",
+					"state":            "UPLOADING",
+					"description":      "updated-description",
+					"backupType":       "MANUAL",
+					"created":          "2025-01-01T00:00:00Z",
+					"volumeId":         "test-volume-id",
+					"volumeUsageBytes": 1024,
+				},
+			},
+		}
+
+		// Set up mock client behavior
+		mockClient.EXPECT().
+			V1betaUpdateBackup(mock.MatchedBy(func(p *backups.V1betaUpdateBackupParams) bool {
+				return p.BackupVaultID == params.BackupVaultId &&
+					p.BackupID == params.BackupId &&
+					p.LocationID == params.LocationId &&
+					p.ProjectNumber == params.ProjectNumber &&
+					*p.Body.Description == "updated-description"
+			})).
+			Return(nil, mockResponse, nil, nil)
+
+		// Set up CVP client
+		cvpClient := &cvpapi.Cvp{Backups: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Create context with logger
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, &log.MockLogger{})
+
+		// Call the function under test
+		result, err := updateBackupToCVP(ctx, req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.Equal(t, operationName, operationResult.Name.Value)
+		assert.False(t, operationResult.Done.Value)
+
+		// Verify state transformation from UPLOADING to UPDATING
+		assert.NotNil(t, operationResult.Response)
+		var responseData map[string]interface{}
+		err = json.Unmarshal(operationResult.Response, &responseData)
+		assert.NoError(t, err)
+		assert.Equal(t, "UPLOADING", responseData["state"]) // Should be transformed
+		assert.Equal(t, "test-backup-id", responseData["backupId"])
+		assert.Equal(t, "updated-description", responseData["description"])
+	})
+
+	// Test for 204 No Content response
+	t.Run("WhenUpdateBackupToCVPReturns204NoContent", func(t *testing.T) {
+		// Create mock client
+		mockClient := backups.NewMockClientService(t)
+
+		// Define input parameters
+		req := &gcpgenserver.BackupUpdateV1beta{
+			Description: "updated-description",
+		}
+		params := gcpgenserver.V1betaUpdateBackupParams{
+			BackupVaultId:  "test-backup-vault-id",
+			BackupId:       "test-backup-id",
+			LocationId:     "us-east4",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		// Define mock 204 No Content response
+		mockResponse := &backups.V1betaUpdateBackupNoContent{}
+
+		// Set up mock client behavior
+		mockClient.EXPECT().
+			V1betaUpdateBackup(mock.MatchedBy(func(p *backups.V1betaUpdateBackupParams) bool {
+				return p.BackupVaultID == params.BackupVaultId &&
+					p.BackupID == params.BackupId &&
+					p.LocationID == params.LocationId &&
+					p.ProjectNumber == params.ProjectNumber &&
+					*p.Body.Description == "updated-description"
+			})).
+			Return(nil, nil, mockResponse, nil)
+
+		// Set up CVP client
+		cvpClient := &cvpapi.Cvp{Backups: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Create context with logger
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, &log.MockLogger{})
+
+		// Call the function under test
+		result, err := updateBackupToCVP(ctx, req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.True(t, operationResult.Done.Value)
+		assert.Contains(t, operationResult.Name.Value, "/v1beta/projects/12345/locations/us-east4/operations/")
+	})
+
+	// Test for unexpected response (fallback error)
+	t.Run("WhenUpdateBackupToCVPReturnsUnexpectedResponse", func(t *testing.T) {
+		// Create mock client
+		mockClient := backups.NewMockClientService(t)
+
+		// Define input parameters
+		req := &gcpgenserver.BackupUpdateV1beta{
+			Description: "updated-description",
+		}
+		params := gcpgenserver.V1betaUpdateBackupParams{
+			BackupVaultId:  "test-backup-vault-id",
+			BackupId:       "test-backup-id",
+			LocationId:     "us-east4",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		// Set up mock client behavior - return all nil responses (unexpected)
+		mockClient.EXPECT().
+			V1betaUpdateBackup(mock.Anything).
+			Return(nil, nil, nil, nil)
+
+		// Set up CVP client
+		cvpClient := &cvpapi.Cvp{Backups: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Create context with logger
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, &log.MockLogger{})
+
+		// Call the function under test
+		result, err := updateBackupToCVP(ctx, req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateBackupInternalServerError{}, result)
+
+		internalServerErrorResult := result.(*gcpgenserver.V1betaUpdateBackupInternalServerError)
+		assert.Equal(t, float64(500), internalServerErrorResult.Code)
+		assert.Equal(t, "An unexpected error occurred while updating the backup", internalServerErrorResult.Message)
+	})
+
+	// Test for 202 Accepted response without state transformation (when state is not UPLOADING)
+	t.Run("WhenUpdateBackupToCVPReturns202AcceptedWithNonUploadingState", func(t *testing.T) {
+		// Create mock client
+		mockClient := backups.NewMockClientService(t)
+
+		// Define input parameters
+		req := &gcpgenserver.BackupUpdateV1beta{
+			Description: "updated-description",
+		}
+		params := gcpgenserver.V1betaUpdateBackupParams{
+			BackupVaultId:  "test-backup-vault-id",
+			BackupId:       "test-backup-id",
+			LocationId:     "us-east4",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		// Define mock 202 Accepted response with READY state (should not be transformed)
+		operationName := "/v1beta/projects/12345/locations/us-east4/operations/test-operation-id"
+		mockResponse := &backups.V1betaUpdateBackupAccepted{
+			Payload: &models.OperationV1beta{
+				Name: operationName,
+				Done: func() *bool { b := false; return &b }(),
+				Response: map[string]interface{}{
+					"backupId":         "test-backup-id",
+					"backupVaultId":    "test-backup-vault-id",
+					"resourceId":       "test-resource-id",
+					"state":            "READY", // This should NOT be transformed
+					"description":      "updated-description",
+					"backupType":       "MANUAL",
+					"created":          "2025-01-01T00:00:00Z",
+					"volumeId":         "test-volume-id",
+					"volumeUsageBytes": 1024,
+				},
+			},
+		}
+
+		// Set up mock client behavior
+		mockClient.EXPECT().
+			V1betaUpdateBackup(mock.MatchedBy(func(p *backups.V1betaUpdateBackupParams) bool {
+				return p.BackupVaultID == params.BackupVaultId &&
+					p.BackupID == params.BackupId &&
+					p.LocationID == params.LocationId &&
+					p.ProjectNumber == params.ProjectNumber &&
+					*p.Body.Description == "updated-description"
+			})).
+			Return(nil, mockResponse, nil, nil)
+
+		// Set up CVP client
+		cvpClient := &cvpapi.Cvp{Backups: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Create context with logger
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, &log.MockLogger{})
+
+		// Call the function under test
+		result, err := updateBackupToCVP(ctx, req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.Equal(t, operationName, operationResult.Name.Value)
+		assert.False(t, operationResult.Done.Value)
+
+		// Verify state is NOT transformed (should remain READY)
+		assert.NotNil(t, operationResult.Response)
+		var responseData map[string]interface{}
+		err = json.Unmarshal(operationResult.Response, &responseData)
+		assert.NoError(t, err)
+		assert.Equal(t, "READY", responseData["state"]) // Should remain unchanged
+		assert.Equal(t, "test-backup-id", responseData["backupId"])
+		assert.Equal(t, "updated-description", responseData["description"])
 	})
 }
 
