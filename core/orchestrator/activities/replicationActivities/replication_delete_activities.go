@@ -75,7 +75,7 @@ func (a *DeleteVolumeReplicationActivity) DeleteReplicationOnDestination(ctx con
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalDeleteVolumeReplicationError, err)
 	}
 
 	switch r := res.(type) {
@@ -110,7 +110,7 @@ func (a *DeleteVolumeReplicationActivity) GetReplicationOnDestinationForDelete(c
 	body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID}}
 	res, err := googleProxyClient.Invoker.V1betaGetMultipleReplicationsInternal(ctx, &body, *params)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 
 	switch r := res.(type) {
@@ -148,7 +148,7 @@ func (a *DeleteVolumeReplicationActivity) DeleteVolumeOnDestination(ctx context.
 	}
 	res, err := googleProxyClient.Invoker.V1betaDeleteVolume(ctx, body, *params)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrDeleteVolume, err)
 	}
 
 	switch r := res.(type) {
@@ -199,7 +199,7 @@ func (a *DeleteVolumeReplicationActivity) ReleaseReplicationOnSource(ctx context
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalReleaseVolumeReplication(ctx, *releaseReplicationParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, err)
 	}
 
 	switch r := res.(type) {
@@ -234,7 +234,7 @@ func (a *DeleteVolumeReplicationActivity) DeleteSnapmirrorSnapshotsOnDestination
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParam)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrDeleteSnapshot, err)
 	}
 
 	switch r := res.(type) {
@@ -269,7 +269,7 @@ func (a *DeleteVolumeReplicationActivity) DeleteSnapmirrorSnapshotsOnSource(ctx 
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParam)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrDeleteSnapshot, err)
 	}
 
 	switch r := res.(type) {

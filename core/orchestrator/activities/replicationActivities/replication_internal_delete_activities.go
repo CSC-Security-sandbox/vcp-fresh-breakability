@@ -28,10 +28,10 @@ func (a *InternalVolumeReplicationDeleteActivity) DeleteVolumeReplication(ctx co
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			logger.Error("Failed to delete volume replication", "error", err)
-			return nil, errors.NewNonRetryableErr(err.Error())
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrProviderDeleteVolumeReplication, err))
 		}
 		logger.Error("Failed to delete volume replication", "error", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrProviderDeleteVolumeReplication, err)
 	}
 	return res, nil
 }
@@ -39,7 +39,7 @@ func (a *InternalVolumeReplicationDeleteActivity) DeleteVolumeReplication(ctx co
 func (a *InternalVolumeReplicationDeleteActivity) UpdateVolumeReplicationDetailsForDelete(ctx context.Context, replication *datamodel.VolumeReplication) error {
 	se := a.SE
 	if _, err := se.DeleteVolumeReplication(ctx, replication); err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }
@@ -69,7 +69,7 @@ func (a *InternalVolumeReplicationDeleteActivity) UpdateReplicationStateInDBForD
 	volumeRep.State = models.LifeCycleStateError
 	volumeRep.StateDetails = models.LifeCycleStateDeletionErrorDetails
 	if err := se.UpdateVolumeReplicationStates(ctx, volumeRep); err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }

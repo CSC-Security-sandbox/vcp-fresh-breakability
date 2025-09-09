@@ -238,6 +238,8 @@ const (
 	ErrGoogleProxyGetMultipleReplications                                                    = 6203
 	ErrGoogleProxyDescribePool                                                               = 6204
 	ErrGoogleProxyInternalUpdateVolume                                                       = 6205
+	ErrProviderDeleteVolumeReplication                                                       = 6206
+	ErrDeleteVolume                                                                          = 6207
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

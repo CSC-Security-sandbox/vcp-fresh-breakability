@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -46,10 +47,11 @@ func TestDeleteVolumeReplicationInternal(t *testing.T) {
 				ExternalUUID:          "uuid",
 			},
 		}
-		mockProvider.On("DeleteVolumeReplication", mock.Anything).Return(nil, errors.New("provider error"))
+		mockProvider.On("DeleteVolumeReplication", mock.Anything).Return(nil, errors.New("database error"))
 		_, err := activity.DeleteVolumeReplication(ctx, params, node)
-		assert.Error(t, err)
-		assert.Equal(t, "provider error", err.Error())
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, "database error", customErr.OriginalErr.Error())
 		mockProvider.AssertExpectations(t)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
@@ -114,10 +116,11 @@ func TestUpdateVolumeReplicationDetailsForDelete(t *testing.T) {
 		}
 		ctx := context.Background()
 		replication := &datamodel.VolumeReplication{}
-		mockStorage.On("DeleteVolumeReplication", ctx, replication).Return(nil, errors.New("delete error"))
+		mockStorage.On("DeleteVolumeReplication", ctx, replication).Return(nil, errors.New("database error"))
+		var customErr *vsaerrors.CustomError
 		err := activity.UpdateVolumeReplicationDetailsForDelete(ctx, replication)
-		assert.Error(t, err)
-		assert.Equal(t, "delete error", err.Error())
+		assert.True(t, vsaerrors.As(err, &customErr))
+		assert.Equal(t, "database error", customErr.OriginalErr.Error())
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -147,10 +150,11 @@ func TestUpdateReplicationStateInDB_Error(t *testing.T) {
 	ctx := context.Background()
 	volumeRep := &datamodel.VolumeReplication{}
 
-	mockStorage.On("UpdateVolumeReplicationStates", ctx, volumeRep).Return(errors.New("db error"))
+	mockStorage.On("UpdateVolumeReplicationStates", ctx, volumeRep).Return(errors.New("database error"))
 
 	err := activity.UpdateReplicationStateInDBForDelete(ctx, volumeRep)
-	assert.Error(t, err)
-	assert.Equal(t, "db error", err.Error())
+	var customErr *vsaerrors.CustomError
+	assert.True(t, vsaerrors.As(err, &customErr))
+	assert.Equal(t, "database error", customErr.OriginalErr.Error())
 	mockStorage.AssertExpectations(t)
 }

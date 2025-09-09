@@ -71,7 +71,7 @@ func (a *CleanupVolumeReplicationActivity) DeleteReplicationOnDestinationForClea
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalDeleteVolumeReplicationError, err)
 	}
 
 	switch r := res.(type) {
@@ -143,8 +143,8 @@ func (a *CleanupVolumeReplicationActivity) GetDestinationVolumeForCleanup(ctx co
 	}
 	res, err := googleProxyClient.Invoker.V1betaDescribeVolume(ctx, *params)
 	if err != nil {
-		logger.Error("Failed to get multiple replications from Google Proxy", "error", err)
-		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+		logger.Error("Failed to get volume from Google Proxy", "error", err)
+		return nil, errors.NewVCPError(errors.ErrListVolumes, err)
 	}
 
 	switch r := res.(type) {
@@ -189,7 +189,7 @@ func (a *CleanupVolumeReplicationActivity) StopReplicationOnDestinationForCleanu
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalStopVolumeReplication(ctx, stopReplicationReq, *stopReplicationParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalStopReplication, err)
 	}
 
 	switch r := res.(type) {
@@ -224,7 +224,7 @@ func (a *CleanupVolumeReplicationActivity) ReleaseReplicationOnSourceForCleanup(
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalReleaseVolumeReplication(ctx, *releaseReplicationParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, err)
 	}
 
 	switch r := res.(type) {
@@ -282,7 +282,7 @@ func (a *CleanupVolumeReplicationActivity) DeleteVolumeOnDestinationForCleanup(c
 	}
 	res, err := googleProxyClient.Invoker.V1betaDeleteVolume(ctx, body, *params)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrDeleteVolume, err)
 	}
 
 	switch r := res.(type) {

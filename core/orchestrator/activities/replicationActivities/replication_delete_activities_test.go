@@ -651,7 +651,7 @@ func TestDeleteReplicationOnDestination(t *testing.T) {
 		result, err := activity.DeleteReplicationOnDestination(context.Background(), inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Error deleting volume replication", err.Error())
 	})
 }
 
@@ -1002,7 +1002,7 @@ func TestReleaseReplicationOnSource(t *testing.T) {
 		result, err := activity.ReleaseReplicationOnSource(context.Background(), inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Error releasing volume replication", err.Error())
 	})
 }
 
@@ -1365,7 +1365,7 @@ func TestDeleteSnapmirrorSnapshotsOnDestination(t *testing.T) {
 		result, err := activity.DeleteSnapmirrorSnapshotsOnDestination(context.Background(), inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Cannot delete snapshot while snapshot is in use", err.Error())
 	})
 }
 
@@ -1728,7 +1728,7 @@ func TestDeleteSnapmirrorSnapshotsOnSource(t *testing.T) {
 		result, err := activity.DeleteSnapmirrorSnapshotsOnSource(context.Background(), inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Cannot delete snapshot while snapshot is in use", err.Error())
 	})
 }
 
@@ -2799,6 +2799,6 @@ func TestDeleteVolumeOnDestination(t *testing.T) {
 		result, err := activity.DeleteVolumeOnDestination(ctx, inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Failed to delete volume", err.Error())
 	})
 }

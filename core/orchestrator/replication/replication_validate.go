@@ -814,7 +814,7 @@ func _getReplication(ctx context.Context, basePath string, projectNumber string,
 	body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{volumeReplicationID}}
 	response, err := googleProxyClient.Invoker.V1betaGetMultipleReplicationsInternal(ctx, &body, *params)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 	replicationResponse := response.(*googleproxyclient.V1betaGetMultipleReplicationsInternalOK)
 

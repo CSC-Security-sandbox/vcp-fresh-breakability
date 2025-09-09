@@ -659,7 +659,7 @@ func TestDeleteReplicationOnDestinationForCleanup(t *testing.T) {
 		result, err := activity.DeleteReplicationOnDestinationForCleanup(context.Background(), inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Error deleting volume replication", err.Error())
 	})
 }
 
@@ -1636,7 +1636,7 @@ func TestReleaseReplicationOnSourceForCleanup(t *testing.T) {
 		result, err := activity.ReleaseReplicationOnSourceForCleanup(context.Background(), inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Error releasing volume replication", err.Error())
 	})
 }
 
@@ -2168,7 +2168,7 @@ func TestStopReplicationOnDestinationForCleanup(t *testing.T) {
 		result, err := activity.StopReplicationOnDestinationForCleanup(ctx, inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Failed to stop replication", err.Error())
 	})
 }
 
@@ -2550,7 +2550,7 @@ func TestDeleteVolumeOnDestinationForCleanup(t *testing.T) {
 		result, err := activity.DeleteVolumeOnDestinationForCleanup(ctx, inputResult)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "some-error", err.Error())
+		assert.Equal(tt, "Failed to delete volume", err.Error())
 	})
 }
 

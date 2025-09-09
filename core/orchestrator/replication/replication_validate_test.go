@@ -2435,6 +2435,7 @@ func TestGetReplication(t *testing.T) {
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 		_, err := _getReplication(ctx, "basePath", "projectNumber", "locationID", "volumeReplicationID", "jwt")
 		assert.Error(tt, err)
+		assert.Equal(tt, "Failed to get multiple replications", err.Error())
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()

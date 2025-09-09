@@ -1235,6 +1235,18 @@
     "retriable": false,
     "http_code": 500
   },
+  "6206": {
+    "description": "Provider Delete Volume Replication Error",
+    "message": "Failed to Delete volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6207": {
+    "description": "Delete Volume Error",
+    "message": "Failed to delete volume",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",
