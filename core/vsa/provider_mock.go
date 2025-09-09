@@ -3781,6 +3781,65 @@ func (_c *MockProvider_ModifySVMWithQoSPolicy_Call) RunAndReturn(run func(Modify
 	return _c
 }
 
+// ObjectStoreEndpointInfoGet provides a mock function with given fields: objectStoreUUID, EndpointUUID
+func (_m *MockProvider) ObjectStoreEndpointInfoGet(objectStoreUUID string, EndpointUUID string) (*SmObjectStoreEndpointt, error) {
+	ret := _m.Called(objectStoreUUID, EndpointUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ObjectStoreEndpointInfoGet")
+	}
+
+	var r0 *SmObjectStoreEndpointt
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (*SmObjectStoreEndpointt, error)); ok {
+		return rf(objectStoreUUID, EndpointUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *SmObjectStoreEndpointt); ok {
+		r0 = rf(objectStoreUUID, EndpointUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SmObjectStoreEndpointt)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(objectStoreUUID, EndpointUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_ObjectStoreEndpointInfoGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ObjectStoreEndpointInfoGet'
+type MockProvider_ObjectStoreEndpointInfoGet_Call struct {
+	*mock.Call
+}
+
+// ObjectStoreEndpointInfoGet is a helper method to define mock.On call
+//   - objectStoreUUID string
+//   - EndpointUUID string
+func (_e *MockProvider_Expecter) ObjectStoreEndpointInfoGet(objectStoreUUID interface{}, EndpointUUID interface{}) *MockProvider_ObjectStoreEndpointInfoGet_Call {
+	return &MockProvider_ObjectStoreEndpointInfoGet_Call{Call: _e.mock.On("ObjectStoreEndpointInfoGet", objectStoreUUID, EndpointUUID)}
+}
+
+func (_c *MockProvider_ObjectStoreEndpointInfoGet_Call) Run(run func(objectStoreUUID string, EndpointUUID string)) *MockProvider_ObjectStoreEndpointInfoGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ObjectStoreEndpointInfoGet_Call) Return(_a0 *SmObjectStoreEndpointt, _a1 error) *MockProvider_ObjectStoreEndpointInfoGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_ObjectStoreEndpointInfoGet_Call) RunAndReturn(run func(string, string) (*SmObjectStoreEndpointt, error)) *MockProvider_ObjectStoreEndpointInfoGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PostClusterLicenseAccessToken provides a mock function with given fields: ctx, clientSecret
 func (_m *MockProvider) PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error) {
 	ret := _m.Called(ctx, clientSecret)

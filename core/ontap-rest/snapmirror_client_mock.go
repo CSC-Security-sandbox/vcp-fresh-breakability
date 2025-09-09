@@ -22,6 +22,64 @@ func (_m *MockSnapmirrorClient) EXPECT() *MockSnapmirrorClient_Expecter {
 	return &MockSnapmirrorClient_Expecter{mock: &_m.Mock}
 }
 
+// ObjectStoreEndpointInfoGet provides a mock function with given fields: params
+func (_m *MockSnapmirrorClient) ObjectStoreEndpointInfoGet(params *ObjectStoreEndpointInfoGetParams) (*ObjectStoreEndpointInfo, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ObjectStoreEndpointInfoGet")
+	}
+
+	var r0 *ObjectStoreEndpointInfo
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*ObjectStoreEndpointInfoGetParams) (*ObjectStoreEndpointInfo, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*ObjectStoreEndpointInfoGetParams) *ObjectStoreEndpointInfo); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ObjectStoreEndpointInfo)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*ObjectStoreEndpointInfoGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ObjectStoreEndpointInfoGet'
+type MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call struct {
+	*mock.Call
+}
+
+// ObjectStoreEndpointInfoGet is a helper method to define mock.On call
+//   - params *ObjectStoreEndpointInfoGetParams
+func (_e *MockSnapmirrorClient_Expecter) ObjectStoreEndpointInfoGet(params interface{}) *MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call {
+	return &MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call{Call: _e.mock.On("ObjectStoreEndpointInfoGet", params)}
+}
+
+func (_c *MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call) Run(run func(params *ObjectStoreEndpointInfoGetParams)) *MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*ObjectStoreEndpointInfoGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call) Return(_a0 *ObjectStoreEndpointInfo, _a1 error) *MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call) RunAndReturn(run func(*ObjectStoreEndpointInfoGetParams) (*ObjectStoreEndpointInfo, error)) *MockSnapmirrorClient_ObjectStoreEndpointInfoGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapmirrorGetPriv provides a mock function with given fields: ctx, destinationPath, relationshipID, relationshipGroupType
 func (_m *MockSnapmirrorClient) SnapmirrorGetPriv(ctx context.Context, destinationPath string, relationshipID string, relationshipGroupType *string) (*snapmirror.SnapmirrorGetOK, error) {
 	ret := _m.Called(ctx, destinationPath, relationshipID, relationshipGroupType)

@@ -210,11 +210,12 @@ func (d *DataStoreRepository) FinishBackup(ctx context.Context, backup *datamode
 	}
 
 	err = tx.Model(&dbBackup).Updates(datamodel.Backup{
-		Description:  backup.Description,
-		State:        models.LifeCycleStateAvailable,
-		StateDetails: models.LifeCycleStateAvailableDetails,
-		Attributes:   backup.Attributes,
-		SizeInBytes:  backup.SizeInBytes,
+		Description:             backup.Description,
+		State:                   models.LifeCycleStateAvailable,
+		StateDetails:            models.LifeCycleStateAvailableDetails,
+		Attributes:              backup.Attributes,
+		SizeInBytes:             backup.SizeInBytes,
+		LatestLogicalBackupSize: backup.LatestLogicalBackupSize,
 	}).Error
 	if err != nil {
 		return nil, err
@@ -391,4 +392,35 @@ func (d *DataStoreRepository) GetBackupCountByVolumeUUIDs(ctx context.Context, v
 		backupsCountByVolume[result.VolumeUUID] = result.BackupCount
 	}
 	return backupsCountByVolume, nil
+}
+
+func (d *DataStoreRepository) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var backups []*datamodel.Backup
+
+	err := db.Preload("BackupVault").Where("volume_uuid = ?", volumeUUID).Find(&backups).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return backups, nil
+}
+
+func (d *DataStoreRepository) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	// Update all backups for the volume except the specified one, setting latest_logical_backup_size to 0
+	err = tx.Model(&datamodel.Backup{}).
+		Where("volume_uuid = ? AND uuid != ?", volumeUUID, excludeBackupUUID).
+		Update("latest_logical_backup_size", 0).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

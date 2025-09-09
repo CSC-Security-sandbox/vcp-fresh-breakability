@@ -737,3 +737,104 @@ func TestSnapmirrorRelationshipDeleteFailsOnJobNotFoundError(t *testing.T) {
 	_, err := ontapProvider.SnapmirrorRelationshipDelete("snapmirrorUUID")
 	assert.NoError(t, err)
 }
+
+func TestObjectStoreEndpointInfoGet(t *testing.T) {
+	t.Run("WhenGetOntapClientFails", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return nil, errors.New("getOntapClient error")
+		}
+
+		ontapProvider := &OntapRestProvider{}
+
+		result, err := ontapProvider.ObjectStoreEndpointInfoGet("obj-uuid", "endpoint-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, "getOntapClient error")
+	})
+
+	t.Run("WhenAPICallFails", func(tt *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("ObjectStoreEndpointInfoGet", mock.AnythingOfType("*ontap_rest.ObjectStoreEndpointInfoGetParams")).Return(nil, errors.New("api call failed"))
+
+		ontapProvider := &OntapRestProvider{}
+
+		result, err := ontapProvider.ObjectStoreEndpointInfoGet("obj-uuid", "endpoint-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, "api call failed")
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenResponseIsNil", func(tt *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("ObjectStoreEndpointInfoGet", mock.AnythingOfType("*ontap_rest.ObjectStoreEndpointInfoGetParams")).Return(nil, nil)
+
+		ontapProvider := &OntapRestProvider{}
+
+		result, err := ontapProvider.ObjectStoreEndpointInfoGet("obj-uuid", "endpoint-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "object store endpoint endpoint-uuid not found in object store obj-uuid")
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenResponseIsValid", func(tt *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		expectedResponse := &ontapRest.ObjectStoreEndpointInfo{
+			ObjectStoreEndpointInfo: models.ObjectStoreEndpointInfo{
+				UUID: nillable.ToPointer(strfmt.UUID("endpoint-uuid")),
+				Destination: &models.ObjectStoreEndpointInfoInlineDestination{
+					LogicalSize: nillable.ToPointer(int64(1024)),
+				},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("ObjectStoreEndpointInfoGet", mock.AnythingOfType("*ontap_rest.ObjectStoreEndpointInfoGetParams")).Return(expectedResponse, nil)
+
+		ontapProvider := &OntapRestProvider{}
+
+		result, err := ontapProvider.ObjectStoreEndpointInfoGet("obj-uuid", "endpoint-uuid")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, expectedResponse.UUID, result.UUID)
+		assert.Equal(tt, expectedResponse.Destination.LogicalSize, result.LogicalSize)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+}

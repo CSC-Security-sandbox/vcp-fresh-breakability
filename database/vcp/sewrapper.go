@@ -3186,6 +3186,45 @@ func (re *retryEngine) GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUU
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupsByVolumeUUID(ctx, volumeUUID)
+		if err != nil {
+			re.logError("GetBackupsByVolumeUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, excludeBackupUUID)
+		if err != nil {
+			re.logError("UpdateBackupLatestLogicalBackupSizeByVolume", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	var var0 *datamodel.AdminJobSpec
 	err := retry.Do(func(attempt int) (bool, error) {

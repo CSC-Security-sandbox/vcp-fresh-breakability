@@ -1051,6 +1051,14 @@ func (s *PersistenceStore) GetBackupCountByVolumeUUIDs(ctx context.Context, volu
 	return s.dataStore.GetBackupCountByVolumeUUIDs(ctx, volumeUUIDs, conditions)
 }
 
+func (s *PersistenceStore) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetBackupsByVolumeUUID(ctx, volumeUUID)
+}
+
+func (s *PersistenceStore) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error {
+	return s.dataStore.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, excludeBackupUUID)
+}
+
 func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
 	return s.dataStore.GetNextSerialNumberInRegion(ctx, prefix)
 }

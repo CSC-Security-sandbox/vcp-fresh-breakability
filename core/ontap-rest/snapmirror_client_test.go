@@ -474,6 +474,74 @@ func TestSnapmirrorObjectStoreSnapshotDelete(t *testing.T) {
 	})
 }
 
+func TestSnapmirrorObjectStoreSnapshotGet(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorObjectStoreEndpointSnapshotGetOK{
+			Payload: &models.SnapmirrorObjectStoreEndpointSnapshot{
+				UUID: nillable.ToPointer(strfmt.UUID("snapshot-uuid")),
+				Name: nillable.ToPointer("snapshot-name"),
+			},
+		}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		result, err := client.SnapmirrorObjectStoreSnapshotGet(&SnapmirrorCloudSnapshotGetParams{
+			ObjectStoreUUID: "object-store-uuid",
+			EndpointUUID:    "endpoint-uuid",
+			SnapshotUUID:    "snapshot-uuid",
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "snapshot-uuid", result.UUID.String())
+		assert.Equal(tt, "snapshot-name", *result.Name)
+	})
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		result, err := client.SnapmirrorObjectStoreSnapshotGet(&SnapmirrorCloudSnapshotGetParams{
+			ObjectStoreUUID: "object-store-uuid",
+			EndpointUUID:    "endpoint-uuid",
+			SnapshotUUID:    "snapshot-uuid",
+		})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, result)
+	})
+}
+
+func TestObjectStoreEndpointInfoGet(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.ObjectStoreEndpointInfoGetOK{
+			Payload: &models.ObjectStoreEndpointInfo{
+				UUID: nillable.ToPointer(strfmt.UUID("endpoint-uuid")),
+				Destination: &models.ObjectStoreEndpointInfoInlineDestination{
+					LogicalSize: nillable.ToPointer(int64(1024)),
+				},
+			},
+		}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		result, err := client.ObjectStoreEndpointInfoGet(&ObjectStoreEndpointInfoGetParams{
+			ObjectStoreUUID: "object-store-uuid",
+			UUID:            "endpoint-uuid",
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "endpoint-uuid", result.UUID.String())
+		assert.Equal(tt, int64(1024), *result.Destination.LogicalSize)
+	})
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		result, err := client.ObjectStoreEndpointInfoGet(&ObjectStoreEndpointInfoGetParams{
+			ObjectStoreUUID: "object-store-uuid",
+			UUID:            "endpoint-uuid",
+		})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, result)
+	})
+}
+
 func TestSnapmirrorRelationshipReverse(t *testing.T) {
 	t.Run("WhenRESTCallFails", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}

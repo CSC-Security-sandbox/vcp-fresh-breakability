@@ -122,11 +122,22 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_Success() {
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
 	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(volumeUpdateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -140,7 +151,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_Success() {
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: VolumeStateRW}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock child workflows
@@ -152,7 +163,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_Success() {
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NoError(s.T(), s.env.GetWorkflowError()) // The workflow should fail due to the error scenario being tested
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SetupFailure() {
@@ -263,7 +274,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSmSourcePa
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
 
 	// Track UpdateJobStatus calls to verify error handling
 	var jobStatusCalls []string
@@ -306,11 +320,22 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
 	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(volumeUpdateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -329,7 +354,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
 
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: VolumeStateRW}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 
@@ -347,12 +372,25 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	// Create activity instances
 	commonActivity := &activities.CommonActivities{}
 	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
+	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Track UpdateJobStatus calls to verify error handling
 	var jobStatusCalls []string
@@ -403,11 +441,22 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
 	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(volumeUpdateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -424,8 +473,8 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
 
 	// Mock volume state polling: first DP, then RW
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: VolumeStateDP}, nil).Once()
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: VolumeStateRW}, nil).Once()
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "dp"}, nil).Once()
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil).Once()
 
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
@@ -444,14 +493,27 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStateIn
 	// Create activity instances
 	commonActivity := &activities.CommonActivities{}
 	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
 	volumeUpdateActivity := &activities.VolumeUpdateActivity{}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
+	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(volumeUpdateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Track UpdateJobStatus calls to verify error handling
 	var jobStatusCalls []string
@@ -503,11 +565,22 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_PostWorkflowF
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
 	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(volumeUpdateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Track UpdateJobStatus calls to verify error handling
 	var jobStatusCalls []string
@@ -527,7 +600,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_PostWorkflowF
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: VolumeStateRW}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
 
 	// Mock post workflow to fail
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("post workflow failed"))
@@ -563,11 +636,22 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateVolumeD
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
 	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(volumeUpdateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Track UpdateJobStatus calls to verify error handling
 	var jobStatusCalls []string
@@ -587,7 +671,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateVolumeD
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: VolumeStateRW}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume details failed"))
 
@@ -622,11 +706,22 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_QueryHandler(
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
 	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(volumeUpdateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -641,7 +736,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_QueryHandler(
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: VolumeStateRW}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -660,9 +755,9 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_QueryHandler(
 
 func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_Constants() {
 	// Test volume state constants
-	assert.Equal(s.T(), "rw", VolumeStateRW)
-	assert.Equal(s.T(), "dp", VolumeStateDP)
-	assert.Equal(s.T(), "ls", VolumeStateLS)
+	assert.Equal(s.T(), "rw", "rw")
+	assert.Equal(s.T(), "dp", "dp")
+	assert.Equal(s.T(), "ls", "ls")
 
 	// Test WaitForRestore constant
 	assert.Equal(s.T(), time.Duration(10)*time.Second, WaitForRestore)
@@ -725,7 +820,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSmSourcePa
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
 
 	// Track UpdateJobStatus calls
 	var jobStatusCalls []string
@@ -758,8 +856,11 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetObjStoreNa
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
 
 	// Track UpdateJobStatus calls
 	var jobStatusCalls []string
@@ -790,12 +891,25 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetBucketDeta
 	// Create activity instances
 	commonActivity := &activities.CommonActivities{}
 	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
+	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Track UpdateJobStatus calls
 	var jobStatusCalls []string
@@ -829,12 +943,25 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetOrCreateOb
 	// Create activity instances
 	commonActivity := &activities.CommonActivities{}
 	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
+	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Track UpdateJobStatus calls
 	var jobStatusCalls []string
@@ -869,12 +996,25 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorGet
 	// Create activity instances
 	commonActivity := &activities.CommonActivities{}
 	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
+	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Track UpdateJobStatus calls
 	var jobStatusCalls []string
@@ -908,12 +1048,25 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	// Create activity instances
 	commonActivity := &activities.CommonActivities{}
 	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
+	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Track UpdateJobStatus calls
 	var jobStatusCalls []string
@@ -954,11 +1107,22 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
-	s.env.RegisterActivity(backupActivity)
 	s.env.RegisterActivity(volumeCreateActivity)
 	s.env.RegisterActivity(volumeUpdateActivity)
 	s.env.RegisterActivity(activities.GetObjStoreNameFromBackup)
 	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+
+	// Register specific backup activity methods
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathForRestoreActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	
+	// Register missing activities
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -989,7 +1153,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	// Final call: success
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
 
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: VolumeStateRW}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 

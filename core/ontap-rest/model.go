@@ -3740,3 +3740,25 @@ func snapmirrorCloudSnapshotGetParamsToONTAP(params *SnapmirrorCloudSnapshotGetP
 	}
 	return otParams
 }
+
+// ObjectStoreEndpointInfoGetParams describes the params to invoke Object Store Endpoint Info Get
+type ObjectStoreEndpointInfoGetParams struct {
+	ObjectStoreUUID string
+	UUID            string
+}
+
+// ObjectStoreEndpointInfo is a simple wrapper of models.ObjectStoreEndpointInfo
+type ObjectStoreEndpointInfo struct {
+	models.ObjectStoreEndpointInfo
+}
+
+func objectStoreEndpointInfoGetParamsToONTAP(params *ObjectStoreEndpointInfoGetParams) *snapmirror.ObjectStoreEndpointInfoGetParams {
+	otParams := snapmirror.NewObjectStoreEndpointInfoGetParams()
+	if params.ObjectStoreUUID != "" {
+		otParams.SetObjectStoreUUID(params.ObjectStoreUUID)
+	}
+	if params.UUID != "" {
+		otParams.SetUUID(params.UUID)
+	}
+	return otParams
+}

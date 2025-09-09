@@ -177,3 +177,24 @@ func (rc *OntapRestProvider) SnapmirrorObjectStoreSnapshotGet(objectStoreUUID, E
 	}
 	return nil, fmt.Errorf("snapshot %s not found in object store", snapshotUUID)
 }
+
+func (rc *OntapRestProvider) ObjectStoreEndpointInfoGet(objectStoreUUID, EndpointUUID string) (*SmObjectStoreEndpointt, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Snapmirror().ObjectStoreEndpointInfoGet(&ontapRest.ObjectStoreEndpointInfoGetParams{
+		ObjectStoreUUID: objectStoreUUID,
+		UUID:            EndpointUUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if resp != nil {
+		return &SmObjectStoreEndpointt{
+			LogicalSize: resp.Destination.LogicalSize,
+			UUID:        resp.UUID,
+		}, nil
+	}
+	return nil, fmt.Errorf("object store endpoint %s not found in object store %s", EndpointUUID, objectStoreUUID)
+}

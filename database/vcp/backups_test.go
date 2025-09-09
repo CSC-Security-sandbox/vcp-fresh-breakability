@@ -652,16 +652,16 @@ func TestFinishBackup(t *testing.T) {
 		assert.NoError(tt, err)
 
 		backup := &datamodel.Backup{
-			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid"},
-			Description:  "Initial description",
-			Attributes:   &datamodel.BackupAttributes{},
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
-			SizeInBytes:  1024,
+			BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Description:             "Initial description",
+			Attributes:              &datamodel.BackupAttributes{},
+			State:                   models.LifeCycleStateCreating,
+			StateDetails:            models.LifeCycleStateCreatingDetails,
+			SizeInBytes:             1024,
+			LatestLogicalBackupSize: 1024,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
-
 		backup.Description = "Updated description"
 		backup.Attributes = &datamodel.BackupAttributes{SnapshotID: "test-snapshot-id"}
 		finishedBackup, err := store.FinishBackup(context.Background(), backup)
@@ -671,6 +671,7 @@ func TestFinishBackup(t *testing.T) {
 		assert.Equal(tt, "Updated description", finishedBackup.Description)
 		assert.Equal(tt, backup.Attributes, finishedBackup.Attributes)
 		assert.Equal(tt, int64(1024), finishedBackup.SizeInBytes)
+		assert.Equal(tt, int64(1024), finishedBackup.LatestLogicalBackupSize)
 	})
 
 	t.Run("ReturnsErrorWhenBackupNotFound", func(tt *testing.T) {
@@ -688,7 +689,6 @@ func TestFinishBackup(t *testing.T) {
 			Description: "Updated description",
 			Attributes:  &datamodel.BackupAttributes{},
 		}
-
 		_, err = store.FinishBackup(context.Background(), backup)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "not found")
@@ -1235,4 +1235,195 @@ func TestGetBackupCountByVolumeUUIDs(t *testing.T) {
 	_ = sqlDB.Close()
 	_, err = store.GetBackupCountByVolumeUUIDs(context.Background(), []string{"volume-uuid-1"}, nil)
 	assert.Error(t, err)
+}
+
+func TestGetBackupsByVolumeUUID(t *testing.T) {
+	t.Run("ReturnsBackupsSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backups for the volume
+		backup1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:    "volume-uuid-1",
+			BackupVaultID: backupVault.ID,
+			BackupVault:   backupVault,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid-2"},
+			VolumeUUID:    "volume-uuid-1",
+			BackupVaultID: backupVault.ID,
+			BackupVault:   backupVault,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// Test: returns backups for the volume
+		backups, err := store.GetBackupsByVolumeUUID(context.Background(), "volume-uuid-1")
+		assert.NoError(tt, err)
+		assert.Len(tt, backups, 2)
+		assert.Equal(tt, "backup-uuid-1", backups[0].UUID)
+		assert.Equal(tt, "backup-uuid-2", backups[1].UUID)
+	})
+
+	t.Run("ReturnsEmptySliceWhenNoBackups", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Test: returns empty slice for volume with no backups
+		backups, err := store.GetBackupsByVolumeUUID(context.Background(), "volume-uuid-1")
+		assert.NoError(tt, err)
+		assert.Empty(tt, backups)
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		// Test: returns error on DB failure
+		backups, err := store.GetBackupsByVolumeUUID(context.Background(), "volume-uuid-1")
+		assert.Error(tt, err)
+		assert.Nil(tt, backups)
+	})
+}
+
+func TestUpdateBackupLatestLogicalBackupSizeByVolume(t *testing.T) {
+	t.Run("UpdatesBackupsSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backups for the volume
+		backup1 := &datamodel.Backup{
+			BaseModel:                datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:               "volume-uuid-1",
+			LatestLogicalBackupSize:  1024,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:                datamodel.BaseModel{UUID: "backup-uuid-2"},
+			VolumeUUID:               "volume-uuid-1",
+			LatestLogicalBackupSize:  2048,
+		}
+		backup3 := &datamodel.Backup{
+			BaseModel:                datamodel.BaseModel{UUID: "backup-uuid-3"},
+			VolumeUUID:               "volume-uuid-1",
+			LatestLogicalBackupSize:  4096,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup3).Error()
+		assert.NoError(tt, err)
+
+		// Test: updates all backups except the excluded one
+		err = store.UpdateBackupLatestLogicalBackupSizeByVolume(context.Background(), "volume-uuid-1", "backup-uuid-2")
+		assert.NoError(tt, err)
+
+		// Verify the updates
+		var updatedBackups []*datamodel.Backup
+		err = store.db.GORM().Where("volume_uuid = ?", "volume-uuid-1").Find(&updatedBackups).Error
+		assert.NoError(tt, err)
+		assert.Len(tt, updatedBackups, 3)
+
+		// Find the specific backups to verify their sizes
+		for _, backup := range updatedBackups {
+			if backup.UUID == "backup-uuid-1" || backup.UUID == "backup-uuid-3" {
+				assert.Equal(tt, int64(0), backup.LatestLogicalBackupSize)
+			} else if backup.UUID == "backup-uuid-2" {
+				assert.Equal(tt, int64(2048), backup.LatestLogicalBackupSize)
+			}
+		}
+	})
+
+	t.Run("ReturnsErrorOnTransactionFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		defer func() {
+			startTransaction = _startTransaction
+		}()
+		// Simulate transaction failure
+		startTransaction = func(db *gorm.DB) (*gorm.DB, error) {
+			return nil, errors.New("transaction failed")
+		}
+
+		// Test: returns error when transaction fails
+		err = store.UpdateBackupLatestLogicalBackupSizeByVolume(context.Background(), "volume-uuid-1", "backup-uuid-2")
+		assert.Error(tt, err)
+		assert.Equal(tt, "transaction failed", err.Error())
+	})
+
+	t.Run("ReturnsErrorOnUpdateFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a backup first
+		backup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 1024,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection after transaction starts
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		// Test: returns error when update fails
+		err = store.UpdateBackupLatestLogicalBackupSizeByVolume(context.Background(), "volume-uuid-1", "backup-uuid-2")
+		assert.Error(tt, err)
+	})
 }

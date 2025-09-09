@@ -3498,6 +3498,122 @@ func TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func TestGetObjectStoreEndpointInfo(t *testing.T) {
+	t.Run("WhenProviderGetFails", func(tt *testing.T) {
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider get failed")
+		}
+
+		ctx := context.Background()
+		node := &models.Node{}
+
+		result, err := activity.GetObjectStoreEndpointInfo(ctx, node, "obj-uuid", "endpoint-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "provider get failed")
+	})
+
+	t.Run("WhenProviderGetSucceeds", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		expectedEndpointInfo := &vsa.SmObjectStoreEndpointt{
+			UUID: nillable.ToPointer(strfmt.UUID("endpoint-uuid")),
+		}
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "endpoint-uuid").Return(expectedEndpointInfo, nil)
+
+		ctx := context.Background()
+		node := &models.Node{}
+
+		result, err := activity.GetObjectStoreEndpointInfo(ctx, node, "obj-uuid", "endpoint-uuid")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedEndpointInfo, result)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestGetObjectStoreEndpointActivity(t *testing.T) {
+	t.Run("WhenGetObjectStoreEndpointInfoFails", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "endpoint-uuid").Return(nil, errors.New("endpoint info get failed"))
+
+		ctx := context.Background()
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &models.Node{},
+			ObjStore: &commonparams.CloudTarget{
+				UUID: "obj-uuid",
+			},
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup: &datamodel.Backup{
+					Attributes: &datamodel.BackupAttributes{
+						EndpointUUID: "endpoint-uuid",
+					},
+				},
+			},
+		}
+		result, _ := activity.GetObjectStoreEndpointActivity(ctx, backupActivitiesContext)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenGetObjectStoreEndpointInfoSucceeds", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		expectedEndpointInfo := &vsa.SmObjectStoreEndpointt{
+			UUID:        nillable.ToPointer(strfmt.UUID("endpoint-uuid")),
+			LogicalSize: nillable.ToPointer(int64(1024)),
+		}
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "endpoint-uuid").Return(expectedEndpointInfo, nil)
+
+		ctx := context.Background()
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &models.Node{},
+			ObjStore: &commonparams.CloudTarget{
+				UUID: "obj-uuid",
+			},
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup: &datamodel.Backup{
+					Attributes: &datamodel.BackupAttributes{
+						EndpointUUID: "endpoint-uuid",
+					},
+				},
+			},
+		}
+		result, _ := activity.GetObjectStoreEndpointActivity(ctx, backupActivitiesContext)
+		assert.Equal(tt, backupActivitiesContext, result)
+	})
+}
+
 // Tests for CleanupOldAdhocBackupSnapshotsActivity
 
 func TestCleanupOldAdhocBackupSnapshotsActivity_Success_MultipleSnapshots(t *testing.T) {
@@ -4090,4 +4206,160 @@ func TestDeleteSnapshotForBackup_UseExistingSnapshot_GetProviderError(t *testing
 	// Assert
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "provider lookup failed")
+}
+
+func TestUpdateBackupSizeActivity_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024,
+	}
+	
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+	}
+
+	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupSizeActivity_UpdateBackupFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024,
+	}
+	
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+	}
+
+	mockStorage.On("UpdateBackup", ctx, backup).Return(nil, errors.New("update backup failed"))
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "update backup failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupSizeActivity_UpdateBackupLatestLogicalBackupSizeFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024,
+	}
+	
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+	}
+
+	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(errors.New("update latest logical backup size failed"))
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "update latest logical backup size failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupSizeActivity_UpdateVolumeFieldsFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024,
+	}
+	
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+	}
+
+	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(errors.New("update volume fields failed"))
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "update volume fields failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupSizeActivity_SkipsLatestLogicalBackupSizeUpdateWhenZero(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 0, // This should skip the UpdateBackupLatestLogicalBackupSizeByVolume call
+	}
+	
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+	}
+
+	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertExpectations(t)
+	// Verify that UpdateBackupLatestLogicalBackupSizeByVolume was not called
+	mockStorage.AssertNotCalled(t, "UpdateBackupLatestLogicalBackupSizeByVolume")
 }

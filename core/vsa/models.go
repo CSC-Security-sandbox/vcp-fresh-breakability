@@ -592,3 +592,8 @@ type SecurityAudit struct {
 	HTTP   bool
 	Ontapi bool
 }
+
+type SmObjectStoreEndpointt struct {
+	LogicalSize *int64
+	UUID        *strfmt.UUID
+}

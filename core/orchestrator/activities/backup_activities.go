@@ -319,6 +319,24 @@ func (a BackupActivity) GetSnapshotFromObjectStore(ctx context.Context, node *mo
 	return provider.SnapmirrorObjectStoreSnapshotGet(objectStoreUUID, EndpointUUID, snapshotUUID)
 }
 
+func (a BackupActivity) GetObjectStoreEndpointInfo(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID string) (*vsa.SmObjectStoreEndpointt, error) {
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return provider.ObjectStoreEndpointInfoGet(objectStoreUUID, EndpointUUID)
+}
+
+// GetObjectStoreEndpointActivity gets object store endpoint info
+func (b *BackupActivity) GetObjectStoreEndpointActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	objStoreEndpointInfo, err := b.GetObjectStoreEndpointInfo(ctx, backupActivitiesContext.Node, backupActivitiesContext.ObjStore.UUID, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.EndpointUUID)
+	if err != nil {
+		return nil, err
+	}
+	backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize = *objStoreEndpointInfo.LogicalSize
+	return backupActivitiesContext, nil
+}
+
 // GetObjectStoreSnapshotActivity gets snapshot from object store
 func (b *BackupActivity) GetObjectStoreSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
 	objStoreSnapshot, err := b.GetSnapshotFromObjectStore(ctx, backupActivitiesContext.Node, backupActivitiesContext.ObjStore.UUID, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.EndpointUUID, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID)
@@ -331,6 +349,44 @@ func (b *BackupActivity) GetObjectStoreSnapshotActivity(ctx context.Context, bac
 	} else {
 		backupActivitiesContext.BackupWorkflowInit.Backup.SizeInBytes = 0
 	}
+	return backupActivitiesContext, nil
+}
+
+// UpdateBackupSizeActivity updates backup size fields in both backup and volume tables
+func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	logger := util.GetLogger(ctx)
+	backup := backupActivitiesContext.BackupWorkflowInit.Backup
+	volumeUUID := backup.VolumeUUID
+
+	_, err := b.SE.UpdateBackup(ctx, backup)
+	if err != nil {
+		logger.Errorf("Failed to update backup %s with size information: %v", backup.UUID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Set LatestLogicalBackupSize to 0 for all previous backups of the same volume in a single query
+	// This ensures that only the latest backup has the correct size
+	// Update only if the latest logical backup size is not zero for the current backup
+	if backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize != 0 {
+		err = b.SE.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, backup.UUID)
+		if err != nil {
+			logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volumeUUID, err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	// Update the volume's LatestLogicalBackupSize field
+	err = b.SE.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
+		"volume_attributes": map[string]interface{}{
+			"latest_logical_backup_size": backup.LatestLogicalBackupSize,
+		},
+	})
+	if err != nil {
+		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeUUID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Debugf("Successfully updated backup size fields for backup %s and volume %s", backup.UUID, volumeUUID)
 	return backupActivitiesContext, nil
 }
 

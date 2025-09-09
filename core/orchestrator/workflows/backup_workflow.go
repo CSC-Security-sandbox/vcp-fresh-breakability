@@ -218,16 +218,31 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	// Get snapshot from object store
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	// Finish backup now as the transfer has completed
+	err = workflow.ExecuteActivity(ctx, backupActivity.FinishBackupActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
-	// Finish backup
-	err = workflow.ExecuteActivity(ctx, backupActivity.FinishBackupActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	// No need to check for error as if there is an error it will be caught in the above step itself
+	// After this step the backup is considered successful
+	// Get object store endpoint info
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreEndpointActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to get object store endpoint info for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+	}
+	// Get snapshot from object store
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to get snapshot from object store for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+	}
+	// Update backup size fields in both backup and volume tables
+	err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupSizeActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to update backup size fields for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
 	}
 
 	// Cleanup older adhoc-backup snapshots for this volume

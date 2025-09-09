@@ -4039,6 +4039,65 @@ func (_c *MockDataStore_GetBackupsByBackupVaultOwnerIDAndFilter_Call) RunAndRetu
 	return _c
 }
 
+// GetBackupsByVolumeUUID provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockDataStore) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupsByVolumeUUID")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Backup); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupsByVolumeUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupsByVolumeUUID'
+type MockDataStore_GetBackupsByVolumeUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupsByVolumeUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockDataStore_Expecter) GetBackupsByVolumeUUID(ctx interface{}, volumeUUID interface{}) *MockDataStore_GetBackupsByVolumeUUID_Call {
+	return &MockDataStore_GetBackupsByVolumeUUID_Call{Call: _e.mock.On("GetBackupsByVolumeUUID", ctx, volumeUUID)}
+}
+
+func (_c *MockDataStore_GetBackupsByVolumeUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_GetBackupsByVolumeUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupsByVolumeUUID_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockDataStore_GetBackupsByVolumeUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupsByVolumeUUID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Backup, error)) *MockDataStore_GetBackupsByVolumeUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetHostGroup provides a mock function with given fields: ctx, id, accountID
 func (_m *MockDataStore) GetHostGroup(ctx context.Context, id string, accountID int64) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, id, accountID)
@@ -8425,6 +8484,54 @@ func (_c *MockDataStore_UpdateBackup_Call) Return(_a0 *datamodel.Backup, _a1 err
 }
 
 func (_c *MockDataStore_UpdateBackup_Call) RunAndReturn(run func(context.Context, *datamodel.Backup) (*datamodel.Backup, error)) *MockDataStore_UpdateBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupLatestLogicalBackupSizeByVolume provides a mock function with given fields: ctx, volumeUUID, excludeBackupUUID
+func (_m *MockDataStore) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID string, excludeBackupUUID string) error {
+	ret := _m.Called(ctx, volumeUUID, excludeBackupUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupLatestLogicalBackupSizeByVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, volumeUUID, excludeBackupUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupLatestLogicalBackupSizeByVolume'
+type MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupLatestLogicalBackupSizeByVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - excludeBackupUUID string
+func (_e *MockDataStore_Expecter) UpdateBackupLatestLogicalBackupSizeByVolume(ctx interface{}, volumeUUID interface{}, excludeBackupUUID interface{}) *MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
+	return &MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call{Call: _e.mock.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, excludeBackupUUID)}
+}
+
+func (_c *MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call) Run(run func(ctx context.Context, volumeUUID string, excludeBackupUUID string)) *MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call) Return(_a0 error) *MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call) RunAndReturn(run func(context.Context, string, string) error) *MockDataStore_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }
