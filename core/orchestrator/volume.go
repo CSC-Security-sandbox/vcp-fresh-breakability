@@ -883,6 +883,16 @@ func _validateDeleteVolumeParams(ctx context.Context, se database.Storage, volum
 		return customerrors.NewUserInputValidationErr("A backup operation on volume is currently in progress. Please wait for it to complete before deleting the volume")
 	}
 
+	// Check if volume is in replication
+	replicationCount, err := se.GetVolumeReplicationCountByVolumeID(ctx, volume.ID)
+	if err != nil {
+		return err
+	}
+
+	if replicationCount > 0 {
+		return customerrors.NewUserInputValidationErr("Cannot delete volume that has active replication. Please delete the replication first.")
+	}
+
 	return nil
 }
 

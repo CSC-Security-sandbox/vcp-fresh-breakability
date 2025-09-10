@@ -5181,6 +5181,8 @@ func TestDeleteVolume(t *testing.T) {
 		mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.Anything).Return(errors.New("update failed"))
 		// Mock IsBackupInCreatingOrDeletingStateByVolume to return false
 		mockStorage.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+		// Mock GetVolumeReplicationCountByVolumeID to return 0
+		mockStorage.On("GetVolumeReplicationCountByVolumeID", ctx, mock.Anything).Return(int64(0), nil)
 		// Mock UpdateJob call when error occurs in defer function
 		mockStorage.On("UpdateJob", ctx, jobUUID, string(models.JobsStateERROR), 0, "update failed").Return(nil)
 
@@ -11292,12 +11294,14 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
 			Name:      "test-volume",
 		}
 
+		var replicationCount int64
 		// Mock the storage method to return false (no backup in transition state)
 		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, nil)
 
 		err := _validateDeleteVolumeParams(ctx, se, volume)
 		assert.NoError(tt, err)
@@ -11340,8 +11344,10 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 
+		var replicationCount int64
 		// Mock the storage method to return false for empty UUID
 		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "").Return(false, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", ctx, mock.Anything).Return(replicationCount, nil)
 
 		err := _validateDeleteVolumeParams(ctx, se, &datamodel.Volume{})
 		assert.NoError(tt, err)
@@ -11361,6 +11367,42 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 
 		err := _validateDeleteVolumeParams(ctx, se, volume)
 		assert.EqualError(tt, err, "A backup operation on volume is currently in progress. Please wait for it to complete before deleting the volume")
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVolumeReplicationCountReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test-volume",
+		}
+
+		var replicationCount int64
+		// Mock the storage method to return false (no backup in transition state)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, errors.New("database error"))
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.EqualError(tt, err, "database error")
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVolumeReplicationCountReturnsCount1", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test-volume",
+		}
+
+		var replicationCount int64 = 1
+		// Mock the storage method to return false (no backup in transition state)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, nil)
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.EqualError(tt, err, "Cannot delete volume that has active replication. Please delete the replication first.")
 		se.AssertExpectations(tt)
 	})
 }
