@@ -106,7 +106,7 @@ var GetCertificateAndSecret = _getCertificateAndSecret
 var DeleteCertificateAndSecret = _deleteCertificateAndSecret
 
 // _generateAndCreateCertificateForVSACluster generates a CSR and creates a certificate in GCP Certificate Authority Service.
-func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, certificateID, clusterName string) (*hyperscalermodels.CustomCertificateResponse, error) {
+func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, certificateID, clusterName, username string) (*hyperscalermodels.CustomCertificateResponse, error) {
 	logger := gcpService.GetLogger()
 	// Get Both Certificate and Secret
 	certificate, secret, err := GetCertificateAndSecret(gcpService, certificateID)
@@ -139,7 +139,7 @@ func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, certi
 
 	// If certificate and secret are nil so create a CSR and request new certificate in CAS and store the private key in secret manager
 	logger.Debugf("Generating and creating certificate for cluster: %s with certificateID: %s", clusterName, certificateID)
-	certificate, secret, err = CreateCertificateInCASAndPrivateKeyInSM(gcpService, certificateID, clusterName)
+	certificate, secret, err = CreateCertificateInCASAndPrivateKeyInSM(gcpService, certificateID, clusterName, username)
 	if err != nil {
 		logger.Errorf("Failed to create certificate and store private key for cluster: %s with certificateID: %s", clusterName, certificateID)
 		return nil, err
@@ -204,7 +204,7 @@ func _getCertificateAndSecret(gcpService GoogleServices, certificateID string) (
 	return cert, secret, nil
 }
 
-func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certificateID string, clusterName string) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
+func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certificateID string, clusterName, username string) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 	domains := fmt.Sprintf("*.%s.%s", clusterName, env.VsaDeployedDnsName)
 	certObj := &hyperscalermodels.CustomCertificateParam{
@@ -212,7 +212,7 @@ func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certifi
 		CertificateID:    certificateID,
 		CaPoolName:       env.CaPoolName,
 		CaName:           env.CaName,
-		CommonName:       env.VCP_ADMIN,
+		CommonName:       username,
 		Domains:          []string{domains},
 		CertOwningEntity: env.CaPoolDeployedProjectID,
 	}
@@ -479,10 +479,14 @@ func _generateCSR(commonName string, domains []string) ([]byte, *rsa.PrivateKey,
 	}
 
 	// --- Build Extended Key Usage extension ---
-	// We want both serverAuth and clientAuth.
+	// We want clientAuth for all certificates, and serverAuth for VCP_ADMIN certificates.
 	ekuOIDs := []asn1.ObjectIdentifier{
-		{1, 3, 6, 1, 5, 5, 7, 3, 1},
 		{1, 3, 6, 1, 5, 5, 7, 3, 2},
+	}
+
+	// If the common name is VCP_ADMIN, add serverAuth as well.
+	if commonName == env.VCP_ADMIN {
+		ekuOIDs = append(ekuOIDs, asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1})
 	}
 	rawEKU, err := asn1.Marshal(ekuOIDs)
 	if err != nil {

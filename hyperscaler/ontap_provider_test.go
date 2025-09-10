@@ -1015,6 +1015,7 @@ func Test_CreatePrivateKeyInSecretManager(t *testing.T) {
 func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 	certificateID := "test-cert-id"
 	clusterName := "test-cluster"
+	username := "test-user"
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
 	expectedDomains := []string{fmt.Sprintf("*.%s.%s", clusterName, env.VsaDeployedDnsName)}
 
@@ -1034,7 +1035,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			CreatePrivateKeyInSecretManager = origCreatePrivateKeyInSecretManager
 		}()
 		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
-			assert.Equal(t, env.VCP_ADMIN, commonName)
+			assert.Equal(t, username, commonName)
 			assert.Equal(t, expectedDomains, domains)
 			return []byte("csr"), key, nil
 		}
@@ -1049,7 +1050,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"}}, nil
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username)
 		assert.NoError(t, err)
 		assert.NotNil(t, cert)
 		assert.NotNil(t, secret)
@@ -1066,7 +1067,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			return nil, nil, fmt.Errorf("csr error")
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username)
 		assert.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, secret)
@@ -1088,7 +1089,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			return nil, fmt.Errorf("validate error")
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username)
 		assert.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, secret)
@@ -1115,7 +1116,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			return nil, fmt.Errorf("cas error")
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username)
 		assert.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, secret)
@@ -1147,7 +1148,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			return nil, fmt.Errorf("sm error")
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username)
 		assert.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, secret)
@@ -1157,6 +1158,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 	certificateID := "test-cert-id"
 	clusterName := "test-cluster"
+	username := "test-user"
 
 	t.Run("returns cached certificate and secret if found", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
@@ -1174,7 +1176,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			return expectedCert, expectedSecret, nil
 		}
 		defer func() { GetCertificateAndSecret = originalGetCertificateAndSecret }()
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName, username)
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.Equal(t, expectedCert, resp.Certificate)
@@ -1189,7 +1191,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			return nil, nil, fmt.Errorf("get cert error")
 		}
 		defer func() { GetCertificateAndSecret = originalGetCertificateAndSecret }()
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName, username)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1209,7 +1211,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			GetCertificateAndSecret = originalGetCertificateAndSecret
 			DeleteCertificateAndSecret = originalDeleteCertificateAndSecret
 		}()
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName, username)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1226,7 +1228,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 		DeleteCertificateAndSecret = func(gcpService GoogleServices, certificateID string, certificate *hyperscaler3.CustomCertificate, secret *hyperscaler3.CustomSecret) error {
 			return nil
 		}
-		CreateCertificateInCASAndPrivateKeyInSM = func(gcpService GoogleServices, certificateID, clusterName string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+		CreateCertificateInCASAndPrivateKeyInSM = func(gcpService GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
 			return nil, nil, fmt.Errorf("create error")
 		}
 		defer func() {
@@ -1234,7 +1236,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			DeleteCertificateAndSecret = originalDeleteCertificateAndSecret
 			CreateCertificateInCASAndPrivateKeyInSM = originalCreateCertificateInCASAndPrivateKeyInSM
 		}()
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName, username)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1259,7 +1261,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 		DeleteCertificateAndSecret = func(gcpService GoogleServices, certificateID string, certificate *hyperscaler3.CustomCertificate, secret *hyperscaler3.CustomSecret) error {
 			return nil
 		}
-		CreateCertificateInCASAndPrivateKeyInSM = func(gcpService GoogleServices, certificateID, clusterName string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+		CreateCertificateInCASAndPrivateKeyInSM = func(gcpService GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
 			return expectedCert, expectedSecret, nil
 		}
 		defer func() {
@@ -1267,7 +1269,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			DeleteCertificateAndSecret = originalDeleteCertificateAndSecret
 			CreateCertificateInCASAndPrivateKeyInSM = originalCreateCertificateInCASAndPrivateKeyInSM
 		}()
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, certificateID, clusterName, username)
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.Equal(t, expectedCert, resp.Certificate)

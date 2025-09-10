@@ -571,7 +571,7 @@ func _getInternalVSANetworkForFirewalls(vpcName, firewallName string, sourceRang
 	}
 }
 
-func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool, clusterName string) (*vlm.OntapCredentials, error) {
+func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool, clusterName, username string) (*vlm.OntapCredentials, error) {
 	credentials := &vlm.OntapCredentials{}
 	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
 	if getGcpServiceErr != nil {
@@ -581,7 +581,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
-		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.PoolCredentials.CertificateID, clusterName)
+		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.PoolCredentials.CertificateID, clusterName, username)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}

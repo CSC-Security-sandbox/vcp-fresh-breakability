@@ -275,7 +275,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	credConfig := &vlm.OntapCredentials{}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOnTapCredentials, pool, pool.DeploymentName).Get(ctx, &credConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOnTapCredentials, pool, pool.DeploymentName, env.VCP_ADMIN).Get(ctx, &credConfig)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
