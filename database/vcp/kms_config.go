@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -50,6 +51,61 @@ func (d *DataStoreRepository) UpdateKmsConfigState(ctx context.Context, kmsConfi
 	}
 
 	kmsConfig.State = state
+	kmsConfig.StateDetails = stateDetails
+	err = tx.Updates(kmsConfig).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return kmsConfig, nil
+}
+
+func (d *DataStoreRepository) UpdateKmsConfigStateForHandleResource(ctx context.Context, kmsConfigUUID string, stateDetails string, event string) (*datamodel.KmsConfig, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	kmsConfig, err := _getKmsConfig(tx, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: kmsConfigUUID}})
+	if err != nil {
+		return nil, err
+	}
+
+	newState := ""
+	currState := kmsConfig.State
+
+	switch event {
+	case models.StateOff:
+		newState = common.ResourceStateDisabled
+	case models.StateOn:
+		if currState != common.ResourceStateDisabled {
+			err = errors.New("Cannot Enable gcpKmsConfig which is not in disabled state")
+			return nil, err
+		}
+		// ON event will mark the state as "in use" if the gcpKmsConfig is being used by any svm, else it will be marked as "created".
+		// gcpKmsConfig check endpoint should be invoked to move gcpKmsConfig from "created" to "ready" state.
+		newState, err = func() (string, error) {
+			inUse, err := isKmsConfigInUse(tx, kmsConfig)
+			if err != nil {
+				return "", err
+			}
+			if inUse {
+				return models.LifeCycleStateInUse, nil
+			}
+			return models.LifeCycleStateCreated, nil
+		}()
+		if err != nil {
+			return nil, err
+		}
+	default:
+		err = errors.NewNotSupportedErrWithMessage("Invalid event")
+		return nil, err
+	}
+
+	kmsConfig.State = newState
 	kmsConfig.StateDetails = stateDetails
 	err = tx.Updates(kmsConfig).Error
 	if err != nil {

@@ -103,6 +103,37 @@ func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *data
 	return dbSnapshot, nil
 }
 
+func (d *DataStoreRepository) UpdateSnapshotForHandleResource(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
+	logger := util.GetLogger(ctx)
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(logger, tx, &err)
+	dbSnapshot, err := getSnapshotWithDetails(tx, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshot.UUID}})
+	if err != nil {
+		return nil, err
+	}
+	if dbSnapshot.State == models.LifeCycleStateCreating ||
+		dbSnapshot.State == models.LifeCycleStateDeleting ||
+		dbSnapshot.State == models.LifeCycleStateUpdating {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrHREResourceIsTransitioning, errors.New("snapshot is in transition state"))
+	}
+	err = tx.Model(&dbSnapshot).Updates(datamodel.Snapshot{
+		Name:               snapshot.Name,
+		Description:        snapshot.Description,
+		SnapshotAttributes: snapshot.SnapshotAttributes,
+		State:              snapshot.State,
+		StateDetails:       snapshot.StateDetails,
+	}).Error
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return dbSnapshot, nil
+}
+
 func (d *DataStoreRepository) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
 	filter := utils2.CreateFilterWithConditions(
 		utils2.NewFilterCondition("account_id", "=", accountID),

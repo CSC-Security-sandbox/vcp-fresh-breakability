@@ -28,7 +28,6 @@ crrEnabled: false
 refreshAdminJobSpecs: true
 flexCacheEnabled: false
 autoTieringEnabled: false
-isPreAga: false
 regionalSupportEnabled: true
 filesProtocolSupport: false
 fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support

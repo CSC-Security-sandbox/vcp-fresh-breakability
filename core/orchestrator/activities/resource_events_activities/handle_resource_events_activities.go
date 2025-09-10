@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	dbtuils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	ErrTypeResourceNotFound = "KmsConfigNotFound"
+	ErrTypeResourceNotFound = "NotFoundErr"
 )
 
 var (
@@ -215,8 +216,11 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 }
 
 func (a *ResourceEventsActivity) handleKmsConfig(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
-	_, err := a.SE.UpdateKmsConfigState(ctx, params.ResourceId, state, stateDetails)
-	if isNotFound, err0 := handleError(err); err0 != nil || isNotFound {
+	_, err := a.SE.UpdateKmsConfigStateForHandleResource(ctx, params.ResourceId, stateDetails, params.State)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
 		return false, err
 	}
 	return true, nil
@@ -231,7 +235,10 @@ func (a *ResourceEventsActivity) handleStoragePool(ctx context.Context, params *
 		StateDetails: stateDetails,
 	}
 	_, err := a.SE.UpdatePoolState(ctx, pool, state, stateDetails)
-	if isNotFound, err0 := handleError(err); err0 != nil || isNotFound {
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
 		return false, err
 	}
 	return true, nil
@@ -245,8 +252,11 @@ func (a *ResourceEventsActivity) handleSnapshot(ctx context.Context, params *com
 		State:        state,
 		StateDetails: stateDetails,
 	}
-	_, err := a.SE.UpdateSnapshot(ctx, snapshot)
-	if isNotFound, err0 := handleError(err); err0 != nil || isNotFound {
+	_, err := a.SE.UpdateSnapshotForHandleResource(ctx, snapshot)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
 		return false, err
 	}
 	return true, nil
@@ -261,18 +271,47 @@ func (a *ResourceEventsActivity) handleVolume(ctx context.Context, params *commo
 		StateDetails: stateDetails,
 	}
 	err := a.SE.UpdateVolume(ctx, volume)
-	if isNotFound, err0 := handleError(err); err0 != nil || isNotFound {
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
 		return false, err
 	}
 	return true, nil
 }
 
-func handleError(err error) (bool, error) {
+func (a *ResourceEventsActivity) DeleteVolumeForPool(ctx context.Context, volume *datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	_, err := se.DeleteVolumeAndChildResources(ctx, volume.UUID)
 	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			return true, nil
-		}
-		return false, err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return false, nil
+	logger.Debugf("Volume:%s marked deleted successfully in the db", volume.Name)
+
+	return nil
+}
+
+func (a *ResourceEventsActivity) DeleteReplicationsForVolume(ctx context.Context, volume *datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	filter := dbtuils.CreateFilterWithConditions(
+		dbtuils.NewFilterCondition("account_id", "=", volume.AccountID),
+		dbtuils.NewFilterCondition("volume_id", "=", volume.ID))
+	replications, err := se.ListVolumeReplications(ctx, *filter)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	for _, replication := range replications {
+		_, err = se.DeleteVolumeReplication(ctx, replication)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		logger.Debugf("Replication:%s marked deleted successfully in the db", replication.Name)
+	}
+
+	return nil
 }

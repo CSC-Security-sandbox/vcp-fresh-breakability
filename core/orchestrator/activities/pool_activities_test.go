@@ -110,6 +110,43 @@ func TestGetPool_Fails(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestGetPoolView_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{Name: "test-pool"}}
+	pool := database.ConvertPoolViewToPool(poolView)
+
+	mockStorage.On("GetPool", ctx, poolView.UUID, int64(0)).Return(poolView, nil)
+
+	// Act
+	result, err := activity.GetPoolView(ctx, pool)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, poolView, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetPoolView_Fails(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{Name: "test-pool"}
+
+	mockStorage.On("GetPool", ctx, pool.UUID, int64(0)).Return(nil, gorm.ErrRecordNotFound)
+
+	// Act
+	result, err := activity.GetPoolView(ctx, pool)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestSavePoolWithClusterDetails_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)

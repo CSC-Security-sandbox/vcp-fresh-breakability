@@ -108,6 +108,7 @@ const (
 	JobTypeHandleResourceEvent               JobType = "HANDLE_RESOURCE_EVENT"
 	JobTypeHandleResourceEventOffState       JobType = "HANDLE_RESOURCE_EVENT_OFF_STATE"
 	JobTypeHandleResourceEventOnState        JobType = "HANDLE_RESOURCE_EVENT_ON_STATE"
+	JobTypeHandleResourceEventDeleteState    JobType = "HANDLE_RESOURCE_EVENT_DELETE_STATE"
 	JobTypeDeleteBackupVault                 JobType = "DELETE_BACKUP_VAULT"
 	JobTypeInitCreateScheduledBackup         JobType = "INIT_CREATE_SCHEDULED_BACKUP"
 	JobTypeCreateScheduledBackup             JobType = "CREATE_SCHEDULED_BACKUP"

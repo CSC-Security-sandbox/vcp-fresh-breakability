@@ -112,8 +112,7 @@ func _updateResourceState(ctx context.Context, se database.Storage, temporal cli
 
 	// check if the resource is of common type (AD, KMS-Config or Backup/policy)
 	params.IsCommonResource = params.ResourceType == commonparams.ResourceStateV1ResourceTypeBackupPolicy ||
-		params.ResourceType == commonparams.ResourceStateV1ResourceTypeKmsConfig ||
-		params.ResourceType == commonparams.ResourceStateV1ResourceTypeAD
+		params.ResourceType == commonparams.ResourceStateV1ResourceTypeKmsConfig
 
 	var jobType string
 	var wf func(ctx workflow.Context, params *commonparams.UpdateResourceStateParams) (interface{}, error)
@@ -132,6 +131,13 @@ func _updateResourceState(ctx context.Context, se database.Storage, temporal cli
 	case params.State == models.StateOff && !params.IsCommonResource:
 		wf = workflows.UpdateResourceStateOFFWorkflow
 		jobType = string(models.JobTypeHandleResourceEventOffState)
+	case params.State == models.StateDelete &&
+		(params.ResourceType == commonparams.ResourceStateV1ResourceTypeStoragePool ||
+			params.ResourceType == commonparams.ResourceStateV1ResourceTypeVolume):
+		wf = workflows.UpdateResourceStateDELETEWorkflow
+		jobType = string(models.JobTypeHandleResourceEventDeleteState)
+	default:
+		return "", errors.NewBadRequestErr("unsupported state or resource type combination")
 	}
 
 	job := &datamodel.Job{

@@ -13,6 +13,7 @@ import (
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	dbtuils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -447,9 +448,10 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		params := &common.HandleResourceEventParams{
 			ResourceType: common.ResourceStateV1ResourceTypeKmsConfig,
 			ResourceId:   "test-resource-id",
+			State:        models.StateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigState", ctx, params.ResourceId, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails).Return(nil, nil)
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, common.ResourceLifeCycleStateDisabledDetails, models.StateOff).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -482,7 +484,7 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 			ResourceId:   "test-snapshot-id",
 		}
 
-		mockSE.On("UpdateSnapshot", ctx, &datamodel.Snapshot{
+		mockSE.On("UpdateSnapshotForHandleResource", ctx, &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
 			State:        common.ResourceStateDisabled,
 			StateDetails: common.ResourceLifeCycleStateDisabledDetails,
@@ -718,7 +720,7 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 			ResourceId:   "test-snapshot-id",
 		}
 
-		mockSE.On("UpdateSnapshot", ctx, &datamodel.Snapshot{
+		mockSE.On("UpdateSnapshotForHandleResource", ctx, &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
 			State:        common.ResourceStateEnabled,
 			StateDetails: common.ResourceLifeCycleStateEnabledDetails,
@@ -1076,5 +1078,185 @@ func TestCheckVolumeExistence(t *testing.T) {
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "unexpected error")
+	})
+}
+
+func TestDeleteVolumeForPool(t *testing.T) {
+	t.Run("DeleteVolumeForPool_Success", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-volume-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-id",
+				ID:   1,
+			},
+			AccountID: 1,
+			State:     common.ResourceStateEnabled,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.ResourceId,
+				ID:   1,
+			},
+			AccountID: 1,
+			PoolID:    pool.ID,
+		}
+
+		mockSE.On("DeleteVolumeAndChildResources", ctx, params.ResourceId).Return(&datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.ResourceId,
+				ID:   1,
+			},
+			AccountID: 1,
+			PoolID:    1,
+			State:     common.ResourceStateEnabled,
+		}, nil)
+
+		err := activity.DeleteVolumeForPool(ctx, volume)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("DeleteVolumeForPool_DeleteVolumeAndChildResourcesFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-volume-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-id",
+				ID:   1,
+			},
+			AccountID: 1,
+			State:     common.ResourceStateEnabled,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.ResourceId,
+				ID:   1,
+			},
+			AccountID: 1,
+			PoolID:    pool.ID,
+		}
+
+		mockSE.On("DeleteVolumeAndChildResources", ctx, params.ResourceId).Return(nil, errors.New("deletion failed"))
+
+		err := activity.DeleteVolumeForPool(ctx, volume)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "deletion failed")
+	})
+}
+
+func TestDeleteReplicationsForVolume(t *testing.T) {
+	t.Run("DeleteReplicationsForVolume_Success", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-id",
+				ID:   1,
+			},
+			AccountID: 1,
+			PoolID:    1,
+			State:     common.ResourceStateEnabled,
+		}
+
+		volumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-replication-id",
+				ID:   1,
+			},
+			VolumeID:  volume.ID,
+			AccountID: volume.AccountID,
+			State:     common.ResourceStateEnabled,
+		}
+
+		filter := dbtuils.CreateFilterWithConditions(
+			dbtuils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbtuils.NewFilterCondition("volume_id", "=", volume.ID))
+
+		mockSE.On("ListVolumeReplications", ctx, *filter).Return([]*datamodel.VolumeReplication{volumeReplication}, nil)
+		mockSE.On("DeleteVolumeReplication", ctx, volumeReplication).Return(volumeReplication, nil)
+
+		err := activity.DeleteReplicationsForVolume(ctx, volume)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("DeleteReplicationsForVolume_ListVolumeReplicationsFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-id",
+				ID:   1,
+			},
+			AccountID: 1,
+			PoolID:    1,
+			State:     common.ResourceStateEnabled,
+		}
+
+		filter := dbtuils.CreateFilterWithConditions(
+			dbtuils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbtuils.NewFilterCondition("volume_id", "=", volume.ID))
+
+		mockSE.On("ListVolumeReplications", ctx, *filter).Return(nil, errors.New("listing failed"))
+
+		err := activity.DeleteReplicationsForVolume(ctx, volume)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "listing failed")
+	})
+
+	t.Run("DeleteReplicationsForVolume_DeleteVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-id",
+				ID:   1,
+			},
+			AccountID: 1,
+			PoolID:    1,
+			State:     common.ResourceStateEnabled,
+		}
+
+		volumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-replication-id",
+				ID:   1,
+			},
+			VolumeID:  volume.ID,
+			AccountID: volume.AccountID,
+			State:     common.ResourceStateEnabled,
+		}
+
+		filter := dbtuils.CreateFilterWithConditions(
+			dbtuils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbtuils.NewFilterCondition("volume_id", "=", volume.ID))
+
+		mockSE.On("ListVolumeReplications", ctx, *filter).Return([]*datamodel.VolumeReplication{volumeReplication}, nil)
+		mockSE.On("DeleteVolumeReplication", ctx, volumeReplication).Return(nil, errors.New("deletion failed"))
+
+		err := activity.DeleteReplicationsForVolume(ctx, volume)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "deletion failed")
 	})
 }

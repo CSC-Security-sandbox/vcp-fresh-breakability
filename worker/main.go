@@ -266,10 +266,12 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.UpdateResourceStateOFFWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateResourceStateCommonResourceONWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateResourceStateCommonResourceOFFWorkflow)
+	worker.RegisterWorkflow(workflows.UpdateResourceStateDELETEWorkflow)
 	worker.RegisterWorkflow(workflows.FinishProjectEventDeleteStateWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteBackupPolicyWorkflow)
 	worker.RegisterWorkflow(workflows.RestoreBackupWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReplicationCleanupWorkflow)
+	worker.RegisterWorkflow(workflows.DeletePoolWorkflowInternal)
 	worker.RegisterWorkflow(replicationWorkflows.UpdateVolumeReplicationAttributesWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateVolumeInReplicationWorkflow)
 

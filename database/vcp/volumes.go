@@ -226,6 +226,42 @@ func (d *DataStoreRepository) DeleteVolume(ctx context.Context, volumeUUID strin
 	return deleteVolume(tx, volumeUUID)
 }
 
+func (d *DataStoreRepository) DeleteVolumeAndChildResources(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	volume, err := getVolumeWithDetails(tx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeUUID}})
+	if err != nil {
+		return nil, err
+	}
+
+	// Mark associated snapshots as deleted
+	err = tx.Model(&datamodel.Snapshot{}).Where("volume_id = ?", volume.ID).Updates(
+		datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+			},
+			State:        models.LifeCycleStateDeleted,
+			StateDetails: models.LifeCycleStateDeletedDetails,
+		}).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	// Finally, mark the volume as deleted
+	deletedVolume, err := deleteVolume(tx, volumeUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return deletedVolume, nil
+}
+
 func (d *DataStoreRepository) UpdateVolumeState(ctx context.Context, volumeUUID string, state string, stateDetails string) (*datamodel.Volume, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

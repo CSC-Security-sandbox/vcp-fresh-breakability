@@ -511,6 +511,10 @@ func (s *PersistenceStore) DeleteVolume(ctx context.Context, id string) (*datamo
 	return s.dataStore.DeleteVolume(ctx, id)
 }
 
+func (s *PersistenceStore) DeleteVolumeAndChildResources(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
+	return s.dataStore.DeleteVolumeAndChildResources(ctx, volumeUUID)
+}
+
 func (s *PersistenceStore) UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error) {
 	return s.dataStore.UpdateVolumeState(ctx, id, state, stateDetails)
 }
@@ -683,6 +687,10 @@ func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamod
 	return s.dataStore.UpdateSnapshot(ctx, snapshot)
 }
 
+func (s *PersistenceStore) UpdateSnapshotForHandleResource(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
+	return s.dataStore.UpdateSnapshotForHandleResource(ctx, snapshot)
+}
+
 func (s *PersistenceStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
 	return s.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, volumeID)
 }
@@ -801,6 +809,10 @@ func (s *PersistenceStore) GetJobByResourceUUID(ctx context.Context, resourceUUI
 
 func (s *PersistenceStore) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, kmsId, accountId int64) ([]*datamodel.Job, error) {
 	return s.dataStore.ListOngoingPoolJobsWithKmsConfigId(ctx, kmsId, accountId)
+}
+
+func (s *PersistenceStore) UpdateKmsConfigStateForHandleResource(ctx context.Context, kmsConfigUUID string, stateDetails string, event string) (*datamodel.KmsConfig, error) {
+	return s.dataStore.UpdateKmsConfigStateForHandleResource(ctx, kmsConfigUUID, stateDetails, event)
 }
 
 func (s *PersistenceStore) UpdateKmsConfigDetails(ctx context.Context, uuid string, keyFullPath string, resourceID string) (*datamodel.KmsConfig, error) {

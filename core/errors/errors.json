@@ -467,6 +467,12 @@
     "retriable": true,
     "http_code": 500
   },
+  "6075": {
+    "description": "HandleResourceEvent failure",
+    "message": "Cannot delete resource while it is transitioning",
+    "retriable": true,
+    "http_code": 500
+  },
   "7001": {
     "description": "Snapshot Deletion Error",
     "message": "Cannot delete snapshot while snapshot is in use",

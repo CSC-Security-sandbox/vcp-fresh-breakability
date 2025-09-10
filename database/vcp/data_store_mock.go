@@ -2444,6 +2444,65 @@ func (_c *MockDataStore_DeleteVolume_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// DeleteVolumeAndChildResources provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockDataStore) DeleteVolumeAndChildResources(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVolumeAndChildResources")
+	}
+
+	var r0 *datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Volume, error)); ok {
+		return rf(ctx, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Volume); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_DeleteVolumeAndChildResources_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteVolumeAndChildResources'
+type MockDataStore_DeleteVolumeAndChildResources_Call struct {
+	*mock.Call
+}
+
+// DeleteVolumeAndChildResources is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockDataStore_Expecter) DeleteVolumeAndChildResources(ctx interface{}, volumeUUID interface{}) *MockDataStore_DeleteVolumeAndChildResources_Call {
+	return &MockDataStore_DeleteVolumeAndChildResources_Call{Call: _e.mock.On("DeleteVolumeAndChildResources", ctx, volumeUUID)}
+}
+
+func (_c *MockDataStore_DeleteVolumeAndChildResources_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_DeleteVolumeAndChildResources_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteVolumeAndChildResources_Call) Return(_a0 *datamodel.Volume, _a1 error) *MockDataStore_DeleteVolumeAndChildResources_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteVolumeAndChildResources_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Volume, error)) *MockDataStore_DeleteVolumeAndChildResources_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteVolumeReplication provides a mock function with given fields: ctx, replication
 func (_m *MockDataStore) DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	ret := _m.Called(ctx, replication)
@@ -9215,6 +9274,67 @@ func (_c *MockDataStore_UpdateKmsConfigState_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// UpdateKmsConfigStateForHandleResource provides a mock function with given fields: ctx, kmsConfigUUID, stateDetails, event
+func (_m *MockDataStore) UpdateKmsConfigStateForHandleResource(ctx context.Context, kmsConfigUUID string, stateDetails string, event string) (*datamodel.KmsConfig, error) {
+	ret := _m.Called(ctx, kmsConfigUUID, stateDetails, event)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateKmsConfigStateForHandleResource")
+	}
+
+	var r0 *datamodel.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*datamodel.KmsConfig, error)); ok {
+		return rf(ctx, kmsConfigUUID, stateDetails, event)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *datamodel.KmsConfig); ok {
+		r0 = rf(ctx, kmsConfigUUID, stateDetails, event)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, kmsConfigUUID, stateDetails, event)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdateKmsConfigStateForHandleResource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateKmsConfigStateForHandleResource'
+type MockDataStore_UpdateKmsConfigStateForHandleResource_Call struct {
+	*mock.Call
+}
+
+// UpdateKmsConfigStateForHandleResource is a helper method to define mock.On call
+//   - ctx context.Context
+//   - kmsConfigUUID string
+//   - stateDetails string
+//   - event string
+func (_e *MockDataStore_Expecter) UpdateKmsConfigStateForHandleResource(ctx interface{}, kmsConfigUUID interface{}, stateDetails interface{}, event interface{}) *MockDataStore_UpdateKmsConfigStateForHandleResource_Call {
+	return &MockDataStore_UpdateKmsConfigStateForHandleResource_Call{Call: _e.mock.On("UpdateKmsConfigStateForHandleResource", ctx, kmsConfigUUID, stateDetails, event)}
+}
+
+func (_c *MockDataStore_UpdateKmsConfigStateForHandleResource_Call) Run(run func(ctx context.Context, kmsConfigUUID string, stateDetails string, event string)) *MockDataStore_UpdateKmsConfigStateForHandleResource_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateKmsConfigStateForHandleResource_Call) Return(_a0 *datamodel.KmsConfig, _a1 error) *MockDataStore_UpdateKmsConfigStateForHandleResource_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateKmsConfigStateForHandleResource_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.KmsConfig, error)) *MockDataStore_UpdateKmsConfigStateForHandleResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateNodeGroup provides a mock function with given fields: ctx, group
 func (_m *MockDataStore) UpdateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
 	ret := _m.Called(ctx, group)
@@ -9728,6 +9848,65 @@ func (_c *MockDataStore_UpdateSnapshot_Call) Return(_a0 *datamodel.Snapshot, _a1
 }
 
 func (_c *MockDataStore_UpdateSnapshot_Call) RunAndReturn(run func(context.Context, *datamodel.Snapshot) (*datamodel.Snapshot, error)) *MockDataStore_UpdateSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateSnapshotForHandleResource provides a mock function with given fields: ctx, snapshot
+func (_m *MockDataStore) UpdateSnapshotForHandleResource(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, snapshot)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateSnapshotForHandleResource")
+	}
+
+	var r0 *datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Snapshot) (*datamodel.Snapshot, error)); ok {
+		return rf(ctx, snapshot)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Snapshot) *datamodel.Snapshot); ok {
+		r0 = rf(ctx, snapshot)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Snapshot) error); ok {
+		r1 = rf(ctx, snapshot)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdateSnapshotForHandleResource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateSnapshotForHandleResource'
+type MockDataStore_UpdateSnapshotForHandleResource_Call struct {
+	*mock.Call
+}
+
+// UpdateSnapshotForHandleResource is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshot *datamodel.Snapshot
+func (_e *MockDataStore_Expecter) UpdateSnapshotForHandleResource(ctx interface{}, snapshot interface{}) *MockDataStore_UpdateSnapshotForHandleResource_Call {
+	return &MockDataStore_UpdateSnapshotForHandleResource_Call{Call: _e.mock.On("UpdateSnapshotForHandleResource", ctx, snapshot)}
+}
+
+func (_c *MockDataStore_UpdateSnapshotForHandleResource_Call) Run(run func(ctx context.Context, snapshot *datamodel.Snapshot)) *MockDataStore_UpdateSnapshotForHandleResource_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Snapshot))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateSnapshotForHandleResource_Call) Return(_a0 *datamodel.Snapshot, _a1 error) *MockDataStore_UpdateSnapshotForHandleResource_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateSnapshotForHandleResource_Call) RunAndReturn(run func(context.Context, *datamodel.Snapshot) (*datamodel.Snapshot, error)) *MockDataStore_UpdateSnapshotForHandleResource_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -646,6 +646,26 @@ func (re *retryEngine) DeleteVolume(ctx context.Context, id string) (*datamodel.
 	return var0, err
 }
 
+func (re *retryEngine) DeleteVolumeAndChildResources(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
+	var var0 *datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteVolumeAndChildResources(ctx, volumeUUID)
+		if err != nil {
+			re.logError("DeleteVolumeAndChildResources", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1732,6 +1752,26 @@ func (re *retryEngine) UpdateSnapshot(ctx context.Context, snapshot *datamodel.S
 	return var0, err
 }
 
+func (re *retryEngine) UpdateSnapshotForHandleResource(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error) {
+	var var0 *datamodel.Snapshot
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateSnapshotForHandleResource(ctx, snapshot)
+		if err != nil {
+			re.logError("UpdateSnapshotForHandleResource", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
 	var var0 *datamodel.Snapshot
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2215,6 +2255,26 @@ func (re *retryEngine) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, k
 		var0, err = re.dataStore.ListOngoingPoolJobsWithKmsConfigId(ctx, kmsId, accountId)
 		if err != nil {
 			re.logError("ListOngoingPoolJobsWithKmsConfigId", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateKmsConfigStateForHandleResource(ctx context.Context, kmsConfigUUID string, stateDetails string, event string) (*datamodel.KmsConfig, error) {
+	var var0 *datamodel.KmsConfig
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateKmsConfigStateForHandleResource(ctx, kmsConfigUUID, stateDetails, event)
+		if err != nil {
+			re.logError("UpdateKmsConfigStateForHandleResource", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

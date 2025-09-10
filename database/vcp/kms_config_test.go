@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -825,5 +826,235 @@ func Test_isKmsConfigInUse(t *testing.T) {
 		assert.Error(t, err)
 		assert.False(t, inUse)
 		assert.Contains(t, err.Error(), "database connection error")
+	})
+}
+
+func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
+	t.Run("SuccessfullyUpdatesStateToDisabledOnOffEvent", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:         "test-kms",
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: "Initial state",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource disabled", models.StateOff)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, common.ResourceStateDisabled, result.State)
+		assert.Equal(tt, "Resource disabled", result.StateDetails)
+	})
+
+	t.Run("SuccessfullyUpdatesStateToInUseOnOnEventWhenKmsConfigIsInUse", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:         "test-kms",
+			AccountID:    account.ID,
+			State:        common.ResourceStateDisabled,
+			StateDetails: "Disabled state",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		originalIsKmsConfigInUse := isKmsConfigInUse
+		defer func() { isKmsConfigInUse = originalIsKmsConfigInUse }()
+		isKmsConfigInUse = func(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return true, nil
+		}
+
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, models.LifeCycleStateInUse, result.State)
+		assert.Equal(tt, "Resource enabled", result.StateDetails)
+	})
+
+	t.Run("SuccessfullyUpdatesStateToCreatedOnOnEventWhenKmsConfigIsNotInUse", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:         "test-kms",
+			AccountID:    account.ID,
+			State:        common.ResourceStateDisabled,
+			StateDetails: "Disabled state",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		originalIsKmsConfigInUse := isKmsConfigInUse
+		defer func() { isKmsConfigInUse = originalIsKmsConfigInUse }()
+		isKmsConfigInUse = func(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, nil
+		}
+
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, models.LifeCycleStateCreated, result.State)
+		assert.Equal(tt, "Resource enabled", result.StateDetails)
+	})
+
+	t.Run("ReturnsErrorOnOnEventWhenKmsConfigIsNotInDisabledState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:         "test-kms",
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: "Available state",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Cannot Enable gcpKmsConfig which is not in disabled state")
+	})
+
+	t.Run("ReturnsErrorWhenKmsConfigNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "non-existent-uuid", "State details", models.StateOff)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, customerrors.IsNotFoundErr(err))
+	})
+
+	t.Run("ReturnsErrorOnInvalidEvent", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:         "test-kms",
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: "Available state",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "State details", "INVALID_EVENT")
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Invalid event")
+	})
+
+	t.Run("ReturnsErrorWhenIsKmsConfigInUseFailsOnOnEvent", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:         "test-kms",
+			AccountID:    account.ID,
+			State:        common.ResourceStateDisabled,
+			StateDetails: "Disabled state",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		originalIsKmsConfigInUse := isKmsConfigInUse
+		defer func() { isKmsConfigInUse = originalIsKmsConfigInUse }()
+		isKmsConfigInUse = func(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, fmt.Errorf("database connection error")
+		}
+
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "database connection error")
 	})
 }

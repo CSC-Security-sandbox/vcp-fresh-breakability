@@ -748,6 +748,42 @@ func DeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams, p
 	return nil, nil
 }
 
+// DeletePoolWorkflowInternal runs the core delete pool logic without job management.
+// This is used when called as a child workflow where the parent manages job status.
+func DeletePoolWorkflowInternal(ctx workflow.Context, params *common.DeletePoolParams, pool *datamodel.Pool) (interface{}, error) {
+	deletePoolWF := new(deletePoolWorkflow)
+
+	// Setup without job management
+	info := workflow.GetInfo(ctx)
+	deletePoolWF.CustomerID = params.AccountName
+	deletePoolWF.Status = WorkflowStatusCreated
+	deletePoolWF.ID = info.WorkflowExecution.ID
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": deletePoolWF.ID, "customerID": deletePoolWF.CustomerID})
+	logger := util.GetLogger(ctx)
+	deletePoolWF.Logger = logger
+
+	err := workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
+			ID:         deletePoolWF.ID,
+			Status:     deletePoolWF.Status,
+			CustomerID: deletePoolWF.CustomerID,
+		}, nil
+	})
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
+	// Run the core logic without job status updates
+	deletePoolWF.Status = WorkflowStatusRunning
+	_, errRun := deletePoolWF.Run(ctx, params, pool)
+	if errRun != nil {
+		deletePoolWF.Status = WorkflowStatusFailed
+		return nil, errRun
+	}
+	deletePoolWF.Status = WorkflowStatusCompleted
+	return nil, nil
+}
+
 func (wf *deletePoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	deletePoolParams := input.(*common.DeletePoolParams)
 	info := workflow.GetInfo(ctx)
@@ -893,7 +929,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	if dbPool.KmsConfig != nil {
-		// Check if the KMS config is reachable and update the kms appropriately i.e. form in-use to created when last pool/svm is deleted
+		// Check if the KMS config is reachable and update the kms appropriately i.e. from in-use to created when last pool/svm is deleted
 		kmsConfigActivity := &kms_activities.KmsConfigActivity{}
 		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbPool.KmsConfig.UUID).Get(ctx, nil)
 		if err != nil {

@@ -218,6 +218,114 @@ func TestCreateVolume(t *testing.T) {
 	})
 }
 
+func TestDeleteVolumeAndChildResources(t *testing.T) {
+	t.Run("WhenVolumeAndChildResourcesAreDeletedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			Name:    "test_pool",
+			Account: account,
+		}
+
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+
+		err = store.db.Create(volume).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			VolumeID:  volume.ID,
+			Volume:    volume,
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		err = store.db.Create(snapshot).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		deletedVolume, err := store.DeleteVolumeAndChildResources(context.Background(), volume.UUID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, volume.Name, deletedVolume.Name, "Expected volume name %v, got %v", volume.Name, deletedVolume.Name)
+		assert.NotNil(tt, deletedVolume.DeletedAt, "Expected volume to be deleted, got %v", deletedVolume.DeletedAt)
+		assert.Equal(tt, models.LifeCycleStateDeleted, deletedVolume.State, "Expected volume state %v, got %v", models.LifeCycleStateDeleted, deletedVolume.State)
+		assert.Equal(tt, "", deletedVolume.StateDetails, "Expected volume state details %v, got %v", "", deletedVolume.StateDetails)
+
+		_, err = store.GetVolume(context.Background(), volume.UUID)
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		}
+	})
+	t.Run("WhenVolumeIsNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		deletedVolume, err := store.DeleteVolumeAndChildResources(context.Background(), "dummy")
+		assert.Nil(tt, deletedVolume, "Expected nil volume, got %v", deletedVolume)
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		}
+	})
+	t.Run("WhenTransactionStartFails", func(tt *testing.T) {
+		origStartTransaction := startTransaction
+		startTransaction = func(db *gorm.DB) (*gorm.DB, error) {
+			return nil, errors.New("transaction start failed")
+		}
+		defer func() { startTransaction = origStartTransaction }()
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		deletedVolume, err := store.DeleteVolumeAndChildResources(context.Background(), "dummy")
+		assert.Nil(tt, deletedVolume, "Expected nil volume, got %v", deletedVolume)
+		assert.ErrorContains(tt, err, "transaction start failed", "Expected error 'transaction start failed', got %v", err)
+	})
+}
+
 func TestDeleteVolume(t *testing.T) {
 	t.Run("WhenVolumeIsDeletedSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

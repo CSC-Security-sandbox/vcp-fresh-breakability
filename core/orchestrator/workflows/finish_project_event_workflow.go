@@ -126,12 +126,6 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 		return nil, ConvertToVSAError(err)
 	}
 
-	if isPreAGA {
-		s.Logger.Info("In pre-AGA stage, skipping resource deletion from VCP.")
-		// If the project is in pre-AGA state, we will not delete the resources from VCP.
-		return nil, nil
-	}
-
 	// Delete hostgroup from VCP.
 	HostGroupActivities := &activities.HostGroupUpdateActivity{}
 	var listOfHostGroups []*datamodel.HostGroup

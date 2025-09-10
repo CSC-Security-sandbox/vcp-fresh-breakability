@@ -1477,6 +1477,18 @@ func (j *PoolActivity) GetPool(ctx context.Context, pool *datamodel.Pool) (*data
 	return dbPool, nil
 }
 
+func (j *PoolActivity) GetPoolView(ctx context.Context, pool *datamodel.Pool) (*datamodel.PoolView, error) {
+	se := j.SE
+	poolView, err := se.GetPool(ctx, pool.UUID, pool.AccountID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrPoolNotFound, errors.New("pool not found"))
+		}
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return poolView, nil
+}
+
 func (j *PoolActivity) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
 	se := j.SE
 	pools, err := se.GetPoolsByAccountName(ctx, accountName)
