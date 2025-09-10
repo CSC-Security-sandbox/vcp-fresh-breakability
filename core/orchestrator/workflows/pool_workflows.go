@@ -542,7 +542,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	updatePoolParams := args[0].(*common.UpdatePoolParams)
 	pool := args[1].(*datamodel.Pool)
 	poolActivity := &activities.PoolActivity{}
-	retryPolicy, err := PopulateRetryPolicyParams()
+	retryPolicy, err := PopulateRetryPolicyParams(pool.LargeCapacity)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
