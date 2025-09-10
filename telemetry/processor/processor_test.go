@@ -503,7 +503,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsEnabledValidCli
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) ([]metricsdm.HydratedMetrics, error) {
 		return []metricsdm.HydratedMetrics{
 			{
-				MeasuredType: metadata.FileSystemReadOps,
+				MeasuredType: metadata.AllocatedSize,
 				ResourceType: metadata.Volume,
 				ResourceName: "test-volume-1",
 			},
@@ -625,12 +625,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsError(t
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) ([]metricsdm.HydratedMetrics, error) {
 		return []metricsdm.HydratedMetrics{
 			{
-				MeasuredType: metadata.FileSystemReadOps,
+				MeasuredType: metadata.AllocatedSize,
 				ResourceType: metadata.Volume,
 				ResourceName: "test-volume-1",
 			},
 			{
-				MeasuredType: metadata.FileSystemWriteOps,
+				MeasuredType: metadata.LogicalSize,
 				ResourceType: metadata.Volume,
 				ResourceName: "test-volume-1",
 			},
@@ -694,7 +694,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 			// Check if this is volume metrics (contains UnknownMeasuredType or FileSystemReadOps)
 			hasVolumeMetrics := false
 			for _, metric := range metrics {
-				if metric.MeasuredType == metadata.UnknownMeasuredType || metric.MeasuredType == metadata.FileSystemReadOps {
+				if metric.MeasuredType == metadata.UnknownMeasuredType || metric.MeasuredType == metadata.AllocatedSize {
 					hasVolumeMetrics = true
 					break
 				}
@@ -707,7 +707,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 					if metric.MeasuredType == metadata.UnknownMeasuredType {
 						hasUnknown = true
 					}
-					if metric.MeasuredType == metadata.FileSystemReadOps {
+					if metric.MeasuredType == metadata.AllocatedSize {
 						hasFileSystemReadOps = true
 					}
 				}
@@ -741,7 +741,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 				ResourceName: "test-volume-1",
 			},
 			{
-				MeasuredType: metadata.FileSystemReadOps,
+				MeasuredType: metadata.AllocatedSize,
 				ResourceType: metadata.Volume,
 				ResourceName: "test-volume-2",
 			},

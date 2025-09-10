@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/iterator"
+	metric "google.golang.org/genproto/googleapis/api/metric"
 	"google.golang.org/genproto/googleapis/api/monitoredres"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"testing"
@@ -140,6 +141,11 @@ func TestCollectVolumeMetrics(t *testing.T) {
 					"location": "us-west1",
 				},
 			},
+			Metric: &metric.Metric{
+				Labels: map[string]string{
+					"volume": "test-volume-1",
+				},
+			},
 			Points: []*monitoringpb.Point{
 				{
 					Interval: &monitoringpb.TimeInterval{
@@ -157,6 +163,11 @@ func TestCollectVolumeMetrics(t *testing.T) {
 				Labels: map[string]string{
 					"name":     "test-volume-3",
 					"location": "us-west1",
+				},
+			},
+			Metric: &metric.Metric{
+				Labels: map[string]string{
+					"volume": "test-volume-1",
 				},
 			},
 			Points: []*monitoringpb.Point{
@@ -178,6 +189,11 @@ func TestCollectVolumeMetrics(t *testing.T) {
 					"location": "us-west1",
 				},
 			},
+			Metric: &metric.Metric{
+				Labels: map[string]string{
+					"volume": "test-volume-1",
+				},
+			},
 			Points: []*monitoringpb.Point{
 				{
 					Interval: &monitoringpb.TimeInterval{
@@ -190,9 +206,9 @@ func TestCollectVolumeMetrics(t *testing.T) {
 			},
 		}
 
-		expectedMetric1 := setupHydratedMetrics(metadata.FileSystemReadOps, metadata.Volume, "consumer1", mockResp)
-		expectedMetric2 := setupHydratedMetrics(metadata.FileSystemWriteOps, metadata.Volume, "consumer1", mockResp2)
-		expectedMetric3 := setupHydratedMetrics(metadata.FileSystemReadOps, metadata.Volume, "consumer1", mockResp3)
+		expectedMetric1 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp)
+		expectedMetric2 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp2)
+		expectedMetric3 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp3)
 		expected := []datamodel.HydratedMetrics{expectedMetric1, expectedMetric2, expectedMetric3}
 		mockProvider.On("GetVolumeMetrics", ctx, logger).Return(expected, nil)
 
@@ -245,6 +261,11 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success(t *testing.T) {
 				"location": "us-west1",
 			},
 		},
+		Metric: &metric.Metric{
+			Labels: map[string]string{
+				"volume": "test-volume-1",
+			},
+		},
 		Points: []*monitoringpb.Point{
 			{
 				Interval: &monitoringpb.TimeInterval{
@@ -271,7 +292,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success(t *testing.T) {
 		endTime:               time.Now(),
 		metrics: []common.MetricItem{
 			{
-				Metric:       "volume_read_ops",
+				Metric:       "volume_space_logical_used",
 				ResourceType: "custom.googleapis.com",
 			},
 		},
@@ -280,7 +301,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success(t *testing.T) {
 	results, err := provider.GetVolumeMetrics(ctx, logger)
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
-	assert.Equal(t, metadata.MeasuredType("FILE_SYSTEM_READ_OPS"), results[0].MeasuredType)
+	assert.Equal(t, metadata.MeasuredType("LOGICAL_SIZE"), results[0].MeasuredType)
 	mockTenantProvider.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 	mockIterator.AssertExpectations(t)

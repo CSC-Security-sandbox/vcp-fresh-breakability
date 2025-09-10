@@ -641,14 +641,12 @@ func Test_hasDuplicateMeasuredTypes(t *testing.T) {
 	ctx := context.Background()
 	logger := util.GetLogger(ctx)
 
-	metrics := createDummyGoogleMetrics(3)
+	metrics := createDummyGoogleMetrics(2)
 	// Ensure all MeasuredTypes are unique by modifying the underlying HydratedMetrics
 	hm1, _ := metrics[0].GetAsHydratedMetric()
 	hm1.MeasuredType = metadata.PoolAllocatedSize
 	hm2, _ := metrics[1].GetAsHydratedMetric()
 	hm2.MeasuredType = metadata.UnknownMeasuredType
-	hm3, _ := metrics[2].GetAsHydratedMetric()
-	hm3.MeasuredType = metadata.FileSystemReadOps
 
 	assert.False(t, hasDuplicateMeasuredTypes(metrics, logger))
 	// Add a duplicate MeasuredType

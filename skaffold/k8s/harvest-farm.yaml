@@ -161,7 +161,7 @@ data:
         config:
           scrape_configs:
             - job_name: 'otel-collector'
-              scrape_interval: 30s
+              scrape_interval: 300s
               http_sd_configs:
                 - url: http://localhost:3000/pollers/prometheus-targets
                   refresh_interval: 30s
@@ -188,10 +188,24 @@ data:
         sending_queue:
           enabled: true
           queue_size: 40000
+      googlecloud/tenant:
+        project: "netapp-au-se1-autopush-sde-tst"
+        metric:
+          prefix: custom.googleapis.com
+          skip_create_descriptor: true
+        sending_queue:
+          enabled: true
+          queue_size: 40000    
     
     service:
       pipelines:
         metrics:
+          receivers:
+            - prometheus
+          exporters:
+            # - debug
+            - googlecloud
+        metrics/tenant:
           receivers:
             - prometheus
           processors:
@@ -200,7 +214,7 @@ data:
             - transform
           exporters:
             # - debug
-            - googlecloud
+            - googlecloud/tenant
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

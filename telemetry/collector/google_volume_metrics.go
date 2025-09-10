@@ -130,10 +130,10 @@ func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metad
 	return datamodel.HydratedMetrics{
 		MetricTimestamp: resp.Points[0].Interval.EndTime.AsTime(),
 		MeasuredType:    measuredType,
-		ConsumerID:      projectID,
+		ConsumerID:      resp.Metric.Labels["project"],
 		ResourceType:    resourceType,
-		ResourceName:    resp.Resource.Labels["name"],
-		Location:        resp.Resource.Labels["location"],
+		ResourceName:    resp.Metric.Labels["volume"],
+		Location:        resp.Metric.Labels["datacenter"],
 		Quantity:        extractValue(resp.Points[0].Value),
 	}
 }

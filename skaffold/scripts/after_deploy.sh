@@ -35,7 +35,7 @@ kubectl set env deployment/google-proxy \
 
 # Update environment variables in harvest-farm deployment
 kubectl set env deployment/harvest-farm \
-  GCE_METADATA_HOST="35.189.45.145:9090" \
+  GCE_METADATA_HOST="34.151.70.197:9090" \
   VSA_NODE_PASSWORD="$VSA_NODE_PASSWORD" \
   VSA_NODE_USERNAME="$VSA_NODE_USERNAME" -n vcp
 

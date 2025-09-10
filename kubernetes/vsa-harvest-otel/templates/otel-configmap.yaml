@@ -27,6 +27,9 @@ data:
             send_batch_size: 200
             send_batch_max_size: 200
             timeout: 200ms
+        groupbyattrs:
+            keys:
+            - tenant_project
         memory_limiter:
             check_interval: 5s
             limit_percentage: 80
@@ -34,6 +37,11 @@ data:
         resourcedetection:
             detectors: [gcp]
             timeout: 10s
+        transform:
+            error_mode: ignore
+            metric_statements:
+            - set(resource.attributes["gcp.project.id"], resource.attributes["tenant_project"])
+            - delete_key(resource.attributes, "tenant_project")
     receivers:
         prometheus:
             config:
@@ -59,5 +67,9 @@ data:
             metrics:
                 receivers: [prometheus]
                 processors: [resourcedetection]
+                exporters: [googlecloud, debug]
+            metrics/tenants:
+                receivers: [prometheus]
+                processors: [resourcedetection, groupbyattrs,transform, batch]
                 exporters: [googlecloud, debug]
 {{- end }}
