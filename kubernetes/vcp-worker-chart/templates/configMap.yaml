@@ -1,148 +1,154 @@
+{{- range $.Values.app }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "vcp-worker.configMapName" . }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ include "vcp-worker.configMapName" .name }}
+  namespace: {{ $.Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
   labels:
-    app: {{ .Values.app.name }}
+    app: {{ .name }}
 data:
-  TEMPORAL_ADDRESS: {{ .Values.workerConfig.temporalAddress | quote }}
-  GCP_PROXY_PORT: {{ .Values.workerConfig.gcpProxyPort | quote }}
-  DB_TYPE: {{ .Values.workerConfig.database.type | quote }}
-  DB_HOST: {{ .Values.workerConfig.database.host | quote }}
-  DB_PORT: {{ .Values.workerConfig.database.port | quote }}
-  DB_USER: {{ .Values.workerConfig.database.user | quote }}
-  DB_NAME: {{ .Values.workerConfig.database.dbname | quote }}
-  DB_ADMIN_USER: {{ .Values.workerConfig.database.adminUser | quote }}
-  DB_SSL_MODE: {{ .Values.workerConfig.database.sslMode | quote }}
-  DB_TIMEZONE: {{ .Values.workerConfig.database.timezone | quote }}
-  DB_MAX_OPEN_CONNS: {{ .Values.workerConfig.database.maxConns | quote }}
-  DB_MAX_IDLE_CONNS: {{ .Values.workerConfig.database.maxIdleConns | quote }}
-  DB_CONN_MAX_LIFETIME: {{ .Values.workerConfig.database.maxConnLifetime | quote }}
-  VLMWORKFLOW_RETRY_MAX_ATTEMPTS: {{ .Values.workerConfig.vlmWorkflowRetryMaxAttempts | quote }}
-  RUN_MIGRATION_ON_START: {{ .Values.workerConfig.database.runMigrationOnStart | quote }}
-  GCP_CONSUMER_MGMT_ENDPOINT_URL: {{ .Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}
-  GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
-  LOCAL_REGION: {{ .Values.workerConfig.localRegion | quote }}
-  VSA_NODE_USERNAME: {{ .Values.workerConfig.vsaNodeUsername | quote }}
-  GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: {{ .Values.workerConfig.gcpHydrateAuthServiceAccount | quote }}
-  GCP_HYDRATE_BASE_URL: {{ .Values.workerConfig.gcpHydrateBaseUrl | quote }}
-  PROXY_CLIENT_TRANSPORT_SCHEMA: {{ .Values.workerConfig.proxyClientTransportSchema | quote }}
-  VCP_PAIRED_REGIONS: "{{ index .Values.workerConfig "vcpPairedRegions" }}"
-  GCP_KMS_KEY_ROTATION_ENABLED: {{ .Values.workerConfig.gcpKmsKeyRotationEnabled | quote }}
-  ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS: {{ .Values.workerConfig.enableAutoVolOfflineCronForGcpKms | quote }}
-  GCP_AUTH_SERVICE_ACCOUNT: {{ .Values.workerConfig.gcpAuthServiceAccount | quote }}
-  GCP_SERVICE_URL: {{ .Values.workerConfig.gcpServiceUrl | quote }}
-  LOGGER_LEVEL: {{ .Values.workerConfig.loggerLevel | quote }}
-  SMC_GCP_PROJECT_ID: {{ .Values.workerConfig.smcProjectId | quote }}
-  GCP_SMC_SECRET_NAME: {{ .Values.workerConfig.gcpSmcSecretName | quote }}
-  GCP_SMC_SECRET_VERSION_NAME: {{ .Values.workerConfig.gcpSmcSecretVersionName | quote }}
-  VMRS_CONFIG_PATH: {{ .Values.workerConfig.vmrsConfigPath | quote }}
-  GCP_HYDRATE_ENABLED: {{ .Values.workerConfig.gcpHydrateEnabled | quote }}
-  GCP_HYDRATE_BATCH_SIZE: {{ .Values.workerConfig.gcpHydrateBatchSize | quote }}
-  VSA_NODE_PASSWORD: {{ .Values.workerConfig.vsaNodePassword | quote }}
-  CERTIFICATE_LIFETIME: {{ .Values.workerConfig.certificateLifetime | quote }}
-  CA_POOL_NAME: {{ .Values.workerConfig.caPoolName | quote }}
-  CA_NAME: {{ .Values.workerConfig.caName | quote }}
-  CA_POOL_DEPLOYED_PROJECT_ID: {{ .Values.workerConfig.caPoolDeployedProjectId | quote }}
-  SECRET_MANAGER_PROJECT_ID: {{ .Values.workerConfig.secretManagerProjectId | quote }}
-  VSA_DEPLOYED_DNS_NAME: {{ .Values.workerConfig.vsaDeployedDnsName | quote }}
-  VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: {{ .Values.workerConfig.vsaSecretCacheCleanupIntervalHours | quote }}
-  VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: {{ .Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}
-  PRIVATE_KEY_BITS: {{ .Values.workerConfig.privateKeyBits | quote }}
-  TOTAL_IP_PER_HA_PAIR: {{ .Values.workerConfig.totalIpPerHaPair | quote }}
-  DATA_SUBNET_CIDR_BLOCK: {{ .Values.workerConfig.dataSubnetCidrBlock | quote }}
-  VSA_MANAGED_ZONE: {{ .Values.workerConfig.vsaManagedZone | quote }}
-  CLOUD_DNS_CACHE_TTL: {{ .Values.workerConfig.cloudDnsCacheTtl | quote }}
-  VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: {{ .Values.workerConfig.vsaLifecycleManagerQueuePrefix | quote }}
-  ONTAP_VERSION: {{ .Values.workerConfig.ontapVersion | quote }}
-  ENFORCE_MIN_SP_CONFIG: {{ .Values.workerConfig.enforceMinSpConfig | quote }}
-  MAX_NODES_PER_GROUP: {{ .Values.workerConfig.maxNodesPerGroup | quote }}
-  SERVICE_CONTROL_URL: {{ .Values.workerConfig.serviceControlUrl | quote }}
-  SERVICE_NAME: {{ .Values.workerConfig.serviceName | quote }}
-  DATACENTER: {{ .Values.workerConfig.datacenter | quote }}
-  HARVEST_PORT_START: {{ .Values.workerConfig.harvestPortStart | quote }}
-  HARVEST_PORT_END: {{ .Values.workerConfig.harvestPortEnd | quote }}
-  LEASE_NAMESPACE: {{.Values.workerConfig.leaseNameSpace | quote}}
-  HARVEST_HOST: {{.Values.workerConfig.harvestHost | quote}}
-  ENABLE_METRICS: {{.Values.workerConfig.enableMetrics | quote}}
-  HARVEST_SECRET_MANAGER_AUTH_ENABLED: {{.Values.workerConfig.harvestSecretManagerAuthEnabled | quote}}
-  HARVEST_REST_PROTOCOL: {{.Values.workerConfig.harvestRestProtocol | quote}}
-  CVP_HOST: {{ .Values.workerConfig.cvpHost | quote }}
-  PROBER_PROJECT_LIST: {{ .Values.workerConfig.proberProjectList | quote }}
-  WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{ .Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
-  FILES_PROTOCOL_SUPPORT: {{ .Values.workerConfig.filesProtocolSupport | quote }}
-  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{ .Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
-  VSA_IMAGE_NAME: {{ .Values.workerConfig.vsaImageName | quote }}
-  VSA_FILES_IMAGE_NAME: {{ .Values.workerConfig.vsaFilesImageName | quote }}
-  VSA_MEDIATOR_INSTANCE_TYPE: {{ .Values.workerConfig.vsaMediatorInstanceType | quote }}
-  VSA_MEDIATOR_DISK_TYPE: {{ .Values.workerConfig.vsaMediatorDiskType | quote }}
-  VSA_MEDIATOR_IMAGE_NAME: {{ .Values.workerConfig.vsaMediatorImageName | quote }}
-  METRICS_PORT: {{ .Values.workerConfig.metricsPort | quote }}
-  ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: {{ .Values.workerConfig.enableUniqueSerialNumberGeneration | quote }}
-  CLUSTER_SERIAL_NUMBER_PREFIX: {{ .Values.workerConfig.clusterSerialNumberPrefix | quote }}
-  REGION_NUMBER_MAP: {{ .Values.regionNumberMap | toJson | quote }}
-  VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmCreateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
-  VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmCreateVSASVMWorkflowTimeoutMinutes | quote }}
-  VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
-  VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
-  VLM_RETRY_ERROR_PATTERNS: {{ .Values.workerConfig.vlmRetryErrorPatterns | quote }}
-  GCE_METADATA_HOST: {{ .Values.workerConfig.gceMetadataHost | quote }}
-  NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{ .Values.workerConfig.numberOfHaPairsLargeCapacity | quote }}
-  VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV: {{ .Values.workerConfig.vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv | quote }}
-  VLM_MIN_LV_HA_PAIRS: {{ .Values.workerConfig.vlmMinLvHaPairs | quote }}
-  START_TO_CLOSE_WORKFLOW_TIMEOUT_LV: {{ .Values.workerConfig.startToCloseWorkflowTimeoutLv | quote }}
-  DATA_SUBNET_CIDR_BLOCK_LV: {{ .Values.workerConfig.dataSubnetCidrBlockLv | quote }}
-  MIN_LV_POOL_COOL_TIER_CAPACITY: {{ .Values.workerConfig.minLvPoolCoolTierCapacity | quote }}
-  MAX_LV_POOL_CAPACITY: {{ .Values.workerConfig.maxLvPoolCapacity | quote }}
-  MAX_LV_HOT_TIER_POOL_CAPACITY: {{ .Values.workerConfig.maxLvHotTierPoolCapacity | quote }}
-  MIN_LV_THROUGHPUT: {{ .Values.workerConfig.minLvThroughput | quote }}
-  MAX_LV_THROUGHPUT: {{ .Values.workerConfig.maxLvThroughput | quote }}
-  MIN_HOT_TIER_SIZE: {{ .Values.workerConfig.minHotTierSize | quote }}
+  {{- range $key, $value := .workerAdditionalConfig }}
+  {{ include "toUpperSnakeCase" $key }}: {{ $value | quote }}
+  {{- end }}
+  TEMPORAL_ADDRESS: {{$.Values.workerConfig.temporalAddress | quote }}
+  GCP_PROXY_PORT: {{$.Values.workerConfig.gcpProxyPort | quote }}
+  DB_TYPE: {{$.Values.workerConfig.database.type | quote }}
+  DB_HOST: {{$.Values.workerConfig.database.host | quote }}
+  DB_PORT: {{$.Values.workerConfig.database.port | quote }}
+  DB_USER: {{$.Values.workerConfig.database.user | quote }}
+  DB_NAME: {{$.Values.workerConfig.database.dbname | quote }}
+  DB_ADMIN_USER: {{$.Values.workerConfig.database.adminUser | quote }}
+  DB_SSL_MODE: {{$.Values.workerConfig.database.sslMode | quote }}
+  DB_TIMEZONE: {{$.Values.workerConfig.database.timezone | quote }}
+  DB_MAX_OPEN_CONNS: {{$.Values.workerConfig.database.maxConns | quote }}
+  DB_MAX_IDLE_CONNS: {{$.Values.workerConfig.database.maxIdleConns | quote }}
+  DB_CONN_MAX_LIFETIME: {{$.Values.workerConfig.database.maxConnLifetime | quote }}
+  VLMWORKFLOW_RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.vlmWorkflowRetryMaxAttempts | quote }}
+  RUN_MIGRATION_ON_START: {{$.Values.workerConfig.database.runMigrationOnStart | quote }}
+  GCP_CONSUMER_MGMT_ENDPOINT_URL: {{$.Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}
+  GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{$.Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
+  LOCAL_REGION: {{$.Values.workerConfig.localRegion | quote }}
+  VSA_NODE_USERNAME: {{$.Values.workerConfig.vsaNodeUsername | quote }}
+  GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: {{$.Values.workerConfig.gcpHydrateAuthServiceAccount | quote }}
+  GCP_HYDRATE_BASE_URL: {{$.Values.workerConfig.gcpHydrateBaseUrl | quote }}
+  PROXY_CLIENT_TRANSPORT_SCHEMA: {{$.Values.workerConfig.proxyClientTransportSchema | quote }}
+  VCP_PAIRED_REGIONS: "{{ index $.Values.workerConfig "vcpPairedRegions" }}"
+  GCP_KMS_KEY_ROTATION_ENABLED: {{$.Values.workerConfig.gcpKmsKeyRotationEnabled | quote }}
+  ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS: {{$.Values.workerConfig.enableAutoVolOfflineCronForGcpKms | quote }}
+  GCP_AUTH_SERVICE_ACCOUNT: {{$.Values.workerConfig.gcpAuthServiceAccount | quote }}
+  GCP_SERVICE_URL: {{$.Values.workerConfig.gcpServiceUrl | quote }}
+  LOGGER_LEVEL: {{$.Values.workerConfig.loggerLevel | quote }}
+  SMC_GCP_PROJECT_ID: {{$.Values.workerConfig.smcProjectId | quote }}
+  GCP_SMC_SECRET_NAME: {{$.Values.workerConfig.gcpSmcSecretName | quote }}
+  GCP_SMC_SECRET_VERSION_NAME: {{$.Values.workerConfig.gcpSmcSecretVersionName | quote }}
+  VMRS_CONFIG_PATH: {{$.Values.workerConfig.vmrsConfigPath | quote }}
+  GCP_HYDRATE_ENABLED: {{$.Values.workerConfig.gcpHydrateEnabled | quote }}
+  GCP_HYDRATE_BATCH_SIZE: {{$.Values.workerConfig.gcpHydrateBatchSize | quote }}
+  VSA_NODE_PASSWORD: {{$.Values.workerConfig.vsaNodePassword | quote }}
+  CERTIFICATE_LIFETIME: {{$.Values.workerConfig.certificateLifetime | quote }}
+  CA_POOL_NAME: {{$.Values.workerConfig.caPoolName | quote }}
+  CA_NAME: {{$.Values.workerConfig.caName | quote }}
+  CA_POOL_DEPLOYED_PROJECT_ID: {{$.Values.workerConfig.caPoolDeployedProjectId | quote }}
+  SECRET_MANAGER_PROJECT_ID: {{$.Values.workerConfig.secretManagerProjectId | quote }}
+  VSA_DEPLOYED_DNS_NAME: {{$.Values.workerConfig.vsaDeployedDnsName | quote }}
+  VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: {{$.Values.workerConfig.vsaSecretCacheCleanupIntervalHours | quote }}
+  VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: {{$.Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}
+  PRIVATE_KEY_BITS: {{$.Values.workerConfig.privateKeyBits | quote }}
+  TOTAL_IP_PER_HA_PAIR: {{$.Values.workerConfig.totalIpPerHaPair | quote }}
+  DATA_SUBNET_CIDR_BLOCK: {{$.Values.workerConfig.dataSubnetCidrBlock | quote }}
+  VSA_MANAGED_ZONE: {{$.Values.workerConfig.vsaManagedZone | quote }}
+  CLOUD_DNS_CACHE_TTL: {{$.Values.workerConfig.cloudDnsCacheTtl | quote }}
+  VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: {{$.Values.workerConfig.vsaLifecycleManagerQueuePrefix | quote }}
+  ONTAP_VERSION: {{$.Values.workerConfig.ontapVersion | quote }}
+  ENFORCE_MIN_SP_CONFIG: {{$.Values.workerConfig.enforceMinSpConfig | quote }}
+  MAX_NODES_PER_GROUP: {{$.Values.workerConfig.maxNodesPerGroup | quote }}
+  SERVICE_CONTROL_URL: {{$.Values.workerConfig.serviceControlUrl | quote }}
+  SERVICE_NAME: {{$.Values.workerConfig.serviceName | quote }}
+  DATACENTER: {{$.Values.workerConfig.datacenter | quote }}
+  HARVEST_PORT_START: {{$.Values.workerConfig.harvestPortStart | quote }}
+  HARVEST_PORT_END: {{$.Values.workerConfig.harvestPortEnd | quote }}
+  LEASE_NAMESPACE: {{ $.Values.workerConfig.leaseNameSpace | quote}}
+  HARVEST_HOST: {{ $.Values.workerConfig.harvestHost | quote }}
+  ENABLE_METRICS: {{ $.Values.workerConfig.enableMetrics | quote }}
+  HARVEST_SECRET_MANAGER_AUTH_ENABLED: {{ $.Values.workerConfig.harvestSecretManagerAuthEnabled | quote }}
+  HARVEST_REST_PROTOCOL: {{ $.Values.workerConfig.harvestRestProtocol | quote }}
+  CVP_HOST: {{$.Values.workerConfig.cvpHost | quote }}
+  PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
+  WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
+  FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
+  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
+  VSA_IMAGE_NAME: {{$.Values.workerConfig.vsaImageName | quote }}
+  VSA_FILES_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesImageName | quote }}
+  VSA_MEDIATOR_INSTANCE_TYPE: {{$.Values.workerConfig.vsaMediatorInstanceType | quote }}
+  VSA_MEDIATOR_DISK_TYPE: {{$.Values.workerConfig.vsaMediatorDiskType | quote }}
+  VSA_MEDIATOR_IMAGE_NAME: {{$.Values.workerConfig.vsaMediatorImageName | quote }}
+  METRICS_PORT: {{$.Values.workerConfig.metricsPort | quote }}
+  ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: {{$.Values.workerConfig.enableUniqueSerialNumberGeneration | quote }}
+  CLUSTER_SERIAL_NUMBER_PREFIX: {{$.Values.workerConfig.clusterSerialNumberPrefix | quote }}
+  REGION_NUMBER_MAP: {{$.Values.regionNumberMap | toJson | quote }}
+  VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmCreateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmCreateVSASVMWorkflowTimeoutMinutes | quote }}
+  VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_RETRY_ERROR_PATTERNS: {{$.Values.workerConfig.vlmRetryErrorPatterns | quote }}
+  GCE_METADATA_HOST: {{$.Values.workerConfig.gceMetadataHost | quote }}
+  NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{$.Values.workerConfig.numberOfHaPairsLargeCapacity | quote }}
+  VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV: {{$.Values.workerConfig.vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv | quote }}
+  VLM_MIN_LV_HA_PAIRS: {{$.Values.workerConfig.vlmMinLvHaPairs | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT_LV: {{$.Values.workerConfig.startToCloseWorkflowTimeoutLv | quote }}
+  DATA_SUBNET_CIDR_BLOCK_LV: {{$.Values.workerConfig.dataSubnetCidrBlockLv | quote }}
+  MIN_LV_POOL_COOL_TIER_CAPACITY: {{$.Values.workerConfig.minLvPoolCoolTierCapacity | quote }}
+  MAX_LV_POOL_CAPACITY: {{$.Values.workerConfig.maxLvPoolCapacity | quote }}
+  MAX_LV_HOT_TIER_POOL_CAPACITY: {{$.Values.workerConfig.maxLvHotTierPoolCapacity | quote }}
+  MIN_LV_THROUGHPUT: {{$.Values.workerConfig.minLvThroughput | quote }}
+  MAX_LV_THROUGHPUT: {{$.Values.workerConfig.maxLvThroughput | quote }}
+  MIN_HOT_TIER_SIZE: {{$.Values.workerConfig.minHotTierSize | quote }}
 
-  MGMT_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.mgmtFirewallSourceRanges | quote }}
-  RSM_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.rsmFirewallSourceRanges | quote }}
-  IC_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.icFirewallSourceRanges | quote }}
-  DATA_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.dataFirewallSourceRanges | quote }}
-  MGMT_REGIONAL_NAT_IP: {{ .Values.workerConfig.mgmtRegionalNatIp | quote }}
-  MGMT_NETWORK_IP_RANGE: {{ .Values.workerConfig.mgmtNetworkIpRange | quote }}
-  RSM_NETWORK_IP_RANGE: {{ .Values.workerConfig.rsmNetworkIpRange | quote }}
-  IC_NETWORK_IP_RANGE: {{ .Values.workerConfig.icNetworkIpRange | quote }}
-  MGMT_FIREWALL_PORT_RULES: {{ .Values.workerConfig.mgmtFirewallPortRules | quote }}
-  RSM_FIREWALL_PORT_RULES: {{ .Values.workerConfig.rsmFirewallPortRules | quote }}
-  IC_FIREWALL_PORT_RULES: {{ .Values.workerConfig.icFirewallPortRules | quote }}
-  ISCSI_FIREWALL_PORT_RULES: {{ .Values.workerConfig.iscsiFirewallPortRules | quote }}
-  SNAPMIRROR_FIREWALL_PORT_RULES: {{ .Values.workerConfig.snapmirrorFirewallPortRules | quote }}
-  WAIT_TIME_FOR_GCP_OPERATION_IN_SEC: {{ .Values.workerConfig.waitTimeForGcpOperationInSec | quote }}
-  VSA_IMAGE_PROJECT: {{ .Values.workerConfig.vsaImageProject | quote }}
-  VSA_MEDIATOR_IMAGE_PROJECT: {{ .Values.workerConfig.vsaMediatorImageProject | quote }}
-  VSA_INSTANCE_TYPE_OVERRIDE_LSSD: {{ .Values.workerConfig.vsaInstanceTypeOverride | quote }}
+  MGMT_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.mgmtFirewallSourceRanges | quote }}
+  RSM_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.rsmFirewallSourceRanges | quote }}
+  IC_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.icFirewallSourceRanges | quote }}
+  DATA_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.dataFirewallSourceRanges | quote }}
+  MGMT_REGIONAL_NAT_IP: {{$.Values.workerConfig.mgmtRegionalNatIp | quote }}
+  MGMT_NETWORK_IP_RANGE: {{$.Values.workerConfig.mgmtNetworkIpRange | quote }}
+  RSM_NETWORK_IP_RANGE: {{$.Values.workerConfig.rsmNetworkIpRange | quote }}
+  IC_NETWORK_IP_RANGE: {{$.Values.workerConfig.icNetworkIpRange | quote }}
+  MGMT_FIREWALL_PORT_RULES: {{$.Values.workerConfig.mgmtFirewallPortRules | quote }}
+  RSM_FIREWALL_PORT_RULES: {{$.Values.workerConfig.rsmFirewallPortRules | quote }}
+  IC_FIREWALL_PORT_RULES: {{$.Values.workerConfig.icFirewallPortRules | quote }}
+  ISCSI_FIREWALL_PORT_RULES: {{$.Values.workerConfig.iscsiFirewallPortRules | quote }}
+  SNAPMIRROR_FIREWALL_PORT_RULES: {{$.Values.workerConfig.snapmirrorFirewallPortRules | quote }}
+  WAIT_TIME_FOR_GCP_OPERATION_IN_SEC: {{$.Values.workerConfig.waitTimeForGcpOperationInSec | quote }}
+  VSA_IMAGE_PROJECT: {{$.Values.workerConfig.vsaImageProject | quote }}
+  VSA_MEDIATOR_IMAGE_PROJECT: {{$.Values.workerConfig.vsaMediatorImageProject | quote }}
+  VSA_INSTANCE_TYPE_OVERRIDE_LSSD: {{$.Values.workerConfig.vsaInstanceTypeOverride | quote }}
 
-  ADC_IMAGE: {{ .Values.workerConfig.adc.image | quote }}
-  ADC_PROJECT: {{ .Values.workerConfig.adc.project | quote }}
-  ADC_REGION: {{ .Values.workerConfig.adc.region | quote }}
-  ADC_CERT_SECRET_NAME: {{ .Values.workerConfig.adc.certSecretName | quote }}
+  ADC_IMAGE: {{$.Values.workerConfig.adc.image | quote }}
+  ADC_PROJECT: {{$.Values.workerConfig.adc.project | quote }}
+  ADC_REGION: {{$.Values.workerConfig.adc.region | quote }}
+  ADC_CERT_SECRET_NAME: {{$.Values.workerConfig.adc.certSecretName | quote }}
 
-  START_TO_CLOSE_WORKFLOW_TIMEOUT: {{ .Values.workerConfig.startToCloseTimeout | quote }}
-  RETRY_INTERVAL: {{ .Values.workerConfig.retryInterval | quote }}
-  RETRY_MAX_ATTEMPTS: {{ .Values.workerConfig.retryMaxAttempts | quote }}
-  RETRY_MAX_INTERVAL: {{ .Values.workerConfig.retryMaxInterval | quote }}
-  RETRY_BACKOFF_COEFFICIENT: {{ .Values.workerConfig.retryBackoffCoefficient | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT: {{$.Values.workerConfig.startToCloseTimeout | quote }}
+  RETRY_INTERVAL: {{$.Values.workerConfig.retryInterval | quote }}
+  RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.retryMaxAttempts | quote }}
+  RETRY_MAX_INTERVAL: {{$.Values.workerConfig.retryMaxInterval | quote }}
+  RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.retryBackoffCoefficient | quote }}
 
-  SA_RETRY_START_TO_CLOSE_TIMEOUT: {{ .Values.workerConfig.saRetryStartToCloseTimeout | quote }}
-  SA_RETRY_INTERVAL: {{ .Values.workerConfig.saRetryInitialInterval | quote }}
-  SA_RETRY_MAXIMUM_ATTEMPTS: {{ .Values.workerConfig.saRetryMaximumAttempts | quote }}
-  SA_RETRY_MAXIMUM_INTERVAL: {{ .Values.workerConfig.saRetryMaximumInterval | quote }}
-  SA_RETRY_BACKOFF_COEFFICIENT: {{ .Values.workerConfig.saRetryBackoffCoefficient | quote }}
+  SA_RETRY_START_TO_CLOSE_TIMEOUT: {{$.Values.workerConfig.saRetryStartToCloseTimeout | quote }}
+  SA_RETRY_INTERVAL: {{$.Values.workerConfig.saRetryInitialInterval | quote }}
+  SA_RETRY_MAXIMUM_ATTEMPTS: {{$.Values.workerConfig.saRetryMaximumAttempts | quote }}
+  SA_RETRY_MAXIMUM_INTERVAL: {{$.Values.workerConfig.saRetryMaximumInterval | quote }}
+  SA_RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.saRetryBackoffCoefficient | quote }}
 
-  MOCK_ACCESS_TOKEN: {{ .Values.workerConfig.mockAccessToken | quote }}
-  INTEGRATION_TEST: {{ .Values.workerConfig.integrationTest | quote }}
-  NKDEV_TEST: {{ .Values.workerConfig.nkdevTest | quote }}
-  DISABLE_VSA_CLEANUP_ON_VLM_FAILURE: {{ .Values.workerConfig.disableVsaCleanupOnVlmFailure | quote }}
+  MOCK_ACCESS_TOKEN: {{$.Values.workerConfig.mockAccessToken | quote }}
+  INTEGRATION_TEST: {{$.Values.workerConfig.integrationTest | quote }}
+  NKDEV_TEST: {{$.Values.workerConfig.nkdevTest | quote }}
+  DISABLE_VSA_CLEANUP_ON_VLM_FAILURE: {{$.Values.workerConfig.disableVsaCleanupOnVlmFailure | quote }}
 
-  GIN_SERVICE_ATTACHMENT: {{ .Values.workerConfig.ginServiceAttachment | quote }}
-  GIN_METRICS_PORT: {{ .Values.workerConfig.gitMetrics1pPort | quote }}
-  GIN_METRICS_PROTOCOL: {{ .Values.workerConfig.ginMetrics1pProtocol | quote }}
-  GIN_LOGGING_FEATURE: {{ .Values.workerConfig.ginLoggingFeature | quote }}
+  GIN_SERVICE_ATTACHMENT: {{$.Values.workerConfig.ginServiceAttachment | quote }}
+  GIN_METRICS_PORT: {{$.Values.workerConfig.gitMetrics1pPort | quote }}
+  GIN_METRICS_PROTOCOL: {{$.Values.workerConfig.ginMetrics1pProtocol | quote }}
+  GIN_LOGGING_FEATURE: {{$.Values.workerConfig.ginLoggingFeature | quote }}
+---
+{{- end }}

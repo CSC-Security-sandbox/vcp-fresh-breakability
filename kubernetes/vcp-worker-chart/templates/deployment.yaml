@@ -1,38 +1,41 @@
+{{- range .Values.app }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.app.name }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ .name }}
+  namespace: {{ $.Release.Namespace }}
   labels:
-    app: {{ .Values.app.name }}
+    app: {{ .name }}
 spec:
-  replicas: {{ .Values.app.replicas }}
+  replicas: {{ .replicas }}
   selector:
     matchLabels:
-      app: {{ .Values.app.name }}
+      app: {{ .name }}
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}
+        app: {{ .name }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ $.Values.serviceAccount.name }}
       containers:
-        - name: {{ .Values.app.name }}
-          {{- if .Values.images.vcpWorker.secondary }}
-          image: "{{- include "containerImage" (list . (dict "name" "vcpWorker" "secondary" true)) | trim -}}"
+        - name: {{ .name }}
+          {{- if $.Values.images.vcpWorker.secondary }}
+          image: "{{- include "containerImage" (list $ (dict "name" "vcpWorker" "secondary" true)) | trim -}}"
           {{- else }}
-          image: "{{- include "containerImage" (list . (dict "name" "vcpWorker" "secondary" false)) | trim -}}"
+          image: "{{- include "containerImage" (list $ (dict "name" "vcpWorker" "secondary" false)) | trim -}}"
           {{- end }}
-          imagePullPolicy: {{ .Values.images.vcpWorker.pullPolicy }}
+          imagePullPolicy: {{ $.Values.images.vcpWorker.pullPolicy }}
           resources:
             limits:
-              cpu: {{ .Values.resources.limits.cpu }}
-              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ $.Values.resources.limits.cpu }}
+              memory: {{ $.Values.resources.limits.memory }}
             requests:
-              cpu: {{ .Values.resources.requests.cpu }}
-              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ $.Values.resources.requests.cpu }}
+              memory: {{ $.Values.resources.requests.memory }}
           envFrom:
             - configMapRef:
-                name: {{ include "vcp-worker.configMapName" . }}
+                name: {{ include "vcp-worker.configMapName" .name }}
             - secretRef:
-                name: {{ include "vcp-worker.secretName" . }}
+                name: {{ include "vcp-worker.secretName" .name }}
+---
+{{- end }}
