@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           REPO="${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ  }}/${{ vars.AR_GCP_REPO}}"
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry")
           current_date=$(date +%s)
           
           for IMAGE in "${IMAGES[@]}"; do
