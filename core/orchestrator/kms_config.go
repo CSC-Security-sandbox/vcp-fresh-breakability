@@ -7,7 +7,6 @@ import (
 	"time"
 
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -35,6 +34,8 @@ var (
 	validateDeleteKmsConfigParams = _validateDeleteKmsConfigParams
 	ConvertKmsConfigStateV1beta   = convertKmsConfigStateV1beta
 	updateSDEKmsConfiguration     = sde.UpdateSDEKmsConfiguration
+	createAndSyncKmsConfig        = kms_activities.CreateAndSyncKmsConfig
+	getSDEKmsConfiguration        = kms_activities.GetSDEKmsConfiguration
 )
 
 type KmsConfigInterface interface {
@@ -48,6 +49,8 @@ type KmsConfigInterface interface {
 	DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)
 	MigrateKmsConfig(ctx context.Context, params *common.MigrateKmsConfigParams) (string, error)
 	RotateKmsConfig(ctx context.Context, params *common.RotateKmsConfigParams) (*models.KmsConfig, *models.Job, error)
+	CreateAndSyncKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, error)
+	GetSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigParams) (*cvpModels.KmsConfigV1beta, error)
 }
 
 // CreateKmsConfig creates a new KMS configuration.
@@ -122,10 +125,10 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 
 // GetKmsConfig retrieves a KMS configuration by its UUID.
 func (o *Orchestrator) GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
-	return getKmsConfig(ctx, o.storage, o.temporal, params)
+	return getKmsConfig(ctx, o.storage, params)
 }
 
-func _getKmsConfig(ctx context.Context, se database.Storage, temporal client.Client, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+func _getKmsConfig(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
 	_, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, err
@@ -207,7 +210,7 @@ func _updateKmsConfig(ctx context.Context, se database.Storage, params *common.U
 		return nil, err
 	}
 
-	// Update the database with success state
+	// Update the database with success state only when state is
 	if kmsConfig.UUID != "" {
 		// Parse KeyUri if provided to set individual key components
 		if params.KeyUri != "" {
@@ -414,7 +417,7 @@ func rotateKmsConfig(ctx context.Context, se database.Storage, temporal client.C
 		return nil, nil, err
 	}
 
-	if kmsConfig.State != models2.KmsConfigV1betaKmsStateINUSE && kmsConfig.State != models2.KmsConfigV1betaKmsStateREADY {
+	if kmsConfig.State != cvpModels.KmsConfigV1betaKmsStateINUSE && kmsConfig.State != cvpModels.KmsConfigV1betaKmsStateREADY {
 		return nil, nil, errors.New("Concerned GCP KMS config is not in a state(ready/in use) to rotate the service account key")
 	}
 
@@ -523,7 +526,7 @@ func _validateDeleteKmsConfigParams(ctx context.Context, se database.Storage, km
 	}
 
 	if isConfigInUse {
-		return errors.NewConflictErr("can not delete this policy as it is still in use")
+		return errors.NewConflictErr("can not delete this policy as it is still in use by one or more pools")
 	}
 
 	findOngoingJobs, err := se.ListOngoingPoolJobsWithKmsConfigId(ctx, kmsConfig.ID, kmsConfig.AccountID)
@@ -576,6 +579,7 @@ func _getKmsConfigByKeyFullPath(ctx context.Context, se database.Storage, params
 func convertDatastoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.KmsConfig {
 	return &models.KmsConfig{
 		BaseModel: models.BaseModel{
+			ID:        kmsConfig.ID,
 			UUID:      kmsConfig.UUID,
 			CreatedAt: kmsConfig.CreatedAt,
 			UpdatedAt: kmsConfig.UpdatedAt,
@@ -776,4 +780,17 @@ func convertSDEResponseToKmsConfig(kmsConfig *gcpserver.KmsConfigV1beta) *models
 	}
 
 	return modelKmsConfig
+}
+
+func (o *Orchestrator) CreateAndSyncKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, error) {
+	kmsConfig, err := createAndSyncKmsConfig(ctx, o.storage, params)
+	if err != nil {
+		return nil, err
+	}
+	return convertDatastoreKmsConfigToModel(kmsConfig), nil
+}
+
+func (o *Orchestrator) GetSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigParams) (*cvpModels.KmsConfigV1beta, error) {
+	// TODO:- check if we are able to get the jwt token from context
+	return getSDEKmsConfiguration(ctx, params)
 }

@@ -19,10 +19,11 @@ import (
 )
 
 var (
-	uniqueSerialSeqName = "cluster_serial_seq"
-	getPoolWithDetails  = _getPoolWithDetails
-	listPoolWithDetails = _listPoolWithDetails
-	getPoolByName       = _getPoolByName
+	uniqueSerialSeqName   = "cluster_serial_seq"
+	getPoolWithDetails    = _getPoolWithDetails
+	listPoolWithDetails   = _listPoolWithDetails
+	getPoolByName         = _getPoolByName
+	getPoolsByKmsConfigID = _getPoolsByKmsConfigID
 )
 
 // CreatedPool converts created pool to available pool
@@ -514,4 +515,13 @@ func (d *DataStoreRepository) ListPoolUUIDs(ctx context.Context, filter *utils2.
 	}
 
 	return results, nil
+}
+
+func _getPoolsByKmsConfigID(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Pool, error) {
+	var pools []*datamodel.Pool
+	err := db.Where("kms_config_id = ?", kmsConfigID).Find(&pools).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return pools, nil
 }

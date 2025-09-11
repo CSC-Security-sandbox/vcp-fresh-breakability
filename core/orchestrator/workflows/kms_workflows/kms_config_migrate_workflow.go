@@ -216,7 +216,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 			kmsWorkflow.Logger.Info("KMS configuration not found in VCP DB - Syncing SDE and VCP DBs...")
 			sdeKmsConfig.KmsState = models.LifeCycleStateMigrating
 			sdeKmsConfig.KmsStateDetails = models.LifeCycleStateMigratingDetails
-			createKmsConfigParams := workflows.ConvertToCreateKmsConfigParams(sdeKmsConfig, &paramsForSyncingAndEKMCreation)
+			createKmsConfigParams := kms_activities.ConvertToCreateKmsConfigParams(&sdeKmsConfig, &paramsForSyncingAndEKMCreation)
 			errSync := syncBetweenSdeAndVsaDBs(ctx, createKmsConfigParams)
 			if errSync != nil {
 				kmsWorkflow.Logger.Error("VSA KMS configuration syncing with SDE DB has failed...", log.Fields{"error": errSync})

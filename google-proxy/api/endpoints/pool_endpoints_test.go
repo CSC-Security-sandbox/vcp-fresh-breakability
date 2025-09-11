@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -1400,10 +1401,18 @@ func TestV1betaCreatePool(t *testing.T) {
 		}
 
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
-		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
+		}()
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "", nil
+		}
+
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			return nil, nil
 		}
 
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
@@ -2029,6 +2038,61 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.True(tt, ok, "Expected OperationV1beta response")
 		assert.False(tt, operation.Done.Value, "Operation should not be marked as done")
 		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/us-east4-a/operations/job-uuid")
+	})
+
+	t.Run("WhenGetKmsConfigForPoolFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		labels := make(map[string]string)
+		labels["test"] = "label"
+		kmsConfigUUID := "kms-config-uuid"
+
+		req := &gcpgenserver.PoolV1beta{
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			Zone:                     gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone:            gcpgenserver.NewOptString("us-east4-b"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
+			Labels:                   gcpgenserver.NewOptPoolV1betaLabels(labels),
+			KmsConfigId:              gcpgenserver.NewOptNilString(kmsConfigUUID),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
+		}()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			return nil, &gcpgenserver.V1betaCreatePoolBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: fmt.Sprintf("KMS Config with ID %s not found", req.KmsConfigId.Value),
+			}
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(http.StatusBadRequest), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
 	})
 }
 
@@ -3663,5 +3727,124 @@ func TestV1betaUpdatePool_ThroughputOnlyUpdate(t *testing.T) {
 		assert.True(tt, ok)
 		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
 		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+}
+
+func TestGetKmsConfigForPool(t *testing.T) {
+	t.Run("ReturnsNilWhenKmsConfigIdIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("")}
+		params := &common.CreatePoolParams{}
+		orchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestrator)
+		assert.Nil(tt, kmsConfig)
+		assert.Nil(tt, errResp)
+	})
+
+	t.Run("ReturnsKmsConfigOnSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
+		params := &common.CreatePoolParams{}
+		expectedConfig := &models.KmsConfig{}
+		orchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestrator.On("GetKmsConfig", ctx, mock.Anything).Return(expectedConfig, nil)
+
+		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestrator)
+		assert.Equal(tt, expectedConfig, kmsConfig)
+		assert.Nil(tt, errResp)
+	})
+
+	t.Run("WhenSyncSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
+		params := &common.CreatePoolParams{}
+		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		desc := "Description"
+		kfp := "projects/project/locations/location/keyRings/keyring/cryptoKeys/key"
+		resId := "resourceId"
+		sdeResp := &cvpmodels.KmsConfigV1beta{
+			Description:  &desc,
+			Instructions: "Instructions",
+			KeyFullPath:  &kfp,
+			ResourceID:   &resId,
+		}
+		modelKmsConfig := &models.KmsConfig{}
+
+		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
+		orchestratorFactory.On("GetSDEKmsConfiguration", ctx, mock.Anything).Return(sdeResp, nil)
+		orchestratorFactory.On("CreateAndSyncKmsConfig", ctx, mock.Anything).Return(modelKmsConfig, nil)
+
+		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestratorFactory)
+
+		assert.NotNil(tt, kmsConfig)
+		assert.Nil(tt, errResp)
+	})
+
+	t.Run("ReturnsInternalServerErrorOnOtherError", func(tt *testing.T) {
+		ctx := context.Background()
+		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
+		params := &common.CreatePoolParams{}
+		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.New("unexpected error"))
+
+		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestratorFactory)
+		assert.Nil(tt, kmsConfig)
+		internalErr, ok := errResp.(*gcpgenserver.V1betaCreatePoolInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusInternalServerError), internalErr.Code)
+	})
+
+	t.Run("ReturnsInternalServerErrorWhenSDEKmsConfigFails", func(tt *testing.T) {
+		ctx := context.Background()
+		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
+		params := &common.CreatePoolParams{}
+		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+
+		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
+		orchestratorFactory.On("GetSDEKmsConfiguration", ctx, mock.Anything).Return(nil, stderrors.New("sde error"))
+
+		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestratorFactory)
+
+		assert.Nil(tt, kmsConfig)
+		internalErr, ok := errResp.(*gcpgenserver.V1betaCreatePoolInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusInternalServerError), internalErr.Code)
+	})
+
+	t.Run("ReturnsInternalServerErrorWhenCreateAndSyncKmsConfigFails", func(tt *testing.T) {
+		ctx := context.Background()
+		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
+		params := &common.CreatePoolParams{}
+		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		sdeResp := &cvpmodels.KmsConfigV1beta{}
+
+		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
+		orchestratorFactory.On("GetSDEKmsConfiguration", ctx, mock.Anything).Return(sdeResp, nil)
+		orchestratorFactory.On("CreateAndSyncKmsConfig", ctx, mock.Anything).Return(nil, stderrors.New("sync error"))
+
+		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestratorFactory)
+
+		assert.Nil(tt, kmsConfig)
+		internalErr, ok := errResp.(*gcpgenserver.V1betaCreatePoolInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusInternalServerError), internalErr.Code)
+	})
+
+	t.Run("ReturnsBadRequestWhenSDEKmsConfigFails", func(tt *testing.T) {
+		ctx := context.Background()
+		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
+		params := &common.CreatePoolParams{}
+		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+
+		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
+		orchestratorFactory.On("GetSDEKmsConfiguration", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
+
+		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestratorFactory)
+
+		assert.Nil(tt, kmsConfig)
+		internalErr, ok := errResp.(*gcpgenserver.V1betaCreatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), internalErr.Code)
 	})
 }

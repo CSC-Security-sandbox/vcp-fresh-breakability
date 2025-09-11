@@ -7,6 +7,8 @@ import (
 
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -200,6 +202,65 @@ func (_c *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call) Return(_a0
 }
 
 func (_c *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call) RunAndReturn(run func(context.Context, *models.KmsConfigCheck) (*models.KmsConfig, error)) *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateAndSyncKmsConfig provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CreateAndSyncKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAndSyncKmsConfig")
+	}
+
+	var r0 *models.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateKmsConfigParams) (*models.KmsConfig, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateKmsConfigParams) *models.KmsConfig); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateKmsConfigParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateAndSyncKmsConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAndSyncKmsConfig'
+type MockOrchestratorFactory_CreateAndSyncKmsConfig_Call struct {
+	*mock.Call
+}
+
+// CreateAndSyncKmsConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.CreateKmsConfigParams
+func (_e *MockOrchestratorFactory_Expecter) CreateAndSyncKmsConfig(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateAndSyncKmsConfig_Call {
+	return &MockOrchestratorFactory_CreateAndSyncKmsConfig_Call{Call: _e.mock.On("CreateAndSyncKmsConfig", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CreateAndSyncKmsConfig_Call) Run(run func(ctx context.Context, params *common.CreateKmsConfigParams)) *MockOrchestratorFactory_CreateAndSyncKmsConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.CreateKmsConfigParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateAndSyncKmsConfig_Call) Return(_a0 *models.KmsConfig, _a1 error) *MockOrchestratorFactory_CreateAndSyncKmsConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateAndSyncKmsConfig_Call) RunAndReturn(run func(context.Context, *common.CreateKmsConfigParams) (*models.KmsConfig, error)) *MockOrchestratorFactory_CreateAndSyncKmsConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3229,6 +3290,65 @@ func (_c *MockOrchestratorFactory_GetReplicationJobs_Call) Return(_a0 []*models.
 }
 
 func (_c *MockOrchestratorFactory_GetReplicationJobs_Call) RunAndReturn(run func(context.Context, string, string) ([]*models.Job, error)) *MockOrchestratorFactory_GetReplicationJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSDEKmsConfiguration provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigParams) (*cvpmodels.KmsConfigV1beta, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSDEKmsConfiguration")
+	}
+
+	var r0 *cvpmodels.KmsConfigV1beta
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetKmsConfigParams) (*cvpmodels.KmsConfigV1beta, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetKmsConfigParams) *cvpmodels.KmsConfigV1beta); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*cvpmodels.KmsConfigV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetKmsConfigParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetSDEKmsConfiguration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSDEKmsConfiguration'
+type MockOrchestratorFactory_GetSDEKmsConfiguration_Call struct {
+	*mock.Call
+}
+
+// GetSDEKmsConfiguration is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.GetKmsConfigParams
+func (_e *MockOrchestratorFactory_Expecter) GetSDEKmsConfiguration(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetSDEKmsConfiguration_Call {
+	return &MockOrchestratorFactory_GetSDEKmsConfiguration_Call{Call: _e.mock.On("GetSDEKmsConfiguration", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_GetSDEKmsConfiguration_Call) Run(run func(ctx context.Context, params *common.GetKmsConfigParams)) *MockOrchestratorFactory_GetSDEKmsConfiguration_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.GetKmsConfigParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetSDEKmsConfiguration_Call) Return(_a0 *cvpmodels.KmsConfigV1beta, _a1 error) *MockOrchestratorFactory_GetSDEKmsConfiguration_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetSDEKmsConfiguration_Call) RunAndReturn(run func(context.Context, *common.GetKmsConfigParams) (*cvpmodels.KmsConfigV1beta, error)) *MockOrchestratorFactory_GetSDEKmsConfiguration_Call {
 	_c.Call.Return(run)
 	return _c
 }

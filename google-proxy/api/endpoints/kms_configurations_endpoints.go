@@ -241,17 +241,19 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 			Message: parsingErr.Message,
 		}, nil
 	}
-	if region == regionGlobal {
-		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
-			Code:    400,
-			Message: "KMS configuration not supported for global region",
-		}, nil
-	}
-	_, err := utils.ParseKeyFullPathResource(req.KeyFullPath)
+
+	parsedKmsKeyFullPath, err := utils.ParseKeyFullPathResource(req.KeyFullPath)
 	if err != nil {
 		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
 			Code:    400,
 			Message: "Invalid KeyFullPath format",
+		}, nil
+	}
+
+	if parsedKmsKeyFullPath.Location == regionGlobal || parsedKmsKeyFullPath.Location != region {
+		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
+			Code:    400,
+			Message: "KMS configuration not supported for global region keys. Keys from other regions are also not supported",
 		}, nil
 	}
 

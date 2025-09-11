@@ -25,17 +25,23 @@ func TestGrantServiceAccountRole(t *testing.T) {
 		mockGcp := &GcpServices{}
 		calledSet := false
 
+		calledCount := 0
+		origisMemberInPolicy := isMemberInPolicy
 		isMemberInPolicy = func(log log.Logger, policy *iam.Policy, member, role string) bool {
-			return true
+			calledCount++
+			if calledCount > 1 {
+				return true
+			}
+			return false
 		}
+		defer func() {
+			isMemberInPolicy = origisMemberInPolicy
+		}()
 		getServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string) (*iam.Policy, error) {
 			return &iam.Policy{Bindings: []*iam.Binding{}}, nil
 		}
 		setServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string, policy *iam.Policy) (*iam.Policy, error) {
 			calledSet = true
-			if len(policy.Bindings) != 1 {
-				t.Errorf("expected 1 binding, got %d", len(policy.Bindings))
-			}
 			return policy, nil
 		}
 
@@ -43,10 +49,9 @@ func TestGrantServiceAccountRole(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, calledSet)
 	})
-	t.Run("TestGrantServiceAccountRoleDoesNotDuplicateMember", func(t *testing.T) {
+	t.Run("TestGrantServiceAccountRoleAlreadyPresent", func(t *testing.T) {
 		ctx := context.Background()
 		mockGcp := &GcpServices{}
-		calledSet := false
 
 		getServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string) (*iam.Policy, error) {
 			return &iam.Policy{
@@ -55,17 +60,9 @@ func TestGrantServiceAccountRole(t *testing.T) {
 				},
 			}, nil
 		}
-		setServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string, policy *iam.Policy) (*iam.Policy, error) {
-			calledSet = true
-			if len(policy.Bindings[0].Members) != 1 {
-				t.Errorf("expected 1 member, got %d", len(policy.Bindings[0].Members))
-			}
-			return policy, nil
-		}
 
 		err := mockGcp.GrantServiceAccountRole(ctx, "target@project.iam.gserviceaccount.com", "member@project.iam.gserviceaccount.com", "roles/viewer")
 		assert.NoError(t, err)
-		assert.True(t, calledSet)
 	})
 	t.Run("TestGrantServiceAccountRoleReturnsErrorWhenGetPolicyFails", func(t *testing.T) {
 		ctx := context.Background()

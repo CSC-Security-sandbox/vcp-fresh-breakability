@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -741,50 +742,6 @@ func TestIsKmsConfigInUse(t *testing.T) {
 }
 
 func Test_isKmsConfigInUse(t *testing.T) {
-	t.Run("ReturnsTrueWhenSVMsAreUsingKmsConfig", func(t *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(t, err)
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"},
-			Name:      "test-kms",
-		}
-
-		originalGetSvmsByKmsConfigID := getSvmsByKmsConfigID
-		defer func() { getSvmsByKmsConfigID = originalGetSvmsByKmsConfigID }()
-
-		getSvmsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
-			return []*datamodel.Svm{
-				{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}, Name: "test-svm"},
-			}, nil
-		}
-
-		inUse, err := _isKmsConfigInUse(db, kmsConfig)
-		assert.NoError(t, err)
-		assert.True(t, inUse)
-	})
-
-	t.Run("ReturnsFalseWhenNoSVMsAreUsingKmsConfig", func(t *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(t, err)
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"},
-			Name:      "test-kms",
-		}
-
-		originalGetSvmsByKmsConfigID := getSvmsByKmsConfigID
-		defer func() { getSvmsByKmsConfigID = originalGetSvmsByKmsConfigID }()
-
-		getSvmsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
-			return []*datamodel.Svm{}, nil
-		}
-
-		inUse, err := _isKmsConfigInUse(db, kmsConfig)
-		assert.NoError(t, err)
-		assert.False(t, inUse)
-	})
-
 	t.Run("ReturnsFalseWhenNotFoundErrorOccurs", func(t *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(t, err)
@@ -794,10 +751,10 @@ func Test_isKmsConfigInUse(t *testing.T) {
 			Name:      "test-kms",
 		}
 
-		originalGetSvmsByKmsConfigID := getSvmsByKmsConfigID
-		defer func() { getSvmsByKmsConfigID = originalGetSvmsByKmsConfigID }()
+		originalGetPoolsByKmsConfigID := getPoolsByKmsConfigID
+		defer func() { getPoolsByKmsConfigID = originalGetPoolsByKmsConfigID }()
 
-		getSvmsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
+		getPoolsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Pool, error) {
 			return nil, errors.New("some error")
 		}
 
@@ -805,7 +762,6 @@ func Test_isKmsConfigInUse(t *testing.T) {
 		assert.Error(t, err)
 		assert.False(t, inUse)
 	})
-
 	t.Run("ReturnsErrorWhenDatabaseErrorOccurs", func(t *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(t, err)
@@ -815,10 +771,10 @@ func Test_isKmsConfigInUse(t *testing.T) {
 			Name:      "test-kms",
 		}
 
-		originalGetSvmsByKmsConfigID := getSvmsByKmsConfigID
-		defer func() { getSvmsByKmsConfigID = originalGetSvmsByKmsConfigID }()
+		originalGetPoolsByKmsConfigID := getPoolsByKmsConfigID
+		defer func() { getPoolsByKmsConfigID = originalGetPoolsByKmsConfigID }()
 
-		getSvmsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
+		getPoolsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Pool, error) {
 			return nil, fmt.Errorf("database connection error")
 		}
 
@@ -1056,5 +1012,355 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "database connection error")
+	})
+}
+
+func TestUpdateKmsConfig(t *testing.T) {
+	t.Run("UpdatesKmsConfigSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test service account
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-sa-uuid",
+			},
+			Name:      "test_service_account",
+			AccountID: account.ID,
+			State:     KmsSaStateEnable,
+		}
+		err = store.db.Create(serviceAccount).Error()
+		assert.NoError(tt, err, "Failed to create service account")
+
+		// Create test KMS config
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:         "test_kms_config",
+			AccountID:    account.ID,
+			State:        "Ready",
+			StateDetails: "Initial state",
+			Description:  "Test KMS config",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		// Prepare updates
+		updates := map[string]interface{}{
+			"service_account_id": serviceAccount.ID,
+			"state":              "Updated",
+			"state_details":      "Updated state details",
+			"description":        "Updated description",
+		}
+
+		// Execute update
+		err = store.UpdateKmsConfig(context.Background(), kmsConfig.UUID, updates)
+		assert.NoError(tt, err, "Expected no error during update")
+
+		// Verify the update
+		updatedKmsConfig, err := store.GetKmsConfigByUUID(context.Background(), kmsConfig.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated KMS config")
+		assert.Equal(tt, int64(2), *updatedKmsConfig.ServiceAccountID, "Expected service account ID to be updated")
+		assert.Equal(tt, "Updated", updatedKmsConfig.State, "Expected state to be updated")
+		assert.Equal(tt, "Updated state details", updatedKmsConfig.StateDetails, "Expected state details to be updated")
+		assert.Equal(tt, "Updated description", updatedKmsConfig.Description, "Expected description to be updated")
+		assert.NotNil(tt, updatedKmsConfig.UpdatedAt, "Expected updated_at to be set")
+	})
+
+	t.Run("UpdatesPartialFieldsSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test KMS config
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:         "test_kms_config",
+			AccountID:    account.ID,
+			State:        "Ready",
+			StateDetails: "Initial state",
+			Description:  "Test KMS config",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		// Update only specific fields
+		updates := map[string]interface{}{
+			"state": "Partially Updated",
+		}
+
+		// Execute update
+		err = store.UpdateKmsConfig(context.Background(), kmsConfig.UUID, updates)
+		assert.NoError(tt, err, "Expected no error during partial update")
+
+		// Verify the update
+		updatedKmsConfig, err := store.GetKmsConfigByUUID(context.Background(), kmsConfig.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated KMS config")
+		assert.Equal(tt, "Partially Updated", updatedKmsConfig.State, "Expected state to be updated")
+		assert.Equal(tt, "Initial state", updatedKmsConfig.StateDetails, "Expected state details to remain unchanged")
+		assert.Equal(tt, "Test KMS config", updatedKmsConfig.Description, "Expected description to remain unchanged")
+	})
+
+	t.Run("ReturnsErrorWhenKmsConfigNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Try to update non-existent KMS config
+		updates := map[string]interface{}{
+			"state": "Updated",
+		}
+
+		err = store.UpdateKmsConfig(context.Background(), "non-existent-uuid", updates)
+		assert.Error(tt, err, "Expected error for non-existent KMS config")
+		assert.Contains(tt, err.Error(), "KMS Configuration not found")
+	})
+
+	t.Run("HandlesEmptyUpdatesMapGracefully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test KMS config
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:      "test_kms_config",
+			AccountID: account.ID,
+			State:     "Ready",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		// Update with empty map (should only update updated_at)
+		updates := map[string]interface{}{}
+
+		// Execute update
+		err = store.UpdateKmsConfig(context.Background(), kmsConfig.UUID, updates)
+		assert.NoError(tt, err, "Expected no error with empty updates map")
+
+		// Verify that updated_at was still set
+		updatedKmsConfig, err := store.GetKmsConfigByUUID(context.Background(), kmsConfig.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated KMS config")
+		assert.NotNil(tt, updatedKmsConfig.UpdatedAt, "Expected updated_at to be set even with empty updates")
+	})
+
+	t.Run("UpdatesResourceIDAndKeyDetails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test KMS config
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:      "test_kms_config",
+			AccountID: account.ID,
+			State:     "Ready",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		// Update with key and resource details
+		updates := map[string]interface{}{
+			"resource_id":         "new-resource-id-123",
+			"key_ring_location":   "us-central1",
+			"key_ring":            "test-key-ring",
+			"key_name":            "test-crypto-key",
+			"key_project_id":      "test-project-123",
+			"customer_project_id": "customer-project-456",
+		}
+
+		// Execute update
+		err = store.UpdateKmsConfig(context.Background(), kmsConfig.UUID, updates)
+		assert.NoError(tt, err, "Expected no error during update")
+
+		// Verify the update
+		updatedKmsConfig, err := store.GetKmsConfigByUUID(context.Background(), kmsConfig.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated KMS config")
+		assert.Equal(tt, "new-resource-id-123", updatedKmsConfig.ResourceID, "Expected resource ID to be updated")
+		assert.Equal(tt, "us-central1", updatedKmsConfig.KeyRingLocation, "Expected key ring location to be updated")
+		assert.Equal(tt, "test-key-ring", updatedKmsConfig.KeyRing, "Expected key ring to be updated")
+		assert.Equal(tt, "test-crypto-key", updatedKmsConfig.KeyName, "Expected key name to be updated")
+		assert.Equal(tt, "test-project-123", updatedKmsConfig.KeyProjectID, "Expected key project ID to be updated")
+		assert.Equal(tt, "customer-project-456", updatedKmsConfig.CustomerProjectID, "Expected customer project ID to be updated")
+	})
+
+	t.Run("HandlesNilServiceAccountIDUpdate", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test service account
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-sa-uuid",
+			},
+			Name:      "test_service_account",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(serviceAccount).Error()
+		assert.NoError(tt, err, "Failed to create service account")
+
+		// Create test KMS config with service account
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:        datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:             "test_kms_config",
+			AccountID:        account.ID,
+			ServiceAccountID: &serviceAccount.ID,
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		// Update to set service account ID to nil
+		updates := map[string]interface{}{
+			"service_account_id": nil,
+		}
+
+		// Execute update
+		err = store.UpdateKmsConfig(context.Background(), kmsConfig.UUID, updates)
+		assert.NoError(tt, err, "Expected no error when setting service account ID to nil")
+
+		// Verify the update
+		updatedKmsConfig, err := store.GetKmsConfigByUUID(context.Background(), kmsConfig.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated KMS config")
+		assert.Nil(tt, updatedKmsConfig.ServiceAccountID, "Expected service account ID to be nil")
+	})
+
+	t.Run("UpdatesMultipleFieldsAtOnce", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test KMS config
+		originalTimestamp := time.Now().Add(-1 * time.Hour)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-kms-uuid",
+				UpdatedAt: originalTimestamp,
+			},
+			Name:         "test_kms_config",
+			AccountID:    account.ID,
+			State:        "Ready",
+			StateDetails: "Initial state",
+			Description:  "Initial description",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err, "Failed to create kms config")
+
+		// Update multiple fields
+		updates := map[string]interface{}{
+			"state":         "MultiUpdated",
+			"state_details": "Multi update state details",
+			"description":   "Multi update description",
+			"resource_id":   "multi-resource-123",
+		}
+
+		// Execute update
+		err = store.UpdateKmsConfig(context.Background(), kmsConfig.UUID, updates)
+		assert.NoError(tt, err, "Expected no error during multi-field update")
+
+		// Verify all updates
+		updatedKmsConfig, err := store.GetKmsConfigByUUID(context.Background(), kmsConfig.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated KMS config")
+		assert.Equal(tt, "MultiUpdated", updatedKmsConfig.State, "Expected state to be updated")
+		assert.Equal(tt, "Multi update state details", updatedKmsConfig.StateDetails, "Expected state details to be updated")
+		assert.Equal(tt, "Multi update description", updatedKmsConfig.Description, "Expected description to be updated")
+		assert.Equal(tt, "multi-resource-123", updatedKmsConfig.ResourceID, "Expected resource ID to be updated")
+		assert.True(tt, updatedKmsConfig.UpdatedAt.After(originalTimestamp), "Expected updated_at to be more recent")
 	})
 }

@@ -27,8 +27,10 @@ type backupVaultDeleteWorkflow struct {
 	SE *database.Storage
 }
 
-var _ WorkflowInterface = &backupVaultUpdateWorkflow{}
-var _ WorkflowInterface = &backupVaultDeleteWorkflow{}
+var (
+	_ WorkflowInterface = &backupVaultUpdateWorkflow{}
+	_ WorkflowInterface = &backupVaultDeleteWorkflow{}
+)
 
 func UpdateBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultParams, backupVault *datamodel.BackupVault) (gcpgenserver.V1betaUpdateBackupVaultRes, error) {
 	bvWF := new(backupVaultUpdateWorkflow)

@@ -22,7 +22,7 @@ import (
 )
 
 func TestCreateKmsConfig(t *testing.T) {
-	t.Run("WhenPollKmsConfigOperationActivityFails", func(t *testing.T) {
+	t.Run("WhenGetSignedTokenActivityFails", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})

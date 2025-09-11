@@ -9,10 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -24,10 +22,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -40,12 +36,12 @@ import (
 
 var (
 	configureKmsConfigForSvmActivity     = _configureKmsConfigForSvmActivity
-	getSignedJwtToken                    = auth.GetSignedJwtToken
 	isProberProject                      = utils.IsProberProject
 	GetNewVSAClientWorkflowManager       = _getNewVSAClientWorkflowManager
 	ExtractOntapVersion                  = _extractOntapVersion
 	WaitForServiceNetworkOperationStatus = _waitForServiceNetworkOperationStatus
 	WaitForGCPNetworkOperationStatus     = _waitForGCPNetworkOperationStatus
+	verifyKmsConfigReachability          = _verifyKmsConfigReachability
 )
 
 var (
@@ -177,6 +173,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	rollbackManager.AddActivity(poolActivity.ErroredPool, dbPool)
 	rollbackManager.AddActivity(poolActivity.DeletePoolResourcesOnRollback, dbPool)
+
+	// Verify if KMS config is reachable before proceeding with pool creation, if present
+	err = verifyKmsConfigReachability(ctx, params.KmsConfigId)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 
 	tenantProjectNumber := new(string)
 	err = workflow.ExecuteActivity(ctx, poolActivity.FindTenancyProject, params).Get(ctx, tenantProjectNumber)
@@ -939,6 +941,40 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	return nil, nil
 }
 
+func _verifyKmsConfigReachability(ctx workflow.Context, kmsConfigId string) error {
+	if kmsConfigId == "" {
+		return nil // No KMS config provided, nothing to verify
+	}
+
+	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
+	kmsConfig := &datamodel.KmsConfig{}
+
+	// Get KMS config from VSA database
+	err := workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, kmsConfigId).Get(ctx, kmsConfig)
+	if err != nil {
+		return err
+	}
+
+	// Create the service account key for the KMS configuration, if required
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity, kmsConfig).Get(ctx, kmsConfig)
+	if err != nil {
+		return err
+	}
+
+	// Grant the necessary roles to the service account, if required
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// Access a crypto key using the KMS config in the VSA database to make sure key is reachable and update the kms config state based on the reachability
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
 	if params.KmsConfigId == "" {
 		return nil // No KMS config provided, nothing to configure
@@ -947,60 +983,7 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
 	kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
 
-	// Check if KMS config is present in the VSA database
-	// In case Kms config is not present in the VSA database, will create a new KMS configuration using the SDE KMS configuration
 	err := workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, params.KmsConfigId).Get(ctx, kmsConfig)
-	if err != nil {
-		var appErr *temporal.ApplicationError
-		if errors.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound {
-			if !env.IsLocalEnv() {
-				// get the JWT token for authorization; this function needs GCP_AUTH_SERVICE_ACCOUNT and GCP_SERVICE_URL to be set for the environment
-				jwtToken, err := getSignedJwtToken(params.AccountName)
-				if err != nil {
-					return err
-				}
-				ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
-			}
-
-			// Prepare the KMS configuration object with the SDE KMS configuration details
-			getKmsConfigParams := &common.GetKmsConfigParams{
-				UUID:          params.KmsConfigId,
-				LocationID:    params.Region,
-				ProjectNumber: params.AccountName,
-			}
-
-			var cvpKmsConfig cvpmodels.KmsConfigV1beta
-			// Describe KMS configurations to get the created KMS configuration; this must be called after polling the operation
-			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &cvpKmsConfig)
-			if err != nil {
-				return err
-			}
-
-			// create and sync the KMS configuration with the SDE KMS configuration
-			createKmsConfigParams := ConvertToCreateKmsConfigParams(cvpKmsConfig, params)
-			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateAndSyncKmsConfigActivity, createKmsConfigParams).Get(ctx, kmsConfig)
-			if err != nil {
-				return err
-			}
-
-			// Create the service account key for the KMS configuration
-			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity, kmsConfig).Get(ctx, kmsConfig)
-			if err != nil {
-				return err
-			}
-
-			// Grant the necessary roles to the service account
-			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
-	// Access a crypto key using the KMS config in the VSA database to make sure key is reachable
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.AccessCryptoKeyWithImpersonationActivity, kmsConfig).Get(ctx, kmsConfig)
 	if err != nil {
 		return err
 	}
@@ -1031,36 +1014,7 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 		return err
 	}
 
-	// Update the Pool with the KMS config IDs
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdatePoolWithKmsConfigActivity, pool, kmsConfig.UUID).Get(ctx, nil)
-	if err != nil {
-		return err
-	}
 	return nil
-}
-
-// ConvertToCreateKmsConfigParams transforms from CVP datamodel to VSA datamodel
-func ConvertToCreateKmsConfigParams(params cvpmodels.KmsConfigV1beta, createPoolParams *common.CreatePoolParams) *common.CreateKmsConfigParams {
-	createConfigParams := &common.CreateKmsConfigParams{}
-
-	createConfigParams.ProjectNumber = createPoolParams.AccountName
-	createConfigParams.UUID = params.UUID
-	createConfigParams.KmsState = params.KmsState
-	createConfigParams.KmsStateDetails = params.KmsStateDetails
-	createConfigParams.ServiceAccountEmail = params.ServiceAccountEmail
-	createConfigParams.Instructions = params.Instructions
-	createConfigParams.LocationID = createPoolParams.Region
-
-	if params.Description != nil {
-		createConfigParams.Description = *params.Description
-	}
-	if params.KeyFullPath != nil {
-		createConfigParams.KeyFullPath = *params.KeyFullPath
-	}
-	if params.ResourceID != nil {
-		createConfigParams.ResourceID = *params.ResourceID
-	}
-	return createConfigParams
 }
 
 func _getNewVSAClientWorkflowManager() vlm.VlmWorkflowClient {

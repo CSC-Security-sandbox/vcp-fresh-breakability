@@ -2,7 +2,6 @@ package kms_activities
 
 import (
 	"context"
-	"go.temporal.io/sdk/temporal"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -12,10 +11,19 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
+)
+
+var (
+	GetSDEKmsConfiguration = _getSDEKmsConfiguration
 )
 
 // DescribeSDEKmsConfigurationActivity retrieves the KMS configuration details for the given KMS configuration.
 func (j *KmsConfigActivity) DescribeSDEKmsConfigurationActivity(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfigV1beta, error) {
+	return _getSDEKmsConfiguration(ctx, params)
+}
+
+func _getSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfigV1beta, error) {
 	logger := util.GetLogger(ctx)
 	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
@@ -26,6 +34,7 @@ func (j *KmsConfigActivity) DescribeSDEKmsConfigurationActivity(ctx context.Cont
 	describeKmsConfigParams.XCorrelationID = &xCorrelationID
 	describeKmsConfigParams.LocationID = params.LocationID
 	describeKmsConfigParams.ProjectNumber = params.ProjectNumber
+
 	sdeKmsConfigResponse, err := cvpClient.KmsConfigurations.V1betaDescribeKmsConfiguration(describeKmsConfigParams)
 	if err != nil {
 		return nil, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrKmsConfigNotFound, err))
@@ -70,4 +79,28 @@ func (j *KmsConfigActivity) ListKmsConfigActivity(ctx context.Context, projectNu
 		return nil, err
 	}
 	return kmsConfigs, nil
+}
+
+// ConvertToCreateKmsConfigParams transforms from CVP datamodel to VSA datamodel
+func ConvertToCreateKmsConfigParams(params *models.KmsConfigV1beta, createPoolParams *common.CreatePoolParams) *common.CreateKmsConfigParams {
+	createConfigParams := &common.CreateKmsConfigParams{}
+
+	createConfigParams.ProjectNumber = createPoolParams.AccountName
+	createConfigParams.UUID = params.UUID
+	createConfigParams.KmsState = params.KmsState
+	createConfigParams.KmsStateDetails = params.KmsStateDetails
+	createConfigParams.ServiceAccountEmail = params.ServiceAccountEmail
+	createConfigParams.Instructions = params.Instructions
+	createConfigParams.LocationID = createPoolParams.Region
+
+	if params.Description != nil {
+		createConfigParams.Description = *params.Description
+	}
+	if params.KeyFullPath != nil {
+		createConfigParams.KeyFullPath = *params.KeyFullPath
+	}
+	if params.ResourceID != nil {
+		createConfigParams.ResourceID = *params.ResourceID
+	}
+	return createConfigParams
 }

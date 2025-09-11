@@ -359,12 +359,17 @@ func (d *DataStoreRepository) UpdateKmsConfig(ctx context.Context, kmsUUID strin
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	dbKmsConfig, err := _getKmsConfig(tx, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: kmsUUID}})
+	// Verify the record exists first
+	_, err = _getKmsConfig(tx, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: kmsUUID}})
 	if err != nil {
 		return err
 	}
 
-	err = tx.Model(&dbKmsConfig).Updates(updates).Error
+	// Add updated_at timestamp
+	updates["updated_at"] = time.Now()
+
+	// Update directly on the table to avoid conflicts with loaded model
+	err = tx.Model(&datamodel.KmsConfig{}).Where("uuid = ?", kmsUUID).Updates(updates).Error
 	if err != nil {
 		return err
 	}
@@ -385,11 +390,11 @@ func (d *DataStoreRepository) IsKmsConfigInUse(ctx context.Context, kmsConfigUUI
 }
 
 func _isKmsConfigInUse(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error) {
-	svms, err := getSvmsByKmsConfigID(db, kmsConfig.ID)
+	pools, err := getPoolsByKmsConfigID(db, kmsConfig.ID)
 	if err != nil && !errors.IsNotFoundErr(err) {
 		return false, err
 	}
-	if len(svms) > 0 {
+	if len(pools) > 0 {
 		return true, nil
 	}
 	return false, nil

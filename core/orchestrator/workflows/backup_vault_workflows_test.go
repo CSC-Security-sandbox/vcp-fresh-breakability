@@ -7,7 +7,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
@@ -17,12 +16,6 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_Success() {
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",
@@ -62,12 +55,6 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UpdateSDEError() {
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",
@@ -107,12 +94,6 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UpdateVCPError() {
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",
@@ -153,12 +134,6 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_SignedTokenError() {
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",
@@ -197,12 +172,6 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_Success() {
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",
@@ -244,12 +213,6 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteSDEError() {
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",
@@ -289,12 +252,6 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteVCPError() {
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",
@@ -337,12 +294,6 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_SignedTokenError() {
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",
@@ -381,12 +332,6 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteBucketsError() {
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
 	des := "description of backup vault"
 	mrd := int64(30)
-	getSignedJwtToken = func(projectNumber string) (string, error) {
-		return "test-jwt-token", nil
-	}
-	defer func() {
-		getSignedJwtToken = auth.GetSignedJwtToken
-	}()
 	bv := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: int64(1)},
 		Name:        "backup_vault_test",

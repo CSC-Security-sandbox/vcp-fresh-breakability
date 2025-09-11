@@ -76,7 +76,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
@@ -107,6 +107,26 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Equal(t, float64(http.StatusConflict), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
 	})
+	t.Run("CreateKmsConfigurationWhenKeyringLocationDoNotMatchWithRegion", func(t *testing.T) {
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "invalid-location",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
+	})
 	t.Run("CreateKmsConfigurationFails", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
@@ -120,7 +140,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
@@ -161,10 +181,10 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-			return "us-east4", "us-east4", nil
+			return "us-east4", "us-east4-a", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
@@ -198,10 +218,10 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-			return "us-east4", "us-east4", nil
+			return "us-east4", "us-east4-a", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
@@ -250,7 +270,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		}
 		kmsConfig := &vsaCoreModels.KmsConfig{KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
@@ -299,7 +319,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -322,7 +342,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -346,7 +366,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -373,7 +393,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -400,7 +420,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -423,9 +443,9 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-			return regionGlobal, "", nil
+			return "regionGlobal", "", nil
 		}
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/global/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -451,7 +471,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -477,7 +497,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -503,7 +523,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -529,7 +549,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -558,7 +578,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
@@ -602,7 +622,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
@@ -646,7 +666,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
@@ -690,7 +710,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
 
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}

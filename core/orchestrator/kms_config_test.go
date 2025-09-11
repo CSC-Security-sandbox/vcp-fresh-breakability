@@ -1163,7 +1163,7 @@ func TestGetKmsConfigFails(t *testing.T) {
 	params := &common.GetKmsConfigParams{AccountName: "fail_account"}
 	mockStorage := new(database.MockStorage)
 	temporal := workflow_engine.NewMockTemporalTestClient(t)
-	getKmsConfig = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+	getKmsConfig = func(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
 		return nil, errors.New("some error")
 	}
 	defer func() {
@@ -1987,5 +1987,73 @@ func TestConvertSDEResponseToKmsConfig(t *testing.T) {
 
 		assert.NotNil(t, result)
 		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED, result.State)
+	})
+}
+
+func TestCreateAndSyncKmsConfig(t *testing.T) {
+	t.Run("ReturnsModelOnSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.CreateKmsConfigParams{AccountName: "acc", ResourceID: "res"}
+		expectedKmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+
+		createAndSyncKmsConfig = func(ctx context.Context, se database.Storage, params *common.CreateKmsConfigParams) (*datamodel.KmsConfig, error) {
+			return expectedKmsConfig, nil
+		}
+
+		defer func() {
+			createAndSyncKmsConfig = kms_activities.CreateAndSyncKmsConfig
+		}()
+		o := &Orchestrator{}
+		result, err := o.CreateAndSyncKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "uuid", result.UUID)
+	})
+	t.Run("WhenFailure", func(tt *testing.T) {
+		ctx := context.Background()
+
+		mockStorage := new(database.MockStorage)
+		params := &common.CreateKmsConfigParams{AccountName: "acc", ResourceID: "res"}
+
+		createAndSyncKmsConfig = func(ctx context.Context, se database.Storage, params *common.CreateKmsConfigParams) (*datamodel.KmsConfig, error) {
+			return nil, errors.New("some error")
+		}
+
+		defer func() {
+			createAndSyncKmsConfig = kms_activities.CreateAndSyncKmsConfig
+		}()
+
+		o := &Orchestrator{storage: mockStorage}
+		result, err := o.CreateAndSyncKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestGetSDEKmsConfiguration(t *testing.T) {
+	t.Run("WhenFailure", func(tt *testing.T) {
+		ctx := context.Background()
+
+		params := &common.GetKmsConfigParams{AccountName: "acc", ResourceID: "res"}
+
+		getSDEKmsConfiguration = func(ctx context.Context, params *common.GetKmsConfigParams) (*cvpModels.KmsConfigV1beta, error) {
+			return nil, errors.New("some error")
+		}
+
+		defer func() {
+			getSDEKmsConfiguration = kms_activities.GetSDEKmsConfiguration
+		}()
+
+		o := &Orchestrator{}
+		result, err := o.GetSDEKmsConfiguration(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
 	})
 }

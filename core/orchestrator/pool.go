@@ -72,6 +72,14 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", errors.New("unable to process request, please try again later")
 	}
 
+	if params.KmsConfig != nil {
+		// move the kms config to in-use state
+		if _, err = se.UpdateKmsConfigState(ctx, params.KmsConfig.UUID, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails); err != nil {
+			logger.Error("Failed to update KMS config state to InUse", "KMSConfigID", params.KmsConfig.ID, "error", err)
+			return nil, "", errors.New("unable to process request, please try again later")
+		}
+	}
+
 	defer func() {
 		if err != nil {
 			if _, jobErr := se.UpdatePoolState(ctx, dbPool, string(models.JobsStateERROR), err.Error()); jobErr != nil {
@@ -155,6 +163,13 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			Labels:          params.Labels,
 			IsRegionalHA:    params.IsRegionalHA,
 		},
+	}
+
+	if params.KmsConfig != nil {
+		poolObj.KmsConfigID = sql.NullInt64{
+			Int64: params.KmsConfig.ID,
+			Valid: true,
+		}
 	}
 	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
 	logger.Infof("generated deployment name: %s", poolObj.DeploymentName)
@@ -319,6 +334,16 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 	if err != nil {
 		return err
 	}
+
+	if params.KmsConfig != nil {
+		switch params.KmsConfig.State {
+		case models.LifeCycleStateREADY, models.LifeCycleStateInUse:
+			break
+		default:
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("invalid KMS configuration state: %s", params.KmsConfig.State))
+		}
+	}
+
 	params.CustomPerformanceParams.Iops = perf.Iops
 	return nil
 }

@@ -2102,3 +2102,66 @@ func TestUpdatePoolFields(t *testing.T) {
 	err = store.UpdatePoolFields(context.Background(), "non-existent-uuid", updates)
 	assert.Error(t, err)
 }
+
+func Test_getPoolsByKmsConfigID(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func(db *gorm.DB) int64
+		expectErr bool
+		expectLen int
+	}{
+		{
+			name: "ReturnsPoolsWhenPresent",
+			setup: func(db *gorm.DB) int64 {
+				kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"}}
+				db.Create(kmsConfig)
+				pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, KmsConfigID: sql.NullInt64{Int64: kmsConfig.ID, Valid: true}}
+				db.Create(pool)
+				return kmsConfig.ID
+			},
+			expectErr: false,
+			expectLen: 1,
+		},
+		{
+			name: "ReturnsEmptySliceWhenNoPools",
+			setup: func(db *gorm.DB) int64 {
+				return 999
+			},
+			expectErr: false,
+			expectLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, err := SetupTestDB()
+			assert.NoError(t, err)
+			wrapper := gormwrapper.New(db)
+			store := NewDataStoreRepository(wrapper)
+			err = ClearInMemoryDB(store.db.GORM())
+			assert.NoError(t, err)
+
+			id := tt.setup(store.db.GORM())
+			pools, err := _getPoolsByKmsConfigID(store.db.GORM(), id)
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, pools, tt.expectLen)
+			}
+		})
+	}
+
+	t.Run("ReturnsErrorOnDBFailure", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		assert.NoError(t, err)
+		gdb, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
+		assert.NoError(t, err)
+		wrapper := gormwrapper.New(gdb)
+
+		mock.ExpectQuery("SELECT .* FROM \"pools\" WHERE kms_config_id = .*").WillReturnError(errors.New("db error"))
+
+		_, err = _getPoolsByKmsConfigID(wrapper.GORM(), 1)
+		assert.Error(t, err)
+	})
+}

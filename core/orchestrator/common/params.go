@@ -32,6 +32,7 @@ type CreatePoolParams struct {
 	CustomPerformanceParams *CustomPerformanceParams
 	KmsConfigId             string
 	KmsConfigResourceID     string
+	KmsConfig               *models.KmsConfig
 	Labels                  *datamodel.JSONB
 	LargeCapacity           bool
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -28,8 +29,9 @@ import (
 )
 
 var (
-	regionalPoolEnabled = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
-	minCustomThroughput = utils.MinCustomThroughput
+	regionalPoolEnabled        = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
+	minCustomThroughput        = utils.MinCustomThroughput
+	getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
 )
 
 const (
@@ -147,7 +149,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		hotTierSizeInBytes = uint64(req.HotTierSizeInBytes.Value)
 	}
 
-	param := &commonparams.CreatePoolParams{
+	createPoolParams := &commonparams.CreatePoolParams{
 		AccountName:             params.ProjectNumber,
 		Region:                  region,
 		PrimaryZone:             primaryZone,
@@ -164,10 +166,20 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		HotTierSizeInBytes:      hotTierSizeInBytes,
 		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
 		CustomPerformanceParams: &commonparams.CustomPerformanceParams{ThroughputMibps: totalThroughput, Enabled: req.CustomPerformanceEnabled.Value, Iops: totalIops},
-		KmsConfigId:             req.KmsConfigId.Value,
-		KmsConfigResourceID:     req.KmsConfigResourceId.Value,
 		LargeCapacity:           req.LargeCapacity.Value,
 	}
+
+	// Set kms config related params if kms config is provided
+	kmsConfig, errResp := getAndSyncKmsConfigForPool(ctx, req, createPoolParams, h.Orchestrator)
+	if errResp != nil {
+		return errResp, nil
+	}
+	if kmsConfig != nil {
+		createPoolParams.KmsConfigId = kmsConfig.UUID
+		createPoolParams.KmsConfigResourceID = kmsConfig.ResourceID
+		createPoolParams.KmsConfig = kmsConfig
+	}
+
 	if req.Labels.IsSet() {
 		jsonbLabels, err := validateLabels(req.Labels.Value)
 		if err != nil {
@@ -176,9 +188,9 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 				Message: err.Error(),
 			}, nil
 		}
-		param.Labels = jsonbLabels
+		createPoolParams.Labels = jsonbLabels
 	}
-	created, operationID, err := h.Orchestrator.CreatePool(ctx, param)
+	created, operationID, err := h.Orchestrator.CreatePool(ctx, createPoolParams)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) {
 			return &gcpgenserver.V1betaCreatePoolBadRequest{
@@ -1065,4 +1077,50 @@ func validateLabels(labels map[string]string) (*datamodel.JSONB, error) {
 		jsonbLabels[k] = v
 	}
 	return &jsonbLabels, nil
+}
+
+func _getAndSyncKmsConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params *commonparams.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+	if req.KmsConfigId.Value == "" {
+		return nil, nil
+	}
+	getKmsConfigParams := &commonparams.GetKmsConfigParams{
+		UUID:          req.KmsConfigId.Value,
+		AccountName:   params.AccountName,
+		LocationID:    params.Region,
+		ProjectNumber: params.AccountName,
+	}
+	kmsConfig, err := orchestratorInterface.GetKmsConfig(ctx, getKmsConfigParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			// try to find the kms config in SDE, it's possible that the user created the KMS config in SDE
+			sdeKmsConfig, err := orchestratorInterface.GetSDEKmsConfiguration(ctx, getKmsConfigParams)
+			if err != nil {
+				if errors.IsNotFoundErr(err) {
+					return nil, &gcpgenserver.V1betaCreatePoolBadRequest{
+						Code:    http.StatusBadRequest,
+						Message: fmt.Sprintf("KMS Config with ID %s not found", req.KmsConfigId.Value),
+					}
+				}
+				return nil, &gcpgenserver.V1betaCreatePoolInternalServerError{
+					Code:    http.StatusInternalServerError,
+					Message: err.Error(),
+				}
+			}
+			// create and sync the KMS configuration with the SDE KMS configuration in VCP
+			createKmsConfigParams := kms_activities.ConvertToCreateKmsConfigParams(sdeKmsConfig, params)
+			kmsConfig, err := orchestratorInterface.CreateAndSyncKmsConfig(ctx, createKmsConfigParams)
+			if err != nil {
+				return nil, &gcpgenserver.V1betaCreatePoolInternalServerError{
+					Code:    http.StatusInternalServerError,
+					Message: err.Error(),
+				}
+			}
+			return kmsConfig, nil
+		}
+		return nil, &gcpgenserver.V1betaCreatePoolInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}
+	}
+	return kmsConfig, nil
 }

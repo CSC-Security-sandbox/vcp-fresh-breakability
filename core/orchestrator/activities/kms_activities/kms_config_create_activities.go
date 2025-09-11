@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"strings"
 	"time"
 
@@ -26,7 +27,8 @@ const (
 )
 
 var (
-	createClient = cvp.CreateClient
+	createClient           = cvp.CreateClient
+	CreateAndSyncKmsConfig = _createAndSyncKmsConfig
 )
 
 // CreateKmsConfigSDEActivity creates a KMS configuration in SDE and polls for its completion.
@@ -59,8 +61,10 @@ func (j *KmsConfigActivity) CreateKmsConfigSDEActivity(ctx context.Context, para
 }
 
 func (j *KmsConfigActivity) CreateAndSyncKmsConfigActivity(ctx context.Context, params *common.CreateKmsConfigParams) (*datamodel.KmsConfig, error) {
-	se := j.SE
+	return _createAndSyncKmsConfig(ctx, j.SE, params)
+}
 
+func _createAndSyncKmsConfig(ctx context.Context, se database.Storage, params *common.CreateKmsConfigParams) (*datamodel.KmsConfig, error) {
 	account, err := se.GetAccount(ctx, params.AccountName)
 	if err != nil {
 		return nil, err

@@ -78,7 +78,7 @@ func _isMemberInPolicy(log log.Logger, policy *iam.Policy, member, role string) 
 			if binding.Role == role {
 				for _, m := range binding.Members {
 					if m == member {
-						log.Infof("Role %s successfully granted to %s", role, member)
+						log.Infof("Role %s is present with member %s", role, member)
 						return true
 					}
 				}
@@ -90,18 +90,31 @@ func _isMemberInPolicy(log log.Logger, policy *iam.Policy, member, role string) 
 
 func (gcpService *GcpServices) GrantServiceAccountRole(ctx context.Context, email string, memberEmail string, role string) error {
 	logger := util.GetLogger(ctx)
-	policy := &iam.Policy{}
 	resource := fmt.Sprintf("projects/-/serviceAccounts/%s", email)
-
-	// Add the new binding for the initial service account
 	member := fmt.Sprintf("serviceAccount:%s", memberEmail)
-	policy.Bindings = append(policy.Bindings, &iam.Binding{
+
+	// Get the current IAM policy
+	currentPolicy, err := getServiceAccountIamPolicy(ctx, gcpService, resource)
+	if err != nil {
+		logger.Errorf("Failed to get current IAM policy: %v", err)
+		return fmt.Errorf("failed to get current IAM policy: %w", err)
+	}
+
+	// Check if the member already has the role
+	if isMemberInPolicy(logger, currentPolicy, member, role) {
+		logger.Infof("Member %s already has role %s, no action needed", member, role)
+		return nil
+	}
+
+	// Create new binding for the role
+	policy := &iam.Policy{}
+	policy.Bindings = append(currentPolicy.Bindings, &iam.Binding{
 		Role:    role,
 		Members: []string{member},
 	})
 
 	// Set the updated IAM policy
-	_, err := setServiceAccountIamPolicy(ctx, gcpService, resource, policy)
+	_, err = setServiceAccountIamPolicy(ctx, gcpService, resource, policy)
 	if err != nil {
 		logger.Errorf("Failed to set IAM policy: %v", err)
 		return err
@@ -124,7 +137,7 @@ func (gcpService *GcpServices) GrantServiceAccountRole(ctx context.Context, emai
 		return err
 	}
 
-	logger.Infof("Successfully granted role %s to %s", role, email)
+	logger.Infof("Successfully granted role %s to %s", role, member)
 	return nil
 }
 

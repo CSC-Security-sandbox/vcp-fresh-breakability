@@ -326,6 +326,7 @@ func TestCreatePool(t *testing.T) {
 		env.NodePassword = "password"
 		defer func() {
 			env.NodePassword = originalnodePassword
+			ValidateCreatePoolParams = _validateCreatePoolParams
 		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
@@ -375,7 +376,6 @@ func TestCreatePool(t *testing.T) {
 	})
 	t.Run("WhenCreatePoolSucceeds", func(tt *testing.T) {
 		ctx, _, orch, temporal := setup(tt)
-
 		label := "label"
 		labels := make(datamodel.JSONB)
 		labels["test"] = label
@@ -559,6 +559,56 @@ func TestCreatePool(t *testing.T) {
 		assert.Equal(t, pool.VendorSubNetID, params.VendorSubNetID)
 		assert.Equal(t, pool.AccountName, params.AccountName)
 	})
+	t.Run("WhenUpdateKmsConfigStateFails", func(tt *testing.T) {
+		ctx, store, orch, temporal := setup(tt)
+		mockStorage := new(database.MockStorage)
+		orch.storage = mockStorage
+		iops := int64(1024)
+		params := &common.CreatePoolParams{
+			AccountName:      "test_account",
+			Region:           "test_region",
+			PrimaryZone:      "test_zone1",
+			SecondaryZone:    "test_zone2",
+			Name:             "test_pool_1",
+			VendorID:         "test_vendor",
+			SizeInBytes:      1024,
+			AllowAutoTiering: true,
+			VendorSubNetID:   "test_network",
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            &iops,
+			},
+			KmsConfig: &models.KmsConfig{State: models.LifeCycleStateInUse},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		originalnodePassword := env.NodePassword
+		env.NodePassword = "password"
+
+		authType := env.AuthType
+		env.AuthType = env.USERNAME_PWD
+		defer func() {
+			env.AuthType = authType // Reset to original value after test
+			env.NodePassword = originalnodePassword
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+
+		mockStorage.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error")).Once()
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		_, _, err := createPool(ctx, store, temporal, params)
+		assert.Error(tt, err)
+	})
 }
 
 func TestUpdatePool(t *testing.T) {
@@ -607,11 +657,13 @@ func TestUpdatePool(t *testing.T) {
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			ValidateAndSetUpdatePoolParams = _validateAndSetUpdatePoolParams
+		}()
 
 		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return errors.New("invalid pool params")
 		}
-
 		_, _, err := _updatePool(ctx, store, temporal, params)
 		assert.EqualError(tt, err, "invalid pool params")
 	})
@@ -628,6 +680,9 @@ func TestUpdatePool(t *testing.T) {
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			ValidateAndSetUpdatePoolParams = _validateAndSetUpdatePoolParams
+		}()
 
 		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return nil
@@ -649,6 +704,9 @@ func TestUpdatePool(t *testing.T) {
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			ValidateAndSetUpdatePoolParams = _validateAndSetUpdatePoolParams
+		}()
 
 		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return nil
@@ -4045,5 +4103,26 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 			jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationUpdate, models.PoolCategoryStandard)
 			assert.Equal(ttt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for unsupported subnet operation")
 		})
+	})
+	t.Run("KmsConfigIsNotReady", func(tt *testing.T) {
+		ipos := int64(160001)
+		params := &common.CreatePoolParams{
+			SizeInBytes:             uint64(1 * utils.TiBInBytes),
+			ServiceLevel:            ServiceLevelNameFLEX,
+			QosType:                 QosTypeAuto,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: &ipos}, // Just above 160000 IOPS
+			KmsConfig: &models.KmsConfig{
+				State: models.LifeCycleStateKeyCheckPending,
+			},
+		}
+		defer func() {
+			ValidatePoolParams = _validatePoolParams
+		}()
+		ValidatePoolParams = func(perf *validators.CustomPerformance, serviceLevel string) error {
+			return nil
+		}
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "invalid KMS configuration state: KEY_CHECK_PENDING")
 	})
 }

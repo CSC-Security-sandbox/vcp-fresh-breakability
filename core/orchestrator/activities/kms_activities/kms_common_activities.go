@@ -208,9 +208,13 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 	if err != nil {
 		return err
 	}
-	_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.LifeCycleStateError, errMsg)
-	if err != nil {
-		return err
+
+	// it's possible that before creating the service account workflow failed
+	if kmsConfig.ServiceAccount != nil {
+		_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.LifeCycleStateError, errMsg)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete the sde kms also in case of failure
@@ -394,10 +398,12 @@ func _updateKmsConfigHealth(ctx context.Context, se database.Storage, configChec
 		// If the KMS config is in error state, do not update the state to ready.
 		state = models.LifeCycleStateError
 		stateDetails = configCheck.HealthError
-		healthErrorMessage := strings.Replace(strings.Replace(GcpKmsConfigHealthError, "<key_name>", kmsConfig.KeyName, 1), "<key_ring>", kmsConfig.KeyRing, 1)
-		// Keep the state as created if the health error message indicates that the key does not exist or service permissions are incorrect.
-		if strings.Contains(stateDetails, healthErrorMessage) || strings.Contains(stateDetails, GcpKmsConfigImpersonationHealthError) {
-			state = models.LifeCycleStateCreated
+		if !kmsConfigInUse {
+			healthErrorMessage := strings.Replace(strings.Replace(GcpKmsConfigHealthError, "<key_name>", kmsConfig.KeyName, 1), "<key_ring>", kmsConfig.KeyRing, 1)
+			// Keep the state as created if the health error message indicates that the key does not exist or service permissions are incorrect.
+			if strings.Contains(stateDetails, healthErrorMessage) || strings.Contains(stateDetails, GcpKmsConfigImpersonationHealthError) {
+				state = models.LifeCycleStateCreated
+			}
 		}
 	}
 
