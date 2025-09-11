@@ -3588,3 +3588,176 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 		assert.False(t, result.SourceSnapshot.Set)
 	})
 }
+
+func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
+	t.Run("WhenSourceSnapshotIsSetWithUseExistingSnapshot", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName:        "source-snapshot-123",
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: true,
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		// Verify that SourceSnapshot field is correctly set
+		assert.True(t, result.SourceSnapshot.Set)
+		assert.Equal(t, "projects/123456789/locations/us-east1/volumes/test-volume/snapshots/source-snapshot-123", result.SourceSnapshot.Value)
+	})
+
+	t.Run("WhenSourceSnapshotNotSetWithoutUseExistingSnapshot", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName:        "snapshot-name",
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: false,
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		// Verify that SourceSnapshot field is not set when UseExistingSnapshot is false
+		assert.False(t, result.SourceSnapshot.Set)
+	})
+
+	t.Run("WhenSourceSnapshotFieldHandlesEmptySnapshotName", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName:        "",
+				VolumeName:          "test-volume",
+				AccountIdentifier:   "123456789",
+				UseExistingSnapshot: true,
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		// Verify that SourceSnapshot is not set when snapshot name is empty
+		assert.False(t, result.SourceSnapshot.Set)
+	})
+
+	t.Run("WhenSourceSnapshotFormattingIsCorrect", func(t *testing.T) {
+		testCases := []struct {
+			name             string
+			snapshotName     string
+			volumeName       string
+			accountID        string
+			region           string
+			expectedSnapshot string
+		}{
+			{
+				name:             "Standard snapshot path",
+				snapshotName:     "my-snapshot",
+				volumeName:       "my-volume",
+				accountID:        "123456789",
+				region:           "us-central1",
+				expectedSnapshot: "projects/123456789/locations/us-central1/volumes/my-volume/snapshots/my-snapshot",
+			},
+			{
+				name:             "Snapshot with special characters",
+				snapshotName:     "snapshot-with-dashes-123",
+				volumeName:       "volume-name-456",
+				accountID:        "987654321",
+				region:           "europe-west1",
+				expectedSnapshot: "projects/987654321/locations/europe-west1/volumes/volume-name-456/snapshots/snapshot-with-dashes-123",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				backup := &datamodel.Backup{
+					BaseModel: datamodel.BaseModel{
+						UUID:      "test-backup-uuid",
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+					Name:        "test-backup",
+					VolumeUUID:  "test-volume-uuid",
+					State:       coremodels.LifeCycleStateAvailable,
+					SizeInBytes: 1024,
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{
+							UUID:      "test-vault-uuid",
+							CreatedAt: time.Now(),
+							UpdatedAt: time.Now(),
+						},
+						SourceRegionName: nillable.GetStringPtr(tc.region),
+					},
+					Description: "Test backup description",
+					Type:        "MANUAL",
+					Attributes: &datamodel.BackupAttributes{
+						SnapshotName:        tc.snapshotName,
+						VolumeName:          tc.volumeName,
+						AccountIdentifier:   tc.accountID,
+						UseExistingSnapshot: true,
+					},
+				}
+
+				result := convertBackupDataModelToBackupsV1beta(backup)
+
+				assert.True(t, result.SourceSnapshot.Set)
+				assert.Equal(t, tc.expectedSnapshot, result.SourceSnapshot.Value)
+			})
+		}
+	})
+}

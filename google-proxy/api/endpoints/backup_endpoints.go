@@ -678,6 +678,7 @@ func convertToBackupsV1beta(backup *models.BackupV1beta) gcpgenserver.BackupV1be
 }
 
 func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.BackupV1beta {
+	sourceSnapshot := utils.RenameSnapshotName(backup.SnapshotName)
 	return &gcpgenserver.BackupV1beta{
 		ResourceId:            utils.GetOptString(&backup.Name),
 		VolumeId:              utils.GetOptString(&backup.VolumeID),
@@ -686,7 +687,7 @@ func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.
 		SourceVolume:          utils.GetOptString(&backup.VolumeName),
 		BackupVaultId:         utils.GetOptString(&backup.BackupVaultID),
 		Description:           utils.GetOptString(backup.Description),
-		SourceSnapshot:        utils.GetOptString(&backup.SnapshotName),
+		SourceSnapshot:        utils.GetOptString(&sourceSnapshot),
 		BackupType:            gcpgenserver.NewOptBackupV1betaBackupType(gcpgenserver.BackupV1betaBackupType(backup.Type)),
 		AssetLocationMetadata: gcpgenserver.OptAssetLocationMetadataV2{},
 	}
@@ -715,7 +716,7 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			backup.Attributes.AccountIdentifier,
 			*backup.BackupVault.SourceRegionName,
 			backup.Attributes.VolumeName,
-			backup.Attributes.SnapshotName)
+			utils.RenameSnapshotName(backup.Attributes.SnapshotName))
 		sourceSnapshot = gcpgenserver.OptString{
 			Value: snapshotPath,
 			Set:   true,
