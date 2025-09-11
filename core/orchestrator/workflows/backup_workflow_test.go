@@ -3,10 +3,10 @@ package workflows
 import (
 	"context"
 	"errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"testing"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -529,6 +529,7 @@ func TestBackupWorkflowSnapmirrorTransferPolling(t *testing.T) {
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("FinishBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	env.RegisterActivity(&TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}})
 
 	// Register the specific activity method
@@ -1429,6 +1430,7 @@ func TestCreateBackupWorkflowEdgeCases(t *testing.T) {
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
+		mockStorage.On("FinishBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 		mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
 			Name:               "test-backup",
 			Description:        "VCP-Backup",
@@ -1799,6 +1801,7 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("FinishBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}})
 
@@ -1947,6 +1950,7 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
+
 func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T) {
 	// Test case: When useExistingSnapshot is true, it should skip deletion
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})

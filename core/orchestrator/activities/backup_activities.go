@@ -358,7 +358,7 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 	backup := backupActivitiesContext.BackupWorkflowInit.Backup
 	volumeUUID := backup.VolumeUUID
 
-	_, err := b.SE.UpdateBackup(ctx, backup)
+	_, err := b.SE.FinishBackup(ctx, backup)
 	if err != nil {
 		logger.Errorf("Failed to update backup %s with size information: %v", backup.UUID, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -376,11 +376,12 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 	}
 
 	// Update the volume's LatestLogicalBackupSize field
-	err = b.SE.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
-		"volume_attributes": map[string]interface{}{
-			"latest_logical_backup_size": backup.LatestLogicalBackupSize,
-		},
-	})
+	updates := make(map[string]interface{})
+	backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.LatestLogicalBackupSize = backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize
+	updates["volume_attributes"] = backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes
+	// Update the volume's LatestLogicalBackupSize field
+	err = b.SE.UpdateVolumeFields(ctx, volumeUUID, updates)
+
 	if err != nil {
 		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeUUID, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)

@@ -4151,6 +4151,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError_MarkAsErro
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
+
 func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
@@ -4213,20 +4214,28 @@ func TestUpdateBackupSizeActivity_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backup := &datamodel.Backup{
 		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
 		VolumeUUID:              "test-volume-uuid",
 		LatestLogicalBackupSize: 1024,
 	}
-	
-	backupActivitiesContext := &activities.BackupActivitiesContext{
-		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup: backup,
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			LatestLogicalBackupSize: 0, // Initial value
 		},
 	}
 
-	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(nil)
 	mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
 
@@ -4244,20 +4253,28 @@ func TestUpdateBackupSizeActivity_UpdateBackupFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backup := &datamodel.Backup{
 		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
 		VolumeUUID:              "test-volume-uuid",
 		LatestLogicalBackupSize: 1024,
 	}
-	
-	backupActivitiesContext := &activities.BackupActivitiesContext{
-		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup: backup,
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			LatestLogicalBackupSize: 0, // Initial value
 		},
 	}
 
-	mockStorage.On("UpdateBackup", ctx, backup).Return(nil, errors.New("update backup failed"))
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(nil, errors.New("update backup failed"))
 
 	// Act
 	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
@@ -4274,20 +4291,28 @@ func TestUpdateBackupSizeActivity_UpdateBackupLatestLogicalBackupSizeFailure(t *
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backup := &datamodel.Backup{
 		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
 		VolumeUUID:              "test-volume-uuid",
 		LatestLogicalBackupSize: 1024,
 	}
-	
-	backupActivitiesContext := &activities.BackupActivitiesContext{
-		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup: backup,
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			LatestLogicalBackupSize: 0, // Initial value
 		},
 	}
 
-	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(errors.New("update latest logical backup size failed"))
 
 	// Act
@@ -4305,20 +4330,28 @@ func TestUpdateBackupSizeActivity_UpdateVolumeFieldsFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backup := &datamodel.Backup{
 		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
 		VolumeUUID:              "test-volume-uuid",
 		LatestLogicalBackupSize: 1024,
 	}
-	
-	backupActivitiesContext := &activities.BackupActivitiesContext{
-		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup: backup,
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			LatestLogicalBackupSize: 0, // Initial value
 		},
 	}
 
-	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(nil)
 	mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(errors.New("update volume fields failed"))
 
@@ -4337,20 +4370,28 @@ func TestUpdateBackupSizeActivity_SkipsLatestLogicalBackupSizeUpdateWhenZero(t *
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backup := &datamodel.Backup{
 		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
 		VolumeUUID:              "test-volume-uuid",
 		LatestLogicalBackupSize: 0, // This should skip the UpdateBackupLatestLogicalBackupSizeByVolume call
 	}
-	
-	backupActivitiesContext := &activities.BackupActivitiesContext{
-		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup: backup,
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			LatestLogicalBackupSize: 0, // Initial value
 		},
 	}
 
-	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
 	mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
 
 	// Act
