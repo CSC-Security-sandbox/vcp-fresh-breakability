@@ -58,6 +58,17 @@ Exporters:
           target: "netapp.googleapis.com/volume/inode_limit"
         - source: "new_status_code"
           target: "netapp.googleapis.com/internal/volume/volume_online"
+      backup:
+        - source: "healthy"
+          target: "netapp.googleapis.com/volume/backup_healthy"
+        - source: "relationship_status"
+          target: "netapp.googleapis.com/volume/backup_transferring"
+        - source: "last_transfer_duration"
+          target: "netapp.googleapis.com/volume/backup_last_transfer_duration"
+        - source: "last_transfer_size"
+          target: "netapp.googleapis.com/volume/backup_last_transfer_size"
+        - source: "total_progress"
+          target: "netapp.googleapis.com/volume/backup_current_transfer_bytes"
 Defaults:
   collectors:
     - Rest

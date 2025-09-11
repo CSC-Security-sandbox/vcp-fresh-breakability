@@ -74,6 +74,7 @@ mode: deployment
 harvestConfig:
   enableVolumeOnline: "false"
   enableVolumeMetrics: "false"
+  enableBackupMetrics: "false"
 
 lifecycleHooks: {}
 
