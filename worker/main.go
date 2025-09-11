@@ -40,14 +40,10 @@ import (
 // database connection, registers workflows and activities, and starts the worker.
 
 func main() {
-	logger := log.NewLogger()
-
 	ctx := context.WithValue(context.Background(), utilsmiddleware.CorrelationContextKey, uuid.NewString())
 	eg, ctx := errgroup.WithContext(ctx)
-
-	workerType := env.GetString("WORKER_TASK_QUEUE", workflowEngine.CustomerWorkerType)
-
-	logger.Info("Starting worker [taskQueue = " + workerType + "]")
+	logger := log.NewLogger()
+	logger.Info("Starting temporal worker")
 
 	// Setup OpenTelemetry for metrics export
 	shutdown, err := log.SetupOpenTelemetry(ctx)
@@ -123,34 +119,37 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create a new worker
+	worker := tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.CustomerTaskQueue)
+
 	err = env.ValidateEnvironmentVariables()
 	if err != nil {
 		logger.Error("Failed to validate environment variables", "error", err.Error())
 		os.Exit(1)
 	}
 
-	var worker *tManagerPkg.Worker
+	logger.Info("registering workflows and activities")
+	RegisterWorkflowsAndActivities(*worker, dbConn, workflowClient.GetTemporalClient())
 
-	switch workerType {
-	case workflowEngine.CustomerWorkerType:
-		worker = tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.CustomerTaskQueue)
-
-		logger.Info("registering customer workflows and activities")
-		RegisterCustomerWorkflowsAndActivities(*worker, dbConn, workflowClient.GetTemporalClient())
-
-	case workflowEngine.BackgroundWorkerType:
-		worker = tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.BackgroundTaskQueue)
-
-		logger.Info("registering background workflows and activities")
-		RegisterBackgroundWorkflowsAndActivities(*worker, workflowClient.GetTemporalClient(), dbConn)
-
-	default:
-		logger.Error("Unknown worker type", "type", workerType)
-		os.Exit(1)
-	}
-
+	// Start the worker
 	eg.Go(func() error {
 		if err := worker.Run(); err != nil {
+			logger.Error("Failed to run worker", "error", err.Error())
+			return err
+		}
+		return nil
+	})
+
+	// Create Background job worker
+	backgroundJobsWorker := tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.BackgroundTaskQueue)
+
+	workflowClient.GetTemporalClient().ScheduleClient()
+	logger.Info("registering background workflows and activities")
+	RegisterBackgroundWorkflowsAndActivities(*backgroundJobsWorker, workflowClient.GetTemporalClient(), dbConn)
+
+	// Start the worker
+	eg.Go(func() error {
+		if err := backgroundJobsWorker.Run(); err != nil {
 			logger.Error("Failed to run worker", "error", err.Error())
 			return err
 		}
@@ -164,6 +163,33 @@ func main() {
 	}
 
 	logger.Info("All goroutines completed successfully")
+}
+
+func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage) {
+	worker.RegisterWorkflow(jobmanagerworkflows.JobManagerWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncVSASnapshotsWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncSnapshotsForPoolWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupInitWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.DeleteScheduledBackupWorkflow)
+	worker.RegisterWorkflow(workflows.VolumeRefreshWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.RotateKmsSAKeyWorkflow)
+	worker.RegisterWorkflow(workflows.RestoreBackupWorkflow)
+	worker.RegisterWorkflow(workflows.PreBlockVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.PostBlockVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.PreFileVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.PostFileVolumeWorkflow)
+
+	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
+	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&activities.CommonActivities{SE: conn})
+	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
+	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
+	worker.RegisterActivity(&backgroundworkflows.StartSyncSnapshotForPoolActivity{})
+	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
+	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
 }
 
 // initializeTemporalClient initializes and returns a TemporalWorkflowEngine client.
@@ -180,7 +206,7 @@ func initializeTemporalClient(logger log.Logger) (workflowEngine.WorkflowEngine,
 }
 
 // main is the entry point of the worker application. It initializes the Temporal worker
-func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage, temporal client.Client) {
+func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage, temporal client.Client) {
 	worker.RegisterWorkflow(workflows.SequenceWorkflow)
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.PoolDataSubnetWorkFlow)
@@ -297,31 +323,4 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&replicationActivities.CleanupVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.UpdateVolumeInReplicationActivity{SE: dbcon})
-}
-
-func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage) {
-	worker.RegisterWorkflow(jobmanagerworkflows.JobManagerWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.SyncVSASnapshotsWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.SyncSnapshotsForPoolWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupInitWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.DeleteScheduledBackupWorkflow)
-	worker.RegisterWorkflow(workflows.VolumeRefreshWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.RotateKmsSAKeyWorkflow)
-	worker.RegisterWorkflow(workflows.RestoreBackupWorkflow)
-	worker.RegisterWorkflow(workflows.PreBlockVolumeWorkflow)
-	worker.RegisterWorkflow(workflows.PostBlockVolumeWorkflow)
-	worker.RegisterWorkflow(workflows.PreFileVolumeWorkflow)
-	worker.RegisterWorkflow(workflows.PostFileVolumeWorkflow)
-
-	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
-	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
-	worker.RegisterActivity(&activities.CommonActivities{SE: conn})
-	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: conn})
-	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
-	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
-	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
-	worker.RegisterActivity(&backgroundworkflows.StartSyncSnapshotForPoolActivity{})
-	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
-	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -18,12 +17,9 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-var (
-	CustomerTaskQueue   = env.GetString("CUSTOMER_TASK_QUEUE", "customer-workflows")
-	BackgroundTaskQueue = env.GetString("BACKGROUND_TASK_QUEUE", "background-workflows")
-
-	CustomerWorkerType   = "customer-workflows"
-	BackgroundWorkerType = "background-workflows"
+const (
+	CustomerTaskQueue   = "customer-workflows"
+	BackgroundTaskQueue = "background-workflows"
 )
 
 var (

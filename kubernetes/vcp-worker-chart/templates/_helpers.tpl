@@ -41,7 +41,7 @@ Helper function to get the final URL of the image to be used in the deployment.
 Helper function to generate the secret name by appending "-secret" to the app name.
 */}}
 {{- define "vcp-worker.secretName" -}}
-{{- printf "%s-secret" . -}}
+{{- printf "%s-secret" .Values.app.name -}}
 {{- end -}}
 
 
@@ -49,14 +49,5 @@ Helper function to generate the secret name by appending "-secret" to the app na
 Helper function to generate the configMap name by appending "-config" to the app name.
 */}}
 {{- define "vcp-worker.configMapName" -}}
-{{- printf "%s-config" . -}}
-{{- end -}}
-
-{{/* Helper function to convert a string to upper snake case.
-   Example: "myVariableName" becomes "MY_VARIABLE_NAME"
-*/}}
-{{- define "toUpperSnakeCase" -}}
-{{- $camel := . -}}
-{{- $snake := regexReplaceAll "([a-z])([A-Z])" $camel "${1}_${2}" -}}
-{{- upper $snake -}}
+{{- printf "%s-config" .Values.app.name -}}
 {{- end -}}

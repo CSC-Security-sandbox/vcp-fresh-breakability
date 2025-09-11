@@ -297,8 +297,6 @@ var (
 	MgmtNetworkIpRange = GetString("MGMT_NETWORK_IP_RANGE", "198.18.0.0/20")
 	RsmNetworkIpRange  = GetString("RSM_NETWORK_IP_RANGE", "198.18.16.0/20")
 	IcNetworkIpRange   = GetString("IC_NETWORK_IP_RANGE", "198.18.32.0/20")
-
-	WorkerTaskQueue = GetString("WORKER_TASK_QUEUE", "customer-workflows")
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges
@@ -350,9 +348,6 @@ func ValidateEnvironmentVariables() error {
 	}
 	if PrivateKeyBits == 0 {
 		return errors.New(500, "PRIVATE_KEY_BITS must be set for authentication")
-	}
-	if WorkerTaskQueue == "" {
-		return errors.New(500, "WORKER_TASK_QUEUE must be set for worker configuration")
 	}
 	return validateNetworkEnvVariables()
 }
