@@ -240,6 +240,21 @@ func (j *BackupPolicyActivity) DeleteBackupPolicyInVCP(ctx context.Context, back
 	return backupPolicy, nil
 }
 
+func (j *BackupPolicyActivity) UpdateBackupPolicyStateInCaseOfError(ctx context.Context, backupPolicy *datamodel.BackupPolicy, state, stateDetails string) error {
+	se := j.SE
+
+	// Update the state of the BackupPolicy in the database
+	updates := map[string]interface{}{
+		"life_cycle_state":         state,
+		"life_cycle_state_details": stateDetails,
+	}
+	_, err := se.UpdateBackupPolicy(ctx, backupPolicy.UUID, updates)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func _convertToBackupPolicyDataModel(backupPolicy *cvpmodels.BackupPolicyDetailsV1beta) *datamodel.BackupPolicy {
 	var createdTime strfmt.DateTime
 	if backupPolicy.CreatedAt != nil {

@@ -233,6 +233,12 @@ func (wf *deleteBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 	backupPolicyActivity := &activities.BackupPolicyActivity{}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	defer func() {
+		if err != nil {
+			_ = workflow.ExecuteActivity(ctx, backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, dbBackupPolicy, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+		}
+	}()
+
 	var authToken string
 	err = workflow.ExecuteActivity(ctx, commonActivities.GetAuthJWTToken, params.OwnerID).Get(ctx, &authToken)
 	if err != nil {

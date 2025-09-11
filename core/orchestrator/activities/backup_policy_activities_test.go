@@ -538,7 +538,6 @@ func TestUpdateBackupPolicyInVCP(t *testing.T) {
 
 	t.Run("UpdateBackupPolicyInVCPFails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		mockScheduler := scheduler.NewMockScheduler(tt)
 
 		mockStorage.On("UpdateBackupPolicy", mock.Anything, mock.Anything, mock.Anything).Return(
 			nil, errors.New("could not update backup policy in VCP"))
@@ -557,16 +556,15 @@ func TestUpdateBackupPolicyInVCP(t *testing.T) {
 
 		backupPolicy := &datamodel.BackupPolicy{
 			BaseModel: datamodel.BaseModel{
-				ID:   int64(1),
-				UUID: "test-backup-policy-uuid",
-			},
-		}
+				ID:   int64(1),			UUID: "test-backup-policy-uuid",
+		},
+	}
 
-		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
-		updated, err := backupPolicyActivity.UpdateBackupPolicyInVCP(context.Background(), params, backupPolicy)
-		assert.Error(t, err)
-		assert.Nil(t, updated)
-		assert.Equal(t, "could not update backup policy in VCP", err.Error())
+	backupPolicyActivity := BackupPolicyActivity{SE: mockStorage}
+	updated, err := backupPolicyActivity.UpdateBackupPolicyInVCP(context.Background(), params, backupPolicy)
+	assert.Error(t, err)
+	assert.Nil(t, updated)
+	assert.Equal(t, "could not update backup policy in VCP", err.Error())
 	})
 }
 
@@ -697,5 +695,302 @@ func TestUnpauseBackupPolicySchedule(t *testing.T) {
 			&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid"}})
 		assert.Error(t, err)
 		assert.Equal(t, "could not unpause backup policy schedule", err.Error())
+	})
+}
+
+func TestUpdateBackupPolicyStateInCaseOfError(t *testing.T) {
+	t.Run("UpdateBackupPolicyStateInCaseOfError_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-policy-uuid",
+			},
+			Name: "test-backup-policy",
+		}
+		state := models.LifeCycleStateREADY
+		stateDetails := models.LifeCycleStateAvailableDetails
+
+		expectedUpdates := map[string]interface{}{
+			"life_cycle_state":         state,
+			"life_cycle_state_details": stateDetails,
+		}
+
+		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates).Return(backupPolicy, nil).Once()
+
+		activity := BackupPolicyActivity{
+			SE: mockStorage,
+		}
+
+		err := activity.UpdateBackupPolicyStateInCaseOfError(ctx, backupPolicy, state, stateDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertCalled(tt, "UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateBackupPolicyStateInCaseOfError_DatabaseError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-policy-uuid",
+			},
+			Name: "test-backup-policy",
+		}
+		state := models.LifeCycleStateREADY
+		stateDetails := models.LifeCycleStateAvailableDetails
+
+		expectedUpdates := map[string]interface{}{
+			"life_cycle_state":         state,
+			"life_cycle_state_details": stateDetails,
+		}
+
+		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates).Return(nil, errors.New("database update failed")).Once()
+
+		activity := BackupPolicyActivity{
+			SE: mockStorage,
+		}
+
+		err := activity.UpdateBackupPolicyStateInCaseOfError(ctx, backupPolicy, state, stateDetails)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "database update failed", err.Error())
+		mockStorage.AssertCalled(tt, "UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateBackupPolicyStateInCaseOfError_ErrorState", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-policy-uuid",
+			},
+			Name: "test-backup-policy",
+			LifeCycleState: models.LifeCycleStateDeleting,
+		}
+		state := models.LifeCycleStateError
+		stateDetails := "Deletion failed due to external service error"
+
+		expectedUpdates := map[string]interface{}{
+			"life_cycle_state":         state,
+			"life_cycle_state_details": stateDetails,
+		}
+
+		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates).Return(backupPolicy, nil).Once()
+
+		activity := BackupPolicyActivity{
+			SE: mockStorage,
+		}
+
+		err := activity.UpdateBackupPolicyStateInCaseOfError(ctx, backupPolicy, state, stateDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertCalled(tt, "UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateBackupPolicyStateInCaseOfError_DifferentStates", func(tt *testing.T) {
+		testCases := []struct {
+			name         string
+			state        string
+			stateDetails string
+		}{
+			{
+				name:         "ReadyState",
+				state:        models.LifeCycleStateREADY,
+				stateDetails: models.LifeCycleStateAvailableDetails,
+			},
+			{
+				name:         "ErrorState",
+				state:        models.LifeCycleStateError,
+				stateDetails: models.LifeCycleStateDeletionErrorDetails,
+			},
+			{
+				name:         "AvailableState",
+				state:        models.LifeCycleStateAvailable,
+				stateDetails: models.LifeCycleStateAvailableDetails,
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				mockStorage := database.NewMockStorage(t)
+				ctx := context.Background()
+
+				backupPolicy := &datamodel.BackupPolicy{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-backup-policy-uuid",
+					},
+					Name: "test-backup-policy",
+				}
+
+				expectedUpdates := map[string]interface{}{
+					"life_cycle_state":         tc.state,
+					"life_cycle_state_details": tc.stateDetails,
+				}
+
+				mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates).Return(backupPolicy, nil).Once()
+
+				activity := BackupPolicyActivity{
+					SE: mockStorage,
+				}
+
+				err := activity.UpdateBackupPolicyStateInCaseOfError(ctx, backupPolicy, tc.state, tc.stateDetails)
+
+				assert.NoError(t, err)
+				mockStorage.AssertCalled(t, "UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates)
+				mockStorage.AssertExpectations(t)
+			})
+		}
+	})
+}
+
+func TestUpdateBackupPolicyStateInCaseOfError_Integration(t *testing.T) {
+	t.Run("Integration_StateUpdateWithProperParameters", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		// Test with actual backup policy object that matches what would be used in workflow
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "backup-policy-uuid-1",
+			},
+			Name:                  "test-backup-policy",
+			AccountID:             int64(1),
+			Description:           nillable.ToPointer("Test backup policy"),
+			DailyBackupsToKeep:    3,
+			WeeklyBackupsToKeep:   2,
+			MonthlyBackupsToKeep:  1,
+			PolicyEnabled:         true,
+			LifeCycleState:        models.LifeCycleStateDeleting,
+			LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		}
+
+		// Test restoring to READY state
+		expectedUpdates := map[string]interface{}{
+			"life_cycle_state":         models.LifeCycleStateREADY,
+			"life_cycle_state_details": models.LifeCycleStateAvailableDetails,
+		}
+
+		updatedBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:             backupPolicy.BaseModel,
+			Name:                  backupPolicy.Name,
+			AccountID:             backupPolicy.AccountID,
+			Description:           backupPolicy.Description,
+			DailyBackupsToKeep:    backupPolicy.DailyBackupsToKeep,
+			WeeklyBackupsToKeep:   backupPolicy.WeeklyBackupsToKeep,
+			MonthlyBackupsToKeep:  backupPolicy.MonthlyBackupsToKeep,
+			PolicyEnabled:         backupPolicy.PolicyEnabled,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+
+		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates).Return(updatedBackupPolicy, nil).Once()
+
+		activity := BackupPolicyActivity{
+			SE: mockStorage,
+		}
+
+		err := activity.UpdateBackupPolicyStateInCaseOfError(ctx, backupPolicy, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertCalled(tt, "UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Integration_MultipleStateTransitions", func(tt *testing.T) {
+		testCases := []struct {
+			name                  string
+			initialState          string
+			initialStateDetails   string
+			targetState           string
+			targetStateDetails    string
+			shouldSucceed         bool
+			expectedError         string
+		}{
+			{
+				name:                "DeletingToReady",
+				initialState:        models.LifeCycleStateDeleting,
+				initialStateDetails: models.LifeCycleStateDeletingDetails,
+				targetState:         models.LifeCycleStateREADY,
+				targetStateDetails:  models.LifeCycleStateAvailableDetails,
+				shouldSucceed:       true,
+			},
+			{
+				name:                "UpdatingToReady",
+				initialState:        models.LifeCycleStateUpdating,
+				initialStateDetails: models.LifeCycleStateUpdatingDetails,
+				targetState:         models.LifeCycleStateREADY,
+				targetStateDetails:  models.LifeCycleStateAvailableDetails,
+				shouldSucceed:       true,
+			},
+			{
+				name:                "DeletingToError",
+				initialState:        models.LifeCycleStateDeleting,
+				initialStateDetails: models.LifeCycleStateDeletingDetails,
+				targetState:         models.LifeCycleStateError,
+				targetStateDetails:  models.LifeCycleStateDeletionErrorDetails,
+				shouldSucceed:       true,
+			},
+			{
+				name:                "DatabaseFailure",
+				initialState:        models.LifeCycleStateDeleting,
+				initialStateDetails: models.LifeCycleStateDeletingDetails,
+				targetState:         models.LifeCycleStateREADY,
+				targetStateDetails:  models.LifeCycleStateAvailableDetails,
+				shouldSucceed:       false,
+				expectedError:       "database connection failed",
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				mockStorage := database.NewMockStorage(t)
+				ctx := context.Background()
+
+				backupPolicy := &datamodel.BackupPolicy{
+					BaseModel: datamodel.BaseModel{
+						ID:   int64(1),
+						UUID: "backup-policy-uuid-1",
+					},
+					Name:                  "test-backup-policy",
+					LifeCycleState:        tc.initialState,
+					LifeCycleStateDetails: tc.initialStateDetails,
+				}
+
+				expectedUpdates := map[string]interface{}{
+					"life_cycle_state":         tc.targetState,
+					"life_cycle_state_details": tc.targetStateDetails,
+				}
+
+				if tc.shouldSucceed {
+					mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates).Return(backupPolicy, nil).Once()
+				} else {
+					mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates).Return(nil, errors.New(tc.expectedError)).Once()
+				}
+
+				activity := BackupPolicyActivity{
+					SE: mockStorage,
+				}
+
+				err := activity.UpdateBackupPolicyStateInCaseOfError(ctx, backupPolicy, tc.targetState, tc.targetStateDetails)
+
+				if tc.shouldSucceed {
+					assert.NoError(t, err)
+				} else {
+					assert.Error(t, err)
+					assert.Equal(t, tc.expectedError, err.Error())
+				}
+
+				mockStorage.AssertCalled(t, "UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates)
+				mockStorage.AssertExpectations(t)
+			})
+		}
 	})
 }
