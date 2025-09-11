@@ -8,6 +8,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"sync"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -66,6 +67,7 @@ func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logg
 func (g *GoogleVolumeMetricsProvider) collectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error) {
 	var projectResults []datamodel.HydratedMetrics
 	projectName := fmt.Sprintf("projects/%s", projectID)
+	telemetryConfig := common.LoadConfig()
 	for _, metric := range g.metrics {
 		filter := fmt.Sprintf(`metric.type="%s/%s"`, metric.ResourceType, metric.Metric)
 		req := &monitoringpb.ListTimeSeriesRequest{
@@ -76,7 +78,7 @@ func (g *GoogleVolumeMetricsProvider) collectProjectMetrics(ctx context.Context,
 				EndTime:   timestamppb.New(g.endTime),
 			},
 			View:     monitoringpb.ListTimeSeriesRequest_FULL,
-			PageSize: 100,
+			PageSize: telemetryConfig.PageSize,
 		}
 
 		it := g.client.ListTimeSeries(ctx, req)

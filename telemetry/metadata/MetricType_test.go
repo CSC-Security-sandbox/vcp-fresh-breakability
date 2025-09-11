@@ -69,7 +69,7 @@ func TestNewMeasuredType(t *testing.T) {
 		},
 		{
 			name:           "Valid volume_size_total metric",
-			input:          "volume_size_total",
+			input:          "volume_capacity",
 			expectedType:   AllocatedSize,
 			expectedExists: true,
 		},

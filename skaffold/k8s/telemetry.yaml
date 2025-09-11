@@ -122,3 +122,5 @@ spec:
               value: "1000"
             - name: MAX_GOOGLE_BILLING_PUSH_RETRY
               value: "5"
+            - name: PAGE_SIZE
+              value: "1000"

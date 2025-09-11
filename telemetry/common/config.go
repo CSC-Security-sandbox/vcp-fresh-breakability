@@ -23,6 +23,7 @@ type TelemetryConfig struct {
 	PushBatchSize             int64
 	Environment               string
 	MaxGoogleBillingPushRetry int64
+	PageSize                  int32
 }
 
 type MetricItem struct {
@@ -46,6 +47,7 @@ func LoadConfig() *TelemetryConfig {
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
+	pageSize := env.GetInt64("PAGE_SIZE", 1000)
 
 	return &TelemetryConfig{
 		RootUrl:                   rootUrl,
@@ -57,6 +59,7 @@ func LoadConfig() *TelemetryConfig {
 		PushBatchSize:             pushBatchSize,
 		Environment:               environment,
 		MaxGoogleBillingPushRetry: maxGoogleBillingPushRetry,
+		PageSize:                  int32(pageSize),
 	}
 }
 
