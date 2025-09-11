@@ -645,11 +645,17 @@ func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *da
 	if volume.VolumeAttributes.FileProperties != nil {
 		protocol := volume.VolumeAttributes.Protocols[0]
 		pType := utils.GetProtocolType(protocol)
-		lif, err := se.GetLifForFilesNode(ctx, nodes[0].ID, volume.AccountID, string(pType))
+		var nodesId []int64
+		for _, node := range nodes {
+			nodesId = append(nodesId, node.ID)
+		}
+		lifs, err := se.GetLifsForNodesWithProtocol(ctx, nodesId, volume.AccountID, string(pType))
 		if err != nil {
 			return ipAddresses, err
 		}
-		ipAddresses = append(ipAddresses, lif.IPAddress)
+		for _, lif := range lifs {
+			ipAddresses = append(ipAddresses, lif.IPAddress)
+		}
 	} else {
 		for _, node := range nodes {
 			lif, err := se.GetLifForNode(ctx, node.ID, volume.AccountID)

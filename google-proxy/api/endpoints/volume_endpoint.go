@@ -877,15 +877,13 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			})
 		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) {
 			res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
-			ipAddress := ""
-			if len(volume.IPAddresses) > 0 {
-				ipAddress = volume.IPAddresses[0]
+			for _, ipAddress := range volume.IPAddresses {
+				res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
+					IpAddress:    gcpgenserver.NewOptString(ipAddress),
+					Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaNFSV3),
+					Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName),
+				})
 			}
-			res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
-				IpAddress:    gcpgenserver.NewOptString(strings.Join(volume.IPAddresses, ",")),
-				Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaNFSV3),
-				Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName),
-			})
 		}
 	}
 

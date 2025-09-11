@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	getLifWithDetails         = _getLifWithDetails
-	getLifWithProtocolDetails = _getLifWithProtocolDetails
+	getLifWithDetails          = _getLifWithDetails
+	getLifsWithProtocolDetails = _getLifsWithProtocolDetails
 )
 
 // GetLifByNodeID retrieves a LIF by its corresponding Node ID
@@ -28,13 +28,18 @@ func (d *DataStoreRepository) GetLifByNodeID(ctx context.Context, nodeID int64, 
 	return lif, nil
 }
 
-// GetLifByNodeIDAndProtocol retrieves a LIF by its corresponding Node ID and protocol
-func (d *DataStoreRepository) GetLifByNodeIDAndProtocol(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
-	lif, err := getLifWithProtocolDetails(d.db.GORM().Unscoped().WithContext(ctx), &datamodel.Lif{NodeID: nodeID, AccountID: accountID}, protocol)
-	if err != nil {
-		return nil, err
+// GetLifsForNodesWithProtocol retrieves LIFs for multiple nodes with the specified protocol
+func (d *DataStoreRepository) GetLifsForNodesWithProtocol(ctx context.Context, nodeIDs []int64, accountID int64, protocol string) ([]*datamodel.Lif, error) {
+	if len(nodeIDs) == 0 {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("nodeIDs cannot be empty"))
 	}
-	return lif, nil
+
+	db := d.db.GORM().Unscoped().WithContext(ctx)
+
+	// Query by node IDs and account ID
+	dbQuery := db.Where("node_id IN ? AND account_id = ?", nodeIDs, accountID)
+
+	return getLifsWithProtocolDetails(dbQuery, protocol)
 }
 
 // CreateLif creates a new LIF in the database
@@ -66,14 +71,6 @@ func (d *DataStoreRepository) CreateLif(ctx context.Context, lif *datamodel.Lif)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("lif already exists"))
-}
-
-func (d *DataStoreRepository) GetLifForFilesNode(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
-	lif, err := getLifWithProtocolDetails(d.db.GORM().WithContext(ctx), &datamodel.Lif{NodeID: nodeID, AccountID: accountID}, protocol)
-	if err != nil {
-		return nil, err
-	}
-	return lif, nil
 }
 
 // DeleteLif deletes a LIF from the database
@@ -110,18 +107,17 @@ func _getLifWithDetails(db *gorm.DB, query *datamodel.Lif) (*datamodel.Lif, erro
 	return lif, nil
 }
 
-// _getLifWithProtocolDetails retrieves a LIF with protocol details from the database
-func _getLifWithProtocolDetails(db *gorm.DB, query *datamodel.Lif, protocol string) (*datamodel.Lif, error) {
-	lif := &datamodel.Lif{}
-	dbQuery := db.Where(query)
+// _getLifsWithProtocolDetails retrieves a LIF with protocol details from the database
+func _getLifsWithProtocolDetails(dbQuery *gorm.DB, protocol string) ([]*datamodel.Lif, error) {
+	lifs := []*datamodel.Lif{}
 
 	if protocol != "" {
 		dbQuery = dbQuery.Where("lif_details @> ?", fmt.Sprintf(`{"protocol_type": "%s"}`, protocol))
 	}
 
-	err := dbQuery.First(&lif).Error
+	err := dbQuery.Find(&lifs).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "lif", nil))
 	}
-	return lif, nil
+	return lifs, nil
 }

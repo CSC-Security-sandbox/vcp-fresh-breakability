@@ -3,13 +3,15 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -268,8 +270,8 @@ func TestGetLifForNode(t *testing.T) {
 	})
 }
 
-func TestGetLifByNodeIDAndProtocol(t *testing.T) {
-	t.Run("WhenLifExistsWithProtocol", func(tt *testing.T) {
+func TestGetLifsForNodesWithProtocol(t *testing.T) {
+	t.Run("WhenMultipleNodesExistWithProtocol", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")
 		wrapper := gormwrapper.New(db)
@@ -278,59 +280,137 @@ func TestGetLifByNodeIDAndProtocol(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err, "Failed to clean up test database")
 
-		node := &datamodel.Node{
+		// Create first node
+		node1 := &datamodel.Node{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
-				UUID: "test-node-uuid",
+				UUID: "test-node1-uuid",
 			},
-			Name:      "test_node",
+			Name:      "test_node1",
 			AccountID: int64(1234),
 			PoolID:    1234,
 		}
-		err = store.db.Create(node).Error()
+		err = store.db.Create(node1).Error()
 		if err != nil {
-			tt.Fatalf("Failed to create node: %v", err)
+			tt.Fatalf("Failed to create node1: %v", err)
 		}
 
-		lifDetails := &datamodel.LifDetails{
-			ExternalUUID: "external-lif-uuid",
-			ProtocolType: "nfs",
+		// Create second node
+		node2 := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-node2-uuid",
+			},
+			Name:      "test_node2",
+			AccountID: int64(1234),
+			PoolID:    1234,
 		}
-		lif := &datamodel.Lif{
+		err = store.db.Create(node2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create third node
+		node3 := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{
+				ID:   3,
+				UUID: "test-node3-uuid",
+			},
+			Name:      "test_node3",
+			AccountID: int64(1234),
+			PoolID:    1234,
+		}
+		err = store.db.Create(node3).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create node3: %v", err)
+		}
+
+		// Create NFS LIFs for each node
+		nfsLif1 := &datamodel.Lif{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
-				UUID: "test-lif-uuid",
+				UUID: "test-nfs-lif1-uuid",
 			},
-			Name:       "test_lif_nfs",
-			NodeID:     node.ID,
-			AccountID:  node.AccountID,
-			LifDetails: lifDetails,
+			Name:      "test_nfs_lif1",
+			NodeID:    node1.ID,
+			AccountID: node1.AccountID,
+			LifDetails: &datamodel.LifDetails{
+				ProtocolType: "nfs",
+			},
 		}
-		err = store.db.Create(lif).Error()
+		err = store.db.Create(nfsLif1).Error()
 		if err != nil {
-			tt.Fatalf("Failed to create lif: %v", err)
+			tt.Fatalf("Failed to create nfs lif1: %v", err)
+		}
+
+		nfsLif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-nfs-lif2-uuid",
+			},
+			Name:      "test_nfs_lif2",
+			NodeID:    node2.ID,
+			AccountID: node2.AccountID,
+			LifDetails: &datamodel.LifDetails{
+				ProtocolType: "nfs",
+			},
+		}
+		err = store.db.Create(nfsLif2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create nfs lif2: %v", err)
+		}
+
+		// Create CIFS LIF for the third node
+		cifsLif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{
+				ID:   3,
+				UUID: "test-cifs-lif-uuid",
+			},
+			Name:      "test_cifs_lif",
+			NodeID:    node3.ID,
+			AccountID: node3.AccountID,
+			LifDetails: &datamodel.LifDetails{
+				ProtocolType: "cifs",
+			},
+		}
+		err = store.db.Create(cifsLif).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create cifs lif: %v", err)
 		}
 
 		// Mock the function to avoid JSONB query issues in SQLite
-		originalFunc := getLifWithProtocolDetails
-		getLifWithProtocolDetails = func(db *gorm.DB, query *datamodel.Lif, protocol string) (*datamodel.Lif, error) {
+		originalFunc := getLifsWithProtocolDetails
+		getLifsWithProtocolDetails = func(query *gorm.DB, protocol string) ([]*datamodel.Lif, error) {
 			// For test, simulate the protocol filtering behavior
-			if protocol == "nfs" {
-				return lif, nil
+			switch protocol {
+			case "nfs":
+				return []*datamodel.Lif{nfsLif1, nfsLif2}, nil
+			case "cifs":
+				return []*datamodel.Lif{cifsLif}, nil
+			default:
+				return []*datamodel.Lif{nfsLif1, nfsLif2, cifsLif}, nil
 			}
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("lif", nil))
 		}
-		defer func() { getLifWithProtocolDetails = originalFunc }()
+		defer func() { getLifsWithProtocolDetails = originalFunc }()
 
-		result, err := store.GetLifByNodeIDAndProtocol(context.Background(), lif.NodeID, lif.AccountID, "nfs")
+		// Test getting NFS LIFs for nodes 1 and 2
+		result, err := store.GetLifsForNodesWithProtocol(context.Background(), []int64{node1.ID, node2.ID}, node1.AccountID, "nfs")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
-		assert.Equal(tt, lif.Name, result.Name, "Expected lif name %v, got %v", lif.Name, result.Name)
-		assert.Equal(tt, lif.NodeID, result.NodeID, "Expected lif node id %v, got %v", lif.NodeID, result.NodeID)
-		assert.Equal(tt, lif.AccountID, result.AccountID, "Expected lif account id %v, got %v", lif.AccountID, result.AccountID)
-		assert.Equal(tt, "nfs", result.LifDetails.ProtocolType, "Expected protocol type %v, got %v", "nfs", result.LifDetails.ProtocolType)
+		assert.Equal(tt, 2, len(result), "Expected 2 lifs, got %d", len(result))
+
+		// Test getting CIFS LIFs for node 3
+		result, err = store.GetLifsForNodesWithProtocol(context.Background(), []int64{node3.ID}, node3.AccountID, "cifs")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 1, len(result), "Expected 1 lif, got %d", len(result))
+		assert.Equal(tt, "cifs", result[0].LifDetails.ProtocolType, "Expected protocol type %v, got %v", "cifs", result[0].LifDetails.ProtocolType)
+
+		// Test getting LIFs for all nodes with no protocol filter
+		result, err = store.GetLifsForNodesWithProtocol(context.Background(), []int64{node1.ID, node2.ID, node3.ID}, node1.AccountID, "")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 3, len(result), "Expected 3 lifs, got %d", len(result))
 	})
 
-	t.Run("WhenLifExistsWithEmptyProtocol", func(tt *testing.T) {
+	t.Run("WhenNoNodesProvided", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")
 		wrapper := gormwrapper.New(db)
@@ -339,6 +419,28 @@ func TestGetLifByNodeIDAndProtocol(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err, "Failed to clean up test database")
 
+		// Test with empty node list
+		result, err := store.GetLifsForNodesWithProtocol(context.Background(), []int64{}, int64(1234), "nfs")
+		assert.NotNil(tt, err)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), "nodeIDs cannot be empty")
+			assert.Nil(tt, result, "Expected nil lifs")
+		} else {
+			t.Fatalf("Expected CustomError, got %v", err)
+		}
+	})
+
+	t.Run("WhenNoMatchingLifsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a node
 		node := &datamodel.Node{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
@@ -353,174 +455,118 @@ func TestGetLifByNodeIDAndProtocol(t *testing.T) {
 			tt.Fatalf("Failed to create node: %v", err)
 		}
 
-		lifDetails := &datamodel.LifDetails{
-			ExternalUUID: "external-lif-uuid",
-			ProtocolType: "cifs",
+		originalFunc := getLifsWithProtocolDetails
+		getLifsWithProtocolDetails = func(query *gorm.DB, protocol string) ([]*datamodel.Lif, error) {
+			return []*datamodel.Lif{}, nil
 		}
-		lif := &datamodel.Lif{
-			BaseModel: datamodel.BaseModel{
-				ID:   1,
-				UUID: "test-lif-uuid",
-			},
-			Name:       "test_lif_any",
-			NodeID:     node.ID,
-			AccountID:  node.AccountID,
-			LifDetails: lifDetails,
-		}
-		err = store.db.Create(lif).Error()
+		defer func() { getLifsWithProtocolDetails = originalFunc }()
+
+		// Test with a non-existent protocol
+		result, err := store.GetLifsForNodesWithProtocol(context.Background(), []int64{node.ID}, node.AccountID, "non-existent-protocol")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 0, len(result), "Expected 0 lifs, got %d", len(result))
+	})
+}
+
+func Test_getLifsWithProtocolDetails_WithProtocol_PostgresMock(t *testing.T) {
+	t.Run("Uses JSONBContainmentForProtocol", func(tt *testing.T) {
+		// Setup sqlmock
+		dbSQL, mock, err := sqlmock.New()
+		assert.NoError(tt, err)
+		defer func() {
+			if err := mock.ExpectationsWereMet(); err != nil {
+				tt.Fatalf("there were unfulfilled expectations: %v", err)
+			}
+		}()
+
+		// Open GORM with postgres driver using the sqlmock db
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
 		if err != nil {
+			tt.Fatalf("failed to open gorm db: %v", err)
+		}
+
+		// Expect a query containing the JSONB containment operator anywhere in the SQL
+		rows := sqlmock.NewRows([]string{"id", "name", "lif_details", "account_id", "node_id"}).
+			AddRow(1, "lif1", []byte(`{"protocol_type":"nfs"}`), 100, 1)
+		// Use a regex to match any SQL that contains the lif_details @> operator
+		mock.ExpectQuery("lif_details @>").WillReturnRows(rows)
+
+		// Build dbQuery without pre-adding the protocol Where clause; _getLifsWithProtocolDetails adds it
+		dbQuery := gormDB.Model(&datamodel.Lif{})
+
+		lifs, err := _getLifsWithProtocolDetails(dbQuery, "nfs")
+		assert.NoError(tt, err)
+		if assert.Equal(tt, 1, len(lifs)) {
+			if lifs[0].LifDetails != nil {
+				assert.Equal(tt, "nfs", lifs[0].LifDetails.ProtocolType)
+			}
+		}
+	})
+}
+
+func Test_getLifsWithProtocolDetails_EmptyProtocol_SQLite(t *testing.T) {
+	t.Run("ReturnsAllWhenProtocolEmpty", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a lif with protocol nfs
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "lif-1-uuid"},
+			Name:      "lif1",
+			NodeID:    1,
+			AccountID: 100,
+			LifDetails: &datamodel.LifDetails{
+				ProtocolType: "nfs",
+			},
+		}
+		if err := store.db.Create(lif).Error(); err != nil {
 			tt.Fatalf("Failed to create lif: %v", err)
 		}
 
-		// Mock the function to handle empty protocol
-		originalFunc := getLifWithProtocolDetails
-		getLifWithProtocolDetails = func(db *gorm.DB, query *datamodel.Lif, protocol string) (*datamodel.Lif, error) {
-			// When protocol is empty, return the lif regardless of protocol type
-			if protocol == "" {
-				return lif, nil
+		// Call the function with empty protocol
+		lifs, err := _getLifsWithProtocolDetails(store.db.GORM(), "")
+		assert.NoError(tt, err)
+		assert.GreaterOrEqual(tt, len(lifs), 1)
+	})
+}
+
+func Test_getLifsWithProtocolDetails_DBError_PostgresMock(t *testing.T) {
+	t.Run("DBErrorPropagated", func(tt *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		assert.NoError(tt, err)
+		defer func() {
+			if err := mock.ExpectationsWereMet(); err != nil {
+				tt.Fatalf("there were unfulfilled expectations: %v", err)
 			}
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("lif", nil))
-		}
-		defer func() { getLifWithProtocolDetails = originalFunc }()
+		}()
 
-		// When protocol is empty, it should return the lif regardless of protocol type
-		result, err := store.GetLifByNodeIDAndProtocol(context.Background(), lif.NodeID, lif.AccountID, "")
-		assert.NoError(tt, err, "Expected no error, got %v", err)
-		assert.Equal(tt, lif.Name, result.Name, "Expected lif name %v, got %v", lif.Name, result.Name)
-		assert.Equal(tt, lif.NodeID, result.NodeID, "Expected lif node id %v, got %v", lif.NodeID, result.NodeID)
-		assert.Equal(tt, lif.AccountID, result.AccountID, "Expected lif account id %v, got %v", lif.AccountID, result.AccountID)
-	})
-
-	t.Run("WhenLifDoesNotExistWithSpecificProtocol", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		// Mock the function to simulate no match for specific protocol
-		originalFunc := getLifWithProtocolDetails
-		getLifWithProtocolDetails = func(db *gorm.DB, query *datamodel.Lif, protocol string) (*datamodel.Lif, error) {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("lif", nil))
-		}
-		defer func() { getLifWithProtocolDetails = originalFunc }()
-
-		// Try to get lif with specific protocol but none exists
-		_, err1 := store.GetLifByNodeIDAndProtocol(context.Background(), 123, 456, "cifs")
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err1, &customErr) {
-			assert.EqualError(tt, customErr.Unwrap(), "lif not found")
-		} else {
-			tt.Fatalf("Expected a CustomError, got %v", err1)
-		}
-	})
-
-	t.Run("WhenLifDoesNotExist", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		// Mock the function to simulate no lif found
-		originalFunc := getLifWithProtocolDetails
-		getLifWithProtocolDetails = func(db *gorm.DB, query *datamodel.Lif, protocol string) (*datamodel.Lif, error) {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("lif", nil))
-		}
-		defer func() { getLifWithProtocolDetails = originalFunc }()
-
-		_, err1 := store.GetLifByNodeIDAndProtocol(context.Background(), 999, 1234, "nfs")
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err1, &customErr) {
-			assert.EqualError(tt, customErr.Unwrap(), "lif not found")
-		} else {
-			tt.Fatalf("Expected a CustomError, got %v", err1)
-		}
-	})
-
-	t.Run("WhenMultipleLifsExistButOnlyOneMatchesProtocol", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		node := &datamodel.Node{
-			BaseModel: datamodel.BaseModel{
-				ID:   1,
-				UUID: "test-node-uuid",
-			},
-			Name:      "test_node",
-			AccountID: int64(1234),
-			PoolID:    1234,
-		}
-		err = store.db.Create(node).Error()
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
 		if err != nil {
-			tt.Fatalf("Failed to create node: %v", err)
+			tt.Fatalf("failed to open gorm db: %v", err)
 		}
 
-		// Create first lif with NFS protocol
-		nfsLifDetails := &datamodel.LifDetails{
-			ExternalUUID: "external-nfs-lif-uuid",
-			ProtocolType: "nfs",
-		}
-		nfsLif := &datamodel.Lif{
-			BaseModel: datamodel.BaseModel{
-				ID:   1,
-				UUID: "test-nfs-lif-uuid",
-			},
-			Name:       "test_lif_nfs",
-			NodeID:     node.ID,
-			AccountID:  node.AccountID,
-			LifDetails: nfsLifDetails,
-		}
+		// Simulate a DB error when the query is executed
+		errorMsg := fmt.Errorf("simulated db failure")
+		// Expect any SELECT from lifs to return an error
+		mock.ExpectQuery("SELECT .* FROM .*lifs").WillReturnError(errorMsg)
 
-		// Create second lif with CIFS protocol
-		cifsLifDetails := &datamodel.LifDetails{
-			ExternalUUID: "external-cifs-lif-uuid",
-			ProtocolType: "cifs",
+		dbQuery := gormDB.Model(&datamodel.Lif{})
+		query := &datamodel.Lif{NodeID: 1, AccountID: 100}
+		lif, err := _getLifWithDetails(dbQuery, query)
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Contains(tt, customErr.Unwrap().Error(), "simulated db failure")
+			assert.Nil(tt, lif, "Expected nil lif")
+		} else {
+			tt.Fatalf("Expected CustomError, got %v", err)
 		}
-		cifsLif := &datamodel.Lif{
-			BaseModel: datamodel.BaseModel{
-				ID:   2,
-				UUID: "test-cifs-lif-uuid",
-			},
-			Name:       "test_lif_cifs",
-			NodeID:     node.ID,
-			AccountID:  node.AccountID,
-			LifDetails: cifsLifDetails,
-		}
-
-		// Mock the function to return different lifs based on protocol
-		originalFunc := getLifWithProtocolDetails
-		getLifWithProtocolDetails = func(db *gorm.DB, query *datamodel.Lif, protocol string) (*datamodel.Lif, error) {
-			switch protocol {
-			case "nfs":
-				return nfsLif, nil
-			case "cifs":
-				return cifsLif, nil
-			default:
-				return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("lif", nil))
-			}
-		}
-		defer func() { getLifWithProtocolDetails = originalFunc }()
-
-		// Get NFS lif specifically
-		result, err := store.GetLifByNodeIDAndProtocol(context.Background(), node.ID, node.AccountID, "nfs")
-		assert.NoError(tt, err, "Expected no error, got %v", err)
-		assert.Equal(tt, nfsLif.Name, result.Name, "Expected nfs lif name %v, got %v", nfsLif.Name, result.Name)
-		assert.Equal(tt, "nfs", result.LifDetails.ProtocolType, "Expected protocol type %v, got %v", "nfs", result.LifDetails.ProtocolType)
-
-		// Get CIFS lif specifically
-		result, err = store.GetLifByNodeIDAndProtocol(context.Background(), node.ID, node.AccountID, "cifs")
-		assert.NoError(tt, err, "Expected no error, got %v", err)
-		assert.Equal(tt, cifsLif.Name, result.Name, "Expected cifs lif name %v, got %v", cifsLif.Name, result.Name)
-		assert.Equal(tt, "cifs", result.LifDetails.ProtocolType, "Expected protocol type %v, got %v", "cifs", result.LifDetails.ProtocolType)
 	})
 }

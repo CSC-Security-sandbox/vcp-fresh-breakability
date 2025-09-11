@@ -3680,6 +3680,51 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, constituentCount, out.LargeVolumeConstituentCount.Value)
 	})
 
+	t.Run("WithLargeCapacityAndMultipleIps", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:  "large-volume-token",
+			PoolID:         "large-pool",
+			DisplayName:    "large-volume",
+			QuotaInBytes:   1073741824000, // 1TB
+			LargeCapacity:  true,
+			ProtocolTypes:  []string{utils.ProtocolNFSv3},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"10.72.177.17", "10.72.177.18"},
+		}
+
+		vol.FileProperties = &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     models.ReadWrite,
+						CIFS:           false,
+						NFSv3:          true,
+						NFSv4:          false,
+						Index:          1,
+					},
+				},
+			},
+			JunctionPath: "/large-volume",
+		}
+
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify LargeCapacity is properly set
+		assert.True(t, out.LargeCapacity.IsSet())
+		largeCapacity, ok := out.LargeCapacity.Get()
+		assert.True(t, ok)
+		assert.True(t, largeCapacity)
+
+		assert.Len(t, out.MountPoints, 2)
+		assert.Equal(t, "10.72.177.17", out.MountPoints[0].IpAddress.Value)
+		assert.Equal(t, "10.72.177.18", out.MountPoints[1].IpAddress.Value)
+		assert.Equal(t, getFilesMountInstructions("10.72.177.17", vol.FileProperties.JunctionPath, "/"+vol.DisplayName), out.MountPoints[0].Instructions)
+		assert.Equal(t, getFilesMountInstructions("10.72.177.18", vol.FileProperties.JunctionPath, "/"+vol.DisplayName), out.MountPoints[1].Instructions)
+	})
+
 	t.Run("WithLargeCapacityTrue_NoConstituentCount", func(t *testing.T) {
 		vol := &models.Volume{
 			CreationToken:               "large-volume-token",

@@ -119,8 +119,7 @@ type (
 		UpdateHostGroup(ctx context.Context, hostGroupUUID string, accountID int64, description *string, Hosts *[]string) (*datamodel.HostGroup, error)
 		ListHostGroupsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.HostGroup, error)
 
-		GetLifByNodeIDAndProtocol(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error)
-		GetLifForFilesNode(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error)
+		GetLifsForNodesWithProtocol(ctx context.Context, nodeIDs []int64, accountID int64, protocol string) ([]*datamodel.Lif, error)
 		GetLifByNodeID(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)
 		DeleteLif(ctx context.Context, lif *datamodel.Lif) error
 		DeleteNode(ctx context.Context, node *datamodel.Node) error
