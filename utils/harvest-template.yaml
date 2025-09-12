@@ -69,6 +69,21 @@ Exporters:
           target: "netapp.googleapis.com/volume/backup_last_transfer_size"
         - source: "total_progress"
           target: "netapp.googleapis.com/volume/backup_current_transfer_bytes"
+      replication:
+        - source: "healthy"
+          target: "netapp.googleapis.com/replication/healthy"
+        - source: "last_transfer_duration"
+          target: "netapp.googleapis.com/replication/last_transfer_duration"
+        - source: "last_transfer_size"
+          target: "netapp.googleapis.com/replication/last_transfer_size"
+        - source: "total_progress"
+          target: "netapp.googleapis.com/replication/current_transfer_bytes"
+        - source: "lag_time"
+          target: "netapp.googleapis.com/replication/lag_time"
+        - source: "total_transfer_bytes"
+          target: "netapp.googleapis.com/replication/total_transfer_byte_count"
+        - source: "relationship_status"
+          target: "netapp.googleapis.com/replication/transferring"
 Defaults:
   collectors:
     - Rest

@@ -91,6 +91,8 @@ spec:
               value: "false"
             - name: ENABLE_BACKUP_METRICS
               value: "false"
+            - name: ENABLE_REPLICATION_METRICS
+              value: "false"
           volumeMounts:
             - mountPath: "/configs/harvest"
               name: harvest-farm-shared
