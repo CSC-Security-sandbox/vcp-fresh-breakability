@@ -3366,7 +3366,7 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 					UpdatedAt: time.Now(),
 				},
 				SourceRegionName: nillable.GetStringPtr("us-east1"),
-				BackupRegionName: nillable.GetStringPtr("us-east1"), // Same region - not cross-region
+				BackupRegionName: nillable.GetStringPtr("us-east1"), // BackupRegionName field (not used in current logic)
 			},
 			Description: "Test backup description",
 			Type:        "MANUAL",
@@ -3396,8 +3396,9 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 		// Should show full volume path
 		assert.Equal(t, "projects/123456789/locations/us-east1/volumes/test-volume", result.SourceVolume.Value)
 
-		// Should NOT show backup region since it's not cross-region
-		assert.False(t, result.BackupRegion.Set)
+		// BackupRegion should now always be set to SourceRegionName
+		assert.True(t, result.BackupRegion.Set)
+		assert.Equal(t, "us-east1", result.BackupRegion.Value)
 
 		// Should show volume region
 		assert.Equal(t, "us-east1", result.VolumeRegion.Value)
@@ -3421,7 +3422,7 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 					UpdatedAt: time.Now(),
 				},
 				SourceRegionName: nillable.GetStringPtr("us-west1"),
-				BackupRegionName: nillable.GetStringPtr("us-east1"), // Different region - cross-region
+				BackupRegionName: nillable.GetStringPtr("us-east1"), // BackupRegionName field (not used in current logic)
 			},
 			Description: "Test backup description",
 			Type:        "SCHEDULED",
@@ -3440,9 +3441,9 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 		// Should NOT show snapshot since backup was not created from existing snapshot
 		assert.False(t, result.SourceSnapshot.Set)
 
-		// Should show backup region since it's cross-region
+		// BackupRegion should now always be set to SourceRegionName
 		assert.True(t, result.BackupRegion.Set)
-		assert.Equal(t, "us-east1", result.BackupRegion.Value)
+		assert.Equal(t, "us-west1", result.BackupRegion.Value)
 
 		assert.Equal(t, "us-west1", result.VolumeRegion.Value)
 	})

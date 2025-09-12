@@ -710,26 +710,11 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		*backup.BackupVault.SourceRegionName,
 		backup.Attributes.VolumeName)
 
-	sourceSnapshot := gcpgenserver.OptString{Set: false}
-	if backup.Attributes.UseExistingSnapshot && backup.Attributes.SnapshotName != "" {
-		snapshotPath := fmt.Sprintf("projects/%s/locations/%s/volumes/%s/snapshots/%s",
-			backup.Attributes.AccountIdentifier,
-			*backup.BackupVault.SourceRegionName,
-			backup.Attributes.VolumeName,
-			utils.RenameSnapshotName(backup.Attributes.SnapshotName))
-		sourceSnapshot = gcpgenserver.OptString{
-			Value: snapshotPath,
-			Set:   true,
-		}
-	}
-
-	backupRegion := gcpgenserver.OptString{Set: false}
-	if backup.BackupVault.BackupRegionName != nil && *backup.BackupVault.BackupRegionName != *backup.BackupVault.SourceRegionName {
-		backupRegion = gcpgenserver.OptString{
-			Value: *backup.BackupVault.BackupRegionName,
-			Set:   true,
-		}
-	}
+	sourceSnapshotPath := fmt.Sprintf("projects/%s/locations/%s/volumes/%s/snapshots/%s",
+		backup.Attributes.AccountIdentifier,
+		*backup.BackupVault.SourceRegionName,
+		backup.Attributes.VolumeName,
+		utils.RenameSnapshotName(backup.Attributes.SnapshotName))
 
 	return gcpgenserver.BackupV1beta{
 		ResourceId: gcpgenserver.OptString{
@@ -771,12 +756,18 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Value: gcpgenserver.BackupV1betaBackupType(backup.Type),
 			Set:   true,
 		},
-		SourceSnapshot: sourceSnapshot,
+		SourceSnapshot: gcpgenserver.OptString{
+			Value: sourceSnapshotPath,
+			Set:   backup.Attributes.UseExistingSnapshot && backup.Attributes.SnapshotName != "",
+		},
 		SourceVolume: gcpgenserver.OptString{
 			Value: sourceVolumePath,
 			Set:   true,
 		},
-		BackupRegion: backupRegion,
+		BackupRegion: gcpgenserver.OptString{
+			Value: *backup.BackupVault.SourceRegionName,
+			Set:   true,
+		},
 		VolumeRegion: gcpgenserver.OptString{
 			Value: *backup.BackupVault.SourceRegionName,
 			Set:   true,
