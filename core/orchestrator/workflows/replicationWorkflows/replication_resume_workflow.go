@@ -120,7 +120,12 @@ func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.ResizeVolumeIfNeeded, &replicationResult).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.ResizeVolumeIfNeeded, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, replicationActivity.DescribeRemoteJobResume, &replicationResult).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

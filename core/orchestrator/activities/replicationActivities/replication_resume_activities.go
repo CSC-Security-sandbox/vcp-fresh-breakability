@@ -2,6 +2,7 @@ package replicationActivities
 
 import (
 	"context"
+	"strings"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -74,7 +75,7 @@ func (a *ResumeVolumeReplicationActivity) VerifyDstVolume(ctx context.Context, r
 	return result, nil
 }
 
-func (a *ResumeVolumeReplicationActivity) ResizeVolumeIfNeeded(ctx context.Context, result *replication.ResumeReplicationResult) error {
+func (a *ResumeVolumeReplicationActivity) ResizeVolumeIfNeeded(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	var srcVolumeQuota float64
 	var dstVolumeQuota float64
@@ -84,11 +85,47 @@ func (a *ResumeVolumeReplicationActivity) ResizeVolumeIfNeeded(ctx context.Conte
 	if result.DstVolume.QuotaInBytes.Set {
 		dstVolumeQuota = result.DstVolume.QuotaInBytes.Value
 	}
-	if srcVolumeQuota != dstVolumeQuota {
-		// TODO: Resize the destination volume
+	if srcVolumeQuota > dstVolumeQuota {
 		logger.Debugf("Resizing destination volume from %f to %f", dstVolumeQuota, srcVolumeQuota)
+		updateRequest := &googleproxyclient.VolumeUpdateV1beta{
+			QuotaInBytes: googleproxyclient.NewOptNilFloat64(srcVolumeQuota),
+		}
+		updateVolumeParams := &googleproxyclient.V1betaInternalUpdateVolumeParams{
+			ProjectNumber:  *result.DstProjectNumber,
+			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*result.Event.XCorrelationID),
+		}
+
+		googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+		res, err := googleProxyClient.Invoker.V1betaInternalUpdateVolume(ctx, updateRequest, *updateVolumeParams)
+		if err != nil {
+			logger.Errorf("Failed to resize destination volume: %v", err)
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, err)
+		}
+
+		switch r := res.(type) {
+		case *googleproxyclient.OperationV1beta:
+			jobId := ""
+			parts := strings.Split(r.Name.Value, "/")
+			jobId = parts[len(parts)-1]
+			result.JobId = &jobId
+			return result, nil
+		case *googleproxyclient.V1betaInternalUpdateVolumeBadRequest:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		case *googleproxyclient.V1betaInternalUpdateVolumeUnauthorized:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		case *googleproxyclient.V1betaInternalUpdateVolumeForbidden:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		case *googleproxyclient.V1betaInternalUpdateVolumeNotFound:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		case *googleproxyclient.V1betaInternalUpdateVolumeInternalServerError:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		default:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New("unexpected response type from Google Proxy"))
+		}
 	}
-	return nil
+	return result, nil
 }
 
 func (a *ResumeVolumeReplicationActivity) ResumeReplicationOnDestination(ctx context.Context, result *replication.ResumeReplicationResult, params *common.ResumeReplicationParams) (*replication.ResumeReplicationResult, error) {

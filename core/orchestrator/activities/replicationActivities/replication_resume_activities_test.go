@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -917,5 +919,432 @@ func TestDescribeRemoteJobResume(t *testing.T) {
 		err := activity.DescribeRemoteJobResume(ctx, result)
 
 		assert.Error(tt, err)
+	})
+}
+
+func TestResizeVolumeIfNeeded(t *testing.T) {
+	t.Run("WhenSrcVolumeQuotaEqualToDestination", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(tt)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.ResumeReplicationResult{
+			SrcVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+		}
+
+		_, err := activity.ResizeVolumeIfNeeded(ctx, result)
+		assert.NoError(tt, err)
+	})
+	t.Run("WhenQuotasAreDifferentAndUpdateVolumeSucceeds", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(tt)
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		srcProjectNumber := "123456789"
+		dstProjectNumber := "987654321"
+		dstBasePath := "dst-base-path"
+		dstJwtToken := "dst-jwt-token"
+		correlationID := "test-correlation-id"
+
+		result := &replication.ResumeReplicationResult{
+			SrcVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 2000.0},
+			},
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+			SrcProjectNumber: &srcProjectNumber,
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "us-central1",
+							DestinationVolumeUUID: "dst-volume-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		expectedResponse := &googleproxyclient.OperationV1beta{
+			Name: googleproxyclient.NewOptString("operations/operation-name/job-uuid"),
+			Done: googleproxyclient.NewOptBool(false),
+		}
+
+		mockClient.EXPECT().V1betaInternalUpdateVolume(mock.Anything, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		updatedResult, err := activity.ResizeVolumeIfNeeded(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", *updatedResult.JobId)
+		mockClient.AssertExpectations(tt)
+	})
+	t.Run("WhenUpdateVolumeReturnsBadRequest", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(tt)
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		srcProjectNumber := "123456789"
+		dstProjectNumber := "987654321"
+		dstBasePath := "dst-base-path"
+		dstJwtToken := "dst-jwt-token"
+		correlationID := "test-correlation-id"
+
+		result := &replication.ResumeReplicationResult{
+			SrcVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 2000.0},
+			},
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+			SrcProjectNumber: &srcProjectNumber,
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "us-central1",
+							DestinationVolumeUUID: "dst-volume-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		badRequestResponse := &googleproxyclient.V1betaInternalUpdateVolumeBadRequest{
+			Code:    400,
+			Message: "Invalid request parameters",
+		}
+
+		mockClient.EXPECT().V1betaInternalUpdateVolume(mock.Anything, mock.Anything, mock.Anything).Return(badRequestResponse, nil)
+
+		updatedResult, err := activity.ResizeVolumeIfNeeded(ctx, result)
+		assert.Error(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to update volume internal")
+		mockClient.AssertExpectations(tt)
+	})
+	t.Run("WhenUpdateVolumeReturnsUnauthorized", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(tt)
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		srcProjectNumber := "123456789"
+		dstProjectNumber := "987654321"
+		dstBasePath := "dst-base-path"
+		dstJwtToken := "dst-jwt-token"
+		correlationID := "test-correlation-id"
+
+		result := &replication.ResumeReplicationResult{
+			SrcVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 2000.0},
+			},
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+			SrcProjectNumber: &srcProjectNumber,
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "us-central1",
+							DestinationVolumeUUID: "dst-volume-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaInternalUpdateVolumeUnauthorized{
+			Code:    401,
+			Message: "Unauthorized access",
+		}
+
+		mockClient.EXPECT().V1betaInternalUpdateVolume(mock.Anything, mock.Anything, mock.Anything).Return(unauthorizedResponse, nil)
+
+		updatedResult, err := activity.ResizeVolumeIfNeeded(ctx, result)
+		assert.Error(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to update volume internal")
+		mockClient.AssertExpectations(tt)
+	})
+	t.Run("WhenUpdateVolumeReturnsForbidden", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(tt)
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		srcProjectNumber := "123456789"
+		dstProjectNumber := "987654321"
+		dstBasePath := "dst-base-path"
+		dstJwtToken := "dst-jwt-token"
+		correlationID := "test-correlation-id"
+
+		result := &replication.ResumeReplicationResult{
+			SrcVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 2000.0},
+			},
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+			SrcProjectNumber: &srcProjectNumber,
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "us-central1",
+							DestinationVolumeUUID: "dst-volume-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		forbiddenResponse := &googleproxyclient.V1betaInternalUpdateVolumeForbidden{
+			Code:    403,
+			Message: "Access denied",
+		}
+
+		mockClient.EXPECT().V1betaInternalUpdateVolume(mock.Anything, mock.Anything, mock.Anything).Return(forbiddenResponse, nil)
+
+		updatedResult, err := activity.ResizeVolumeIfNeeded(ctx, result)
+		assert.Error(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to update volume internal")
+		mockClient.AssertExpectations(tt)
+	})
+	t.Run("WhenUpdateVolumeReturnsNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(tt)
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		srcProjectNumber := "123456789"
+		dstProjectNumber := "987654321"
+		dstBasePath := "dst-base-path"
+		dstJwtToken := "dst-jwt-token"
+		correlationID := "test-correlation-id"
+
+		result := &replication.ResumeReplicationResult{
+			SrcVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 2000.0},
+			},
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+			SrcProjectNumber: &srcProjectNumber,
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "us-central1",
+							DestinationVolumeUUID: "dst-volume-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		notFoundResponse := &googleproxyclient.V1betaInternalUpdateVolumeNotFound{
+			Code:    404,
+			Message: "Volume not found",
+		}
+
+		mockClient.EXPECT().V1betaInternalUpdateVolume(mock.Anything, mock.Anything, mock.Anything).Return(notFoundResponse, nil)
+
+		updatedResult, err := activity.ResizeVolumeIfNeeded(ctx, result)
+		assert.Error(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to update volume internal")
+		mockClient.AssertExpectations(tt)
+	})
+	t.Run("WhenUpdateVolumeReturnsInternalServerError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(tt)
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		srcProjectNumber := "123456789"
+		dstProjectNumber := "987654321"
+		dstBasePath := "dst-base-path"
+		dstJwtToken := "dst-jwt-token"
+		correlationID := "test-correlation-id"
+
+		result := &replication.ResumeReplicationResult{
+			SrcVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 2000.0},
+			},
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+			SrcProjectNumber: &srcProjectNumber,
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "us-central1",
+							DestinationVolumeUUID: "dst-volume-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		internalErrorResponse := &googleproxyclient.V1betaInternalUpdateVolumeInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}
+
+		mockClient.EXPECT().V1betaInternalUpdateVolume(mock.Anything, mock.Anything, mock.Anything).Return(internalErrorResponse, nil)
+
+		updatedResult, err := activity.ResizeVolumeIfNeeded(ctx, result)
+		assert.Error(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to update volume internal")
+		mockClient.AssertExpectations(tt)
+	})
+	t.Run("WhenUpdateVolumeReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(tt)
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		srcProjectNumber := "123456789"
+		dstProjectNumber := "987654321"
+		dstBasePath := "dst-base-path"
+		dstJwtToken := "dst-jwt-token"
+		correlationID := "test-correlation-id"
+
+		result := &replication.ResumeReplicationResult{
+			SrcVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 2000.0},
+			},
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				QuotaInBytes: googleproxyclient.OptFloat64{Set: true, Value: 1000.0},
+			},
+			SrcProjectNumber: &srcProjectNumber,
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "us-central1",
+							DestinationVolumeUUID: "dst-volume-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaInternalUpdateVolume(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("network error"))
+
+		updatedResult, err := activity.ResizeVolumeIfNeeded(ctx, result)
+		assert.Error(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to update volume internal")
+		mockClient.AssertExpectations(tt)
 	})
 }
