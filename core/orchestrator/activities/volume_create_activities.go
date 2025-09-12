@@ -598,6 +598,17 @@ func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *d
 	return nil
 }
 
+func (a VolumeCreateActivity) FinaliseRestoredVolume(ctx context.Context, volume *datamodel.Volume) error {
+	se := a.SE
+	volume.State = models.LifeCycleStateREADY
+	volume.StateDetails = models.LifeCycleStateAvailableDetails
+	if err := se.UpdateVolume(ctx, volume); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Volume) ([]*datamodel.HostGroup, error) {
 	se := a.SE
 

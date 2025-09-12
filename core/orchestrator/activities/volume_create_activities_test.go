@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.temporal.io/sdk/mocks"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,6 +30,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/mocks"
 )
 
 func TestCreateVolume_Success(t *testing.T) {
@@ -4127,4 +4127,55 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		assert.Nil(t, result)
 		mockProvider.AssertExpectations(t)
 	})
+}
+
+func TestFinaliseRestoredVolume_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		State:     models.LifeCycleStateRestoring, // Initial state
+	}
+
+	// Mock UpdateVolume to succeed
+	mockStorage.On("UpdateVolume", ctx, volume).Return(nil)
+
+	// Act
+	err := activity.FinaliseRestoredVolume(ctx, volume)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, models.LifeCycleStateREADY, volume.State)
+	assert.Equal(t, models.LifeCycleStateAvailableDetails, volume.StateDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestFinaliseRestoredVolume_UpdateVolumeError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		State:     models.LifeCycleStateRestoring, // Initial state
+	}
+	expectedError := errors.New("database update failed")
+
+	// Mock UpdateVolume to fail
+	mockStorage.On("UpdateVolume", ctx, volume).Return(expectedError)
+
+	// Act
+	err := activity.FinaliseRestoredVolume(ctx, volume)
+
+	// Assert
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedError.Error())
+	// State should still be updated even if database update fails
+	assert.Equal(t, models.LifeCycleStateREADY, volume.State)
+	assert.Equal(t, models.LifeCycleStateAvailableDetails, volume.StateDetails)
+	mockStorage.AssertExpectations(t)
 }

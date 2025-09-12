@@ -54,9 +54,9 @@ func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumePara
 	var customErr *vsaerrors.CustomError
 	_, customErr = restoreWf.Run(ctx, volume, params, backupVault, backup, hostParams, volCreateResponse)
 	if customErr != nil {
-		log.Errorf("RestoreBackupWorkflow completed with error: %v", customErr.Error())
+		log.Errorf("RestoreBackupWorkflow completed with error: %v", customErr.OriginalErr.Error())
 		restoreWf.Status = WorkflowStatusFailed
-		err2 := restoreWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err2 := restoreWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with error for RestoreBackupWorkflow: %v", err2)
 			return nil, err2
@@ -289,7 +289,7 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
 	}
 
-	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, &dbVolume).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
