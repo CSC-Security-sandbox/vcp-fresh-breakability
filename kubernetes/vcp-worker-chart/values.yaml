@@ -16,8 +16,14 @@ global:
 
 # Application configuration
 app:
-  name: "vcp-worker"
-  replicas: 1
+  - name: "vcp-customer-worker"
+    replicas: 1
+    workerAdditionalConfig:
+      workerTaskQueue: "customer-workflows"
+  - name: "vcp-background-worker"
+    replicas: 1
+    workerAdditionalConfig:
+      workerTaskQueue: "background-workflows"
 
 serviceAccount:
   name: "vcp-worker-ksa"

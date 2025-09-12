@@ -13,218 +13,172 @@ metadata:
 imagePullSecrets:
   - name: ghcr-secret
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vcp-worker-config
+  namespace: vcp
+data:
+  TEMPORAL_ADDRESS: "local-temporal-frontend.default.svc.cluster.local:7233"
+  ENV: "local"
+  GCP_PROXY_PORT: "8090"
+  DB_TYPE: "postgres"
+  DB_HOST: "postgres.default.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_USER: "postgres"
+  DB_PASSWORD: "testpass"
+  DB_NAME: "vcp"
+  DB_SSL_MODE: "disable"
+  DB_TIMEZONE: "UTC"
+  DB_MAX_OPEN_CONNS: "25"
+  DB_MAX_IDLE_CONNS: "25"
+  DB_CONN_MAX_LIFETIME: "1h"
+  MIGRATION_PATH: "migrations/core"
+  DB_ADMIN_USER: "postgres"
+  DB_ADMIN_PASSWORD: "testpass"
+  RUN_MIGRATION_ON_START: "true"
+  GCP_CONSUMER_MGMT_ENDPOINT_URL: "autopush-netapp.sandbox.googleapis.com"
+  GCP_SERVICE_NETWORKING_ENDPOINT_URL: "netapp-tst-autopush-endpoint.appspot.com"
+  LOCAL_REGION: "australia-southeast1"
+  VSA_NODE_USERNAME: "admin"
+  OBJECT_STORE_PROVIDER: "googlecloud"
+  OBJECT_STORES_SERVER: "storage.googleapis.com"
+  OBJECT_STORE_AUTH_TYPE: "GCP_SA"
+  GCP_HYDRATE_ENABLED: "true"
+  GCP_HYDRATE_BATCH_SIZE: "10"
+  VMRS_CONFIG_PATH: "/app/vmrs_gcp.yaml"
+  VLM_CONFIG_FILE_PATH: "/app/vlm-config.json"
+  ERROR_FILE_PATH: "/app/errors.json"
+  VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: "vsa-lifecycle-manager"
+  ONTAP_VERSION: "9.17.1"
+  TOTAL_IP_PER_HA_PAIR: "6"
+  DATA_SUBNET_CIDR_BLOCK: "28"
+  ENFORCE_MIN_SP_CONFIG: "true"
+  HARVEST_TEMPLATE_PATH: "/app/harvest-template.yaml"
+  MAX_NODES_PER_GROUP: "200"
+  NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: "2"
+  VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV: "45"
+  VLM_MIN_LV_HA_PAIRS: "2"
+  START_TO_CLOSE_WORKFLOW_TIMEOUT_LV: "60m"
+  DATA_SUBNET_CIDR_BLOCK_LV: "26"
+  MIN_LV_POOL_COOL_TIER_CAPACITY: "13194139533312"
+  MAX_LV_POOL_CAPACITY: "22517998136852476"
+  MAX_LV_HOT_TIER_POOL_CAPACITY: "5629499534213119"
+  MIN_LV_THROUGHPUT: "64"
+  MAX_LV_THROUGHPUT: "60000"
+  MIN_HOT_TIER_SIZE: "1099511627776"
+  LEASE_NAMESPACE: "vcp"
+  HARVEST_HOST: "harvest-farm-service.vcp.svc.cluster.local:3000"
+  ENABLE_METRICS: "false"
+  HARVEST_REST_PROTOCOL: "http"
+  CERTIFICATE_LIFETIME: "25920000s"
+  CA_NAME: "20250718-pn6-boa"
+  CA_POOL_NAME: "vsa-pool-ca"
+  CA_POOL_DEPLOYED_PROJECT_ID: "266893635349"
+  SECRET_MANAGER_PROJECT_ID: "266893635349"
+  VSA_DEPLOYED_DNS_NAME: "au-se1.vsa"
+  VSA_MANAGED_ZONE: "au-se1-vsa"
+  VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: "24"
+  VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: "24"
+  CLOUD_DNS_CACHE_TTL: "300"
+  PRIVATE_KEY_BITS: "3072"
+  METRICS_PORT: "9090"
+  ADC_IMAGE: "adc-image:latest"
+  ADC_PROJECT: "adc-project"
+  ADC_REGION: "adc-region"
+  ADC_CERT_SECRET_NAME: "adc-cert-secret"
+  MGMT_FIREWALL_SOURCE_RANGES: "198.18.0.0/15"
+  RSM_FIREWALL_SOURCE_RANGES: "198.18.0.0/15"
+  IC_FIREWALL_SOURCE_RANGES: "198.18.0.0/15"
+  DATA_FIREWALL_SOURCE_RANGES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+  MGMT_REGIONAL_NAT_IP: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20"
+  MGMT_NETWORK_IP_RANGE: "198.18.0.0/20"
+  RSM_NETWORK_IP_RANGE: "198.18.16.0/20"
+  IC_NETWORK_IP_RANGE: "198.18.32.0/20"
+  MGMT_FIREWALL_PORT_RULES: "tcp,udp,icmp"
+  RSM_FIREWALL_PORT_RULES: "tcp,udp"
+  IC_FIREWALL_PORT_RULES: "tcp,udp"
+  ISCSI_FIREWALL_PORT_RULES: "tcp,3260"
+  SNAPMIRROR_FIREWALL_PORT_RULES: "tcp,10566,11104,11105"
+  WAIT_TIME_FOR_GCP_OPERATION_IN_SEC: "10"
+  VSA_IMAGE_PROJECT: "gcnv-autopush-images"
+  VSA_MEDIATOR_IMAGE_PROJECT: "gcnv-autopush-images"
+  VSA_INSTANCE_TYPE_OVERRIDE_LSSD: "false"
+  GIN_METRICS_PROTOCOL: "tcp-unencrypted"
+  GIN_METRICS_PORT: "5140"
+  GIN_SERVICE_ATTACHMENT: "projects/netapp-au-se1-autopush-sde-tst/regions/australia-southeast1/serviceAttachments/fluent-bit-psc"
+  GIN_LOGGING_FEATURE: "false"
+  DISABLE_VSA_CLEANUP_ON_VLM_FAILURE: "false"
+  VLM_RETRY_ERROR_PATTERNS: "Aggregates are degraded or unmirrored"
+  GCE_METADATA_HOST: "34.116.66.254:9090"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: vcp-worker
+  name: vcp-customer-worker
   namespace: vcp
   labels:
-    app: vcp-worker
+    app: vcp-customer-worker
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: vcp-worker
+      app: vcp-customer-worker
   template:
     metadata:
       labels:
-        app: vcp-worker
+        app: vcp-customer-worker
     spec:
       serviceAccountName: vcp-service-account
       containers:
-        - name: vcp-worker
+        - name: vcp-customer-worker
           image: vcp-worker
           imagePullPolicy: Never
           ports:
             - containerPort: 8080
               name: http
+          envFrom:
+            - configMapRef:
+                name: vcp-worker-config
           env:
-            - name: TEMPORAL_ADDRESS
-              value: local-temporal-frontend.default.svc.cluster.local:7233
-            - name: ENV
-              value: local
-            - name: GCP_PROXY_PORT
-              value: "8090"
-            - name: DB_TYPE
-              value: postgres
-            - name: DB_HOST
-              value: postgres.default.svc.cluster.local
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_USER
-              value: postgres
-            - name: DB_PASSWORD
-              value: "testpass"
-            - name: DB_NAME
-              value: vcp
-            - name: DB_SSL_MODE
-              value: disable
-            - name: DB_TIMEZONE
-              value: UTC
-            - name: DB_MAX_OPEN_CONNS
-              value: "25"
-            - name: DB_MAX_IDLE_CONNS
-              value: "25"
-            - name: DB_CONN_MAX_LIFETIME
-              value: 1h
-            - name: MIGRATION_PATH
-              value: migrations/core
-            - name: DB_ADMIN_USER
-              value: postgres
-            - name: DB_ADMIN_PASSWORD
-              value: "testpass"
-            - name: RUN_MIGRATION_ON_START
-              value: "true"
-            - name: GCE_METADATA_HOST
-              value: "{{ .ENV.GCE_METADATA_HOST }}"
-            - name: GCP_CONSUMER_MGMT_ENDPOINT_URL
-              value: autopush-netapp.sandbox.googleapis.com
-            - name: GCP_SERVICE_NETWORKING_ENDPOINT_URL
-              value: netapp-tst-autopush-endpoint.appspot.com
-            - name: LOCAL_REGION
-              value: australia-southeast1
+            - name: WORKER_TASK_QUEUE
+              value: "customer-workflows"
             - name: VSA_NODE_PASSWORD
-              value: <vsa_node_password_here>
-            - name: VSA_NODE_USERNAME
-              value: admin
-            - name: OBJECT_STORE_PROVIDER
-              value: "googlecloud"
-            - name: OBJECT_STORES_SERVER
-              value: "storage.googleapis.com"
-            - name: OBJECT_STORE_AUTH_TYPE
-              value: "GCP_SA"
-            - name: GCP_HYDRATE_ENABLED
-              value: "true"
-            - name: GCP_HYDRATE_BATCH_SIZE
-              value: "10"
-            - name: VMRS_CONFIG_PATH
-              value: "/app/vmrs_gcp.yaml"
-            - name: VLM_CONFIG_FILE_PATH
-              value: "/app/vlm-config.json"
-            - name: ERROR_FILE_PATH
-              value: "/app/errors.json"
-            - name: VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX
-              value: "vsa-lifecycle-manager"
-            - name: ONTAP_VERSION
-              value: "9.17.1"
-            - name: TOTAL_IP_PER_HA_PAIR
-              value: "6"
-            - name: DATA_SUBNET_CIDR_BLOCK
-              value: "28"
-            - name: ENFORCE_MIN_SP_CONFIG
-              value: "true"
-            - name: HARVEST_TEMPLATE_PATH
-              value: "/app/harvest-template.yaml"
-            - name: MAX_NODES_PER_GROUP
-              value: "200"
-            - name: NUMBER_OF_HA_PAIRS_LARGE_CAPACITY
-              value: "2"
-            - name: VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV
-              value: "45"
-            - name: VLM_MIN_LV_HA_PAIRS
-              value: "2"
-            - name: START_TO_CLOSE_WORKFLOW_TIMEOUT_LV
-              value: "60m"
-            - name: DATA_SUBNET_CIDR_BLOCK_LV
-              value: "26"
-            - name: MIN_LV_POOL_COOL_TIER_CAPACITY
-              value: "13194139533312"
-            - name: MAX_LV_POOL_CAPACITY
-              value: "22517998136852476"
-            - name: MAX_LV_HOT_TIER_POOL_CAPACITY
-              value: "5629499534213119"
-            - name: MIN_LV_THROUGHPUT
-              value: "64"
-            - name: MAX_LV_THROUGHPUT
-              value: "60000"
-            - name: MIN_HOT_TIER_SIZE
-              value: "1099511627776"
-            - name: LEASE_NAMESPACE
-              value: "vcp"
-            - name: HARVEST_HOST
-              value: "harvest-farm-service.vcp.svc.cluster.local:3000"
-            - name: ENABLE_METRICS
-              value: "false"
-            - name: HARVEST_REST_PROTOCOL
-              value: "http"
-            - name: CERTIFICATE_LIFETIME
-              value: "25920000s"  # 300 days
-            - name: CA_NAME
-              value: "20250718-pn6-boa"
-            - name: CA_POOL_NAME
-              value: "vsa-pool-ca"
-            - name: CA_POOL_DEPLOYED_PROJECT_ID
-              value: "266893635349"
-            - name: SECRET_MANAGER_PROJECT_ID
-              value: "266893635349"
-            - name: VSA_DEPLOYED_DNS_NAME
-              value: "au-se1.vsa"
-            - name: VSA_MANAGED_ZONE
-              value: "au-se1-vsa"
-            - name: VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS
-              value: "24"
-            - name: VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS
-              value: "24"
-            - name: CLOUD_DNS_CACHE_TTL
-              value: "300"
-            - name: PRIVATE_KEY_BITS
-              value: "3072"
-            - name: METRICS_PORT
-              value: "9090"
-            - name: ADC_IMAGE
-              value: "adc-image:latest"  # Replace with actual ADC image
-            - name: ADC_PROJECT
-              value: "adc-project"  # Replace with actual ADC project
-            - name: ADC_REGION
-              value: "adc-region"  # Replace with actual ADC region
-            - name: ADC_CERT_SECRET_NAME
-              value: "adc-cert-secret"  # Replace with actual ADC cert secret name
-            - name: MGMT_FIREWALL_SOURCE_RANGES
-              value: "198.18.0.0/15"
-            - name: RSM_FIREWALL_SOURCE_RANGES
-              value: "198.18.0.0/15"
-            - name: IC_FIREWALL_SOURCE_RANGES
-              value: "198.18.0.0/15"
-            - name: DATA_FIREWALL_SOURCE_RANGES
-              value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-            - name: MGMT_REGIONAL_NAT_IP
-              value: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20"
-            - name: MGMT_NETWORK_IP_RANGE
-              value: "198.18.0.0/20"
-            - name: RSM_NETWORK_IP_RANGE
-              value: "198.18.16.0/20"
-            - name: IC_NETWORK_IP_RANGE
-              value: "198.18.32.0/20"
-            - name: MGMT_FIREWALL_PORT_RULES
-              value: "tcp,udp,icmp"
-            - name: RSM_FIREWALL_PORT_RULES
-              value: "tcp,udp"
-            - name: IC_FIREWALL_PORT_RULES
-              value: "tcp,udp"
-            - name: ISCSI_FIREWALL_PORT_RULES
-              value: "tcp,3260"
-            - name: SNAPMIRROR_FIREWALL_PORT_RULES
-              value: "tcp,10566,11104,11105"
-            - name: WAIT_TIME_FOR_GCP_OPERATION_IN_SEC
-              value: "10"
-            - name: VSA_IMAGE_PROJECT
-              value: "gcnv-autopush-images"
-            - name: VSA_MEDIATOR_IMAGE_PROJECT
-              value: "gcnv-autopush-images"
-            - name: VSA_INSTANCE_TYPE_OVERRIDE_LSSD
-              value: "false"
-            - name: GIN_METRICS_PROTOCOL
-              value: "tcp-unencrypted"
-            - name: GIN_METRICS_PORT
-              value: "5140"
-            - name: GIN_SERVICE_ATTACHMENT
-              value: "projects/netapp-au-se1-autopush-sde-tst/regions/australia-southeast1/serviceAttachments/fluent-bit-psc"
-            - name: GIN_LOGGING_FEATURE
-              value: "false"
-            - name: DISABLE_VSA_CLEANUP_ON_VLM_FAILURE
-              value: "false"
-            - name: VLM_RETRY_ERROR_PATTERNS
-              value: "Aggregates are degraded or unmirrored"
+              value: "<<VSA_NODE_PASSWORD>>"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vcp-background-worker
+  namespace: vcp
+  labels:
+    app: vcp-background-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vcp-background-worker
+  template:
+    metadata:
+      labels:
+        app: vcp-background-worker
+    spec:
+      serviceAccountName: vcp-service-account
+      containers:
+        - name: vcp-background-worker
+          image: vcp-worker
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: vcp-worker-config
+          env:
+            - name: WORKER_TASK_QUEUE
+              value: "background-workflows"
+            - name: VSA_NODE_PASSWORD
+              value: "<<VSA_NODE_PASSWORD>>"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -249,4 +203,3 @@ roleRef:
   kind: Role
   name: harvest-farm-lease-create
   apiGroup: rbac.authorization.k8s.io
----

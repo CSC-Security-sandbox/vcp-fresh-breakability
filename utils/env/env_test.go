@@ -1262,6 +1262,25 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		assert.Contains(tt, err.Error(), "PRIVATE_KEY_BITS must be set for authentication")
 	})
 
+	t.Run("WhenWorkerTaskQueueIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = "test-project"
+		SecretManagerProjectID = "secret-project"
+		VsaDeployedDnsName = "test.example.com"
+		VsaManagedZone = "test-zone"
+		CertificateLifetime = "2592000s"
+		CloudDNSCacheTTL = 300
+		NodePassword = "password"
+		PrivateKeyBits = 3072
+		WorkerTaskQueue = ""
+
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "WORKER_TASK_QUEUE must be set for worker configuration")
+	})
+
 	// Restore original values
 	Region = originalRegion
 	CaName = originalCaName
