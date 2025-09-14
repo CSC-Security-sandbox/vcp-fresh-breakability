@@ -21482,6 +21482,8 @@ type VolumeV1beta struct {
 	// The count of number of constituent volumes for the large volume.
 	LargeVolumeConstituentCount OptNilInt32        `json:"largeVolumeConstituentCount"`
 	CacheParameters             OptFlexCacheV1beta `json:"cacheParameters"`
+	// Volume footprint in hot storage.
+	HotTierSizeGib OptNilFloat64 `json:"hotTierSizeGib"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -21724,6 +21726,11 @@ func (s *VolumeV1beta) GetCacheParameters() OptFlexCacheV1beta {
 	return s.CacheParameters
 }
 
+// GetHotTierSizeGib returns the value of HotTierSizeGib.
+func (s *VolumeV1beta) GetHotTierSizeGib() OptNilFloat64 {
+	return s.HotTierSizeGib
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *VolumeV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -21962,6 +21969,11 @@ func (s *VolumeV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
 // SetCacheParameters sets the value of CacheParameters.
 func (s *VolumeV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
 	s.CacheParameters = val
+}
+
+// SetHotTierSizeGib sets the value of HotTierSizeGib.
+func (s *VolumeV1beta) SetHotTierSizeGib(val OptNilFloat64) {
+	s.HotTierSizeGib = val
 }
 
 func (*VolumeV1beta) v1betaDescribeVolumeRes() {}

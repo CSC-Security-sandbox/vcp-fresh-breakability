@@ -3081,7 +3081,7 @@ type FlexCacheV1beta struct {
 	// Command used to establish peering for the FlexCache.
 	Command OptString `json:"command"`
 	// DateTime value for when cluster peering command should expire.
-	CommandExpiryTime OptNilDateTime `json:"commandExpiryTime"`
+	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
 	// Temporary passphrase generated to accept cluster peering command.
 	Passphrase OptNilString `json:"passphrase"`
 }
@@ -3141,9 +3141,9 @@ func (s *FlexCacheV1beta) GetCommand() OptString {
 	return s.Command
 }
 
-// GetCommandExpiryTime returns the value of CommandExpiryTime.
-func (s *FlexCacheV1beta) GetCommandExpiryTime() OptNilDateTime {
-	return s.CommandExpiryTime
+// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
+func (s *FlexCacheV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
+	return s.PeeringCommandExpiryTime
 }
 
 // GetPassphrase returns the value of Passphrase.
@@ -3206,9 +3206,9 @@ func (s *FlexCacheV1beta) SetCommand(val OptString) {
 	s.Command = val
 }
 
-// SetCommandExpiryTime sets the value of CommandExpiryTime.
-func (s *FlexCacheV1beta) SetCommandExpiryTime(val OptNilDateTime) {
-	s.CommandExpiryTime = val
+// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
+func (s *FlexCacheV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
+	s.PeeringCommandExpiryTime = val
 }
 
 // SetPassphrase sets the value of Passphrase.
@@ -21482,6 +21482,8 @@ type VolumeV1beta struct {
 	// The count of number of constituent volumes for the large volume.
 	LargeVolumeConstituentCount OptNilInt32        `json:"largeVolumeConstituentCount"`
 	CacheParameters             OptFlexCacheV1beta `json:"cacheParameters"`
+	// Volume footprint in hot storage.
+	HotTierSizeGib OptNilFloat64 `json:"hotTierSizeGib"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -21724,6 +21726,11 @@ func (s *VolumeV1beta) GetCacheParameters() OptFlexCacheV1beta {
 	return s.CacheParameters
 }
 
+// GetHotTierSizeGib returns the value of HotTierSizeGib.
+func (s *VolumeV1beta) GetHotTierSizeGib() OptNilFloat64 {
+	return s.HotTierSizeGib
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *VolumeV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -21962,6 +21969,11 @@ func (s *VolumeV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
 // SetCacheParameters sets the value of CacheParameters.
 func (s *VolumeV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
 	s.CacheParameters = val
+}
+
+// SetHotTierSizeGib sets the value of HotTierSizeGib.
+func (s *VolumeV1beta) SetHotTierSizeGib(val OptNilFloat64) {
+	s.HotTierSizeGib = val
 }
 
 func (*VolumeV1beta) v1betaDescribeVolumeRes() {}

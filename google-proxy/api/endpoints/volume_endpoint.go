@@ -1301,10 +1301,6 @@ func _getMultipleVolumesFromCVP(ctx context.Context, req *gcpgenserver.VolumeIdL
 }
 
 func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.VolumeV1beta {
-	var deletedAt time.Time
-	if in.Deleted != nil {
-		deletedAt = time.Time(*in.Deleted)
-	}
 	var resourceId string
 	if in.ResourceID != nil {
 		resourceId = *in.ResourceID
@@ -1313,7 +1309,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		ResourceId:              resourceId,
 		VolumeId:                gcpgenserver.NewOptString(in.VolumeID),
 		Created:                 gcpgenserver.NewOptDateTime(time.Time(in.Created)),
-		Deleted:                 gcpgenserver.NewOptNilDateTime(deletedAt),
+		Deleted:                 utils.SafeTime(in.Deleted),
 		VolumeState:             gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeState(in.VolumeState)),
 		VolumeStateDetails:      gcpgenserver.NewOptString(in.VolumeStateDetails),
 		SecurityStyle:           gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyle(in.SecurityStyle)),
@@ -1342,6 +1338,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		InReplication:           utils.GetOptBool(in.InReplication),
 		IsDataProtection:        utils.GetOptBool(in.IsDataProtection),
 		CreationToken:           utils.GetOptString(in.CreationToken),
+		HotTierSizeGib:          utils.SafeOptNilFloat64(in.HotTierSizeGib),
 	}
 
 	if in.ExportPolicy != nil {
@@ -1384,7 +1381,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 
 	if in.BackupConfig != nil {
 		backupConfigV1beta := gcpgenserver.BackupConfigV1beta{
-			BackupVaultId:    utils.SafeString(in.BackupConfig.BackupVaultID),
+			BackupVaultId: utils.SafeString(in.BackupConfig.BackupVaultID),
 		}
 		if in.BackupConfig.BackupChainBytes != nil {
 			backupConfigV1beta.BackupChainBytes = utils.SafeInt64(in.BackupConfig.BackupChainBytes)
@@ -1418,7 +1415,9 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 
 	if in.TieringPolicy != nil && in.TieringPolicy.TierAction != nil {
 		tieringPolicyV1beta := gcpgenserver.TieringPolicyV1beta{
-			TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(gcpgenserver.TieringPolicyV1betaTierAction(*in.TieringPolicy.TierAction)),
+			TierAction:               gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(gcpgenserver.TieringPolicyV1betaTierAction(*in.TieringPolicy.TierAction)),
+			CoolingThresholdDays:     utils.SafeInt32(in.TieringPolicy.CoolingThresholdDays),
+			HotTierBypassModeEnabled: utils.SafeBool(in.TieringPolicy.HotTierBypassModeEnabled),
 		}
 		volume.TieringPolicy = gcpgenserver.NewOptTieringPolicyV1beta(tieringPolicyV1beta)
 	}

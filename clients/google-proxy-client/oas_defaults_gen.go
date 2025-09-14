@@ -424,6 +424,10 @@ func (s *VolumeV1beta) setDefaults() {
 		val := bool(false)
 		s.DedicatedCapacity.SetTo(val)
 	}
+	{
+		val := float64(0)
+		s.HotTierSizeGib.SetTo(val)
+	}
 }
 
 // setDefaults set default value of fields.

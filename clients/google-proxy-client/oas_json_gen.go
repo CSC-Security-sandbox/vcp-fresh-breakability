@@ -5876,9 +5876,9 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.CommandExpiryTime.Set {
-			e.FieldStart("commandExpiryTime")
-			s.CommandExpiryTime.Encode(e, json.EncodeDateTime)
+		if s.PeeringCommandExpiryTime.Set {
+			e.FieldStart("peeringCommandExpiryTime")
+			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
 		}
 	}
 	{
@@ -5901,7 +5901,7 @@ var jsonFieldsNameOfFlexCacheV1beta = [13]string{
 	8:  "stateDetailsCode",
 	9:  "previousCacheState",
 	10: "command",
-	11: "commandExpiryTime",
+	11: "peeringCommandExpiryTime",
 	12: "passphrase",
 }
 
@@ -6041,15 +6041,15 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"command\"")
 			}
-		case "commandExpiryTime":
+		case "peeringCommandExpiryTime":
 			if err := func() error {
-				s.CommandExpiryTime.Reset()
-				if err := s.CommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+				s.PeeringCommandExpiryTime.Reset()
+				if err := s.PeeringCommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"commandExpiryTime\"")
+				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
 			}
 		case "passphrase":
 			if err := func() error {
@@ -52520,9 +52520,15 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 			s.CacheParameters.Encode(e)
 		}
 	}
+	{
+		if s.HotTierSizeGib.Set {
+			e.FieldStart("hotTierSizeGib")
+			s.HotTierSizeGib.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeV1beta = [48]string{
+var jsonFieldsNameOfVolumeV1beta = [49]string{
 	0:  "resourceId",
 	1:  "volumeId",
 	2:  "created",
@@ -52571,6 +52577,7 @@ var jsonFieldsNameOfVolumeV1beta = [48]string{
 	45: "dedicatedCapacity",
 	46: "largeVolumeConstituentCount",
 	47: "cacheParameters",
+	48: "hotTierSizeGib",
 }
 
 // Decode decodes VolumeV1beta from json.
@@ -52578,7 +52585,7 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode VolumeV1beta to nil")
 	}
-	var requiredBitSet [6]uint8
+	var requiredBitSet [7]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -53085,6 +53092,16 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cacheParameters\"")
 			}
+		case "hotTierSizeGib":
+			if err := func() error {
+				s.HotTierSizeGib.Reset()
+				if err := s.HotTierSizeGib.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hotTierSizeGib\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -53094,11 +53111,12 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [6]uint8{
+	for i, mask := range [7]uint8{
 		0b00100001,
 		0b00000000,
 		0b00000000,
 		0b10000000,
+		0b00000000,
 		0b00000000,
 		0b00000000,
 	} {

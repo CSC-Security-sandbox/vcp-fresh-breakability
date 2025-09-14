@@ -11999,6 +11999,11 @@ func (s *VolumeV1beta) SetFake() {
 			s.CacheParameters.SetFake()
 		}
 	}
+	{
+		{
+			s.HotTierSizeGib.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

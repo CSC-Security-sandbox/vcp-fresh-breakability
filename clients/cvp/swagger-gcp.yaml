@@ -9695,6 +9695,16 @@ definitions:
         description: The count of number of constituent volumes for the large volume.
       cacheParameters:
         $ref: '#/definitions/FlexCache_v1beta'
+      hotTierSizeGib:
+        title: hotTierSizeGib
+        type: number
+        format: double
+        default: 0.0
+        readOnly: true
+        description: Volume footprint in hot storage
+        example: 4000000000000
+        x-nullable: true
+        x-omitempty: true
   FlexCache_v1beta:
     title: FlexCache
     description: FlexCache type volumes include an object containing details of the

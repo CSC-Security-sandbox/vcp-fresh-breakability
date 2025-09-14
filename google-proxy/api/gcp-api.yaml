@@ -7505,6 +7505,16 @@ components:
           example: 24
         cacheParameters:
           $ref: '#/components/schemas/FlexCache_v1beta'
+        hotTierSizeGib:
+          title: hotTierSizeGib
+          type: number
+          format: double
+          default: 0.0
+          readOnly: true
+          description: Volume footprint in hot storage
+          example: 4000000000000
+          nullable: true
+          x-omitempty: true
     InternalVolume_v1beta:
       title: Volume v1beta model definition
       type: object
@@ -8386,7 +8396,8 @@ components:
           readOnly: true
           example: cluster peer create -peer-addrs 10.196.0.1 -initial-allowed-vserver-peers
             svm_87654321463811e79bdb123456789012_a1b2c3d4
-        commandExpiryTime:
+        peeringCommandExpiryTime:
+          title: peeringCommandExpiryTime
           type: string
           description: DateTime value for when cluster peering command should expire.
           format: date-time

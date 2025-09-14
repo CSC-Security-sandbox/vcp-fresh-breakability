@@ -1288,7 +1288,7 @@ func (s *FlexCacheV1beta) SetFake() {
 	}
 	{
 		{
-			s.CommandExpiryTime.SetFake()
+			s.PeeringCommandExpiryTime.SetFake()
 		}
 	}
 	{
@@ -11997,6 +11997,11 @@ func (s *VolumeV1beta) SetFake() {
 	{
 		{
 			s.CacheParameters.SetFake()
+		}
+	}
+	{
+		{
+			s.HotTierSizeGib.SetFake()
 		}
 	}
 }

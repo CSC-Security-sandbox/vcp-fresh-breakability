@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -356,6 +357,109 @@ func TestSafeOptFloat64(t *testing.T) {
 	}
 }
 
+func TestSafeOptNilFloat64(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *float64
+		want  gcpgenserver.OptNilFloat64
+	}{
+		{"NilInput", nil, gcpgenserver.OptNilFloat64{}},
+		{"ValidInput", func() *float64 { v := 3.14; return &v }(), gcpgenserver.NewOptNilFloat64(3.14)},
+		{"ZeroInput", func() *float64 { v := 0.0; return &v }(), gcpgenserver.NewOptNilFloat64(0.0)},
+		{"NegativeInput", func() *float64 { v := -2.5; return &v }(), gcpgenserver.NewOptNilFloat64(-2.5)},
+		{"LargeInput", func() *float64 { v := 1.7976931348623157e+308; return &v }(), gcpgenserver.NewOptNilFloat64(1.7976931348623157e+308)},
+		{"SmallInput", func() *float64 { v := 2.2250738585072014e-308; return &v }(), gcpgenserver.NewOptNilFloat64(2.2250738585072014e-308)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeOptNilFloat64(tt.input)
+			if got != tt.want {
+				t.Errorf("SafeOptNilFloat64(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeTime(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *strfmt.DateTime
+		want  gcpgenserver.OptNilDateTime
+	}{
+		{
+			name:  "NilInput",
+			input: nil,
+			want:  gcpgenserver.OptNilDateTime{},
+		},
+		{
+			name: "ValidDateTime",
+			input: func() *strfmt.DateTime {
+				dt := strfmt.DateTime(time.Date(2023, 12, 25, 10, 30, 45, 0, time.UTC))
+				return &dt
+			}(),
+			want: gcpgenserver.NewOptNilDateTime(time.Date(2023, 12, 25, 10, 30, 45, 0, time.UTC)),
+		},
+		{
+			name:  "ZeroDateTime",
+			input: func() *strfmt.DateTime { dt := strfmt.DateTime(time.Time{}); return &dt }(),
+			want:  gcpgenserver.NewOptNilDateTime(time.Time{}),
+		},
+		{
+			name:  "CurrentTime",
+			input: func() *strfmt.DateTime { dt := strfmt.DateTime(time.Now()); return &dt }(),
+			want: func() gcpgenserver.OptNilDateTime {
+				dt := strfmt.DateTime(time.Now())
+				return gcpgenserver.NewOptNilDateTime(time.Time(dt))
+			}(),
+		},
+		{
+			name: "FutureDateTime",
+			input: func() *strfmt.DateTime {
+				dt := strfmt.DateTime(time.Date(2030, 6, 15, 14, 20, 30, 0, time.UTC))
+				return &dt
+			}(),
+			want: gcpgenserver.NewOptNilDateTime(time.Date(2030, 6, 15, 14, 20, 30, 0, time.UTC)),
+		},
+		{
+			name: "PastDateTime",
+			input: func() *strfmt.DateTime {
+				dt := strfmt.DateTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC))
+				return &dt
+			}(),
+			want: gcpgenserver.NewOptNilDateTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeTime(tt.input)
+
+			// For the current time test, we need to compare the actual time values
+			if tt.name == "CurrentTime" {
+				if tt.input != nil && got.IsSet() {
+					expectedTime := time.Time(*tt.input)
+					actualTime := got.Value
+					// Allow for small time differences due to execution time
+					timeDiff := actualTime.Sub(expectedTime)
+					if timeDiff < 0 {
+						timeDiff = -timeDiff
+					}
+					if timeDiff > time.Second {
+						t.Errorf("SafeTime(%v) = %v, want time within 1 second of %v", tt.input, actualTime, expectedTime)
+					}
+				} else {
+					t.Errorf("SafeTime(%v) should be set for current time test", tt.input)
+				}
+			} else {
+				if got != tt.want {
+					t.Errorf("SafeTime(%v) = %v, want %v", tt.input, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
 func TestSafeBool(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -451,6 +555,30 @@ func TestSafeInt64ToInt32(t *testing.T) {
 			got := SafeInt64ToInt32(tt.input)
 			if got != tt.want {
 				t.Errorf("SafeInt64ToInt32(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeInt32(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *int32
+		want  gcpgenserver.OptNilInt32
+	}{
+		{"NilInput", nil, gcpgenserver.OptNilInt32{}},
+		{"ValidInput", func() *int32 { var v int32 = 42; return &v }(), gcpgenserver.NewOptNilInt32(42)},
+		{"ZeroInput", func() *int32 { var v int32 = 0; return &v }(), gcpgenserver.NewOptNilInt32(0)},
+		{"NegativeInput", func() *int32 { var v int32 = -10; return &v }(), gcpgenserver.NewOptNilInt32(-10)},
+		{"MaxInt32Input", func() *int32 { var v int32 = 2147483647; return &v }(), gcpgenserver.NewOptNilInt32(2147483647)},
+		{"MinInt32Input", func() *int32 { var v int32 = -2147483648; return &v }(), gcpgenserver.NewOptNilInt32(-2147483648)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SafeInt32(tt.input)
+			if got != tt.want {
+				t.Errorf("SafeInt32(%v) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}

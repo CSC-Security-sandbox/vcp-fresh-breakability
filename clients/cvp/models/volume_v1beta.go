@@ -88,6 +88,12 @@ type VolumeV1beta struct {
 	// export policy
 	ExportPolicy *ExportPolicyV1beta `json:"exportPolicy,omitempty"`
 
+	// hotTierSizeGib
+	//
+	// Volume footprint in hot storage
+	// Read Only: true
+	HotTierSizeGib *float64 `json:"hotTierSizeGib,omitempty"`
+
 	// inReplication
 	//
 	// Flag indicating if the volume is in a cross region replication

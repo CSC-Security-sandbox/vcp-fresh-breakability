@@ -1571,6 +1571,36 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, true, res.BackupConfig.Value.ScheduledBackupEnabled.Value)
 	})
 
+	t.Run("ConvertVolumeV1betaCVPToModelWithHotTierSizeGib", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			ResourceID:     nillable.GetStringPtr("resource-id"),
+			VolumeID:       "vol-123",
+			VolumeState:    "active",
+			HotTierSizeGib: nillable.GetFloat64Ptr(25.5),
+		}
+
+		res := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "resource-id", res.ResourceId)
+		assert.Equal(tt, "vol-123", res.VolumeId.Value)
+		assert.Equal(tt, float64(25.5), res.HotTierSizeGib.Value)
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithNilHotTierSizeGib", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			ResourceID:     nillable.GetStringPtr("resource-id"),
+			VolumeID:       "vol-123",
+			VolumeState:    "active",
+			HotTierSizeGib: nil,
+		}
+
+		res := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "resource-id", res.ResourceId)
+		assert.Equal(tt, "vol-123", res.VolumeId.Value)
+		assert.False(tt, res.HotTierSizeGib.IsSet())
+	})
+
 	t.Run("BasicVolumeConversionWithNilFields", func(tt *testing.T) {
 		input := &cvpmodels.VolumeV1beta{
 			ResourceID:         nil, // Test nil ResourceID
@@ -1769,6 +1799,60 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.False(tt, result.TieringPolicy.IsSet())
 	})
 
+	t.Run("VolumeWithTieringPolicyCoolingThresholdDays", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			TieringPolicy: &cvpmodels.TieringPolicyV1beta{
+				TierAction:               nillable.GetStringPtr("AUTO"),
+				CoolingThresholdDays:     nillable.GetInt32Ptr(7),
+				HotTierBypassModeEnabled: nillable.GetBoolPtr(true),
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.True(tt, result.TieringPolicy.IsSet())
+		assert.Equal(tt, gcpgenserver.TieringPolicyV1betaTierAction("AUTO"), result.TieringPolicy.Value.TierAction.Value)
+		assert.Equal(tt, int32(7), result.TieringPolicy.Value.CoolingThresholdDays.Value)
+		assert.Equal(tt, true, result.TieringPolicy.Value.HotTierBypassModeEnabled.Value)
+	})
+
+	t.Run("VolumeWithTieringPolicyNilCoolingThresholdDays", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			TieringPolicy: &cvpmodels.TieringPolicyV1beta{
+				TierAction:               nillable.GetStringPtr("AUTO"),
+				CoolingThresholdDays:     nil,
+				HotTierBypassModeEnabled: nillable.GetBoolPtr(false),
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.True(tt, result.TieringPolicy.IsSet())
+		assert.Equal(tt, gcpgenserver.TieringPolicyV1betaTierAction("AUTO"), result.TieringPolicy.Value.TierAction.Value)
+		assert.False(tt, result.TieringPolicy.Value.CoolingThresholdDays.IsSet())
+		assert.Equal(tt, false, result.TieringPolicy.Value.HotTierBypassModeEnabled.Value)
+	})
+
+	t.Run("VolumeWithTieringPolicyNilHotTierBypassModeEnabled", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			TieringPolicy: &cvpmodels.TieringPolicyV1beta{
+				TierAction:               nillable.GetStringPtr("AUTO"),
+				CoolingThresholdDays:     nillable.GetInt32Ptr(14),
+				HotTierBypassModeEnabled: nil,
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.True(tt, result.TieringPolicy.IsSet())
+		assert.Equal(tt, gcpgenserver.TieringPolicyV1betaTierAction("AUTO"), result.TieringPolicy.Value.TierAction.Value)
+		assert.Equal(tt, int32(14), result.TieringPolicy.Value.CoolingThresholdDays.Value)
+		assert.False(tt, result.TieringPolicy.Value.HotTierBypassModeEnabled.Value)
+	})
+
 	t.Run("VolumeWithCacheParametersNilFields", func(tt *testing.T) {
 		input := &cvpmodels.VolumeV1beta{
 			VolumeID: "volume-123",
@@ -1802,24 +1886,24 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
 			ScheduledBackupEnabled: nil, // Test nil ScheduledBackupEnabled
 		}
-	
+
 		input := &cvpmodels.VolumeV1beta{
-			VolumeID:      "vol-123",
-			VolumeState:   "active",
-			BackupConfig:  backupConfig,
+			VolumeID:     "vol-123",
+			VolumeState:  "active",
+			BackupConfig: backupConfig,
 		}
-	
+
 		result := _convertVolumeV1betaCVPToModel(input)
-	
+
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.BackupConfig)
 		assert.True(tt, result.BackupConfig.IsSet())
-		
+
 		// When BackupPolicyID is not nil, both fields should be set
 		assert.True(tt, result.BackupConfig.Value.BackupPolicyId.IsSet())
 		assert.Equal(tt, "backup-policy-id", result.BackupConfig.Value.BackupPolicyId.Value)
 		assert.Equal(tt, "backup-vault-id", result.BackupConfig.Value.BackupVaultId.Value)
-		
+
 		// ScheduledBackupEnabled should be set even when nil (utils.SafeBool handles nil)
 		assert.True(tt, result.BackupConfig.Value.ScheduledBackupEnabled.IsSet())
 		// The value will be false when the input is nil
@@ -1832,19 +1916,19 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
 			ScheduledBackupEnabled: nillable.GetBoolPtr(true),
 		}
-	
+
 		input := &cvpmodels.VolumeV1beta{
-			VolumeID:      "vol-123",
-			VolumeState:   "active",
-			BackupConfig:  backupConfig,
+			VolumeID:     "vol-123",
+			VolumeState:  "active",
+			BackupConfig: backupConfig,
 		}
-	
+
 		result := _convertVolumeV1betaCVPToModel(input)
-	
+
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.BackupConfig)
 		assert.True(tt, result.BackupConfig.IsSet())
-		
+
 		// Verify BackupChainBytes is NOT set when nil (since it's not in the initial struct)
 		assert.False(tt, result.BackupConfig.Value.BackupChainBytes.IsSet())
 		assert.Equal(tt, "backup-policy-id", result.BackupConfig.Value.BackupPolicyId.Value)
@@ -1859,27 +1943,27 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
 			ScheduledBackupEnabled: nil, // Also test nil ScheduledBackupEnabled
 		}
-	
+
 		input := &cvpmodels.VolumeV1beta{
-			VolumeID:      "vol-123",
-			VolumeState:   "active",
-			BackupConfig:  backupConfig,
+			VolumeID:     "vol-123",
+			VolumeState:  "active",
+			BackupConfig: backupConfig,
 		}
-	
+
 		result := _convertVolumeV1betaCVPToModel(input)
-	
+
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.BackupConfig)
 		assert.True(tt, result.BackupConfig.IsSet())
-		
+
 		// Verify BackupChainBytes is NOT set when nil (since it's not in the initial struct)
 		assert.False(tt, result.BackupConfig.Value.BackupChainBytes.IsSet())
-		
+
 		// When BackupPolicyID is not nil, both fields should be set
 		assert.True(tt, result.BackupConfig.Value.BackupPolicyId.IsSet())
 		assert.Equal(tt, "backup-policy-id", result.BackupConfig.Value.BackupPolicyId.Value)
 		assert.Equal(tt, "backup-vault-id", result.BackupConfig.Value.BackupVaultId.Value)
-		
+
 		// ScheduledBackupEnabled should be set even when nil (utils.SafeBool handles nil)
 		assert.True(tt, result.BackupConfig.Value.ScheduledBackupEnabled.IsSet())
 		// The value will be false when the input is nil
@@ -1893,19 +1977,19 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 			BackupVaultID:          nillable.GetStringPtr("backup-vault-id"),
 			ScheduledBackupEnabled: nillable.GetBoolPtr(true),
 		}
-	
+
 		input := &cvpmodels.VolumeV1beta{
-			VolumeID:      "vol-123",
-			VolumeState:   "active",
-			BackupConfig:  backupConfig,
+			VolumeID:     "vol-123",
+			VolumeState:  "active",
+			BackupConfig: backupConfig,
 		}
-	
+
 		result := _convertVolumeV1betaCVPToModel(input)
-	
+
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.BackupConfig)
 		assert.True(tt, result.BackupConfig.IsSet())
-		
+
 		// Verify BackupChainBytes IS set when not nil
 		assert.True(tt, result.BackupConfig.Value.BackupChainBytes.IsSet())
 		assert.Equal(tt, int64(10199181), result.BackupConfig.Value.BackupChainBytes.Value)
