@@ -1454,6 +1454,7 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		State:           models.LifeCycleStateAvailable,
 		StateDetails:    models.LifeCycleStateAvailableDetails,
 		NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
+		AccountID:       pool.AccountID,
 		ZoneName:        node.Zone,
 	}
 	if pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {

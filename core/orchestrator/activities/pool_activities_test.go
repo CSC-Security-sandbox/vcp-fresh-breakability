@@ -1320,6 +1320,7 @@ func Test_SaveNodeDetails_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, node)
 	assert.Equal(t, "test-node", node.Name)
+	assert.Equal(t, pool.AccountID, node.AccountID)
 	mockStorage.AssertExpectations(t)
 }
 
