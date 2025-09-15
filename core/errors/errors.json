@@ -617,6 +617,12 @@
     "retriable": true,
     "http_code": 409
   },
+  "7007": {
+    "description": "VolumeRestore Failure",
+    "message": "Error restoring volume - Cannot restore a Volume with the given size. Please consider increasing the volume size",
+    "retriable": false,
+    "http_code": 400
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",

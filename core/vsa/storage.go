@@ -181,7 +181,7 @@ func (rc *OntapRestProvider) LunUpdate(params LunUpdateParams) error {
 		if strings.Contains(err.Error(), "New LUN size is the same as the old LUN size") {
 			return errors.NewConflictErr(fmt.Sprintf("LUN %s already has the specified size", params.LunName))
 		}
-		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrLunUpdate, err)
 	}
 	if success {
 		return nil

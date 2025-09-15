@@ -79,8 +79,16 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 	}
 
 	// adding nil pointer checks as in some cases it may not be populated like FlexGroup volumes with large number of constituents
-	if vol.Space != nil && vol.Space.Available != nil {
-		volRes.AvailableSpace = *vol.Space.Available
+	if vol.Space != nil {
+		if vol.Space.Available != nil {
+			volRes.AvailableSpace = *vol.Space.Available
+		}
+		if vol.Space.SizeAvailableForSnapshots != nil {
+			volRes.SnapReserve = *vol.Space.SizeAvailableForSnapshots
+		}
+	}
+	if vol.Size != nil {
+		volRes.Size = *vol.Size
 	}
 
 	return volRes, nil

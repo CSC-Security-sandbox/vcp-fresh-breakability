@@ -2275,7 +2275,7 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
-		_, err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "provider error")
 		mockProvider.AssertExpectations(tt)
@@ -2289,15 +2289,6 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		// Mock the first UpdateVolume call for updating cloned volume before split
-		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-			return params.UUID == "vol-uuid-1" &&
-				params.Size == int64(107374182400) &&
-				params.SnapshotPolicyName == "policy1" &&
-				params.SnapReserve != nil &&
-				*params.SnapReserve == 5 &&
-				!params.InitiateSplit
-		})).Return(nil).Once()
 
 		// Mock the second UpdateVolume call for initiating split
 		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
@@ -2308,19 +2299,12 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 				params.SnapReserve == nil
 		})).Return(nil).Once()
 
-		// Mock the GetVolume call that happens after split initiation
-		mockProvider.On("GetVolume", mock.MatchedBy(func(params vsa.GetVolumeParams) bool {
-			return params.UUID == "vol-uuid-1" &&
-				params.VolumeName == "test-volume" &&
-				params.SvmName == "test-svm"
-		})).Return(&vsa.VolumeResponse{AvailableSpace: 1024}, nil).Once()
-
-		_, err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
 
-	t.Run("FirstUpdateVolumeError", func(tt *testing.T) {
+	t.Run("UpdateVolumeError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
 		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
@@ -2328,53 +2312,16 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-
-		// Mock the first UpdateVolume call to return error
-		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-			return !params.InitiateSplit
-		})).Return(errors.New("failed to update cloned volume")).Once()
-
-		_, err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "failed to update cloned volume")
-		mockProvider.AssertExpectations(tt)
-	})
-
-	t.Run("SecondUpdateVolumeError", func(tt *testing.T) {
-		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
-
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return mockProvider, nil
-		}
-
-		// Mock the first UpdateVolume call to succeed
-		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-			return !params.InitiateSplit
-		})).Return(nil).Once()
 
 		// Mock the second UpdateVolume call (split initiation) to fail
 		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
 			return params.InitiateSplit == true
 		})).Return(errors.New("failed to initiate split")).Once()
 
-		_, err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to initiate split")
 		mockProvider.AssertExpectations(tt)
-	})
-
-	t.Run("NilSnapshot", func(tt *testing.T) {
-		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
-
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return mockProvider, nil
-		}
-		_, err := activity.InitiateSplitForVolume(ctx, volume, node, nil)
-		assert.NoError(tt, err)
 	})
 }
 
@@ -3035,6 +2982,84 @@ func TestGetVolumesByPoolID(t *testing.T) {
 	})
 }
 
+func TestUpdateVolumeAttributesInDB_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.Background()
+	volumeUUID := "vol-uuid-3"
+	volumeAttributes := &datamodel.VolumeAttributes{
+		ExternalUUID: "ext-uuid-123",
+		Protocols:    []string{"iscsi"},
+		SnapReserve:  10,
+	}
+
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+		"volume_attributes": volumeAttributes,
+	}).Return(nil)
+
+	err := activity.UpdateVolumeAttributesInDB(ctx, volumeUUID, volumeAttributes)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAttributesInDB_WithNilAttributes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.Background()
+	volumeUUID := "vol-uuid-4"
+	var volumeAttributes *datamodel.VolumeAttributes = nil
+
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+		"volume_attributes": volumeAttributes,
+	}).Return(nil)
+
+	err := activity.UpdateVolumeAttributesInDB(ctx, volumeUUID, volumeAttributes)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAttributesInDB_Error(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.Background()
+	volumeUUID := "vol-uuid-5"
+	volumeAttributes := &datamodel.VolumeAttributes{
+		ExternalUUID: "ext-uuid-456",
+		Protocols:    []string{"nfs"},
+		SnapReserve:  5,
+	}
+	expectedErr := errors.New("database update failed")
+
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+		"volume_attributes": volumeAttributes,
+	}).Return(expectedErr)
+
+	err := activity.UpdateVolumeAttributesInDB(ctx, volumeUUID, volumeAttributes)
+	assert.Error(t, err)
+	// Check that the error is wrapped as a temporal application error
+	assert.Contains(t, err.Error(), "database update failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAttributesInDB_EmptyUUID(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.Background()
+	volumeUUID := ""
+	volumeAttributes := &datamodel.VolumeAttributes{
+		ExternalUUID: "ext-uuid-789",
+		Protocols:    []string{"smb"},
+	}
+
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+		"volume_attributes": volumeAttributes,
+	}).Return(nil)
+
+	err := activity.UpdateVolumeAttributesInDB(ctx, volumeUUID, volumeAttributes)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestCalculateAggregatesForConstituentVolumes(t *testing.T) {
 	// Helper function to create test aggregates
 	createTestAggregates := func(configs []struct {
@@ -3487,6 +3512,237 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		assert.Contains(t, err.Error(), "is not online")
 		mockProvider.AssertExpectations(t)
 	})
+}
+
+func TestLunSizeUpdateValidation_Success(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+	}
+	node := &models.Node{}
+	availableSpace := int64(2048) // 2GB
+	lunSize := int64(1024)        // 1GB (smaller than available space)
+
+	// Mock LunGet to return a lun with smaller size
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "",
+	}).Return(&vsa.LunResponse{
+		Size: lunSize,
+	}, nil)
+
+	// Act
+	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestLunSizeUpdateValidation_ProviderError(t *testing.T) {
+	// Arrange
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider error")
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+	}
+	node := &models.Node{}
+	availableSpace := int64(1024)
+
+	// Act
+	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "provider error")
+}
+
+func TestLunSizeUpdateValidation_LunNotFound(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+	}
+	node := &models.Node{}
+	availableSpace := int64(1024)
+
+	// Mock LunGet to return error (lun not found)
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "",
+	}).Return(nil, errors.New("lun not found"))
+
+	// Act
+	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "lun not found")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveZero(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 0,
+		},
+	}
+	node := &models.Node{}
+	availableSpace := int64(1024) // 1GB
+	lunSize := int64(2048)        // 2GB (larger than available space)
+
+	// Mock LunGet to return a lun with larger size
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "",
+	}).Return(&vsa.LunResponse{
+		Size: lunSize,
+	}, nil)
+
+	// Act
+	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error restoring volume - Cannot restore a Volume with the given size")
+	assert.Contains(t, err.Error(), "Please consider increasing the volume size")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveGreaterThanZero(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 20, // 20% snap reserve
+		},
+	}
+	node := &models.Node{}
+	availableSpace := int64(1024) // 1GB
+	lunSize := int64(2048)        // 2GB (larger than available space)
+
+	// Mock LunGet to return a lun with larger size
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "",
+	}).Return(&vsa.LunResponse{
+		Size: lunSize,
+	}, nil)
+
+	// Act
+	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error restoring volume - Cannot restore a Volume with the given size")
+	assert.Contains(t, err.Error(), "Please consider increasing the volume size")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestLunSizeUpdateValidation_ExactSizeMatch(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+	}
+	node := &models.Node{}
+	availableSpace := int64(1024) // 1GB
+	lunSize := int64(1024)        // 1GB (exact match)
+
+	// Mock LunGet to return a lun with same size
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "",
+	}).Return(&vsa.LunResponse{
+		Size: lunSize,
+	}, nil)
+
+	// Act
+	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
 }
 
 func Test_grantStorageObjectAdminRole(t *testing.T) {

@@ -36,6 +36,7 @@ const (
 	ImmutableBackupVaultErrMsg   = "Immutable backup vaults are not supported for ISCSI volumes"
 	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
 	RestoreBackupWorkflow        = "RestoreBackupWorkflow"
+	BytesPerGB                   = 1073741824 // 1024^3 bytes = 1 GB
 )
 
 // AggregateDistributionResult represents the result of CV distribution across aggregates
@@ -357,7 +358,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	return res, nil
 }
 
-func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
+func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, lunSpace int64) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -379,10 +380,10 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 		LunName:    lunName,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
-		Size:       availableSpace,
+		Size:       lunSpace,
 	})
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
 	logger.Debug("lun updated successfully")
 	lun, err = LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
@@ -960,15 +961,33 @@ func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, v
 	return nil
 }
 
-// InitiateSplitForVolume initiates a split for the given volume in ONTAP.
-func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) (*vsa.VolumeResponse, error) {
-	if snapshot == nil {
-		return nil, nil
-	}
+// LunSizeUpdateValidation Validates if the LUN size can be updated based on the available space and SnapReserve constraints.
+func (a VolumeCreateActivity) LunSizeUpdateValidation(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) error {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	lun, err := LunGet(ctx, "", volume.Name, volume.Svm.Name, provider)
+	if err != nil {
+		logger.Debug("lun not found !")
+		return err
+	}
+	// Check if the available space is less than the current LUN size
+	if availableSpace < lun.Size {
+		logger.Errorf("Lun size %d cannot be reduced to %d", lun.Size, availableSpace)
+		err = vsaerrors.NewVCPError(vsaerrors.ErrLunUpdate, fmt.Errorf("Cannot create a volume with this given size and snapReserve percentage. Please consider increasing the volume size to at least of size %.2f GB along with this snapReserve", float64(lun.Size)/float64(BytesPerGB)*(100.0/float64(100-volume.VolumeAttributes.SnapReserve))))
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
+	}
+	return nil
+}
+
+// UpdateClonedVolumeBeforeSplit updates the size, snapReserve of the cloned volume before split in ONTAP.
+func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	preSplitUpdateParams := &vsa.UpdateVolumeParams{
 		UUID:               volume.VolumeAttributes.ExternalUUID,
@@ -979,11 +998,20 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 	err = updateVolume(ctx, provider, *preSplitUpdateParams)
 	if err != nil {
 		logger.Errorf("Failed to update cloned volume %s in ontap before split: %v", volume.Name, err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	logger.Debugf("Cloned volume %s updated successfully in ontap", volume.Name)
+	return nil
+}
 
+// InitiateSplitForVolume initiates a split for the given volume in ONTAP.
+func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	updateVolumeParams := &vsa.UpdateVolumeParams{
 		UUID:          volume.VolumeAttributes.ExternalUUID,
 		InitiateSplit: true,
@@ -991,19 +1019,10 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 	err = updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to initiate split %s in ontap: %v", volume.Name, err)
-		return nil, err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Split %s initiated successfully in ontap", volume.Name)
-	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
-		UUID:       volume.VolumeAttributes.ExternalUUID,
-		VolumeName: volume.Name,
-		SvmName:    volume.Svm.Name,
-	})
-	if err != nil {
-		logger.Errorf("Failed to get volume %s from ontap after pre-split update: %v", volume.Name, err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-	return volumeRes, nil
+	return nil
 }
 
 func ConvertToVSASnapshotPolicySchedules(schedules []*datamodel.SnapshotPolicySchedule) []*vsa.SnapshotPolicySchedule {
@@ -1164,6 +1183,19 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 	if err != nil {
 		logger.Error("Failed to start restore backup workflow: ", "error", err)
 		return err
+	}
+
+	return nil
+}
+
+func (a VolumeCreateActivity) UpdateVolumeAttributesInDB(ctx context.Context, volumeUUID string, volumeAttributes *datamodel.VolumeAttributes) error {
+	se := a.SE
+
+	err := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
+		"volume_attributes": volumeAttributes,
+	})
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	return nil

@@ -910,13 +910,13 @@ func TestLunUpdate(t *testing.T) {
 		mockSAN.On("LunUpdate", mock.Anything).Return(false, nil, errors.New("update error")).Once()
 		err := rc.LunUpdate(params)
 		assert.Error(tt, err)
-		assert.EqualError(tt, err, "An internal error occurred.")
+		assert.EqualError(tt, err, "Error restoring volume - Cannot restore a Volume with the given size. Please consider increasing the volume size")
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
 			assert.Equal(tt, customErr.OriginalErr.Error(), "update error")
-			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(500))
-			assert.Equal(tt, customErr.TrackingID, 5006)
-			assert.Equal(tt, customErr.Message, "An internal error occurred.")
+			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(400))
+			assert.Equal(tt, customErr.TrackingID, 7007)
+			assert.Equal(tt, customErr.Message, "Error restoring volume - Cannot restore a Volume with the given size. Please consider increasing the volume size")
 			assert.Equal(tt, customErr.Retriable, false)
 		} else {
 			tt.Fatalf("Expected a CustomError, got %T", err)

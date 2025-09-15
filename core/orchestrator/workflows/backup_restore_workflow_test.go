@@ -169,7 +169,7 @@ func (s *BackupRestoreWorkflowTestSuite) setupCommonMocks(volume *datamodel.Volu
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.FinaliseRestoredVolume, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 
 	// Mock WaitForONTAPJob workflow
 	s.env.OnWorkflow(WaitForONTAPJob, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)

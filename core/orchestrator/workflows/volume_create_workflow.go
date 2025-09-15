@@ -91,7 +91,7 @@ func PreBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 }
 
 // PostBlockVolumeWorkflow handles post-provisioning for block volumes
-func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, postSplitAvailableSpace int64) (*datamodel.Volume, error) {
+func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, postSplitLunSpace int64) (*datamodel.Volume, error) {
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var err error
 
@@ -112,26 +112,11 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	log := util.GetLogger(ctx)
-	rollbackManager := common.NewRollbackManager()
-	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteVolumeInONTAP, volCreateResponse.ExternalUUID, dbVolume.Name, &node) // This will delete the lunMap & lun if exists
-	defer func() {
-		log.Errorf("Error in PostBlockVolumeWorkflow: %v", err)
-		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(ctx, nil)
-			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
-			}
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			rollbackManager.ExecuteRollback(disconnectedCtx, err)
-		}
-	}()
-
 	// Create LUN for block volume
 	var lun *vsa.LunResponse
 
 	if isRestoreSnapshot {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, postSplitAvailableSpace).Get(ctx, &lun)
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, postSplitLunSpace).Get(ctx, &lun)
 		if err != nil {
 			return nil, err
 		}
@@ -339,8 +324,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Pre-provisioning child workflow
-	preWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre, dbVolume.Account.Name)
-	if err != nil {
+	preWorkflowFunc, preErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre, dbVolume.Account.Name)
+	if preErr != nil {
+		err = preErr
 		return nil, ConvertToVSAError(err)
 	}
 	var preUpdatedVolume *datamodel.Volume
@@ -366,9 +352,24 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteVolumeInONTAP, volCreateResponse.ExternalUUID, dbVolume.Name, &node) // This will delete the lunMap & lun if exists
 
-	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)
+	// Persisting ExternalUUID in the database to ensure it is available for ONTAP volume deletion during cleanup triggered by CCFE/VCP
+	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
+	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeAttributesInDB, dbVolume.UUID, dbVolume.VolumeAttributes).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
+	}
+
+	// Calculate the available LUN space by subtracting the reserved space for snapshots
+	lunSpace := dbVolume.SizeInBytes * (100 - int64(dbVolume.VolumeAttributes.SnapReserve)) / 100
+	if isRestoreSnapshot {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.LunSizeUpdateValidation, &dbVolume, &node, lunSpace, &snapshot).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateClonedVolumeBeforeSplit, &dbVolume, &node, &snapshot).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	var hostGroups []*datamodel.HostGroup
@@ -397,30 +398,16 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
-	var postSplitVolumeRes *vsa.VolumeResponse
-	err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, &postSplitVolumeRes)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	var availableSpace int64
-	if postSplitVolumeRes != nil {
-		availableSpace = postSplitVolumeRes.AvailableSpace
-	} else {
-		// Fallback to volCreateResponse.AvailableSpace when no split operation was performed
-		availableSpace = volCreateResponse.AvailableSpace
-	}
-
 	if !isRestoreFromBackup {
 		// Post-provisioning child workflow
-		postWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
-		if err != nil {
+		postWorkflowFunc, postErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
+		if postErr != nil {
+			err = postErr
 			return nil, ConvertToVSAError(err)
 		}
 
 		var updatedVolume *datamodel.Volume
-		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, availableSpace).Get(ctx, &updatedVolume)
+		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, lunSpace).Get(ctx, &updatedVolume)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -428,6 +415,13 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// Update the dbVolume with the changes from the child workflow
 		if updatedVolume != nil {
 			dbVolume = updatedVolume
+		}
+	}
+
+	if isRestoreSnapshot {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
 		}
 	}
 

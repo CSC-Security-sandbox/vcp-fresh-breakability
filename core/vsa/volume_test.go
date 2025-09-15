@@ -45,8 +45,10 @@ func TestCreateVolume_Success(t *testing.T) {
 				UUID: nillable.ToPointer("testUUID"),
 				Name: &volumeName,
 				Space: &models.VolumeInlineSpace{
-					Available: &volSpace,
+					Available:                 &volSpace,
+					SizeAvailableForSnapshots: nillable.GetInt64Ptr(1029202020),
 				},
+				Size:  nillable.GetInt64Ptr(1029202020),
 				State: nillable.ToPointer(models.VolumeStateOnline),
 			},
 		}
@@ -104,8 +106,10 @@ func TestCreateVolume_Success(t *testing.T) {
 				UUID: nillable.ToPointer("testUUID"),
 				Name: &volumeName,
 				Space: &models.VolumeInlineSpace{
-					Available: &volSpace,
+					Available:                 &volSpace,
+					SizeAvailableForSnapshots: nillable.GetInt64Ptr(1029202020),
 				},
+				Size:  nillable.GetInt64Ptr(1029202020),
 				State: nillable.ToPointer(models.VolumeStateOnline),
 			},
 		}

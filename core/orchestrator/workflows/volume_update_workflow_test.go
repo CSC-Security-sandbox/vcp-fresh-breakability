@@ -2883,3 +2883,84 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateJobStatusErrorDe
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), errorDetailsUpdateError.Error())
 }
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_LunUpdateWithSnapReserve() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// First call to GetVolumeFromONTAP (before volume update)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil).Once()
+
+	// Second call to GetVolumeFromONTAP (before LUN update) - this should return a larger size
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 2000,
+		Size:           2000, // Updated volume size
+		State:          "online",
+	}, nil).Once()
+
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock UpdateLun activity - this should be called with the calculated LUN size
+	// Expected calculation: 2000 - (2000 * 20 / 100) = 2000 - 400 = 1600
+	expectedLunSize := int64(1600)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, expectedLunSize, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "lun-uuid",
+			Name:         "test-lun",
+		},
+		Size: expectedLunSize,
+	}, nil)
+
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow with both QuotaInBytes and SnapReserve
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test_pass",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 10, // Current snap reserve
+		},
+	}
+
+	snapReserve := int64(20) // New snap reserve
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 2000,         // Increase volume size
+		SnapReserve:  &snapReserve, // Change snap reserve
+	}
+
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -46,13 +47,15 @@ var (
 )
 
 const (
-	minCoolingThresholdDays = 2
-	maxCoolingThresholdDays = 183
-	MaxBackupPathComponents = 8          // The expected number of components in the backup path
-	BackupNameIndex         = 7          // The index of the backup name in the components
-	BackupVaultNameIndex    = 5          // The index of the backup vault name in the components
-	bytesPerGB              = 1073741824 // 1024^3 bytes = 1 GB
-	percentageBase          = 100.0      // Base for percentage calculations
+	minCoolingThresholdDays   = 2
+	maxCoolingThresholdDays   = 183
+	MaxBackupPathComponents   = 8          // The expected number of components in the backup path
+	BackupNameIndex           = 7          // The index of the backup name in the components
+	BackupVaultNameIndex      = 5          // The index of the backup vault name in the components
+	bytesPerGB                = 1073741824 // 1024^3 bytes = 1 GB
+	percentageBase            = 100.0
+	ErrMsgSnapReserveIncrease = "Cannot increase SnapReserve to %.0f%% as we cannot decrease the available space (%.2f GB). " +
+		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
 )
 
 // CreateVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
@@ -121,28 +124,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if dbSnapshot.State != models.LifeCycleStateREADY {
 			logger.Error("Parent snapshot is not in a valid state for volume creation", "snapshot_state", dbSnapshot.State)
 			return nil, "", customerrors.NewUserInputValidationErr("Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
-		}
-		// Validate that restore volume size cannot be less than parent volume size
-		if dbSnapshot.Volume != nil && int64(params.QuotaInBytes) < dbSnapshot.Volume.SizeInBytes {
-			return nil, "", customerrors.NewUserInputValidationErr(
-				fmt.Sprintf("Restore volume size cannot be less than the parent volume size (%.2f GB)", float64(dbSnapshot.Volume.SizeInBytes)/float64(bytesPerGB)))
-		}
-
-		// Validate that the new volume size provides enough space for LUN after snapReserve
-		if dbSnapshot.Volume != nil && params.SnapReserve > 0 {
-			snapReserveBytes := int64(float64(params.QuotaInBytes) * float64(params.SnapReserve) / percentageBase)
-			availableLunSpace := int64(params.QuotaInBytes) - snapReserveBytes
-
-			if availableLunSpace < dbSnapshot.Volume.SizeInBytes {
-				return nil, "", customerrors.NewUserInputValidationErr(
-					fmt.Sprintf("Volume size %.2f GB with %.1f%% snapReserve provides only %.2f GB available space for LUN. "+
-						"This is insufficient for the parent volume size of %.2f GB. "+
-						"Please increase the volume size or reduce snapReserve to ensure adequate LUN space.",
-						float64(params.QuotaInBytes)/float64(bytesPerGB),
-						float64(params.SnapReserve),
-						float64(availableLunSpace)/float64(bytesPerGB),
-						float64(dbSnapshot.Volume.SizeInBytes)/float64(bytesPerGB)))
-			}
 		}
 		params.Snapshot = dbSnapshot
 	}
@@ -1521,30 +1502,25 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 
 	// Validate snapReserve changes to ensure sufficient LUN space
 	if params.SnapReserve != nil && volume.VolumeAttributes != nil && *params.SnapReserve != volume.VolumeAttributes.SnapReserve {
-		oldSnapReserveBytes := int64(float64(volume.SizeInBytes) * float64(volume.VolumeAttributes.SnapReserve) / percentageBase)
-		oldLunSpace := volume.SizeInBytes - oldSnapReserveBytes
-
-		// If snapReserve is increasing, validate that the new configuration provides sufficient LUN space
 		if *params.SnapReserve > volume.VolumeAttributes.SnapReserve {
-			if params.QuotaInBytes <= 0 || params.QuotaInBytes <= volume.SizeInBytes {
-				return customerrors.NewUserInputValidationErr(
-					fmt.Sprintf("Increasing snapReserve to %.1f%% would leave only %.2f GB available for LUN, which is below the minimum required space. "+
-						"To proceed, either increase the volume size or reduce the snapReserve percentage.",
-						float64(*params.SnapReserve),
-						float64(oldLunSpace)/float64(bytesPerGB)))
-			}
-			NewSnapReserveBytes := int64(float64(params.QuotaInBytes) * float64(*params.SnapReserve) / percentageBase)
-			updatedLunSpace := params.QuotaInBytes - NewSnapReserveBytes
-			if updatedLunSpace < oldLunSpace {
-				return customerrors.NewUserInputValidationErr(
-					fmt.Sprintf("Volume size %.2f GB with %.1f%% snapReserve provides only %.2f GB available space for LUN. "+
-						"Please increase the volume size or reduce snapReserve to ensure adequate LUN space.",
-						float64(params.QuotaInBytes)/float64(bytesPerGB),
-						float64(*params.SnapReserve),
-						float64(updatedLunSpace)/float64(bytesPerGB)))
+			var requiredQuotaInBytes int64
+			// Calculate current available LUN space
+			currentLunSpace := volume.SizeInBytes - int64(float64(volume.SizeInBytes)*float64(volume.VolumeAttributes.SnapReserve)/percentageBase)
+			if params.QuotaInBytes == 0 {
+				// Calculate required size with the given snapReserve to ensure sufficient LUN space
+				requiredQuotaInBytes = int64(float64(currentLunSpace) / (1 - float64(*params.SnapReserve)/percentageBase))
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf(ErrMsgSnapReserveIncrease, float64(*params.SnapReserve), float64(currentLunSpace)/float64(bytesPerGB), math.Ceil(float64(requiredQuotaInBytes)/float64(bytesPerGB))))
+			} else {
+				// Calculate updated LUN space with the new given size
+				updatedLunSpace := params.QuotaInBytes - int64(float64(params.QuotaInBytes)*float64(*params.SnapReserve)/percentageBase)
+				if updatedLunSpace < currentLunSpace {
+					// Calculate required size to ensure sufficient LUN space
+					requiredQuotaInBytes = int64(float64(currentLunSpace) / (1 - float64(*params.SnapReserve)/percentageBase))
+					return customerrors.NewUserInputValidationErr(fmt.Sprintf(ErrMsgSnapReserveIncrease, float64(*params.SnapReserve), float64(currentLunSpace)/float64(bytesPerGB), math.Ceil(float64(requiredQuotaInBytes)/float64(bytesPerGB))))
+				}
 			}
 		}
-		// If snapReserve is decreasing, this is generally allowed as it increases LUN space
+		// Allow snapReserve decrease as it increases available LUN space
 	}
 
 	return nil
