@@ -3879,8 +3879,187 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		// Verify LargeVolumeConstituentCount is not set
 		assert.False(t, out.LargeVolumeConstituentCount.IsSet())
 	})
+
+	t.Run("WithBackupConfig", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:   "backup-token",
+			PoolID:          "backup-pool",
+			QuotaInBytes:    1234,
+			BlockProperties: &models.BlockProperties{OSType: "LINUX"},
+			ProtocolTypes:   []string{"ISCSI"},
+			LifeCycleState:  "READY",
+			IPAddresses:     []string{"10.72.177.17"},
+			DataProtection: &models.DataProtection{
+				BackupVaultID:    "vault-123",
+				BackupPolicyId:   "policy-123",
+				BackupChainBytes: func() *int64 { v := int64(1000); return &v }(),
+				ScheduledBackupEnabled: func() *bool { v := true; return &v }(),
+			},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.Equal(t, "backup-token", out.CreationToken.Value)
+		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
+		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
+		
+		// Test backup configuration
+		assert.True(t, out.BackupConfig.IsSet())
+		backupConfig := out.BackupConfig.Value
+		assert.True(t, backupConfig.BackupVaultId.IsSet())
+		assert.Equal(t, "vault-123", backupConfig.BackupVaultId.Value)
+		assert.True(t, backupConfig.BackupPolicyId.IsSet())
+		assert.Equal(t, "policy-123", backupConfig.BackupPolicyId.Value)
+		assert.True(t, backupConfig.BackupChainBytes.IsSet())
+		assert.Equal(t, int64(1000), backupConfig.BackupChainBytes.Value)
+		assert.True(t, backupConfig.ScheduledBackupEnabled.IsSet())
+		assert.Equal(t, true, backupConfig.ScheduledBackupEnabled.Value)
+	})
+
+	t.Run("WithEmptyBackupConfig", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:   "no-backup-token",
+			PoolID:          "no-backup-pool",
+			QuotaInBytes:    1234,
+			BlockProperties: &models.BlockProperties{OSType: "LINUX"},
+			ProtocolTypes:   []string{"ISCSI"},
+			LifeCycleState:  "READY",
+			IPAddresses:     []string{"10.72.177.17"},
+			DataProtection:  &models.DataProtection{}, // Empty backup config
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.Equal(t, "no-backup-token", out.CreationToken.Value)
+		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
+		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
+		
+		// Test that backup configuration is not set when empty
+		assert.False(t, out.BackupConfig.IsSet())
+	})
 }
 
+func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
+	tests := []struct {
+		name                string
+		dataProtection      *models.DataProtection
+		expectBackupConfig  bool
+		expectedFields      []string
+		unexpectedFields    []string
+	}{
+		{
+			name: "No backup config when all fields empty",
+			dataProtection: &models.DataProtection{},
+			expectBackupConfig: false,
+		},
+		{
+			name: "Backup config with only BackupVaultID",
+			dataProtection: &models.DataProtection{
+				BackupVaultID: "vault-123",
+			},
+			expectBackupConfig: true,
+			expectedFields:     []string{"BackupVaultId"},
+			unexpectedFields:   []string{"BackupPolicyId", "BackupChainBytes", "ScheduledBackupEnabled"},
+		},
+		{
+			name: "Backup config with only BackupPolicyId",
+			dataProtection: &models.DataProtection{
+				BackupPolicyId: "policy-123",
+				ScheduledBackupEnabled: func() *bool { v := false; return &v }(),
+			},
+			expectBackupConfig: true,
+			expectedFields:     []string{"BackupPolicyId", "ScheduledBackupEnabled"},
+			unexpectedFields:   []string{"BackupVaultId", "BackupChainBytes"},
+		},
+		{
+			name: "Backup config with only BackupChainBytes",
+			dataProtection: &models.DataProtection{
+				BackupChainBytes: func() *int64 { v := int64(1000); return &v }(),
+			},
+			expectBackupConfig: true,
+			expectedFields:     []string{"BackupChainBytes"},
+			unexpectedFields:   []string{"BackupVaultId", "BackupPolicyId", "ScheduledBackupEnabled"},
+		},
+		{
+			name: "Backup config with all fields set",
+			dataProtection: &models.DataProtection{
+				BackupVaultID:    "vault-123",
+				BackupPolicyId:   "policy-123",
+				BackupChainBytes: func() *int64 { v := int64(1000); return &v }(),
+				ScheduledBackupEnabled: func() *bool { v := true; return &v }(),
+			},
+			expectBackupConfig: true,
+			expectedFields:     []string{"BackupVaultId", "BackupPolicyId", "BackupChainBytes", "ScheduledBackupEnabled"},
+		},
+		{
+			name: "Backup config with BackupVaultID and BackupChainBytes",
+			dataProtection: &models.DataProtection{
+				BackupVaultID:    "vault-123",
+				BackupChainBytes: func() *int64 { v := int64(1000); return &v }(),
+			},
+			expectBackupConfig: true,
+			expectedFields:     []string{"BackupVaultId", "BackupChainBytes"},
+			unexpectedFields:   []string{"BackupPolicyId", "ScheduledBackupEnabled"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			volume := &models.Volume{
+				DisplayName:         "test-volume",
+				LifeCycleState:      "READY",
+				LifeCycleStateDetails: "Available",
+				VendorSubnetID:      "projects/123/global/networks/test-network",
+				PoolID:              "pool-123",
+				CreationToken:       "token-123",
+				QuotaInBytes:        1000000,
+				PoolName:            "test-pool",
+				EncryptionType:      "ENCRYPTION_TYPE_UNSPECIFIED",
+				SnapReserve:         0,
+				Zone:                "us-east1-a",
+				UsedBytes:           500000,
+				IsDataProtection:    false,
+				DataProtection:      tt.dataProtection,
+			}
+	
+			result := convertModelToVCPVolume(volume)
+	
+			if tt.expectBackupConfig {
+				assert.True(t, result.BackupConfig.IsSet(), "Expected BackupConfig to be set")
+				
+				backupConfig := result.BackupConfig.Value
+				
+				// Check expected fields are set
+				for _, field := range tt.expectedFields {
+					switch field {
+					case "BackupVaultId":
+						assert.True(t, backupConfig.BackupVaultId.IsSet(), "Expected BackupVaultId to be set")
+					case "BackupPolicyId":
+						assert.True(t, backupConfig.BackupPolicyId.IsSet(), "Expected BackupPolicyId to be set")
+					case "BackupChainBytes":
+						assert.True(t, backupConfig.BackupChainBytes.IsSet(), "Expected BackupChainBytes to be set")
+					case "ScheduledBackupEnabled":
+						assert.True(t, backupConfig.ScheduledBackupEnabled.IsSet(), "Expected ScheduledBackupEnabled to be set")
+					}
+				}
+				
+				// Check unexpected fields are not set
+				for _, field := range tt.unexpectedFields {
+					switch field {
+					case "BackupVaultId":
+						assert.False(t, backupConfig.BackupVaultId.IsSet(), "Expected BackupVaultId to not be set")
+					case "BackupPolicyId":
+						assert.False(t, backupConfig.BackupPolicyId.IsSet(), "Expected BackupPolicyId to not be set")
+					case "BackupChainBytes":
+						assert.False(t, backupConfig.BackupChainBytes.IsSet(), "Expected BackupChainBytes to not be set")
+					case "ScheduledBackupEnabled":
+						assert.False(t, backupConfig.ScheduledBackupEnabled.IsSet(), "Expected ScheduledBackupEnabled to not be set")
+					}
+				}
+			} else {
+				assert.False(t, result.BackupConfig.IsSet(), "Expected BackupConfig to not be set")
+			}
+		})
+	}
+}
 // TestPrepareUpdateVolumeParams_BackupDisabled tests the scenario where backup is disabled
 func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 	origPrepare := prepareCreateVolumeParams

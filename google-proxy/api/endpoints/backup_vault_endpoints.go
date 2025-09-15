@@ -787,12 +787,20 @@ func convertBackupRetentionPolicyToCvpModelForUpdate(brPolicy gcpgenserver.OptBa
 func convertBackupVaultV1Beta(bv *models.BackupVaultV1beta) gcpgenserver.BackupVaultV1beta {
 	backupRetentionPolicy := gcpgenserver.BackupRetentionPolicyV1beta{}
 	if bv.BackupRetentionPolicy != nil {
-		backupRetentionPolicy = gcpgenserver.BackupRetentionPolicyV1beta{
-			BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(int(*bv.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDays)),
-			DailyBackupImmutable:               gcpgenserver.NewOptBool(bv.BackupRetentionPolicy.DailyBackupImmutable),
-			ManualBackupImmutable:              gcpgenserver.NewOptBool(bv.BackupRetentionPolicy.ManualBackupImmutable),
-			MonthlyBackupImmutable:             gcpgenserver.NewOptBool(bv.BackupRetentionPolicy.MonthlyBackupImmutable),
-			WeeklyBackupImmutable:              gcpgenserver.NewOptBool(bv.BackupRetentionPolicy.WeeklyBackupImmutable),
+		if bv.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDays != nil {
+			backupRetentionPolicy.BackupMinimumEnforcedRetentionDays = gcpgenserver.NewOptInt(int(*bv.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDays))
+		}
+		if bv.BackupRetentionPolicy.DailyBackupImmutable {
+			backupRetentionPolicy.DailyBackupImmutable = gcpgenserver.NewOptBool(true)
+		}
+		if bv.BackupRetentionPolicy.ManualBackupImmutable {
+			backupRetentionPolicy.ManualBackupImmutable = gcpgenserver.NewOptBool(true)
+		}
+		if bv.BackupRetentionPolicy.MonthlyBackupImmutable {
+			backupRetentionPolicy.MonthlyBackupImmutable = gcpgenserver.NewOptBool(true)
+		}
+		if bv.BackupRetentionPolicy.WeeklyBackupImmutable {
+			backupRetentionPolicy.WeeklyBackupImmutable = gcpgenserver.NewOptBool(true)
 		}
 	}
 	convertedBackupVault := gcpgenserver.BackupVaultV1beta{

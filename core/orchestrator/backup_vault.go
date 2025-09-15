@@ -316,32 +316,35 @@ func _getBackupVaultByNameAndOwnerID(ctx context.Context, se database.Storage, b
 }
 
 func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.BackupVaultV1beta {
-	return &models.BackupVaultV1beta{
-		ID:                    bv.ID,
-		OwnerID:               bv.Account.UUID,
-		BackupVaultID:         bv.UUID,
-		Name:                  bv.Name,
-		Description:           bv.Description,
-		LifeCycleState:        bv.LifeCycleState,
-		LifeCycleStateDetails: bv.LifeCycleStateDetails,
-		CreatedAt:             bv.CreatedAt,
-		UpdatedAt:             bv.UpdatedAt,
-		BackupRegion:          bv.BackupRegionName,
-		SourceRegion:          bv.SourceRegionName,
-		Region:                bv.RegionName,
-		AccountVendorID:       bv.AccountVendorID,
-		BackupRetentionPolicy: models.BackupRetentionPolicyparams{
-			BackupMinimumEnforcedRetentionDuration: bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration,
-			IsDailyBackupImmutable:                 bv.ImmutableAttributes.IsDailyBackupImmutable,
-			IsMonthlyBackupImmutable:               bv.ImmutableAttributes.IsMonthlyBackupImmutable,
-			IsWeeklyBackupImmutable:                bv.ImmutableAttributes.IsWeeklyBackupImmutable,
-			IsAdhocBackupImmutable:                 bv.ImmutableAttributes.IsAdhocBackupImmutable,
-		},
+	res := &models.BackupVaultV1beta{
+		ID:                         bv.ID,
+		OwnerID:                    bv.Account.UUID,
+		BackupVaultID:              bv.UUID,
+		Name:                       bv.Name,
+		Description:                bv.Description,
+		LifeCycleState:             bv.LifeCycleState,
+		LifeCycleStateDetails:      bv.LifeCycleStateDetails,
+		CreatedAt:                  bv.CreatedAt,
+		UpdatedAt:                  bv.UpdatedAt,
+		BackupRegion:               bv.BackupRegionName,
+		SourceRegion:               bv.SourceRegionName,
+		Region:                     bv.RegionName,
+		AccountVendorID:            bv.AccountVendorID,
 		SourceBackupVault:          &bv.Name,
 		DestinationBackupVault:     bv.CrossRegionBackupVaultName,
 		BackupVaultType:            &bv.BackupVaultType,
 		CrossRegionBackupVaultName: bv.CrossRegionBackupVaultName,
 	}
+	if bv.ImmutableAttributes != nil {
+		res.BackupRetentionPolicy = models.BackupRetentionPolicyparams{
+			BackupMinimumEnforcedRetentionDuration: bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration,
+			IsDailyBackupImmutable:                 bv.ImmutableAttributes.IsDailyBackupImmutable,
+			IsMonthlyBackupImmutable:               bv.ImmutableAttributes.IsMonthlyBackupImmutable,
+			IsWeeklyBackupImmutable:                bv.ImmutableAttributes.IsWeeklyBackupImmutable,
+			IsAdhocBackupImmutable:                 bv.ImmutableAttributes.IsAdhocBackupImmutable,
+		}
+	}
+	return res
 }
 
 // GetMultipleBackupVaults gets BackupVault records for the UUIDs provided

@@ -971,31 +971,25 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			})
 		}
 	}
-	var backupConfigId, backupVaultId string
-	var backupChainBytes int64
-	var scheduledBackupEnabled bool
+	backupConfig := gcpgenserver.BackupConfigV1beta{}
 	if volume.DataProtection != nil {
-		if volume.DataProtection.BackupPolicyId != "" {
-			backupConfigId = volume.DataProtection.BackupPolicyId
-		}
 		if volume.DataProtection.BackupVaultID != "" {
-			backupVaultId = volume.DataProtection.BackupVaultID
+			backupConfig.BackupVaultId = gcpgenserver.NewOptNilString(volume.DataProtection.BackupVaultID)
+		}
+		if volume.DataProtection.BackupPolicyId != "" {
+			backupConfig.BackupPolicyId = gcpgenserver.NewOptNilString(volume.DataProtection.BackupPolicyId)
+			if volume.DataProtection.ScheduledBackupEnabled != nil {
+				backupConfig.ScheduledBackupEnabled = gcpgenserver.NewOptNilBool(*volume.DataProtection.ScheduledBackupEnabled)
+			}
 		}
 		if volume.DataProtection.BackupChainBytes != nil {
-			backupChainBytes = *volume.DataProtection.BackupChainBytes
+			backupConfig.BackupChainBytes = gcpgenserver.NewOptNilInt64(*volume.DataProtection.BackupChainBytes)
 		}
-		if volume.DataProtection.ScheduledBackupEnabled != nil {
-			scheduledBackupEnabled = *volume.DataProtection.ScheduledBackupEnabled
+		if backupConfig.BackupVaultId.Set || backupConfig.BackupPolicyId.Set ||
+			backupConfig.BackupChainBytes.Set || backupConfig.ScheduledBackupEnabled.Set {
+			res.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(backupConfig)
 		}
 	}
-	res.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(
-		gcpgenserver.BackupConfigV1beta{
-			BackupVaultId:          gcpgenserver.NewOptNilString(backupVaultId),
-			BackupPolicyId:         gcpgenserver.NewOptNilString(backupConfigId),
-			BackupChainBytes:       gcpgenserver.NewOptNilInt64(backupChainBytes),
-			ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(scheduledBackupEnabled),
-		},
-	)
 
 	if volume.SnapshotPolicy != nil {
 		res.SnapshotPolicy = gcpgenserver.NewOptSnapshotPolicyV1beta(*convertToSnapshotPolicyV2(volume.SnapshotPolicy))

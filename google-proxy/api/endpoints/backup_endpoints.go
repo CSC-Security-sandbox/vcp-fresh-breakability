@@ -641,7 +641,7 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 }
 
 func convertToBackupsV1beta(backup *models.BackupV1beta) gcpgenserver.BackupV1beta {
-	return gcpgenserver.BackupV1beta{
+	res := gcpgenserver.BackupV1beta{
 		ResourceId:               utils.GetOptString(&backup.ResourceID),
 		VolumeId:                 utils.GetOptString(&backup.VolumeID),
 		State:                    gcpgenserver.NewOptBackupV1betaState(gcpgenserver.BackupV1betaState(backup.State)),
@@ -675,6 +675,7 @@ func convertToBackupsV1beta(backup *models.BackupV1beta) gcpgenserver.BackupV1be
 			return gcpgenserver.OptAssetLocationMetadataV2{}
 		}(),
 	}
+	return res
 }
 
 func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.BackupV1beta {

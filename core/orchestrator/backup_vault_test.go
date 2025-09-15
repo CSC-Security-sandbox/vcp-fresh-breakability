@@ -140,6 +140,28 @@ func TestGetBackupVaultByNameAndOwnerIDReturnsBackupVault(tt *testing.T) {
 		assert.Equal(tt, bv.UUID, result.BackupVaultID, "Expected BackupVaultID to match")
 		assert.Equal(tt, bv.Name, result.Name, "Expected Name to match")
 	})
+
+	tt.Run("WhenBackupVaultHasNilImmutableAttributes", func(tt *testing.T) {
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   3,
+				UUID: "backup-vault-uuid-3",
+			},
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:    "backup-vault-name",
+			// ImmutableAttributes is nil
+		}
+	
+		result := _convertDatastoreBackupVaultToModel(bv)
+	
+		// Test that BackupRetentionPolicy is not set when ImmutableAttributes is nil
+		if result.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil {
+			tt.Errorf("Expected BackupMinimumEnforcedRetentionDuration to be nil when ImmutableAttributes is nil, got %v", result.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
+		}
+		if result.BackupRetentionPolicy.IsDailyBackupImmutable != false {
+			tt.Errorf("Expected IsDailyBackupImmutable to be false when ImmutableAttributes is nil, got %v", result.BackupRetentionPolicy.IsDailyBackupImmutable)
+		}
+	})
 	tt.Run("WhenBackupVaultDoesNotExist", func(tt *testing.T) {
 		mockLogger := log.NewLogger()
 		se, err := database.NewTestStorage(mockLogger)

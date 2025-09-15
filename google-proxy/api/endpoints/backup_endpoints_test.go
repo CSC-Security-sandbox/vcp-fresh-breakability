@@ -466,35 +466,99 @@ func strPtr(s string) *string {
 	return &s
 }
 func TestConvertToBackupsV1beta(t *testing.T) {
-	var int64Ptr = int64(12345)
-	t.Run("WhenBackupV1betaIsValid", func(t *testing.T) {
-		backup := &models.BackupV1beta{
-			ResourceID:               "resource-id",
-			VolumeID:                 "volume-id",
-			State:                    "READY",
-			Created:                  strfmt.DateTime(time.Now()),
-			EnforcedRetentionEndTime: nil,
-			BackupID:                 "backup-id",
-			VolumeUsageBytes:         &int64Ptr,
-			SourceVolume:             "source-volume",
-			BackupVaultID:            strPtr("backup-vault-id"),
-			Description:              strPtr("description"),
-			SourceSnapshot:           strPtr("source-snapshot"),
-			BackupType:               "FULL",
-			BackupChainBytes:         &int64Ptr,
-		}
+	backup := &models.BackupV1beta{
+		ResourceID:       "test-backup",
+		VolumeID:         "test-volume",
+		State:            "READY",
+		Created:          strfmt.DateTime(time.Now()),
+		BackupID:         "backup-123",
+		VolumeUsageBytes: func() *int64 { v := int64(1024); return &v }(),
+		SourceVolume:     "projects/123/locations/us-central1/volumes/test-volume",
+		BackupVaultID:    func() *string { s := "vault-123"; return &s }(),
+		Description:      func() *string { s := "Test backup"; return &s }(),
+		BackupType:       "MANUAL",
+		BackupChainBytes: func() *int64 { v := int64(512); return &v }(),
+		SatisfiesPzs:     func() *bool { b := true; return &b }(),
+		SatisfiesPzi:     func() *bool { b := false; return &b }(),
+		VolumeRegion:     func() *string { s := "us-central1"; return &s }(),
+		BackupRegion:     func() *string { s := "us-east1"; return &s }(),
+	}
 
-		result := convertToBackupsV1beta(backup)
+	result := convertToBackupsV1beta(backup)
 
-		assert.Equal(t, "resource-id", result.ResourceId.Value)
-		assert.Equal(t, "volume-id", result.VolumeId.Value)
-		assert.NotNil(t, result.Created.Value)
-		assert.Equal(t, "backup-id", result.BackupId.Value)
-		assert.Equal(t, "source-volume", result.SourceVolume.Value)
-		assert.Equal(t, "backup-vault-id", result.BackupVaultId.Value)
-		assert.Equal(t, "description", result.Description.Value)
-		assert.Equal(t, "source-snapshot", result.SourceSnapshot.Value)
-	})
+	assert.Equal(t, "test-backup", result.ResourceId.Value)
+	assert.Equal(t, "test-volume", result.VolumeId.Value)
+	assert.Equal(t, "READY", string(result.State.Value))
+	assert.True(t, result.Created.IsSet())
+	assert.True(t, result.BackupId.IsSet())
+	assert.Equal(t, "backup-123", result.BackupId.Value)
+	assert.True(t, result.VolumeUsageBytes.IsSet())
+	assert.Equal(t, int64(1024), result.VolumeUsageBytes.Value)
+	assert.True(t, result.SourceVolume.IsSet())
+	assert.Equal(t, "projects/123/locations/us-central1/volumes/test-volume", result.SourceVolume.Value)
+	assert.True(t, result.BackupVaultId.IsSet())
+	assert.Equal(t, "vault-123", result.BackupVaultId.Value)
+	assert.True(t, result.Description.IsSet())
+	assert.Equal(t, "Test backup", result.Description.Value)
+	assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+	assert.True(t, result.BackupChainBytes.IsSet())
+	assert.Equal(t, int64(512), result.BackupChainBytes.Value)
+	assert.True(t, result.SatisfiesPzs.IsSet())
+	assert.True(t, result.SatisfiesPzs.Value)
+	assert.True(t, result.SatisfiesPzi.IsSet())
+	assert.False(t, result.SatisfiesPzi.Value)
+	assert.True(t, result.VolumeRegion.IsSet())
+	assert.Equal(t, "us-central1", result.VolumeRegion.Value)
+	assert.True(t, result.BackupRegion.IsSet())
+	assert.Equal(t, "us-east1", result.BackupRegion.Value)
+	assert.False(t, result.AssetLocationMetadata.IsSet())
+}
+
+func TestConvertToBackupsV1beta_NilFields(t *testing.T) {
+	backup := &models.BackupV1beta{
+		ResourceID:    "test-backup",
+		VolumeID:      "test-volume",
+		State:         "READY",
+		BackupID:      "backup-123",
+		BackupVaultID: func() *string { s := "vault-123"; return &s }(),
+		BackupType:    "MANUAL",
+		// Only set pointer fields to nil, omit non-pointer fields
+		EnforcedRetentionEndTime: nil,
+		VolumeUsageBytes:         nil,
+		Description:              nil,
+		SourceSnapshot:           nil,
+		BackupChainBytes:         nil,
+		SatisfiesPzs:             nil,
+		SatisfiesPzi:             nil,
+		VolumeRegion:             nil,
+		BackupRegion:             nil,
+		AssetLocationMetadata:    nil,
+	}
+
+	result := convertToBackupsV1beta(backup)
+
+	assert.Equal(t, "test-backup", result.ResourceId.Value)
+	assert.Equal(t, "test-volume", result.VolumeId.Value)
+	assert.Equal(t, "READY", string(result.State.Value))
+	assert.True(t, result.BackupId.IsSet())
+	assert.Equal(t, "backup-123", result.BackupId.Value)
+	assert.True(t, result.BackupVaultId.IsSet())
+	assert.Equal(t, "vault-123", result.BackupVaultId.Value)
+	assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+
+	// Optional fields should not be set when nil
+	assert.True(t, result.Created.IsSet())
+	assert.False(t, result.EnforcedRetentionEndTime.IsSet())
+	assert.False(t, result.VolumeUsageBytes.IsSet())
+	assert.True(t, result.SourceVolume.IsSet())
+	assert.False(t, result.Description.IsSet())
+	assert.False(t, result.SourceSnapshot.IsSet())
+	assert.False(t, result.BackupChainBytes.IsSet())
+	assert.False(t, result.SatisfiesPzs.IsSet())
+	assert.False(t, result.SatisfiesPzi.IsSet())
+	assert.False(t, result.VolumeRegion.IsSet())
+	assert.False(t, result.BackupRegion.IsSet())
+	assert.False(t, result.AssetLocationMetadata.IsSet())
 }
 
 func TestCreateBackupParams(t *testing.T) {
@@ -3348,248 +3412,232 @@ func TestUpdateBackupToCVP(t *testing.T) {
 }
 
 func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
-	t.Run("WhenStateIsAvailable", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-uuid",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Name:        "test-backup",
-			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
-			SizeInBytes: 1024,
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{
-					UUID:      "test-vault-uuid",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				SourceRegionName: nillable.GetStringPtr("us-east1"),
-				BackupRegionName: nillable.GetStringPtr("us-east1"), // BackupRegionName field (not used in current logic)
-			},
-			Description: "Test backup description",
-			Type:        "MANUAL",
-			Attributes: &datamodel.BackupAttributes{
-				SnapshotName:        "test-snapshot",
-				VolumeName:          "test-volume",
-				AccountIdentifier:   "123456789",
-				UseExistingSnapshot: true, // Backup created from existing snapshot
-			},
-		}
+	backup := &datamodel.Backup{
+		Name:        "test-backup",
+		VolumeUUID:  "test-volume-uuid",
+		State:       "READY",
+		SizeInBytes: 1024,
+		Description: "Test backup description",
+		Type:        "MANUAL",
+		Attributes: &datamodel.BackupAttributes{
+			AccountIdentifier:   "test-account",
+			VolumeName:          "test-volume",
+			SnapshotName:        "test-snapshot",
+			UseExistingSnapshot: true,
+		},
+		BackupVault: &datamodel.BackupVault{
+			SourceRegionName: func() *string { s := "us-central1"; return &s }(),
+			BackupRegionName: func() *string { s := "us-east1"; return &s }(),
+		},
+	}
+	backup.UUID = "backup-uuid"
+	backup.BackupVault.UUID = "vault-uuid"
 
-		result := convertBackupDataModelToBackupsV1beta(backup)
+	result := convertBackupDataModelToBackupsV1beta(backup)
 
-		assert.Equal(t, "test-backup", result.ResourceId.Value)
-		assert.Equal(t, "test-volume-uuid", result.VolumeId.Value)
-		assert.Equal(t, gcpgenserver.BackupV1betaStateREADY, result.State.Value)
-		assert.Equal(t, "test-backup-uuid", result.BackupId.Value)
-		assert.Equal(t, int64(1024), result.VolumeUsageBytes.Value)
-		assert.Equal(t, "test-vault-uuid", result.BackupVaultId.Value)
-		assert.Equal(t, "Test backup description", result.Description.Value)
-		assert.Equal(t, gcpgenserver.BackupV1betaBackupTypeMANUAL, result.BackupType.Value)
-
-		// Should show snapshot since backup was created from existing snapshot
-		assert.True(t, result.SourceSnapshot.Set)
-		assert.Equal(t, "projects/123456789/locations/us-east1/volumes/test-volume/snapshots/test-snapshot", result.SourceSnapshot.Value)
-
-		// Should show full volume path
-		assert.Equal(t, "projects/123456789/locations/us-east1/volumes/test-volume", result.SourceVolume.Value)
-
-		// BackupRegion should now always be set to SourceRegionName
-		assert.True(t, result.BackupRegion.Set)
-		assert.Equal(t, "us-east1", result.BackupRegion.Value)
-
-		// Should show volume region
-		assert.Equal(t, "us-east1", result.VolumeRegion.Value)
-	})
-
-	t.Run("WhenStateIsNotAvailable", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-uuid",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Name:        "test-backup",
-			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateDeleting,
-			SizeInBytes: 2048,
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{
-					UUID:      "test-vault-uuid",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				SourceRegionName: nillable.GetStringPtr("us-west1"),
-				BackupRegionName: nillable.GetStringPtr("us-east1"), // BackupRegionName field (not used in current logic)
-			},
-			Description: "Test backup description",
-			Type:        "SCHEDULED",
-			Attributes: &datamodel.BackupAttributes{
-				SnapshotName:        "", // Empty snapshot name
-				VolumeName:          "test-volume",
-				AccountIdentifier:   "123456789",
-				UseExistingSnapshot: false, // Backup not created from existing snapshot
-			},
-		}
-
-		result := convertBackupDataModelToBackupsV1beta(backup)
-
-		assert.Equal(t, gcpgenserver.BackupV1betaStateDELETING, result.State.Value)
-
-		// Should NOT show snapshot since backup was not created from existing snapshot
-		assert.False(t, result.SourceSnapshot.Set)
-
-		// BackupRegion should now always be set to SourceRegionName
-		assert.True(t, result.BackupRegion.Set)
-		assert.Equal(t, "us-west1", result.BackupRegion.Value)
-
-		assert.Equal(t, "us-west1", result.VolumeRegion.Value)
-	})
-
-	t.Run("WhenBackupCreatedFromSnapshot", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-uuid",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Name:        "test-backup",
-			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
-			SizeInBytes: 1024,
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{
-					UUID:      "test-vault-uuid",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				SourceRegionName: nillable.GetStringPtr("us-east1"),
-			},
-			Description: "Test backup description",
-			Type:        "MANUAL",
-			Attributes: &datamodel.BackupAttributes{
-				SnapshotName:        "my-snapshot-123",
-				VolumeName:          "test-volume",
-				AccountIdentifier:   "123456789",
-				UseExistingSnapshot: true, // Backup created from existing snapshot
-			},
-		}
-
-		result := convertBackupDataModelToBackupsV1beta(backup)
-
-		// Should show snapshot since backup was created from existing snapshot
-		assert.True(t, result.SourceSnapshot.Set)
-		assert.Equal(t, "projects/123456789/locations/us-east1/volumes/test-volume/snapshots/my-snapshot-123", result.SourceSnapshot.Value)
-	})
-
-	t.Run("WhenBackupNotCreatedFromSnapshot", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-uuid",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Name:        "test-backup",
-			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
-			SizeInBytes: 1024,
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{
-					UUID:      "test-vault-uuid",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				SourceRegionName: nillable.GetStringPtr("us-east1"),
-			},
-			Description: "Test backup description",
-			Type:        "MANUAL",
-			Attributes: &datamodel.BackupAttributes{
-				SnapshotName:        "", // Empty snapshot name
-				VolumeName:          "test-volume",
-				AccountIdentifier:   "123456789",
-				UseExistingSnapshot: false, // Backup not created from existing snapshot
-			},
-		}
-
-		result := convertBackupDataModelToBackupsV1beta(backup)
-
-		// Should NOT show snapshot since backup was not created from existing snapshot
-		assert.False(t, result.SourceSnapshot.Set)
-	})
-
-	t.Run("WhenUseExistingSnapshotIsFalseButSnapshotNameIsPresent", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-uuid",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Name:        "test-backup",
-			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
-			SizeInBytes: 1024,
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{
-					UUID:      "test-vault-uuid",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				SourceRegionName: nillable.GetStringPtr("us-east1"),
-			},
-			Description: "Test backup description",
-			Type:        "MANUAL",
-			Attributes: &datamodel.BackupAttributes{
-				SnapshotName:        "some-snapshot-name", // Snapshot name present
-				VolumeName:          "test-volume",
-				AccountIdentifier:   "123456789",
-				UseExistingSnapshot: false, // But UseExistingSnapshot is false
-			},
-		}
-
-		result := convertBackupDataModelToBackupsV1beta(backup)
-
-		// Should NOT show snapshot since UseExistingSnapshot is false, even though SnapshotName is present
-		assert.False(t, result.SourceSnapshot.Set)
-	})
-
-	t.Run("WhenUseExistingSnapshotIsTrueButSnapshotNameIsEmpty", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-uuid",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Name:        "test-backup",
-			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
-			SizeInBytes: 1024,
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{
-					UUID:      "test-vault-uuid",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				SourceRegionName: nillable.GetStringPtr("us-east1"),
-			},
-			Description: "Test backup description",
-			Type:        "MANUAL",
-			Attributes: &datamodel.BackupAttributes{
-				SnapshotName:        "", // Empty snapshot name
-				VolumeName:          "test-volume",
-				AccountIdentifier:   "123456789",
-				UseExistingSnapshot: true, // But UseExistingSnapshot is true
-			},
-		}
-
-		result := convertBackupDataModelToBackupsV1beta(backup)
-
-		// Should NOT show snapshot since SnapshotName is empty, even though UseExistingSnapshot is true
-		assert.False(t, result.SourceSnapshot.Set)
-	})
+	assert.Equal(t, "test-backup", result.ResourceId.Value)
+	assert.Equal(t, "test-volume-uuid", result.VolumeId.Value)
+	assert.Equal(t, "READY", string(result.State.Value))
+	assert.True(t, result.Created.IsSet())
+	assert.Equal(t, backup.CreatedAt, result.Created.Value)
+	assert.True(t, result.BackupId.IsSet())
+	assert.Equal(t, "backup-uuid", result.BackupId.Value)
+	assert.True(t, result.VolumeUsageBytes.IsSet())
+	assert.Equal(t, int64(1024), result.VolumeUsageBytes.Value)
+	assert.True(t, result.BackupVaultId.IsSet())
+	assert.Equal(t, "vault-uuid", result.BackupVaultId.Value)
+	assert.True(t, result.Description.IsSet())
+	assert.Equal(t, "Test backup description", result.Description.Value)
+	assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+	assert.True(t, result.SourceVolume.IsSet())
+	assert.True(t, result.SourceSnapshot.IsSet())
+	assert.True(t, result.BackupRegion.IsSet())
+	assert.Equal(t, "us-central1", result.BackupRegion.Value)
+	assert.True(t, result.VolumeRegion.IsSet())
+	assert.Equal(t, "us-central1", result.VolumeRegion.Value)
+	assert.False(t, result.SatisfiesPzs.IsSet())
+	assert.False(t, result.SatisfiesPzs.Value)
+	assert.False(t, result.SatisfiesPzi.IsSet())
+	assert.False(t, result.SatisfiesPzi.Value)
+	assert.False(t, result.BackupChainBytes.IsSet())
+	assert.Equal(t, int64(0), result.BackupChainBytes.Value)
+	assert.False(t, result.AssetLocationMetadata.IsSet())
 }
 
+func TestConvertBackupDataModelToBackupsV1beta_NoSnapshot(t *testing.T) {
+	backup := &datamodel.Backup{
+		Name:        "test-backup",
+		VolumeUUID:  "test-volume-uuid",
+		State:       "READY",
+		SizeInBytes: 1024,
+		Description: "Test backup description",
+		Type:        "MANUAL",
+		Attributes: &datamodel.BackupAttributes{
+			AccountIdentifier:   "test-account",
+			VolumeName:          "test-volume",
+			UseExistingSnapshot: false,
+		},
+		BackupVault: &datamodel.BackupVault{
+			SourceRegionName: func() *string { s := "us-central1"; return &s }(),
+			BackupRegionName: func() *string { s := "us-central1"; return &s }(),
+		},
+	}
+	backup.UUID = "backup-uuid"
+	backup.BackupVault.UUID = "vault-uuid"
+
+	result := convertBackupDataModelToBackupsV1beta(backup)
+
+	assert.Equal(t, "test-backup", result.ResourceId.Value)
+	assert.Equal(t, "test-volume-uuid", result.VolumeId.Value)
+	assert.Equal(t, "READY", string(result.State.Value))
+	assert.True(t, result.Created.IsSet())
+	assert.True(t, result.BackupId.IsSet())
+	assert.Equal(t, "backup-uuid", result.BackupId.Value)
+	assert.True(t, result.VolumeUsageBytes.IsSet())
+	assert.Equal(t, int64(1024), result.VolumeUsageBytes.Value)
+	assert.True(t, result.BackupVaultId.IsSet())
+	assert.Equal(t, "vault-uuid", result.BackupVaultId.Value)
+	assert.True(t, result.Description.IsSet())
+	assert.Equal(t, "Test backup description", result.Description.Value)
+	assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+	assert.True(t, result.SourceVolume.IsSet())
+	assert.False(t, result.SourceSnapshot.IsSet())
+	assert.True(t, result.BackupRegion.IsSet())
+	assert.True(t, result.VolumeRegion.IsSet())
+	assert.Equal(t, "us-central1", result.VolumeRegion.Value)
+	assert.False(t, result.SatisfiesPzs.IsSet())
+	assert.False(t, result.SatisfiesPzs.Value)
+	assert.False(t, result.SatisfiesPzi.IsSet())
+	assert.False(t, result.SatisfiesPzi.Value)
+	assert.False(t, result.BackupChainBytes.IsSet())
+	assert.Equal(t, int64(0), result.BackupChainBytes.Value)
+	assert.False(t, result.AssetLocationMetadata.IsSet())
+}
+
+func TestConvertToBackupsV1beta_ConditionalFields(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         *models.BackupV1beta
+		expectedSet   []string
+		expectedUnset []string
+	}{
+		{
+			name: "All optional fields are nil - should not be set",
+			input: &models.BackupV1beta{
+				ResourceID:    "test-backup",
+				VolumeID:      "test-volume",
+				State:         "READY",
+				BackupID:      "backup-123",
+				BackupVaultID: func() *string { s := "vault-123"; return &s }(),
+				BackupType:    "MANUAL",
+			},
+			expectedUnset: []string{"EnforcedRetentionEndTime", "VolumeUsageBytes", "Description", "SourceSnapshot", "BackupChainBytes", "SatisfiesPzs", "SatisfiesPzi", "VolumeRegion", "BackupRegion", "AssetLocationMetadata"}},
+		{
+			name: "Some optional fields have values - should be set",
+			input: &models.BackupV1beta{
+				ResourceID:    "test-backup",
+				VolumeID:      "test-volume",
+				State:         "READY",
+				BackupID:      "backup-123",
+				BackupVaultID: func() *string { s := "vault-123"; return &s }(),
+				BackupType:    "MANUAL",
+				Description:   func() *string { s := "Test backup"; return &s }(),
+				SatisfiesPzs:  func() *bool { b := true; return &b }(),
+				VolumeRegion:  func() *string { s := "us-central1"; return &s }(),
+			},
+			expectedSet:   []string{"Description", "SatisfiesPzs", "VolumeRegion"},
+			expectedUnset: []string{"EnforcedRetentionEndTime", "VolumeUsageBytes", "SourceSnapshot", "BackupChainBytes", "SatisfiesPzi", "BackupRegion", "AssetLocationMetadata"}},
+		{
+			name: "All optional fields have values - should all be set",
+			input: &models.BackupV1beta{
+				ResourceID:       "test-backup",
+				VolumeID:         "test-volume",
+				State:            "READY",
+				Created:          strfmt.DateTime(time.Now()),
+				BackupID:         "backup-123",
+				VolumeUsageBytes: func() *int64 { v := int64(1024); return &v }(),
+				SourceVolume:     "projects/123/locations/us-central1/volumes/test-volume",
+				BackupVaultID:    func() *string { s := "vault-123"; return &s }(),
+				Description:      func() *string { s := "Test backup"; return &s }(),
+				SourceSnapshot:   func() *string { s := "snapshot-123"; return &s }(),
+				BackupType:       "MANUAL",
+				BackupChainBytes: func() *int64 { v := int64(512); return &v }(),
+				SatisfiesPzs:     func() *bool { b := true; return &b }(),
+				SatisfiesPzi:     func() *bool { b := false; return &b }(),
+				VolumeRegion:     func() *string { s := "us-central1"; return &s }(),
+				BackupRegion:     func() *string { s := "us-east1"; return &s }(),
+			},
+			expectedSet:   []string{"Created", "VolumeUsageBytes", "SourceVolume", "Description", "SourceSnapshot", "BackupChainBytes", "SatisfiesPzs", "SatisfiesPzi", "VolumeRegion", "BackupRegion"},
+			expectedUnset: []string{"EnforcedRetentionEndTime", "AssetLocationMetadata"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertToBackupsV1beta(tt.input)
+
+			// Check expected fields are set
+			for _, field := range tt.expectedSet {
+				switch field {
+				case "Created":
+					assert.True(t, result.Created.IsSet())
+				case "EnforcedRetentionEndTime":
+					assert.True(t, result.EnforcedRetentionEndTime.IsSet())
+				case "VolumeUsageBytes":
+					assert.True(t, result.VolumeUsageBytes.IsSet())
+				case "SourceVolume":
+					assert.True(t, result.SourceVolume.IsSet())
+				case "Description":
+					assert.True(t, result.Description.IsSet())
+				case "SourceSnapshot":
+					assert.True(t, result.SourceSnapshot.IsSet())
+				case "BackupChainBytes":
+					assert.True(t, result.BackupChainBytes.IsSet())
+				case "SatisfiesPzs":
+					assert.True(t, result.SatisfiesPzs.IsSet())
+				case "SatisfiesPzi":
+					assert.True(t, result.SatisfiesPzi.IsSet())
+				case "VolumeRegion":
+					assert.True(t, result.VolumeRegion.IsSet())
+				case "BackupRegion":
+					assert.True(t, result.BackupRegion.IsSet())
+				case "AssetLocationMetadata":
+					assert.True(t, result.AssetLocationMetadata.IsSet())
+				}
+			}
+
+			// Check unexpected fields are NOT set
+			for _, field := range tt.expectedUnset {
+				switch field {
+				case "Created":
+					assert.False(t, result.Created.IsSet())
+				case "EnforcedRetentionEndTime":
+					assert.False(t, result.EnforcedRetentionEndTime.IsSet())
+				case "VolumeUsageBytes":
+					assert.False(t, result.VolumeUsageBytes.IsSet())
+				case "SourceVolume":
+					assert.False(t, result.SourceVolume.IsSet())
+				case "Description":
+					assert.False(t, result.Description.IsSet())
+				case "SourceSnapshot":
+					assert.False(t, result.SourceSnapshot.IsSet())
+				case "BackupChainBytes":
+					assert.False(t, result.BackupChainBytes.IsSet())
+				case "SatisfiesPzs":
+					assert.False(t, result.SatisfiesPzs.IsSet())
+				case "SatisfiesPzi":
+					assert.False(t, result.SatisfiesPzi.IsSet())
+				case "VolumeRegion":
+					assert.False(t, result.VolumeRegion.IsSet())
+				case "BackupRegion":
+					assert.False(t, result.BackupRegion.IsSet())
+				case "AssetLocationMetadata":
+					assert.False(t, result.AssetLocationMetadata.IsSet())
+				}
+			}
+		})
+	}
+}
 func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 	t.Run("WhenSourceSnapshotIsSetWithUseExistingSnapshot", func(t *testing.T) {
 		backup := &datamodel.Backup{

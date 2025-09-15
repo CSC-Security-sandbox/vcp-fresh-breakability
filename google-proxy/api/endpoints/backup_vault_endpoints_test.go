@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
@@ -2835,10 +2836,17 @@ func TestReturnsBackupVaultV1betaWhenAllFieldsAreSet(t *testing.T) {
 	assert.Equal(t, "us-east1", result.BackupRegion.Value)
 	assert.Equal(t, "STANDARD", string(result.BackupVaultType.Value))
 	assert.Equal(t, 30, result.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.IsSet())
 	assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.Value)
-	assert.False(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.IsSet())
+	assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.IsSet())
+	assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.IsSet())
+	assert.False(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.Value) // This is false
+	assert.True(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable.IsSet())
 	assert.True(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable.Value)
-	assert.False(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.IsSet())
+	assert.False(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.Value) // This is false
 }
 
 func TestReturnsBackupVaultV1betaWithDefaultsWhenOptionalFieldsAreNil(t *testing.T) {
@@ -2865,8 +2873,98 @@ func TestReturnsBackupVaultV1betaWithDefaultsWhenOptionalFieldsAreNil(t *testing
 	assert.NotNil(t, result.BackupRegion)
 	assert.NotNil(t, result.BackupVaultType)
 	assert.NotNil(t, result.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays)
-	assert.NotNil(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable)
-	assert.NotNil(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable)
-	assert.NotNil(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable)
-	assert.NotNil(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable)
+	assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.IsSet())
+	assert.False(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.IsSet())
+	assert.False(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable.IsSet())
+	assert.False(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.IsSet())
+	assert.False(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.Value)
+}
+
+func TestConvertBackupVaultV1Beta_OnlyTrueFieldsIncluded(t *testing.T) {
+	tests := []struct {
+		name             string
+		input            *models.BackupVaultV1beta
+		expectedFields   []string
+		unexpectedFields []string
+	}{
+		{
+			name: "Only daily backup immutable is true",
+			input: &models.BackupVaultV1beta{
+				BackupVaultID: "test-vault",
+				State:         "READY",
+				StateDetails:  "Available",
+				CreatedAt:     strfmt.DateTime(time.Now()),
+				BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
+					BackupMinimumEnforcedRetentionDays: func() *int64 { v := int64(7); return &v }(),
+					DailyBackupImmutable:               true,
+					WeeklyBackupImmutable:              false,
+					MonthlyBackupImmutable:             false,
+					ManualBackupImmutable:              false,
+				},
+			},
+			expectedFields:   []string{"BackupMinimumEnforcedRetentionDays", "DailyBackupImmutable"},
+			unexpectedFields: []string{"WeeklyBackupImmutable", "MonthlyBackupImmutable", "ManualBackupImmutable"},
+		},
+		{
+			name: "All fields are false - only retention days should be included",
+			input: &models.BackupVaultV1beta{
+				BackupVaultID: "test-vault",
+				State:         "READY",
+				StateDetails:  "Available",
+				CreatedAt:     strfmt.DateTime(time.Now()),
+				BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
+					BackupMinimumEnforcedRetentionDays: func() *int64 { v := int64(7); return &v }(),
+					DailyBackupImmutable:               false,
+					WeeklyBackupImmutable:              false,
+					MonthlyBackupImmutable:             false,
+					ManualBackupImmutable:              false,
+				},
+			},
+			expectedFields:   []string{"BackupMinimumEnforcedRetentionDays"},
+			unexpectedFields: []string{"DailyBackupImmutable", "WeeklyBackupImmutable", "MonthlyBackupImmutable", "ManualBackupImmutable"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertBackupVaultV1Beta(tt.input)
+
+			// Check expected fields are set
+			for _, field := range tt.expectedFields {
+				switch field {
+				case "BackupMinimumEnforcedRetentionDays":
+					assert.True(t, result.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.IsSet())
+				case "DailyBackupImmutable":
+					assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.IsSet())
+					assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.Value)
+				case "WeeklyBackupImmutable":
+					assert.True(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.IsSet())
+					assert.True(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.Value)
+				case "MonthlyBackupImmutable":
+					assert.True(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable.IsSet())
+					assert.True(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable.Value)
+				case "ManualBackupImmutable":
+					assert.True(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.IsSet())
+					assert.True(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.Value)
+				}
+			}
+
+			// Check unexpected fields are NOT set
+			for _, field := range tt.unexpectedFields {
+				switch field {
+				case "DailyBackupImmutable":
+					assert.False(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.IsSet())
+				case "WeeklyBackupImmutable":
+					assert.False(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.IsSet())
+				case "MonthlyBackupImmutable":
+					assert.False(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable.IsSet())
+				case "ManualBackupImmutable":
+					assert.False(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.IsSet())
+				}
+			}
+		})
+	}
 }
