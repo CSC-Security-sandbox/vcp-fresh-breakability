@@ -432,6 +432,7 @@ func TestDeleteBackup(t *testing.T) {
 		}
 		defer func() { validateBackupDeleteParams = _validateBackupDeleteParams }()
 
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(&datamodel.Backup{State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{DeleteInitiated: false}}, nil)
 		_, _, err := deleteBackup(ctx, store, temporal, params)
 		assert.EqualError(t, err, "validation failed")
 	})

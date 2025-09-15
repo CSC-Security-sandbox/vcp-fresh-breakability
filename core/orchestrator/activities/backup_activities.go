@@ -540,8 +540,9 @@ func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *m
 	}
 	rsp, err := provider.SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName)
 	if err != nil {
+		logger.Errorf("Snapmirror transfer failed with error: %v", err)
 		if rsp != nil && rsp.State != nil {
-			logger.Errorf("Snapmirror transfer failed with backupActivitiesContext: %s, error: %v", *rsp.State, err)
+			logger.Errorf("Snapmirror transfer failed with status: %s", *rsp.State)
 		}
 		return SmStatusFailed, err
 	}
@@ -550,16 +551,16 @@ func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *m
 	}
 	if rsp.State != nil {
 		if *rsp.State == SmStatusFailed {
-			return SmStatusFailed, errors.New("Snapmirror transfer failed with backupActivitiesContext: " + SmStatusFailed)
+			return SmStatusFailed, errors.New("Snapmirror transfer failed with status: " + SmStatusFailed)
 		}
 		if *rsp.State == SmStatusSuccess {
-			return SmStatusSuccess, err
+			return SmStatusSuccess, nil
 		}
 		if *rsp.State == SmStatusTransferring {
 			return SmStatusTransferring, nil
 		}
 	}
-	return SmStatusFailed, errors.New("Snapmirror transfer failed with backupActivitiesContext: " + *rsp.State)
+	return SmStatusFailed, errors.New("Snapmirror transfer failed with status: " + *rsp.State)
 }
 
 func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {

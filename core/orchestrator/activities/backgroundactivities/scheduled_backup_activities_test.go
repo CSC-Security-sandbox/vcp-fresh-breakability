@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -57,8 +59,10 @@ func TestCreateScheduledBackup(t *testing.T) {
 		mockStorage.On("CreateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, errors.New("db error"))
 
 		backup, err := activity.CreateScheduledBackup(context.Background(), volume, backupVault, timestamp, scheduleTag)
-		assert.Error(t, err)
 		assert.Nil(t, backup)
+		assert.Error(t, err)
+		assert.Equal(t, err.Error(), "db error")
+
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -135,8 +139,10 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 		mockStorage.On("ListVolumes", ctx, conditions).Return(nil, errors.New("db error")).Once()
 
 		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID)
-		assert.Error(t, err)
 		assert.Nil(t, volumes)
+		assert.Error(t, err)
+		assert.Equal(t, err.Error(), "db error")
+
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -253,6 +259,7 @@ func TestFetchScheduledBackupForDeletion(t *testing.T) {
 		backups, err := activity.FetchScheduledBackupForDeletion(ctx, volume, backupPolicy)
 		assert.Error(t, err)
 		assert.Nil(t, backups)
+		assert.Equal(t, err, errors.New("db error"))
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -401,6 +408,322 @@ func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
 		err := activity.HydrateDeletedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")
 		assert.Error(t, err)
 		assert.Equal(t, "could not hydrate backups to CCFE", err.Error())
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestCreateBackupSnapshotInDB(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := ScheduledBackupActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 123, UUID: "volume-uuid"},
+		AccountID: 456,
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+	}
+	snapshotName := "test-snapshot-name"
+
+	t.Run("CreateBackupSnapshotInDBSuccess", func(t *testing.T) {
+		expectedSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{ID: 789, UUID: "snapshot-uuid"},
+			Name:      snapshotName,
+		}
+
+		mockStorage.On("CreatingSnapshot", ctx, mock.Anything).Return(expectedSnapshot, nil).Once()
+
+		snapshot, err := activity.CreateBackupSnapshotInDB(ctx, volume, snapshotName)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSnapshot, snapshot)
+
+		// Verify the snapshot object passed to CreatingSnapshot
+		callArgs := mockStorage.Calls[0].Arguments
+		passedSnapshot := callArgs[1].(*datamodel.Snapshot)
+		assert.Equal(t, snapshotName, passedSnapshot.Name)
+		assert.Equal(t, activities.BackupComment, passedSnapshot.Description)
+		assert.Equal(t, volume.ID, passedSnapshot.VolumeID)
+		assert.Equal(t, volume.AccountID, passedSnapshot.AccountID)
+		assert.Equal(t, volume, passedSnapshot.Volume)
+		assert.Equal(t, volume.Account, passedSnapshot.Account)
+		assert.False(t, passedSnapshot.IsAppConsistent)
+		assert.Equal(t, SnapshotTypeBackupScheduled, passedSnapshot.Type)
+		assert.NotNil(t, passedSnapshot.SnapshotAttributes)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("CreateBackupSnapshotInDBFails", func(t *testing.T) {
+		mockStorage.On("CreatingSnapshot", ctx, mock.Anything).Return(nil, errors.New("database error")).Once()
+
+		snapshot, err := activity.CreateBackupSnapshotInDB(ctx, volume, snapshotName)
+		assert.Error(t, err)
+		assert.Nil(t, snapshot)
+		// CreateBackupSnapshotInDB wraps plain errors with WrapAsTemporalApplicationError,
+		// but since it's not a CustomError, it returns the original error unchanged
+		assert.Equal(t, "database error", err.Error())
+
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestUpdateBackupSnapshotInDB(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := ScheduledBackupActivity{SE: mockStorage}
+
+	dbSnapshot := &datamodel.Snapshot{
+		BaseModel:          datamodel.BaseModel{ID: 789, UUID: "snapshot-uuid"},
+		Name:               "test-snapshot",
+		SnapshotAttributes: &datamodel.SnapshotAttributes{},
+	}
+
+	ontapSnapshot := &vsa.SnapshotProviderResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "ontap-external-uuid",
+		},
+		SizeInBytes:        1024000,
+		LogicalSizeInBytes: 512000,
+	}
+
+	t.Run("UpdateBackupSnapshotInDBSuccess", func(t *testing.T) {
+		updatedSnapshot := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{ID: 789, UUID: "snapshot-uuid"},
+			Name:         "test-snapshot",
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            1024000,
+				ExternalUUID:           "ontap-external-uuid",
+				LogicalSizeUsedInBytes: 512000,
+			},
+		}
+
+		mockStorage.On("UpdateSnapshot", ctx, mock.Anything).Return(updatedSnapshot, nil).Once()
+
+		result, err := activity.UpdateBackupSnapshotInDB(ctx, dbSnapshot, ontapSnapshot)
+		assert.NoError(t, err)
+		assert.Equal(t, updatedSnapshot, result)
+
+		// Verify the snapshot object was updated correctly
+		assert.Equal(t, models.LifeCycleStateREADY, dbSnapshot.State)
+		assert.Equal(t, models.LifeCycleStateAvailableDetails, dbSnapshot.StateDetails)
+		assert.Equal(t, ontapSnapshot.SizeInBytes, dbSnapshot.SnapshotAttributes.SizeInBytes)
+		assert.Equal(t, ontapSnapshot.ExternalUUID, dbSnapshot.SnapshotAttributes.ExternalUUID)
+		assert.Equal(t, ontapSnapshot.LogicalSizeInBytes, dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSnapshotInDBFails", func(t *testing.T) {
+		mockStorage.On("UpdateSnapshot", ctx, mock.Anything).Return(nil, errors.New("database error")).Once()
+
+		result, err := activity.UpdateBackupSnapshotInDB(ctx, dbSnapshot, ontapSnapshot)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// UpdateBackupSnapshotInDB returns the raw error, not wrapped as ApplicationError
+		assert.Equal(t, "database error", err.Error())
+
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestDeleteBackupSnapshotInDB(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := ScheduledBackupActivity{SE: mockStorage}
+
+	snapshotName := "test-snapshot-name"
+
+	t.Run("DeleteBackupSnapshotInDBSuccess", func(t *testing.T) {
+		mockStorage.On("DeleteSnapshot", ctx, snapshotName).Return(&datamodel.Snapshot{}, nil).Once()
+
+		err := activity.DeleteBackupSnapshotInDB(ctx, snapshotName)
+		assert.NoError(t, err)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DeleteBackupSnapshotInDBFails", func(t *testing.T) {
+		mockStorage.On("DeleteSnapshot", ctx, snapshotName).Return(nil, errors.New("database error")).Once()
+
+		err := activity.DeleteBackupSnapshotInDB(ctx, snapshotName)
+		assert.Error(t, err)
+		// DeleteBackupSnapshotInDB wraps plain errors with WrapAsTemporalApplicationError,
+		// but since it's not a CustomError, it returns the original error unchanged
+		assert.Equal(t, "database error", err.Error())
+
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestUpdateBackupSize(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := ScheduledBackupActivity{SE: mockStorage}
+
+	t.Run("UpdateBackupSizeSuccessWithNonZeroSize", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID:              "volume-uuid",
+			LatestLogicalBackupSize: 1024000,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		// Mock UpdateBackup call
+		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+
+		// Mock UpdateBackupLatestLogicalBackupSizeByVolume call (should be called when LatestLogicalBackupSize != 0)
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(nil).Once()
+		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeSuccessWithZeroSize", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID:              "volume-uuid",
+			LatestLogicalBackupSize: 0,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		// Mock UpdateBackup call
+		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+
+		// UpdateBackupLatestLogicalBackupSizeByVolume should NOT be called when LatestLogicalBackupSize == 0
+		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeFailsOnUpdateBackup", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID:              "volume-uuid",
+			LatestLogicalBackupSize: 1024000,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+		}
+
+		// Mock UpdateBackup call to fail
+		mockStorage.On("UpdateBackup", ctx, backup).Return(nil, errors.New("database error")).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "database error")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeFailsOnResetPreviousBackups", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID:              "volume-uuid",
+			LatestLogicalBackupSize: 1024000,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+		}
+
+		// Mock UpdateBackup call to succeed
+		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+
+		// Mock UpdateBackupLatestLogicalBackupSizeByVolume call to fail
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(errors.New("reset error")).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "reset error")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeFailsOnUpdateVolumeFields", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID:              "volume-uuid",
+			LatestLogicalBackupSize: 1024000,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		// Mock UpdateBackup call to succeed
+		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+
+		// Mock UpdateBackupLatestLogicalBackupSizeByVolume call to succeed
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(nil).Once()
+
+		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(errors.New("volume update error")).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "volume update error")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeFailsOnUpdateVolumeFieldsWithZeroSize", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID:              "volume-uuid",
+			LatestLogicalBackupSize: 0,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		// Mock UpdateBackup call to succeed
+		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+
+		// UpdateBackupLatestLogicalBackupSizeByVolume should NOT be called when LatestLogicalBackupSize == 0
+		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(errors.New("volume update error")).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "volume update error")
 		mockStorage.AssertExpectations(t)
 	})
 }

@@ -32,6 +32,7 @@ regionalSupportEnabled: true
 filesProtocolSupport: false
 fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
 backupEnabled: false
+qaEnabled: false
 minQuotaInBytesPool: "1099511627776" # 1TiB in bytes
 maxQuotaInBytesPool: "467292441804800" # 425TiB in bytes
 minQuotaInBytesVolume: "1073741824" # 1GiB in bytes

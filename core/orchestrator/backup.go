@@ -349,11 +349,6 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	err = validateBackupDeleteParams(ctx, se, params)
-	if err != nil {
-		return nil, "", err
-	}
-
 	backup, err := se.GetBackup(ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName)
 	if err != nil {
 		return nil, "", err
@@ -366,6 +361,11 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 			return nil, "", err
 		}
 		return nil, "", nil
+	}
+
+	err = validateBackupDeleteParams(ctx, se, params)
+	if err != nil {
+		return nil, "", err
 	}
 
 	// Check whether any volume restore is in progress for this backup

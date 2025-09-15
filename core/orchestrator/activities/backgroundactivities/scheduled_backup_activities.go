@@ -5,8 +5,11 @@ import (
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
@@ -124,6 +127,107 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 func (j *ScheduledBackupActivity) FetchScheduledBackupForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
 	se := j.SE
 	return se.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy)
+}
+
+func (j *ScheduledBackupActivity) CreateBackupSnapshotInDB(ctx context.Context, volume *datamodel.Volume, snapshotName string) (*datamodel.Snapshot, error) {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+
+	snapshot := &datamodel.Snapshot{
+		Name:               snapshotName,
+		Description:        activities.BackupComment,
+		VolumeID:           volume.ID,
+		AccountID:          volume.AccountID,
+		Volume:             volume,
+		Account:            volume.Account,
+		IsAppConsistent:    false,
+		Type:               SnapshotTypeBackupScheduled,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{},
+	}
+	dbSnapshot, err := se.CreatingSnapshot(ctx, snapshot)
+	if err != nil {
+		logger.Errorf("Failed to create snapshot in database. Error: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return dbSnapshot, nil
+}
+
+func (j *ScheduledBackupActivity) UpdateBackupSnapshotInDB(ctx context.Context, dbSnapshot *datamodel.Snapshot, ontapSnapshot *vsa.SnapshotProviderResponse) (*datamodel.Snapshot, error) {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+
+	// Update the snapshot in the database
+	dbSnapshot.State = models.LifeCycleStateREADY
+	dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+	dbSnapshot.SnapshotAttributes = &datamodel.SnapshotAttributes{
+		SizeInBytes:            ontapSnapshot.SizeInBytes,
+		ExternalUUID:           ontapSnapshot.ExternalUUID,
+		LogicalSizeUsedInBytes: ontapSnapshot.LogicalSizeInBytes,
+	}
+
+	_, err := se.UpdateSnapshot(ctx, dbSnapshot)
+	if err != nil {
+		logger.Errorf("Failed to update snapshot details in database. Error: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return dbSnapshot, nil
+}
+
+func (j *ScheduledBackupActivity) DeleteBackupSnapshotInDB(ctx context.Context, snapshotUUID string) error {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+
+	_, err := se.DeleteSnapshot(ctx, snapshotUUID)
+	if err != nil {
+		logger.Errorf("Failed to delete snapshot in database. Error: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
+func (j *ScheduledBackupActivity) UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
+	se := j.SE
+	updated, err := se.UpdateBackupState(ctx, backup)
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	_, err := se.UpdateBackup(ctx, backup)
+	if err != nil {
+		logger.Errorf("Failed to update backup %s with size information: %v", backup.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Set LatestLogicalBackupSize to 0 for all previous backups of the same volume in a single query
+	// This ensures that only the latest backup has the correct size
+	// Update only if the latest logical backup size is not zero for the current backup
+	if backup.LatestLogicalBackupSize != 0 {
+		err = se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volume.UUID, backup.UUID)
+		if err != nil {
+			logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volume.UUID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	// Update the volume's LatestLogicalBackupSize field
+	volume.VolumeAttributes.LatestLogicalBackupSize = backup.LatestLogicalBackupSize
+	updates := map[string]interface{}{
+		"volume_attributes": volume.VolumeAttributes,
+	}
+	err = se.UpdateVolumeFields(ctx, volume.UUID, updates)
+	if err != nil {
+		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Debugf("Successfully updated backup size fields for backup %s and volume %s", backup.UUID, volume.UUID)
+	return nil
 }
 
 // convertToGCPHydrateCreateRequests converts a slice of Backup objects to GCP hydrate create requests.
