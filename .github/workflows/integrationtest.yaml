@@ -23,7 +23,7 @@ jobs:
   build:
     name:  Build and Test Integration
     runs-on: [self-hosted, linux]
-    timeout-minutes: ${{ vars.TIMEOUT }}
+    timeout-minutes: ${{ fromJSON(vars.TIMEOUT) }}
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
       options: --user root
