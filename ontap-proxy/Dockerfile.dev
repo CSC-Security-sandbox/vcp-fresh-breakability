@@ -5,4 +5,7 @@ COPY app/ontap-proxy /app
 COPY ontap-proxy/air.toml /app/air.toml
 
 ENV GOTRACEBACK=all
-ENTRYPOINT ["air", "-c", "/app/air.toml"] 
+ENTRYPOINT ["air", "-c", "/app/air.toml"]
+
+# # Set ownership and permissions
+# USER nonroot:nonroot

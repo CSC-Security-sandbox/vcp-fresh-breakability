@@ -30,6 +30,7 @@ build:
         dockerfile: ontap-proxy/Dockerfile
         buildArgs:
           noCache: true
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
       requires:
         - image: base
           alias: BASE
