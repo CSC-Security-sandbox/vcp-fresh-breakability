@@ -12,6 +12,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -23,6 +26,10 @@ const (
 	SmStatusTransferring = "transferring"
 	SmStatusSuccess      = "success"
 	SmStatusFailed       = "failed"
+)
+
+var (
+	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
 )
 
 type BackupActivity struct {
@@ -102,6 +109,9 @@ func (a BackupActivity) UpdateBackupError(ctx context.Context, backup *datamodel
 }
 
 func (a BackupActivity) MarkBackupAvailable(ctx context.Context, backup *datamodel.Backup) error {
+	if backup == nil {
+		return errors.New("backup cannot be nil")
+	}
 	se := a.SE
 	backup.State = models.LifeCycleStateAvailable
 	backup.StateDetails = models.LifeCycleStateAvailableDetails
@@ -887,4 +897,105 @@ func (a BackupActivity) markSnapshotAsError(ctx context.Context, snapshot *datam
 	snapshot.StateDetails = errorMessage
 	_, err := a.SE.UpdateSnapshot(ctx, snapshot)
 	return err
+}
+
+// HydrateSnapshotToCCFEActivity hydrates the created snapshot to CCFE
+func (a BackupActivity) HydrateSnapshotToCCFEActivity(ctx context.Context, snapshot *datamodel.Snapshot, volumeName, region, projectId string) error {
+	logger := util.GetLogger(ctx)
+
+	if !hydrationEnabled {
+		logger.Info("Hydration is disabled, skipping snapshot hydration to CCFE")
+		return nil
+	}
+
+	if snapshot == nil {
+		logger.Warn("No database snapshot found, skipping hydration")
+		return nil
+	}
+
+	// Generate callback token
+	token, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		logger.Errorf("Failed to generate callback token for snapshot hydration: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Convert snapshot to GCP hydrate snapshot object
+	gcpSnapshot := ConvertSnapshotToGCPHydrateSnapshot(*snapshot)
+
+	// Create request
+	request := models.Request{Snapshot: &gcpSnapshot}
+	requests := []models.Request{request}
+
+	// Hydrate to CCFE using the existing batch hydration function
+	err = commonparams.BatchHydrateCreatedSnapshots(ctx, logger, requests, volumeName, region, projectId, token)
+	if err != nil {
+		logger.Errorf("Failed to hydrate snapshot to CCFE: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully hydrated snapshot %s to CCFE", snapshot.Name)
+	return nil
+}
+
+// ConvertSnapshotToGCPHydrateSnapshot converts a datamodel.Snapshot to a GCP-compatible snapshot object
+func ConvertSnapshotToGCPHydrateSnapshot(snapshot datamodel.Snapshot) models.HydrateSnapshot {
+	gcpSnapshot := models.HydrateSnapshot{
+		ResourceId:   utils.RenameSnapshotName(snapshot.Name),
+		SnapshotId:   snapshot.UUID,
+		State:        commonparams.MapStateToGcpState(snapshot.State),
+		StateDetails: snapshot.StateDetails,
+		CreateTime:   snapshot.CreatedAt,
+		VolumeName:   snapshot.Volume.Name,
+		AccountName:  snapshot.Account.Name,
+	}
+
+	if snapshot.SnapshotAttributes != nil {
+		gcpSnapshot.UsedBytes = snapshot.SnapshotAttributes.SizeInBytes
+	}
+
+	if snapshot.Description != "" {
+		gcpSnapshot.Description = snapshot.Description
+	}
+
+	return gcpSnapshot
+}
+
+// HydrateSnapshotDeletionToCCFEActivity hydrates the deleted snapshot to CCFE
+func (a BackupActivity) HydrateSnapshotDeletionToCCFEActivity(ctx context.Context, snapshot *datamodel.Snapshot, volumeName, region, projectId string) error {
+	logger := util.GetLogger(ctx)
+
+	if !hydrationEnabled {
+		logger.Info("Hydration is disabled, skipping snapshot deletion hydration to CCFE")
+		return nil
+	}
+
+	if snapshot == nil {
+		logger.Warn("No database snapshot found, skipping deletion hydration")
+		return nil
+	}
+
+	// Generate callback token
+	token, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		logger.Errorf("Failed to generate callback token for snapshot deletion hydration: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Convert snapshot to GCP hydrate snapshot object for deletion
+	gcpSnapshot := ConvertSnapshotToGCPHydrateSnapshot(*snapshot)
+
+	// Create request for deletion
+	request := models.Request{Snapshot: &gcpSnapshot}
+	requests := []models.Request{request}
+
+	// Hydrate deletion to CCFE using the existing batch hydration function
+	err = commonparams.BatchHydrateDeletedSnapshots(ctx, logger, requests, volumeName, region, projectId, token)
+	if err != nil {
+		logger.Errorf("Failed to hydrate snapshot deletion to CCFE: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully hydrated snapshot deletion %s to CCFE", snapshot.Name)
+	return nil
 }

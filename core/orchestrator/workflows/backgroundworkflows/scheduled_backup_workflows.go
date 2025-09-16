@@ -429,6 +429,16 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	}
 
 	if hydrationEnabled {
+		err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotToCCFEActivity,
+			dbSnapshot,
+			volume.Name,
+			backupVault.RegionName,
+			volume.Account.Name).Get(ctx, nil)
+		if err != nil {
+			// Log the error but don't fail the entire workflow
+			wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for backup %s: %v", backup.Name, err)
+		}
+
 		postTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateCreatedBackupsToCCFE, volume, backups, backupVault.Name).Get(ctx, nil)
 		if postTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(postTransferErr)
@@ -600,14 +610,43 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 			wf.Logger.Errorf("Failed to delete backup %s: %v", backup.Name, err)
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to delete backup %s: %w", backup.Name, err))
 		}
-	}
+		if hydrationEnabled {
+			// Hydrate snapshot deletions to CCFE for each deleted backup
+			snapshot := &datamodel.Snapshot{
+				BaseModel: datamodel.BaseModel{
+					UUID:      backup.Attributes.SnapshotID,
+					CreatedAt: backup.CreatedAt,
+				},
+				Name:         backup.Name,
+				State:        models.LifeCycleStateDeleted,
+				StateDetails: models.LifeCycleStateDeletedDetails,
+				Description:  backup.Description,
+				Volume:       volume,
+				Account:      volume.Account,
+				SnapshotAttributes: &datamodel.SnapshotAttributes{
+					SizeInBytes: backup.SizeInBytes,
+				},
+			}
 
+			err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotDeletionToCCFEActivity,
+				snapshot,
+				volume.Name,
+				backupVault.RegionName,
+				volume.Account.Name).Get(ctx, nil)
+			if err != nil {
+				// Log the error but don't fail the entire workflow
+				wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", backup.Name, err)
+			}
+		}
+	}
+	// Hydrate all deleted backups to CCFE after processing all backups
 	if hydrationEnabled {
 		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateDeletedBackupsToCCFE, volume, backupToBeDeleted, backupVault.Name).Get(ctx, nil)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	}
+
 	return nil, nil
 }
 

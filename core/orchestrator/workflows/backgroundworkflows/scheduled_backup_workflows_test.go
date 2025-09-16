@@ -3,6 +3,7 @@ package backgroundworkflows
 import (
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -30,6 +31,12 @@ type ScheduledBackupsTestSuite struct {
 }
 
 func (s *ScheduledBackupsTestSuite) SetupTest() {
+	// Set environment to local to avoid Google Cloud credentials issues in tests
+	err := os.Setenv("ENV", "local")
+	if err != nil {
+		s.T().Fatalf("Failed to set ENV variable: %v", err)
+	}
+
 	s.env = s.NewTestWorkflowEnvironment()
 	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	s.env.RegisterWorkflow(CreateScheduledBackupInitWorkflow)
@@ -47,6 +54,7 @@ func TestScheduledBackupsTestSuite(t *testing.T) {
 
 // Helper function to register all activities needed for CreateScheduledBackupWorkflow tests
 func (s *ScheduledBackupsTestSuite) registerCreateScheduledBackupActivities(commonActivity *activities.CommonActivities, backupActivity *activities.BackupActivity, scheduledBackupActivity *backgroundactivities.ScheduledBackupActivity) {
+	s.env.RegisterActivity(commonActivity.CreateJob)
 	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(backupActivity.GetBackupVault)
 	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
@@ -55,12 +63,15 @@ func (s *ScheduledBackupsTestSuite) registerCreateScheduledBackupActivities(comm
 	s.env.RegisterActivity(backupActivity.SnapshotCreate)
 	s.env.RegisterActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB)
 	s.env.RegisterActivity(scheduledBackupActivity.DeleteBackupSnapshotInDB)
+	s.env.RegisterActivity(backupActivity.CreateSnapshotActivity)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
 	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
 	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
 	s.env.RegisterActivity(backupActivity.FinishBackup)
 	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
 	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
 	s.env.RegisterActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE)
+	s.env.RegisterActivity(backupActivity.HydrateSnapshotToCCFEActivity)
 	s.env.RegisterActivity(backupActivity.DeleteBackup)
 	s.env.RegisterActivity(backupActivity.GetObjectStoreEndpointInfo)
 	s.env.RegisterActivity(backupActivity.GetSnapshotFromObjectStore)
@@ -68,6 +79,7 @@ func (s *ScheduledBackupsTestSuite) registerCreateScheduledBackupActivities(comm
 	s.env.RegisterActivity(backupActivity.DeleteBackupSnapshot)
 	s.env.RegisterActivity(backupActivity.UpdateBackupError)
 	s.env.RegisterActivity(backupActivity.DeleteSnapshotFromObjectStore)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 }
 
 // Helper function to register all activities needed for DeleteScheduledBackupWorkflow tests
@@ -83,7 +95,9 @@ func (s *ScheduledBackupsTestSuite) registerDeleteScheduledBackupActivities(comm
 	s.env.RegisterActivity(commonActivity.GetOntapJob)
 	s.env.RegisterActivity(backupActivity.DeleteBackup)
 	s.env.RegisterActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE)
+	s.env.RegisterActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(backupActivity.UpdateBackupError)
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Success() {
@@ -217,109 +231,10 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
 
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := &activities.CommonActivities{SE: mockStorage}
-	backupActivity := &activities.BackupActivity{SE: mockStorage}
-	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
-
-	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
-
-	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
-		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
-			BucketDetails: []*datamodel.BucketDetails{
-				{
-					BucketName:         "vsa-backup-bucket",
-					VendorSubnetID:     "test-vendor-subnet-id",
-					ServiceAccountName: "test-service-account",
-				},
-			},
-		}, nil)
-	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
-		Return([]*datamodel.Node{
-			{
-				EndpointAddress: "0.0.0.0",
-			},
-		}, nil)
-	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&common.CloudTarget{
-			Name: "vsa-backup-bucket",
-		}, nil)
-
-	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&common.SnapmirrorRelationship{
-			UUID:            "test-uuid-1",
-			DestinationUUID: &destinationUUID,
-		}, nil)
-	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
-		Return("scheduled-snapshot-name", nil)
-	s.env.OnActivity(scheduledBackupActivity.CreateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
-		Return(&datamodel.Snapshot{}, nil)
-	s.env.OnActivity(backupActivity.SnapshotCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&vsa.SnapshotProviderResponse{
-			ProviderResponse: vsa.ProviderResponse{
-				ExternalUUID: "test-uuid-1",
-			},
-		}, nil)
-	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
-		Return(&datamodel.Snapshot{}, nil)
-	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
-	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
-	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
-	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			UUID: "volume-uuid-1",
-		},
-		Name: "test-volume-1",
-		Svm: &datamodel.Svm{
-			Name: "test-svm-1",
-		},
-		PoolID: 1,
-		Pool: &datamodel.Pool{
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password: "pool-password",
-				SecretID: "pool-credential-secret-id",
-			},
-			DeploymentName: "test-pool-deployment",
-		},
-		DataProtection: &datamodel.DataProtection{
-			BackupVaultID: "backup-vault-uuid-1",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID:   "external-uuid-1",
-			VendorSubnetID: "test-vendor-subnet-id",
-		},
-	}
-	backupPolicy := &datamodel.BackupPolicy{
-		AccountID:            1,
-		DailyBackupsToKeep:   3,
-		WeeklyBackupsToKeep:  1,
-		MonthlyBackupsToKeep: 1,
-	}
-	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NoError(s.T(), s.env.GetWorkflowError())
-	s.env.AssertExpectations(s.T())
-}
-
-func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_JobStatusUpdateFailure() {
 	scheduledWeeklyBackupDay = int(time.Now().Weekday())
 	scheduledMonthlyBackupDay = time.Now().Day()
 
@@ -381,7 +296,117 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_Jo
 	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// HydrateCreatedBackupsToCCFE is not called when hydrationEnabled = false
+	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-1",
+		},
+		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm-1",
+		},
+		PoolID: 1,
+		Pool: &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+				SecretID: "pool-credential-secret-id",
+			},
+			DeploymentName: "test-pool-deployment",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-uuid-1",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "external-uuid-1",
+			VendorSubnetID: "test-vendor-subnet-id",
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		AccountID:            1,
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_JobStatusUpdateFailure() {
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
+
+	scheduledWeeklyBackupDay = int(time.Now().Weekday())
+	scheduledMonthlyBackupDay = time.Now().Day()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:         "vsa-backup-bucket",
+					VendorSubnetID:     "test-vendor-subnet-id",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{
+			{
+				EndpointAddress: "0.0.0.0",
+			},
+		}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{
+			Name: "vsa-backup-bucket",
+		}, nil)
+
+	destinationUUID := "test-destination-uuid-1"
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.SnapmirrorRelationship{
+			UUID:            "test-uuid-1",
+			DestinationUUID: &destinationUUID,
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
+		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapshotCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.SnapshotProviderResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "test-uuid-1",
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
+	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// HydrateCreatedBackupsToCCFE is not called when hydrationEnabled = false
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job"))
 
@@ -390,6 +415,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_Jo
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -439,6 +467,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateJobF
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -490,6 +521,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetBackupV
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -551,6 +585,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_DailySched
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -615,6 +652,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_WeeklySche
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -686,6 +726,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_MonthlySch
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -752,6 +795,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NoBackupsT
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -809,6 +855,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetNodeFai
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -956,6 +1005,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetOrCreat
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -1131,6 +1183,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GenerateSn
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -1225,6 +1280,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBack
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -1322,6 +1380,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCr
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
 		},
@@ -1742,6 +1803,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -1782,6 +1846,10 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCriticalActivityFailures() {
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
+
 	scheduledWeeklyBackupDay = int(time.Now().Weekday())
 	scheduledMonthlyBackupDay = time.Now().Day()
 
@@ -1846,7 +1914,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get snapshot from object store"))
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update backup size"))
 
-	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// HydrateCreatedBackupsToCCFE is not called when hydrationEnabled = false
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
@@ -1855,6 +1923,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -1888,7 +1959,11 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 	s.env.AssertExpectations(s.T())
 }
 
-func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBackupsToCCFEFailure() {
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateBackupSizeFailure() {
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
+
 	scheduledWeeklyBackupDay = int(time.Now().Weekday())
 	scheduledMonthlyBackupDay = time.Now().Day()
 
@@ -1948,9 +2023,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBac
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
-	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not hydrate backups to CCFE"))
-	s.env.OnActivity(backupActivity.UpdateBackupError, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update backup size"))
+	// HydrateCreatedBackupsToCCFE is not called when hydrationEnabled = false
+	// UpdateBackupError is not called for non-critical failures
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -1958,6 +2033,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBac
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -1986,18 +2064,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBac
 	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-
-	var activityError *temporal.ActivityError
-	if errors.As(s.env.GetWorkflowError(), &activityError) {
-		assert.Equal(s.T(), "could not hydrate backups to CCFE", activityError.Unwrap().Error())
-	} else {
-		assert.Fail(s.T(), fmt.Sprintf("Expected ActivityError but got: %v", s.env.GetWorkflowError()))
-	}
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 	s.env.AssertExpectations(s.T())
 }
 
 func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2009,7 +2084,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2024,6 +2105,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 			},
 			Name:        "Weekly-backup1",
 			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			BackupVault: &datamodel.BackupVault{
+				RegionName: "us-central1",
+			},
 		},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2031,6 +2115,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 				},
 				Name:        "Monthly-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2038,6 +2125,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 				},
 				Name:        "Daily-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
@@ -2060,8 +2150,6 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 		Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
 		Return(nil, nil)
-	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -2069,6 +2157,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2101,6 +2192,10 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 }
 
 func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_JobStatusUpdateFailure() {
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2112,7 +2207,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2127,6 +2228,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 			},
 			Name:        "Weekly-backup1",
 			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			BackupVault: &datamodel.BackupVault{
+				RegionName: "us-central1",
+			},
 		},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2134,6 +2238,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 				},
 				Name:        "Monthly-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2141,6 +2248,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 				},
 				Name:        "Daily-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
@@ -2163,8 +2273,6 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 		Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
 		Return(nil, nil)
-	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job"))
 
 	volume := &datamodel.Volume{
@@ -2172,6 +2280,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2224,6 +2335,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_CreateJobF
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2281,6 +2395,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetBackupV
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2324,7 +2441,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_FetchSched
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2341,6 +2464,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_FetchSched
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2385,7 +2511,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_NoBackupsT
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2402,6 +2534,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_NoBackupsT
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2445,7 +2580,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetNodeFai
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2472,6 +2613,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetNodeFai
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2515,7 +2659,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetObjectS
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2548,6 +2698,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetObjectS
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2592,7 +2745,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2607,6 +2766,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 			},
 			Name:        "Weekly-backup1",
 			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			BackupVault: &datamodel.BackupVault{
+				RegionName: "us-central1",
+			},
 		},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2614,6 +2776,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 				},
 				Name:        "Monthly-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2621,6 +2786,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 				},
 				Name:        "Daily-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
@@ -2642,6 +2810,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2685,7 +2856,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2700,6 +2877,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 			},
 			Name:        "Weekly-backup1",
 			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			BackupVault: &datamodel.BackupVault{
+				RegionName: "us-central1",
+			},
 		},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2707,6 +2887,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 				},
 				Name:        "Monthly-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2714,6 +2897,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 				},
 				Name:        "Daily-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
@@ -2738,6 +2924,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2781,7 +2970,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2796,6 +2991,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 			},
 			Name:        "Weekly-backup1",
 			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			BackupVault: &datamodel.BackupVault{
+				RegionName: "us-central1",
+			},
 		},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2803,6 +3001,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 				},
 				Name:        "Monthly-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2810,6 +3011,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 				},
 				Name:        "Daily-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
@@ -2838,6 +3042,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2881,7 +3088,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -2896,6 +3109,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 			},
 			Name:        "Weekly-backup1",
 			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			BackupVault: &datamodel.BackupVault{
+				RegionName: "us-central1",
+			},
 		},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2903,6 +3119,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 				},
 				Name:        "Monthly-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -2910,6 +3129,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 				},
 				Name:        "Daily-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
@@ -2940,6 +3162,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -2979,6 +3204,10 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 }
 
 func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDeletedBackupsToCCFE() {
+	// Disable hydration for tests
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = false }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2990,7 +3219,13 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
-			Name: "test-backup-vault",
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
 			BucketDetails: []*datamodel.BucketDetails{
 				{
 					BucketName:     "vsa-backup-bucket",
@@ -3005,6 +3240,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 			},
 			Name:        "Weekly-backup1",
 			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			BackupVault: &datamodel.BackupVault{
+				RegionName: "us-central1",
+			},
 		},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -3012,6 +3250,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 				},
 				Name:        "Monthly-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			},
 			{
 				Attributes: &datamodel.BackupAttributes{
@@ -3019,6 +3260,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 				},
 				Name:        "Daily-backup1",
 				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				BackupVault: &datamodel.BackupVault{
+					RegionName: "us-central1",
+				},
 			}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
@@ -3041,6 +3285,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 		Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
 		Return(nil, nil)
+	s.env.OnActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(errors.New("could not hydrate deleted backups to CCFE"))
 	s.env.OnActivity(backupActivity.UpdateBackupError, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3051,6 +3296,9 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 			UUID: "volume-uuid-1",
 		},
 		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 		Svm: &datamodel.Svm{
 			Name: "test-svm-1",
 		},
@@ -3083,6 +3331,10 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 }
 
 func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SharedBackupScenario() {
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3177,6 +3429,10 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SharedBack
 // TestDeleteScheduledBackupWorkflow_WaitForONTAPJobFailure tests the failure scenario
 // when DeleteSnapshotFromObjectStore succeeds but WaitForONTAPJob fails
 func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_WaitForONTAPJobFailure() {
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3237,6 +3493,8 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_WaitForONT
 				Message: "failed to delete cloud endpoint",
 			},
 		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupState, mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -3273,4 +3531,432 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_WaitForONT
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to delete cloud endpoint")
+}
+
+// Test snapshot hydration in CreateScheduledBackupWorkflow
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHydration() {
+	// Disable hydration for tests
+	hydrationEnabled = false
+	defer func() { hydrationEnabled = true }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	// Mock all the required activities
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:         "vsa-backup-bucket",
+					VendorSubnetID:     "test-vendor-subnet-id",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{
+			{
+				EndpointAddress: "0.0.0.0",
+			},
+		}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{
+			Name: "vsa-backup-bucket",
+		}, nil)
+
+	destinationUUID := "test-destination-uuid-1"
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.SnapmirrorRelationship{
+			UUID:            "test-uuid-1",
+			DestinationUUID: &destinationUUID,
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
+		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapshotCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.SnapshotProviderResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "test-uuid-1",
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
+	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// HydrateCreatedBackupsToCCFE is not called when hydrationEnabled = false
+	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-backup-vault-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				AuthType:      0, // USERNAME_PWD
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "test-external-uuid",
+			VendorSubnetID: "test-vendor-subnet-id",
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		DailyBackupsToKeep: 3,
+	}
+
+	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+// Test snapshot de-hydration in DeleteScheduledBackupWorkflow
+func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDehydration() {
+	// Disable hydration for tests
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = false }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	// Mock all the required activities
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:     "vsa-backup-bucket",
+					VendorSubnetID: "test-vendor-subnet-id",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.FetchScheduledBackupForDeletion, mock.Anything, mock.Anything, mock.Anything).
+		Return([]*datamodel.Backup{{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid-1"},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-1",
+			},
+			Name:        "Weekly-backup1",
+			SizeInBytes: 1024,
+			ScheduleTag: nillable.ToPointer("weekly"),
+		}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test-node",
+			State:           "available",
+			StateDetails:    "available",
+			EndpointAddress: "192.168.1.100",
+			HostDNSName:     "test-node.example.com",
+			ZoneName:        "us-central1-a",
+		}}, nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("test-obj-store", nil)
+	s.env.OnActivity(backupActivity.GetObjectStore, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{UUID: "test-cloud-target-uuid"}, nil)
+	s.env.OnActivity(backupActivity.IsBackupShared, mock.Anything, mock.Anything).
+		Return(false, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapAsyncResponse{JobUUID: "test-delete-job-uuid"}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
+		Return(nil, nil)
+	s.env.OnActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// HydrateSnapshotDeletionToCCFEActivity is not called when hydrationEnabled = false
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-backup-vault-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				AuthType:      0, // USERNAME_PWD
+			},
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+
+	s.env.ExecuteWorkflow(DeleteScheduledBackupWorkflow, volume, backupPolicy)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+// Test snapshot hydration failure handling in CreateScheduledBackupWorkflow
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHydrationFailure() {
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = false }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	// Mock all the required activities
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:         "vsa-backup-bucket",
+					VendorSubnetID:     "test-vendor-subnet-id",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+			RegionName: "test-region",
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{
+			{
+				EndpointAddress: "0.0.0.0",
+			},
+		}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{
+			Name: "vsa-backup-bucket",
+		}, nil)
+
+	destinationUUID := "test-destination-uuid-1"
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.SnapmirrorRelationship{
+			UUID:            "test-uuid-1",
+			DestinationUUID: &destinationUUID,
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
+		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapshotCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.SnapshotProviderResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "test-uuid-1",
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
+	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.HydrateSnapshotToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not hydrate snapshot to CCFE"))
+	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// HydrateCreatedBackupsToCCFE is not called when hydrationEnabled = false
+	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-backup-vault-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				AuthType:      0, // USERNAME_PWD
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "test-external-uuid",
+			VendorSubnetID: "test-vendor-subnet-id",
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		DailyBackupsToKeep: 3,
+	}
+
+	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
+
+	// Workflow should still complete successfully even if snapshot hydration fails
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+// Test snapshot de-hydration failure handling in DeleteScheduledBackupWorkflow
+func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDehydrationFailure() {
+	// Disable hydration for tests
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = false }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	// Mock all the required activities
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:     "vsa-backup-bucket",
+					VendorSubnetID: "test-vendor-subnet-id",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.FetchScheduledBackupForDeletion, mock.Anything, mock.Anything, mock.Anything).
+		Return([]*datamodel.Backup{{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid-1"},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-1",
+			},
+			Name:        "Weekly-backup1",
+			SizeInBytes: 1024,
+			ScheduleTag: nillable.ToPointer("weekly"),
+		}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test-node",
+			State:           "available",
+			StateDetails:    "available",
+			EndpointAddress: "192.168.1.100",
+			HostDNSName:     "test-node.example.com",
+			ZoneName:        "us-central1-a",
+		}}, nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("test-obj-store", nil)
+	s.env.OnActivity(backupActivity.GetObjectStore, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{UUID: "test-cloud-target-uuid"}, nil)
+	s.env.OnActivity(backupActivity.IsBackupShared, mock.Anything, mock.Anything).
+		Return(false, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapAsyncResponse{JobUUID: "test-delete-job-uuid"}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
+		Return(nil, nil)
+	s.env.OnActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not hydrate deleted snapshots to CCFE"))
+	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// HydrateSnapshotDeletionToCCFEActivity is not called when hydrationEnabled = false
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-backup-vault-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				AuthType:      0, // USERNAME_PWD
+			},
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+
+	s.env.ExecuteWorkflow(DeleteScheduledBackupWorkflow, volume, backupPolicy)
+
+	// Workflow should still complete successfully even if snapshot de-hydration fails
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
 }

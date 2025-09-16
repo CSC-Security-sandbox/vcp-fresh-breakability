@@ -183,7 +183,11 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	rollbackManager := commonparams.NewRollbackManager()
-	rollbackManager.AddActivity(backupActivity.DeleteBackupSnapshot, node, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
+	// Only add rollback activity if the required fields are not nil
+	if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes != nil &&
+		backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes != nil {
+		rollbackManager.AddActivity(backupActivity.DeleteBackupSnapshot, node, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
+	}
 
 	// Transfer snapshot
 	err = workflow.ExecuteActivity(ctx, backupActivity.TransferSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
@@ -250,6 +254,22 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
 		wf.Logger.Errorf("Failed to cleanup older adhoc-backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+	}
+
+	// Hydrate snapshot to CCFE
+	if backupActivitiesContext.DbSnapshot != nil &&
+		backupActivitiesContext.BackupWorkflowInit.Volume != nil &&
+		backupActivitiesContext.BackupWorkflowInit.BackupVault != nil &&
+		backupActivitiesContext.BackupWorkflowInit.Volume.Account != nil {
+		err = workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotToCCFEActivity,
+			backupActivitiesContext.DbSnapshot,
+			backupActivitiesContext.BackupWorkflowInit.Volume.Name,
+			backupActivitiesContext.BackupWorkflowInit.BackupVault.RegionName,
+			backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name).Get(ctx, nil)
+		if err != nil {
+			// Log the error but don't fail the entire backup workflow
+			wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+		}
 	}
 
 	return backupActivitiesContext, nil
@@ -498,13 +518,16 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 			if !isBackupShared {
 				wf.deleteInitiated = true
-				err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotFromObjectStore, node, objStore.UUID, dbBackup.Attributes.EndpointUUID, dbBackup.Attributes.SnapshotID).Get(ctx, &ontapAsyncResponse)
-				if err != nil {
-					return nil, ConvertToVSAError(err)
-				}
-				err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
-				if err != nil {
-					return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
+				// Only proceed if backup attributes are not nil
+				if dbBackup.Attributes != nil {
+					err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotFromObjectStore, node, objStore.UUID, dbBackup.Attributes.EndpointUUID, dbBackup.Attributes.SnapshotID).Get(ctx, &ontapAsyncResponse)
+					if err != nil {
+						return nil, ConvertToVSAError(err)
+					}
+					err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+					if err != nil {
+						return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
+					}
 				}
 			}
 		}
@@ -513,6 +536,36 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(ctx, backupActivity.DeleteBackup, deleteBackupParams.BackupUUID).Get(ctx, &dbBackup)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
+	}
+
+	// Hydrate snapshot deletion to CCFE
+	// Only proceed if all required fields are not nil
+	if dbBackup.Attributes != nil && volume != nil && account != nil && dbBackupVault != nil {
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				UUID:      dbBackup.Attributes.SnapshotID,
+				CreatedAt: dbBackup.CreatedAt,
+			},
+			Name:         dbBackup.Name,
+			State:        models.LifeCycleStateDeleted,
+			StateDetails: models.LifeCycleStateDeletedDetails,
+			Description:  dbBackup.Description,
+			Volume:       volume,
+			Account:      account,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes: dbBackup.SizeInBytes,
+			},
+		}
+
+		err = workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotDeletionToCCFEActivity,
+			snapshot,
+			volume.Name,
+			dbBackupVault.RegionName,
+			account.Name).Get(ctx, nil)
+		if err != nil {
+			// Log the error but don't fail the entire backup deletion workflow
+			wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", dbBackup.Name, err)
+		}
 	}
 
 	return nil, ConvertToVSAError(err)
@@ -545,13 +598,17 @@ func (wf *BackupDeleteWorkflow) HandleError(ctx workflow.Context, params *common
 	}
 	dbBackup.Attributes.DeleteInitiated = wf.deleteInitiated
 	if wf.deleteInitiated {
-		wf.Logger.Errorf("Backup to error state as delete has been initiated but failed to complete, backupUUID: %s", dbBackup.UUID)
+		if wf.Logger != nil {
+			wf.Logger.Errorf("Backup to error state as delete has been initiated but failed to complete, backupUUID: %s", dbBackup.UUID)
+		}
 		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupError, dbBackup, errString).Get(ctx, nil)
 		if err != nil {
 			return ConvertToVSAError(err)
 		}
 	} else {
-		wf.Logger.Errorf("Reverting backup state to available as delete was not initiated, backupUUID: %s", dbBackup.UUID)
+		if wf.Logger != nil {
+			wf.Logger.Errorf("Reverting backup state to available as delete was not initiated, backupUUID: %s", dbBackup.UUID)
+		}
 		// mark the backup back to available state
 		err = workflow.ExecuteActivity(ctx, backupActivity.MarkBackupAvailable, dbBackup).Get(ctx, nil)
 		if err != nil {

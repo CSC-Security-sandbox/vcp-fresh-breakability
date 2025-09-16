@@ -21,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -4403,4 +4404,459 @@ func TestUpdateBackupSizeActivity_SkipsLatestLogicalBackupSizeUpdateWhenZero(t *
 	mockStorage.AssertExpectations(t)
 	// Verify that UpdateBackupLatestLogicalBackupSizeByVolume was not called
 	mockStorage.AssertNotCalled(t, "UpdateBackupLatestLogicalBackupSizeByVolume")
+}
+
+// Test HydrateSnapshotToCCFEActivity
+func TestHydrateSnapshotToCCFEActivity_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock the hydration functions
+	originalBatchHydrateCreatedSnapshots := commonparams.BatchHydrateCreatedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateCreatedSnapshots = originalBatchHydrateCreatedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateCreatedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return nil
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
+	backupVault := &datamodel.BackupVault{
+		RegionName: "us-central1",
+	}
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
+		Name: "test-volume",
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "snapshot-uuid",
+			CreatedAt: time.Now(),
+		},
+		Name:         "test-snapshot",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateAvailableDetails,
+		Description:  "test description",
+		Volume:       volume,
+		Account:      volume.Account,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes: 1024,
+		},
+	}
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		DbSnapshot: snapshot,
+	}
+
+	// Act
+	err := activity.HydrateSnapshotToCCFEActivity(ctx, backupActivitiesContext.DbSnapshot, volume.Name, "us-central1", "test-project")
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestHydrateSnapshotToCCFEActivity_NoSnapshot(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{},
+		DbSnapshot:         nil,
+	}
+
+	// Act
+	err := activity.HydrateSnapshotToCCFEActivity(ctx, backupActivitiesContext.DbSnapshot, "test-volume", "us-central1", "test-project")
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestHydrateSnapshotToCCFEActivity_TokenGenerationFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock token generation failure
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "", errors.New("token generation failed")
+	}
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{},
+		DbSnapshot:         &datamodel.Snapshot{},
+	}
+
+	// Act
+	err := activity.HydrateSnapshotToCCFEActivity(ctx, backupActivitiesContext.DbSnapshot, "test-volume", "us-central1", "test-project")
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "token generation failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestHydrateSnapshotToCCFEActivity_HydrationFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock the hydration functions
+	originalBatchHydrateCreatedSnapshots := commonparams.BatchHydrateCreatedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateCreatedSnapshots = originalBatchHydrateCreatedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateCreatedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return errors.New("hydration failed")
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
+	backupVault := &datamodel.BackupVault{
+		RegionName: "us-central1",
+	}
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
+		Name: "test-volume",
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "snapshot-uuid",
+			CreatedAt: time.Now(),
+		},
+		Name:         "test-snapshot",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateAvailableDetails,
+		Description:  "test description",
+		Volume:       volume,
+		Account:      volume.Account,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes: 1024,
+		},
+	}
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		DbSnapshot: snapshot,
+	}
+
+	// Act
+	err := activity.HydrateSnapshotToCCFEActivity(ctx, backupActivitiesContext.DbSnapshot, volume.Name, "us-central1", "test-project")
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "hydration failed")
+	mockStorage.AssertExpectations(t)
+}
+
+// Test convertSnapshotToGCPHydrateSnapshot
+func TestConvertSnapshotToGCPHydrateSnapshot_WithAllFields(t *testing.T) {
+	// Arrange
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+	}
+	account := &datamodel.Account{
+		Name: "test-account",
+	}
+	snapshot := datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "snapshot-uuid",
+			CreatedAt: time.Now(),
+		},
+		Name:         "test-snapshot",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateAvailableDetails,
+		Description:  "test description",
+		Volume:       volume,
+		Account:      account,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes: 1024,
+		},
+	}
+
+	// Act
+	result := activities.ConvertSnapshotToGCPHydrateSnapshot(snapshot)
+
+	// Assert
+	assert.Equal(t, "test-snapshot", result.ResourceId)
+	assert.Equal(t, "snapshot-uuid", result.SnapshotId)
+	assert.Equal(t, models.LifeCycleStateREADY, result.State)
+	assert.Equal(t, models.LifeCycleStateAvailableDetails, result.StateDetails)
+	assert.Equal(t, "test description", result.Description)
+	assert.Equal(t, int64(1024), result.UsedBytes)
+	assert.Equal(t, snapshot.CreatedAt, result.CreateTime)
+	assert.Equal(t, "test-volume", result.VolumeName)
+	assert.Equal(t, "test-account", result.AccountName)
+}
+
+func TestConvertSnapshotToGCPHydrateSnapshot_WithMinimalFields(t *testing.T) {
+	// Arrange
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+	}
+	account := &datamodel.Account{
+		Name: "test-account",
+	}
+	snapshot := datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "snapshot-uuid",
+			CreatedAt: time.Now(),
+		},
+		Name:    "test-snapshot",
+		State:   models.LifeCycleStateREADY,
+		Volume:  volume,
+		Account: account,
+	}
+
+	// Act
+	result := activities.ConvertSnapshotToGCPHydrateSnapshot(snapshot)
+
+	// Assert
+	assert.Equal(t, "test-snapshot", result.ResourceId)
+	assert.Equal(t, "snapshot-uuid", result.SnapshotId)
+	assert.Equal(t, models.LifeCycleStateREADY, result.State)
+	assert.Equal(t, "", result.StateDetails)
+	assert.Equal(t, "", result.Description)
+	assert.Equal(t, int64(0), result.UsedBytes)
+	assert.Equal(t, snapshot.CreatedAt, result.CreateTime)
+	assert.Equal(t, "test-volume", result.VolumeName)
+	assert.Equal(t, "test-account", result.AccountName)
+}
+
+func TestConvertSnapshotToGCPHydrateSnapshot_WithNilSnapshotAttributes(t *testing.T) {
+	// Arrange
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+	}
+	account := &datamodel.Account{
+		Name: "test-account",
+	}
+	snapshot := datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "snapshot-uuid",
+			CreatedAt: time.Now(),
+		},
+		Name:               "test-snapshot",
+		State:              models.LifeCycleStateREADY,
+		StateDetails:       models.LifeCycleStateAvailableDetails,
+		Description:        "test description",
+		Volume:             volume,
+		Account:            account,
+		SnapshotAttributes: nil,
+	}
+
+	// Act
+	result := activities.ConvertSnapshotToGCPHydrateSnapshot(snapshot)
+
+	// Assert
+	assert.Equal(t, "test-snapshot", result.ResourceId)
+	assert.Equal(t, "snapshot-uuid", result.SnapshotId)
+	assert.Equal(t, models.LifeCycleStateREADY, result.State)
+	assert.Equal(t, models.LifeCycleStateAvailableDetails, result.StateDetails)
+	assert.Equal(t, "test description", result.Description)
+	assert.Equal(t, int64(0), result.UsedBytes)
+	assert.Equal(t, snapshot.CreatedAt, result.CreateTime)
+	assert.Equal(t, "test-volume", result.VolumeName)
+	assert.Equal(t, "test-account", result.AccountName)
+}
+
+// Test HydrateSnapshotDeletionToCCFEActivity
+func TestHydrateSnapshotDeletionToCCFEActivity_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock the hydration functions
+	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateDeletedSnapshots = originalBatchHydrateDeletedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateDeletedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return nil
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
+	backupVault := &datamodel.BackupVault{
+		RegionName: "us-central1",
+	}
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
+		Name: "test-volume",
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "snapshot-uuid",
+			CreatedAt: time.Now(),
+		},
+		Name:         "test-snapshot",
+		State:        models.LifeCycleStateDeleted,
+		StateDetails: models.LifeCycleStateDeletedDetails,
+		Description:  "test description",
+		Volume:       volume,
+		Account:      volume.Account,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes: 1024,
+		},
+	}
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		DbSnapshot: snapshot,
+	}
+
+	// Act
+	err := activity.HydrateSnapshotDeletionToCCFEActivity(ctx, backupActivitiesContext.DbSnapshot, volume.Name, "us-central1", "test-project")
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestHydrateSnapshotDeletionToCCFEActivity_NoSnapshot(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{},
+		DbSnapshot:         nil,
+	}
+
+	// Act
+	err := activity.HydrateSnapshotDeletionToCCFEActivity(ctx, backupActivitiesContext.DbSnapshot, "test-volume", "us-central1", "test-project")
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestHydrateSnapshotDeletionToCCFEActivity_TokenGenerationFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock token generation failure
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "", errors.New("token generation failed")
+	}
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{},
+		DbSnapshot:         &datamodel.Snapshot{},
+	}
+
+	// Act
+	err := activity.HydrateSnapshotDeletionToCCFEActivity(ctx, backupActivitiesContext.DbSnapshot, "test-volume", "us-central1", "test-project")
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "token generation failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestHydrateSnapshotDeletionToCCFEActivity_HydrationFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock the hydration functions
+	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateDeletedSnapshots = originalBatchHydrateDeletedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateDeletedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return errors.New("deletion hydration failed")
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
+	backupVault := &datamodel.BackupVault{
+		RegionName: "us-central1",
+	}
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
+		Name: "test-volume",
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "snapshot-uuid",
+			CreatedAt: time.Now(),
+		},
+		Name:         "test-snapshot",
+		State:        models.LifeCycleStateDeleted,
+		StateDetails: models.LifeCycleStateDeletedDetails,
+		Description:  "test description",
+		Volume:       volume,
+		Account:      volume.Account,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes: 1024,
+		},
+	}
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		DbSnapshot: snapshot,
+	}
+
+	// Act
+	err := activity.HydrateSnapshotDeletionToCCFEActivity(ctx, backupActivitiesContext.DbSnapshot, volume.Name, "us-central1", "test-project")
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "deletion hydration failed")
+	mockStorage.AssertExpectations(t)
 }
