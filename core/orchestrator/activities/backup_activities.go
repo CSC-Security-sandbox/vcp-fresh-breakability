@@ -387,8 +387,8 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 
 	// Update the volume's LatestLogicalBackupSize field
 	updates := make(map[string]interface{})
-	backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.LatestLogicalBackupSize = backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize
-	updates["volume_attributes"] = backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes
+	backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection.BackupChainBytes = &backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize
+	updates["data_protection"] = backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection
 	// Update the volume's LatestLogicalBackupSize field
 	err = b.SE.UpdateVolumeFields(ctx, volumeUUID, updates)
 

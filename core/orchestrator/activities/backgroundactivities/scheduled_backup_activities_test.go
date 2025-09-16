@@ -576,7 +576,7 @@ func TestUpdateBackupSize(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "volume-uuid",
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection: &datamodel.DataProtection{},
 		}
 
 		// Mock UpdateBackup call
@@ -604,7 +604,7 @@ func TestUpdateBackupSize(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "volume-uuid",
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection: &datamodel.DataProtection{},
 		}
 
 		// Mock UpdateBackup call
@@ -682,7 +682,7 @@ func TestUpdateBackupSize(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "volume-uuid",
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection: &datamodel.DataProtection{},
 		}
 
 		// Mock UpdateBackup call to succeed
@@ -712,7 +712,7 @@ func TestUpdateBackupSize(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "volume-uuid",
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection: &datamodel.DataProtection{},
 		}
 
 		// Mock UpdateBackup call to succeed

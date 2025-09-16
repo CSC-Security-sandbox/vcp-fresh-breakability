@@ -781,7 +781,8 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Value: false,
 		},
 		BackupChainBytes: gcpgenserver.OptInt64{
-			Value: 0,
+			Value: backup.LatestLogicalBackupSize,
+			Set:   backup.LatestLogicalBackupSize != 0,
 		},
 		AssetLocationMetadata: gcpgenserver.OptAssetLocationMetadataV2{
 			Set: false,

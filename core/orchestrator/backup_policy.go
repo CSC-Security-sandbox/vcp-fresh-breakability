@@ -43,7 +43,7 @@ func (o *Orchestrator) GetBackupPolicyByNameAndOwnerID(ctx context.Context, back
 
 func (o *Orchestrator) ListBackupPoliciesAndVolumeCount(ctx context.Context, ownerID string, backupPolicyUUIDs []string) (map[string]int64, map[string]*models.BackupPolicy, error) {
 	se := o.storage
-	account, err := getAccountWithName(ctx, se, ownerID)
+	account, err := getOrCreateAccount(ctx, se, ownerID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -305,7 +305,7 @@ func (o *Orchestrator) DeleteBackupPolicy(ctx context.Context, params *commonpar
 }
 
 func _getBackupPolicyByNameAndOwnerID(ctx context.Context, se database.Storage, backupPolicyName, ownerID string) (*datamodel.BackupPolicy, error) {
-	account, err := getAccountWithName(ctx, se, ownerID)
+	account, err := getOrCreateAccount(ctx, se, ownerID)
 	if err != nil {
 		return nil, err
 	}

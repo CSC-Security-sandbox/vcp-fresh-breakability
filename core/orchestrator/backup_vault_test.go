@@ -127,7 +127,7 @@ func TestGetBackupVaultByNameAndOwnerIDReturnsBackupVault(tt *testing.T) {
 				BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
 			},
 		}
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 		getBackupVaultByNameAndOwnerID = func(ctx context.Context, se database.Storage, bvName, ownerID string) (*datamodel.BackupVault, error) {
@@ -151,9 +151,9 @@ func TestGetBackupVaultByNameAndOwnerIDReturnsBackupVault(tt *testing.T) {
 			Name:    "backup-vault-name",
 			// ImmutableAttributes is nil
 		}
-	
+
 		result := _convertDatastoreBackupVaultToModel(bv)
-	
+
 		// Test that BackupRetentionPolicy is not set when ImmutableAttributes is nil
 		if result.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil {
 			tt.Errorf("Expected BackupMinimumEnforcedRetentionDuration to be nil when ImmutableAttributes is nil, got %v", result.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
@@ -167,7 +167,7 @@ func TestGetBackupVaultByNameAndOwnerIDReturnsBackupVault(tt *testing.T) {
 		se, err := database.NewTestStorage(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 		getBackupVaultByNameAndOwnerID = func(ctx context.Context, se database.Storage, bvName, ownerID string) (*datamodel.BackupVault, error) {
@@ -199,7 +199,7 @@ func TestGetBackupVaultByNameAndOwnerIDReturnsBackupVault(tt *testing.T) {
 		se, err := database.NewTestStorage(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 		getBackupVaultByNameAndOwnerID = func(ctx context.Context, se database.Storage, bvName, ownerID string) (*datamodel.BackupVault, error) {
@@ -234,14 +234,37 @@ func TestListBackupVaults(t *testing.T) {
 		se, err := database.NewTestStorage(mockLogger)
 		assert.NoError(tt, err, "Failed to create test storage")
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return nil, errors.New("account not found")
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
 		}
 
 		o := &Orchestrator{storage: se}
 		result, err := o.ListBackupVaults(context.Background(), account.UUID)
-		assert.Error(tt, err)
+		assert.NoError(tt, err)
 		assert.Nil(tt, result)
+		assert.Empty(tt, result)
+	})
+	t.Run("WhenAccountNotFoundAndCreated", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+
+		newAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "new-account-uuid"}}
+		accountCreated := false
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			// Simulate account creation when account doesn't exist
+			accountCreated = true
+			return newAccount, nil
+		}
+
+		o := &Orchestrator{storage: se}
+		result, err := o.ListBackupVaults(context.Background(), "non-existent-account")
+
+		assert.NoError(tt, err, "Expected no error when account is created")
+		assert.True(tt, accountCreated, "Expected account to be created")
+		assert.Nil(tt, result, "Expected result to be nil")
+		assert.Empty(tt, result, "Expected empty backup vaults list for new account")
 	})
 }
 
@@ -413,7 +436,7 @@ func TestUpdateBackupVault(t *testing.T) {
 				IsAdhocBackupImmutable:                 &manual,
 			},
 		}
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.New("account not found")
 		}
 
@@ -447,7 +470,7 @@ func TestUpdateBackupVault(t *testing.T) {
 				IsAdhocBackupImmutable:                 &manual,
 			},
 		}
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 		mockStorage := new(database.MockStorage)
@@ -484,7 +507,7 @@ func TestUpdateBackupVault(t *testing.T) {
 				IsAdhocBackupImmutable:                 &manual,
 			},
 		}
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 		mockStorage := new(database.MockStorage)
@@ -526,7 +549,7 @@ func TestUpdateBackupVault(t *testing.T) {
 				IsAdhocBackupImmutable:                 &manual,
 			},
 		}
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 		mockStorage := new(database.MockStorage)
@@ -636,7 +659,7 @@ func TestReturnsErrorWhenBackupVaultHasBackups(t *testing.T) {
 	}
 	job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}
 
-	mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 	mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
@@ -662,7 +685,7 @@ func TestReturnsGetBackupVaultByUUIDndOwnerIDErrorWhenBackupVaultHasBackups(t *t
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
 	job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}
 
-	mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 	mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(nil, errors.New("backup vault not found"))
@@ -690,7 +713,7 @@ func TestReturnsJobErrorWhenBackupVaultHasBackups(t *testing.T) {
 		LifeCycleState:        models.LifeCycleStateAvailable,
 		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
 	}
-	mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 	mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 	mockStorage.On("GetBackupCountByBackupVaultID", ctx, backupVault.ID).Return(int64(1), nil)
@@ -719,7 +742,7 @@ func TestReturnsUpdatingErrorWhenBackupVaultHasBackups(t *testing.T) {
 	var backups []*datamodel.Backup
 	job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}
 
-	mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 	mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
@@ -757,7 +780,7 @@ func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
@@ -807,7 +830,7 @@ func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
@@ -857,7 +880,7 @@ func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
@@ -916,7 +939,7 @@ func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
@@ -966,7 +989,7 @@ func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
@@ -1019,7 +1042,7 @@ func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
@@ -1071,7 +1094,7 @@ func TestUpdateBackupVaultDeferFunction(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
@@ -1120,7 +1143,7 @@ func TestUpdateBackupVaultDeferFunction(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
@@ -1169,7 +1192,7 @@ func TestUpdateBackupVaultDeferFunction(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
@@ -1227,7 +1250,7 @@ func TestUpdateBackupVaultDeferFunction(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
@@ -1269,7 +1292,7 @@ func TestUpdateBackupVaultDeferFunction(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		// Mock CreateJob to fail
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("create job failed"))
@@ -1313,7 +1336,7 @@ func TestUpdateBackupVaultDeferFunction(t *testing.T) {
 		}
 
 		// Setup mocks
-		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetOrCreateAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)

@@ -54,7 +54,7 @@ type BackupRetentionPolicyV2params struct {
 
 func (o *Orchestrator) ListBackupVaults(ctx context.Context, accountName string) ([]*models.BackupVaultV1beta, error) {
 	se := o.storage
-	account, err := getAccountWithName(ctx, se, accountName)
+	account, err := getOrCreateAccount(ctx, se, accountName)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (o *Orchestrator) DeleteBackupVault(ctx context.Context, params *commonpara
 
 func _deleteBackupVault(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
 	logger := util.GetLogger(ctx)
-	account, err := getAccountWithName(ctx, se, params.OwnerID)
+	account, err := getOrCreateAccount(ctx, se, params.OwnerID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -178,7 +178,7 @@ func (o *Orchestrator) UpdateBackupVault(ctx context.Context, params *commonpara
 
 func _updateBackupVault(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
 	logger := util.GetLogger(ctx)
-	account, err := getAccountWithName(ctx, se, params.OwnerID)
+	account, err := getOrCreateAccount(ctx, se, params.OwnerID)
 	if err != nil {
 		return nil, "", err
 	}

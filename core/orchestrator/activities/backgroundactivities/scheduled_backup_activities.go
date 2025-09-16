@@ -216,9 +216,9 @@ func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *
 	}
 
 	// Update the volume's LatestLogicalBackupSize field
-	volume.VolumeAttributes.LatestLogicalBackupSize = backup.LatestLogicalBackupSize
+	volume.DataProtection.BackupChainBytes = &backup.LatestLogicalBackupSize
 	updates := map[string]interface{}{
-		"volume_attributes": volume.VolumeAttributes,
+		"data_protection": volume.DataProtection,
 	}
 	err = se.UpdateVolumeFields(ctx, volume.UUID, updates)
 	if err != nil {

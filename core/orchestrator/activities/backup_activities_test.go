@@ -4224,8 +4224,8 @@ func TestUpdateBackupSizeActivity_Success(t *testing.T) {
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			LatestLogicalBackupSize: 0, // Initial value
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(), // Initial value
 		},
 	}
 
@@ -4263,8 +4263,8 @@ func TestUpdateBackupSizeActivity_UpdateBackupFailure(t *testing.T) {
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			LatestLogicalBackupSize: 0, // Initial value
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(), // Initial value
 		},
 	}
 
@@ -4301,8 +4301,8 @@ func TestUpdateBackupSizeActivity_UpdateBackupLatestLogicalBackupSizeFailure(t *
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			LatestLogicalBackupSize: 0, // Initial value
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(), // Initial value
 		},
 	}
 
@@ -4340,8 +4340,8 @@ func TestUpdateBackupSizeActivity_UpdateVolumeFieldsFailure(t *testing.T) {
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			LatestLogicalBackupSize: 0, // Initial value
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(), // Initial value
 		},
 	}
 
@@ -4380,8 +4380,8 @@ func TestUpdateBackupSizeActivity_SkipsLatestLogicalBackupSizeUpdateWhenZero(t *
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			LatestLogicalBackupSize: 0, // Initial value
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(), // Initial value
 		},
 	}
 
