@@ -1992,7 +1992,7 @@ func decodeV1betaCreateReplicationParams(args [3]string, argsEscaped bool, r *ht
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(params.VolumeResourceId)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -4781,7 +4781,7 @@ func decodeV1betaDeleteReplicationParams(args [4]string, argsEscaped bool, r *ht
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(params.VolumeResourceId)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -10679,7 +10679,7 @@ func decodeV1betaGetMultipleReplicationsParams(args [3]string, argsEscaped bool,
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(params.VolumeResourceId)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -19957,7 +19957,7 @@ func decodeV1betaResumeReplicationParams(args [4]string, argsEscaped bool, r *ht
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(params.VolumeResourceId)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -20300,7 +20300,7 @@ func decodeV1betaReverseAndResumeReplicationParams(args [4]string, argsEscaped b
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(params.VolumeResourceId)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -21119,7 +21119,7 @@ func decodeV1betaStopReplicationParams(args [4]string, argsEscaped bool, r *http
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(params.VolumeResourceId)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -21462,7 +21462,7 @@ func decodeV1betaSyncReplicationParams(args [4]string, argsEscaped bool, r *http
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(params.VolumeResourceId)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -23786,7 +23786,7 @@ func decodeV1betaUpdateReplicationParams(args [4]string, argsEscaped bool, r *ht
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(params.VolumeResourceId)); err != nil {
 					return errors.Wrap(err, "string")
 				}

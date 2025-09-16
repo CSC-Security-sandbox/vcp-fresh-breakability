@@ -26,9 +26,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/temporal"
 )
 
-func TestAcceptClusterPeering(t *testing.T) {
+func TestGetDestinationPoolDetails(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
@@ -117,6 +118,294 @@ func TestAcceptClusterPeering(t *testing.T) {
 		assert.Nil(tt, poolDetails)
 		assert.Equal(tt, err.(*errors2.CustomError).OriginalErr.Error(), "some error")
 	})
+	t.Run("WhenBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, *describePoolParams).Return(&googleproxyclient.V1betaInternalDescribePoolBadRequest{Code: 400, Message: "some error"}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		poolDetails, err := activity.GetDestinationPoolDetails(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, poolDetails)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to describe pool")
+	})
+	t.Run("WhenUnauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, *describePoolParams).Return(&googleproxyclient.V1betaInternalDescribePoolUnauthorized{Code: 400, Message: "some error"}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		poolDetails, err := activity.GetDestinationPoolDetails(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, poolDetails)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to describe pool")
+	})
+	t.Run("WhenForbidden", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, *describePoolParams).Return(&googleproxyclient.V1betaInternalDescribePoolForbidden{Code: 400, Message: "some error"}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		poolDetails, err := activity.GetDestinationPoolDetails(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, poolDetails)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to describe pool")
+	})
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, *describePoolParams).Return(&googleproxyclient.V1betaInternalDescribePoolInternalServerError{Code: 400, Message: "some error"}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		poolDetails, err := activity.GetDestinationPoolDetails(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, poolDetails)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to describe pool")
+	})
+	t.Run("WhenNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, *describePoolParams).Return(&googleproxyclient.V1betaInternalDescribePoolNotFound{Code: 400, Message: "some error"}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		poolDetails, err := activity.GetDestinationPoolDetails(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, poolDetails)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to describe pool")
+	})
+	t.Run("WhenUnprocessableEntity", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, *describePoolParams).Return(&googleproxyclient.V1betaInternalDescribePoolUnprocessableEntity{Code: 400, Message: "some error"}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		poolDetails, err := activity.GetDestinationPoolDetails(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, poolDetails)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to describe pool")
+	})
+	t.Run("WhenMethodNotAllowed", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, *describePoolParams).Return(&googleproxyclient.V1betaInternalDescribePoolMethodNotAllowed{Code: 400, Message: "some error"}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		poolDetails, err := activity.GetDestinationPoolDetails(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, poolDetails)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to describe pool")
+	})
+
 	t.Run("WhenPoolNotFound", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
@@ -156,11 +445,11 @@ func TestAcceptClusterPeering(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, poolDetails)
-		assert.Equal(tt, err.(*errors2.CustomError).OriginalErr.Error(), "Pool not found")
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to describe pool")
 	})
 }
 
-func TestGetDestinationPoolDetails(t *testing.T) {
+func TestAcceptClusterPeering(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
@@ -353,7 +642,313 @@ func TestGetDestinationPoolDetails(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, err.(*errors2.CustomError).OriginalErr.Error(), "Cluster peer not found")
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to accept cluster peer")
+	})
+	t.Run("WhenBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		passphrase := "pass"
+		srcIps := []string{"10.1.1.1", "10.1.1.2"}
+		dstPoolUuid := "dst-pool-uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			Passphrase:       &passphrase,
+			SrcIps:           srcIps,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(dstPoolUuid),
+			},
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
+			ProjectNumber: *replicationResult.DstProjectNumber,
+			LocationId:    replicationResult.Event.DestinationLocationID,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalAcceptClusterPeer(ctx, mock.Anything, *describePoolParams).Return(&googleproxyclient.V1betaInternalAcceptClusterPeerBadRequest{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.AcceptClusterPeering(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to accept cluster peer")
+	})
+	t.Run("WhenUnauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		passphrase := "pass"
+		srcIps := []string{"10.1.1.1", "10.1.1.2"}
+		dstPoolUuid := "dst-pool-uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			Passphrase:       &passphrase,
+			SrcIps:           srcIps,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(dstPoolUuid),
+			},
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
+			ProjectNumber: *replicationResult.DstProjectNumber,
+			LocationId:    replicationResult.Event.DestinationLocationID,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalAcceptClusterPeer(ctx, mock.Anything, *describePoolParams).Return(&googleproxyclient.V1betaInternalAcceptClusterPeerUnauthorized{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.AcceptClusterPeering(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to accept cluster peer")
+	})
+	t.Run("WhenForbidden", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		passphrase := "pass"
+		srcIps := []string{"10.1.1.1", "10.1.1.2"}
+		dstPoolUuid := "dst-pool-uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			Passphrase:       &passphrase,
+			SrcIps:           srcIps,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(dstPoolUuid),
+			},
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
+			ProjectNumber: *replicationResult.DstProjectNumber,
+			LocationId:    replicationResult.Event.DestinationLocationID,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalAcceptClusterPeer(ctx, mock.Anything, *describePoolParams).Return(&googleproxyclient.V1betaInternalAcceptClusterPeerForbidden{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.AcceptClusterPeering(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to accept cluster peer")
+	})
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		passphrase := "pass"
+		srcIps := []string{"10.1.1.1", "10.1.1.2"}
+		dstPoolUuid := "dst-pool-uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			Passphrase:       &passphrase,
+			SrcIps:           srcIps,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(dstPoolUuid),
+			},
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
+			ProjectNumber: *replicationResult.DstProjectNumber,
+			LocationId:    replicationResult.Event.DestinationLocationID,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalAcceptClusterPeer(ctx, mock.Anything, *describePoolParams).Return(&googleproxyclient.V1betaInternalAcceptClusterPeerInternalServerError{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.AcceptClusterPeering(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to accept cluster peer")
+	})
+	t.Run("WhenUnprocessableEntity", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		passphrase := "pass"
+		srcIps := []string{"10.1.1.1", "10.1.1.2"}
+		dstPoolUuid := "dst-pool-uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			Passphrase:       &passphrase,
+			SrcIps:           srcIps,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(dstPoolUuid),
+			},
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
+			ProjectNumber: *replicationResult.DstProjectNumber,
+			LocationId:    replicationResult.Event.DestinationLocationID,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalAcceptClusterPeer(ctx, mock.Anything, *describePoolParams).Return(&googleproxyclient.V1betaInternalAcceptClusterPeerUnprocessableEntity{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.AcceptClusterPeering(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to accept cluster peer")
+	})
+	t.Run("WhenConflict", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		passphrase := "pass"
+		srcIps := []string{"10.1.1.1", "10.1.1.2"}
+		dstPoolUuid := "dst-pool-uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			Passphrase:       &passphrase,
+			SrcIps:           srcIps,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(dstPoolUuid),
+			},
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
+			ProjectNumber: *replicationResult.DstProjectNumber,
+			LocationId:    replicationResult.Event.DestinationLocationID,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalAcceptClusterPeer(ctx, mock.Anything, *describePoolParams).Return(&googleproxyclient.V1betaInternalAcceptClusterPeerConflict{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.AcceptClusterPeering(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to accept cluster peer")
 	})
 }
 
@@ -547,7 +1142,7 @@ func TestCreateDestinationVolume(t *testing.T) {
 		activity := VolumeReplicationCreateActivity{SE: mockStorage}
 		result, err := activity.CreateDestinationVolume(ctx, replicationResult)
 
-		assert.NoError(tt, err)
+		assert.Error(tt, err)
 		assert.Nil(tt, result)
 	})
 	t.Run("WhenJsonUnmarshalError", func(tt *testing.T) {
@@ -621,6 +1216,271 @@ func TestCreateDestinationVolume(t *testing.T) {
 		var customErr *vsaerrors.CustomError
 		assert.True(tt, vsaerrors.As(err, &customErr))
 		assert.Equal(tt, vsaerrors.ErrorFailedToUnmarshal, customErr.TrackingID)
+	})
+	t.Run("WhenBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		destPoolUuid := "uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(destPoolUuid),
+			},
+		}
+		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		res := &googleproxyclient.V1betaCreateVolumeBadRequest{Message: "bad request error"}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient { return mc }
+		mockClient.EXPECT().V1betaCreateVolume(ctx, mock.Anything, *createVolumeParams).Return(res, nil)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateDestinationVolume(ctx, replicationResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+	t.Run("WhenUnauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		destPoolUuid := "uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(destPoolUuid),
+			},
+		}
+		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		res := &googleproxyclient.V1betaCreateVolumeUnauthorized{Message: "unauthorized error"}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient { return mc }
+		mockClient.EXPECT().V1betaCreateVolume(ctx, mock.Anything, *createVolumeParams).Return(res, nil)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateDestinationVolume(ctx, replicationResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+	t.Run("WhenForbidden", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		destPoolUuid := "uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(destPoolUuid),
+			},
+		}
+		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		res := &googleproxyclient.V1betaCreateVolumeForbidden{Message: "forbidden error"}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient { return mc }
+		mockClient.EXPECT().V1betaCreateVolume(ctx, mock.Anything, *createVolumeParams).Return(res, nil)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateDestinationVolume(ctx, replicationResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+	t.Run("WhenConflict", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		destPoolUuid := "uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(destPoolUuid),
+			},
+		}
+		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		res := &googleproxyclient.V1betaCreateVolumeConflict{Message: "conflict error"}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient { return mc }
+		mockClient.EXPECT().V1betaCreateVolume(ctx, mock.Anything, *createVolumeParams).Return(res, nil)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateDestinationVolume(ctx, replicationResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		destPoolUuid := "uuid"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId: googleproxyclient.NewOptString(destPoolUuid),
+			},
+		}
+		createVolumeParams := &googleproxyclient.V1betaCreateVolumeParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		res := &googleproxyclient.V1betaCreateVolumeInternalServerError{Message: "internal server error"}
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient { return mc }
+		mockClient.EXPECT().V1betaCreateVolume(ctx, mock.Anything, *createVolumeParams).Return(res, nil)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateDestinationVolume(ctx, replicationResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
 	})
 }
 
@@ -850,8 +1710,511 @@ func TestCreateReplicationOnDestination(t *testing.T) {
 		activity := VolumeReplicationCreateActivity{SE: mockStorage}
 		result, err := activity.CreateReplicationOnDestination(ctx, replicationResult)
 
-		assert.NoError(tt, err)
+		assert.Error(tt, err)
 		assert.Nil(tt, result)
+		convertVolumeReplicationCreateParams = _convertVolumeReplicationCreateParams
+	})
+	t.Run("WhenBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID:                  &resourceId,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+					ReplicationSchedule:         &repSchedule,
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			SrcSvm:           &srcSvm,
+			DstSvm:           &dstSvm,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstVolume: &gcpserver.VolumeV1beta{
+				ResourceId: "dst-vol-name",
+				VolumeId:   gcpserver.NewOptString(destVolUuid),
+			},
+		}
+
+		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		body := googleproxyclient.VolumeReplicationCreateInternalV1beta{}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		convertVolumeReplicationCreateParams = func(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+			return body
+		}
+		mockClient.EXPECT().V1betaInternalCreateVolumeReplication(ctx, &body, *internalCreateVolumeReplicationParams).Return(&googleproxyclient.V1betaInternalCreateVolumeReplicationBadRequest{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateReplicationOnDestination(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Internal error while creating replication")
+		convertVolumeReplicationCreateParams = _convertVolumeReplicationCreateParams
+	})
+
+	t.Run("WhenUnauthorized", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID:                  &resourceId,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+					ReplicationSchedule:         &repSchedule,
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			SrcSvm:           &srcSvm,
+			DstSvm:           &dstSvm,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstVolume: &gcpserver.VolumeV1beta{
+				ResourceId: "dst-vol-name",
+				VolumeId:   gcpserver.NewOptString(destVolUuid),
+			},
+		}
+
+		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		body := googleproxyclient.VolumeReplicationCreateInternalV1beta{}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		convertVolumeReplicationCreateParams = func(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+			return body
+		}
+		mockClient.EXPECT().V1betaInternalCreateVolumeReplication(ctx, &body, *internalCreateVolumeReplicationParams).Return(&googleproxyclient.V1betaInternalCreateVolumeReplicationUnauthorized{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateReplicationOnDestination(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Internal error while creating replication")
+		convertVolumeReplicationCreateParams = _convertVolumeReplicationCreateParams
+	})
+
+	t.Run("WhenForbidden", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID:                  &resourceId,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+					ReplicationSchedule:         &repSchedule,
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			SrcSvm:           &srcSvm,
+			DstSvm:           &dstSvm,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstVolume: &gcpserver.VolumeV1beta{
+				ResourceId: "dst-vol-name",
+				VolumeId:   gcpserver.NewOptString(destVolUuid),
+			},
+		}
+
+		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		body := googleproxyclient.VolumeReplicationCreateInternalV1beta{}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		convertVolumeReplicationCreateParams = func(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+			return body
+		}
+		mockClient.EXPECT().V1betaInternalCreateVolumeReplication(ctx, &body, *internalCreateVolumeReplicationParams).Return(&googleproxyclient.V1betaInternalCreateVolumeReplicationForbidden{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateReplicationOnDestination(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Internal error while creating replication")
+		convertVolumeReplicationCreateParams = _convertVolumeReplicationCreateParams
+	})
+
+	t.Run("WhenNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID:                  &resourceId,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+					ReplicationSchedule:         &repSchedule,
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			SrcSvm:           &srcSvm,
+			DstSvm:           &dstSvm,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstVolume: &gcpserver.VolumeV1beta{
+				ResourceId: "dst-vol-name",
+				VolumeId:   gcpserver.NewOptString(destVolUuid),
+			},
+		}
+
+		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		body := googleproxyclient.VolumeReplicationCreateInternalV1beta{}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		convertVolumeReplicationCreateParams = func(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+			return body
+		}
+		mockClient.EXPECT().V1betaInternalCreateVolumeReplication(ctx, &body, *internalCreateVolumeReplicationParams).Return(&googleproxyclient.V1betaInternalCreateVolumeReplicationNotFound{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateReplicationOnDestination(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Internal error while creating replication")
+		convertVolumeReplicationCreateParams = _convertVolumeReplicationCreateParams
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID:                  &resourceId,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+					ReplicationSchedule:         &repSchedule,
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			SrcSvm:           &srcSvm,
+			DstSvm:           &dstSvm,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstVolume: &gcpserver.VolumeV1beta{
+				ResourceId: "dst-vol-name",
+				VolumeId:   gcpserver.NewOptString(destVolUuid),
+			},
+		}
+
+		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		body := googleproxyclient.VolumeReplicationCreateInternalV1beta{}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		convertVolumeReplicationCreateParams = func(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+			return body
+		}
+		mockClient.EXPECT().V1betaInternalCreateVolumeReplication(ctx, &body, *internalCreateVolumeReplicationParams).Return(&googleproxyclient.V1betaInternalCreateVolumeReplicationInternalServerError{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateReplicationOnDestination(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Internal error while creating replication")
+		convertVolumeReplicationCreateParams = _convertVolumeReplicationCreateParams
+	})
+
+	t.Run("WhenUnprocessableEntity", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID:                  &resourceId,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+					ReplicationSchedule:         &repSchedule,
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			SrcSvm:           &srcSvm,
+			DstSvm:           &dstSvm,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstVolume: &gcpserver.VolumeV1beta{
+				ResourceId: "dst-vol-name",
+				VolumeId:   gcpserver.NewOptString(destVolUuid),
+			},
+		}
+
+		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		body := googleproxyclient.VolumeReplicationCreateInternalV1beta{}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		convertVolumeReplicationCreateParams = func(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+			return body
+		}
+		mockClient.EXPECT().V1betaInternalCreateVolumeReplication(ctx, &body, *internalCreateVolumeReplicationParams).Return(&googleproxyclient.V1betaInternalCreateVolumeReplicationUnprocessableEntity{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateReplicationOnDestination(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Internal error while creating replication")
+		convertVolumeReplicationCreateParams = _convertVolumeReplicationCreateParams
+	})
+
+	t.Run("WhenConflict", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "srcCluster",
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID:                  &resourceId,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{},
+					ReplicationSchedule:         &repSchedule,
+				},
+				SourceVolume: datamodel.Volume{
+					Name: "src-vol",
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "src-token",
+						Protocols:     []string{"iscsi"},
+						BlockProperties: &datamodel.BlockProperties{
+							OSType: "linux",
+						},
+					},
+				},
+			},
+			SrcSvm:           &srcSvm,
+			DstSvm:           &dstSvm,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:      googleproxyclient.NewOptString(destPoolUuid),
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstVolume: &gcpserver.VolumeV1beta{
+				ResourceId: "dst-vol-name",
+				VolumeId:   gcpserver.NewOptString(destVolUuid),
+			},
+		}
+
+		internalCreateVolumeReplicationParams := &googleproxyclient.V1betaInternalCreateVolumeReplicationParams{
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		body := googleproxyclient.VolumeReplicationCreateInternalV1beta{}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		convertVolumeReplicationCreateParams = func(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+			return body
+		}
+		mockClient.EXPECT().V1betaInternalCreateVolumeReplication(ctx, &body, *internalCreateVolumeReplicationParams).Return(&googleproxyclient.V1betaInternalCreateVolumeReplicationConflict{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.CreateReplicationOnDestination(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Internal error while creating replication")
 		convertVolumeReplicationCreateParams = _convertVolumeReplicationCreateParams
 	})
 }
@@ -3009,6 +4372,307 @@ func TestMountReplication(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 	})
+	t.Run("WhenBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(&googleproxyclient.V1betaInternalMountVolumeReplicationBadRequest{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to mount volume replication")
+	})
+
+	t.Run("WhenUnauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(&googleproxyclient.V1betaInternalMountVolumeReplicationUnauthorized{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to mount volume replication")
+	})
+
+	t.Run("WhenForbidden", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(&googleproxyclient.V1betaInternalMountVolumeReplicationForbidden{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to mount volume replication")
+	})
+
+	t.Run("WhenNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(&googleproxyclient.V1betaInternalMountVolumeReplicationNotFound{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to mount volume replication")
+	})
+
+	t.Run("WhenConflict", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(&googleproxyclient.V1betaInternalMountVolumeReplicationConflict{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to mount volume replication")
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(&googleproxyclient.V1betaInternalMountVolumeReplicationInternalServerError{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to mount volume replication")
+	})
+
+	t.Run("WhenUnexpectedResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+			XCorrelationID:      googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+		// Return an unexpected response type to trigger the default case
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(&googleproxyclient.V1betaInternalMountVolumeReplicationMethodNotAllowed{}, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*temporal.ApplicationError).Message(), "Failed to mount volume replication")
+	})
 }
 
 func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
@@ -3261,6 +4925,274 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 		// Assert
 		assert.Len(tt, result.BlockDevices, 1)
 		assert.Equal(tt, googleproxyclient.BlockDeviceV1betaOsTypeESXI, result.BlockDevices[0].OsType.Value)
+	})
+
+	t.Run("WithTieringPolicyAllFields_ShouldConvertCorrectly", func(tt *testing.T) {
+		// Arrange
+		tierAction := gcpserver.TieringPolicyV1betaTierActionENABLED
+		coolingThreshold := int32(30)
+		hotTierBypass := true
+
+		tieringPolicy := &gcpserver.TieringPolicyV1beta{
+			TierAction: gcpserver.OptNilTieringPolicyV1betaTierAction{
+				Value: tierAction,
+				Set:   true,
+				Null:  false,
+			},
+			CoolingThresholdDays: gcpserver.OptNilInt32{
+				Value: coolingThreshold,
+				Set:   true,
+				Null:  false,
+			},
+			HotTierBypassModeEnabled: gcpserver.OptNilBool{
+				Value: hotTierBypass,
+				Set:   true,
+				Null:  false,
+			},
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 1073741824,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"NFSV3"},
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:      "test-volume",
+						ShareName:     "test-share",
+						TieringPolicy: tieringPolicy,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.True(tt, result.TieringPolicy.IsSet())
+		tieringPolicyResult := result.TieringPolicy.Value
+
+		assert.True(tt, tieringPolicyResult.GetTierAction().IsSet())
+		assert.Equal(tt, googleproxyclient.TieringPolicyV1betaTierActionENABLED, tieringPolicyResult.GetTierAction().Value)
+
+		assert.True(tt, tieringPolicyResult.GetCoolingThresholdDays().IsSet())
+		assert.Equal(tt, coolingThreshold, tieringPolicyResult.GetCoolingThresholdDays().Value)
+
+		assert.True(tt, tieringPolicyResult.GetHotTierBypassModeEnabled().IsSet())
+		assert.Equal(tt, hotTierBypass, tieringPolicyResult.GetHotTierBypassModeEnabled().Value)
+	})
+
+	t.Run("WithTieringPolicyPartialFields_ShouldConvertCorrectly", func(tt *testing.T) {
+		// Arrange - Only TierAction is set
+		tierAction := gcpserver.TieringPolicyV1betaTierActionPAUSED
+
+		tieringPolicy := &gcpserver.TieringPolicyV1beta{
+			TierAction: gcpserver.OptNilTieringPolicyV1betaTierAction{
+				Value: tierAction,
+				Set:   true,
+				Null:  false,
+			},
+			CoolingThresholdDays: gcpserver.OptNilInt32{
+				Set: false, // Not set
+			},
+			HotTierBypassModeEnabled: gcpserver.OptNilBool{
+				Set: false, // Not set
+			},
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 2147483648,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"ISCSI"},
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:      "test-volume",
+						ShareName:     "test-share",
+						TieringPolicy: tieringPolicy,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-456"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.True(tt, result.TieringPolicy.IsSet())
+		tieringPolicyResult := result.TieringPolicy.Value
+
+		// Only TierAction should be set
+		assert.True(tt, tieringPolicyResult.GetTierAction().IsSet())
+		assert.Equal(tt, googleproxyclient.TieringPolicyV1betaTierActionPAUSED, tieringPolicyResult.GetTierAction().Value)
+
+		// Other fields should not be set
+		assert.False(tt, tieringPolicyResult.GetCoolingThresholdDays().IsSet())
+		assert.False(tt, tieringPolicyResult.GetHotTierBypassModeEnabled().IsSet())
+	})
+
+	t.Run("WithNilTieringPolicy_ShouldNotSetTieringPolicy", func(tt *testing.T) {
+		// Arrange
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 1073741824,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"NFSV3"},
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:      "test-volume",
+						ShareName:     "test-share",
+						TieringPolicy: nil, // Nil tiering policy
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-789"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.False(tt, result.TieringPolicy.IsSet())
+	})
+
+	t.Run("WithTieringPolicyOnlyCoolingThreshold_ShouldConvertCorrectly", func(tt *testing.T) {
+		// Arrange - Only CoolingThresholdDays is set
+		coolingThreshold := int32(90)
+
+		tieringPolicy := &gcpserver.TieringPolicyV1beta{
+			TierAction: gcpserver.OptNilTieringPolicyV1betaTierAction{
+				Set: false, // Not set
+			},
+			CoolingThresholdDays: gcpserver.OptNilInt32{
+				Value: coolingThreshold,
+				Set:   true,
+				Null:  false,
+			},
+			HotTierBypassModeEnabled: gcpserver.OptNilBool{
+				Set: false, // Not set
+			},
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 5368709120,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"NFSV4"},
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:      "test-volume",
+						ShareName:     "test-share",
+						TieringPolicy: tieringPolicy,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-cooling"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.True(tt, result.TieringPolicy.IsSet())
+		tieringPolicyResult := result.TieringPolicy.Value
+
+		// Only CoolingThresholdDays should be set
+		assert.False(tt, tieringPolicyResult.GetTierAction().IsSet())
+		assert.True(tt, tieringPolicyResult.GetCoolingThresholdDays().IsSet())
+		assert.Equal(tt, coolingThreshold, tieringPolicyResult.GetCoolingThresholdDays().Value)
+		assert.False(tt, tieringPolicyResult.GetHotTierBypassModeEnabled().IsSet())
+	})
+
+	t.Run("WithTieringPolicyOnlyHotTierBypass_ShouldConvertCorrectly", func(tt *testing.T) {
+		// Arrange - Only HotTierBypassModeEnabled is set
+		hotTierBypass := false
+
+		tieringPolicy := &gcpserver.TieringPolicyV1beta{
+			TierAction: gcpserver.OptNilTieringPolicyV1betaTierAction{
+				Set: false, // Not set
+			},
+			CoolingThresholdDays: gcpserver.OptNilInt32{
+				Set: false, // Not set
+			},
+			HotTierBypassModeEnabled: gcpserver.OptNilBool{
+				Value: hotTierBypass,
+				Set:   true,
+				Null:  false,
+			},
+		}
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 3221225472,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"SMB"},
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:      "test-volume",
+						ShareName:     "test-share",
+						TieringPolicy: tieringPolicy,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-bypass"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.True(tt, result.TieringPolicy.IsSet())
+		tieringPolicyResult := result.TieringPolicy.Value
+
+		// Only HotTierBypassModeEnabled should be set
+		assert.False(tt, tieringPolicyResult.GetTierAction().IsSet())
+		assert.False(tt, tieringPolicyResult.GetCoolingThresholdDays().IsSet())
+		assert.True(tt, tieringPolicyResult.GetHotTierBypassModeEnabled().IsSet())
+		assert.Equal(tt, hotTierBypass, tieringPolicyResult.GetHotTierBypassModeEnabled().Value)
 	})
 }
 

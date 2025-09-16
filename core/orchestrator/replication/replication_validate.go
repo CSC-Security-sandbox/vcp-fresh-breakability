@@ -59,11 +59,12 @@ var (
 	InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
 	InternalParseRegionAndZone     = utils.ParseRegionAndZone
 
-	regexpCompile    = regexp.Compile
-	JsonMarshal      = json.Marshal
-	JsonUnMarshal    = json.Unmarshal
-	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
-	getQuotaLimit    = common.GetQuotaLimit
+	regexpCompile      = regexp.Compile
+	JsonMarshal        = json.Marshal
+	JsonUnMarshal      = json.Unmarshal
+	hydrationEnabled   = env.GetBool("GCP_HYDRATE_ENABLED", true)
+	autoTieringEnabled = env.GetBool("AUTO_TIERING_ENABLED", false)
+	getQuotaLimit      = common.GetQuotaLimit
 )
 
 type QuotaType string
@@ -79,6 +80,11 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	logger := util.GetLogger(ctx)
 	logger.Debug("Starting validateCreateReplicationParams")
 
+	if event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy != nil {
+		if !autoTieringEnabled {
+			return nil, utilErrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
+		}
+	}
 	if *event.CreateReplicationParams.ReplicationSchedule == models.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED {
 		typeErr := errors.NewVCPError(errors.ErrWorkflowConfigurationError, errors.New("replicationSchedule is UNSPECIFIED"))
 		logger.Error("replicationSchedule is UNSPECIFIED", common.Error(typeErr))

@@ -80,13 +80,28 @@ func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, err)
 	}
-	pool, ok := res.(*googleproxyclient.PoolInternalV1beta)
-	if ok {
-		result.DstPool = pool
-		result.DstIps = pool.InterclusterLifs
+	switch r := res.(type) {
+	case *googleproxyclient.PoolInternalV1beta:
+		result.DstPool = r
+		result.DstIps = r.InterclusterLifs
 		return result, nil
+	case *googleproxyclient.V1betaInternalDescribePoolBadRequest:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribePoolUnauthorized:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribePoolForbidden:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribePoolNotFound:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribePoolUnprocessableEntity:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribePoolMethodNotAllowed:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribePoolInternalServerError:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, errors.New(r.Message)))
+	default:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolAPI, errors.New("unexpected response type from Google Proxy")))
 	}
-	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalDescribePoolNotFound, vsaerrors.New("Pool not found"))
 }
 
 func (j *VolumeReplicationCreateActivity) CreateClusterPeering(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
@@ -134,12 +149,25 @@ func (a *VolumeReplicationCreateActivity) AcceptClusterPeering(ctx context.Conte
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, err)
 	}
-	clusterPeer, ok := res.(*googleproxyclient.ClusterPeerV1)
-	if ok {
-		result.JobId = &clusterPeer.Jobs[0].JobId.Value
+	switch r := res.(type) {
+	case *googleproxyclient.ClusterPeerV1:
+		result.JobId = &r.Jobs[0].JobId.Value
 		return result, nil
+	case *googleproxyclient.V1betaInternalAcceptClusterPeerBadRequest:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalAcceptClusterPeerUnauthorized:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalAcceptClusterPeerForbidden:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalAcceptClusterPeerNotFound:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalAcceptClusterPeerConflict:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalAcceptClusterPeerInternalServerError:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, errors.New(r.Message)))
+	default:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerAPI, errors.New("unexpected response type from Google Proxy")))
 	}
-	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalAcceptClusterPeerNotFound, vsaerrors.New("Cluster peer not found"))
 }
 
 func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
@@ -163,18 +191,29 @@ func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Co
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, err)
 	}
-	operation, ok := res.(*googleproxyclient.OperationV1beta)
-	if ok {
+	switch r := res.(type) {
+	case *googleproxyclient.OperationV1beta:
 		volume := gcpserver.VolumeV1beta{}
-		err := replication.JsonUnMarshal(operation.Response, &volume)
+		err := replication.JsonUnMarshal(r.Response, &volume)
 		if err != nil {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrorFailedToUnmarshal, err)
 		}
-		result.JobId = &strings.Split(operation.Name.Value, "/")[7]
+		result.JobId = &strings.Split(r.Name.Value, "/")[7]
 		result.DstVolume = &volume
 		return result, nil
+	case *googleproxyclient.V1betaCreateVolumeBadRequest:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, errors.New(r.Message)))
+	case *googleproxyclient.V1betaCreateVolumeUnauthorized:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, errors.New(r.Message)))
+	case *googleproxyclient.V1betaCreateVolumeForbidden:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, errors.New(r.Message)))
+	case *googleproxyclient.V1betaCreateVolumeConflict:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, errors.New(r.Message)))
+	case *googleproxyclient.V1betaCreateVolumeInternalServerError:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, errors.New(r.Message)))
+	default:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, errors.New("unexpected response type from Google Proxy")))
 	}
-	return nil, nil
 }
 
 func DescribeVolume(ctx context.Context, result *replication.CreateReplicationResult) (*googleproxyclient.InternalVolumeV1beta, error) {
@@ -189,13 +228,24 @@ func DescribeVolume(ctx context.Context, result *replication.CreateReplicationRe
 
 	res, err := googleProxyClient.Invoker.V1betaInternalDescribeVolume(ctx, *createVolumeParams)
 	if err != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDescribingVolume, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDescribingDestinationVolume, err)
 	}
-	volumeV1Beta, ok := res.(*googleproxyclient.InternalVolumeV1beta)
-	if ok {
-		return volumeV1Beta, nil
+	switch r := res.(type) {
+	case *googleproxyclient.InternalVolumeV1beta:
+		return r, nil
+	case *googleproxyclient.V1betaInternalDescribeVolumeBadRequest:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDescribingDestinationVolume, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribeVolumeUnauthorized:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDescribingDestinationVolume, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribeVolumeForbidden:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDescribingDestinationVolume, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribeVolumeNotFound:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDescribingDestinationVolume, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalDescribeVolumeInternalServerError:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDescribingDestinationVolume, errors.New(r.Message)))
+	default:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDescribingDestinationVolume, errors.New("unexpected response type from Google Proxy")))
 	}
-	return nil, nil
 }
 
 func (a *VolumeReplicationCreateActivity) HydrateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
@@ -248,15 +298,30 @@ func (a *VolumeReplicationCreateActivity) CreateReplicationOnDestination(ctx con
 
 	res, err := googleProxyClient.Invoker.V1betaInternalCreateVolumeReplication(ctx, &body, *createVolumeParams)
 	if err != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreatingDestinationVolume, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, err)
 	}
-	response, ok := res.(*googleproxyclient.VolumeReplicationInternalV1beta)
-	if ok {
-		result.DstReplication = response
-		result.JobId = &response.Jobs[0].JobId.Value
+	switch r := res.(type) {
+	case *googleproxyclient.VolumeReplicationInternalV1beta:
+		result.DstReplication = r
+		result.JobId = &r.Jobs[0].JobId.Value
 		return result, nil
+	case *googleproxyclient.V1betaInternalCreateVolumeReplicationBadRequest:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalCreateVolumeReplicationUnauthorized:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalCreateVolumeReplicationForbidden:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalCreateVolumeReplicationNotFound:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalCreateVolumeReplicationInternalServerError:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalCreateVolumeReplicationUnprocessableEntity:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalCreateVolumeReplicationConflict:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, errors.New(r.Message)))
+	default:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreateInternalReplication, errors.New("unexpected response type from Google Proxy")))
 	}
-	return nil, nil
 }
 
 func (a *VolumeReplicationCreateActivity) UpdateReplicationState(ctx context.Context, volumeRep datamodel.VolumeReplication) error {
@@ -426,7 +491,7 @@ func (a *VolumeReplicationCreateActivity) GetSignedDstToken(ctx context.Context,
 func (a *VolumeReplicationCreateActivity) MountReplication(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("MountReplication")
-	
+
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 
 	createVolumeParams := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
@@ -440,12 +505,25 @@ func (a *VolumeReplicationCreateActivity) MountReplication(ctx context.Context, 
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, err)
 	}
-	response, ok := res.(*googleproxyclient.InternalJobV1beta)
-	if ok {
-		result.JobId = &response.JobUuid.Value
+	switch r := res.(type) {
+	case *googleproxyclient.InternalJobV1beta:
+		result.JobId = &r.JobUuid.Value
 		return result, nil
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationBadRequest:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationUnauthorized:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationForbidden:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationNotFound:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationConflict:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, errors.New(r.Message)))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationInternalServerError:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, errors.New(r.Message)))
+	default:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrMountingVolumeReplication, errors.New("unexpected response type from Google Proxy")))
 	}
-	return nil, nil
 }
 
 // DescribeRemoteJob gives the status of a remote job
@@ -460,6 +538,7 @@ func (a *VolumeReplicationCreateActivity) DescribeRemoteJob(ctx context.Context,
 func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicationResult) googleproxyclient.VolumeV1beta {
 	srcVol := result.Event.SourceVolume
 	protocols := make([]googleproxyclient.ProtocolsV1beta, 0)
+
 	for _, value := range srcVol.VolumeAttributes.Protocols {
 		var protocolsV1beta googleproxyclient.ProtocolsV1beta
 		_ = protocolsV1beta.UnmarshalText([]byte(value))
@@ -497,6 +576,22 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 		Protocols:     protocols,
 		BlockDevices:  blockDevices,
 	}
+	if result.Event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy != nil {
+		tieringPolicyParam := result.Event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy
+
+		var tieringPolicy googleproxyclient.TieringPolicyV1beta
+		if tieringPolicyParam.TierAction.IsSet() {
+			tieringPolicy.SetTierAction(googleproxyclient.NewOptNilTieringPolicyV1betaTierAction(googleproxyclient.TieringPolicyV1betaTierAction(tieringPolicyParam.TierAction.Value)))
+		}
+		if tieringPolicyParam.CoolingThresholdDays.IsSet() {
+			tieringPolicy.SetCoolingThresholdDays(googleproxyclient.NewOptNilInt32(tieringPolicyParam.CoolingThresholdDays.Value))
+		}
+		if tieringPolicyParam.HotTierBypassModeEnabled.IsSet() {
+			tieringPolicy.SetHotTierBypassModeEnabled(googleproxyclient.NewOptNilBool(tieringPolicyParam.HotTierBypassModeEnabled.Value))
+		}
+		volume.TieringPolicy = googleproxyclient.NewOptTieringPolicyV1beta(tieringPolicy)
+	}
+
 	return volume
 }
 

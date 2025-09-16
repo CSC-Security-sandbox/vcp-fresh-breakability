@@ -1259,6 +1259,18 @@
     "retriable": false,
     "http_code": 500
   },
+  "6208": {
+    "description": "Error returned from internal create replication",
+    "message": "Internal error while creating replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6209": {
+    "description": "Describe Destination Volume Error",
+    "message": "Failed to describe destination volume",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

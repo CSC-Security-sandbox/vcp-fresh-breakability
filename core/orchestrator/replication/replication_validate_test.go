@@ -16,6 +16,7 @@ import (
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -819,6 +820,41 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		_, err := _validateCreateReplicationParams(ctx, &eventCopy, mockStorage)
 		assert.Error(t, err)
+	})
+
+	t.Run("Fails when auto tiering is disabled", func(t *testing.T) {
+		unspecified := models.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED
+		eventCopy := &CreateReplicationEvent{
+			SourceProjectNumber:      projectNumber,
+			DestinationProjectNumber: destProjectNumber,
+			LocationID:               locationID,
+			DestinationLocationID:    destLocationID,
+			VolumeResourceID:         volumeResourceID,
+			CreateReplicationParams: &CreateReplicationParamsBody{
+				ResourceID:          &resourceID,
+				Description:         &description,
+				ReplicationSchedule: &replicationSchedule,
+				Labels:              map[string]string{"env": "prod"},
+				DestinationVolumeParameters: &DestinationVolumeParams{
+					VolumeID:    "vol-2",
+					ShareName:   "share-2",
+					StoragePool: &storagePoolUri,
+				},
+			},
+			SourceVolume:        baseVolume,
+			SourcePool:          datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, ServiceLevel: "FLEX"},
+			DestinationPoolName: destPoolName,
+			XCorrelationID:      xCorrelationID,
+		}
+		paramsCopy := eventCopy.CreateReplicationParams
+		paramsCopy.DestinationVolumeParameters.TieringPolicy = &gcpserver.TieringPolicyV1beta{}
+		paramsCopy.ReplicationSchedule = &unspecified
+		eventCopy.CreateReplicationParams = paramsCopy
+
+		mockStorage := &database.MockStorage{}
+		_, err := _validateCreateReplicationParams(ctx, eventCopy, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
 	})
 
 	t.Run("Fails when label validation fails", func(t *testing.T) {

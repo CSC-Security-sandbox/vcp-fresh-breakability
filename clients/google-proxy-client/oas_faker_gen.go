@@ -1142,6 +1142,11 @@ func (s *DestinationVolumeParametersV1beta) SetFake() {
 			s.Description.SetFake()
 		}
 	}
+	{
+		{
+			s.TieringPolicy.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

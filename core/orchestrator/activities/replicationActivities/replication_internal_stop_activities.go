@@ -84,6 +84,7 @@ func (j *InternalStopVolumeReplicationActivity) AbortVolumeReplication(ctx conte
 		return vsaReplication, nil
 	}
 
+	vsaReplication.RelationshipID = snapmirror.RelationshipID
 	vsaReplication.TransferUUID = snapmirror.TransferUUID
 	vsaReplication.RelationshipStatus = models.SnapmirrorRelationshipAborted
 	_, err = provider.AbortVolumeReplication(vsaReplication)

@@ -5241,13 +5241,20 @@ func (s *DestinationVolumeParametersV1beta) encodeFields(e *jx.Encoder) {
 			s.Description.Encode(e)
 		}
 	}
+	{
+		if s.TieringPolicy.Set {
+			e.FieldStart("tieringPolicy")
+			s.TieringPolicy.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfDestinationVolumeParametersV1beta = [4]string{
+var jsonFieldsNameOfDestinationVolumeParametersV1beta = [5]string{
 	0: "storagePool",
 	1: "volumeId",
 	2: "shareName",
 	3: "description",
+	4: "tieringPolicy",
 }
 
 // Decode decodes DestinationVolumeParametersV1beta from json.
@@ -5300,6 +5307,16 @@ func (s *DestinationVolumeParametersV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "tieringPolicy":
+			if err := func() error {
+				s.TieringPolicy.Reset()
+				if err := s.TieringPolicy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tieringPolicy\"")
 			}
 		default:
 			return d.Skip()

@@ -242,6 +242,8 @@ const (
 	ErrGoogleProxyInternalUpdateVolume                                                       = 6205
 	ErrProviderDeleteVolumeReplication                                                       = 6206
 	ErrDeleteVolume                                                                          = 6207
+	ErrCreateInternalReplication                                                             = 6208
+	ErrDescribingDestinationVolume                                                           = 6209
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

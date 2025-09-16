@@ -2832,13 +2832,15 @@ func (s *DailyScheduleV1beta) SetMinute(val OptFloat64) {
 type DestinationVolumeParametersV1beta struct {
 	// Destination storage pool URI for replication.
 	StoragePool string `json:"storagePool"`
-	// A human readable name for the secondary volume which is restricted to letters, numbers, and hyphen,
-	//  with the first character a letter, the last a letter or a number, and a 63 character maximum.
+	// A human readable name for the secondary volume which is restricted to letters, numbers, hyphen and
+	// underscore, with the first character a letter, the last a letter or a number, and a 63 character
+	// maximum.
 	VolumeId OptString `json:"volumeId"`
 	// Volume share name for the secondary volume.
 	ShareName OptString `json:"shareName"`
 	// Description of the destination volume.
-	Description OptString `json:"description"`
+	Description   OptString              `json:"description"`
+	TieringPolicy OptTieringPolicyV1beta `json:"tieringPolicy"`
 }
 
 // GetStoragePool returns the value of StoragePool.
@@ -2861,6 +2863,11 @@ func (s *DestinationVolumeParametersV1beta) GetDescription() OptString {
 	return s.Description
 }
 
+// GetTieringPolicy returns the value of TieringPolicy.
+func (s *DestinationVolumeParametersV1beta) GetTieringPolicy() OptTieringPolicyV1beta {
+	return s.TieringPolicy
+}
+
 // SetStoragePool sets the value of StoragePool.
 func (s *DestinationVolumeParametersV1beta) SetStoragePool(val string) {
 	s.StoragePool = val
@@ -2879,6 +2886,11 @@ func (s *DestinationVolumeParametersV1beta) SetShareName(val OptString) {
 // SetDescription sets the value of Description.
 func (s *DestinationVolumeParametersV1beta) SetDescription(val OptString) {
 	s.Description = val
+}
+
+// SetTieringPolicy sets the value of TieringPolicy.
+func (s *DestinationVolumeParametersV1beta) SetTieringPolicy(val OptTieringPolicyV1beta) {
+	s.TieringPolicy = val
 }
 
 // Error response.

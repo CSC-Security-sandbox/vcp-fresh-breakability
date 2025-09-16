@@ -8895,9 +8895,8 @@ components:
         volumeId:
           title: volumeId
           type: string
-          description: A human readable name for the secondary volume which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
-          pattern: >-
-            ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          description: A human readable name for the secondary volume which is restricted to letters, numbers, hyphen and underscore, with the first character a letter, the last a letter or a number, and a 63 character maximum
+          pattern: "^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"
           maxLength: 63
           example: my-volume-name
         shareName:
@@ -8915,6 +8914,8 @@ components:
           example: My destination volume description
           x-nullable: true
           maxLength: 2048
+        tieringPolicy:
+          $ref: '#/components/schemas/TieringPolicy_v1beta'
     ReplicationVolumeInformation_v1beta:
       type: object
       title: Volume information
@@ -10922,7 +10923,7 @@ components:
       description: Resource Id used to identify the volume
       schema:
         maxLength: 63
-        pattern: "^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$"
+        pattern: "^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"
         type: string
       required: true
     replicationResourceIdPathParameter:
