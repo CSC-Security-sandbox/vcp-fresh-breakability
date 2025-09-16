@@ -388,7 +388,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
-	t.Run("WhenCreateVSAKmsConfigAccessCryptoKeyWithImpersonationActivityReturnsError", func(tt *testing.T) {
+	t.Run("WhenCreateVSAKmsConfigAccessCryptoKeyAndEncryptDataWithImpersonationActivityReturnsError", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -422,7 +422,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("CreateAndSyncKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("AccessCryptoKeyWithImpersonationActivity", nil).Error(), "KmsConfigNotFound", nil))
+		env.OnActivity("AccessCryptoKeyAndEncryptDataWithImpersonationActivity", mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("AccessCryptoKeyAndEncryptDataWithImpersonationActivity", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("DeleteKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 

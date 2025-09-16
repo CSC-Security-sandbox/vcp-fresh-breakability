@@ -100,7 +100,7 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 		}
 
 		// Access the KMS crypto key to ensure it is accessible using impersonation
-		err = h.Orchestrator.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
+		err = h.Orchestrator.AccessCryptoKeyAndEncryptDataWithImpersonation(ctx, kmsConfig)
 		if err != nil {
 			// Update the KMS config health in the vsa DB
 			_, healthErr := h.Orchestrator.CheckAndUpdateKmsConfigHealth(ctx, checkParams)

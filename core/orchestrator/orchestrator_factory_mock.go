@@ -100,12 +100,12 @@ func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) RunAndReturn(run func(
 	return _c
 }
 
-// AccessCryptoKeyWithImpersonation provides a mock function with given fields: ctx, kmsConfig
-func (_m *MockOrchestratorFactory) AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error {
+// AccessCryptoKeyAndEncryptDataWithImpersonation provides a mock function with given fields: ctx, kmsConfig
+func (_m *MockOrchestratorFactory) AccessCryptoKeyAndEncryptDataWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error {
 	ret := _m.Called(ctx, kmsConfig)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AccessCryptoKeyWithImpersonation")
+		panic("no return value specified for AccessCryptoKeyAndEncryptDataWithImpersonation")
 	}
 
 	var r0 error
@@ -118,31 +118,31 @@ func (_m *MockOrchestratorFactory) AccessCryptoKeyWithImpersonation(ctx context.
 	return r0
 }
 
-// MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AccessCryptoKeyWithImpersonation'
-type MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call struct {
+// MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AccessCryptoKeyAndEncryptDataWithImpersonation'
+type MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call struct {
 	*mock.Call
 }
 
-// AccessCryptoKeyWithImpersonation is a helper method to define mock.On call
+// AccessCryptoKeyAndEncryptDataWithImpersonation is a helper method to define mock.On call
 //   - ctx context.Context
 //   - kmsConfig *models.KmsConfig
-func (_e *MockOrchestratorFactory_Expecter) AccessCryptoKeyWithImpersonation(ctx interface{}, kmsConfig interface{}) *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call {
-	return &MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call{Call: _e.mock.On("AccessCryptoKeyWithImpersonation", ctx, kmsConfig)}
+func (_e *MockOrchestratorFactory_Expecter) AccessCryptoKeyAndEncryptDataWithImpersonation(ctx interface{}, kmsConfig interface{}) *MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call {
+	return &MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call{Call: _e.mock.On("AccessCryptoKeyAndEncryptDataWithImpersonation", ctx, kmsConfig)}
 }
 
-func (_c *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call) Run(run func(ctx context.Context, kmsConfig *models.KmsConfig)) *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call {
+func (_c *MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call) Run(run func(ctx context.Context, kmsConfig *models.KmsConfig)) *MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*models.KmsConfig))
 	})
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call) Return(_a0 error) *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call {
+func (_c *MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call) Return(_a0 error) *MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call) RunAndReturn(run func(context.Context, *models.KmsConfig) error) *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call {
+func (_c *MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call) RunAndReturn(run func(context.Context, *models.KmsConfig) error) *MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation_Call {
 	_c.Call.Return(run)
 	return _c
 }

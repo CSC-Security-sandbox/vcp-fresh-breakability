@@ -34,7 +34,7 @@ var (
 	DeleteServiceAccountKeysExcludingKey = _deleteServiceAccountKeysExcludingKey
 	gcpGrantServiceAccountRole           = _gcpGrantServiceAccountRole
 	retryDo                              = retry.RetryDoWithTimeout
-	AccessCryptoKey                      = _accessCryptoKey
+	AccessCryptoKeyAndEncryptData        = _accessCryptoKeyAndEncryptData
 	getImpersonatedKmsService            = google.GetImpersonatedKmsService
 	synchronizeServiceAccountKeys        = _synchronizeServiceAccountKeys
 	UpdateKmsConfigHealth                = _updateKmsConfigHealth
@@ -242,7 +242,7 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 		operationParams.ProjectNumber = kmsConfig.CustomerProjectID
 		operationParams.LocationID = location
 
-		err = retryDo(ctx, RetryTimeOutForDescribeSDEJob, RetryIntervalForDescribeSDEJob, "AccessCryptoKeyWithImpersonation", func(attempt int) (bool, error) {
+		err = retryDo(ctx, RetryTimeOutForDescribeSDEJob, RetryIntervalForDescribeSDEJob, "AccessCryptoKeyAndEncryptDataWithImpersonation", func(attempt int) (bool, error) {
 			_, err = pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 			if err != nil {
 				return true, retry.NewRetriableErr(err.Error())
@@ -274,15 +274,15 @@ func (j *KmsConfigActivity) UpdatePoolWithKmsConfigActivity(ctx context.Context,
 	return se.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigID)
 }
 
-func (j *KmsConfigActivity) AccessCryptoKeyWithImpersonationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
-	err := AccessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+func (j *KmsConfigActivity) AccessCryptoKeyAndEncryptDataWithImpersonationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
+	err := AccessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func _accessCryptoKey(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 	logger := util.GetLogger(ctx)
 
 	// Process the service account credentials to get the scope credentials
@@ -305,17 +305,39 @@ func _accessCryptoKey(ctx context.Context, kmsConfig *datamodel.KmsConfig, secre
 	}.String()
 
 	// Get the crypto key details
-	err = retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessCryptoKeyWithImpersonation", func(attempt int) (bool, error) {
-		cryptoKey, err := kmsService.Projects.Locations.KeyRings.CryptoKeys.Get(cryptoKeyPath).Context(ctx).Do()
-		if err != nil {
-			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", err))
+	errAccess := retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessCryptoKeyAndEncryptDataWithImpersonation", func(attempt int) (bool, error) {
+		cryptoKey, errGetCrypto := kmsService.Projects.Locations.KeyRings.CryptoKeys.Get(cryptoKeyPath).Context(ctx).Do()
+		if errGetCrypto != nil {
+			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", errGetCrypto))
 		}
-		logger.Debugf("Successfully got crypto key %s", cryptoKey.Name)
+		errValidate := utils.ValidateKeyProperties(cryptoKey, kmsConfig.KeyName, kmsConfig.KeyRing)
+		if errValidate != nil {
+			return true, errValidate
+		}
 		return false, nil
 	})
-	if err != nil {
-		return fmt.Errorf("failed to access crypto key %s: %w", cryptoKeyPath, err)
+	if errAccess != nil {
+		logger.Errorf("Failed to access crypto key %s - %s", cryptoKeyPath, errAccess.Error())
+		return errAccess
 	}
+
+	plainText := "test"
+	// Encode the test string in base64 format before encryption request
+	req := utils.ReturnEncryptRequest(plainText)
+	// Attempt to encrypt the data using the KMS key.
+	errEncrypt := retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessCryptoKeyAndEncryptDataWithImpersonationActivity", func(attempt int) (bool, error) {
+		_, err = kmsService.Projects.Locations.KeyRings.CryptoKeys.Encrypt(cryptoKeyPath, req).Do()
+		if err != nil {
+			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Encrypt: %v", err))
+		}
+		logger.Debugf("Successfully encrypted test data with crypto key  %s using impersonation", cryptoKeyPath)
+		return false, nil
+	})
+	if errEncrypt != nil {
+		logger.Errorf("Failed to encrypt data using KMS key: %v", errEncrypt)
+		return errEncrypt
+	}
+
 	return nil
 }
 
@@ -347,8 +369,9 @@ func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context
 		return err
 	}
 
-	// Access a Crypto key
-	err = AccessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+	// Access Crypto key and encrypt data
+	err = AccessCryptoKeyAndEncryptData(
+		ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 
 	// Prepare KmsConfig check model based on the access check
 	kmsConfigCheck := &models.KmsConfigCheck{}

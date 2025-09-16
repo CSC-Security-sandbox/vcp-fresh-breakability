@@ -1234,13 +1234,13 @@ func TestAccessKmsCryptoKey(t *testing.T) {
 		dbKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}, ServiceAccount: &datamodel.ServiceAccount{ServiceAccountEmail: ""}}
 
 		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(dbKmsConfig, nil)
-		origAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = origAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		origAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = origAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 
-		err := orch.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
+		err := orch.AccessCryptoKeyAndEncryptDataWithImpersonation(ctx, kmsConfig)
 		assert.NoError(tt, err)
 	})
 
@@ -1252,7 +1252,7 @@ func TestAccessKmsCryptoKey(t *testing.T) {
 
 		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(nil, errors.New("get error"))
 
-		err := orch.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
+		err := orch.AccessCryptoKeyAndEncryptDataWithImpersonation(ctx, kmsConfig)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "get error")
 	})
@@ -1265,13 +1265,13 @@ func TestAccessKmsCryptoKey(t *testing.T) {
 		dbKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}, ServiceAccount: &datamodel.ServiceAccount{ServiceAccountEmail: "sa.com"}}
 
 		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(dbKmsConfig, nil)
-		origAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = origAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		origAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = origAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return errors.New("access error")
 		}
 
-		err := orch.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
+		err := orch.AccessCryptoKeyAndEncryptDataWithImpersonation(ctx, kmsConfig)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "access error")
 	})

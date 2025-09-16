@@ -2023,7 +2023,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 			ServiceAccount: &vsaCoreModels.ServiceAccount{}}
 		mockOrchestrator.EXPECT().GetKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		mockOrchestrator.EXPECT().CheckAndUpdateKmsConfigHealth(mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		mockOrchestrator.EXPECT().AccessCryptoKeyWithImpersonation(mock.Anything, mock.Anything).Return(nil)
+		mockOrchestrator.EXPECT().AccessCryptoKeyAndEncryptDataWithImpersonation(mock.Anything, mock.Anything).Return(nil)
 		// Call the method under test
 		result, err := handler.V1betaCheckKmsConfig(context.Background(), params)
 

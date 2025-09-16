@@ -120,7 +120,7 @@ func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, se
 		logger.Errorf("Failed to encrypt service account key: %v", err)
 		return err
 	}
-	err = kms_activities.AccessCryptoKey(ctx, kmsConfig, *secretPassword)
+	err = kms_activities.AccessCryptoKeyAndEncryptData(ctx, kmsConfig, *secretPassword)
 	if err != nil {
 		logger.Errorf("Failed to access crypto key: %v", err)
 		return err

@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"encoding/base64"
+	"google.golang.org/api/cloudkms/v1"
 	"reflect"
 	"testing"
 
@@ -146,6 +148,109 @@ func TestDetermineStartToCloseTimeoutBasedOnUsedSize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			timeout := DetermineStartToCloseTimeoutBasedOnUsedSize(tt.volumes)
 			assert.Equal(t, tt.expectedTimeout, timeout)
+		})
+	}
+}
+
+func TestValidateKeyProperties(t *testing.T) {
+	keyName := "KeyName"
+	keyRing := "KeyRing"
+	t.Run("WhenKeyIsNil", func(tt *testing.T) {
+		var cryptoKey *cloudkms.CryptoKey = nil
+
+		err := ValidateKeyProperties(cryptoKey, keyName, keyRing)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Transient error: Key access verification failed - Unable to get Crypto key from Google")
+	})
+	t.Run("WhenKeyPrimaryIsNil", func(tt *testing.T) {
+		cryptoKey := cloudkms.CryptoKey{Primary: nil}
+		err := ValidateKeyProperties(&cryptoKey, keyName, keyRing)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Failed to validate KMS key due to precondition failure: Specified key KeyName in KeyRing algorithm is not supported")
+	})
+	t.Run("WhenKeyAlgorithmDoesNotMatch", func(tt *testing.T) {
+		err := ValidateKeyProperties(&cloudkms.CryptoKey{Primary: &cloudkms.CryptoKeyVersion{Algorithm: "GOOGLE_ASYMMETRIC_ENCRYPTION"}}, keyName, keyRing)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Failed to validate KMS key due to precondition failure: Specified key KeyName in KeyRing algorithm is not supported")
+	})
+	t.Run("WhenKeyHasBeenDisabled", func(tt *testing.T) {
+		err := ValidateKeyProperties(&cloudkms.CryptoKey{Primary: &cloudkms.CryptoKeyVersion{Algorithm: "GOOGLE_SYMMETRIC_ENCRYPTION", State: "DISABLED"}}, keyName, keyRing)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Failed to validate KMS key due to precondition failure: Specified key KeyName in KeyRing is not enabled")
+	})
+	t.Run("WhenValidateKeyPropertiesSuccessful", func(tt *testing.T) {
+		err := ValidateKeyProperties(&cloudkms.CryptoKey{Primary: &cloudkms.CryptoKeyVersion{Algorithm: "EXTERNAL_SYMMETRIC_ENCRYPTION", State: enabledKeyState}}, keyName, keyRing)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestReturnEncryptRequest(t *testing.T) {
+	tests := []struct {
+		name      string
+		plainText string
+		expected  *cloudkms.EncryptRequest
+	}{
+		{
+			name:      "Simple text encryption request",
+			plainText: "test",
+			expected: &cloudkms.EncryptRequest{
+				Plaintext: base64.StdEncoding.EncodeToString([]byte("test")),
+			},
+		},
+		{
+			name:      "Empty string encryption request",
+			plainText: "",
+			expected: &cloudkms.EncryptRequest{
+				Plaintext: base64.StdEncoding.EncodeToString([]byte("")),
+			},
+		},
+		{
+			name:      "Special characters encryption request",
+			plainText: "Hello, World! @#$%^&*()",
+			expected: &cloudkms.EncryptRequest{
+				Plaintext: base64.StdEncoding.EncodeToString([]byte("Hello, World! @#$%^&*()")),
+			},
+		},
+		{
+			name:      "Unicode characters encryption request",
+			plainText: "こんにちは世界",
+			expected: &cloudkms.EncryptRequest{
+				Plaintext: base64.StdEncoding.EncodeToString([]byte("こんにちは世界")),
+			},
+		},
+		{
+			name:      "Multiline text encryption request",
+			plainText: "Line 1\nLine 2\nLine 3",
+			expected: &cloudkms.EncryptRequest{
+				Plaintext: base64.StdEncoding.EncodeToString([]byte("Line 1\nLine 2\nLine 3")),
+			},
+		},
+		{
+			name:      "JSON-like string encryption request",
+			plainText: `{"key": "value", "number": 123}`,
+			expected: &cloudkms.EncryptRequest{
+				Plaintext: base64.StdEncoding.EncodeToString([]byte(`{"key": "value", "number": 123}`)),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ReturnEncryptRequest(tt.plainText)
+
+			// Verify the result is not nil
+			assert.NotNil(t, result)
+
+			// Verify the structure matches expected
+			assert.Equal(t, tt.expected.Plaintext, result.Plaintext)
+
+			// Verify that the base64 encoding is correct by decoding it back
+			decodedBytes, err := base64.StdEncoding.DecodeString(result.Plaintext)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.plainText, string(decodedBytes))
+
+			// Verify the entire struct matches
+			assert.True(t, reflect.DeepEqual(tt.expected, result))
 		})
 	}
 }

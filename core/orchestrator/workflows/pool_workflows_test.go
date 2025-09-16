@@ -7157,76 +7157,75 @@ func TestDeterministicDeploymentNameGeneration(t *testing.T) {
 	}
 }
 
-
 // TestUpdatePoolWorkflow_RetryPolicyParams tests the specific line 545: retryPolicy, err := PopulateRetryPolicyParams(pool.LargeCapacity)
 func TestUpdatePoolWorkflow_RetryPolicyParams(t *testing.T) {
-t.Run("RetryPolicyParamsFunction_BehaviorVerification", func(t *testing.T) {
-// Test the PopulateRetryPolicyParams function directly to verify the behavior
-// This tests the core logic that line 545 depends on
+	t.Run("RetryPolicyParamsFunction_BehaviorVerification", func(t *testing.T) {
+		// Test the PopulateRetryPolicyParams function directly to verify the behavior
+		// This tests the core logic that line 545 depends on
 
-// Save original values
-origStartToCloseTimeout := StartToCloseTimeout
-origStartToCloseTimeoutLV := StartToCloseTimeoutLV
-origRetryInterval := RetryInterval
-origRetryMaxAttempts := RetryMaxAttempts
-origRetryMaxInterval := RetryMaxInterval
-origRetryBackoff := RetryBackoff
+		// Save original values
+		origStartToCloseTimeout := StartToCloseTimeout
+		origStartToCloseTimeoutLV := StartToCloseTimeoutLV
+		origRetryInterval := RetryInterval
+		origRetryMaxAttempts := RetryMaxAttempts
+		origRetryMaxInterval := RetryMaxInterval
+		origRetryBackoff := RetryBackoff
 
-defer func() {
-StartToCloseTimeout = origStartToCloseTimeout
-StartToCloseTimeoutLV = origStartToCloseTimeoutLV
-RetryInterval = origRetryInterval
-RetryMaxAttempts = origRetryMaxAttempts
-RetryMaxInterval = origRetryMaxInterval
-RetryBackoff = origRetryBackoff
-}()
+		defer func() {
+			StartToCloseTimeout = origStartToCloseTimeout
+			StartToCloseTimeoutLV = origStartToCloseTimeoutLV
+			RetryInterval = origRetryInterval
+			RetryMaxAttempts = origRetryMaxAttempts
+			RetryMaxInterval = origRetryMaxInterval
+			RetryBackoff = origRetryBackoff
+		}()
 
-// Set test values
-StartToCloseTimeout = "25m"
-StartToCloseTimeoutLV = "35m"
-RetryInterval = "5s"
-RetryMaxAttempts = 3
-RetryMaxInterval = "5m"
-RetryBackoff = "2.0"
+		// Set test values
+		StartToCloseTimeout = "25m"
+		StartToCloseTimeoutLV = "35m"
+		RetryInterval = "5s"
+		RetryMaxAttempts = 3
+		RetryMaxInterval = "5m"
+		RetryBackoff = "2.0"
 
-t.Run("StandardPool_ReturnsStandardTimeout", func(t *testing.T) {
-policy, err := PopulateRetryPolicyParams(false)
-assert.NoError(t, err)
-assert.NotNil(t, policy)
-assert.Equal(t, 25*time.Minute, policy.StartToCloseTimeout)
-assert.Equal(t, 5*time.Second, policy.InitialInterval)
-assert.Equal(t, 3, policy.MaximumAttempts)
-assert.Equal(t, 5*time.Minute, policy.MaximumInterval)
-assert.Equal(t, 2.0, policy.BackoffCoefficient)
-})
+		t.Run("StandardPool_ReturnsStandardTimeout", func(t *testing.T) {
+			policy, err := PopulateRetryPolicyParams(false)
+			assert.NoError(t, err)
+			assert.NotNil(t, policy)
+			assert.Equal(t, 25*time.Minute, policy.StartToCloseTimeout)
+			assert.Equal(t, 5*time.Second, policy.InitialInterval)
+			assert.Equal(t, 3, policy.MaximumAttempts)
+			assert.Equal(t, 5*time.Minute, policy.MaximumInterval)
+			assert.Equal(t, 2.0, policy.BackoffCoefficient)
+		})
 
-t.Run("LargeCapacityPool_ReturnsLargeCapacityTimeout", func(t *testing.T) {
-policy, err := PopulateRetryPolicyParams(true)
-assert.NoError(t, err)
-assert.NotNil(t, policy)
-assert.Equal(t, 35*time.Minute, policy.StartToCloseTimeout) // Different timeout for large capacity
-assert.Equal(t, 5*time.Second, policy.InitialInterval)
-assert.Equal(t, 3, policy.MaximumAttempts)
-assert.Equal(t, 5*time.Minute, policy.MaximumInterval)
-assert.Equal(t, 2.0, policy.BackoffCoefficient)
-})
+		t.Run("LargeCapacityPool_ReturnsLargeCapacityTimeout", func(t *testing.T) {
+			policy, err := PopulateRetryPolicyParams(true)
+			assert.NoError(t, err)
+			assert.NotNil(t, policy)
+			assert.Equal(t, 35*time.Minute, policy.StartToCloseTimeout) // Different timeout for large capacity
+			assert.Equal(t, 5*time.Second, policy.InitialInterval)
+			assert.Equal(t, 3, policy.MaximumAttempts)
+			assert.Equal(t, 5*time.Minute, policy.MaximumInterval)
+			assert.Equal(t, 2.0, policy.BackoffCoefficient)
+		})
 
-t.Run("NoParameter_DefaultsToStandardPool", func(t *testing.T) {
-policy, err := PopulateRetryPolicyParams()
-assert.NoError(t, err)
-assert.NotNil(t, policy)
-assert.Equal(t, 25*time.Minute, policy.StartToCloseTimeout) // Should use standard timeout
-})
+		t.Run("NoParameter_DefaultsToStandardPool", func(t *testing.T) {
+			policy, err := PopulateRetryPolicyParams()
+			assert.NoError(t, err)
+			assert.NotNil(t, policy)
+			assert.Equal(t, 25*time.Minute, policy.StartToCloseTimeout) // Should use standard timeout
+		})
 
-t.Run("TimeoutValuesAreDifferent", func(t *testing.T) {
-standardPolicy, err1 := PopulateRetryPolicyParams(false)
-largePolicy, err2 := PopulateRetryPolicyParams(true)
+		t.Run("TimeoutValuesAreDifferent", func(t *testing.T) {
+			standardPolicy, err1 := PopulateRetryPolicyParams(false)
+			largePolicy, err2 := PopulateRetryPolicyParams(true)
 
-assert.NoError(t, err1)
-assert.NoError(t, err2)
-assert.NotEqual(t, standardPolicy.StartToCloseTimeout, largePolicy.StartToCloseTimeout)
-assert.Equal(t, 25*time.Minute, standardPolicy.StartToCloseTimeout)
-assert.Equal(t, 35*time.Minute, largePolicy.StartToCloseTimeout)
-})
-})
+			assert.NoError(t, err1)
+			assert.NoError(t, err2)
+			assert.NotEqual(t, standardPolicy.StartToCloseTimeout, largePolicy.StartToCloseTimeout)
+			assert.Equal(t, 25*time.Minute, standardPolicy.StartToCloseTimeout)
+			assert.Equal(t, 35*time.Minute, largePolicy.StartToCloseTimeout)
+		})
+	})
 }

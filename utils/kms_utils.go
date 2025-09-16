@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"encoding/base64"
 	"fmt"
+	"google.golang.org/api/cloudkms/v1"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -16,6 +19,11 @@ const (
 	ServiceAccountEmailPattern    = `^([a-zA-Z0-9-]+)-([a-zA-Z0-9-]+)@(\d+)\.iam\.gserviceaccount\.com$`
 	ExpectedResourceParts         = 8
 	ExpectedServiceAccountParts   = 4
+	enabledKeyState               = "ENABLED"
+)
+
+var (
+	kmsSupportedEncryption = []string{"GOOGLE_SYMMETRIC_ENCRYPTION", "EXTERNAL_SYMMETRIC_ENCRYPTION"}
 )
 
 // ParsedKeyFullPathResource represents the parsed components of the input resource string.
@@ -117,4 +125,25 @@ func DetermineStartToCloseTimeoutBasedOnUsedSize(volumesForMigration []*datamode
 		return MaximumTimeout
 	}
 	return startToCloseTimeout
+}
+
+func ReturnEncryptRequest(plainText string) *cloudkms.EncryptRequest {
+	encodedText := base64.StdEncoding.EncodeToString([]byte(plainText))
+	return &cloudkms.EncryptRequest{
+		Plaintext: encodedText,
+	}
+}
+
+// ValidateKeyProperties verifies that the crypto key returned by Google is enabled as well as supported
+func ValidateKeyProperties(key *cloudkms.CryptoKey, keyName, keyRing string) error {
+	if key == nil {
+		return errors.NewTransientErr("Key access verification failed - Unable to get Crypto key from Google")
+	}
+	if key.Primary == nil || !slices.Contains(kmsSupportedEncryption, key.Primary.Algorithm) {
+		return errors.NewNonRetryableErr(fmt.Sprintf("Failed to validate KMS key due to precondition failure: Specified key %v in %v algorithm is not supported", keyName, keyRing))
+	}
+	if key.Primary.State != enabledKeyState {
+		return errors.NewNonRetryableErr(fmt.Sprintf("Failed to validate KMS key due to precondition failure: Specified key %v in %v is not enabled", keyName, keyRing))
+	}
+	return nil
 }

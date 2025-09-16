@@ -452,7 +452,7 @@ func syncBetweenSdeAndVsaDBs(ctx workflow.Context, createKmsConfigParams *common
 	}
 
 	// Access a crypto key using the KMS config in the VSA database to make sure key is reachable
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.AccessCryptoKeyWithImpersonationActivity, kmsConfig).Get(ctx, kmsConfig)
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.AccessCryptoKeyAndEncryptDataWithImpersonationActivity, kmsConfig).Get(ctx, kmsConfig)
 	if err != nil {
 		return err
 	}

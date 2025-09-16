@@ -180,9 +180,9 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(updatedServiceAccount, nil)
 
 		// Mock AccessCryptoKey
-		originalAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			assert.Equal(tt, encryptedPassword, secretPassword)
 			assert.Equal(tt, "kms-uuid", kmsConfig.UUID)
 			return nil
@@ -258,9 +258,9 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(&datamodel.ServiceAccount{}, nil)
 
 		// Mock AccessCryptoKey
-		originalAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 
@@ -410,9 +410,9 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		// Mock AccessCryptoKey to avoid calling the real function
-		originalAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 
@@ -498,9 +498,9 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 			return []*datamodel.Pool{}, nil
 		}
 		// Mock AccessCryptoKey to succeed, but UpdateServiceAccountEmailAndKey to fail
-		originalAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 
@@ -568,9 +568,9 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		accessKeyError := errors.New("failed to access crypto key")
-		originalAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return accessKeyError
 		}
 
@@ -696,9 +696,10 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(&datamodel.ServiceAccount{}, nil)
 
-		originalAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		// Mock AccessCryptoKey
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 
@@ -778,9 +779,9 @@ func TestRotateKmsSAKeyActivity_Integration(t *testing.T) {
 		}
 
 		// Mock AccessCryptoKey
-		originalAccessCryptoKey := kms_activities.AccessCryptoKey
-		defer func() { kms_activities.AccessCryptoKey = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 

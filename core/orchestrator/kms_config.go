@@ -45,7 +45,7 @@ type KmsConfigInterface interface {
 	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
 	UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, error)
 	CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error)
-	AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
+	AccessCryptoKeyAndEncryptDataWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
 	DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)
 	MigrateKmsConfig(ctx context.Context, params *common.MigrateKmsConfigParams) (string, error)
 	RotateKmsConfig(ctx context.Context, params *common.RotateKmsConfigParams) (*models.KmsConfig, *models.Job, error)
@@ -550,14 +550,14 @@ func (o *Orchestrator) CheckAndUpdateKmsConfigHealth(ctx context.Context, config
 	return convertDataStoreKmsConfigToModel(kmsConfig), nil
 }
 
-// AccessCryptoKeyWithImpersonation use impersonation to retrieve the details of a specific KMS crypto key.
-func (o *Orchestrator) AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error {
+// AccessCryptoKeyAndEncryptDataWithImpersonation use impersonation to retrieve the details of a specific KMS crypto key.
+func (o *Orchestrator) AccessCryptoKeyAndEncryptDataWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error {
 	se := o.storage
 	dbKmsConfig, err := se.GetKmsConfig(ctx, kmsConfig.UUID)
 	if err != nil {
 		return err
 	}
-	return kms_activities.AccessCryptoKey(ctx, dbKmsConfig, dbKmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+	return kms_activities.AccessCryptoKeyAndEncryptData(ctx, dbKmsConfig, dbKmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 }
 
 func (o *Orchestrator) GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
