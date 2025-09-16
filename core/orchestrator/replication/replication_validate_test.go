@@ -249,7 +249,7 @@ func Test_validateReplicationResourceId(t *testing.T) {
 func Test_createReplicationObjects_Success(t *testing.T) {
 	resourceID := "replication-1"
 	description := "desc"
-	replicationSchedule := models.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED
+	replicationSchedule := models.ReplicationV1betaReplicationScheduleHOURLY
 	volumeID := "vol-2"
 	event := &CreateReplicationEvent{
 		SourceProjectNumber:      "src-proj",
@@ -286,7 +286,7 @@ func Test_createReplicationObjects_Success(t *testing.T) {
 	assert.Equal(t, "loc-1", replication.ReplicationAttributes.SourceLocation)
 	assert.Equal(t, "loc-2", replication.ReplicationAttributes.DestinationLocation)
 	assert.Equal(t, models.VolumeReplicationCVPV1betaEndpointTypeSrc, replication.ReplicationAttributes.EndpointType)
-	assert.Equal(t, replicationSchedule, replication.ReplicationAttributes.ReplicationSchedule)
+	assert.Equal(t, "hourly", replication.ReplicationAttributes.ReplicationSchedule)
 	assert.Equal(t, "pool-1", replication.ReplicationAttributes.SourcePoolUUID)
 }
 

@@ -41,10 +41,13 @@ func TestReverseAndResumeVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.VerifyNewDstVolume)
 		env.RegisterActivity(replicationActivity.ResizeNewDstVolumeIfNeeded)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
-		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDst)
-		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributes)
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
+		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributesSrc)
+		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
+		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributesDst)
+		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDst)
 		env.RegisterActivity(replicationActivity.MountReplicationAfterReverse)
+		env.RegisterActivity(replicationActivity.CleanupOldReplication)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &commonparams.ReverseAndResumeReplicationParams{
@@ -79,10 +82,13 @@ func TestReverseAndResumeVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("VerifyNewDstVolume", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("ResizeNewDstVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("DescribeRemoteJobOnDst", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationAttributes", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("MountReplicationAfterReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
 		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeReplicationAttributesSrc", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeReplicationAttributesDst", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnDst", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("MountReplicationAfterReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("CleanupOldReplication", mock.Anything, mock.Anything).Return(reverseResult, nil)
 
 		env.ExecuteWorkflow(ReverseAndResumeVolumeReplicationWorkflow, params, event)
 
@@ -488,134 +494,6 @@ func TestReverseAndResumeVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.VerifyNewDstVolume)
 		env.RegisterActivity(replicationActivity.ResizeNewDstVolumeIfNeeded)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
-		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDst)
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-		params := &commonparams.ReverseAndResumeReplicationParams{
-			AccountName: "test-account",
-		}
-
-		event := &replication.ReverseReplicationEvent{
-			CommonReplicationEventParams: replication.CommonReplicationEventParams{
-				ReplicationModel: &datamodel.VolumeReplication{
-					BaseModel: datamodel.BaseModel{ID: 1},
-					Name:      "test-replication",
-				},
-				SourceProjectNumber:      "123456789",
-				DestinationProjectNumber: "987654321",
-			},
-		}
-
-		reverseResult := &replication.ReverseReplicationResult{
-			Event:            event,
-			SrcProjectNumber: &event.SourceProjectNumber,
-			DstProjectNumber: &event.DestinationProjectNumber,
-			DbVolReplication: event.ReplicationModel,
-		}
-
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSrcBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("GetDstBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("GetSignedSrcTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("GetSignedDstTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("VerifyNewDstVolume", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("ResizeNewDstVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("DescribeRemoteJobOnDst", mock.Anything, mock.Anything).Return(nil, assert.AnError)
-
-		env.ExecuteWorkflow(ReverseAndResumeVolumeReplicationWorkflow, params, event)
-
-		assert.True(tt, env.IsWorkflowCompleted())
-		assert.NoError(tt, env.GetWorkflowError())
-	})
-
-	t.Run("TestReverseAndResumeVolumeReplicationWorkflow_UpdateVolumeReplicationAttributesError", func(tt *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logParam": encodedValue,
-			},
-		}
-		mockStorage := database.NewMockStorage(tt)
-		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.SetHeader(mockHeader)
-		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
-		env.RegisterActivity(replicationActivity.GetDstBasePathReverse)
-		env.RegisterActivity(replicationActivity.GetSignedSrcTokenReverse)
-		env.RegisterActivity(replicationActivity.GetSignedDstTokenReverse)
-		env.RegisterActivity(replicationActivity.VerifyNewDstVolume)
-		env.RegisterActivity(replicationActivity.ResizeNewDstVolumeIfNeeded)
-		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
-		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDst)
-		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributes)
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-		params := &commonparams.ReverseAndResumeReplicationParams{
-			AccountName: "test-account",
-		}
-
-		event := &replication.ReverseReplicationEvent{
-			CommonReplicationEventParams: replication.CommonReplicationEventParams{
-				ReplicationModel: &datamodel.VolumeReplication{
-					BaseModel: datamodel.BaseModel{ID: 1},
-					Name:      "test-replication",
-				},
-				SourceProjectNumber:      "123456789",
-				DestinationProjectNumber: "987654321",
-			},
-		}
-
-		reverseResult := &replication.ReverseReplicationResult{
-			Event:            event,
-			SrcProjectNumber: &event.SourceProjectNumber,
-			DstProjectNumber: &event.DestinationProjectNumber,
-			DbVolReplication: event.ReplicationModel,
-		}
-
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSrcBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("GetDstBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("GetSignedSrcTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("GetSignedDstTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("VerifyNewDstVolume", mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("ResizeNewDstVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("DescribeRemoteJobOnDst", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationAttributes", mock.Anything, mock.Anything).Return(nil, assert.AnError)
-
-		env.ExecuteWorkflow(ReverseAndResumeVolumeReplicationWorkflow, params, event)
-
-		assert.True(tt, env.IsWorkflowCompleted())
-		assert.NoError(tt, env.GetWorkflowError())
-	})
-
-	t.Run("TestReverseAndResumeVolumeReplicationWorkflow_DescribeRemoteJobOnSrcError", func(tt *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logParam": encodedValue,
-			},
-		}
-		mockStorage := database.NewMockStorage(tt)
-		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.SetHeader(mockHeader)
-		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
-		env.RegisterActivity(replicationActivity.GetDstBasePathReverse)
-		env.RegisterActivity(replicationActivity.GetSignedSrcTokenReverse)
-		env.RegisterActivity(replicationActivity.GetSignedDstTokenReverse)
-		env.RegisterActivity(replicationActivity.VerifyNewDstVolume)
-		env.RegisterActivity(replicationActivity.ResizeNewDstVolumeIfNeeded)
-		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
-		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDst)
-		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributes)
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -649,8 +527,136 @@ func TestReverseAndResumeVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("VerifyNewDstVolume", mock.Anything, mock.Anything).Return(reverseResult, nil)
 		env.OnActivity("ResizeNewDstVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("DescribeRemoteJobOnDst", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationAttributes", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+		env.ExecuteWorkflow(ReverseAndResumeVolumeReplicationWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestReverseAndResumeVolumeReplicationWorkflow_UpdateVolumeReplicationAttributesError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
+		env.RegisterActivity(replicationActivity.GetDstBasePathReverse)
+		env.RegisterActivity(replicationActivity.GetSignedSrcTokenReverse)
+		env.RegisterActivity(replicationActivity.GetSignedDstTokenReverse)
+		env.RegisterActivity(replicationActivity.VerifyNewDstVolume)
+		env.RegisterActivity(replicationActivity.ResizeNewDstVolumeIfNeeded)
+		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
+		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributesSrc)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.ReverseAndResumeReplicationParams{
+			AccountName: "test-account",
+		}
+
+		event := &replication.ReverseReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{
+					BaseModel: datamodel.BaseModel{ID: 1},
+					Name:      "test-replication",
+				},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+			},
+		}
+
+		reverseResult := &replication.ReverseReplicationResult{
+			Event:            event,
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			DbVolReplication: event.ReplicationModel,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSrcBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetDstBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetSignedSrcTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetSignedDstTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("VerifyNewDstVolume", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("ResizeNewDstVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeReplicationAttributesSrc", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+		env.ExecuteWorkflow(ReverseAndResumeVolumeReplicationWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestReverseAndResumeVolumeReplicationWorkflow_DescribeRemoteJobOnSrcError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
+		env.RegisterActivity(replicationActivity.GetDstBasePathReverse)
+		env.RegisterActivity(replicationActivity.GetSignedSrcTokenReverse)
+		env.RegisterActivity(replicationActivity.GetSignedDstTokenReverse)
+		env.RegisterActivity(replicationActivity.VerifyNewDstVolume)
+		env.RegisterActivity(replicationActivity.ResizeNewDstVolumeIfNeeded)
+		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
+		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributesSrc)
+		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.ReverseAndResumeReplicationParams{
+			AccountName: "test-account",
+		}
+
+		event := &replication.ReverseReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{
+					BaseModel: datamodel.BaseModel{ID: 1},
+					Name:      "test-replication",
+				},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+			},
+		}
+
+		reverseResult := &replication.ReverseReplicationResult{
+			Event:            event,
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			DbVolReplication: event.ReplicationModel,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSrcBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetDstBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetSignedSrcTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetSignedDstTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("VerifyNewDstVolume", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("ResizeNewDstVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeReplicationAttributesSrc", mock.Anything, mock.Anything).Return(reverseResult, nil)
 		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
 		env.ExecuteWorkflow(ReverseAndResumeVolumeReplicationWorkflow, params, event)
@@ -680,10 +686,13 @@ func TestReverseAndResumeVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.VerifyNewDstVolume)
 		env.RegisterActivity(replicationActivity.ResizeNewDstVolumeIfNeeded)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
-		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDst)
-		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributes)
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
+		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributesSrc)
+		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
+		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationAttributesDst)
+		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDst)
 		env.RegisterActivity(replicationActivity.MountReplicationAfterReverse)
+		env.RegisterActivity(replicationActivity.CleanupOldReplication)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &commonparams.ReverseAndResumeReplicationParams{
@@ -716,10 +725,13 @@ func TestReverseAndResumeVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("VerifyNewDstVolume", mock.Anything, mock.Anything).Return(reverseResult, nil)
 		env.OnActivity("ResizeNewDstVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(reverseResult, nil)
-		env.OnActivity("DescribeRemoteJobOnDst", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationAttributes", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeReplicationAttributesSrc", mock.Anything, mock.Anything).Return(reverseResult, nil)
 		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("MountReplicationAfterReverse", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("UpdateVolumeReplicationAttributesDst", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnDst", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CleanupOldReplication", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("MountReplicationAfterReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
 
 		env.ExecuteWorkflow(ReverseAndResumeVolumeReplicationWorkflow, params, event)
 

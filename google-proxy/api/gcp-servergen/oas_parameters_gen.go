@@ -12841,6 +12841,8 @@ type V1betaInternalDeleteVolumeReplicationParams struct {
 	SourceOnly OptBool
 	// If true, any existing cluster peering or intercluster lif entries will not be removed.
 	SkipPeeringCleanup OptBool
+	// If true, it will cleanup the old replication after reverse replication is done.
+	CleanupAfterReverse OptBool
 }
 
 func unpackV1betaInternalDeleteVolumeReplicationParams(packed middleware.Parameters) (params V1betaInternalDeleteVolumeReplicationParams) {
@@ -12899,6 +12901,15 @@ func unpackV1betaInternalDeleteVolumeReplicationParams(packed middleware.Paramet
 		}
 		if v, ok := packed[key]; ok {
 			params.SkipPeeringCleanup = v.(OptBool)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "cleanupAfterReverse",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.CleanupAfterReverse = v.(OptBool)
 		}
 	}
 	return params
@@ -13248,6 +13259,47 @@ func decodeV1betaInternalDeleteVolumeReplicationParams(args [3]string, argsEscap
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "skipPeeringCleanup",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: cleanupAfterReverse.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "cleanupAfterReverse",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotCleanupAfterReverseVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotCleanupAfterReverseVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.CleanupAfterReverse.SetTo(paramsDotCleanupAfterReverseVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "cleanupAfterReverse",
 			In:   "query",
 			Err:  err,
 		}

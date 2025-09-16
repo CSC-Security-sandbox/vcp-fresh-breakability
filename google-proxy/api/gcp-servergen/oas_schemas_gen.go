@@ -3093,7 +3093,7 @@ type FlexCacheV1beta struct {
 	// Command used to establish peering for the FlexCache.
 	Command OptString `json:"command"`
 	// DateTime value for when cluster peering command should expire.
-	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
+	CommandExpiryTime OptNilDateTime `json:"commandExpiryTime"`
 	// Temporary passphrase generated to accept cluster peering command.
 	Passphrase OptNilString `json:"passphrase"`
 }
@@ -3153,9 +3153,9 @@ func (s *FlexCacheV1beta) GetCommand() OptString {
 	return s.Command
 }
 
-// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
-func (s *FlexCacheV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
-	return s.PeeringCommandExpiryTime
+// GetCommandExpiryTime returns the value of CommandExpiryTime.
+func (s *FlexCacheV1beta) GetCommandExpiryTime() OptNilDateTime {
+	return s.CommandExpiryTime
 }
 
 // GetPassphrase returns the value of Passphrase.
@@ -3218,9 +3218,9 @@ func (s *FlexCacheV1beta) SetCommand(val OptString) {
 	s.Command = val
 }
 
-// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
-func (s *FlexCacheV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
-	s.PeeringCommandExpiryTime = val
+// SetCommandExpiryTime sets the value of CommandExpiryTime.
+func (s *FlexCacheV1beta) SetCommandExpiryTime(val OptNilDateTime) {
+	s.CommandExpiryTime = val
 }
 
 // SetPassphrase sets the value of Passphrase.

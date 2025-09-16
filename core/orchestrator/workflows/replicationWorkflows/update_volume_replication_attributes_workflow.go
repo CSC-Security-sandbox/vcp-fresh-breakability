@@ -86,20 +86,24 @@ func (wf *VolumeReplicationAttributesupdateWorkflow) Run(ctx workflow.Context, a
 		Event: event,
 	}
 
-	// Activity 1: Get snapmirror details from ONTAP using source and destination paths
-	err = workflow.ExecuteActivity(ctx, updateAttrActivity.GetSnapmirrorDetailsFromOntap, &updateResult).Get(ctx, &updateResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	if updateResult.Event.UpdateVolumeReplicationAttributesParams.VolumeReplicationInternal.EndpointType == "src" {
+		err = workflow.ExecuteActivity(ctx, updateAttrActivity.UpdateSrcVolumeReplication, &updateResult).Get(ctx, &updateResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else {
+		err = workflow.ExecuteActivity(ctx, updateAttrActivity.GetSnapmirrorDetailsFromOntap, &updateResult).Get(ctx, &updateResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx, updateAttrActivity.UpdateDstVolumeReplication, &updateResult).Get(ctx, &updateResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
-	// Activity 2: Update replication table entries with returned snapmirror details and attribute values received in params
-	err = workflow.ExecuteActivity(ctx, updateAttrActivity.UpdateReplicationAttributes, &updateResult).Get(ctx, &updateResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	// Activity 3: Update volume type on new destination
-	err = workflow.ExecuteActivity(ctx, updateAttrActivity.UpdateVolumeTypeOnNewDestination, &updateResult).Get(ctx, &updateResult)
+	err = workflow.ExecuteActivity(ctx, updateAttrActivity.UpdateVolumeTypeActivity, &updateResult).Get(ctx, &updateResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

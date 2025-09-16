@@ -247,7 +247,7 @@ func TestUpdateReplicationAttributes(t *testing.T) {
 			},
 		}
 
-		_, err := activity.UpdateReplicationAttributes(ctx, result)
+		_, err := activity.UpdateDstVolumeReplication(ctx, result)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Invalid input parameters provided")
@@ -271,7 +271,7 @@ func TestUpdateReplicationAttributes(t *testing.T) {
 
 		mockStorage.On("GetVolumeReplication", ctx, "replication-id").Return(nil, errors.New("not found"))
 
-		_, err := activity.UpdateReplicationAttributes(ctx, result)
+		_, err := activity.UpdateDstVolumeReplication(ctx, result)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "An internal error occurred.")
@@ -313,7 +313,7 @@ func TestUpdateReplicationAttributes(t *testing.T) {
 		mockStorage.On("GetVolumeReplication", ctx, "replication-id").Return(dbReplication, nil)
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.AnythingOfType("*datamodel.VolumeReplication")).Return(errors.New("update error"))
 
-		_, err := activity.UpdateReplicationAttributes(ctx, result)
+		_, err := activity.UpdateDstVolumeReplication(ctx, result)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "An internal error occurred.")
@@ -371,7 +371,7 @@ func TestUpdateReplicationAttributes(t *testing.T) {
 		mockStorage.On("GetVolumeReplication", ctx, "replication-id").Return(dbReplication, nil)
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.AnythingOfType("*datamodel.VolumeReplication")).Return(nil)
 
-		res, err := activity.UpdateReplicationAttributes(ctx, result)
+		res, err := activity.UpdateDstVolumeReplication(ctx, result)
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, result, res)
@@ -386,6 +386,13 @@ func TestUpdateVolumeTypeOnNewDestination(t *testing.T) {
 		activity := UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
 
 		result := &replication.UpdateVolumeReplicationAttributesResult{
+			Event: &replication.UpdateVolumeReplicationAttributesEvent{
+				UpdateVolumeReplicationAttributesParams: &models.UpdateVolumeReplicationAttributesParams{
+					VolumeReplicationInternal: &gcpgenserver.VolumeReplicationInternalV1beta{
+						EndpointType: gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst,
+					},
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid"},
@@ -395,7 +402,7 @@ func TestUpdateVolumeTypeOnNewDestination(t *testing.T) {
 
 		mockStorage.EXPECT().GetVolume(ctx, "volume-uuid").Return(nil, errors.New("volume not found"))
 
-		err := activity.UpdateVolumeTypeOnNewDestination(ctx, result)
+		err := activity.UpdateVolumeTypeActivity(ctx, result)
 
 		assert.Error(tt, err)
 		assert.Equal(tt, "volume not found", err.Error())
@@ -407,6 +414,13 @@ func TestUpdateVolumeTypeOnNewDestination(t *testing.T) {
 		activity := UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
 
 		result := &replication.UpdateVolumeReplicationAttributesResult{
+			Event: &replication.UpdateVolumeReplicationAttributesEvent{
+				UpdateVolumeReplicationAttributesParams: &models.UpdateVolumeReplicationAttributesParams{
+					VolumeReplicationInternal: &gcpgenserver.VolumeReplicationInternalV1beta{
+						EndpointType: gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst,
+					},
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid"},
@@ -427,7 +441,7 @@ func TestUpdateVolumeTypeOnNewDestination(t *testing.T) {
 			return ok && attrs.IsDataProtection == true
 		})).Return(errors.New("update failed"))
 
-		err := activity.UpdateVolumeTypeOnNewDestination(ctx, result)
+		err := activity.UpdateVolumeTypeActivity(ctx, result)
 
 		assert.Error(tt, err)
 		assert.Equal(tt, "update failed", err.Error())
@@ -438,6 +452,13 @@ func TestUpdateVolumeTypeOnNewDestination(t *testing.T) {
 		activity := UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
 
 		result := &replication.UpdateVolumeReplicationAttributesResult{
+			Event: &replication.UpdateVolumeReplicationAttributesEvent{
+				UpdateVolumeReplicationAttributesParams: &models.UpdateVolumeReplicationAttributesParams{
+					VolumeReplicationInternal: &gcpgenserver.VolumeReplicationInternalV1beta{
+						EndpointType: gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst,
+					},
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid"},
@@ -458,8 +479,152 @@ func TestUpdateVolumeTypeOnNewDestination(t *testing.T) {
 			return ok && attrs.IsDataProtection == true
 		})).Return(nil)
 
-		err := activity.UpdateVolumeTypeOnNewDestination(ctx, result)
+		err := activity.UpdateVolumeTypeActivity(ctx, result)
 
 		assert.NoError(tt, err)
+	})
+}
+
+// UpdateSrcVolumeReplication swaps source and destination replication attributes after a reversal operation.
+func TestUpdateSrcVolumeReplication(t *testing.T) {
+	t.Run("WhenGetVolumeReplicationError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		result := &replication.UpdateVolumeReplicationAttributesResult{
+			Event: &replication.UpdateVolumeReplicationAttributesEvent{
+				UpdateVolumeReplicationAttributesParams: &models.UpdateVolumeReplicationAttributesParams{
+					VolumeReplicationId: "replication-id",
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, "replication-id").Return(nil, errors.New("not found"))
+
+		_, err := activity.UpdateSrcVolumeReplication(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenReplicationAttributesIsNil", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		volReplication := &datamodel.VolumeReplication{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "replication-uuid"},
+			Name:                  "replication-name",
+			ReplicationAttributes: nil,
+		}
+
+		result := &replication.UpdateVolumeReplicationAttributesResult{
+			Event: &replication.UpdateVolumeReplicationAttributesEvent{
+				UpdateVolumeReplicationAttributesParams: &models.UpdateVolumeReplicationAttributesParams{
+					VolumeReplicationId: "replication-id",
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, "replication-id").Return(volReplication, nil)
+		mockStorage.On("UpdateVolumeReplicationFields", ctx, "replication-uuid", mock.Anything).Return(nil)
+
+		res, err := activity.UpdateSrcVolumeReplication(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, res)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateVolumeReplicationFieldsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		replicationAttributes := &datamodel.ReplicationDetails{
+			SourcePoolUUID:             "src-pool-uuid",
+			SourceVolumeUUID:           "src-vol-uuid",
+			SourceLocation:             "src-location",
+			SourceHostName:             "src-host",
+			SourceReplicationUUID:      "src-repl-uuid",
+			SourceSvmName:              "src-svm",
+			SourceVolumeName:           "src-vol",
+			DestinationPoolUUID:        "dst-pool-uuid",
+			DestinationVolumeUUID:      "dst-vol-uuid",
+			DestinationLocation:        "dst-location",
+			DestinationHostName:        "dst-host",
+			DestinationReplicationUUID: "dst-repl-uuid",
+			DestinationSvmName:         "dst-svm",
+			DestinationVolumeName:      "dst-vol",
+		}
+		volReplication := &datamodel.VolumeReplication{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "replication-uuid"},
+			Name:                  "replication-name",
+			ReplicationAttributes: replicationAttributes,
+		}
+
+		result := &replication.UpdateVolumeReplicationAttributesResult{
+			Event: &replication.UpdateVolumeReplicationAttributesEvent{
+				UpdateVolumeReplicationAttributesParams: &models.UpdateVolumeReplicationAttributesParams{
+					VolumeReplicationId: "replication-id",
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, "replication-id").Return(volReplication, nil)
+		mockStorage.On("UpdateVolumeReplicationFields", ctx, "replication-uuid", mock.Anything).Return(errors.New("update error"))
+
+		_, err := activity.UpdateSrcVolumeReplication(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "update error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		replicationAttributes := &datamodel.ReplicationDetails{
+			SourcePoolUUID:             "src-pool-uuid",
+			SourceVolumeUUID:           "src-vol-uuid",
+			SourceLocation:             "src-location",
+			SourceHostName:             "src-host",
+			SourceReplicationUUID:      "src-repl-uuid",
+			SourceSvmName:              "src-svm",
+			SourceVolumeName:           "src-vol",
+			DestinationPoolUUID:        "dst-pool-uuid",
+			DestinationVolumeUUID:      "dst-vol-uuid",
+			DestinationLocation:        "dst-location",
+			DestinationHostName:        "dst-host",
+			DestinationReplicationUUID: "dst-repl-uuid",
+			DestinationSvmName:         "dst-svm",
+			DestinationVolumeName:      "dst-vol",
+		}
+		volReplication := &datamodel.VolumeReplication{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "replication-uuid"},
+			Name:                  "replication-name",
+			ReplicationAttributes: replicationAttributes,
+		}
+
+		result := &replication.UpdateVolumeReplicationAttributesResult{
+			Event: &replication.UpdateVolumeReplicationAttributesEvent{
+				UpdateVolumeReplicationAttributesParams: &models.UpdateVolumeReplicationAttributesParams{
+					VolumeReplicationId: "replication-id",
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, "replication-id").Return(volReplication, nil)
+		mockStorage.On("UpdateVolumeReplicationFields", ctx, "replication-uuid", mock.Anything).Return(nil)
+
+		res, err := activity.UpdateSrcVolumeReplication(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, res)
+		mockStorage.AssertExpectations(tt)
 	})
 }

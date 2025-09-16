@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -458,7 +459,7 @@ func _createReplicationObjects(event *CreateReplicationEvent, remotelocation, re
 		SourceLocation:      event.LocationID,
 		DestinationLocation: event.DestinationLocationID,
 		EndpointType:        models.VolumeReplicationCVPV1betaEndpointTypeSrc,
-		ReplicationSchedule: *event.CreateReplicationParams.ReplicationSchedule,
+		ReplicationSchedule: string(mapCCFERescheduleToInternalReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(*event.CreateReplicationParams.ReplicationSchedule))),
 		SourcePoolUUID:      event.SourcePool.UUID,
 	}
 	expectedDbReplication.ReplicationAttributes = &replicationAttributes
@@ -913,4 +914,17 @@ func _verifyDstReplicationSync(ctx context.Context, event *ResumeReplicationEven
 	}
 
 	return dstReplication, nil
+}
+
+func mapCCFERescheduleToInternalReplicationSchedule(schedule gcpgenserver.ReplicationV1betaReplicationSchedule) googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule {
+	switch schedule {
+	case gcpgenserver.ReplicationV1betaReplicationScheduleHOURLY:
+		return googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly
+	case gcpgenserver.ReplicationV1betaReplicationScheduleDAILY:
+		return googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleDaily
+	case gcpgenserver.ReplicationV1betaReplicationScheduleEVERY10MINUTES:
+		return googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule10minutely
+	default:
+		return googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly
+	}
 }

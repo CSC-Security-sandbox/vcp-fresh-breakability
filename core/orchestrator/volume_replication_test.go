@@ -2060,13 +2060,13 @@ func TestGetReplicationObjects(t *testing.T) {
 		}
 
 		googleProxyInternalGetMultipleReplications = func(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger log.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
-			return nil, errors.New("failed to get multiple replications")
+			return nil, errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplicationsInternalServerError, errors.New("error"))
 		}
 
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		expectedError := errors.New("failed to get multiple replications")
+		expectedError := errors.New("Internal server error getting multiple replications")
 		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
@@ -4523,7 +4523,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		}
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(nil, errors.New("not found"))
 
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "not found", err.Error())
 	})
@@ -4550,7 +4550,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		dbVolumeReplication.State = models.LifeCycleStateCreating
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
 
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "Error deleting volume Replication - Volume replication is already transitioning between states", err.Error())
 	})
@@ -4578,7 +4578,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
 
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to create job", err.Error())
 	})
@@ -4607,7 +4607,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "workflow-id"}, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(errors.New("update error"))
 
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "update error", err.Error())
 	})
@@ -4650,8 +4650,8 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		// Mock the UpdateJob call that should happen in the defer block
 		mockStorage.On("UpdateJob", ctx, "job-uuid-789", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false).Return(nil, expectedError)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
 
@@ -4739,9 +4739,9 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("GetVolumeReplication", ctx, expectedResponse.UUID).Return(replicationDb, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false).Return(nil, nil)
 
-		_, jobActualResponse, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, expectedResponse.UUID)
+		_, jobActualResponse, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, expectedResponse.UUID, false)
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse, jobActualResponse)
 	})

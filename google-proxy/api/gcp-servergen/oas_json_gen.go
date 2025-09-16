@@ -5893,9 +5893,9 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.PeeringCommandExpiryTime.Set {
-			e.FieldStart("peeringCommandExpiryTime")
-			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
+		if s.CommandExpiryTime.Set {
+			e.FieldStart("commandExpiryTime")
+			s.CommandExpiryTime.Encode(e, json.EncodeDateTime)
 		}
 	}
 	{
@@ -5918,7 +5918,7 @@ var jsonFieldsNameOfFlexCacheV1beta = [13]string{
 	8:  "stateDetailsCode",
 	9:  "previousCacheState",
 	10: "command",
-	11: "peeringCommandExpiryTime",
+	11: "commandExpiryTime",
 	12: "passphrase",
 }
 
@@ -6058,15 +6058,15 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"command\"")
 			}
-		case "peeringCommandExpiryTime":
+		case "commandExpiryTime":
 			if err := func() error {
-				s.PeeringCommandExpiryTime.Reset()
-				if err := s.PeeringCommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+				s.CommandExpiryTime.Reset()
+				if err := s.CommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
+				return errors.Wrap(err, "decode field \"commandExpiryTime\"")
 			}
 		case "passphrase":
 			if err := func() error {

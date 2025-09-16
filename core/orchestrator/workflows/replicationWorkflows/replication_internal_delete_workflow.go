@@ -22,7 +22,7 @@ type internalVolumeReplicationDeleteWorkflow struct {
 
 var _ workflows.WorkflowInterface = &internalVolumeReplicationDeleteWorkflow{}
 
-func DeleteInternalVolumeReplicationWorkflow(ctx workflow.Context, replication *datamodel.VolumeReplication) (*vsa.VolumeReplication, error) {
+func DeleteInternalVolumeReplicationWorkflow(ctx workflow.Context, replication *datamodel.VolumeReplication, cleanupAfterReverse bool) (*vsa.VolumeReplication, error) {
 	repWf := new(internalVolumeReplicationDeleteWorkflow)
 	err := repWf.Setup(ctx, replication)
 	if err != nil {
@@ -35,7 +35,7 @@ func DeleteInternalVolumeReplicationWorkflow(ctx workflow.Context, replication *
 		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	_, customErr := repWf.Run(ctx, replication)
+	_, customErr := repWf.Run(ctx, replication, cleanupAfterReverse)
 	if customErr != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
 		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
@@ -68,6 +68,7 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Setup(ctx workflow.Context, i
 func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	replication := args[0].(*datamodel.VolumeReplication)
+	cleanupAfterReverse := args[1].(bool)
 	replicationActivity := &replicationActivities.InternalVolumeReplicationDeleteActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
@@ -103,11 +104,21 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, arg
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: replication.Volume.Pool.PoolCredentials.Password, SecretID: replication.Volume.Pool.PoolCredentials.SecretID, CertificateID: replication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: replication.Volume.Pool.DeploymentName, AuthType: replication.Volume.Pool.PoolCredentials.AuthType})
 
 	var replicationDeleteResponse *vsa.VolumeReplication
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteVolumeReplication, replication, node).Get(ctx, &replicationDeleteResponse)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+	if !cleanupAfterReverse {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteVolumeReplication, replication, node).Get(ctx, &replicationDeleteResponse)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetailsForDelete, replication).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetailsForDelete, replication).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.CleanupReplicationAfterReverse, replication, node).Get(ctx, &replicationDeleteResponse)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
 	return nil, workflows.ConvertToVSAError(err)
 }

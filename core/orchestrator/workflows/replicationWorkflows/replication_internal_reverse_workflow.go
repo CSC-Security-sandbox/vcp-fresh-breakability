@@ -6,6 +6,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -92,17 +93,20 @@ func (wf *internalVolumeReplicationReverseWorkflow) Run(ctx workflow.Context, ar
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: replication.Volume.Pool.PoolCredentials.Password, SecretID: replication.Volume.Pool.PoolCredentials.SecretID, CertificateID: replication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: replication.Volume.Pool.DeploymentName, AuthType: replication.Volume.Pool.PoolCredentials.AuthType})
-	var replicationReverseResponse *vsa.SnapmirrorDestination
-	err = workflow.ExecuteActivity(ctx, replicationActivity.ReverseVolumeReplication, replication, node).Get(ctx, &replicationReverseResponse)
+
+	var replicationCreateResponse *vsa.VolumeReplication
+	volumeExternalUUID := replication.Volume.VolumeAttributes.ExternalUUID
+	replicationModel := replicationActivities.ConvertReplicationDataModelToModel(replication)
+
+	params := &common.CreateVolumeReplicationInternalParams{
+		VolumeReplication: replicationModel,
+		ReverseResync:     true,
+	}
+	err = workflow.ExecuteActivity(ctx, replicationActivity.ReverseVolumeReplication, params, node, volumeExternalUUID).Get(ctx, &replicationCreateResponse)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationReverseDetails, replication, replicationReverseResponse).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeTypeForReverse, replication).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeTypeForNewDestination, replication).Get(ctx, nil)
 	return nil, workflows.ConvertToVSAError(err)
 }

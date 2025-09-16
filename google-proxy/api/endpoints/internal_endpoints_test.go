@@ -702,7 +702,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
-		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, params.VolumeReplicationId).Return(nil, nil, errors.New("delete error"))
+		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, params.VolumeReplicationId, false).Return(nil, nil, errors.New("delete error"))
 		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteVolumeReplicationInternalServerError{}, resp)
@@ -718,6 +718,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 			ProjectNumber:       "test-project",
 			LocationId:          "test-location",
 			VolumeReplicationId: "test-replication-id",
+			CleanupAfterReverse: gcpgenserver.NewOptBool(true),
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -725,7 +726,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
-		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, params.VolumeReplicationId).Return(nil, nil, errors.NewNotFoundErr("Volume replication not found", nil))
+		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, params.VolumeReplicationId, true).Return(nil, nil, errors.NewNotFoundErr("Volume replication not found", nil))
 		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteVolumeReplicationBadRequest{}, resp)
@@ -741,6 +742,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 			ProjectNumber:       "test-project",
 			LocationId:          "test-location",
 			VolumeReplicationId: "test-replication-id",
+			CleanupAfterReverse: gcpgenserver.NewOptBool(false),
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -809,7 +811,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 				},
 			},
 		}
-		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, mock.Anything).Return(volumeReplication, job, nil)
+		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, mock.Anything, false).Return(volumeReplication, job, nil)
 		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedResponse, resp)
@@ -1394,24 +1396,24 @@ func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 
 		notFoundErr := errors.NewNotFoundErr("volume replication", nil)
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationAttributes(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationAttributesParams")).Return(nil, notFoundErr)
-		
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		
+
 		req := &gcpgenserver.VolumeReplicationInternalV1beta{
 			VolumeReplicationUuid: gcpgenserver.NewOptString("replication-123"),
 			EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst,
 		}
-		
+
 		params := gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesParams{
 			ProjectNumber:       "project-123",
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-123",
 		}
-		
+
 		response, err := handler.V1betaInternalUpdateVolumeReplicationAttributes(context.Background(), req, params)
-		
+
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesBadRequest{}, response)
 		badRequestResp := response.(*gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesBadRequest)
@@ -1424,24 +1426,24 @@ func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 
 		internalErr := errors.New("database connection failed")
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationAttributes(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationAttributesParams")).Return(nil, internalErr)
-		
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		
+
 		req := &gcpgenserver.VolumeReplicationInternalV1beta{
 			VolumeReplicationUuid: gcpgenserver.NewOptString("replication-456"),
 			EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeSrc,
 		}
-		
+
 		params := gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesParams{
 			ProjectNumber:       "project-456",
 			LocationId:          "europe-west1",
 			VolumeReplicationId: "replication-456",
 		}
-		
+
 		response, err := handler.V1betaInternalUpdateVolumeReplicationAttributes(context.Background(), req, params)
-		
+
 		assert.Error(tt, err)
 		assert.Equal(tt, "database connection failed", err.Error())
 		assert.IsType(tt, &gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesInternalServerError{}, response)
@@ -1460,11 +1462,11 @@ func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 			State: models.JobsStateDONE,
 		}
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationAttributes(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationAttributesParams")).Return(job, nil)
-		
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		
+
 		req := &gcpgenserver.VolumeReplicationInternalV1beta{
 			VolumeReplicationUuid: gcpgenserver.NewOptString("replication-789"),
 			EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst,
@@ -1472,15 +1474,15 @@ func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 			SourceServerName:      "source-svm",
 			SourceVolumeName:      "source-volume",
 		}
-		
+
 		params := gcpgenserver.V1betaInternalUpdateVolumeReplicationAttributesParams{
 			ProjectNumber:       "project-789",
 			LocationId:          "asia-southeast1",
 			VolumeReplicationId: "replication-789",
 		}
-		
+
 		response, err := handler.V1betaInternalUpdateVolumeReplicationAttributes(context.Background(), req, params)
-		
+
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, response)
 		operationResp := response.(*gcpgenserver.OperationV1beta)
@@ -1496,20 +1498,20 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 
 		notFoundErr := errors.NewNotFoundErr("volume replication", nil)
 		mockOrchestrator.EXPECT().ReverseReplicationInternal(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
-		
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		
+
 		params := gcpgenserver.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "project-123",
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-123",
 			XCorrelationID:      gcpgenserver.NewOptString("corr-123"),
 		}
-		
+
 		response, err := handler.V1betaInternalReverseVolumeReplication(context.Background(), params)
-		
+
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaInternalReverseVolumeReplicationNotFound{}, response)
 		notFoundResp := response.(*gcpgenserver.V1betaInternalReverseVolumeReplicationNotFound)
@@ -1522,20 +1524,20 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 
 		validationErr := errors.NewUserInputValidationErr("Invalid replication state for reverse operation")
 		mockOrchestrator.EXPECT().ReverseReplicationInternal(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, validationErr)
-		
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		
+
 		params := gcpgenserver.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "project-456",
 			LocationId:          "europe-west1",
 			VolumeReplicationId: "replication-456",
 			XCorrelationID:      gcpgenserver.NewOptString("corr-456"),
 		}
-		
+
 		response, err := handler.V1betaInternalReverseVolumeReplication(context.Background(), params)
-		
+
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaInternalReverseVolumeReplicationBadRequest{}, response)
 		badRequestResp := response.(*gcpgenserver.V1betaInternalReverseVolumeReplicationBadRequest)
@@ -1548,20 +1550,20 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 
 		internalErr := errors.New("database connection failed")
 		mockOrchestrator.EXPECT().ReverseReplicationInternal(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, internalErr)
-		
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		
+
 		params := gcpgenserver.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "project-789",
 			LocationId:          "asia-southeast1",
 			VolumeReplicationId: "replication-789",
 			XCorrelationID:      gcpgenserver.NewOptString("corr-789"),
 		}
-		
+
 		response, err := handler.V1betaInternalReverseVolumeReplication(context.Background(), params)
-		
+
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaInternalReverseVolumeReplicationInternalServerError{}, response)
 		internalServerResp := response.(*gcpgenserver.V1betaInternalReverseVolumeReplicationInternalServerError)
@@ -1579,44 +1581,44 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 			Name:  "test-replication",
 			State: "reversed",
 			ReplicationAttributes: &models.ReplicationDetails{
-				EndpointType:            "dst",
-				SourceRegion:            "us-central1",
-				SourceHostName:          "source-host",
-				SourceSvmName:           "source-svm",
-				SourceVolumeName:        "source-volume",
-				SourceVolumeUUID:        "src-vol-uuid",
-				SourcePoolUUID:          "src-pool-uuid",
-				DestinationHostName:     "dest-host",
-				DestinationSvmName:      "dest-svm",
-				DestinationVolumeName:   "dest-volume",
-				DestinationVolumeUUID:   "dest-vol-uuid",
-				DestinationPoolUUID:     "dest-pool-uuid",
-				ReplicationType:         "async",
+				EndpointType:          "dst",
+				SourceRegion:          "us-central1",
+				SourceHostName:        "source-host",
+				SourceSvmName:         "source-svm",
+				SourceVolumeName:      "source-volume",
+				SourceVolumeUUID:      "src-vol-uuid",
+				SourcePoolUUID:        "src-pool-uuid",
+				DestinationHostName:   "dest-host",
+				DestinationSvmName:    "dest-svm",
+				DestinationVolumeName: "dest-volume",
+				DestinationVolumeUUID: "dest-vol-uuid",
+				DestinationPoolUUID:   "dest-pool-uuid",
+				ReplicationType:       "async",
 			},
 		}
-		
+
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				UUID: "job-success",
 			},
 			State: "done",
 		}
-		
+
 		mockOrchestrator.EXPECT().ReverseReplicationInternal(mock.Anything, mock.Anything, mock.Anything).Return(volumeReplication, job, nil)
-		
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		
+
 		params := gcpgenserver.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "project-success",
 			LocationId:          "us-west1",
 			VolumeReplicationId: "replication-success",
 			XCorrelationID:      gcpgenserver.NewOptString("corr-success"),
 		}
-		
+
 		response, err := handler.V1betaInternalReverseVolumeReplication(context.Background(), params)
-		
+
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.VolumeReplicationInternalV1beta{}, response)
 		volumeReplResp := response.(*gcpgenserver.VolumeReplicationInternalV1beta)
@@ -1636,44 +1638,44 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 			Name:  "test-replication-no-corr",
 			State: "reversed",
 			ReplicationAttributes: &models.ReplicationDetails{
-				EndpointType:            "dst",
-				SourceRegion:            "us-central1",
-				SourceHostName:          "source-host-no-corr",
-				SourceSvmName:           "source-svm-no-corr",
-				SourceVolumeName:        "source-volume-no-corr",
-				SourceVolumeUUID:        "src-vol-uuid-no-corr",
-				SourcePoolUUID:          "src-pool-uuid-no-corr",
-				DestinationHostName:     "dest-host-no-corr",
-				DestinationSvmName:      "dest-svm-no-corr",
-				DestinationVolumeName:   "dest-volume-no-corr",
-				DestinationVolumeUUID:   "dest-vol-uuid-no-corr",
-				DestinationPoolUUID:     "dest-pool-uuid-no-corr",
-				ReplicationType:         "async",
+				EndpointType:          "dst",
+				SourceRegion:          "us-central1",
+				SourceHostName:        "source-host-no-corr",
+				SourceSvmName:         "source-svm-no-corr",
+				SourceVolumeName:      "source-volume-no-corr",
+				SourceVolumeUUID:      "src-vol-uuid-no-corr",
+				SourcePoolUUID:        "src-pool-uuid-no-corr",
+				DestinationHostName:   "dest-host-no-corr",
+				DestinationSvmName:    "dest-svm-no-corr",
+				DestinationVolumeName: "dest-volume-no-corr",
+				DestinationVolumeUUID: "dest-vol-uuid-no-corr",
+				DestinationPoolUUID:   "dest-pool-uuid-no-corr",
+				ReplicationType:       "async",
 			},
 		}
-		
+
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				UUID: "job-no-corr",
 			},
 			State: "done",
 		}
-		
+
 		mockOrchestrator.EXPECT().ReverseReplicationInternal(mock.Anything, "replication-no-corr", "project-no-corr").Return(volumeReplication, job, nil)
-		
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		
+
 		params := gcpgenserver.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "project-no-corr",
 			LocationId:          "us-east1",
 			VolumeReplicationId: "replication-no-corr",
 			// No XCorrelationID provided
 		}
-		
+
 		response, err := handler.V1betaInternalReverseVolumeReplication(context.Background(), params)
-		
+
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.VolumeReplicationInternalV1beta{}, response)
 		volumeReplResp := response.(*gcpgenserver.VolumeReplicationInternalV1beta)

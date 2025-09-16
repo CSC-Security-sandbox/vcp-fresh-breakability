@@ -1510,7 +1510,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 			cacheParams.EnableGlobalFileLock = gcpgenserver.NewOptNilBool(*in.CacheParameters.EnableGlobalFileLock)
 		}
 		if in.CacheParameters.PeeringCommandExpiryTime != nil {
-			cacheParams.PeeringCommandExpiryTime = gcpgenserver.NewOptNilDateTime(time.Time(*in.CacheParameters.PeeringCommandExpiryTime))
+			cacheParams.CommandExpiryTime = gcpgenserver.NewOptNilDateTime(time.Time(*in.CacheParameters.PeeringCommandExpiryTime))
 		}
 		if in.CacheParameters.Passphrase != nil {
 			cacheParams.Passphrase = gcpgenserver.NewOptNilString(*in.CacheParameters.Passphrase)

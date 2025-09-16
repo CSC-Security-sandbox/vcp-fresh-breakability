@@ -244,6 +244,7 @@ const (
 	ErrDeleteVolume                                                                          = 6207
 	ErrCreateInternalReplication                                                             = 6208
 	ErrDescribingDestinationVolume                                                           = 6209
+	ErrCleanupVolumeReplicationAfterReverse                                                  = 6210
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

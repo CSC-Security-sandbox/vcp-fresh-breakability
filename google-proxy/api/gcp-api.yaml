@@ -4783,6 +4783,13 @@ paths:
           required: false
           allowEmptyValue: true
           description: 'If true, any existing cluster peering or intercluster lif entries will not be removed.'
+        - in: query
+          name: cleanupAfterReverse
+          schema:
+            type: boolean
+          required: false
+          allowEmptyValue: true
+          description: 'If true, it will cleanup the old replication after reverse replication is done.'
       responses:
         '202':
           description: Deleting volume replication

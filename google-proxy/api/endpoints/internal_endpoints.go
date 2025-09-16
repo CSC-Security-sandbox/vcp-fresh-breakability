@@ -145,7 +145,13 @@ func (h Handler) V1betaInternalReleaseVolumeReplication(ctx context.Context, par
 func (h Handler) V1betaInternalDeleteVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalDeleteVolumeReplicationParams) (gcpgenserver.V1betaInternalDeleteVolumeReplicationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	volumeReplication, job, err := h.Orchestrator.DeleteReplicationInternal(ctx, params.VolumeReplicationId)
+	var cleanupAfterReverse bool
+	if params.CleanupAfterReverse.Set {
+		cleanupAfterReverse = params.CleanupAfterReverse.Value
+	} else {
+		cleanupAfterReverse = false
+	}
+	volumeReplication, job, err := h.Orchestrator.DeleteReplicationInternal(ctx, params.VolumeReplicationId, cleanupAfterReverse)
 	if err != nil {
 		logger.Error("Failed to delete replication", "error", err.Error())
 		if errors.IsNotFoundErr(err) {
@@ -247,7 +253,7 @@ func (h Handler) V1betaInternalUpdateVolumeReplicationAttributes(ctx context.Con
 
 	// Convert the request to internal parameters for updating volume replication attributes
 	updateParams := models.UpdateVolumeReplicationAttributesParams{
-		ProjectNumber:              params.ProjectNumber,
+		ProjectNumber:             params.ProjectNumber,
 		LocationId:                params.LocationId,
 		VolumeReplicationId:       params.VolumeReplicationId,
 		VolumeReplicationInternal: req,

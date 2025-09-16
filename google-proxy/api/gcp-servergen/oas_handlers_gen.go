@@ -8557,6 +8557,10 @@ func (s *Server) handleV1betaInternalDeleteVolumeReplicationRequest(args [3]stri
 					Name: "skipPeeringCleanup",
 					In:   "query",
 				}: params.SkipPeeringCleanup,
+				{
+					Name: "cleanupAfterReverse",
+					In:   "query",
+				}: params.CleanupAfterReverse,
 			},
 			Raw: r,
 		}

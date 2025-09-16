@@ -591,6 +591,8 @@ type V1betaInternalDeleteVolumeReplicationParams struct {
 	SourceOnly OptBool
 	// If true, any existing cluster peering or intercluster lif entries will not be removed.
 	SkipPeeringCleanup OptBool
+	// If true, it will cleanup the old replication after reverse replication is done.
+	CleanupAfterReverse OptBool
 }
 
 // V1betaInternalDeleteVolumeSnapmirrorSnapshotParams is parameters of v1beta_internalDeleteVolumeSnapmirrorSnapshot operation.

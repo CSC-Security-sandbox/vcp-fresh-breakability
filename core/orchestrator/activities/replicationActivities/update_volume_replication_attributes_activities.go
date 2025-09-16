@@ -2,6 +2,9 @@ package replicationActivities
 
 import (
 	"context"
+	"time"
+
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -10,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -74,7 +78,7 @@ func (a *UpdateVolumeReplicationAttributesActivity) GetSnapmirrorDetailsFromOnta
 }
 
 // UpdateReplicationAttributes updates replication table entries with snapmirror details and attribute values from params
-func (a *UpdateVolumeReplicationAttributesActivity) UpdateReplicationAttributes(ctx context.Context, result *replication.UpdateVolumeReplicationAttributesResult) (*replication.UpdateVolumeReplicationAttributesResult, error) {
+func (a *UpdateVolumeReplicationAttributesActivity) UpdateDstVolumeReplication(ctx context.Context, result *replication.UpdateVolumeReplicationAttributesResult) (*replication.UpdateVolumeReplicationAttributesResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Updating replication table entries with snapmirror details and attribute values")
 
@@ -181,21 +185,92 @@ func createReplicationObjectForUpdate(dbReplication *datamodel.VolumeReplication
 	return dbReplication
 }
 
-func (a *UpdateVolumeReplicationAttributesActivity) UpdateVolumeTypeOnNewDestination(ctx context.Context, result *replication.UpdateVolumeReplicationAttributesResult) error {
+func (a *UpdateVolumeReplicationAttributesActivity) UpdateVolumeTypeActivity(ctx context.Context, result *replication.UpdateVolumeReplicationAttributesResult) error {
 	se := a.SE
 	logger := util.GetLogger(ctx)
-	logger.Infof("Updating volume type on new destination for volume %s", result.DbVolReplication.Volume.Name)
-	
+	logger.Infof("Updating volume type for volume %s", result.DbVolReplication.Volume.Name)
+
 	volume, err := se.GetVolume(ctx, result.DbVolReplication.Volume.UUID)
 	if err != nil {
 		return err
 	}
 
 	updates := make(map[string]interface{})
-	if volume.VolumeAttributes != nil {
+	if volume.VolumeAttributes != nil && result.Event.UpdateVolumeReplicationAttributesParams.VolumeReplicationInternal.EndpointType == "src" {
+		volume.VolumeAttributes.IsDataProtection = false
+	} else {
 		volume.VolumeAttributes.IsDataProtection = true
 	}
 	updates["volume_attributes"] = volume.VolumeAttributes
 	err = se.UpdateVolumeFields(ctx, volume.UUID, updates)
 	return err
+}
+
+func (a *UpdateVolumeReplicationAttributesActivity) UpdateSrcVolumeReplication(ctx context.Context, result *replication.UpdateVolumeReplicationAttributesResult) (*replication.UpdateVolumeReplicationAttributesResult, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get the volume replication from the database first
+	se := a.SE
+	volumeReplicationId := result.Event.UpdateVolumeReplicationAttributesParams.VolumeReplicationId
+
+	volReplication, err := se.GetVolumeReplication(ctx, volumeReplicationId)
+	if err != nil {
+		logger.Error("Failed to get volume replication from database", "error", err, "replicationId", volumeReplicationId)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+	}
+
+	result.DbVolReplication = volReplication
+	logger.Infof("Updating volume replication %s details in the database after reversal", volReplication.Name)
+
+	replicationAttributes := volReplication.ReplicationAttributes
+	// Swap all source and destination details after reversal
+	if replicationAttributes != nil {
+		oldReplicationAttributes := *replicationAttributes
+
+		// Swap source and destination fields
+		replicationAttributes.SourcePoolUUID = oldReplicationAttributes.DestinationPoolUUID
+		replicationAttributes.SourceVolumeUUID = oldReplicationAttributes.DestinationVolumeUUID
+		replicationAttributes.SourceLocation = oldReplicationAttributes.DestinationLocation
+		replicationAttributes.SourceHostName = oldReplicationAttributes.DestinationHostName
+		replicationAttributes.SourceReplicationUUID = oldReplicationAttributes.DestinationReplicationUUID
+		replicationAttributes.SourceSvmName = oldReplicationAttributes.DestinationSvmName
+		replicationAttributes.SourceVolumeName = oldReplicationAttributes.DestinationVolumeName
+
+		replicationAttributes.DestinationPoolUUID = oldReplicationAttributes.SourcePoolUUID
+		replicationAttributes.DestinationVolumeUUID = oldReplicationAttributes.SourceVolumeUUID
+		replicationAttributes.DestinationLocation = oldReplicationAttributes.SourceLocation
+		replicationAttributes.DestinationHostName = oldReplicationAttributes.SourceHostName
+		replicationAttributes.DestinationReplicationUUID = oldReplicationAttributes.SourceReplicationUUID
+		replicationAttributes.DestinationSvmName = oldReplicationAttributes.SourceSvmName
+		replicationAttributes.DestinationVolumeName = oldReplicationAttributes.SourceVolumeName
+
+		replicationAttributes.EndpointType = string(googleproxyclient.VolumeReplicationInternalV1betaEndpointTypeSrc)
+		replicationAttributes.ExternalUUID = ""
+	}
+
+	updates := make(map[string]interface{})
+	updates["mirror_state"] = nillable.GetStringPtr("")
+	updates["total_transfer_bytes"] = 0
+	updates["total_transfer_time_secs"] = 0
+	updates["last_transfer_size"] = int64(0)
+	updates["last_transfer_error"] = ""
+	updates["last_transfer_duration"] = 0
+	updates["last_transfer_end_time"] = nil
+	updates["lag_time"] = 0
+	updates["last_updated_from_ontap"] = time.Now()
+	updates["progress_last_updated"] = time.Now()
+
+	updates["replication_attributes"] = volReplication.ReplicationAttributes
+	updates["state"] = models.LifeCycleStateREADY
+	updates["state_details"] = models.LifeCycleStateAvailableDetails
+
+	// Update the volume replication in the database
+	err = a.SE.UpdateVolumeReplicationFields(ctx, volReplication.UUID, updates)
+	if err != nil {
+		logger.Errorf("Failed to update volume replication %s in the database: %v", volReplication.Name, err)
+		return nil, err
+	}
+
+	logger.Debugf("Volume Replication %s updated successfully in the database", volReplication.Name)
+	return result, nil
 }

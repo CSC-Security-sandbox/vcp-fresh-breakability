@@ -158,3 +158,75 @@ func TestUpdateReplicationStateInDB_Error(t *testing.T) {
 	assert.Equal(t, "database error", customErr.OriginalErr.Error())
 	mockStorage.AssertExpectations(t)
 }
+
+func TestCleanupReplicationAfterReverse(t *testing.T) {
+	t.Run("WhenProviderReturnsError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := InternalVolumeReplicationDeleteActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), "logger", struct{}{})
+		node := &models.Node{}
+		params := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType:          "type",
+				SourceHostName:        "src-host",
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-vol",
+				DestinationHostName:   "dst-host",
+				DestinationSvmName:    "dst-svm",
+				ReplicationSchedule:   "schedule",
+				DestinationVolumeName: "dst-vol",
+				ExternalUUID:          "uuid",
+			},
+		}
+		mockProvider.On("DeleteVolumeReplication", mock.Anything).Return(nil, errors.New("provider error"))
+		_, err := activity.CleanupReplicationAfterReverse(ctx, params, node)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, "provider error", customErr.OriginalErr.Error())
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenProviderReturnsSuccess", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := InternalVolumeReplicationDeleteActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), "logger", struct{}{})
+		node := &models.Node{}
+		params := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType:          "type",
+				SourceHostName:        "src-host",
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-vol",
+				DestinationHostName:   "dst-host",
+				DestinationSvmName:    "dst-svm",
+				ReplicationSchedule:   "schedule",
+				DestinationVolumeName: "dst-vol",
+				ExternalUUID:          "uuid",
+			},
+		}
+		expectedResponse := &vsa.VolumeReplication{}
+		mockProvider.On("DeleteVolumeReplication", mock.Anything).Return(expectedResponse, nil)
+		res, err := activity.CleanupReplicationAfterReverse(ctx, params, node)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		mockProvider.AssertExpectations(tt)
+	})
+}

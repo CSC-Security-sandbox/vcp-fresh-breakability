@@ -135,13 +135,13 @@ func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobOnDst, &reverseResult).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobOnSrc, &reverseResult).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// Update the database on the current destination (which becomes the new source after reverse)
-	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationAttributes, &reverseResult).Get(ctx, &reverseResult)
+	// Update the database on the current source (which becomes the new destination after reverse)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationAttributesSrc, &reverseResult).Get(ctx, &reverseResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -151,7 +151,23 @@ func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	// Update the database on the current destination (which becomes the new source after reverse)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationAttributesDst, &reverseResult).Get(ctx, &reverseResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobOnDst, &reverseResult).Get(ctx, nil)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, replicationActivity.MountReplicationAfterReverse, &reverseResult).Get(ctx, &reverseResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	
+	err = workflow.ExecuteActivity(ctx, replicationActivity.CleanupOldReplication, &reverseResult).Get(ctx, &reverseResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

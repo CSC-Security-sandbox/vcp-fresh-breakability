@@ -772,8 +772,10 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 			}
 			list, err := googleProxyInternalGetMultipleReplications(ctx, basePath, projectNumber, region, replicationsForProject.token, internalGetReplicationBody, logger, params)
 			if err != nil {
-				logger.Error("Failed to get multiple replications from Google Proxy", "error", err, "projectNumber", projectNumber, "region", region)
-				return nil, nil, err
+				if err.(*vsaerrors.CustomError).TrackingID != vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsNotFound {
+					logger.Error("Failed to get multiple replications from Google Proxy", "error", err, "projectNumber", projectNumber, "region", region)
+					return nil, nil, err
+				}
 			}
 			if len(list) == 0 {
 				logger.Warn("No replications found for project", "projectNumber", projectNumber, "region", region)
@@ -1381,11 +1383,11 @@ func (o *Orchestrator) GetReplication(ctx context.Context, volumeReplicationId s
 	return convertDataStoreReplicationToModel(replication), nil
 }
 
-func (o *Orchestrator) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
-	return deleteReplicationInternal(ctx, o.storage, o.temporal, volumeReplicationId)
+func (o *Orchestrator) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool) (*models.VolumeReplication, *datamodel.Job, error) {
+	return deleteReplicationInternal(ctx, o.storage, o.temporal, volumeReplicationId, cleanupAfterReverse)
 }
 
-func _deleteReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
+func _deleteReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId string, cleanupAfterReverse bool) (*models.VolumeReplication, *datamodel.Job, error) {
 	logger := util.GetLogger(ctx)
 
 	dbVolumeReplication, err := se.GetVolumeReplication(ctx, volumeReplicationId)
@@ -1419,11 +1421,13 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 		return nil, nil, err
 	}
 
-	dbVolumeReplication.State = models.LifeCycleStateDeleting
-	dbVolumeReplication.StateDetails = models.LifeCycleStateDeletingDetails
+	if !cleanupAfterReverse {
+		dbVolumeReplication.State = models.LifeCycleStateDeleting
+		dbVolumeReplication.StateDetails = models.LifeCycleStateDeletingDetails
 
-	if err = se.UpdateVolumeReplicationStates(ctx, dbVolumeReplication); err != nil {
-		return nil, nil, err
+		if err = se.UpdateVolumeReplicationStates(ctx, dbVolumeReplication); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// Defer statement to mark job as errored if workflow fails to start
@@ -1444,6 +1448,7 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 		},
 		replicationWorkflows.DeleteInternalVolumeReplicationWorkflow,
 		dbVolumeReplication,
+		cleanupAfterReverse,
 	)
 
 	if err != nil {

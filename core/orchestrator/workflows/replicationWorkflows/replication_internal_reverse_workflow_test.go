@@ -35,8 +35,7 @@ func TestReverseInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(replicationActivity.ReverseVolumeReplication)
-		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationReverseDetails)
-		env.RegisterActivity(replicationActivity.UpdateVolumeTypeForReverse)
+		env.RegisterActivity(replicationActivity.UpdateVolumeTypeForNewDestination)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		account := &datamodel.Account{
@@ -56,10 +55,11 @@ func TestReverseInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Pool:      pool,
-			PoolID:    1,
-			Svm:       &datamodel.Svm{Name: "svm_test"},
+			BaseModel:        datamodel.BaseModel{ID: 1},
+			Pool:             pool,
+			PoolID:           1,
+			Svm:              &datamodel.Svm{Name: "svm_test"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
 		}
 
 		replicationDb := &datamodel.VolumeReplication{
@@ -83,9 +83,8 @@ func TestReverseInternalVolumeReplicationWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
-		env.OnActivity("ReverseVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SnapmirrorDestination{}, nil)
-		env.OnActivity("UpdateVolumeReplicationReverseDetails", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeTypeForReverse", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ReverseVolumeReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
+		env.OnActivity("UpdateVolumeTypeForNewDestination", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseInternalVolumeReplicationWorkflow, replicationDb)
 
@@ -128,10 +127,11 @@ func TestReverseInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Pool:      pool,
-			PoolID:    1,
-			Svm:       &datamodel.Svm{Name: "svm_test"},
+			BaseModel:        datamodel.BaseModel{ID: 1},
+			Pool:             pool,
+			PoolID:           1,
+			Svm:              &datamodel.Svm{Name: "svm_test"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
 		}
 
 		replicationDb := &datamodel.VolumeReplication{
@@ -189,10 +189,11 @@ func TestReverseInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Pool:      pool,
-			PoolID:    1,
-			Svm:       &datamodel.Svm{Name: "svm_test"},
+			BaseModel:        datamodel.BaseModel{ID: 1},
+			Pool:             pool,
+			PoolID:           1,
+			Svm:              &datamodel.Svm{Name: "svm_test"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
 		}
 
 		replicationDb := &datamodel.VolumeReplication{
@@ -240,7 +241,7 @@ func TestReverseInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(replicationActivity.ReverseVolumeReplication)
-		env.RegisterActivity(replicationActivity.UpdateVolumeReplicationReverseDetails)
+		env.RegisterActivity(replicationActivity.UpdateVolumeTypeForNewDestination)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		account := &datamodel.Account{
@@ -260,10 +261,11 @@ func TestReverseInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Pool:      pool,
-			PoolID:    1,
-			Svm:       &datamodel.Svm{Name: "svm_test"},
+			BaseModel:        datamodel.BaseModel{ID: 1},
+			Pool:             pool,
+			PoolID:           1,
+			Svm:              &datamodel.Svm{Name: "svm_test"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
 		}
 
 		replicationDb := &datamodel.VolumeReplication{
@@ -287,8 +289,8 @@ func TestReverseInternalVolumeReplicationWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
-		env.OnActivity("ReverseVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SnapmirrorDestination{}, nil)
-		env.OnActivity("UpdateVolumeReplicationReverseDetails", mock.Anything, mock.Anything).Return(assert.AnError)
+		env.OnActivity("ReverseVolumeReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
+		env.OnActivity("UpdateVolumeTypeForNewDestination", mock.Anything, mock.Anything).Return(assert.AnError)
 
 		env.ExecuteWorkflow(ReverseInternalVolumeReplicationWorkflow, replicationDb)
 

@@ -1875,7 +1875,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 
 		assert.Equal(tt, "origin-volume", cache.PeerVolumeName)
 		assert.False(tt, cache.EnableGlobalFileLock.IsSet())
-		assert.False(tt, cache.PeeringCommandExpiryTime.IsSet())
+		assert.False(tt, cache.CommandExpiryTime.IsSet())
 		assert.False(tt, cache.Passphrase.IsSet())
 	})
 

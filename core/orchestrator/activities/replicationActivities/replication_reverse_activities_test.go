@@ -617,7 +617,7 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 			mock.AnythingOfType("*googleproxyclient.VolumeReplicationInternalV1beta"),
 			updateParams).Return(nil, errors.New("update error"))
 
-		_, err := activity.UpdateVolumeReplicationAttributes(ctx, result)
+		_, err := activity.UpdateVolumeReplicationAttributesSrc(ctx, result)
 
 		assert.Error(tt, err)
 		assert.Equal(tt, "Failed to update volume replication details", err.Error())
@@ -694,7 +694,7 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 			mock.AnythingOfType("*googleproxyclient.VolumeReplicationInternalV1beta"),
 			updateParams).Return(operationResponse, nil)
 
-		res, err := activity.UpdateVolumeReplicationAttributes(ctx, result)
+		res, err := activity.UpdateVolumeReplicationAttributesSrc(ctx, result)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, res)
@@ -710,15 +710,15 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		ctx := context.Background()
 
 		result := &replication.ReverseReplicationResult{
-			DstBasePath:      stringPtr("https://dst-example.com"),
-			DstJwtToken:      stringPtr("dst-jwt-token"),
-			DstProjectNumber: stringPtr("67890"),
+			SrcBasePath:      stringPtr("https://src-example.com"),
+			SrcJwtToken:      stringPtr("src-jwt-token"),
+			SrcProjectNumber: stringPtr("67890"),
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-west1",
-							DestinationReplicationUUID: "dst-repl-uuid",
+							SourceLocation:        "us-west1",
+							SourceReplicationUUID: "src-repl-uuid",
 						},
 					},
 				},
@@ -756,7 +756,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		expectedParams := googleproxyclient.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "67890",
 			LocationId:          "us-west1",
-			VolumeReplicationId: "dst-repl-uuid",
+			VolumeReplicationId: "src-repl-uuid",
 			XCorrelationID:      googleproxyclient.NewOptString("correlation-123"),
 		}
 
@@ -779,15 +779,15 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		ctx := context.Background()
 
 		result := &replication.ReverseReplicationResult{
-			DstBasePath:      stringPtr("https://dst-example.com"),
-			DstJwtToken:      stringPtr("dst-jwt-token"),
-			DstProjectNumber: stringPtr("67890"),
+			SrcBasePath:      stringPtr("https://src-example.com"),
+			SrcJwtToken:      stringPtr("src-jwt-token"),
+			SrcProjectNumber: stringPtr("67890"),
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-west1",
-							DestinationReplicationUUID: "dst-repl-uuid",
+							SourceLocation:        "us-west1",
+							SourceReplicationUUID: "src-repl-uuid",
 						},
 					},
 				},
@@ -819,7 +819,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		expectedParams := googleproxyclient.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "67890",
 			LocationId:          "us-west1",
-			VolumeReplicationId: "dst-repl-uuid",
+			VolumeReplicationId: "src-repl-uuid",
 			XCorrelationID:      googleproxyclient.NewOptString("correlation-123"),
 		}
 
@@ -839,15 +839,15 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		ctx := context.Background()
 
 		result := &replication.ReverseReplicationResult{
-			DstBasePath:      stringPtr("https://dst-example.com"),
-			DstJwtToken:      stringPtr("dst-jwt-token"),
-			DstProjectNumber: stringPtr("67890"),
+			SrcBasePath:      stringPtr("https://src-example.com"),
+			SrcJwtToken:      stringPtr("src-jwt-token"),
+			SrcProjectNumber: stringPtr("67890"),
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-west1",
-							DestinationReplicationUUID: "dst-repl-uuid",
+							SourceLocation:        "us-west1",
+							SourceReplicationUUID: "src-repl-uuid",
 						},
 					},
 				},
@@ -879,7 +879,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		expectedParams := googleproxyclient.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "67890",
 			LocationId:          "us-west1",
-			VolumeReplicationId: "dst-repl-uuid",
+			VolumeReplicationId: "src-repl-uuid",
 			XCorrelationID:      googleproxyclient.NewOptString("correlation-123"),
 		}
 
@@ -899,15 +899,15 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		ctx := context.Background()
 
 		result := &replication.ReverseReplicationResult{
-			DstBasePath:      stringPtr("https://dst-example.com"),
-			DstJwtToken:      stringPtr("dst-jwt-token"),
-			DstProjectNumber: stringPtr("67890"),
+			SrcBasePath:      stringPtr("https://src-example.com"),
+			SrcJwtToken:      stringPtr("src-jwt-token"),
+			SrcProjectNumber: stringPtr("67890"),
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-west1",
-							DestinationReplicationUUID: "dst-repl-uuid",
+							SourceLocation:        "us-west1",
+							SourceReplicationUUID: "src-repl-uuid",
 						},
 					},
 				},
@@ -939,7 +939,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		expectedParams := googleproxyclient.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "67890",
 			LocationId:          "us-west1",
-			VolumeReplicationId: "dst-repl-uuid",
+			VolumeReplicationId: "src-repl-uuid",
 			XCorrelationID:      googleproxyclient.NewOptString("correlation-123"),
 		}
 
@@ -959,15 +959,15 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		ctx := context.Background()
 
 		result := &replication.ReverseReplicationResult{
-			DstBasePath:      stringPtr("https://dst-example.com"),
-			DstJwtToken:      stringPtr("dst-jwt-token"),
-			DstProjectNumber: stringPtr("67890"),
+			SrcBasePath:      stringPtr("https://src-example.com"),
+			SrcJwtToken:      stringPtr("src-jwt-token"),
+			SrcProjectNumber: stringPtr("67890"),
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-west1",
-							DestinationReplicationUUID: "dst-repl-uuid",
+							SourceLocation:        "us-west1",
+							SourceReplicationUUID: "src-repl-uuid",
 						},
 					},
 				},
@@ -999,7 +999,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		expectedParams := googleproxyclient.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "67890",
 			LocationId:          "us-west1",
-			VolumeReplicationId: "dst-repl-uuid",
+			VolumeReplicationId: "src-repl-uuid",
 			XCorrelationID:      googleproxyclient.NewOptString("correlation-123"),
 		}
 
@@ -1019,15 +1019,15 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		ctx := context.Background()
 
 		result := &replication.ReverseReplicationResult{
-			DstBasePath:      stringPtr("https://dst-example.com"),
-			DstJwtToken:      stringPtr("dst-jwt-token"),
-			DstProjectNumber: stringPtr("67890"),
+			SrcBasePath:      stringPtr("https://src-example.com"),
+			SrcJwtToken:      stringPtr("src-jwt-token"),
+			SrcProjectNumber: stringPtr("67890"),
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-west1",
-							DestinationReplicationUUID: "dst-repl-uuid",
+							SourceLocation:        "us-west1",
+							SourceReplicationUUID: "src-repl-uuid",
 						},
 					},
 				},
@@ -1059,7 +1059,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		expectedParams := googleproxyclient.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "67890",
 			LocationId:          "us-west1",
-			VolumeReplicationId: "dst-repl-uuid",
+			VolumeReplicationId: "src-repl-uuid",
 			XCorrelationID:      googleproxyclient.NewOptString("correlation-123"),
 		}
 
@@ -1079,15 +1079,15 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		ctx := context.Background()
 
 		result := &replication.ReverseReplicationResult{
-			DstBasePath:      stringPtr("https://dst-example.com"),
-			DstJwtToken:      stringPtr("dst-jwt-token"),
-			DstProjectNumber: stringPtr("67890"),
+			SrcBasePath:      stringPtr("https://src-example.com"),
+			SrcJwtToken:      stringPtr("src-jwt-token"),
+			SrcProjectNumber: stringPtr("67890"),
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-west1",
-							DestinationReplicationUUID: "dst-repl-uuid",
+							SourceLocation:        "us-west1",
+							SourceReplicationUUID: "src-repl-uuid",
 						},
 					},
 				},
@@ -1119,7 +1119,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		expectedParams := googleproxyclient.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "67890",
 			LocationId:          "us-west1",
-			VolumeReplicationId: "dst-repl-uuid",
+			VolumeReplicationId: "src-repl-uuid",
 			XCorrelationID:      googleproxyclient.NewOptString("correlation-123"),
 		}
 
@@ -1139,15 +1139,15 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		ctx := context.Background()
 
 		result := &replication.ReverseReplicationResult{
-			DstBasePath:      stringPtr("https://dst-example.com"),
-			DstJwtToken:      stringPtr("dst-jwt-token"),
-			DstProjectNumber: stringPtr("67890"),
+			SrcBasePath:      stringPtr("https://src-example.com"),
+			SrcJwtToken:      stringPtr("src-jwt-token"),
+			SrcProjectNumber: stringPtr("67890"),
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-west1",
-							DestinationReplicationUUID: "dst-repl-uuid",
+							SourceLocation:        "us-west1",
+							SourceReplicationUUID: "src-repl-uuid",
 						},
 					},
 				},
@@ -1174,7 +1174,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		expectedParams := googleproxyclient.V1betaInternalReverseVolumeReplicationParams{
 			ProjectNumber:       "67890",
 			LocationId:          "us-west1",
-			VolumeReplicationId: "dst-repl-uuid",
+			VolumeReplicationId: "src-repl-uuid",
 			XCorrelationID:      googleproxyclient.NewOptString("correlation-123"),
 		}
 
@@ -1293,6 +1293,343 @@ func TestVerifyNewDstVolume(t *testing.T) {
 		updatedResult, err := activity.VerifyNewDstVolume(ctx, result)
 		assert.NoError(tt, err)
 		assert.Equal(tt, result, updatedResult)
+	})
+}
+
+func TestCleanupOldReplication(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+
+		dstBasePath := "https://dst-base-path.example.com"
+		dstJwtToken := "dst-jwt-token"
+		dstProjectNumber := "dst-project-number"
+		result := &replication.ReverseReplicationResult{
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "dest-location",
+							DestinationReplicationUUID: "dest-replication-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		// Mock the google proxy client and its method
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		resp := &googleproxyclient.VolumeReplicationInternalV1beta{
+			Jobs: []googleproxyclient.JobV1beta{
+				googleproxyclient.JobV1beta{
+					JobId: googleproxyclient.OptString{
+						Value: "delete-job-uuid-12345",
+						Set:   true,
+					},
+				},
+			},
+		}
+		// Mock the cleanup method to return success
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(resp, nil)
+
+		updatedResult, err := activity.CleanupOldReplication(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+
+		dstBasePath := "https://dst-base-path.example.com"
+		dstJwtToken := "dst-jwt-token"
+		dstProjectNumber := "dst-project-number"
+		result := &replication.ReverseReplicationResult{
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "dest-location",
+							DestinationReplicationUUID: "dest-replication-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		// Mock the google proxy client and its method
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		// Mock the cleanup method to return error
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(nil, errors.New("cleanup error"))
+
+		updatedResult, err := activity.CleanupOldReplication(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBadRequestResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+
+		dstBasePath := "https://dst-base-path.example.com"
+		dstJwtToken := "dst-jwt-token"
+		dstProjectNumber := "dst-project-number"
+		result := &replication.ReverseReplicationResult{
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "dest-location",
+							DestinationReplicationUUID: "dest-replication-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		badRequestResponse := &googleproxyclient.V1betaInternalDeleteVolumeReplicationBadRequest{
+			Message: "Invalid cleanup request parameters",
+		}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(badRequestResponse, nil)
+
+		updatedResult, err := activity.CleanupOldReplication(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnauthorizedResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+
+		dstBasePath := "https://dst-base-path.example.com"
+		dstJwtToken := "dst-jwt-token"
+		dstProjectNumber := "dst-project-number"
+		result := &replication.ReverseReplicationResult{
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "dest-location",
+							DestinationReplicationUUID: "dest-replication-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaInternalDeleteVolumeReplicationUnauthorized{
+			Message: "Authentication failed for cleanup",
+		}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(unauthorizedResponse, nil)
+
+		updatedResult, err := activity.CleanupOldReplication(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenForbiddenResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+
+		dstBasePath := "https://dst-base-path.example.com"
+		dstJwtToken := "dst-jwt-token"
+		dstProjectNumber := "dst-project-number"
+		result := &replication.ReverseReplicationResult{
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "dest-location",
+							DestinationReplicationUUID: "dest-replication-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		forbiddenResponse := &googleproxyclient.V1betaInternalDeleteVolumeReplicationForbidden{
+			Message: "Access denied for cleanup operation",
+		}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(forbiddenResponse, nil)
+
+		updatedResult, err := activity.CleanupOldReplication(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNotFoundResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+
+		dstBasePath := "https://dst-base-path.example.com"
+		dstJwtToken := "dst-jwt-token"
+		dstProjectNumber := "dst-project-number"
+		result := &replication.ReverseReplicationResult{
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "dest-location",
+							DestinationReplicationUUID: "dest-replication-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		notFoundResponse := &googleproxyclient.V1betaInternalDeleteVolumeReplicationNotFound{
+			Message: "Volume replication not found for cleanup",
+		}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(notFoundResponse, nil)
+
+		updatedResult, err := activity.CleanupOldReplication(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInternalServerErrorResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+
+		dstBasePath := "https://dst-base-path.example.com"
+		dstJwtToken := "dst-jwt-token"
+		dstProjectNumber := "dst-project-number"
+		result := &replication.ReverseReplicationResult{
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "dest-location",
+							DestinationReplicationUUID: "dest-replication-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		serverErrorResponse := &googleproxyclient.V1betaInternalDeleteVolumeReplicationInternalServerError{
+			Message: "Internal server error during cleanup",
+		}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(serverErrorResponse, nil)
+
+		updatedResult, err := activity.CleanupOldReplication(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
 	})
 }
 

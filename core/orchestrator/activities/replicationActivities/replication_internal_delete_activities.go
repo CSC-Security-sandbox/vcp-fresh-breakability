@@ -36,6 +36,39 @@ func (a *InternalVolumeReplicationDeleteActivity) DeleteVolumeReplication(ctx co
 	return res, nil
 }
 
+func (a *InternalVolumeReplicationDeleteActivity) CleanupReplicationAfterReverse(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	volumeRep := &vsa.VolumeReplication{
+		EndpointType:          replication.ReplicationAttributes.EndpointType,
+		SourceHostName:        replication.ReplicationAttributes.DestinationHostName,
+		SourceSVMName:         replication.ReplicationAttributes.DestinationSvmName,
+		SourceVolumeName:      replication.ReplicationAttributes.DestinationVolumeName,
+		DestinationHostName:   replication.ReplicationAttributes.SourceHostName,
+		DestinationSVMName:    replication.ReplicationAttributes.SourceSvmName,
+		ReplicationSchedule:   replication.ReplicationAttributes.ReplicationSchedule,
+		DestinationVolumeName: replication.ReplicationAttributes.SourceVolumeName,
+		RelationshipID:        replication.ReplicationAttributes.ExternalUUID,
+	}
+	vsaDeleteVolumeReplicationParams := &vsa.DeleteVolumeReplicationParams{
+		VolumeReplication: volumeRep,
+	}
+	res, err := provider.DeleteVolumeReplication(vsaDeleteVolumeReplicationParams)
+	if err != nil {
+		if errors.IsConflictErr(err) {
+			logger.Error("Failed to cleanup volume replication", "error", err)
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrProviderDeleteVolumeReplication, err))
+		}
+		logger.Error("Failed to cleanup volume replication", "error", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrProviderDeleteVolumeReplication, err)
+	}
+	return res, nil
+}
+
 func (a *InternalVolumeReplicationDeleteActivity) UpdateVolumeReplicationDetailsForDelete(ctx context.Context, replication *datamodel.VolumeReplication) error {
 	se := a.SE
 	if _, err := se.DeleteVolumeReplication(ctx, replication); err != nil {

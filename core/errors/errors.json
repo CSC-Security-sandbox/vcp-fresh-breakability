@@ -921,7 +921,7 @@
     "description": "Google Proxy Internal Get Multiple Replications Not Found Error",
     "message": "Internal server error getting multiple replications",
     "retriable": false,
-    "http_code": 500
+    "http_code": 404
   },
   "6150": {
     "description": "Google Proxy Internal Get Multiple Replications Internal Server Error",
@@ -1268,6 +1268,12 @@
   "6209": {
     "description": "Describe Destination Volume Error",
     "message": "Failed to describe destination volume",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6210": {
+    "description": "Failed to cleanup volume replication after reverse",
+    "message": "Failed to cleanup volume replication after reverse",
     "retriable": false,
     "http_code": 500
   },

@@ -1293,7 +1293,7 @@ func (s *FlexCacheV1beta) SetFake() {
 	}
 	{
 		{
-			s.PeeringCommandExpiryTime.SetFake()
+			s.CommandExpiryTime.SetFake()
 		}
 	}
 	{
