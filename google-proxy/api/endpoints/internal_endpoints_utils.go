@@ -46,7 +46,7 @@ func mapEndpointTypeToInternal(endpointType string) gcpgenserver.VolumeReplicati
 func mapMirrorStateToInternal(mirrorState string) gcpgenserver.VolumeReplicationInternalV1betaMirrorState {
 	switch mirrorState {
 	case models.OntapUninitialized:
-		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED
+		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStatePREPARING
 	case models.OntapBrokenOff:
 		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateSTOPPED
 	case models.OntapSnapmirrored:
@@ -102,7 +102,7 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		progressLastUpdated = *replication.ProgressLastUpdated
 	}
 
-	return gcpgenserver.VolumeReplicationInternalV1beta{
+	retObj := gcpgenserver.VolumeReplicationInternalV1beta{
 		VolumeReplicationUuid: gcpgenserver.NewOptString(replication.UUID),
 		LifeCycleState:        gcpgenserver.NewOptVolumeReplicationInternalV1betaLifeCycleState(mapReplicationStateToInternalLifeCycleState(replication.State)),
 		LifeCycleStateDetails: gcpgenserver.NewOptString(replication.StateDetails),
@@ -137,6 +137,16 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		CcfeUri:               gcpgenserver.NewOptString(replication.Uri),
 		CcfeRemoteUri:         gcpgenserver.NewOptString(replication.RemoteUri),
 	}
+
+	if *replication.RelationshipStatus == models.SnapmirrorRelationshipTransferring {
+		if *replication.MirrorState == models.OntapUninitialized {
+			retObj.MirrorState = gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(gcpgenserver.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING)
+		} else {
+			retObj.MirrorState = gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(gcpgenserver.VolumeReplicationInternalV1betaMirrorStateTRANSFERRING)
+		}
+	}
+
+	return retObj
 }
 
 func convertToPoolInternalV1Beta(pool *models.Pool) *gcpgenserver.PoolInternalV1beta {

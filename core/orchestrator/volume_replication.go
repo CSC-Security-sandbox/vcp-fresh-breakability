@@ -631,7 +631,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 
 	// Create a region - replication UUID map
-	currentRegion, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
+	currentRegion, currentZone, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		logger.Error("Failed to parse current region", "error", parsingErr)
 		custErr := vsaerrors.CustomError{
@@ -642,6 +642,12 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorCurrentRegion, &custErr)
 	}
+
+	currentLocation := currentRegion
+	if currentZone != "" {
+		currentLocation = currentZone
+	}
+
 	regionReplicationMap := make(map[string][]*datamodel.VolumeReplication)
 	emptyUUID := uuid.UUID{}
 
@@ -691,7 +697,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 
 	// Convert the internal replications to the response format
 	for _, repl := range list {
-		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentRegion, &jobsList))
+		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentLocation, &jobsList))
 	}
 
 	return resp, nil
@@ -1108,6 +1114,8 @@ func mapInternalReplicationMirrorStateToCCFEMirrorState(mirrorState googleproxyc
 		return gcpgenserver.ReplicationV1betaMirrorStatePREPARING
 	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStateEXTERNALLYMANAGED:
 		return gcpgenserver.ReplicationV1betaMirrorStateEXTERNALLYMANAGED
+	case googleproxyclient.VolumeReplicationInternalV1betaMirrorStateTRANSFERRING:
+		return gcpgenserver.ReplicationV1betaMirrorStateTRANSFERRING
 	default:
 		return gcpgenserver.ReplicationV1betaMirrorStateMIRRORSTATEUNSPECIFIED
 	}

@@ -1621,6 +1621,229 @@ func TestGetMultipleReplications(t *testing.T) {
 		// Only current region and destination region should be in the map
 		assert.Len(tt, capturedRegionMap, 1) // Only us-west1
 	})
+	t.Run("WhenRoleIsDestinationAndRemoteRegionIsZone", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		// Use monkey mocks
+		mm := newMonkeyMockAndPatch(tt)
+
+		// Set up mock expectations
+		mm.On("getAccountWithName", ctx, mockStorage, "test-account").Return(&datamodel.Account{Name: "test-account"}, nil).Once()
+		mm.On("utilParseAndValidateRegionAndZone", "us-west1-a").Return("us-west1", "us-west1-a", (*gcpserver.Error)(nil)).Once()
+
+		// Mock successful replication list with a replication where remote region is a zone
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{
+			{
+				Name: "test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1-b", // Remote region is a zone
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-west1-a", // Current location is also a zone
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}, nil)
+
+		// Mock the getReplicationObjects function to return a replication with remote region as zone
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			// Return a replication where RemoteRegion is a zone (us-central1-b)
+			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+				RemoteRegion: "us-central1-b", // This is a zone, not a region
+			}
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil
+		}).Once()
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName:     "test-account",
+			LocationId:      "us-west1-a", // Current location is a zone
+			ReplicationURIs: []string{"test-uri"},
+		}
+
+		result, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+
+		// Verify that the role is set correctly when remote region is a zone
+		// Since us-central1-b != us-west1-a, the role should be SOURCE
+		if len(result) > 0 {
+			assert.True(tt, result[0].Role.Set)
+			assert.Equal(tt, gcpserver.ReplicationV1betaRoleSOURCE, result[0].Role.Value)
+		}
+
+		mockStorage.AssertExpectations(tt)
+		mm.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRoleIsDestinationAndRemoteRegionMatchesCurrentLocation", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		// Use monkey mocks
+		mm := newMonkeyMockAndPatch(tt)
+
+		// Set up mock expectations
+		mm.On("getAccountWithName", ctx, mockStorage, "test-account").Return(&datamodel.Account{Name: "test-account"}, nil).Once()
+		mm.On("utilParseAndValidateRegionAndZone", "us-west1-a").Return("us-west1", "us-west1-a", (*gcpserver.Error)(nil)).Once()
+
+		// Mock successful replication list with a replication where remote region matches current location
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{
+			{
+				Name: "test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1-b", // Remote region
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-west1-a", // Current location matches remote region
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}, nil)
+
+		// Mock the getReplicationObjects function to return a replication where remote region matches current location
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			// Return a replication where RemoteRegion matches current location (us-west1-a)
+			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+				RemoteRegion: "us-west1-a", // This matches the current location
+			}
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil
+		}).Once()
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName:     "test-account",
+			LocationId:      "us-west1-a", // Current location is a zone
+			ReplicationURIs: []string{"test-uri"},
+		}
+
+		result, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+
+		// Verify that the role is set correctly when remote region matches current location
+		// Since us-west1-a == us-west1-a, the role should be DESTINATION
+		if len(result) > 0 {
+			assert.True(tt, result[0].Role.Set)
+			assert.Equal(tt, gcpserver.ReplicationV1betaRoleDESTINATION, result[0].Role.Value)
+		}
+
+		mockStorage.AssertExpectations(tt)
+		mm.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRoleIsSourceAndBothRemoteRegionAndCurrentLocationAreRegions", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		// Use monkey mocks
+		mm := newMonkeyMockAndPatch(tt)
+
+		// Set up mock expectations
+		mm.On("getAccountWithName", ctx, mockStorage, "test-account").Return(&datamodel.Account{Name: "test-account"}, nil).Once()
+		mm.On("utilParseAndValidateRegionAndZone", "us-west1").Return("us-west1", "", (*gcpserver.Error)(nil)).Once()
+
+		// Mock successful replication list with a replication where both locations are regions
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{
+			{
+				Name: "test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1", // Remote region is a region
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-west1", // Current location is also a region
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}, nil)
+
+		// Mock the getReplicationObjects function to return a replication where remote region is a region
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			// Return a replication where RemoteRegion is a region (us-central1)
+			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+				RemoteRegion: "us-central1", // This is a region, not a zone
+			}
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil
+		}).Once()
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName:     "test-account",
+			LocationId:      "us-west1", // Current location is a region
+			ReplicationURIs: []string{"test-uri"},
+		}
+
+		result, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+
+		// Verify that the role is set correctly when remote region is a region
+		// Since us-central1 != us-west1, the role should be SOURCE
+		if len(result) > 0 {
+			assert.True(tt, result[0].Role.Set)
+			assert.Equal(tt, gcpserver.ReplicationV1betaRoleSOURCE, result[0].Role.Value)
+		}
+
+		mockStorage.AssertExpectations(tt)
+		mm.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRoleIsDestinationAndBothRemoteRegionAndCurrentLocationAreRegions", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		// Use monkey mocks
+		mm := newMonkeyMockAndPatch(tt)
+
+		// Set up mock expectations
+		mm.On("getAccountWithName", ctx, mockStorage, "test-account").Return(&datamodel.Account{Name: "test-account"}, nil).Once()
+		mm.On("utilParseAndValidateRegionAndZone", "us-west1").Return("us-west1", "", (*gcpserver.Error)(nil)).Once()
+
+		// Mock successful replication list with a replication where both locations are regions
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{
+			{
+				Name: "test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1", // Remote region
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-west1", // Current location matches remote region
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}, nil)
+
+		// Mock the getReplicationObjects function to return a replication where remote region matches current location
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			// Return a replication where RemoteRegion matches current location (us-west1)
+			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+				RemoteRegion: "us-west1", // This matches the current location
+			}
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil
+		}).Once()
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName:     "test-account",
+			LocationId:      "us-west1", // Current location is a region
+			ReplicationURIs: []string{"test-uri"},
+		}
+
+		result, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+
+		// Verify that the role is set correctly when remote region matches current location
+		// Since us-west1 == us-west1, the role should be DESTINATION
+		if len(result) > 0 {
+			assert.True(tt, result[0].Role.Set)
+			assert.Equal(tt, gcpserver.ReplicationV1betaRoleDESTINATION, result[0].Role.Value)
+		}
+
+		mockStorage.AssertExpectations(tt)
+		mm.AssertExpectations(tt)
+	})
 }
 
 func TestGetReplicationObjects(t *testing.T) {
@@ -3022,6 +3245,11 @@ func TestMapInternalReplicationMirrorStateToCCFEMirrorState(t *testing.T) {
 			name:     "Stopped maps to Stopped",
 			input:    googleproxyclient.VolumeReplicationInternalV1betaMirrorStatePREPARING,
 			expected: gcpserver.ReplicationV1betaMirrorStatePREPARING,
+		},
+		{
+			name:     "Transferring maps to Transferring",
+			input:    googleproxyclient.VolumeReplicationInternalV1betaMirrorStateTRANSFERRING,
+			expected: gcpserver.ReplicationV1betaMirrorStateTRANSFERRING,
 		},
 	}
 

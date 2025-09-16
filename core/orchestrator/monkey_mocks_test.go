@@ -12,6 +12,10 @@ import (
 
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+
 	internal "go.temporal.io/sdk/workflow"
 
 	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -32,6 +36,62 @@ type monkeyMock_Expecter struct {
 
 func (_m *monkeyMock) EXPECT() *monkeyMock_Expecter {
 	return &monkeyMock_Expecter{mock: &_m.Mock}
+}
+
+// authGetSignedJwtToken provides a mock function with given fields: accountName
+func (_m *monkeyMock) authGetSignedJwtToken(accountName string) (string, error) {
+	ret := _m.Called(accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for authGetSignedJwtToken")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return rf(accountName)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(accountName)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_authGetSignedJwtToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'authGetSignedJwtToken'
+type monkeyMock_authGetSignedJwtToken_Call struct {
+	*mock.Call
+}
+
+// authGetSignedJwtToken is a helper method to define mock.On call
+//   - accountName string
+func (_e *monkeyMock_Expecter) authGetSignedJwtToken(accountName interface{}) *monkeyMock_authGetSignedJwtToken_Call {
+	return &monkeyMock_authGetSignedJwtToken_Call{Call: _e.mock.On("authGetSignedJwtToken", accountName)}
+}
+
+func (_c *monkeyMock_authGetSignedJwtToken_Call) Run(run func(accountName string)) *monkeyMock_authGetSignedJwtToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_authGetSignedJwtToken_Call) Return(_a0 string, _a1 error) *monkeyMock_authGetSignedJwtToken_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_authGetSignedJwtToken_Call) RunAndReturn(run func(string) (string, error)) *monkeyMock_authGetSignedJwtToken_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // createFlexCacheVolume provides a mock function with given fields: ctx, se, temporal, params
@@ -147,6 +207,66 @@ func (_c *monkeyMock_envIsLocalEnv_Call) RunAndReturn(run func() bool) *monkeyMo
 	return _c
 }
 
+// getAccountWithName provides a mock function with given fields: ctx, se, accountName
+func (_m *monkeyMock) getAccountWithName(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+	ret := _m.Called(ctx, se, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for getAccountWithName")
+	}
+
+	var r0 *datamodel.Account
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, string) (*datamodel.Account, error)); ok {
+		return rf(ctx, se, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, string) *datamodel.Account); ok {
+		r0 = rf(ctx, se, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Account)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, database.Storage, string) error); ok {
+		r1 = rf(ctx, se, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_getAccountWithName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'getAccountWithName'
+type monkeyMock_getAccountWithName_Call struct {
+	*mock.Call
+}
+
+// getAccountWithName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - se database.Storage
+//   - accountName string
+func (_e *monkeyMock_Expecter) getAccountWithName(ctx interface{}, se interface{}, accountName interface{}) *monkeyMock_getAccountWithName_Call {
+	return &monkeyMock_getAccountWithName_Call{Call: _e.mock.On("getAccountWithName", ctx, se, accountName)}
+}
+
+func (_c *monkeyMock_getAccountWithName_Call) Run(run func(ctx context.Context, se database.Storage, accountName string)) *monkeyMock_getAccountWithName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(database.Storage), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_getAccountWithName_Call) Return(_a0 *datamodel.Account, _a1 error) *monkeyMock_getAccountWithName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_getAccountWithName_Call) RunAndReturn(run func(context.Context, database.Storage, string) (*datamodel.Account, error)) *monkeyMock_getAccountWithName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // getOrCreateAccount provides a mock function with given fields: ctx, se, accountName
 func (_m *monkeyMock) getOrCreateAccount(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 	ret := _m.Called(ctx, se, accountName)
@@ -207,6 +327,76 @@ func (_c *monkeyMock_getOrCreateAccount_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// getReplicationObjects provides a mock function with given fields: ctx, regionReplicationMap, logger, params
+func (_m *monkeyMock) getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params common.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+	ret := _m.Called(ctx, regionReplicationMap, logger, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for getReplicationObjects")
+	}
+
+	var r0 []*googleproxyclient.VolumeReplicationInternalV1beta
+	var r1 []googleproxyclient.InternalJobV1beta
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error)); ok {
+		return rf(ctx, regionReplicationMap, logger, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams) []*googleproxyclient.VolumeReplicationInternalV1beta); ok {
+		r0 = rf(ctx, regionReplicationMap, logger, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*googleproxyclient.VolumeReplicationInternalV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams) []googleproxyclient.InternalJobV1beta); ok {
+		r1 = rf(ctx, regionReplicationMap, logger, params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]googleproxyclient.InternalJobV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams) error); ok {
+		r2 = rf(ctx, regionReplicationMap, logger, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// monkeyMock_getReplicationObjects_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'getReplicationObjects'
+type monkeyMock_getReplicationObjects_Call struct {
+	*mock.Call
+}
+
+// getReplicationObjects is a helper method to define mock.On call
+//   - ctx context.Context
+//   - regionReplicationMap map[string][]*datamodel.VolumeReplication
+//   - logger log.Logger
+//   - params common.GetMultipleReplicationsParams
+func (_e *monkeyMock_Expecter) getReplicationObjects(ctx interface{}, regionReplicationMap interface{}, logger interface{}, params interface{}) *monkeyMock_getReplicationObjects_Call {
+	return &monkeyMock_getReplicationObjects_Call{Call: _e.mock.On("getReplicationObjects", ctx, regionReplicationMap, logger, params)}
+}
+
+func (_c *monkeyMock_getReplicationObjects_Call) Run(run func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params common.GetMultipleReplicationsParams)) *monkeyMock_getReplicationObjects_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(map[string][]*datamodel.VolumeReplication), args[2].(log.Logger), args[3].(common.GetMultipleReplicationsParams))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_getReplicationObjects_Call) Return(_a0 []*googleproxyclient.VolumeReplicationInternalV1beta, _a1 []googleproxyclient.InternalJobV1beta, _a2 error) *monkeyMock_getReplicationObjects_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *monkeyMock_getReplicationObjects_Call) RunAndReturn(run func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error)) *monkeyMock_getReplicationObjects_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // utilGetLogger provides a mock function with given fields: ctx
 func (_m *monkeyMock) utilGetLogger(ctx interface{}) log.Logger {
 	ret := _m.Called(ctx)
@@ -251,6 +441,71 @@ func (_c *monkeyMock_utilGetLogger_Call) Return(_a0 log.Logger) *monkeyMock_util
 }
 
 func (_c *monkeyMock_utilGetLogger_Call) RunAndReturn(run func(interface{}) log.Logger) *monkeyMock_utilGetLogger_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// utilParseAndValidateRegionAndZone provides a mock function with given fields: locationID
+func (_m *monkeyMock) utilParseAndValidateRegionAndZone(locationID string) (string, string, *gcpserver.Error) {
+	ret := _m.Called(locationID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for utilParseAndValidateRegionAndZone")
+	}
+
+	var r0 string
+	var r1 string
+	var r2 *gcpserver.Error
+	if rf, ok := ret.Get(0).(func(string) (string, string, *gcpserver.Error)); ok {
+		return rf(locationID)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(locationID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) string); ok {
+		r1 = rf(locationID)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(string) *gcpserver.Error); ok {
+		r2 = rf(locationID)
+	} else {
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).(*gcpserver.Error)
+		}
+	}
+
+	return r0, r1, r2
+}
+
+// monkeyMock_utilParseAndValidateRegionAndZone_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'utilParseAndValidateRegionAndZone'
+type monkeyMock_utilParseAndValidateRegionAndZone_Call struct {
+	*mock.Call
+}
+
+// utilParseAndValidateRegionAndZone is a helper method to define mock.On call
+//   - locationID string
+func (_e *monkeyMock_Expecter) utilParseAndValidateRegionAndZone(locationID interface{}) *monkeyMock_utilParseAndValidateRegionAndZone_Call {
+	return &monkeyMock_utilParseAndValidateRegionAndZone_Call{Call: _e.mock.On("utilParseAndValidateRegionAndZone", locationID)}
+}
+
+func (_c *monkeyMock_utilParseAndValidateRegionAndZone_Call) Run(run func(locationID string)) *monkeyMock_utilParseAndValidateRegionAndZone_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_utilParseAndValidateRegionAndZone_Call) Return(_a0 string, _a1 string, _a2 *gcpserver.Error) *monkeyMock_utilParseAndValidateRegionAndZone_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *monkeyMock_utilParseAndValidateRegionAndZone_Call) RunAndReturn(run func(string) (string, string, *gcpserver.Error)) *monkeyMock_utilParseAndValidateRegionAndZone_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -307,6 +562,118 @@ func (_c *monkeyMock_utilsGetLocationFromVendorID_Call) Return(_a0 string, _a1 e
 }
 
 func (_c *monkeyMock_utilsGetLocationFromVendorID_Call) RunAndReturn(run func(string) (string, error)) *monkeyMock_utilsGetLocationFromVendorID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// utilsGetPairedRegionURI provides a mock function with given fields: region
+func (_m *monkeyMock) utilsGetPairedRegionURI(region string) (string, error) {
+	ret := _m.Called(region)
+
+	if len(ret) == 0 {
+		panic("no return value specified for utilsGetPairedRegionURI")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return rf(region)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(region)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(region)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_utilsGetPairedRegionURI_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'utilsGetPairedRegionURI'
+type monkeyMock_utilsGetPairedRegionURI_Call struct {
+	*mock.Call
+}
+
+// utilsGetPairedRegionURI is a helper method to define mock.On call
+//   - region string
+func (_e *monkeyMock_Expecter) utilsGetPairedRegionURI(region interface{}) *monkeyMock_utilsGetPairedRegionURI_Call {
+	return &monkeyMock_utilsGetPairedRegionURI_Call{Call: _e.mock.On("utilsGetPairedRegionURI", region)}
+}
+
+func (_c *monkeyMock_utilsGetPairedRegionURI_Call) Run(run func(region string)) *monkeyMock_utilsGetPairedRegionURI_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_utilsGetPairedRegionURI_Call) Return(_a0 string, _a1 error) *monkeyMock_utilsGetPairedRegionURI_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_utilsGetPairedRegionURI_Call) RunAndReturn(run func(string) (string, error)) *monkeyMock_utilsGetPairedRegionURI_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// utilsParseProjectNumberFromURI provides a mock function with given fields: uri
+func (_m *monkeyMock) utilsParseProjectNumberFromURI(uri string) (string, error) {
+	ret := _m.Called(uri)
+
+	if len(ret) == 0 {
+		panic("no return value specified for utilsParseProjectNumberFromURI")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return rf(uri)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(uri)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(uri)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_utilsParseProjectNumberFromURI_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'utilsParseProjectNumberFromURI'
+type monkeyMock_utilsParseProjectNumberFromURI_Call struct {
+	*mock.Call
+}
+
+// utilsParseProjectNumberFromURI is a helper method to define mock.On call
+//   - uri string
+func (_e *monkeyMock_Expecter) utilsParseProjectNumberFromURI(uri interface{}) *monkeyMock_utilsParseProjectNumberFromURI_Call {
+	return &monkeyMock_utilsParseProjectNumberFromURI_Call{Call: _e.mock.On("utilsParseProjectNumberFromURI", uri)}
+}
+
+func (_c *monkeyMock_utilsParseProjectNumberFromURI_Call) Run(run func(uri string)) *monkeyMock_utilsParseProjectNumberFromURI_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_utilsParseProjectNumberFromURI_Call) Return(_a0 string, _a1 error) *monkeyMock_utilsParseProjectNumberFromURI_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_utilsParseProjectNumberFromURI_Call) RunAndReturn(run func(string) (string, error)) *monkeyMock_utilsParseProjectNumberFromURI_Call {
 	_c.Call.Return(run)
 	return _c
 }

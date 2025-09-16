@@ -61,7 +61,7 @@ func TestMapMirrorStateToInternal(t *testing.T) {
 		input    string
 		expected gcpgenserver.VolumeReplicationInternalV1betaMirrorState
 	}{
-		{"Uninitialized", models.OntapUninitialized, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED},
+		{"Uninitialized", models.OntapUninitialized, gcpgenserver.VolumeReplicationInternalV1betaMirrorStatePREPARING},
 		{"BrokenOff", models.OntapBrokenOff, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateSTOPPED},
 		{"Snapmirrored", models.OntapSnapmirrored, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED},
 		{"Unknown", "unknown", ""},
@@ -104,139 +104,203 @@ func TestMapRelationshipStatusToInternal(t *testing.T) {
 }
 
 func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
-	timeNow := time.Now()
-	snapmirrored := models.OntapSnapmirrored
-	snapmirrorRelationshipIdle := models.SnapmirrorRelationshipIdle
-
-	replication := &datamodel.VolumeReplication{
-		BaseModel: datamodel.BaseModel{
-			ID:        123,
-			UUID:      "some-uuid",
-			CreatedAt: timeNow,
-			UpdatedAt: timeNow,
-			DeletedAt: nil,
-		},
-		Name:         "Test Replication",
-		Description:  "Test Description",
-		State:        models.LifeCycleStateCreating,
-		StateDetails: "Test State Details",
-		Uri:          "projects/45110233509/locations/australia-southeast1/volume/godpvolume4/replications/replication-name-6",
-		RemoteUri:    "projects/45110233509/locations/us-east4/volume/gosrcvolume1/replications/replication-name-6",
-		ReplicationAttributes: &datamodel.ReplicationDetails{
-			EndpointType:               "src",
-			ReplicationSchedule:        "daily",
-			SourcePoolUUID:             "source-pool-uuid",
-			SourceVolumeUUID:           "source-volume-uuid",
-			SourceLocation:             "source-location",
-			SourceHostName:             "source-hostname",
-			SourceReplicationUUID:      "source-replication-uuid",
-			SourceSvmName:              "source-svm-name",
-			SourceVolumeName:           "source-volume-name",
-			DestinationPoolUUID:        "destination-pool-uuid",
-			DestinationVolumeUUID:      "destination-volume-uuid",
-			DestinationLocation:        "destination-location",
-			DestinationHostName:        "destination-hostname",
-			DestinationReplicationUUID: "destination-replication-uuid",
-			DestinationSvmName:         "destination-svm-name",
-			DestinationVolumeName:      "destination-volume-name",
-			ExternalUUID:               "external-uuid",
-		},
-		MirrorState:           &snapmirrored,
-		RelationshipStatus:    &snapmirrorRelationshipIdle,
-		TotalProgress:         100,
-		TotalTransferBytes:    1000000,
-		TotalTransferTimeSecs: 3600,
-		LastTransferSize:      500000,
-		LastTransferError:     "no error",
-		LastTransferDuration:  1800,
-		LastTransferEndTime:   &timeNow,
-		ProgressLastUpdated:   &timeNow,
-		LastUpdatedFromOntap:  timeNow,
-		Healthy:               false,
-		UnhealthyReason:       "No issues detected",
-		LagTime:               30,
-		AccountID:             1,
-		VolumeID:              1,
-	}
-
-	result := convertToVolumeReplicationInternalV1Beta(replication)
-
-	if result.VolumeReplicationUuid.Value != replication.UUID {
-		t.Errorf("Expected UUID %s, got %s", replication.UUID, result.VolumeReplicationUuid.Value)
-	}
-	if result.LifeCycleState.Value != gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateCreating {
-		t.Errorf("Expected LifeCycleState %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateCreating, result.LifeCycleState.Value)
-	}
-	if result.LifeCycleStateDetails.Value != replication.StateDetails {
-		t.Errorf("Expected LifeCycleStateDetails %s, got %s", replication.StateDetails, result.LifeCycleStateDetails.Value)
-	}
-	if result.EndpointType != gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeSrc {
-		t.Errorf("Expected EndpointType %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeSrc, result.EndpointType)
-	}
-	if result.SourceHostName != replication.ReplicationAttributes.SourceHostName {
-		t.Errorf("Expected SourceHostName %s, got %s", replication.ReplicationAttributes.SourceHostName, result.SourceHostName)
-	}
-	if result.SourceServerName != replication.ReplicationAttributes.SourceSvmName {
-		t.Errorf("Expected SourceServerName %s, got %s", replication.ReplicationAttributes.SourceSvmName, result.SourceServerName)
-	}
-	if result.SourceVolumeName != replication.ReplicationAttributes.SourceVolumeName {
-		t.Errorf("Expected SourceVolumeName %s, got %s", replication.ReplicationAttributes.SourceVolumeName, result.SourceVolumeName)
-	}
-	if result.DestinationHostName != replication.ReplicationAttributes.DestinationHostName {
-		t.Errorf("Expected DestinationHostName %s, got %s", replication.ReplicationAttributes.DestinationHostName, result.DestinationHostName)
-	}
-	if result.DestinationServerName != replication.ReplicationAttributes.DestinationSvmName {
-		t.Errorf("Expected DestinationServerName %s, got %s", replication.ReplicationAttributes.DestinationSvmName, result.DestinationServerName)
-	}
-	if result.DestinationVolumeName != replication.ReplicationAttributes.DestinationVolumeName {
-		t.Errorf("Expected DestinationVolumeName %s, got %s", replication.ReplicationAttributes.DestinationVolumeName, result.DestinationVolumeName)
-	}
-	if result.DestinationVolumeUuid.Value != replication.ReplicationAttributes.DestinationVolumeUUID {
-		t.Errorf("Expected DestinationVolumeUuid %s, got %s", replication.ReplicationAttributes.DestinationVolumeUUID, result.DestinationVolumeUuid.Value)
-	}
-	if result.Name.Value != replication.Name {
-		t.Errorf("Expected Name %s, got %s", replication.Name, result.Name.Value)
-	}
-	if result.MirrorState.Value != gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED {
-		t.Errorf("Expected MirrorState %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED, result.MirrorState.Value)
-	}
-	if result.RelationshipStatus.Value != gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle {
-		t.Errorf("Expected RelationshipStatus %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle, result.RelationshipStatus.Value)
-	}
-	if result.TotalProgress.Value != replication.TotalProgress {
-		t.Errorf("Expected TotalProgress %d, got %d", replication.TotalProgress, result.TotalProgress.Value)
-	}
-	if result.Healthy.Value != replication.Healthy {
-		t.Errorf("Expected Healthy %t, got %t", replication.Healthy, result.Healthy.Value)
-	}
-	if result.TotalTransferBytes.Value != replication.TotalTransferBytes {
-		t.Errorf("Expected TotalTransferBytes %d, got %d", replication.TotalTransferBytes, result.TotalTransferBytes.Value)
-	}
-	if result.LagTime.Value != replication.LagTime {
-		t.Errorf("Expected LagTime %d, got %d", replication.LagTime, result.LagTime.Value)
-	}
-	if result.LastTransferSize.Value != replication.LastTransferSize {
-		t.Errorf("Expected LastTransferSize %d, got %d", replication.LastTransferSize, result.LastTransferSize.Value)
-	}
-	if result.LastTransferError.Value != replication.LastTransferError {
-		t.Errorf("Expected LastTransferError %s, got %s", replication.LastTransferError, result.LastTransferError.Value)
-	}
-	if result.LastTransferDuration.Value != replication.LastTransferDuration {
-		t.Errorf("Expected LastTransferDuration %d, got %d", replication.LastTransferDuration, result.LastTransferDuration.Value)
-	}
-	if replication.LastTransferEndTime != nil {
-		if result.LastTransferEndTime.Value.Unix() != replication.LastTransferEndTime.Unix() {
-			t.Errorf("Expected LastTransferEndTime %s, got %s", replication.LastTransferEndTime, result.LastTransferEndTime.Value)
+	t.Run("ValidatingMirrorStateConversion", func(t *testing.T) {
+		tests := []struct {
+			name                string
+			replicationStatus   string
+			mirrorState         string
+			expectedMirrorState gcpgenserver.VolumeReplicationInternalV1betaMirrorState
+		}{
+			{
+				name:                "Transferring with Uninitialized Mirror",
+				replicationStatus:   models.SnapmirrorRelationshipTransferring,
+				mirrorState:         models.OntapUninitialized,
+				expectedMirrorState: gcpgenserver.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING,
+			},
+			{
+				name:                "Transferring with Mirrored State",
+				replicationStatus:   models.SnapmirrorRelationshipTransferring,
+				mirrorState:         models.OntapSnapmirrored,
+				expectedMirrorState: gcpgenserver.VolumeReplicationInternalV1betaMirrorStateTRANSFERRING,
+			},
+			{
+				name:                "Idle with Mirrored State",
+				replicationStatus:   models.SnapmirrorRelationshipIdle,
+				mirrorState:         models.OntapSnapmirrored,
+				expectedMirrorState: gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED,
+			},
 		}
-	}
-	if replication.ProgressLastUpdated != nil {
-		if result.ProgressLastUpdated.Value.Unix() != replication.ProgressLastUpdated.Unix() {
-			t.Errorf("Expected ProgressLastUpdated %s, got %s", replication.ProgressLastUpdated, result.ProgressLastUpdated.Value)
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				timeNow := time.Now()
+				replication := &datamodel.VolumeReplication{
+					BaseModel: datamodel.BaseModel{
+						ID:        123,
+						UUID:      "test-uuid",
+						CreatedAt: timeNow,
+						UpdatedAt: timeNow,
+					},
+					Name:  "Test Replication",
+					State: models.LifeCycleStateAvailable,
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						EndpointType:               "src",
+						ReplicationSchedule:        "daily",
+						SourceHostName:             "test-source-host",
+						SourceSvmName:              "test-source-svm",
+						SourceVolumeName:           "test-source-vol",
+						DestinationHostName:        "test-dest-host",
+						DestinationSvmName:         "test-dest-svm",
+						DestinationVolumeName:      "test-dest-vol",
+						DestinationVolumeUUID:      "test-dest-uuid",
+						SourceVolumeUUID:           "test-source-uuid",
+						SourcePoolUUID:             "test-source-pool",
+						DestinationPoolUUID:        "test-dest-pool",
+						SourceLocation:             "test-source-loc",
+						DestinationLocation:        "test-dest-loc",
+						SourceReplicationUUID:      "test-source-repl",
+						DestinationReplicationUUID: "test-dest-repl",
+					},
+					RelationshipStatus: &tt.replicationStatus,
+					MirrorState:        &tt.mirrorState,
+					TotalProgress:      100,
+					Healthy:            true,
+				}
+
+				result := convertToVolumeReplicationInternalV1Beta(replication)
+				if result.MirrorState.Value != tt.expectedMirrorState {
+					t.Errorf("Expected MirrorState %s, got %s", tt.expectedMirrorState, result.MirrorState.Value)
+				}
+			})
 		}
-	}
-	if result.LagTime.Value != replication.LagTime {
-		t.Errorf("Expected LagTime %d, got %d", replication.LagTime, result.LagTime.Value)
-	}
+	})
+
+	t.Run("ValidateFullReplicationObjectConversion", func(t *testing.T) {
+		timeNow := time.Now()
+		snapmirrored := models.OntapSnapmirrored
+		snapmirrorRelationshipIdle := models.SnapmirrorRelationshipIdle
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:        123,
+				UUID:      "some-uuid",
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+			Name:         "Test Replication",
+			Description:  "Test Description",
+			State:        models.LifeCycleStateCreating,
+			StateDetails: "Test State Details",
+			Uri:          "projects/45110233509/locations/australia-southeast1/volume/godpvolume4/replications/replication-name-6",
+			RemoteUri:    "projects/45110233509/locations/us-east4/volume/gosrcvolume1/replications/replication-name-6",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType:               "src",
+				ReplicationSchedule:        "daily",
+				SourcePoolUUID:             "source-pool-uuid",
+				SourceVolumeUUID:           "source-volume-uuid",
+				SourceLocation:             "source-location",
+				SourceHostName:             "source-hostname",
+				SourceReplicationUUID:      "source-replication-uuid",
+				SourceSvmName:              "source-svm-name",
+				SourceVolumeName:           "source-volume-name",
+				DestinationPoolUUID:        "destination-pool-uuid",
+				DestinationVolumeUUID:      "destination-volume-uuid",
+				DestinationLocation:        "destination-location",
+				DestinationHostName:        "destination-hostname",
+				DestinationReplicationUUID: "destination-replication-uuid",
+				DestinationSvmName:         "destination-svm-name",
+				DestinationVolumeName:      "destination-volume-name",
+				ExternalUUID:               "external-uuid",
+			},
+			MirrorState:           &snapmirrored,
+			RelationshipStatus:    &snapmirrorRelationshipIdle,
+			TotalProgress:         100,
+			TotalTransferBytes:    1000000,
+			TotalTransferTimeSecs: 3600,
+			LastTransferSize:      500000,
+			LastTransferError:     "no error",
+			LastTransferDuration:  1800,
+			LastTransferEndTime:   &timeNow,
+			ProgressLastUpdated:   &timeNow,
+			LastUpdatedFromOntap:  timeNow,
+			Healthy:               false,
+			UnhealthyReason:       "No issues detected",
+			LagTime:               30,
+			AccountID:             1,
+			VolumeID:              1,
+		}
+
+		result := convertToVolumeReplicationInternalV1Beta(replication)
+
+		// Basic properties
+		if result.VolumeReplicationUuid.Value != replication.UUID {
+			t.Errorf("Expected UUID %s, got %s", replication.UUID, result.VolumeReplicationUuid.Value)
+		}
+		if result.LifeCycleState.Value != gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateCreating {
+			t.Errorf("Expected LifeCycleState %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateCreating, result.LifeCycleState.Value)
+		}
+		if result.LifeCycleStateDetails.Value != replication.StateDetails {
+			t.Errorf("Expected LifeCycleStateDetails %s, got %s", replication.StateDetails, result.LifeCycleStateDetails.Value)
+		}
+
+		// Endpoint and Host properties
+		if result.EndpointType != gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeSrc {
+			t.Errorf("Expected EndpointType %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeSrc, result.EndpointType)
+		}
+		if result.SourceHostName != replication.ReplicationAttributes.SourceHostName {
+			t.Errorf("Expected SourceHostName %s, got %s", replication.ReplicationAttributes.SourceHostName, result.SourceHostName)
+		}
+		if result.SourceServerName != replication.ReplicationAttributes.SourceSvmName {
+			t.Errorf("Expected SourceServerName %s, got %s", replication.ReplicationAttributes.SourceSvmName, result.SourceServerName)
+		}
+		if result.SourceVolumeName != replication.ReplicationAttributes.SourceVolumeName {
+			t.Errorf("Expected SourceVolumeName %s, got %s", replication.ReplicationAttributes.SourceVolumeName, result.SourceVolumeName)
+		}
+
+		// Destination properties
+		if result.DestinationHostName != replication.ReplicationAttributes.DestinationHostName {
+			t.Errorf("Expected DestinationHostName %s, got %s", replication.ReplicationAttributes.DestinationHostName, result.DestinationHostName)
+		}
+		if result.DestinationServerName != replication.ReplicationAttributes.DestinationSvmName {
+			t.Errorf("Expected DestinationServerName %s, got %s", replication.ReplicationAttributes.DestinationSvmName, result.DestinationServerName)
+		}
+		if result.DestinationVolumeName != replication.ReplicationAttributes.DestinationVolumeName {
+			t.Errorf("Expected DestinationVolumeName %s, got %s", replication.ReplicationAttributes.DestinationVolumeName, result.DestinationVolumeName)
+		}
+		if result.DestinationVolumeUuid.Value != replication.ReplicationAttributes.DestinationVolumeUUID {
+			t.Errorf("Expected DestinationVolumeUuid %s, got %s", replication.ReplicationAttributes.DestinationVolumeUUID, result.DestinationVolumeUuid.Value)
+		}
+
+		// Naming and state properties
+		if result.Name.Value != replication.Name {
+			t.Errorf("Expected Name %s, got %s", replication.Name, result.Name.Value)
+		}
+		if result.MirrorState.Value != gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED {
+			t.Errorf("Expected MirrorState %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED, result.MirrorState.Value)
+		}
+
+		// Progress and status
+		if result.RelationshipStatus.Value != gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle {
+			t.Errorf("Expected RelationshipStatus %s, got %s", gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle, result.RelationshipStatus.Value)
+		}
+		if result.TotalProgress.Value != replication.TotalProgress {
+			t.Errorf("Expected TotalProgress %d, got %d", replication.TotalProgress, result.TotalProgress.Value)
+		}
+		if result.Healthy.Value != replication.Healthy {
+			t.Errorf("Expected Healthy %t, got %t", replication.Healthy, result.Healthy.Value)
+		}
+
+		// Transfer metrics
+		if result.TotalTransferBytes.Value != replication.TotalTransferBytes {
+			t.Errorf("Expected TotalTransferBytes %d, got %d", replication.TotalTransferBytes, result.TotalTransferBytes.Value)
+		}
+		if result.LagTime.Value != replication.LagTime {
+			t.Errorf("Expected LagTime %d, got %d", replication.LagTime, result.LagTime.Value)
+		}
+		if result.LastTransferSize.Value != replication.LastTransferSize {
+			t.Errorf("Expected LastTransferSize %d, got %d", replication.LastTransferSize, result.LastTransferSize.Value)
+		}
+	})
 }
 
 func TestConvertToPoolInternalV1Beta(t *testing.T) {

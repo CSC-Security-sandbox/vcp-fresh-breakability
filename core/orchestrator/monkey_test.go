@@ -1,11 +1,12 @@
 package orchestrator
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"testing"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -22,6 +23,14 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 
 	createFlexCacheVolume = mm.createFlexCacheVolume
 
+	// Volume replication methods
+	getAccountWithName = mm.getAccountWithName
+	utilParseAndValidateRegionAndZone = mm.utilParseAndValidateRegionAndZone
+	utilsGetPairedRegionUri = mm.utilsGetPairedRegionURI
+	authGetSignedJwtToken = mm.authGetSignedJwtToken
+	utilsParseProjectNumberFromURI = mm.utilsParseProjectNumberFromURI
+	getReplicationObjects = mm.getReplicationObjects
+
 	t.Cleanup(func() {
 		utilGetLogger = util.GetLogger
 		utilsGetLocationFromVendorID = utils.GetLocationFromVendorID
@@ -32,6 +41,14 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 		workflowsExecuteWorkflowSequentially = workflows.ExecuteWorkflowSequentially
 
 		createFlexCacheVolume = _createFlexCacheVolume
+
+		// Volume replication methods
+		getAccountWithName = _getAccountWithName
+		utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		utilsGetPairedRegionUri = utils.GetPairedRegionURI
+		authGetSignedJwtToken = auth.GetSignedJwtToken
+		utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		getReplicationObjects = _getReplicationObjects
 	})
 
 	return mm
