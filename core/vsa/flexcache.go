@@ -46,3 +46,21 @@ func (rc *OntapRestProvider) CreateFlexCacheVolume(params CreateFlexCacheVolumeP
 		},
 	}, nil
 }
+
+// DeleteFlexCacheVolume delete a FlexCache volume by calling the ONTAP REST Client
+func (rc *OntapRestProvider) DeleteFlexCacheVolume(volumeUUID, name string) (*OntapAsyncResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+
+	job, err := client.Storage().FlexCacheVolumeDelete(&ontapRest.FlexCacheVolumeDeleteParams{
+		UUID: volumeUUID,
+		Name: name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &OntapAsyncResponse{JobUUID: job.JobUUID}, nil
+}

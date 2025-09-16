@@ -136,6 +136,22 @@ func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 	return nil
 }
 
+func (rc *OntapRestProvider) UnmountVolume(volumeUUID string) (*OntapAsyncResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+
+	jobAccepted, err := client.Storage().VolumeUnmount(&ontapRest.VolumeUnmountParams{
+		UUID: volumeUUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &OntapAsyncResponse{JobUUID: jobAccepted.JobUUID}, nil
+}
+
 // GetVolume returns a volume by calling the ONTAP REST Client
 func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)

@@ -254,7 +254,9 @@ const (
 	ErrorSynchronizingServiceAccountKey = 8007
 
 	// FlexCache specific errors (10000-10999 range)
-	ErrCreatingFlexCacheVolume = 10001
+	ErrCreatingFlexCacheVolume   = 10001
+	ErrUnmountingFlexCacheVolume = 10002
+	ErrDeletingFlexCacheVolume   = 10003
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.

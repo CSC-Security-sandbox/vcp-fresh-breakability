@@ -6,6 +6,8 @@ import (
 	context "context"
 
 	mock "github.com/stretchr/testify/mock"
+	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 
 	vsa "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -79,6 +81,54 @@ func (_c *monkeyMock_hyperscalerGetProviderByNode_Call) Return(_a0 vsa.Provider,
 }
 
 func (_c *monkeyMock_hyperscalerGetProviderByNode_Call) RunAndReturn(run func(context.Context, *models.Node) (vsa.Provider, error)) *monkeyMock_hyperscalerGetProviderByNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// utilGetLogger provides a mock function with given fields: ctx
+func (_m *monkeyMock) utilGetLogger(ctx interface{}) log.Logger {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for utilGetLogger")
+	}
+
+	var r0 log.Logger
+	if rf, ok := ret.Get(0).(func(interface{}) log.Logger); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(log.Logger)
+		}
+	}
+
+	return r0
+}
+
+// monkeyMock_utilGetLogger_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'utilGetLogger'
+type monkeyMock_utilGetLogger_Call struct {
+	*mock.Call
+}
+
+// utilGetLogger is a helper method to define mock.On call
+//   - ctx interface{}
+func (_e *monkeyMock_Expecter) utilGetLogger(ctx interface{}) *monkeyMock_utilGetLogger_Call {
+	return &monkeyMock_utilGetLogger_Call{Call: _e.mock.On("utilGetLogger", ctx)}
+}
+
+func (_c *monkeyMock_utilGetLogger_Call) Run(run func(ctx interface{})) *monkeyMock_utilGetLogger_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(interface{}))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_utilGetLogger_Call) Return(_a0 log.Logger) *monkeyMock_utilGetLogger_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_utilGetLogger_Call) RunAndReturn(run func(interface{}) log.Logger) *monkeyMock_utilGetLogger_Call {
 	_c.Call.Return(run)
 	return _c
 }

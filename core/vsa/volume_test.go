@@ -1371,3 +1371,56 @@ func TestDeleteVolume_WhenVolumeDoesNotExist_ThenReturnNil(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
+
+func TestUnmountVolume(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		accepted := &ontaprest.JobAccepted{JobUUID: ""}
+
+		volumeUUID := "testUUID"
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().VolumeUnmount(mock.Anything).Return(accepted, nil)
+
+		resp, err := rc.UnmountVolume(volumeUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetOntapClientFuncError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		rc := &OntapRestProvider{}
+		errMsg := "client error"
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(nil, errors.New(errMsg))
+
+		resp, err := rc.UnmountVolume("testUUID")
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Contains(tt, err.Error(), errMsg)
+	})
+
+	t.Run("WhenVolumeUnmountError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+		errMsg := "unmount error"
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().VolumeUnmount(mock.Anything).Return(nil, errors.New(errMsg))
+
+		resp, err := rc.UnmountVolume("testUUID")
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Contains(tt, err.Error(), errMsg)
+	})
+}

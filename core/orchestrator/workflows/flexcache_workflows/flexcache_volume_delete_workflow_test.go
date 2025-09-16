@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -62,8 +63,10 @@ func (s *FlexCacheDeleteUnitTestSuite) SetupTest() {
 
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
+	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity)
 	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity)
 }
 
@@ -90,13 +93,19 @@ func (s *FlexCacheDeleteUnitTestSuite) AfterTest() {
 
 func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Success() {
 	volume := CreateTestVolumeForDelete()
-	result := &flexcache.DeleteFlexCacheResult{
-		DBVolume: volume,
-	}
+	unmountJobUuid := "unmount-job-uuid"
+	deleteJobUuid := "delete-job-uuid"
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		UnmountJobResponse: &vsa.OntapAsyncResponse{JobUUID: unmountJobUuid},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, unmountJobUuid, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		DeleteJobResponse: &vsa.OntapAsyncResponse{JobUUID: deleteJobUuid},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, deleteJobUuid, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -121,6 +130,43 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_GetNod
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_UnmountVolumeFailure() {
+	volume := CreateTestVolumeForDelete()
+
+	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{
+		BaseModel:       datamodel.BaseModel{ID: 1},
+		EndpointAddress: "127.0.0.1",
+	}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(errors.New("some_error"))
+	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_UnmountVolumeWaitFailure() {
+	volume := CreateTestVolumeForDelete()
+
+	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{
+		BaseModel:       datamodel.BaseModel{ID: 1},
+		EndpointAddress: "127.0.0.1",
+	}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		UnmountJobResponse: &vsa.OntapAsyncResponse{JobUUID: "unmount-job-uuid"},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "unmount-job-uuid", mock.Anything).Return(nil, errors.New("some_error"))
+	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
 func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_DeleteFlexCacheVolumeFailure() {
 	volume := CreateTestVolumeForDelete()
 
@@ -129,7 +175,29 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Delete
 		BaseModel:       datamodel.BaseModel{ID: 1},
 		EndpointAddress: "127.0.0.1",
 	}}, nil)
-	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, errors.New("some_error"))
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything).Return(nil, errors.New("some_error"))
+	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
+	
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_DeleteFlexCacheVolumeWaitFailure() {
+	volume := CreateTestVolumeForDelete()
+
+	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{
+		BaseModel:       datamodel.BaseModel{ID: 1},
+		EndpointAddress: "127.0.0.1",
+	}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		DeleteJobResponse: &vsa.OntapAsyncResponse{JobUUID: "delete-job-uuid"},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "delete-job-uuid", mock.Anything).Return(nil, errors.New("some_error"))
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -143,7 +211,14 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Delete
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		UnmountJobResponse: &vsa.OntapAsyncResponse{JobUUID: ""},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "", mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		DeleteJobResponse: &vsa.OntapAsyncResponse{JobUUID: ""},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "", mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("some_error"))
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -158,7 +233,14 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Update
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		UnmountJobResponse: &vsa.OntapAsyncResponse{JobUUID: ""},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "", mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		DeleteJobResponse: &vsa.OntapAsyncResponse{JobUUID: ""},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "", mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("some_error"))
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("some_error"))
 
@@ -209,7 +291,14 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Update
 		return errors.New("some_error")
 	})
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		UnmountJobResponse: &vsa.OntapAsyncResponse{JobUUID: ""},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "", mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
+		DeleteJobResponse: &vsa.OntapAsyncResponse{JobUUID: ""},
+	}, nil)
+	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "", mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)

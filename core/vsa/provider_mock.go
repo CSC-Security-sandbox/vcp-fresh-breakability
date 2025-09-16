@@ -1443,6 +1443,65 @@ func (_c *MockProvider_DeleteEkmConfig_Call) RunAndReturn(run func(DeleteKmsConf
 	return _c
 }
 
+// DeleteFlexCacheVolume provides a mock function with given fields: volumeUUID, name
+func (_m *MockProvider) DeleteFlexCacheVolume(volumeUUID string, name string) (*OntapAsyncResponse, error) {
+	ret := _m.Called(volumeUUID, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteFlexCacheVolume")
+	}
+
+	var r0 *OntapAsyncResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (*OntapAsyncResponse, error)); ok {
+		return rf(volumeUUID, name)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *OntapAsyncResponse); ok {
+		r0 = rf(volumeUUID, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapAsyncResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(volumeUUID, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_DeleteFlexCacheVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteFlexCacheVolume'
+type MockProvider_DeleteFlexCacheVolume_Call struct {
+	*mock.Call
+}
+
+// DeleteFlexCacheVolume is a helper method to define mock.On call
+//   - volumeUUID string
+//   - name string
+func (_e *MockProvider_Expecter) DeleteFlexCacheVolume(volumeUUID interface{}, name interface{}) *MockProvider_DeleteFlexCacheVolume_Call {
+	return &MockProvider_DeleteFlexCacheVolume_Call{Call: _e.mock.On("DeleteFlexCacheVolume", volumeUUID, name)}
+}
+
+func (_c *MockProvider_DeleteFlexCacheVolume_Call) Run(run func(volumeUUID string, name string)) *MockProvider_DeleteFlexCacheVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteFlexCacheVolume_Call) Return(_a0 *OntapAsyncResponse, _a1 error) *MockProvider_DeleteFlexCacheVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_DeleteFlexCacheVolume_Call) RunAndReturn(run func(string, string) (*OntapAsyncResponse, error)) *MockProvider_DeleteFlexCacheVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteSVMPeer provides a mock function with given fields: svmPeerUUID, force
 func (_m *MockProvider) DeleteSVMPeer(svmPeerUUID string, force bool) error {
 	ret := _m.Called(svmPeerUUID, force)
@@ -4577,6 +4636,64 @@ func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) Return(_a0 *ontap
 }
 
 func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) RunAndReturn(run func(string, string) (*ontap_rest.SnapmirrorTransfer, error)) *MockProvider_SnapmirrorRelationshipTransferGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnmountVolume provides a mock function with given fields: volumeUUID
+func (_m *MockProvider) UnmountVolume(volumeUUID string) (*OntapAsyncResponse, error) {
+	ret := _m.Called(volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnmountVolume")
+	}
+
+	var r0 *OntapAsyncResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*OntapAsyncResponse, error)); ok {
+		return rf(volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string) *OntapAsyncResponse); ok {
+		r0 = rf(volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapAsyncResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_UnmountVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnmountVolume'
+type MockProvider_UnmountVolume_Call struct {
+	*mock.Call
+}
+
+// UnmountVolume is a helper method to define mock.On call
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) UnmountVolume(volumeUUID interface{}) *MockProvider_UnmountVolume_Call {
+	return &MockProvider_UnmountVolume_Call{Call: _e.mock.On("UnmountVolume", volumeUUID)}
+}
+
+func (_c *MockProvider_UnmountVolume_Call) Run(run func(volumeUUID string)) *MockProvider_UnmountVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UnmountVolume_Call) Return(_a0 *OntapAsyncResponse, _a1 error) *MockProvider_UnmountVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_UnmountVolume_Call) RunAndReturn(run func(string) (*OntapAsyncResponse, error)) *MockProvider_UnmountVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

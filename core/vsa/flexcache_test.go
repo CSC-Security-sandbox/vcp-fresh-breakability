@@ -2,12 +2,13 @@ package vsa
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"testing"
 )
 
 func TestCreateFlexCacheVolume(t *testing.T) {
@@ -117,5 +118,58 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Nil(tt, resp)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "invalid Volume response")
+	})
+}
+
+func TestDeleteFlexCacheVolume(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeUUID := "testUUID"
+		volumeName := "testVolume"
+		accepted := &ontaprest.JobAccepted{JobUUID: ""}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeDelete(mock.Anything).Return(accepted, nil)
+
+		resp, err := rc.DeleteFlexCacheVolume(volumeUUID, volumeName)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetOntapClientFuncError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		rc := &OntapRestProvider{}
+		errMsg := "client error"
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(nil, errors.New(errMsg))
+
+		resp, err := rc.DeleteFlexCacheVolume("uuid", "name")
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Contains(tt, err.Error(), errMsg)
+	})
+
+	t.Run("WhenFlexCacheVolumeDeleteError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+		errMsg := "delete error"
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeDelete(mock.Anything).Return(nil, errors.New(errMsg))
+
+		resp, err := rc.DeleteFlexCacheVolume("uuid", "name")
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Contains(tt, err.Error(), errMsg)
 	})
 }

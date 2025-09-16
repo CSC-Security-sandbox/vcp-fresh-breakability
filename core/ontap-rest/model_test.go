@@ -744,6 +744,27 @@ func TestVolumeModifyParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestVolumeUnmountParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		result := volumeUnmountParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+		assert.Empty(tt, result.UUID)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &VolumeUnmountParams{
+			UUID: "volume-uuid-123",
+		}
+		result := volumeUnmountParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "volume-uuid-123", result.UUID)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.NotNil(tt, result.Info.Nas.Path)
+		assert.Equal(tt, "", *result.Info.Nas.Path)
+	})
+}
+
 func TestLunModifyParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
 		result := lunModifyParamsToONTAP(nil)
@@ -1091,6 +1112,48 @@ func Test_flexCacheVolumeCreateParamsToONTAP(t *testing.T) {
 		assert.Nil(tt, ot.Info)
 	})
 }
+
+func TestFlexCacheVolumeDeleteParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		result := flexCacheVolumeDeleteParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+		assert.Empty(tt, result.UUID)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &FlexCacheVolumeDeleteParams{
+			UUID: "flexcache-uuid-456",
+			Name: "flexcache-vol",
+		}
+		result := flexCacheVolumeDeleteParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "flexcache-uuid-456", result.UUID)
+		assert.NotNil(tt, result.ReturnTimeout)
+		assert.Equal(tt, returnTimeout, *result.ReturnTimeout)
+	})
+}
+
+func TestFlexCacheVolumeDeleteParamsToONTAPCollectionDelete(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		result := flexCacheVolumeDeleteParamsToONTAPCollectionDelete(nil)
+		assert.NotNil(tt, result)
+		assert.Nil(tt, result.Name)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &FlexCacheVolumeDeleteParams{
+			UUID: "flexcache-uuid-789",
+			Name: "flexcache-volume-name",
+		}
+		result := flexCacheVolumeDeleteParamsToONTAPCollectionDelete(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Name)
+		assert.Equal(tt, "flexcache-volume-name", *result.Name)
+		assert.NotNil(tt, result.ReturnTimeout)
+		assert.Equal(tt, returnTimeout, *result.ReturnTimeout)
+	})
+}
+
 func TestIscsiServiceGetParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
 		result := iscsiServiceGetParamsToONTAP(nil)

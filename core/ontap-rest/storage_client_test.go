@@ -88,6 +88,31 @@ func TestVolumeDelete(t *testing.T) {
 	})
 }
 
+func TestVolumeUnmount(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.VolumeUnmount(&VolumeUnmountParams{UUID: "someUUID"})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.VolumeModifyAccepted{
+			Payload: &models.VolumeJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		accepted, err := client.VolumeUnmount(&VolumeUnmountParams{UUID: "someUUID"})
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, accepted.JobUUID, jobUUID)
+	})
+}
+
 func TestVolumeCreate(t *testing.T) {
 	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}
@@ -192,115 +217,6 @@ func TestVolumeCreate(t *testing.T) {
 		client := &storageClient{api: storageAPI}
 		response, job, err := client.VolumeCreate(&VolumeCreateParams{})
 		assert.EqualError(tt, err, "unexpected response from server while creating volume - did not receive exactly one volume")
-		assert.Nil(tt, response)
-		assert.Nil(tt, job)
-	})
-}
-
-func TestFlexCacheCreate(t *testing.T) {
-	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
-		transport := &mockTransport{err: errors.New("something went wrong")}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		response, job, err := client.FlexCacheVolumeCreate(&FlexCacheVolumeCreateParams{})
-		assert.EqualError(tt, err, transport.err.Error())
-		assert.Nil(tt, response)
-		assert.Nil(tt, job)
-	})
-
-	t.Run("WhenResponseHasNoFlexCacheInfo_ThenReturnUnexpectedResponseError", func(tt *testing.T) {
-		transport := &mockTransport{response: &storage.FlexcacheCreateCreated{
-			Payload: &models.FlexcacheJobLinkResponse{
-				Records: []*models.Flexcache{},
-			},
-		}}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		response, job, err := client.FlexCacheVolumeCreate(&FlexCacheVolumeCreateParams{})
-		assert.EqualError(tt, err, "unexpected response from server while creating FlexCache volume - received no FlexCache volume info")
-		assert.Nil(tt, response)
-		assert.Nil(tt, job)
-	})
-
-	t.Run("WhenResponseHasMultipleFlexCaches_ThenReturnUnexpectedResponseError", func(tt *testing.T) {
-		flexName1 := "flexcache1"
-		flexName2 := "flexcache2"
-		transport := &mockTransport{response: &storage.FlexcacheCreateCreated{
-			Payload: &models.FlexcacheJobLinkResponse{
-				Records: []*models.Flexcache{
-					{Name: &flexName1},
-					{Name: &flexName2},
-				},
-			},
-		}}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		response, job, err := client.FlexCacheVolumeCreate(&FlexCacheVolumeCreateParams{})
-		assert.EqualError(tt, err, "unexpected response from server while creating FlexCache volume - did not receive exactly one FlexCache volume")
-		assert.Nil(tt, response)
-		assert.Nil(tt, job)
-	})
-
-	t.Run("WhenSuccessfulWithCreatedResponse_ThenReturnFlexCache", func(tt *testing.T) {
-		flexName := "test-flexcache"
-		transport := &mockTransport{response: &storage.FlexcacheCreateCreated{
-			Payload: &models.FlexcacheJobLinkResponse{
-				Records: []*models.Flexcache{{Name: &flexName}},
-			},
-		}}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		response, job, err := client.FlexCacheVolumeCreate(&FlexCacheVolumeCreateParams{})
-		assert.NoError(tt, err)
-		assert.NotNil(tt, response)
-		assert.Nil(tt, job)
-		assert.Equal(tt, flexName, *response.Name)
-	})
-
-	t.Run("WhenSuccessfulWithAcceptedResponse_ThenReturnFlexCacheAndJob", func(tt *testing.T) {
-		flexName := "test-flexcache"
-		jobUUID := "job-uuid"
-		transport := &mockTransport{response: &storage.FlexcacheCreateAccepted{
-			Payload: &models.FlexcacheJobLinkResponse{
-				Records: []*models.Flexcache{{Name: &flexName}},
-				Job:     &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
-			},
-		}}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		response, job, err := client.FlexCacheVolumeCreate(&FlexCacheVolumeCreateParams{})
-		assert.NoError(tt, err)
-		assert.NotNil(tt, response)
-		assert.NotNil(tt, job)
-		assert.Equal(tt, flexName, *response.Name)
-		assert.Equal(tt, jobUUID, job.JobUUID)
-	})
-
-	t.Run("WhenEmptyRecordsInResponse_ThenThrowError", func(tt *testing.T) {
-		transport := &mockTransport{response: &storage.FlexcacheCreateAccepted{
-			Payload: &models.FlexcacheJobLinkResponse{
-				Records: []*models.Flexcache{},
-			},
-		}}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		response, job, err := client.FlexCacheVolumeCreate(&FlexCacheVolumeCreateParams{})
-		assert.EqualError(tt, err, "unexpected response from server while creating FlexCache volume - received no FlexCache volume info")
-		assert.Nil(tt, response)
-		assert.Nil(tt, job)
-	})
-
-	t.Run("WhenMoreThanOneRecordsInResponse_ThenThrowError", func(tt *testing.T) {
-		flexName := "test-flexcache"
-		transport := &mockTransport{response: &storage.FlexcacheCreateAccepted{
-			Payload: &models.FlexcacheJobLinkResponse{
-				Records: []*models.Flexcache{{Name: &flexName}, {Name: &flexName}},
-			},
-		}}
-		storageAPI := storage.New(transport, nil)
-		client := &storageClient{api: storageAPI}
-		response, job, err := client.FlexCacheVolumeCreate(&FlexCacheVolumeCreateParams{})
-		assert.EqualError(tt, err, "unexpected response from server while creating FlexCache volume - did not receive exactly one FlexCache volume")
 		assert.Nil(tt, response)
 		assert.Nil(tt, job)
 	})

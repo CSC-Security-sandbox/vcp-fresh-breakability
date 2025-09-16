@@ -1318,5 +1318,17 @@
     "message": "Error creating FlexCache volume",
     "retriable": false,
     "http_code": 400
+  },
+  "10002": {
+    "description": "Error unmounting FlexCache volume",
+    "message": "Error unmounting FlexCache volume",
+    "retriable": false,
+    "http_code": 400
+  },
+  "10003": {
+    "description": "Error deleting FlexCache volume",
+    "message": "Error deleting FlexCache volume",
+    "retriable": false,
+    "http_code": 400
   }
 }

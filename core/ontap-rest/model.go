@@ -1234,6 +1234,17 @@ type VolumeUnmountParams struct {
 	UUID string
 }
 
+func volumeUnmountParamsToONTAP(params *VolumeUnmountParams) *storage.VolumeModifyParams {
+	otParams := storage.NewVolumeModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetInfo(&models.Volume{Nas: &models.VolumeInlineNas{Path: nillable.GetStringPtr("")}})
+	return otParams
+}
+
 // VolumeMountParams is the input params struct for tunnelledStorageClient.VolumeMount
 type VolumeMountParams struct {
 	UUID         string
@@ -2115,6 +2126,33 @@ type FlexCacheVolumeCreateParams struct {
 	GlobalFileLockingEnabled *bool
 	Prepopulate              *PrepopulateConfig
 	WritebackEnabled         *bool
+}
+
+type FlexCacheVolumeDeleteParams struct {
+	UUID string
+	Name string
+}
+
+func flexCacheVolumeDeleteParamsToONTAP(params *FlexCacheVolumeDeleteParams) *storage.FlexcacheDeleteParams {
+	otParams := storage.NewFlexcacheDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
+}
+
+func flexCacheVolumeDeleteParamsToONTAPCollectionDelete(params *FlexCacheVolumeDeleteParams) *storage.FlexcacheDeleteCollectionParams {
+	otParams := storage.NewFlexcacheDeleteCollectionParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetName(&params.Name)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
 }
 
 type PrepopulateConfig struct {

@@ -1,6 +1,7 @@
 package flexcache_workflows
 
 import (
+	"fmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -13,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+	"time"
 )
 
 type flexCacheVolumeDeleteWorkflow struct {
@@ -116,14 +118,35 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
 
-	flexcacheResult := flexcache.DeleteFlexCacheResult{
+	flexCacheResult := flexcache.DeleteFlexCacheResult{
 		DBVolume: dbVolume,
 		Node:     node,
 	}
 
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	err = workflow.ExecuteActivity(ctx, deleteActivity.UnmountVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	// If the volume was never created in ontap, there will be no unmount job to wait for
+	if flexCacheResult.UnmountJobResponse != nil {
+		err = workflows.WaitForONTAPJob(ctx, flexCacheResult.UnmountJobResponse, node, time.Minute*10)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to unmount volume: %w", err))
+		}
+	}
+
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteFlexCacheVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	// If the volume was never created in ontap, there will be no delete job to wait for
+	if flexCacheResult.DeleteJobResponse != nil {
+		err = workflows.WaitForONTAPJob(ctx, flexCacheResult.DeleteJobResponse, node, time.Minute*10)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to delete FlexCache volume: %w", err))
+		}
 	}
 
 	err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteVolume, &dbVolume).Get(ctx, nil)

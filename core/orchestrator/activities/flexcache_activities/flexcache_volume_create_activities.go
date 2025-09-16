@@ -17,12 +17,13 @@ type FlexCacheVolumeCreateActivity struct {
 }
 
 var (
+	utilGetLogger                = util.GetLogger
 	hyperscalerGetProviderByNode = hyperscaler.GetProviderByNode
 )
 
 // CreateFlexCacheVolumeInOntapActivity creates a FlexCache volume in ONTAP
 func (a FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
-	logger := util.GetLogger(ctx)
+	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 	cacheParams := volume.CacheParameters
 	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)

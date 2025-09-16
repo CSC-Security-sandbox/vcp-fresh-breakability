@@ -31,7 +31,9 @@ type Provider interface {
 	CreateNetworkIpRoute(params CreateNetworkIPRouteParams) error
 	CreateVolume(params CreateVolumeParams) (*VolumeResponse, error)
 	CreateFlexCacheVolume(params CreateFlexCacheVolumeParams) (*VolumeResponse, error)
+	UnmountVolume(volumeUUID string) (*OntapAsyncResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
+	DeleteFlexCacheVolume(volumeUUID, name string) (*OntapAsyncResponse, error)
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumes() ([]*Volume, error)

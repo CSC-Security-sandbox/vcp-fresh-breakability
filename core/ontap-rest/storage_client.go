@@ -36,6 +36,8 @@ type StorageClient interface {
 	VolumeCreate(params *VolumeCreateParams) (*Volume, *JobAccepted, error)
 	FlexCacheVolumeCreate(params *FlexCacheVolumeCreateParams) (*Flexcache, *JobAccepted, error)
 	VolumeDelete(params *VolumeDeleteParams) error
+	VolumeUnmount(params *VolumeUnmountParams) (*JobAccepted, error)
+	FlexCacheVolumeDelete(params *FlexCacheVolumeDeleteParams) (*JobAccepted, error)
 
 	SnapshotCreate(params *SnapshotCreateParams) (*Snapshot, *JobAccepted, error)
 	SnapshotGet(params *SnapshotGetParams) (*Snapshot, error)
@@ -453,39 +455,6 @@ func (sc *storageClient) VolumeCreate(params *VolumeCreateParams) (*Volume, *Job
 	}, nil
 }
 
-// FlexCacheVolumeCreate invokes pkg/ontap-rest/client/storage/Client.VolumeCreate
-func (sc *storageClient) FlexCacheVolumeCreate(params *FlexCacheVolumeCreateParams) (*Flexcache, *JobAccepted, error) {
-	created, accepted, err := sc.api.FlexcacheCreate(flexCacheVolumeCreateParamsToONTAP(params), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	noInfoError := "unexpected response from server while creating FlexCache volume - received no FlexCache volume info"
-	notExactlyOneError := "unexpected response from server while creating FlexCache volume - did not receive exactly one FlexCache volume"
-	if created != nil {
-		if len(created.Payload.Records) == 0 {
-			return nil, nil, errors.New(noInfoError)
-		}
-
-		if len(created.Payload.Records) > 1 {
-			return nil, nil, errors.New(notExactlyOneError)
-		}
-		return &Flexcache{Flexcache: *created.Payload.Records[0]}, nil, nil
-	}
-
-	if len(accepted.Payload.Records) == 0 {
-		return nil, nil, errors.New(noInfoError)
-	}
-
-	if len(accepted.Payload.Records) > 1 {
-		return nil, nil, errors.New(notExactlyOneError)
-	}
-
-	return &Flexcache{Flexcache: *accepted.Payload.Records[0]}, &JobAccepted{
-		JobUUID: string(*accepted.Payload.Job.UUID),
-	}, nil
-}
-
 // VolumeDelete invokes pkg/ontap-rest/client/storage/Client.VolumeDelete to delete Volume
 func (sc *storageClient) VolumeDelete(params *VolumeDeleteParams) error {
 	if params.UUID != "" {
@@ -499,6 +468,19 @@ func (sc *storageClient) VolumeDelete(params *VolumeDeleteParams) error {
 
 	_, _, err := sc.api.VolumeDeleteCollection(volumeDeleteParamsToONTAPCollectionDelete(params), nil)
 	return err
+}
+
+// VolumeUnmount invokes pkg/ontap-rest/client/storage/Client.VolumeModify to unmount a volume
+func (sc *storageClient) VolumeUnmount(params *VolumeUnmountParams) (*JobAccepted, error) {
+	_, accepted, err := sc.api.VolumeModify(volumeUnmountParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	job := &JobAccepted{
+		JobUUID: accepted.Payload.Job.UUID.String(),
+	}
+	return job, nil
 }
 
 // SnapshotCreate invokes pkg/ontap-rest/client/storage/Client.CreateSnapshot to create Snapshot in a volume

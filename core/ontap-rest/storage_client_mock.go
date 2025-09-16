@@ -318,6 +318,64 @@ func (_c *MockStorageClient_FlexCacheVolumeCreate_Call) RunAndReturn(run func(*F
 	return _c
 }
 
+// FlexCacheVolumeDelete provides a mock function with given fields: params
+func (_m *MockStorageClient) FlexCacheVolumeDelete(params *FlexCacheVolumeDeleteParams) (*JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FlexCacheVolumeDelete")
+	}
+
+	var r0 *JobAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*FlexCacheVolumeDeleteParams) (*JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*FlexCacheVolumeDeleteParams) *JobAccepted); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*FlexCacheVolumeDeleteParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_FlexCacheVolumeDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FlexCacheVolumeDelete'
+type MockStorageClient_FlexCacheVolumeDelete_Call struct {
+	*mock.Call
+}
+
+// FlexCacheVolumeDelete is a helper method to define mock.On call
+//   - params *FlexCacheVolumeDeleteParams
+func (_e *MockStorageClient_Expecter) FlexCacheVolumeDelete(params interface{}) *MockStorageClient_FlexCacheVolumeDelete_Call {
+	return &MockStorageClient_FlexCacheVolumeDelete_Call{Call: _e.mock.On("FlexCacheVolumeDelete", params)}
+}
+
+func (_c *MockStorageClient_FlexCacheVolumeDelete_Call) Run(run func(params *FlexCacheVolumeDeleteParams)) *MockStorageClient_FlexCacheVolumeDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*FlexCacheVolumeDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_FlexCacheVolumeDelete_Call) Return(_a0 *JobAccepted, _a1 error) *MockStorageClient_FlexCacheVolumeDelete_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_FlexCacheVolumeDelete_Call) RunAndReturn(run func(*FlexCacheVolumeDeleteParams) (*JobAccepted, error)) *MockStorageClient_FlexCacheVolumeDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // QoSPolicyGroupCreate provides a mock function with given fields: params
 func (_m *MockStorageClient) QoSPolicyGroupCreate(params *QoSPolicyGroupCreateParams) (*QosPolicy, *JobAccepted, error) {
 	ret := _m.Called(params)
@@ -1591,6 +1649,64 @@ func (_c *MockStorageClient_VolumeModify_Call) Return(_a0 bool, _a1 *JobAccepted
 }
 
 func (_c *MockStorageClient_VolumeModify_Call) RunAndReturn(run func(*VolumeModifyParams) (bool, *JobAccepted, error)) *MockStorageClient_VolumeModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VolumeUnmount provides a mock function with given fields: params
+func (_m *MockStorageClient) VolumeUnmount(params *VolumeUnmountParams) (*JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VolumeUnmount")
+	}
+
+	var r0 *JobAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeUnmountParams) (*JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeUnmountParams) *JobAccepted); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeUnmountParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_VolumeUnmount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VolumeUnmount'
+type MockStorageClient_VolumeUnmount_Call struct {
+	*mock.Call
+}
+
+// VolumeUnmount is a helper method to define mock.On call
+//   - params *VolumeUnmountParams
+func (_e *MockStorageClient_Expecter) VolumeUnmount(params interface{}) *MockStorageClient_VolumeUnmount_Call {
+	return &MockStorageClient_VolumeUnmount_Call{Call: _e.mock.On("VolumeUnmount", params)}
+}
+
+func (_c *MockStorageClient_VolumeUnmount_Call) Run(run func(params *VolumeUnmountParams)) *MockStorageClient_VolumeUnmount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeUnmountParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_VolumeUnmount_Call) Return(_a0 *JobAccepted, _a1 error) *MockStorageClient_VolumeUnmount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_VolumeUnmount_Call) RunAndReturn(run func(*VolumeUnmountParams) (*JobAccepted, error)) *MockStorageClient_VolumeUnmount_Call {
 	_c.Call.Return(run)
 	return _c
 }

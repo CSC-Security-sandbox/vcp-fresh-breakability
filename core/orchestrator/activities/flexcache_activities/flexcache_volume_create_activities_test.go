@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T) {
@@ -28,6 +29,7 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 
 	t.Run("Success", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
 		mockProvider := vsa.NewMockProvider(tt)
 		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
 		ctx := context.Background()
@@ -42,8 +44,10 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 			},
 		}
 
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
 		mockProvider.EXPECT().CreateFlexCacheVolume(mock.Anything).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume created successfully")
 
 		newResult, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
 
@@ -53,12 +57,14 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 
 	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
 		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
 		ctx := context.Background()
 		flexcacheResult := &flexcache.CreateFlexCacheResult{
 			DBVolume: dbVolume,
 		}
 
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(nil, assert.AnError)
 
 		_, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
@@ -68,6 +74,7 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 
 	t.Run("WhenCreateFlexCacheVolumeFails", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
 		mockProvider := vsa.NewMockProvider(tt)
 		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
 		ctx := context.Background()
@@ -75,6 +82,7 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 			DBVolume: dbVolume,
 		}
 
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
 		mockProvider.EXPECT().CreateFlexCacheVolume(mock.Anything).Return(nil, assert.AnError)
 

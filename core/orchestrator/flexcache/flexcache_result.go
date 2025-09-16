@@ -13,6 +13,8 @@ type CreateFlexCacheResult struct {
 }
 
 type DeleteFlexCacheResult struct {
-	DBVolume *datamodel.Volume
-	Node     *models.Node
+	DBVolume           *datamodel.Volume
+	Node               *models.Node
+	UnmountJobResponse *vsa.OntapAsyncResponse
+	DeleteJobResponse  *vsa.OntapAsyncResponse
 }
