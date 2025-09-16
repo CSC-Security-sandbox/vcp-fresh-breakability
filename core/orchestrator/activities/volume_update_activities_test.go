@@ -226,6 +226,7 @@ func TestUpdateLun_Success(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
 				LunUUID: "lun-uuid-123",
+				LunName: "lun_test-volume",
 			},
 		},
 	}
@@ -269,7 +270,7 @@ func TestUpdateLunWithBD_Success(t *testing.T) {
 		Svm:  &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockDevices: &[]datamodel.BlockDevice{
-				{LunUUID: "lun-uuid-123"},
+				{LunUUID: "lun-uuid-123", Name: "lun_test-volume"},
 			},
 		},
 	}
@@ -314,6 +315,7 @@ func TestUpdateLun_Failure(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
 				LunUUID: "lun-uuid-123",
+				LunName: "lun_test-volume",
 			},
 		},
 	}
@@ -401,6 +403,7 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
 				LunUUID: "lun-uuid-123",
+				LunName: "lun_test-volume",
 			},
 		},
 	}

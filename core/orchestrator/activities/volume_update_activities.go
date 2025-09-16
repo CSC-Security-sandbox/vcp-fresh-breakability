@@ -111,12 +111,15 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	lunName := utils.GetLunName(volume.Name)
+	
 	var lunUUID string
+	var lunName string
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
 		lunUUID = (*volume.VolumeAttributes.BlockDevices)[0].LunUUID
+		lunName = (*volume.VolumeAttributes.BlockDevices)[0].Name
 	} else if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockProperties != nil {
 		lunUUID = volume.VolumeAttributes.BlockProperties.LunUUID
+		lunName = volume.VolumeAttributes.BlockProperties.LunName
 	}
 	err = provider.LunUpdate(vsa.LunUpdateParams{
 		// Set the necessary parameters for updating the volume

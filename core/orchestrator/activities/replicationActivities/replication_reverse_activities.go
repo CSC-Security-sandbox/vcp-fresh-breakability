@@ -273,7 +273,7 @@ func (a *ReverseVolumeReplicationActivity) VerifyNewDstVolume(ctx context.Contex
 	return result, nil
 }
 
-func (a *ReverseVolumeReplicationActivity) ResizeNewDstVolumeIfNeeded(ctx context.Context, result *replication.ReverseReplicationResult) error {
+func (a *ReverseVolumeReplicationActivity) ResizeNewDstVolumeIfNeeded(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("resizeNewDstVolumeIfNeeded")
 
@@ -285,11 +285,49 @@ func (a *ReverseVolumeReplicationActivity) ResizeNewDstVolumeIfNeeded(ctx contex
 	if result.NewDstVolume.QuotaInBytes.Set {
 		dstVolumeQuota = result.NewDstVolume.QuotaInBytes.Value
 	}
-	if srcVolumeQuota != dstVolumeQuota {
-		// TODO: Resize the destination volume
-		logger.Debugf("Resizing destination volume from %f to %f", dstVolumeQuota, srcVolumeQuota)
+	if srcVolumeQuota > dstVolumeQuota {
+		logger.Debugf("Resizing new destination volume from %f to %f", dstVolumeQuota, srcVolumeQuota)
+		updateRequest := &googleproxyclient.VolumeUpdateV1beta{
+			QuotaInBytes: googleproxyclient.NewOptNilFloat64(srcVolumeQuota),
+		}
+		// resize the new destination volume (original source)
+		updateVolumeParams := &googleproxyclient.V1betaInternalUpdateVolumeParams{
+			ProjectNumber:  *result.SrcProjectNumber,
+			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+			VolumeId:       result.Event.ReplicationModel.ReplicationAttributes.SourceVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*result.Event.XCorrelationID),
+		}
+
+		googleProxyClient := googleproxyclient.GetGProxyClient(*result.SrcBasePath, *result.SrcJwtToken, logger)
+		res, err := googleProxyClient.Invoker.V1betaInternalUpdateVolume(ctx, updateRequest, *updateVolumeParams)
+		if err != nil {
+			logger.Errorf("Failed to resize destination volume: %v", err)
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, err)
+		}
+
+		switch r := res.(type) {
+		case *googleproxyclient.OperationV1beta:
+			jobId := ""
+			parts := strings.Split(r.Name.Value, "/")
+			jobId = parts[len(parts)-1]
+			result.JobId = &jobId
+			return result, nil
+		case *googleproxyclient.V1betaInternalUpdateVolumeBadRequest:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		case *googleproxyclient.V1betaInternalUpdateVolumeUnauthorized:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		case *googleproxyclient.V1betaInternalUpdateVolumeForbidden:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		case *googleproxyclient.V1betaInternalUpdateVolumeNotFound:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		case *googleproxyclient.V1betaInternalUpdateVolumeInternalServerError:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New(r.Message))
+		default:
+			return result, errors.NewVCPError(errors.ErrGoogleProxyInternalUpdateVolume, errors.New("unexpected response type from Google Proxy"))
+		}
 	}
-	return nil
+
+	return nil, nil
 }
 
 func (a *ReverseVolumeReplicationActivity) CleanupOldReplication(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
