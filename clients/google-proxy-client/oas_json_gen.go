@@ -14911,6 +14911,18 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.HotTierConsumption.Set {
+			e.FieldStart("hotTierConsumption")
+			s.HotTierConsumption.Encode(e)
+		}
+	}
+	{
+		if s.ColdTierConsumption.Set {
+			e.FieldStart("coldTierConsumption")
+			s.ColdTierConsumption.Encode(e)
+		}
+	}
+	{
 		if s.ClusterName.Set {
 			e.FieldStart("clusterName")
 			s.ClusterName.Encode(e)
@@ -14928,7 +14940,7 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [43]string{
+var jsonFieldsNameOfPoolInternalV1beta = [45]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -14970,8 +14982,10 @@ var jsonFieldsNameOfPoolInternalV1beta = [43]string{
 	38: "unified",
 	39: "unifiedPool",
 	40: "largeCapacity",
-	41: "clusterName",
-	42: "interclusterLifs",
+	41: "hotTierConsumption",
+	42: "coldTierConsumption",
+	43: "clusterName",
+	44: "interclusterLifs",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -15399,6 +15413,26 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"largeCapacity\"")
+			}
+		case "hotTierConsumption":
+			if err := func() error {
+				s.HotTierConsumption.Reset()
+				if err := s.HotTierConsumption.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hotTierConsumption\"")
+			}
+		case "coldTierConsumption":
+			if err := func() error {
+				s.ColdTierConsumption.Reset()
+				if err := s.ColdTierConsumption.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"coldTierConsumption\"")
 			}
 		case "clusterName":
 			if err := func() error {
@@ -16362,9 +16396,21 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 			s.LargeCapacity.Encode(e)
 		}
 	}
+	{
+		if s.HotTierConsumption.Set {
+			e.FieldStart("hotTierConsumption")
+			s.HotTierConsumption.Encode(e)
+		}
+	}
+	{
+		if s.ColdTierConsumption.Set {
+			e.FieldStart("coldTierConsumption")
+			s.ColdTierConsumption.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfPoolV1beta = [41]string{
+var jsonFieldsNameOfPoolV1beta = [43]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -16406,6 +16452,8 @@ var jsonFieldsNameOfPoolV1beta = [41]string{
 	38: "unified",
 	39: "unifiedPool",
 	40: "largeCapacity",
+	41: "hotTierConsumption",
+	42: "coldTierConsumption",
 }
 
 // Decode decodes PoolV1beta from json.
@@ -16833,6 +16881,26 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"largeCapacity\"")
+			}
+		case "hotTierConsumption":
+			if err := func() error {
+				s.HotTierConsumption.Reset()
+				if err := s.HotTierConsumption.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hotTierConsumption\"")
+			}
+		case "coldTierConsumption":
+			if err := func() error {
+				s.ColdTierConsumption.Reset()
+				if err := s.ColdTierConsumption.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"coldTierConsumption\"")
 			}
 		default:
 			return d.Skip()

@@ -52,6 +52,12 @@ type PoolV1beta struct {
 	// Read Only: true
 	AvailableThroughputMibps *float64 `json:"availableThroughputMibps,omitempty"`
 
+	// coldTierConsumption
+	//
+	// Total StoragePool Coldtier usages.
+	// Read Only: true
+	ColdTierConsumption *int64 `json:"coldTierConsumption,omitempty"`
+
 	// createdAt
 	//
 	// Creation date of the resource
@@ -102,6 +108,12 @@ type PoolV1beta struct {
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	HostUUID string `json:"hostUUID,omitempty"`
+
+	// hotTierConsumption
+	//
+	// Total StoragePool Hottier usages.
+	// Read Only: true
+	HotTierConsumption *int64 `json:"hotTierConsumption,omitempty"`
 
 	// hotTierSizeInBytes
 	//

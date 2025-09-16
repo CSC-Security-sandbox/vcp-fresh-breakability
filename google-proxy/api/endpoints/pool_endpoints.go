@@ -733,11 +733,6 @@ func convertToPoolsV1beta(pools []*cvpmodels.PoolV1beta) []gcpgenserver.PoolV1be
 }
 
 func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
-	var deletedAt time.Time
-	if pool.DeletedAt != nil {
-		deletedAt = time.Time(*pool.DeletedAt)
-	}
-
 	var assetLocationMetadata gcpgenserver.PoolV1betaAssetLocationMetadata
 	if pool.AssetLocationMetadata != nil {
 		var assets []gcpgenserver.ChildAsset
@@ -756,7 +751,7 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		PoolId:                    gcpgenserver.NewOptString(pool.PoolID),
 		CreatedAt:                 gcpgenserver.NewOptDateTime(time.Time(pool.CreatedAt)),
 		UpdatedAt:                 gcpgenserver.NewOptDateTime(time.Time(pool.UpdatedAt)),
-		DeletedAt:                 gcpgenserver.NewOptNilDateTime(deletedAt),
+		DeletedAt:                 utils.SafeTime(pool.DeletedAt),
 		ResourceId:                *pool.ResourceID,
 		Network:                   *pool.Network,
 		AllocatedBytes:            utils.SafeFloat64(pool.AllocatedBytes),
@@ -789,9 +784,11 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		SatisfiesPzs:              utils.SafeBool(pool.SatisfiesPzs),
 		AssetLocationMetadata:     gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata),
 		// Unified Pool is set false for SDE pools
-		Type:        gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeFILE),
-		UnifiedPool: gcpgenserver.NewOptBool(false),
-		Unified:     gcpgenserver.NewOptBool(false),
+		Type:                gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeFILE),
+		UnifiedPool:         gcpgenserver.NewOptBool(false),
+		Unified:             gcpgenserver.NewOptBool(false),
+		HotTierConsumption:  utils.SafeInt64(pool.HotTierConsumption),
+		ColdTierConsumption: utils.SafeInt64(pool.ColdTierConsumption),
 	}
 }
 

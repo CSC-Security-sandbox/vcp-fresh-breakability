@@ -9300,6 +9300,24 @@ definitions:
         title: isHyperdiskAvailable
         description: Flag indicating if region has C4/hyperdisk machines.
         x-nullable: true
+      hotTierConsumption:
+        title: hotTierConsumption
+        type: integer
+        format: int64
+        readOnly: true
+        description: Total StoragePool Hottier usages.
+        example: 4000000000000
+        x-nullable: true
+        x-omitempty: true
+      coldTierConsumption:
+        title: coldTierConsumption
+        type: integer
+        format: int64
+        readOnly: true
+        description: Total StoragePool Coldtier usages.
+        example: 4000000000000
+        x-nullable: true
+        x-omitempty: true
   ChildAsset:
     type: object
     title: child_asset

@@ -11504,6 +11504,10 @@ type PoolInternalV1beta struct {
 	UnifiedPool OptBool `json:"unifiedPool"`
 	// Indicates if the pool is a large capacity pool.
 	LargeCapacity OptBool `json:"largeCapacity"`
+	// Total StoragePool Hottier usages.
+	HotTierConsumption OptNilInt64 `json:"hotTierConsumption"`
+	// Total StoragePool Coldtier usages.
+	ColdTierConsumption OptNilInt64 `json:"coldTierConsumption"`
 	// The name of the cluster.
 	ClusterName OptString `json:"clusterName"`
 	// Intercluster Lifs.
@@ -11713,6 +11717,16 @@ func (s *PoolInternalV1beta) GetUnifiedPool() OptBool {
 // GetLargeCapacity returns the value of LargeCapacity.
 func (s *PoolInternalV1beta) GetLargeCapacity() OptBool {
 	return s.LargeCapacity
+}
+
+// GetHotTierConsumption returns the value of HotTierConsumption.
+func (s *PoolInternalV1beta) GetHotTierConsumption() OptNilInt64 {
+	return s.HotTierConsumption
+}
+
+// GetColdTierConsumption returns the value of ColdTierConsumption.
+func (s *PoolInternalV1beta) GetColdTierConsumption() OptNilInt64 {
+	return s.ColdTierConsumption
 }
 
 // GetClusterName returns the value of ClusterName.
@@ -11928,6 +11942,16 @@ func (s *PoolInternalV1beta) SetUnifiedPool(val OptBool) {
 // SetLargeCapacity sets the value of LargeCapacity.
 func (s *PoolInternalV1beta) SetLargeCapacity(val OptBool) {
 	s.LargeCapacity = val
+}
+
+// SetHotTierConsumption sets the value of HotTierConsumption.
+func (s *PoolInternalV1beta) SetHotTierConsumption(val OptNilInt64) {
+	s.HotTierConsumption = val
+}
+
+// SetColdTierConsumption sets the value of ColdTierConsumption.
+func (s *PoolInternalV1beta) SetColdTierConsumption(val OptNilInt64) {
+	s.ColdTierConsumption = val
 }
 
 // SetClusterName sets the value of ClusterName.
@@ -12475,6 +12499,10 @@ type PoolV1beta struct {
 	UnifiedPool OptBool `json:"unifiedPool"`
 	// Indicates if the pool is a large capacity pool.
 	LargeCapacity OptBool `json:"largeCapacity"`
+	// Total StoragePool Hottier usages.
+	HotTierConsumption OptNilInt64 `json:"hotTierConsumption"`
+	// Total StoragePool Coldtier usages.
+	ColdTierConsumption OptNilInt64 `json:"coldTierConsumption"`
 }
 
 // GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
@@ -12682,6 +12710,16 @@ func (s *PoolV1beta) GetLargeCapacity() OptBool {
 	return s.LargeCapacity
 }
 
+// GetHotTierConsumption returns the value of HotTierConsumption.
+func (s *PoolV1beta) GetHotTierConsumption() OptNilInt64 {
+	return s.HotTierConsumption
+}
+
+// GetColdTierConsumption returns the value of ColdTierConsumption.
+func (s *PoolV1beta) GetColdTierConsumption() OptNilInt64 {
+	return s.ColdTierConsumption
+}
+
 // SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
 func (s *PoolV1beta) SetActiveDirectoryConfigId(val OptNilString) {
 	s.ActiveDirectoryConfigId = val
@@ -12885,6 +12923,16 @@ func (s *PoolV1beta) SetUnifiedPool(val OptBool) {
 // SetLargeCapacity sets the value of LargeCapacity.
 func (s *PoolV1beta) SetLargeCapacity(val OptBool) {
 	s.LargeCapacity = val
+}
+
+// SetHotTierConsumption sets the value of HotTierConsumption.
+func (s *PoolV1beta) SetHotTierConsumption(val OptNilInt64) {
+	s.HotTierConsumption = val
+}
+
+// SetColdTierConsumption sets the value of ColdTierConsumption.
+func (s *PoolV1beta) SetColdTierConsumption(val OptNilInt64) {
+	s.ColdTierConsumption = val
 }
 
 func (*PoolV1beta) v1betaDescribePoolRes() {}

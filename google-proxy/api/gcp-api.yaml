@@ -7150,6 +7150,24 @@ components:
           description: Indicates if the pool is a large capacity pool
           default: false
           example: false
+        hotTierConsumption:
+          title: hotTierConsumption
+          type: integer
+          format: int64
+          readOnly: true
+          description: Total StoragePool Hottier usages.
+          example: 4000000000000
+          nullable: true
+          x-omitempty: true
+        coldTierConsumption:
+          title: coldTierConsumption
+          type: integer
+          format: int64
+          readOnly: true
+          description: Total StoragePool Coldtier usages.
+          example: 4000000000000
+          nullable: true
+          x-omitempty: true
     Volume_v1beta:
       title: Volume v1beta model definition
       required:

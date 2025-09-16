@@ -3413,6 +3413,16 @@ func (s *PoolInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.HotTierConsumption.SetFake()
+		}
+	}
+	{
+		{
+			s.ColdTierConsumption.SetFake()
+		}
+	}
+	{
+		{
 			s.ClusterName.SetFake()
 		}
 	}
@@ -3755,6 +3765,16 @@ func (s *PoolV1beta) SetFake() {
 	{
 		{
 			s.LargeCapacity.SetFake()
+		}
+	}
+	{
+		{
+			s.HotTierConsumption.SetFake()
+		}
+	}
+	{
+		{
+			s.ColdTierConsumption.SetFake()
 		}
 	}
 }
