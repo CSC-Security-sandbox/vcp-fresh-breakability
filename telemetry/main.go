@@ -1,17 +1,14 @@
 package main
 
 import (
-	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/usage"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
@@ -19,12 +16,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/endpoints"
 	coreapiserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	metricscommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/usage"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
@@ -94,7 +94,7 @@ func main() {
 	cfg := common.LoadConfig()
 	// Setup HTTP server with proper timeouts
 	httpServer := &http.Server{
-		Addr:              "localhost:" + cfg.MetricsServerPort,
+		Addr:              ":" + cfg.MetricsServerPort,
 		Handler:           mux,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
