@@ -3262,6 +3262,66 @@ func (_c *MockDataStore_GetAccountByUUID_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// GetAccounts provides a mock function with given fields: ctx, includeDelete, pagination
+func (_m *MockDataStore) GetAccounts(ctx context.Context, includeDelete bool, pagination *utils.Pagination) ([]*datamodel.Account, error) {
+	ret := _m.Called(ctx, includeDelete, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAccounts")
+	}
+
+	var r0 []*datamodel.Account
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, bool, *utils.Pagination) ([]*datamodel.Account, error)); ok {
+		return rf(ctx, includeDelete, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, bool, *utils.Pagination) []*datamodel.Account); ok {
+		r0 = rf(ctx, includeDelete, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Account)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, bool, *utils.Pagination) error); ok {
+		r1 = rf(ctx, includeDelete, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetAccounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAccounts'
+type MockDataStore_GetAccounts_Call struct {
+	*mock.Call
+}
+
+// GetAccounts is a helper method to define mock.On call
+//   - ctx context.Context
+//   - includeDelete bool
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) GetAccounts(ctx interface{}, includeDelete interface{}, pagination interface{}) *MockDataStore_GetAccounts_Call {
+	return &MockDataStore_GetAccounts_Call{Call: _e.mock.On("GetAccounts", ctx, includeDelete, pagination)}
+}
+
+func (_c *MockDataStore_GetAccounts_Call) Run(run func(ctx context.Context, includeDelete bool, pagination *utils.Pagination)) *MockDataStore_GetAccounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(bool), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetAccounts_Call) Return(_a0 []*datamodel.Account, _a1 error) *MockDataStore_GetAccounts_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetAccounts_Call) RunAndReturn(run func(context.Context, bool, *utils.Pagination) ([]*datamodel.Account, error)) *MockDataStore_GetAccounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAdminJobSpecByJobType provides a mock function with given fields: ctx, jobType
 func (_m *MockDataStore) GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error) {
 	ret := _m.Called(ctx, jobType)

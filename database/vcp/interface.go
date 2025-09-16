@@ -91,6 +91,7 @@ type (
 		GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
 		CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)
 		GetAccountByUUID(ctx context.Context, uuid string) (*datamodel.Account, error)
+		GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error)
 
 		CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
 		DeleteJob(ctx context.Context, id, errorDetails string) error

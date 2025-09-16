@@ -1074,3 +1074,7 @@ func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, pref
 func (s *PersistenceStore) ListTpProjects(ctx context.Context) ([]string, error) {
 	return s.dataStore.ListTpProjects(ctx)
 }
+
+func (s *PersistenceStore) GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
+	return s.dataStore.GetAccounts(ctx, includeDelete, pagination)
+}

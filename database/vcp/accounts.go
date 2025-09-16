@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -24,6 +25,15 @@ func (d *DataStoreRepository) GetAccountByUUID(ctx context.Context, uuid string)
 // CreateAccount creates a new account in the database
 func (d *DataStoreRepository) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	return createAccount(d.db.GORM().WithContext(ctx), account)
+}
+
+// GetAccounts retrieves a list of accounts with pagination support
+func (d *DataStoreRepository) GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
+	db := d.db.GORM().WithContext(ctx)
+	if includeDelete {
+		db = d.db.GORM().Unscoped().WithContext(ctx)
+	}
+	return getAccounts(db, pagination)
 }
 
 // getAccount retrieves an account by the query
@@ -53,4 +63,13 @@ func createAccount(db *gorm.DB, account *datamodel.Account) (*datamodel.Account,
 		return account, nil
 	}
 	return nil, errors.New("account already exists")
+}
+
+func getAccounts(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
+	var accounts []*datamodel.Account
+	err := db.Scopes(dbutils.Paginate(pagination)).Find(&accounts).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return accounts, nil
 }
