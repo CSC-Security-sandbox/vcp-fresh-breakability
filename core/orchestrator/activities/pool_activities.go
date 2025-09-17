@@ -96,6 +96,38 @@ const (
 	LogForwardingUserString = "user"
 )
 
+// ValidateVSAZonesForMachineType validates that primary and secondary zones support the VSA instance type
+func ValidateVSAZonesForMachineType(gcpService hyperscaler2.GoogleServices, projectNumber, primaryZone, secondaryZone, instanceType string) error {
+	// Validate primary zone supports the instance type
+	isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, primaryZone, instanceType)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to validate machine type availability in primary zone %s: %w", primaryZone, err))
+	}
+	if !isAvailable {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrZoneMachineTypeValidation, fmt.Errorf("primary zone %s does not support machine type %s", primaryZone, instanceType)))
+	}
+
+	// Validate secondary zone supports the instance type
+	isAvailable, err = gcpService.IsMachineTypeAvailable(projectNumber, secondaryZone, instanceType)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to validate machine type availability in secondary zone %s: %w", secondaryZone, err))
+	}
+	if !isAvailable {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrZoneMachineTypeValidation, fmt.Errorf("secondary zone %s does not support machine type %s", secondaryZone, instanceType)))
+	}
+
+	return nil
+}
+
+// ValidateZonesForMachineTypes is an activity method that validates VSA zones support the machine type
+func (j *PoolActivity) ValidateZonesForMachineTypes(ctx context.Context, projectNumber, primaryZone, secondaryZone, instanceType string) error {
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to initialize GCP service: %w", err))
+	}
+	return ValidateVSAZonesForMachineType(gcpService, projectNumber, primaryZone, secondaryZone, instanceType)
+}
+
 type PoolActivity struct {
 	SE database.Storage
 }
@@ -1117,13 +1149,13 @@ func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumb
 		return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("no zones available besides primary"))
 	}
 
-	// Helper function to validate machine type in a zone
-	validateMachineTypeInZone := func(zone string, machineType string) bool {
-		isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, zone, machineType)
-		if err != nil {
-			return false
-		}
-		return isAvailable
+	// Validate that primary zone supports the instance type
+	isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, primaryZone, instanceType)
+	if err != nil {
+		return "", "", vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to validate machine type availability in primary zone %s: %w", primaryZone, err))
+	}
+	if !isAvailable {
+		return "", "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrZoneMachineTypeValidation, fmt.Errorf("primary zone %s does not support machine type %s", primaryZone, instanceType)))
 	}
 
 	// If secondaryZone is not set, pick the first available zone that supports the instance type as secondary
@@ -1131,7 +1163,11 @@ func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumb
 		// Find a secondary zone that supports the instance type
 		var validSecondaryZone string
 		for _, zone := range availableZones {
-			if validateMachineTypeInZone(zone, instanceType) {
+			isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, zone, instanceType)
+			if err != nil {
+				return "", "", vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to validate machine type availability in zone %s: %w", zone, err))
+			}
+			if isAvailable {
 				validSecondaryZone = zone
 				break
 			}
@@ -1140,17 +1176,40 @@ func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumb
 			return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("no secondary zone found that supports the instance type"))
 		}
 		secondaryZone = validSecondaryZone
+	} else {
+		// If secondaryZone is set, validate it supports the instance type
+		isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, secondaryZone, instanceType)
+		if err != nil {
+			return "", "", vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to validate machine type availability in secondary zone %s: %w", secondaryZone, err))
+		}
+		if !isAvailable {
+			return "", "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrZoneMachineTypeValidation, fmt.Errorf("secondary zone %s does not support machine type %s", secondaryZone, instanceType)))
+		}
 	}
 
 	if !isRegionalHA {
 		mediatorZone = primaryZone
+		// Validate that primary zone supports the mediator instance type when used as mediator
+		isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, primaryZone, mediatorVmInstanceType)
+		if err != nil {
+			return "", "", vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to validate mediator machine type availability in primary zone %s: %w", primaryZone, err))
+		}
+		if !isAvailable {
+			return "", "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrZoneMachineTypeValidation, fmt.Errorf("primary zone %s does not support mediator machine type %s", primaryZone, mediatorVmInstanceType)))
+		}
 	}
 	// If mediatorZone is not set, find one that supports the instance type and is different from secondary
 	if mediatorZone == "" {
 		for _, zone := range availableZones {
-			if zone != secondaryZone && validateMachineTypeInZone(zone, mediatorVmInstanceType) {
-				mediatorZone = zone
-				break
+			if zone != secondaryZone {
+				isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, zone, mediatorVmInstanceType)
+				if err != nil {
+					return "", "", vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to validate mediator machine type availability in zone %s: %w", zone, err))
+				}
+				if isAvailable {
+					mediatorZone = zone
+					break
+				}
 			}
 		}
 		if mediatorZone == "" {
@@ -1160,6 +1219,14 @@ func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumb
 		// If mediatorZone is set, validate it supports the instance type and is different from secondary
 		if mediatorZone == secondaryZone {
 			return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("mediator zone cannot be the same as secondary zone"))
+		}
+		// Validate that the set mediator zone supports the mediator instance type
+		isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, mediatorZone, mediatorVmInstanceType)
+		if err != nil {
+			return "", "", vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to validate mediator machine type availability in mediator zone %s: %w", mediatorZone, err))
+		}
+		if !isAvailable {
+			return "", "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrZoneMachineTypeValidation, fmt.Errorf("mediator zone %s does not support machine type %s", mediatorZone, mediatorVmInstanceType)))
 		}
 	}
 

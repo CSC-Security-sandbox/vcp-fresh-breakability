@@ -1311,6 +1311,8 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 			},
 		},
 	}, nil)
+	// Mock the ValidateZonesForMachineTypes activity since instance type is changing
+	env.OnActivity("ValidateZonesForMachineTypes", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
 
@@ -1517,6 +1519,8 @@ func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 			},
 		},
 	}, nil)
+	// Mock the ValidateZonesForMachineTypes activity since instance type is changing
+	env.OnActivity("ValidateZonesForMachineTypes", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
 
@@ -1643,6 +1647,8 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 			},
 		},
 	}, nil)
+	// Mock the ValidateZonesForMachineTypes activity since instance type is changing
+	env.OnActivity("ValidateZonesForMachineTypes", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
 

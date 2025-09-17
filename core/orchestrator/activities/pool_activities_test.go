@@ -6714,8 +6714,14 @@ func Test_resolveZonesForCluster_Success_NoSecondaryNoMediator(t *testing.T) {
 	// Mock GetZones to return available zones
 	mockService.On("GetZones", projectNumber, region).Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
 
+	// Mock IsMachineTypeAvailable for primary zone validation
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-a", instanceType).Return(true, nil)
+
 	// Mock IsMachineTypeAvailable for secondary zone selection
 	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-b", instanceType).Return(true, nil)
+
+	// Mock IsMachineTypeAvailable for mediator zone (when isRegionalHA=false, mediatorZone=primaryZone) to return true
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-a", "e2-micro").Return(true, nil)
 
 	// Act
 	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType, false)
@@ -6783,6 +6789,9 @@ func Test_resolveZonesForCluster_Error_NoSecondaryZoneSupportsInstanceType(t *te
 
 	// Mock GetZones to return available zones
 	mockService.On("GetZones", projectNumber, region).Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+
+	// Mock IsMachineTypeAvailable for primary zone validation
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-a", instanceType).Return(true, nil)
 
 	// Mock IsMachineTypeAvailable to return false for all zones
 	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-b", instanceType).Return(false, nil)
@@ -8833,4 +8842,500 @@ func TestUpdatePoolFields_Error(t *testing.T) {
 	assert.Equal(t, expectedError, err)
 
 	mockStorage.AssertExpectations(t)
+}
+
+// ============================================================================
+// Tests for newly added zone validation functions
+// ============================================================================
+
+func TestValidateVSAZonesForMachineType_Success(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler2.MockGoogleServices)
+	projectNumber := "123456789"
+	primaryZone := "us-central1-a"
+	secondaryZone := "us-central1-b"
+	instanceType := "n2-standard-4"
+
+	// Mock IsMachineTypeAvailable for primary zone
+	mockService.On("IsMachineTypeAvailable", projectNumber, primaryZone, instanceType).Return(true, nil)
+	// Mock IsMachineTypeAvailable for secondary zone
+	mockService.On("IsMachineTypeAvailable", projectNumber, secondaryZone, instanceType).Return(true, nil)
+
+	// Act
+	err := activities.ValidateVSAZonesForMachineType(mockService, projectNumber, primaryZone, secondaryZone, instanceType)
+
+	// Assert
+	assert.NoError(t, err)
+	mockService.AssertExpectations(t)
+}
+
+func TestValidateVSAZonesForMachineType_PrimaryZoneFailure(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler2.MockGoogleServices)
+	projectNumber := "123456789"
+	primaryZone := "us-central1-a"
+	secondaryZone := "us-central1-b"
+	instanceType := "n2-standard-4"
+
+	// Mock IsMachineTypeAvailable for primary zone to return false
+	mockService.On("IsMachineTypeAvailable", projectNumber, primaryZone, instanceType).Return(false, nil)
+
+	// Act
+	err := activities.ValidateVSAZonesForMachineType(mockService, projectNumber, primaryZone, secondaryZone, instanceType)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Resource unavailable. Please contact support.")
+	// Check that it's a VCP error with the correct error code
+	var vcpErr *vsaerrors.CustomError
+	assert.ErrorAs(t, err, &vcpErr)
+	assert.Equal(t, vsaerrors.ErrZoneMachineTypeValidation, vcpErr.TrackingID)
+	mockService.AssertExpectations(t)
+}
+
+func TestValidateVSAZonesForMachineType_SecondaryZoneFailure(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler2.MockGoogleServices)
+	projectNumber := "123456789"
+	primaryZone := "us-central1-a"
+	secondaryZone := "us-central1-b"
+	instanceType := "n2-standard-4"
+
+	// Mock IsMachineTypeAvailable for primary zone to return true
+	mockService.On("IsMachineTypeAvailable", projectNumber, primaryZone, instanceType).Return(true, nil)
+	// Mock IsMachineTypeAvailable for secondary zone to return false
+	mockService.On("IsMachineTypeAvailable", projectNumber, secondaryZone, instanceType).Return(false, nil)
+
+	// Act
+	err := activities.ValidateVSAZonesForMachineType(mockService, projectNumber, primaryZone, secondaryZone, instanceType)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Resource unavailable. Please contact support.")
+	// Check that it's a VCP error with the correct error code
+	var vcpErr *vsaerrors.CustomError
+	assert.ErrorAs(t, err, &vcpErr)
+	assert.Equal(t, vsaerrors.ErrZoneMachineTypeValidation, vcpErr.TrackingID)
+	mockService.AssertExpectations(t)
+}
+
+func TestValidateVSAZonesForMachineType_PrimaryZoneError(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler2.MockGoogleServices)
+	projectNumber := "123456789"
+	primaryZone := "us-central1-a"
+	secondaryZone := "us-central1-b"
+	instanceType := "n2-standard-4"
+
+	// Mock IsMachineTypeAvailable for primary zone to return error
+	mockService.On("IsMachineTypeAvailable", projectNumber, primaryZone, instanceType).Return(false, errors.New("API error"))
+
+	// Act
+	err := activities.ValidateVSAZonesForMachineType(mockService, projectNumber, primaryZone, secondaryZone, instanceType)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to validate machine type availability in primary zone us-central1-a: API error")
+	// The error should not be wrapped as a temporal application error since it's not a CustomError
+	// It should be a regular error
+	assert.NotContains(t, err.Error(), "Resource unavailable. Please contact support.")
+	mockService.AssertExpectations(t)
+}
+
+func TestValidateVSAZonesForMachineType_SecondaryZoneError(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler2.MockGoogleServices)
+	projectNumber := "123456789"
+	primaryZone := "us-central1-a"
+	secondaryZone := "us-central1-b"
+	instanceType := "n2-standard-4"
+
+	// Mock IsMachineTypeAvailable for primary zone to return true
+	mockService.On("IsMachineTypeAvailable", projectNumber, primaryZone, instanceType).Return(true, nil)
+	// Mock IsMachineTypeAvailable for secondary zone to return error
+	mockService.On("IsMachineTypeAvailable", projectNumber, secondaryZone, instanceType).Return(false, errors.New("API error"))
+
+	// Act
+	err := activities.ValidateVSAZonesForMachineType(mockService, projectNumber, primaryZone, secondaryZone, instanceType)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to validate machine type availability in secondary zone us-central1-b: API error")
+	// The error should not be wrapped as a temporal application error since it's not a CustomError
+	// It should be a regular error
+	assert.NotContains(t, err.Error(), "Resource unavailable. Please contact support.")
+	mockService.AssertExpectations(t)
+}
+
+func TestValidateZonesForMachineTypes_ActivityMethodSignature(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+
+	// Act - Test that the activity method exists and has the correct signature
+	// This test ensures the method can be called without compilation errors
+	// We're not testing the actual execution since it requires GCP service initialization
+	_ = activity.ValidateZonesForMachineTypes
+
+	// Assert - If we get here without compilation errors, the method exists
+	// This is a basic test to ensure the method signature is correct
+	assert.NotNil(t, activity.ValidateZonesForMachineTypes)
+}
+
+// Test error handling with WrapAsNonRetryableTemporalApplicationError
+func Test_resolveZonesForCluster_Error_PrimaryZoneMachineTypeValidation(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler2.MockGoogleServices)
+	projectNumber := "123456789"
+	region := "us-central1"
+	primaryZone := "us-central1-a"
+	secondaryZone := ""
+	mediatorZone := ""
+	instanceType := "n2-standard-4"
+
+	// Mock GetZones to return available zones
+	mockService.On("GetZones", projectNumber, region).Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+
+	// Mock IsMachineTypeAvailable for primary zone validation to return false
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-a", instanceType).Return(false, nil)
+
+	// Act
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType, false)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Resource unavailable. Please contact support.")
+	assert.Equal(t, "", resolvedSecondary)
+	assert.Equal(t, "", resolvedMediator)
+
+	// Check that it's wrapped as a non-retryable temporal application error
+	var appErr *temporal.ApplicationError
+	assert.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "CustomError", appErr.Type())
+
+	// Extract the tracking ID from the application error
+	var trackingID int
+	var errorDetails string
+	err = appErr.Details(&trackingID, &errorDetails)
+	assert.NoError(t, err)
+	assert.Equal(t, vsaerrors.ErrZoneMachineTypeValidation, trackingID)
+
+	mockService.AssertExpectations(t)
+}
+
+func Test_resolveZonesForCluster_Error_SecondaryZoneMachineTypeValidation(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler2.MockGoogleServices)
+	projectNumber := "123456789"
+	region := "us-central1"
+	primaryZone := "us-central1-a"
+	secondaryZone := "us-central1-b"
+	mediatorZone := ""
+	instanceType := "n2-standard-4"
+
+	// Mock GetZones to return available zones
+	mockService.On("GetZones", projectNumber, region).Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+
+	// Mock IsMachineTypeAvailable for primary zone validation to return true
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-a", instanceType).Return(true, nil)
+	// Mock IsMachineTypeAvailable for secondary zone validation to return false
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-b", instanceType).Return(false, nil)
+
+	// Act
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType, false)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Resource unavailable. Please contact support.")
+	assert.Equal(t, "", resolvedSecondary)
+	assert.Equal(t, "", resolvedMediator)
+
+	// Check that it's wrapped as a non-retryable temporal application error
+	var appErr *temporal.ApplicationError
+	assert.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "CustomError", appErr.Type())
+
+	// Extract the tracking ID from the application error
+	var trackingID int
+	var errorDetails string
+	err = appErr.Details(&trackingID, &errorDetails)
+	assert.NoError(t, err)
+	assert.Equal(t, vsaerrors.ErrZoneMachineTypeValidation, trackingID)
+
+	mockService.AssertExpectations(t)
+}
+
+func Test_resolveZonesForCluster_Error_MediatorZoneMachineTypeValidation(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler2.MockGoogleServices)
+	projectNumber := "123456789"
+	region := "us-central1"
+	primaryZone := "us-central1-a"
+	secondaryZone := ""
+	mediatorZone := ""
+	instanceType := "n2-standard-4"
+
+	// Mock GetZones to return available zones
+	mockService.On("GetZones", projectNumber, region).Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+
+	// Mock IsMachineTypeAvailable for primary zone validation to return true
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-a", instanceType).Return(true, nil)
+	// Mock IsMachineTypeAvailable for secondary zone selection to return true
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-b", instanceType).Return(true, nil)
+	// Mock IsMachineTypeAvailable for mediator zone (when isRegionalHA=false, mediatorZone=primaryZone) to return false
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-a", "e2-micro").Return(false, nil)
+
+	// Act - Use isRegionalHA=false to trigger mediatorZone=primaryZone and validation
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType, false)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Resource unavailable. Please contact support.")
+	assert.Equal(t, "", resolvedSecondary)
+	assert.Equal(t, "", resolvedMediator)
+
+	// Check that it's wrapped as a non-retryable temporal application error
+	var appErr *temporal.ApplicationError
+	assert.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "CustomError", appErr.Type())
+
+	// Extract the tracking ID from the application error
+	var trackingID int
+	var errorDetails string
+	err = appErr.Details(&trackingID, &errorDetails)
+	assert.NoError(t, err)
+	assert.Equal(t, vsaerrors.ErrZoneMachineTypeValidation, trackingID)
+
+	mockService.AssertExpectations(t)
+}
+
+// TestValidateZonesForMachineTypes_GCPServiceError covers lines 133-135, 137
+func TestValidateZonesForMachineTypes_GCPServiceError(t *testing.T) {
+	// Mock the hyperscaler2.GetGCPService to return an error
+	originalGetGCPService := hyperscaler2.GetGCPService
+	defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
+
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return nil, errors.New("GCP service initialization failed")
+	}
+
+	activity := &activities.PoolActivity{}
+	ctx := context.Background()
+
+	err := activity.ValidateZonesForMachineTypes(ctx, "test-project", "us-central1-a", "us-central1-b", "e2-standard-4")
+
+	// Should return a temporal application error with the GCP service error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to initialize GCP service")
+}
+
+// TestResolveZonesForCluster_PrimaryZoneValidationError covers lines 1160, 1161
+func TestResolveZonesForCluster_PrimaryZoneValidationError(t *testing.T) {
+	mockGCPService := new(hyperscaler2.MockGoogleServices)
+	mockGCPService.On("GetZones", "test-project", "us-central1").Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-standard-4").Return(false, errors.New("API rate limit exceeded"))
+
+	secondaryZone, mediatorZone, err := activities.ResolveZonesForCluster(
+		mockGCPService,
+		"test-project",
+		"us-central1",
+		"us-central1-a", // primary zone
+		"",              // secondary zone (will be auto-selected)
+		"",              // mediator zone (will be auto-selected)
+		"e2-standard-4",
+		true, // isRegionalHA
+	)
+
+	assert.Error(t, err)
+	assert.Empty(t, secondaryZone)
+	assert.Empty(t, mediatorZone)
+	assert.Contains(t, err.Error(), "failed to validate machine type availability in primary zone")
+
+	mockGCPService.AssertExpectations(t)
+}
+
+// TestResolveZonesForCluster_SecondaryZoneValidationError covers lines 1173, 1174
+func TestResolveZonesForCluster_SecondaryZoneValidationError(t *testing.T) {
+	mockGCPService := new(hyperscaler2.MockGoogleServices)
+	mockGCPService.On("GetZones", "test-project", "us-central1").Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-b", "e2-standard-4").Return(false, errors.New("network timeout"))
+
+	secondaryZone, mediatorZone, err := activities.ResolveZonesForCluster(
+		mockGCPService,
+		"test-project",
+		"us-central1",
+		"us-central1-a", // primary zone
+		"us-central1-b", // secondary zone (explicitly set)
+		"",              // mediator zone (will be auto-selected)
+		"e2-standard-4",
+		true, // isRegionalHA
+	)
+
+	assert.Error(t, err)
+	assert.Empty(t, secondaryZone)
+	assert.Empty(t, mediatorZone)
+	assert.Contains(t, err.Error(), "failed to validate machine type availability in secondary zone")
+
+	mockGCPService.AssertExpectations(t)
+}
+
+// TestResolveZonesForCluster_SecondaryZoneAutoSelectionError covers lines 1188, 1189
+func TestResolveZonesForCluster_SecondaryZoneAutoSelectionError(t *testing.T) {
+	mockGCPService := new(hyperscaler2.MockGoogleServices)
+	mockGCPService.On("GetZones", "test-project", "us-central1").Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-b", "e2-standard-4").Return(false, errors.New("zone unavailable"))
+
+	secondaryZone, mediatorZone, err := activities.ResolveZonesForCluster(
+		mockGCPService,
+		"test-project",
+		"us-central1",
+		"us-central1-a", // primary zone
+		"",              // secondary zone (will be auto-selected)
+		"",              // mediator zone (will be auto-selected)
+		"e2-standard-4",
+		true, // isRegionalHA
+	)
+
+	assert.Error(t, err)
+	assert.Empty(t, secondaryZone)
+	assert.Empty(t, mediatorZone)
+	assert.Contains(t, err.Error(), "failed to validate machine type availability in zone us-central1-b: zone unavailable")
+
+	mockGCPService.AssertExpectations(t)
+}
+
+// TestResolveZonesForCluster_MediatorZoneValidationError covers lines 1200, 1201
+func TestResolveZonesForCluster_MediatorZoneValidationError(t *testing.T) {
+	mockGCPService := new(hyperscaler2.MockGoogleServices)
+	mockGCPService.On("GetZones", "test-project", "us-central1").Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-b", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-micro").Return(false, errors.New("mediator instance type not supported"))
+
+	secondaryZone, mediatorZone, err := activities.ResolveZonesForCluster(
+		mockGCPService,
+		"test-project",
+		"us-central1",
+		"us-central1-a", // primary zone
+		"us-central1-b", // secondary zone (explicitly set)
+		"",              // mediator zone (will be auto-selected)
+		"e2-standard-4",
+		false, // isRegionalHA (mediator uses primary zone)
+	)
+
+	assert.Error(t, err)
+	assert.Empty(t, secondaryZone)
+	assert.Empty(t, mediatorZone)
+	assert.Contains(t, err.Error(), "failed to validate mediator machine type availability in primary zone")
+
+	mockGCPService.AssertExpectations(t)
+}
+
+// TestResolveZonesForCluster_MediatorZoneAutoSelectionError covers lines 1209-1212
+func TestResolveZonesForCluster_MediatorZoneAutoSelectionError(t *testing.T) {
+	mockGCPService := new(hyperscaler2.MockGoogleServices)
+	mockGCPService.On("GetZones", "test-project", "us-central1").Return([]string{"us-central1-a", "us-central1-b", "us-central1-c", "us-central1-d"}, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-b", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-c", "e2-micro").Return(false, errors.New("mediator instance type not supported"))
+
+	secondaryZone, mediatorZone, err := activities.ResolveZonesForCluster(
+		mockGCPService,
+		"test-project",
+		"us-central1",
+		"us-central1-a", // primary zone
+		"us-central1-b", // secondary zone (explicitly set)
+		"",              // mediator zone (will be auto-selected)
+		"e2-standard-4",
+		true, // isRegionalHA
+	)
+
+	assert.Error(t, err)
+	assert.Empty(t, secondaryZone)
+	assert.Empty(t, mediatorZone)
+	assert.Contains(t, err.Error(), "failed to validate mediator machine type availability in zone us-central1-c: mediator instance type not supported")
+
+	mockGCPService.AssertExpectations(t)
+}
+
+// TestResolveZonesForCluster_MediatorZoneConflictError covers lines 1214-1216
+func TestResolveZonesForCluster_MediatorZoneConflictError(t *testing.T) {
+	mockGCPService := new(hyperscaler2.MockGoogleServices)
+	mockGCPService.On("GetZones", "test-project", "us-central1").Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-b", "e2-standard-4").Return(true, nil)
+
+	secondaryZone, mediatorZone, err := activities.ResolveZonesForCluster(
+		mockGCPService,
+		"test-project",
+		"us-central1",
+		"us-central1-a", // primary zone
+		"us-central1-b", // secondary zone
+		"us-central1-b", // mediator zone (same as secondary - should fail)
+		"e2-standard-4",
+		true, // isRegionalHA
+	)
+
+	assert.Error(t, err)
+	assert.Empty(t, secondaryZone)
+	assert.Empty(t, mediatorZone)
+	assert.Contains(t, err.Error(), "mediator zone cannot be the same as secondary zone")
+
+	mockGCPService.AssertExpectations(t)
+}
+
+// TestResolveZonesForCluster_ExplicitMediatorZoneValidationError covers lines 1231, 1232
+func TestResolveZonesForCluster_ExplicitMediatorZoneValidationError(t *testing.T) {
+	mockGCPService := new(hyperscaler2.MockGoogleServices)
+	mockGCPService.On("GetZones", "test-project", "us-central1").Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-b", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-c", "e2-micro").Return(false, errors.New("mediator instance type not supported"))
+
+	secondaryZone, mediatorZone, err := activities.ResolveZonesForCluster(
+		mockGCPService,
+		"test-project",
+		"us-central1",
+		"us-central1-a", // primary zone
+		"us-central1-b", // secondary zone
+		"us-central1-c", // mediator zone (explicitly set)
+		"e2-standard-4",
+		true, // isRegionalHA
+	)
+
+	assert.Error(t, err)
+	assert.Empty(t, secondaryZone)
+	assert.Empty(t, mediatorZone)
+	assert.Contains(t, err.Error(), "failed to validate mediator machine type availability in mediator zone")
+
+	mockGCPService.AssertExpectations(t)
+}
+
+// TestResolveZonesForCluster_ExplicitMediatorZoneMachineTypeUnavailable covers lines 1233, 1234
+func TestResolveZonesForCluster_ExplicitMediatorZoneMachineTypeUnavailable(t *testing.T) {
+	mockGCPService := new(hyperscaler2.MockGoogleServices)
+	mockGCPService.On("GetZones", "test-project", "us-central1").Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-a", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-b", "e2-standard-4").Return(true, nil)
+	mockGCPService.On("IsMachineTypeAvailable", "test-project", "us-central1-c", "e2-micro").Return(false, nil) // Machine type unavailable
+
+	secondaryZone, mediatorZone, err := activities.ResolveZonesForCluster(
+		mockGCPService,
+		"test-project",
+		"us-central1",
+		"us-central1-a", // primary zone
+		"us-central1-b", // secondary zone
+		"us-central1-c", // mediator zone (explicitly set)
+		"e2-standard-4",
+		true, // isRegionalHA
+	)
+
+	assert.Error(t, err)
+	assert.Empty(t, secondaryZone)
+	assert.Empty(t, mediatorZone)
+	assert.Contains(t, err.Error(), "Resource unavailable. Please contact support.")
+
+	mockGCPService.AssertExpectations(t)
 }

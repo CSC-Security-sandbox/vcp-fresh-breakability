@@ -631,10 +631,21 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Update the mediator zone in the VLM config
 	newVlmConfig.Deployment.Zone.MediatorZone = locationInfo.MediatorZone
-
 	// Determine VM scaling direction to decide the order of operations
 	currentInstanceType := currentVlmConfig.Deployment.VSAInstanceType
 	newInstanceType := newVlmConfig.Deployment.VSAInstanceType
+
+	// Only validate zones for machine type if the instance type is changing
+	if currentInstanceType != newInstanceType {
+		wf.Logger.Info("Instance type is changing, validating zone compatibility", "currentType", currentInstanceType, "newType", newInstanceType)
+		// Validate that primary and secondary zones support the VSA instance type
+		err = workflow.ExecuteActivity(ctx, poolActivity.ValidateZonesForMachineTypes, pool.ClusterDetails.RegionalTenantProject, locationInfo.PrimaryZone, locationInfo.SecondaryZone, newInstanceType).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	} else {
+		wf.Logger.Info("Instance type unchanged, skipping zone validation", "instanceType", currentInstanceType)
+	}
 
 	var isScalingUp bool
 	err = workflow.ExecuteActivity(ctx, poolActivity.DetermineVMScalingDirection, vmrsConfigPath, currentInstanceType, newInstanceType).Get(ctx, &isScalingUp)

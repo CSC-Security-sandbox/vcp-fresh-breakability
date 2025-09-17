@@ -253,6 +253,7 @@ const (
 	ErrGettingKmsServiceAccount         = 8005
 	ErrDecryptingServiceAccountPassword = 8006
 	ErrorSynchronizingServiceAccountKey = 8007
+	ErrZoneMachineTypeValidation        = 8008
 
 	// FlexCache specific errors (10000-10999 range)
 	ErrCreatingFlexCacheVolume   = 10001

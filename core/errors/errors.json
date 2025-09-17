@@ -1319,6 +1319,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "8008": {
+    "description": "Zone Machine Type Validation Failed",
+    "message": "Resource unavailable. Please contact support.",
+    "retriable": false,
+    "http_code": 507
+  },
   "10001": {
     "description": "Error creating FlexCache volume",
     "message": "Error creating FlexCache volume",
