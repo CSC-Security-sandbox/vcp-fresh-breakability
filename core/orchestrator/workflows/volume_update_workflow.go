@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"strings"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -185,7 +187,11 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 		}
 		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateLun, volume, updateLunSize, node).Get(ctx, &updatedLun)
-		lunName := utils.GetLunName(volume.Name)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		splitLunName := strings.Split(updatedLun.Name, "/")
+		lunName := splitLunName[len(splitLunName)-1]
 		if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
 			blockDevices := *volume.VolumeAttributes.BlockDevices
 			for i := range blockDevices {

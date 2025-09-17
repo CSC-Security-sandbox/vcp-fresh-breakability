@@ -130,7 +130,7 @@ func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DescribeRemoteJobOnDst, &reverseResult).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.DescribeRemoteJobOnSrc, &reverseResult).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
