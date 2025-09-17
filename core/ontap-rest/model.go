@@ -1186,7 +1186,7 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 				minCoolingDays = nillable.ToPointer(params.TieringPolicy.MinCoolingDays)
 			}
 			// skip assigning the cooling days if the policy is none
-			if params.TieringPolicy.CoolAccessTieringPolicy == "none" {
+			if params.TieringPolicy.CoolAccessTieringPolicy == models.VolumeInlineTieringPolicyNone || params.TieringPolicy.CoolAccessTieringPolicy == models.VolumeInlineTieringPolicyAll {
 				minCoolingDays = nil
 			}
 

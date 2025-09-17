@@ -239,9 +239,10 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
 		volumeObj.AutoTieringEnabled = params.AutoTieringPolicy.AutoTieringEnabled
 		volumeObj.AutoTieringPolicy = &datamodel.AutoTieringPolicy{
-			TieringPolicy:        params.AutoTieringPolicy.TieringPolicy,
-			CoolingThresholdDays: params.AutoTieringPolicy.CoolingThresholdDays,
-			RetrievalPolicy:      params.AutoTieringPolicy.RetrievalPolicy,
+			TieringPolicy:            params.AutoTieringPolicy.TieringPolicy,
+			CoolingThresholdDays:     params.AutoTieringPolicy.CoolingThresholdDays,
+			RetrievalPolicy:          params.AutoTieringPolicy.RetrievalPolicy,
+			HotTierBypassModeEnabled: params.AutoTieringPolicy.HotTierBypassModeEnabled,
 		}
 	}
 
@@ -841,11 +842,18 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
-	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
+	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && (params.AutoTieringPolicy.AutoTieringEnabled || params.AutoTieringPolicy.HotTierBypassModeEnabled) {
 		return customerrors.NewUserInputValidationErr("Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
 	} else if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
 		if params.AutoTieringPolicy.CoolingThresholdDays < minCoolingThresholdDays || params.AutoTieringPolicy.CoolingThresholdDays > maxCoolingThresholdDays {
 			return customerrors.NewUserInputValidationErr("Auto Tiering Cooling Threshold days must be between 2 and 183 days")
+		}
+	}
+
+	// Validate HotTierBypassModeEnabled
+	if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.HotTierBypassModeEnabled {
+		if !params.AutoTieringPolicy.AutoTieringEnabled {
+			return customerrors.NewUserInputValidationErr("Hot Tier Bypass Mode can only be enabled when Auto Tiering is enabled on the Volume")
 		}
 	}
 
@@ -1410,11 +1418,18 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 	}
 
-	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
+	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && (params.AutoTieringPolicy.AutoTieringEnabled || params.AutoTieringPolicy.HotTierBypassModeEnabled) {
 		return customerrors.NewUserInputValidationErr("Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
 	} else if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
 		if params.AutoTieringPolicy.CoolingThresholdDays < minCoolingThresholdDays || params.AutoTieringPolicy.CoolingThresholdDays > maxCoolingThresholdDays {
 			return customerrors.NewUserInputValidationErr("Auto Tiering Cooling Threshold days must be between 2 and 183 days")
+		}
+	}
+
+	// Validate HotTierBypassModeEnabled for update
+	if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.HotTierBypassModeEnabled {
+		if !params.AutoTieringPolicy.AutoTieringEnabled {
+			return customerrors.NewUserInputValidationErr("Hot Tier Bypass Mode can only be enabled when Auto Tiering is enabled on the Volume")
 		}
 	}
 

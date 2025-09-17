@@ -763,9 +763,10 @@ func (atc AutoTieringConfig) Value() (driver.Value, error) {
 }
 
 type AutoTieringPolicy struct {
-	TieringPolicy        string `json:"tiering_policy"`
-	CoolingThresholdDays int32  `json:"cooling_threshold_days"`
-	RetrievalPolicy      string `json:"retrieval_policy"`
+	TieringPolicy            string `json:"tiering_policy"`
+	CoolingThresholdDays     int32  `json:"cooling_threshold_days"`
+	RetrievalPolicy          string `json:"retrieval_policy"`
+	HotTierBypassModeEnabled bool   `json:"hot_tier_bypass_mode_enabled"`
 }
 
 // Scan implements the sql.Scanner interface for AutoTieringPolicy

@@ -388,10 +388,14 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 
 	if params.AutoTieringPolicy != nil &&
 		(params.AutoTieringPolicy.AutoTieringEnabled != volume.AutoTieringEnabled ||
-			(params.AutoTieringPolicy.AutoTieringEnabled && volume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != volume.AutoTieringPolicy.CoolingThresholdDays)) {
+			(params.AutoTieringPolicy.AutoTieringEnabled && volume.AutoTieringPolicy != nil &&
+				(params.AutoTieringPolicy.CoolingThresholdDays != volume.AutoTieringPolicy.CoolingThresholdDays ||
+					params.AutoTieringPolicy.HotTierBypassModeEnabled != volume.AutoTieringPolicy.HotTierBypassModeEnabled))) {
 		updates["auto_tiering_enabled"] = params.AutoTieringPolicy.AutoTieringEnabled
+
 		autoTieringPolicy := &datamodel.AutoTieringPolicy{
-			TieringPolicy: params.AutoTieringPolicy.TieringPolicy,
+			TieringPolicy:            params.AutoTieringPolicy.TieringPolicy,
+			HotTierBypassModeEnabled: params.AutoTieringPolicy.HotTierBypassModeEnabled,
 		}
 		if params.AutoTieringPolicy.TieringPolicy != ontapModels.VolumeInlineTieringPolicyNone {
 			autoTieringPolicy.CoolingThresholdDays = params.AutoTieringPolicy.CoolingThresholdDays

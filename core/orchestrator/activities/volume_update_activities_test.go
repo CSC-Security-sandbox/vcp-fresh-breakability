@@ -2443,3 +2443,230 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 }
+
+// TestGetUpdatedFieldsFromParams_HotTierBypassModeComparisonLogic tests the specific comparison logic:
+// params.AutoTieringPolicy.HotTierBypassModeEnabled != volume.AutoTieringPolicy.HotTierBypassModeEnabled
+func TestGetUpdatedFieldsFromParams_HotTierBypassModeComparisonLogic(t *testing.T) {
+	t.Run("HotTierBypassMode_TrueToFalse_ShouldTriggerUpdate", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Original volume with HotTierBypassModeEnabled = true
+		volume := &datamodel.Volume{
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAll,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     10,
+				HotTierBypassModeEnabled: true, // Original value
+			},
+		}
+
+		// Params to change HotTierBypassModeEnabled from true to false
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAuto,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     10,    // Same value
+				HotTierBypassModeEnabled: false, // Changed from true to false
+			},
+		}
+
+		fields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+		assert.NoError(tt, err)
+		assert.Contains(tt, fields, "auto_tiering_enabled")
+		assert.Contains(tt, fields, "auto_tiering_policy")
+
+		autoTieringPolicy, ok := fields["auto_tiering_policy"].(*datamodel.AutoTieringPolicy)
+		assert.True(tt, ok)
+		assert.False(tt, autoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, ontapModels.VolumeInlineTieringPolicyAuto, autoTieringPolicy.TieringPolicy)
+	})
+
+	t.Run("HotTierBypassMode_FalseToTrue_ShouldTriggerUpdate", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Original volume with HotTierBypassModeEnabled = false
+		volume := &datamodel.Volume{
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAuto,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     10,
+				HotTierBypassModeEnabled: false, // Original value
+			},
+		}
+
+		// Params to change HotTierBypassModeEnabled from false to true
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAll,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     10,   // Same value
+				HotTierBypassModeEnabled: true, // Changed from false to true
+			},
+		}
+
+		fields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+		assert.NoError(tt, err)
+		assert.Contains(tt, fields, "auto_tiering_enabled")
+		assert.Contains(tt, fields, "auto_tiering_policy")
+
+		autoTieringPolicy, ok := fields["auto_tiering_policy"].(*datamodel.AutoTieringPolicy)
+		assert.True(tt, ok)
+		assert.True(tt, autoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, ontapModels.VolumeInlineTieringPolicyAll, autoTieringPolicy.TieringPolicy)
+	})
+
+	t.Run("HotTierBypassMode_SameValue_ShouldNotTriggerUpdate", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Original volume with HotTierBypassModeEnabled = true
+		volume := &datamodel.Volume{
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAll,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     10,
+				HotTierBypassModeEnabled: true, // Original value
+			},
+		}
+
+		// Params with same HotTierBypassModeEnabled value
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAll,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     10,   // Same value
+				HotTierBypassModeEnabled: true, // Same value
+			},
+		}
+
+		fields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+		assert.NoError(tt, err)
+		// Should not contain auto_tiering_policy since no changes detected
+		assert.NotContains(tt, fields, "auto_tiering_policy")
+		assert.NotContains(tt, fields, "auto_tiering_enabled")
+	})
+
+	t.Run("HotTierBypassMode_OnlyHotTierBypassModeChanged_ShouldTriggerUpdate", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Original volume with HotTierBypassModeEnabled = false
+		volume := &datamodel.Volume{
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAuto,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     15,
+				HotTierBypassModeEnabled: false, // Original value
+			},
+		}
+
+		// Params with only HotTierBypassModeEnabled changed, all other values same
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,                                          // Same
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAuto,     // Same
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault, // Same
+				CoolingThresholdDays:     15,                                            // Same
+				HotTierBypassModeEnabled: true,                                          // Only this changed
+			},
+		}
+
+		fields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+		assert.NoError(tt, err)
+		assert.Contains(tt, fields, "auto_tiering_enabled")
+		assert.Contains(tt, fields, "auto_tiering_policy")
+
+		autoTieringPolicy, ok := fields["auto_tiering_policy"].(*datamodel.AutoTieringPolicy)
+		assert.True(tt, ok)
+		assert.True(tt, autoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, int32(15), autoTieringPolicy.CoolingThresholdDays)
+	})
+
+	t.Run("HotTierBypassMode_WithNilVolumeAutoTieringPolicy_ShouldHandleGracefully", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Original volume with nil AutoTieringPolicy
+		volume := &datamodel.Volume{
+			Name:               "test-volume",
+			AutoTieringEnabled: false,
+			AutoTieringPolicy:  nil, // Nil policy
+		}
+
+		// Params to enable auto tiering with HotTierBypassModeEnabled
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAll,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     10,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		fields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+		assert.NoError(tt, err)
+		assert.Contains(tt, fields, "auto_tiering_enabled")
+		assert.Contains(tt, fields, "auto_tiering_policy")
+
+		autoTieringPolicy, ok := fields["auto_tiering_policy"].(*datamodel.AutoTieringPolicy)
+		assert.True(tt, ok)
+		assert.True(tt, autoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, ontapModels.VolumeInlineTieringPolicyAll, autoTieringPolicy.TieringPolicy)
+	})
+
+	t.Run("HotTierBypassMode_AutoTieringDisabled_ShouldNotEvaluateComparison", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Original volume with auto tiering enabled
+		volume := &datamodel.Volume{
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyAll,
+				RetrievalPolicy:          ontapModels.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:     10,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		// Params to disable auto tiering (should not evaluate HotTierBypassModeEnabled comparison)
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       false, // Disabled
+				TieringPolicy:            ontapModels.VolumeInlineTieringPolicyNone,
+				HotTierBypassModeEnabled: false, // Different value, but should not matter
+			},
+		}
+
+		fields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+		assert.NoError(tt, err)
+		assert.Contains(tt, fields, "auto_tiering_enabled")
+		assert.Contains(tt, fields, "auto_tiering_policy")
+
+		autoTieringPolicy, ok := fields["auto_tiering_policy"].(*datamodel.AutoTieringPolicy)
+		assert.True(tt, ok)
+		assert.False(tt, autoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, ontapModels.VolumeInlineTieringPolicyNone, autoTieringPolicy.TieringPolicy)
+	})
+}

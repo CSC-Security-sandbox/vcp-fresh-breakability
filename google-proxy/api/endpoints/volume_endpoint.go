@@ -330,6 +330,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
 		param.AutoTieringPolicy = &common.AutoTieringPolicy{}
+
 		switch req.Volume.TieringPolicy.Value.TierAction.Value {
 		case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
 			param.AutoTieringPolicy.AutoTieringEnabled = true
@@ -339,6 +340,14 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
 			param.AutoTieringPolicy.AutoTieringEnabled = false
 			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+		}
+
+		// Process HotTierBypassModeEnabled if provided
+		if req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
+			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.Value
+			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
+				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll
+			}
 		}
 	}
 
@@ -646,6 +655,14 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
 			param.AutoTieringPolicy.AutoTieringEnabled = false
 			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+		}
+
+		// Process HotTierBypassModeEnabled if provided
+		if req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
+			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.TieringPolicy.Value.HotTierBypassModeEnabled.Value
+			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
+				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll
+			}
 		}
 	}
 

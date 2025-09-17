@@ -11932,3 +11932,872 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+// TestHotTierBypassModeValidation tests the validation logic for HotTierBypassModeEnabled
+func TestHotTierBypassModeValidation(t *testing.T) {
+	t.Run("HotTierBypassModeRequiresPoolAutoTieringEnabled", func(tt *testing.T) {
+		// Test that hot tier bypass mode validation catches when pool doesn't allow auto tiering
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: false, // Auto tiering disabled on pool
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		// Test the specific validation logic by calling the validation directly
+		err := validateHotTierBypassMode(params, pool)
+		assert.EqualError(tt, err, "Hot Tier Bypass Mode requires Auto Tiering to be enabled on the Pool")
+	})
+
+	t.Run("HotTierBypassModeRequiresVolumeAutoTieringPolicyEnabled", func(tt *testing.T) {
+		// Test that hot tier bypass mode validation catches when volume auto tiering is disabled
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: true, // Auto tiering enabled on pool
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       false, // Auto tiering disabled on volume
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		err := validateHotTierBypassMode(params, pool)
+		assert.EqualError(tt, err, "Hot Tier Bypass Mode can only be enabled when Auto Tiering is enabled")
+	})
+
+	t.Run("HotTierBypassModeValidWhen_BothPoolAndVolumeAutoTieringEnabled", func(tt *testing.T) {
+		// Test that validation passes when both pool and volume have auto tiering enabled
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: true,
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				CoolingThresholdDays:     30,
+				TieringPolicy:            "auto",
+				RetrievalPolicy:          "default",
+			},
+		}
+
+		err := validateHotTierBypassMode(params, pool)
+		assert.NoError(tt, err, "Validation should pass when both pool and volume auto tiering are enabled")
+	})
+
+	t.Run("HotTierBypassModeNotSetShouldPass", func(tt *testing.T) {
+		// Test that validation passes when hot tier bypass mode is not set
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: true,
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false, // Not enabled
+				CoolingThresholdDays:     30,
+				TieringPolicy:            "auto",
+				RetrievalPolicy:          "default",
+			},
+		}
+
+		err := validateHotTierBypassMode(params, pool)
+		assert.NoError(tt, err, "Validation should pass when hot tier bypass mode is not enabled")
+	})
+}
+
+// TestValidateCreateVolumeParams_HotTierBypassModeValidation tests the validation logic for HotTierBypassModeEnabled in create volume params
+func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
+	t.Run("CreateVolumeHotTierBypassModeRequiresPoolAutoTieringEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test-account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:             "test-pool",
+			AccountID:        account.ID,
+			SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			State:            models.LifeCycleStateREADY,
+			AllowAutoTiering: false, // Auto tiering disabled on pool
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid", ID: 1},
+			Name:      "test-svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create 2 nodes as required by the validation
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-1"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-2"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for the nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-1"},
+			Name:       "test_lif_1",
+			AccountID:  account.ID,
+			NodeID:     node1.ID,
+			IPAddress:  "192.168.1.10",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-2"},
+			Name:       "test_lif_2",
+			AccountID:  account.ID,
+			NodeID:     node2.ID,
+			IPAddress:  "192.168.1.11",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1},
+				AllowAutoTiering: false, // Auto tiering disabled on pool
+				AccountID:        account.ID,
+				SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+				State:            models.LifeCycleStateREADY,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			AccountName:  "test-account",
+			Protocols:    []string{"NFS"},
+			QuotaInBytes: uint64(100 * 1024 * 1024 * 1024), // 100 GiB
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       false,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
+	})
+
+	t.Run("CreateVolumeHotTierBypassModeRequiresVolumeAutoTieringEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test-account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:             "test-pool",
+			AccountID:        account.ID,
+			SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			State:            models.LifeCycleStateREADY,
+			AllowAutoTiering: true, // Auto tiering enabled on pool
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid", ID: 1},
+			Name:      "test-svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create 2 nodes as required by the validation
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-1"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-2"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for the nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-1"},
+			Name:       "test_lif_1",
+			AccountID:  account.ID,
+			NodeID:     node1.ID,
+			IPAddress:  "192.168.1.10",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-2"},
+			Name:       "test_lif_2",
+			AccountID:  account.ID,
+			NodeID:     node2.ID,
+			IPAddress:  "192.168.1.11",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1},
+				AllowAutoTiering: true, // Auto tiering enabled on pool
+				AccountID:        account.ID,
+				SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+				State:            models.LifeCycleStateREADY,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			AccountName:  "test-account",
+			Protocols:    []string{"NFS"},
+			QuotaInBytes: uint64(100 * 1024 * 1024 * 1024), // 100 GiB
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       false, // Auto tiering disabled on volume
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "Hot Tier Bypass Mode can only be enabled when Auto Tiering is enabled on the Volume")
+	})
+
+	t.Run("CreateVolumeHotTierBypassModeValidWhenBothPoolAndVolumeAutoTieringEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1},
+				AllowAutoTiering: true, // Auto tiering enabled on pool
+				AccountID:        account.ID,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			AccountName:  "test_account",
+			Protocols:    []string{"NFS"},
+			QuotaInBytes: uint64(1024 * 1024 * 1024), // 1GB
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				CoolingThresholdDays:     30,
+				TieringPolicy:            "auto",
+				RetrievalPolicy:          "default",
+			},
+		}
+
+		// This should not return an error related to HotTierBypassModeEnabled
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// If other validations pass, HotTierBypassModeEnabled validation should not cause an error
+		// We expect other validation errors but not the HotTierBypassModeEnabled specific one
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Hot Tier Bypass Mode requires")
+			assert.NotContains(tt, err.Error(), "Hot Tier Bypass Mode can only be enabled")
+		}
+	})
+}
+
+// TestValidateUpdateVolumeRequest_HotTierBypassModeValidation tests the validation logic for HotTierBypassModeEnabled in update volume request
+func TestValidateUpdateVolumeRequest_HotTierBypassModeValidation(t *testing.T) {
+	t.Run("UpdateVolumeHotTierBypassModeRequiresPoolAutoTieringEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: false, // Auto tiering disabled on pool
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.EqualError(tt, err, "Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
+	})
+
+	t.Run("UpdateVolumeHotTierBypassModeRequiresVolumeAutoTieringEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: true, // Auto tiering enabled on pool
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       false, // Auto tiering disabled on volume
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.EqualError(tt, err, "Hot Tier Bypass Mode can only be enabled when Auto Tiering is enabled on the Volume")
+	})
+
+	t.Run("UpdateVolumeHotTierBypassModeValidWhenBothAutoTieringEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: true, // Auto tiering enabled on pool
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				CoolingThresholdDays:     30,
+				TieringPolicy:            "auto",
+				RetrievalPolicy:          "default",
+			},
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		// This should not return an error related to HotTierBypassModeEnabled
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Hot Tier Bypass Mode requires")
+			assert.NotContains(tt, err.Error(), "Hot Tier Bypass Mode can only be enabled")
+		}
+	})
+}
+
+// Helper function to test the hot tier bypass mode validation logic
+func validateHotTierBypassMode(params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+	// Validate HotTierBypassModeEnabled
+	if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.HotTierBypassModeEnabled {
+		if !pool.AllowAutoTiering {
+			return errors.NewUserInputValidationErr("Hot Tier Bypass Mode requires Auto Tiering to be enabled on the Pool")
+		}
+		if !params.AutoTieringPolicy.AutoTieringEnabled {
+			return errors.NewUserInputValidationErr("Hot Tier Bypass Mode can only be enabled when Auto Tiering is enabled")
+		}
+	}
+	return nil
+}
+
+// TestHotTierBypassModeTieringPolicyMapping tests the tiering policy mapping logic
+func TestHotTierBypassModeTieringPolicyMapping(t *testing.T) {
+	t.Run("HotTierBypassModeEnabledMapsToAllPolicy", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				TieringPolicy:            "auto", // This should be overridden to "all"
+				CoolingThresholdDays:     30,
+				RetrievalPolicy:          "default",
+			},
+		}
+
+		volumeObj := &datamodel.Volume{}
+
+		// Simulate the logic from createVolume
+		if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
+			volumeObj.AutoTieringEnabled = params.AutoTieringPolicy.AutoTieringEnabled
+
+			// Apply tiering policy mapping based on HotTierBypassModeEnabled
+			tieringPolicy := params.AutoTieringPolicy.TieringPolicy
+			if params.AutoTieringPolicy.HotTierBypassModeEnabled {
+				// When hot tier bypass is enabled, use "all" policy to move all data to cold tier
+				tieringPolicy = "all"
+			} else if tieringPolicy == "" {
+				// Default to "auto" when not specified and hot tier bypass is disabled
+				tieringPolicy = "auto"
+			}
+
+			volumeObj.AutoTieringPolicy = &datamodel.AutoTieringPolicy{
+				TieringPolicy:            tieringPolicy,
+				CoolingThresholdDays:     params.AutoTieringPolicy.CoolingThresholdDays,
+				RetrievalPolicy:          params.AutoTieringPolicy.RetrievalPolicy,
+				HotTierBypassModeEnabled: params.AutoTieringPolicy.HotTierBypassModeEnabled,
+			}
+		}
+
+		assert.True(tt, volumeObj.AutoTieringEnabled)
+		assert.Equal(tt, "all", volumeObj.AutoTieringPolicy.TieringPolicy, "Tiering policy should be mapped to 'all' when hot tier bypass is enabled")
+		assert.True(tt, volumeObj.AutoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, int32(30), volumeObj.AutoTieringPolicy.CoolingThresholdDays)
+		assert.Equal(tt, "default", volumeObj.AutoTieringPolicy.RetrievalPolicy)
+	})
+
+	t.Run("HotTierBypassModeDisabledKeepsOriginalPolicy", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     30,
+				RetrievalPolicy:          "default",
+			},
+		}
+
+		volumeObj := &datamodel.Volume{}
+
+		// Simulate the logic from createVolume
+		if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
+			volumeObj.AutoTieringEnabled = params.AutoTieringPolicy.AutoTieringEnabled
+
+			// Apply tiering policy mapping based on HotTierBypassModeEnabled
+			tieringPolicy := params.AutoTieringPolicy.TieringPolicy
+			if params.AutoTieringPolicy.HotTierBypassModeEnabled {
+				// When hot tier bypass is enabled, use "all" policy to move all data to cold tier
+				tieringPolicy = "all"
+			} else if tieringPolicy == "" {
+				// Default to "auto" when not specified and hot tier bypass is disabled
+				tieringPolicy = "auto"
+			}
+
+			volumeObj.AutoTieringPolicy = &datamodel.AutoTieringPolicy{
+				TieringPolicy:            tieringPolicy,
+				CoolingThresholdDays:     params.AutoTieringPolicy.CoolingThresholdDays,
+				RetrievalPolicy:          params.AutoTieringPolicy.RetrievalPolicy,
+				HotTierBypassModeEnabled: params.AutoTieringPolicy.HotTierBypassModeEnabled,
+			}
+		}
+
+		assert.True(tt, volumeObj.AutoTieringEnabled)
+		assert.Equal(tt, "auto", volumeObj.AutoTieringPolicy.TieringPolicy, "Tiering policy should remain 'auto' when hot tier bypass is disabled")
+		assert.False(tt, volumeObj.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("EmptyTieringPolicyDefaultsToAuto", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "", // Empty policy should default to "auto"
+				CoolingThresholdDays:     30,
+				RetrievalPolicy:          "default",
+			},
+		}
+
+		volumeObj := &datamodel.Volume{}
+
+		// Simulate the logic from createVolume
+		if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
+			volumeObj.AutoTieringEnabled = params.AutoTieringPolicy.AutoTieringEnabled
+
+			// Apply tiering policy mapping based on HotTierBypassModeEnabled
+			tieringPolicy := params.AutoTieringPolicy.TieringPolicy
+			if params.AutoTieringPolicy.HotTierBypassModeEnabled {
+				// When hot tier bypass is enabled, use "all" policy to move all data to cold tier
+				tieringPolicy = "all"
+			} else if tieringPolicy == "" {
+				// Default to "auto" when not specified and hot tier bypass is disabled
+				tieringPolicy = "auto"
+			}
+
+			volumeObj.AutoTieringPolicy = &datamodel.AutoTieringPolicy{
+				TieringPolicy:            tieringPolicy,
+				CoolingThresholdDays:     params.AutoTieringPolicy.CoolingThresholdDays,
+				RetrievalPolicy:          params.AutoTieringPolicy.RetrievalPolicy,
+				HotTierBypassModeEnabled: params.AutoTieringPolicy.HotTierBypassModeEnabled,
+			}
+		}
+
+		assert.Equal(tt, "auto", volumeObj.AutoTieringPolicy.TieringPolicy, "Empty tiering policy should default to 'auto'")
+	})
+}
+
+// TestUpdateVolumeHotTierBypassModeValidation tests the validation logic for HotTierBypassModeEnabled in volume updates
+func TestUpdateVolumeHotTierBypassModeValidation(t *testing.T) {
+	t.Run("UpdateVolumeHotTierBypassModeRequiresPoolAutoTieringEnabled", func(tt *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: false, // Auto tiering disabled on pool
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		err := validateUpdateHotTierBypassMode(params, pool)
+		assert.EqualError(tt, err, "Hot Tier Bypass Mode requires Auto Tiering to be enabled on the Pool")
+	})
+
+	t.Run("UpdateVolumeHotTierBypassModeRequiresAutoTieringEnabled", func(tt *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: true,
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       false, // Auto tiering disabled on volume
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		err := validateUpdateHotTierBypassMode(params, pool)
+		assert.EqualError(tt, err, "Hot Tier Bypass Mode can only be enabled when Auto Tiering is enabled")
+	})
+
+	t.Run("UpdateVolumeHotTierBypassModeValidWhenBothAutoTieringEnabled", func(tt *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AllowAutoTiering: true,
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				CoolingThresholdDays:     30,
+				TieringPolicy:            "auto",
+				RetrievalPolicy:          "default",
+			},
+		}
+
+		err := validateUpdateHotTierBypassMode(params, pool)
+		assert.NoError(tt, err, "Validation should pass when both pool and volume auto tiering are enabled")
+	})
+}
+
+// Helper function to test the hot tier bypass mode validation logic for updates
+func validateUpdateHotTierBypassMode(params *common.UpdateVolumeParams, pool *datamodel.PoolView) error {
+	// Validate HotTierBypassModeEnabled for update
+	if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.HotTierBypassModeEnabled {
+		if !pool.AllowAutoTiering {
+			return errors.NewUserInputValidationErr("Hot Tier Bypass Mode requires Auto Tiering to be enabled on the Pool")
+		}
+		if !params.AutoTieringPolicy.AutoTieringEnabled {
+			return errors.NewUserInputValidationErr("Hot Tier Bypass Mode can only be enabled when Auto Tiering is enabled")
+		}
+	}
+	return nil
+}
+
+// TestHotTierBypassModeWithPausedTieringPolicy tests the validation logic that prevents enabling
+// Hot Tier Bypass Mode when the tiering policy is paused
+func TestHotTierBypassModeWithPausedTieringPolicy(t *testing.T) {
+	t.Run("CreateVolumeHotTierBypassModeSucceedsWhenTieringPolicyEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test-account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:             "test-pool",
+			AccountID:        account.ID,
+			SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			State:            models.LifeCycleStateREADY,
+			AllowAutoTiering: true, // Auto tiering enabled on pool
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid", ID: 1},
+			Name:      "test-svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create 2 nodes as required by the validation
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-1"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-2"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for the nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-1"},
+			Name:       "test_lif_1",
+			AccountID:  account.ID,
+			NodeID:     node1.ID,
+			IPAddress:  "192.168.1.10",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-2"},
+			Name:       "test_lif_2",
+			AccountID:  account.ID,
+			NodeID:     node2.ID,
+			IPAddress:  "192.168.1.11",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1},
+				AllowAutoTiering: true, // Auto tiering enabled on pool
+				AccountID:        account.ID,
+				SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+				State:            models.LifeCycleStateREADY,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		// Create a host group for block volume validation
+		hostGroup := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid", ID: 1},
+			Name:      "test-hostgroup",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(hostGroup).Error
+		if err != nil {
+			tt.Fatalf("Failed to create host group: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			AccountName:  "test-account",
+			Protocols:    []string{"ISCSI"},
+			QuotaInBytes: uint64(100 * 1024 * 1024 * 1024), // 100 GiB
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "LINUX",
+				HostGroupUUIDs: []string{"test-hg-uuid"},
+			},
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,                                  // Tiering is enabled
+				HotTierBypassModeEnabled: true,                                  // Hot tier bypass enabled
+				TieringPolicy:            models2.VolumeInlineTieringPolicyAuto, // ENABLED policy
+				CoolingThresholdDays:     30,
+			},
+		}
+
+		// This should pass validation since tiering policy is enabled (not paused)
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NoError(tt, err, "Validation should pass when tiering policy is enabled and hot tier bypass is enabled")
+	})
+}

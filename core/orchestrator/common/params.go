@@ -116,10 +116,11 @@ type SnapmirrorRelationshipParams struct {
 
 // AutoTieringPolicy describes the auto tiering policy for a volume
 type AutoTieringPolicy struct {
-	AutoTieringEnabled   bool
-	CoolingThresholdDays int32
-	TieringPolicy        string
-	RetrievalPolicy      string
+	AutoTieringEnabled       bool
+	CoolingThresholdDays     int32
+	TieringPolicy            string
+	RetrievalPolicy          string
+	HotTierBypassModeEnabled bool
 }
 
 type BlockPropertiesRequest struct {
