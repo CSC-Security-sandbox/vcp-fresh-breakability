@@ -24,6 +24,34 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+func TestPrepareCreateVolumeParams_SnapshotIdWithLargeVolumeConstituentCount_ReturnsError(t *testing.T) {
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:                  "testvolume",
+			CreationToken:               gcpgenserver.NewOptString("test-token"),
+			PoolId:                      gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:                gcpgenserver.NewOptFloat64(1024),
+			LargeVolumeConstituentCount: gcpgenserver.OptNilInt32{Value: 5, Set: true},
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaISCSI,
+			},
+		},
+		SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+		VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "LargeVolumeConstituentCount cannot be set when SnapshotId is provided")
+}
+
 func TestPrepareCreateVolumeParams(t *testing.T) {
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()

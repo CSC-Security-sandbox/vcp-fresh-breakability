@@ -3978,6 +3978,214 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 	assert.Equal(tt, "Creation in progress", volume.LifeCycleStateDetails)
 }
 
+// Test cases to cover snapshot handling in createVolume (lines 125-127)
+func Test_createLargeVolume_WithSnapshot(t *testing.T) {
+	tt := t
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		tt.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	// Clear the in-memory database
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		tt.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		tt.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		State:     models.LifeCycleStateREADY,
+		VendorID:  "/projects/project123/locations/location123/pools/test_pool",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-west1-a",
+		},
+		LargeCapacity: true,
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		tt.Fatalf("Failed to create pool: %v", err)
+	}
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+		Name:      "test_svm",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		Pool:      pool,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(svm).Error
+	if err != nil {
+		tt.Fatalf("Failed to create svm: %v", err)
+	}
+
+	// Create nodes for the pool (required for volume creation validation)
+	node1 := &datamodel.Node{
+		BaseModel: datamodel.BaseModel{UUID: "test-node1-uuid"},
+		Name:      "test-node1",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node1).Error
+	if err != nil {
+		tt.Fatalf("Failed to create node1: %v", err)
+	}
+
+	node2 := &datamodel.Node{
+		BaseModel: datamodel.BaseModel{UUID: "test-node2-uuid"},
+		Name:      "test-node2",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node2).Error
+	if err != nil {
+		tt.Fatalf("Failed to create node2: %v", err)
+	}
+
+	// Create LIFs for the nodes (required for volume creation validation)
+	lif1 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif1-uuid"},
+		Name:      "test-lif1",
+		AccountID: account.ID,
+		NodeID:    node1.ID,
+	}
+	err = store.DB().Create(lif1).Error
+	if err != nil {
+		tt.Fatalf("Failed to create lif1: %v", err)
+	}
+
+	lif2 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif2-uuid"},
+		Name:      "test-lif2",
+		AccountID: account.ID,
+		NodeID:    node2.ID,
+	}
+	err = store.DB().Create(lif2).Error
+	if err != nil {
+		tt.Fatalf("Failed to create lif2: %v", err)
+	}
+	var lvcc int32 = 5
+	// Create a parent volume
+	parentVolume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-parent-volume-uuid"},
+		Name:        "test_parent_volume",
+		AccountID:   account.ID,
+		PoolID:      pool.ID,
+		SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GiB
+		State:       models.LifeCycleStateREADY,
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{LargeVolumeConstituentCount: &lvcc,
+			LargeCapacity: true},
+	}
+	err = store.DB().Create(parentVolume).Error
+	if err != nil {
+		tt.Fatalf("Failed to create parent volume: %v", err)
+	}
+
+	// Create a snapshot
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test_snapshot",
+		AccountID: account.ID,
+		VolumeID:  parentVolume.ID,
+		State:     models.LifeCycleStateREADY,
+		Volume:    parentVolume,
+	}
+	err = store.DB().Create(snapshot).Error
+	if err != nil {
+		tt.Fatalf("Failed to create snapshot: %v", err)
+	}
+
+	params := &common.CreateVolumeParams{
+		AccountName:   "test_account",
+		Region:        "test_region",
+		Name:          "test_volume",
+		VendorID:      "test_vendor",
+		QuotaInBytes:  150 * 1024 * 1024 * 1024, // 150 GiB
+		Protocols:     []string{"NFS"},
+		Description:   "Some description",
+		DisplayName:   "Some display name",
+		PoolID:        "test-pool-uuid",
+		CreationToken: "test-creation-token",
+		Network:       "test-network",
+		SnapshotID:    "test-snapshot-uuid",
+		Zone:          "us-west1-a",
+		SnapReserve:   20, // 20% snapReserve
+		LargeCapacity: true,
+		FileProperties: &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportPolicyName: "test-export-policy",
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     "READ_WRITE",
+						NFSv3:          true,
+						NFSv4:          true,
+						Index:          1,
+					},
+				},
+			},
+		},
+	}
+
+	dbAccount := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-uuid",
+			ID:   account.ID,
+		},
+		Name: "test_account",
+	}
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return dbAccount, nil
+	}
+	validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		validateCreateVolumeParams = _validateCreateVolumeParams
+	}()
+
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return nil
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	volume, _, err := createVolume(ctx, store, temporal, params)
+	assert.NoError(tt, err)
+	assert.NotNil(tt, volume)
+	assert.Equal(tt, "test_volume", volume.DisplayName)
+	assert.Equal(tt, "test_account", volume.AccountName)
+	assert.Equal(tt, "test-pool-uuid", volume.PoolID)
+	assert.Equal(tt, "test_pool", volume.PoolName)
+	assert.Equal(tt, "test-creation-token", volume.CreationToken)
+	assert.Equal(tt, "Some description", volume.Description)
+	assert.Equal(tt, []string{"NFS"}, volume.ProtocolTypes)
+	assert.Equal(tt, uint64(150*1024*1024*1024), volume.QuotaInBytes)
+	assert.Equal(tt, "CREATING", volume.LifeCycleState)
+	assert.Equal(tt, "Creation in progress", volume.LifeCycleStateDetails)
+	assert.Equal(tt, int32(5), *volume.LargeVolumeConstituentCount)
+}
+
 func TestOrchestrator_CreateVolume(t *testing.T) {
 	// Arrange
 	mockStorage := &database.MockStorage{}

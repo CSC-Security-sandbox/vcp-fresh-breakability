@@ -125,6 +125,9 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			logger.Error("Parent snapshot is not in a valid state for volume creation", "snapshot_state", dbSnapshot.State)
 			return nil, "", customerrors.NewUserInputValidationErr("Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
 		}
+		if dbSnapshot.Volume != nil && dbSnapshot.Volume.LargeVolumeAttributes != nil && dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
+			params.LargeVolumeConstituentCount = *dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount
+		}
 		params.Snapshot = dbSnapshot
 	}
 	dbPool := database.ConvertPoolViewToPool(pool)
