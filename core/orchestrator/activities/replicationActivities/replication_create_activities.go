@@ -538,10 +538,16 @@ func (a *VolumeReplicationCreateActivity) DescribeRemoteJob(ctx context.Context,
 func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicationResult) googleproxyclient.VolumeV1beta {
 	srcVol := result.Event.SourceVolume
 	protocols := make([]googleproxyclient.ProtocolsV1beta, 0)
+	var isBlockVolume bool
 
 	for _, value := range srcVol.VolumeAttributes.Protocols {
 		var protocolsV1beta googleproxyclient.ProtocolsV1beta
 		_ = protocolsV1beta.UnmarshalText([]byte(value))
+
+		if protocolsV1beta == googleproxyclient.ProtocolsV1betaISCSI {
+			isBlockVolume = true
+		}
+
 		protocols = append(protocols, protocolsV1beta)
 	}
 
@@ -556,9 +562,13 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 		}
 	}
 
-	var creationToken *string
-	if creationToken = &result.Event.CreateReplicationParams.DestinationVolumeParameters.ShareName; result.Event.CreateReplicationParams.DestinationVolumeParameters.ShareName == "" {
-		creationToken = &result.Event.SourceVolume.VolumeAttributes.CreationToken
+	var creationToken string
+	if !isBlockVolume {
+		if result.Event.CreateReplicationParams.DestinationVolumeParameters.ShareName != "" {
+			creationToken = result.Event.CreateReplicationParams.DestinationVolumeParameters.ShareName
+		} else {
+			creationToken = result.Event.SourceVolume.VolumeAttributes.CreationToken
+		}
 	}
 
 	var resourceId *string
@@ -568,7 +578,7 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 
 	volume := googleproxyclient.VolumeV1beta{
 		ResourceId:    *resourceId,
-		CreationToken: googleproxyclient.NewOptString(*creationToken),
+		CreationToken: googleproxyclient.NewOptString(creationToken),
 		PoolId:        googleproxyclient.NewNilString(result.DstPool.PoolId.Value),
 		QuotaInBytes:  googleproxyclient.NewOptFloat64(float64(srcVol.SizeInBytes)),
 		Network:       googleproxyclient.NewOptString(result.DstPool.Network),

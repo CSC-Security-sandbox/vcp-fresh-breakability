@@ -900,6 +900,7 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]string
 		LifeCycleState:        volume.State,
 		LifeCycleStateDetails: volume.StateDetails,
 		IsDataProtection:      volume.VolumeAttributes.IsDataProtection,
+		Mounted:               volume.VolumeAttributes.Mounted,
 		Zone:                  volume.Pool.PoolAttributes.PrimaryZone,
 		UsedBytes:             volume.UsedBytes,
 		SnapReserve:           volume.VolumeAttributes.SnapReserve,

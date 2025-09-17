@@ -1007,6 +1007,15 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		res.CacheParameters = gcpgenserver.NewOptFlexCacheV1beta(convertToFlexCacheV1(volume.CacheParameters))
 	}
 
+	// Update Volume state to PREPARING or READONLY based on the mount status
+	if volume.IsDataProtection && res.VolumeState.Value == gcpgenserver.VolumeV1betaVolumeStateREADY {
+		if volume.Mounted {
+			res.VolumeState = gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeStateREADONLY)
+		} else {
+			res.VolumeState = gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeStatePREPARING)
+		}
+	}
+
 	return res
 }
 

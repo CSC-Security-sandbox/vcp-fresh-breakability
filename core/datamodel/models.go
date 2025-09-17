@@ -199,6 +199,7 @@ type VolumeAttributes struct {
 	BlockDevices            *[]BlockDevice   `json:"block_devices"`
 	FileProperties          *FileProperties  `json:"file_properties"`
 	IsDataProtection        bool             `json:"is_data_protection"`
+	Mounted                 bool             `json:"mounted"`
 	SnapReserve             int64            `json:"snap_reserve"`
 	Labels                  *JSONB           `json:"labels"`
 	RestoredBackupID        string           `json:"restored_backup_id"`

@@ -3587,6 +3587,58 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Contains(t, out.MountPoints[0].Instructions.Value, "lun-123")
 	})
 
+	t.Run("DataProtectionVolumeStateConversion", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			volume   *models.Volume
+			expected gcpgenserver.VolumeV1betaVolumeState
+		}{
+			{
+				name: "DataProtectionVolume_Ready_Mounted",
+				volume: &models.Volume{
+					IsDataProtection: true,
+					Mounted:          true,
+					LifeCycleState:   "READY",
+				},
+				expected: gcpgenserver.VolumeV1betaVolumeStateREADONLY,
+			},
+			{
+				name: "DataProtectionVolume_Ready_NotMounted",
+				volume: &models.Volume{
+					IsDataProtection: true,
+					Mounted:          false,
+					LifeCycleState:   "READY",
+				},
+				expected: gcpgenserver.VolumeV1betaVolumeStatePREPARING,
+			},
+			{
+				name: "NonDataProtectionVolume_Ready",
+				volume: &models.Volume{
+					IsDataProtection: false,
+					Mounted:          true,
+					LifeCycleState:   "READY",
+				},
+				expected: gcpgenserver.VolumeV1betaVolumeStateREADY,
+			},
+			{
+				name: "DataProtectionVolume_NonReady",
+				volume: &models.Volume{
+					IsDataProtection: true,
+					Mounted:          true,
+					LifeCycleState:   "CREATING",
+				},
+				expected: gcpgenserver.VolumeV1betaVolumeStateCREATING,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				result := convertModelToVCPVolume(tc.volume)
+				assert.Equal(t, tc.expected, result.VolumeState.Value)
+			})
+		}
+	})
+
 	t.Run("WithBlockDevicesNoHostGroups_ShouldConvertCorrectly", func(t *testing.T) {
 		blockDevices := []models.BlockDevice{
 			{
@@ -3890,9 +3942,9 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 			LifeCycleState:  "READY",
 			IPAddresses:     []string{"10.72.177.17"},
 			DataProtection: &models.DataProtection{
-				BackupVaultID:    "vault-123",
-				BackupPolicyId:   "policy-123",
-				BackupChainBytes: func() *int64 { v := int64(1000); return &v }(),
+				BackupVaultID:          "vault-123",
+				BackupPolicyId:         "policy-123",
+				BackupChainBytes:       func() *int64 { v := int64(1000); return &v }(),
 				ScheduledBackupEnabled: func() *bool { v := true; return &v }(),
 			},
 		}
@@ -3901,7 +3953,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, "backup-token", out.CreationToken.Value)
 		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
 		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
-		
+
 		// Test backup configuration
 		assert.True(t, out.BackupConfig.IsSet())
 		backupConfig := out.BackupConfig.Value
@@ -3931,7 +3983,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, "no-backup-token", out.CreationToken.Value)
 		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
 		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
-		
+
 		// Test that backup configuration is not set when empty
 		assert.False(t, out.BackupConfig.IsSet())
 	})
@@ -3939,15 +3991,15 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 
 func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
 	tests := []struct {
-		name                string
-		dataProtection      *models.DataProtection
-		expectBackupConfig  bool
-		expectedFields      []string
-		unexpectedFields    []string
+		name               string
+		dataProtection     *models.DataProtection
+		expectBackupConfig bool
+		expectedFields     []string
+		unexpectedFields   []string
 	}{
 		{
-			name: "No backup config when all fields empty",
-			dataProtection: &models.DataProtection{},
+			name:               "No backup config when all fields empty",
+			dataProtection:     &models.DataProtection{},
 			expectBackupConfig: false,
 		},
 		{
@@ -3962,7 +4014,7 @@ func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
 		{
 			name: "Backup config with only BackupPolicyId",
 			dataProtection: &models.DataProtection{
-				BackupPolicyId: "policy-123",
+				BackupPolicyId:         "policy-123",
 				ScheduledBackupEnabled: func() *bool { v := false; return &v }(),
 			},
 			expectBackupConfig: true,
@@ -3981,9 +4033,9 @@ func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
 		{
 			name: "Backup config with all fields set",
 			dataProtection: &models.DataProtection{
-				BackupVaultID:    "vault-123",
-				BackupPolicyId:   "policy-123",
-				BackupChainBytes: func() *int64 { v := int64(1000); return &v }(),
+				BackupVaultID:          "vault-123",
+				BackupPolicyId:         "policy-123",
+				BackupChainBytes:       func() *int64 { v := int64(1000); return &v }(),
 				ScheduledBackupEnabled: func() *bool { v := true; return &v }(),
 			},
 			expectBackupConfig: true,
@@ -4004,29 +4056,29 @@ func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			volume := &models.Volume{
-				DisplayName:         "test-volume",
-				LifeCycleState:      "READY",
+				DisplayName:           "test-volume",
+				LifeCycleState:        "READY",
 				LifeCycleStateDetails: "Available",
-				VendorSubnetID:      "projects/123/global/networks/test-network",
-				PoolID:              "pool-123",
-				CreationToken:       "token-123",
-				QuotaInBytes:        1000000,
-				PoolName:            "test-pool",
-				EncryptionType:      "ENCRYPTION_TYPE_UNSPECIFIED",
-				SnapReserve:         0,
-				Zone:                "us-east1-a",
-				UsedBytes:           500000,
-				IsDataProtection:    false,
-				DataProtection:      tt.dataProtection,
+				VendorSubnetID:        "projects/123/global/networks/test-network",
+				PoolID:                "pool-123",
+				CreationToken:         "token-123",
+				QuotaInBytes:          1000000,
+				PoolName:              "test-pool",
+				EncryptionType:        "ENCRYPTION_TYPE_UNSPECIFIED",
+				SnapReserve:           0,
+				Zone:                  "us-east1-a",
+				UsedBytes:             500000,
+				IsDataProtection:      false,
+				DataProtection:        tt.dataProtection,
 			}
-	
+
 			result := convertModelToVCPVolume(volume)
-	
+
 			if tt.expectBackupConfig {
 				assert.True(t, result.BackupConfig.IsSet(), "Expected BackupConfig to be set")
-				
+
 				backupConfig := result.BackupConfig.Value
-				
+
 				// Check expected fields are set
 				for _, field := range tt.expectedFields {
 					switch field {
@@ -4040,7 +4092,7 @@ func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
 						assert.True(t, backupConfig.ScheduledBackupEnabled.IsSet(), "Expected ScheduledBackupEnabled to be set")
 					}
 				}
-				
+
 				// Check unexpected fields are not set
 				for _, field := range tt.unexpectedFields {
 					switch field {
@@ -4060,6 +4112,7 @@ func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
 		})
 	}
 }
+
 // TestPrepareUpdateVolumeParams_BackupDisabled tests the scenario where backup is disabled
 func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 	origPrepare := prepareCreateVolumeParams

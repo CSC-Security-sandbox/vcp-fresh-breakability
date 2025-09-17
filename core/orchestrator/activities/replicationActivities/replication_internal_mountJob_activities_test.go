@@ -458,7 +458,7 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 		err := activity.UpdateVolumeLunDetailsInDB(ctx, replication, lunDetails)
 		assert.Error(tt, err)
 	})
-	t.Run("WhenSuccess", func(tt *testing.T) {
+	t.Run("WhenSuccess_UpdatesBlockDevicesAndMountStatus", func(tt *testing.T) {
 		defer func() {
 			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
 		}()
@@ -482,16 +482,39 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 			Volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{
 					BlockDevices: &[]datamodel.BlockDevice{{}},
+					Mounted:      false, // Initially not mounted
 				},
 			},
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				DestinationSvmName:    "svm-name",
 				DestinationVolumeName: "volume-name",
 				SourceVolumeName:      "source-volume-name",
+				DestinationVolumeUUID: "dest-volume-uuid",
 			},
 		}
-		mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		// Capture the updates made to the volume
+		var capturedUpdates map[string]interface{}
+		mockStorage.On("UpdateVolumeFields", ctx, "dest-volume-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			capturedUpdates = updates
+			return true
+		})).Return(nil)
+
 		err := activity.UpdateVolumeLunDetailsInDB(ctx, replication, lunDetails)
 		assert.NoError(tt, err)
+
+		// Verify the updates
+		volumeAttrs, ok := capturedUpdates["volume_attributes"].(*datamodel.VolumeAttributes)
+		assert.True(tt, ok, "volume_attributes should be present in updates")
+		assert.True(tt, volumeAttrs.Mounted, "Mounted flag should be set to true")
+
+		// Verify BlockDevice updates
+		assert.NotNil(tt, volumeAttrs.BlockDevices)
+		blockDevices := *volumeAttrs.BlockDevices
+		assert.Equal(tt, 1, len(blockDevices))
+		assert.Equal(tt, "lun_vol", blockDevices[0].Name)
+		assert.Equal(tt, int64(1073741824), blockDevices[0].Size)
+		assert.Equal(tt, "lun-uuid", blockDevices[0].LunUUID)
+		assert.Equal(tt, "123412214", blockDevices[0].Identifier)
 	})
 }

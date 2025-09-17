@@ -4676,7 +4676,48 @@ func TestMountReplication(t *testing.T) {
 }
 
 func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
-	t.Run("WithCompleteVolumeData_ShouldConvertCorrectly", func(tt *testing.T) {
+	t.Run("WithBlockVolume_ShouldNotSetCreationToken", func(tt *testing.T) {
+		// Arrange
+		volumeID := "block-volume-id"
+		resourceID := "block-resource-id"
+		shareName := "block-share-name"
+		creationToken := "block-creation-token"
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        volumeID,
+					SizeInBytes: 1073741824,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: creationToken,
+						Protocols:     []string{"ISCSI"}, // Block volume
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID: &resourceID,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:  volumeID,
+						ShareName: shareName,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.Equal(tt, volumeID, result.ResourceId)
+		assert.Equal(tt, "", result.CreationToken.Value) // Should be empty for block volumes
+		assert.Len(tt, result.Protocols, 1)
+		assert.Equal(tt, googleproxyclient.ProtocolsV1betaISCSI, result.Protocols[0])
+	})
+
+	t.Run("WithCompleteNonBlockVolumeData_ShouldConvertCorrectly", func(tt *testing.T) {
 		// Arrange
 		blockDevices := []datamodel.BlockDevice{
 			{
@@ -4717,7 +4758,7 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 					SizeInBytes: 5368709120, // 5GB
 					VolumeAttributes: &datamodel.VolumeAttributes{
 						CreationToken: creationToken,
-						Protocols:     []string{"ISCSI", "NFSV3"},
+						Protocols:     []string{"ISCSI"},
 						BlockDevices:  &blockDevices,
 					},
 				},
@@ -4741,20 +4782,19 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 
 		// Assert
 		assert.Equal(tt, volumeID, result.ResourceId)
-		assert.Equal(tt, shareName, result.CreationToken.Value)
+		assert.Empty(tt, result.CreationToken.Value)
 		assert.Equal(tt, "pool-123", result.PoolId.Value)
 		assert.Equal(tt, float64(5368709120), result.QuotaInBytes.Value)
 		assert.Equal(tt, "test-network", result.Network.Value)
 		assert.Equal(tt, "Test destination volume", result.Description.Value)
 
 		// Test protocols conversion
-		assert.Len(tt, result.Protocols, 2)
+		assert.Len(tt, result.Protocols, 1)
 		protocolsMap := make(map[string]bool)
 		for _, p := range result.Protocols {
 			protocolsMap[string(p)] = true
 		}
 		assert.True(tt, protocolsMap["ISCSI"])
-		assert.True(tt, protocolsMap["NFSV3"])
 
 		// Test BlockDevices conversion
 		assert.Len(tt, result.BlockDevices, 2)
@@ -4819,7 +4859,7 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 					SizeInBytes: 2147483648,
 					VolumeAttributes: &datamodel.VolumeAttributes{
 						CreationToken: creationToken,
-						Protocols:     []string{"ISCSI"},
+						Protocols:     []string{"NFSV3", "NFSV4"}, // Non-block protocols only
 					},
 				},
 				CreateReplicationParams: &replication.CreateReplicationParamsBody{
@@ -4840,7 +4880,85 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 		result := convertSourceVolumeToDestinationVolume(replicationResult)
 
 		// Assert
-		assert.Equal(tt, sourceName, result.ResourceId)
+		assert.Equal(tt, sourceName, result.ResourceId)         // Should use source name when destination volume ID is empty
+		assert.Equal(tt, shareName, result.CreationToken.Value) // Should use share name for non-block volumes
+	})
+	t.Run("WithEmptyVolumeID_ShouldUseSourceVolumeNameForBlockProtocol", func(tt *testing.T) {
+		// Arrange
+		creationToken := "test-creation-token"
+		sourceName := "source-volume-name"
+		resourceID := "test-resource-id"
+		shareName := "test-share-name"
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        sourceName,
+					SizeInBytes: 2147483648,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: creationToken,
+						Protocols:     []string{"ISCSI"}, // Non-block protocols only
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID: &resourceID,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:  "", // Empty volume ID
+						ShareName: shareName,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-789"),
+				Network: "test-network-3",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.Equal(tt, sourceName, result.ResourceId) // Should use source name when destination volume ID is empty
+		assert.Empty(tt, result.CreationToken.Value)    // Should use share name for non-block volumes
+	})
+	t.Run("WithMixedProtocols_ShouldIdentifyAsBlockVolume", func(tt *testing.T) {
+		// Arrange
+		volumeID := "mixed-volume-id"
+		resourceID := "mixed-resource-id"
+		shareName := "mixed-share-name"
+		creationToken := "mixed-creation-token"
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        volumeID,
+					SizeInBytes: 1073741824,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: creationToken,
+						Protocols:     []string{"ISCSI", "NFSV3", "NFSV4"}, // Mixed protocols including iSCSI
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					ResourceID: &resourceID,
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:  volumeID,
+						ShareName: shareName,
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert
+		assert.Equal(tt, volumeID, result.ResourceId)
+		assert.Equal(tt, "", result.CreationToken.Value) // Should be empty because ISCSI is present
+		assert.Len(tt, result.Protocols, 3)
 	})
 
 	t.Run("WithNilBlockDevices_ShouldHandleGracefully", func(tt *testing.T) {

@@ -20,6 +20,7 @@ type Volume struct {
 	LifeCycleTrackingID         int32
 	QuotaInBytes                uint64
 	IsDataProtection            bool
+	Mounted                     bool
 	BlockProperties             *BlockProperties
 	BlockDevices                *[]BlockDevice
 	SnapshotPolicy              *SnapshotPolicy

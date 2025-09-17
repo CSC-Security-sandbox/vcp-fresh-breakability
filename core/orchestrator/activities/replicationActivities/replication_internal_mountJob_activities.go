@@ -133,6 +133,12 @@ func (j *MountJobActivity) UpdateVolumeLunDetailsInDB(ctx context.Context, repli
 
 		replication.Volume.VolumeAttributes.BlockDevices = &blockDevices
 	}
+
+	// Set mount to true
+	if replication.Volume.VolumeAttributes != nil {
+		replication.Volume.VolumeAttributes.Mounted = true
+	}
+
 	updates["volume_attributes"] = replication.Volume.VolumeAttributes
 	err := se.UpdateVolumeFields(ctx, replication.ReplicationAttributes.DestinationVolumeUUID, updates)
 	if err != nil {
