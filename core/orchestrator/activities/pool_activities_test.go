@@ -1829,28 +1829,84 @@ func Test_DeleteSVMsDeletesAllSVMsSuccessfully(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
-func Test_DeleteLIFsDeletesAllLIFsSuccessfully(t *testing.T) {
+func Test_deleteLIFsDeletesAllLIFsSuccessfully(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	nodes := []*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1"},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2"},
-	}
-	lifs := []*datamodel.Lif{
-		{Name: "lif1"},
-		{Name: "lif2"},
-	}
+	ctx := context.Background()
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 2}}
 
+	// Mock nodes
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 10}, Name: "node1"},
+		{BaseModel: datamodel.BaseModel{ID: 20}, Name: "node2"},
+	}
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	mockStorage.On("GetLifByNodeID", ctx, nodes[0].ID, nodes[0].AccountID).Return(lifs[0], nil)
-	mockStorage.On("GetLifByNodeID", ctx, nodes[1].ID, nodes[1].AccountID).Return(lifs[1], nil)
+
+	// Mock LIFs
+	lifs := []*datamodel.Lif{
+		{Name: "lif1", BaseModel: datamodel.BaseModel{ID: 100}},
+		{Name: "lif2", BaseModel: datamodel.BaseModel{ID: 200}},
+	}
+	mockStorage.On("GetLifsForNodesWithProtocol", ctx, []int64{10, 20}, pool.AccountID, "").Return(lifs, nil)
 	mockStorage.On("DeleteLif", ctx, lifs[0]).Return(nil)
 	mockStorage.On("DeleteLif", ctx, lifs[1]).Return(nil)
 
 	err := activities.DeleteLIFs(ctx, mockStorage, pool)
-
 	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_deleteLIFsSkipsDeletedLIFs(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 2}
+
+	nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 10}}}
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
+
+	lifs := []*datamodel.Lif{
+		{BaseModel: datamodel.BaseModel{DeletedAt: &gorm.DeletedAt{Valid: true}}, Name: "lif1"},
+		{Name: "lif2", BaseModel: datamodel.BaseModel{DeletedAt: nil, ID: 200}},
+	}
+	mockStorage.On("GetLifsForNodesWithProtocol", ctx, []int64{10}, pool.AccountID, "").Return(lifs, nil)
+	mockStorage.On("DeleteLif", ctx, lifs[1]).Return(nil)
+
+	err := activities.DeleteLIFs(ctx, mockStorage, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_deleteLIFsReturnsErrorWhenLIFRetrievalFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 2}
+
+	nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 10}}}
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
+	mockStorage.On("GetLifsForNodesWithProtocol", ctx, []int64{10}, pool.AccountID, "").Return(nil, errors.New("lif db error"))
+
+	err := activities.DeleteLIFs(ctx, mockStorage, pool)
+	assert.Error(t, err)
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to retrieve LIFs for pool")
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_deleteLIFsReturnsErrorWhenLIFDeletionFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 2}
+
+	nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 10}}}
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
+
+	lifs := []*datamodel.Lif{
+		{Name: "lif1", BaseModel: datamodel.BaseModel{ID: 100, DeletedAt: nil}},
+	}
+	mockStorage.On("GetLifsForNodesWithProtocol", ctx, []int64{10}, pool.AccountID, "").Return(lifs, nil)
+	mockStorage.On("DeleteLif", ctx, lifs[0]).Return(errors.New("delete error"))
+
+	err := activities.DeleteLIFs(ctx, mockStorage, pool)
+	assert.Error(t, err)
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to delete LIF record")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1865,62 +1921,6 @@ func Test_DeleteLIFsReturnsErrorWhenNodesNotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to retrieve nodes for pool")
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_DeleteLIFsSkipsDeletedLIFs(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	nodes := []*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1"},
-	}
-	lif := &datamodel.Lif{BaseModel: datamodel.BaseModel{DeletedAt: &gorm.DeletedAt{Valid: true}}, Name: "lif1"}
-
-	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	mockStorage.On("GetLifByNodeID", ctx, nodes[0].ID, nodes[0].AccountID).Return(lif, nil)
-
-	err := activities.DeleteLIFs(ctx, mockStorage, pool)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_DeleteLIFsReturnsErrorWhenLIFRetrievalFails(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	nodes := []*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1"},
-	}
-
-	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	mockStorage.On("GetLifByNodeID", ctx, nodes[0].ID, nodes[0].AccountID).Return(nil, errors.New("failed to retrieve LIF"))
-
-	err := activities.DeleteLIFs(ctx, mockStorage, pool)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to retrieve LIFs for Node")
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_DeleteLIFsReturnsErrorWhenLIFDeletionFails(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	nodes := []*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1"},
-	}
-	lif := &datamodel.Lif{Name: "lif1"}
-
-	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	mockStorage.On("GetLifByNodeID", ctx, nodes[0].ID, nodes[0].AccountID).Return(lif, nil)
-	mockStorage.On("DeleteLif", ctx, lif).Return(errors.New("failed to delete LIF"))
-
-	err := activities.DeleteLIFs(ctx, mockStorage, pool)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to delete LIF record")
 	mockStorage.AssertExpectations(t)
 }
 

@@ -1959,25 +1959,25 @@ func _deleteLIFs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err))
 	}
-
-	// Delete each LIF
+	nodeIds := make([]int64, 0, len(nodes))
 	for _, node := range nodes {
-		// Retrieve the LIFs associated with the Node
-		lif, err := se.GetLifByNodeID(ctx, node.ID, node.AccountID)
-		if err != nil {
-			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve LIFs for Node %s: %w", node.Name, err))
-		}
-
+		nodeIds = append(nodeIds, node.ID)
+	}
+	// Retrieve the LIFs associated with the Node
+	lifs, err := se.GetLifsForNodesWithProtocol(ctx, nodeIds, pool.AccountID, "")
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve LIFs for pool %d: %w", pool.ID, err))
+	}
+	// Loop over to delete each LIF
+	for _, lif := range lifs {
 		if lif.DeletedAt != nil && lif.DeletedAt.Valid {
 			continue
 		}
-
 		// Delete the LIF record from the database
 		if err := se.DeleteLif(ctx, lif); err != nil {
 			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to delete LIF record %s: %w", lif.Name, err))
 		}
 	}
-
 	return nil
 }
 
