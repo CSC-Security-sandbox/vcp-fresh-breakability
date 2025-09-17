@@ -6165,9 +6165,10 @@ func TestUpdatedPoolWithVLMConfig_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	pool := &datamodel.Pool{
-		BaseModel:      datamodel.BaseModel{ID: 1},
-		Name:           "test-pool",
-		PoolAttributes: &datamodel.PoolAttributes{},
+		BaseModel:         datamodel.BaseModel{ID: 1},
+		Name:              "test-pool",
+		PoolAttributes:    &datamodel.PoolAttributes{},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{}, // Initialize AutoTiering config
 	}
 	vlmConfig := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
@@ -6206,9 +6207,10 @@ func TestUpdatedPoolWithVLMConfig_Failure(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	pool := &datamodel.Pool{
-		BaseModel:      datamodel.BaseModel{ID: 1},
-		Name:           "test-pool",
-		PoolAttributes: &datamodel.PoolAttributes{},
+		BaseModel:         datamodel.BaseModel{ID: 1},
+		Name:              "test-pool",
+		PoolAttributes:    &datamodel.PoolAttributes{},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{}, // Initialize AutoTiering config
 	}
 	vlmConfig := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
@@ -6227,6 +6229,349 @@ func TestUpdatedPoolWithVLMConfig_Failure(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "failed to update pool")
+	mockSE.AssertExpectations(t)
+}
+
+// TestUpdatedPoolWithVLMConfig_AutoTieringEnabled tests updating a pool with AutoTiering enabled
+func TestUpdatedPoolWithVLMConfig_AutoTieringEnabled(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		BaseModel:         datamodel.BaseModel{ID: 1},
+		Name:              "test-pool",
+		PoolAttributes:    &datamodel.PoolAttributes{},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{}, // Initialize AutoTiering config
+	}
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			Provider: "gcp",
+		},
+	}
+	updatePoolParams := &commonparams.UpdatePoolParams{
+		SizeInBytes:             2000,
+		Description:             "Updated description",
+		TotalThroughputMibps:    100,
+		AllowAutoTiering:        true,
+		HotTierSizeInBytes:      1000,
+		EnableHotTierAutoResize: true,
+	}
+
+	// Expected pool should have AutoTiering enabled with new config
+	expectedPool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-pool",
+		State:            coremodel.LifeCycleStateInUse,
+		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
+		SizeInBytes:      2000,
+		Description:      "Updated description",
+		AllowAutoTiering: true,
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      1000,
+			EnableHotTierAutoResize: true,
+			BucketName:              "", // Empty since no existing bucket
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 100,
+		},
+	}
+
+	mockSE.On("UpdatedPool", ctx, mock.MatchedBy(func(p *datamodel.Pool) bool {
+		return p.AllowAutoTiering == true &&
+			p.AutoTieringConfig != nil &&
+			p.AutoTieringConfig.HotTierSizeInBytes == 1000 &&
+			p.AutoTieringConfig.EnableHotTierAutoResize == true &&
+			p.AutoTieringConfig.BucketName == ""
+	})).Return(expectedPool, nil)
+
+	result, err := activity.UpdatedPoolWithVLMConfig(ctx, pool, vlmConfig, updatePoolParams)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.AllowAutoTiering)
+	assert.NotNil(t, result.AutoTieringConfig)
+	assert.Equal(t, int64(1000), result.AutoTieringConfig.HotTierSizeInBytes)
+	assert.True(t, result.AutoTieringConfig.EnableHotTierAutoResize)
+	assert.Equal(t, "", result.AutoTieringConfig.BucketName)
+	mockSE.AssertExpectations(t)
+}
+
+// TestUpdatedPoolWithVLMConfig_AutoTieringDisabled tests updating a pool with AutoTiering disabled
+func TestUpdatedPoolWithVLMConfig_AutoTieringOneWayEnablement(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-pool",
+		PoolAttributes:   &datamodel.PoolAttributes{},
+		AllowAutoTiering: true, // Already enabled
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      500,
+			EnableHotTierAutoResize: false,
+			BucketName:              "existing-bucket",
+		},
+	}
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			Provider: "gcp",
+		},
+	}
+	updatePoolParams := &commonparams.UpdatePoolParams{
+		SizeInBytes:             3000,
+		Description:             "Updated description",
+		TotalThroughputMibps:    150,
+		AllowAutoTiering:        false, // Attempt to disable AutoTiering (should be ignored)
+		HotTierSizeInBytes:      1500,  // This should be ignored since AutoTiering remains enabled
+		EnableHotTierAutoResize: true,  // This should be updated since AutoTiering is enabled
+	}
+
+	// Expected pool should STILL have AutoTiering enabled and config preserved
+	expectedPool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-pool",
+		State:            coremodel.LifeCycleStateInUse,
+		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
+		SizeInBytes:      3000,
+		Description:      "Updated description",
+		AllowAutoTiering: true, // Should remain enabled despite update param
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      1500,              // Updated from params since AutoTiering is enabled
+			EnableHotTierAutoResize: true,              // Updated from params since AutoTiering is enabled
+			BucketName:              "existing-bucket", // Preserved
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 150,
+		},
+	}
+
+	mockSE.On("UpdatedPool", ctx, mock.MatchedBy(func(p *datamodel.Pool) bool {
+		// AutoTiering should still be enabled and config preserved
+		return p.AllowAutoTiering == true && p.AutoTieringConfig != nil &&
+			p.AutoTieringConfig.BucketName == "existing-bucket"
+	})).Return(expectedPool, nil)
+
+	result, err := activity.UpdatedPoolWithVLMConfig(ctx, pool, vlmConfig, updatePoolParams)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.AllowAutoTiering)                                 // Should still be true
+	assert.NotNil(t, result.AutoTieringConfig)                              // Config should be preserved
+	assert.Equal(t, "existing-bucket", result.AutoTieringConfig.BucketName) // Bucket name preserved
+	mockSE.AssertExpectations(t)
+}
+
+// TestUpdatedPoolWithVLMConfig_AutoTieringDisabled tests updating a pool with AutoTiering disabled
+func TestUpdatedPoolWithVLMConfig_AutoTieringDisabled(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-pool",
+		PoolAttributes:   &datamodel.PoolAttributes{},
+		AllowAutoTiering: false, // AutoTiering is disabled
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      1000,
+			EnableHotTierAutoResize: false,
+			BucketName:              "existing-bucket",
+		},
+	}
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			Provider: "gcp",
+		},
+	}
+	updatePoolParams := &commonparams.UpdatePoolParams{
+		SizeInBytes:             5000,
+		Description:             "Updated description",
+		TotalThroughputMibps:    200,
+		AllowAutoTiering:        false, // Keep AutoTiering disabled
+		HotTierSizeInBytes:      2000,  // This should be ignored, HotTierSizeInBytes should sync with SizeInBytes
+		EnableHotTierAutoResize: true,  // This should be updated anyway
+	}
+
+	// Expected pool should have HotTierSizeInBytes synced with SizeInBytes
+	expectedPool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-pool",
+		State:            coremodel.LifeCycleStateInUse,
+		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
+		SizeInBytes:      5000,
+		Description:      "Updated description",
+		AllowAutoTiering: false, // Should remain disabled
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      5000,              // Should sync with SizeInBytes
+			EnableHotTierAutoResize: true,              // Updated from params
+			BucketName:              "existing-bucket", // Preserved
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 200,
+		},
+	}
+
+	mockSE.On("UpdatedPool", ctx, mock.AnythingOfType("*datamodel.Pool")).Return(expectedPool, nil)
+
+	result, err := activity.UpdatedPoolWithVLMConfig(ctx, pool, vlmConfig, updatePoolParams)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.False(t, result.AllowAutoTiering)                                  // Should remain disabled
+	assert.NotNil(t, result.AutoTieringConfig)                                // Config should be preserved
+	assert.Equal(t, int64(5000), result.AutoTieringConfig.HotTierSizeInBytes) // Should sync with SizeInBytes
+	assert.True(t, result.AutoTieringConfig.EnableHotTierAutoResize)          // Should be updated
+	assert.Equal(t, "existing-bucket", result.AutoTieringConfig.BucketName)   // Bucket name preserved
+	mockSE.AssertExpectations(t)
+}
+
+// TestUpdatedPoolWithVLMConfig_PreserveBucketName tests that existing bucket name is preserved when updating AutoTiering
+func TestUpdatedPoolWithVLMConfig_PreserveBucketName(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	existingBucketName := "my-existing-bucket"
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-pool",
+		PoolAttributes:   &datamodel.PoolAttributes{},
+		AllowAutoTiering: true,
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      500,
+			EnableHotTierAutoResize: false,
+			BucketName:              existingBucketName,
+		},
+	}
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			Provider: "gcp",
+		},
+	}
+	updatePoolParams := &commonparams.UpdatePoolParams{
+		SizeInBytes:             4000,
+		Description:             "Updated description",
+		TotalThroughputMibps:    200,
+		AllowAutoTiering:        true,
+		HotTierSizeInBytes:      1500, // Updated size
+		EnableHotTierAutoResize: true, // Updated setting
+	}
+
+	// Expected pool should preserve the existing bucket name
+	expectedPool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-pool",
+		State:            coremodel.LifeCycleStateInUse,
+		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
+		SizeInBytes:      4000,
+		Description:      "Updated description",
+		AllowAutoTiering: true,
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      1500,
+			EnableHotTierAutoResize: true,
+			BucketName:              existingBucketName, // Should be preserved
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 200,
+		},
+	}
+
+	mockSE.On("UpdatedPool", ctx, mock.MatchedBy(func(p *datamodel.Pool) bool {
+		return p.AllowAutoTiering == true &&
+			p.AutoTieringConfig != nil &&
+			p.AutoTieringConfig.HotTierSizeInBytes == 1500 &&
+			p.AutoTieringConfig.EnableHotTierAutoResize == true &&
+			p.AutoTieringConfig.BucketName == existingBucketName
+	})).Return(expectedPool, nil)
+
+	result, err := activity.UpdatedPoolWithVLMConfig(ctx, pool, vlmConfig, updatePoolParams)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.AllowAutoTiering)
+	assert.NotNil(t, result.AutoTieringConfig)
+	assert.Equal(t, int64(1500), result.AutoTieringConfig.HotTierSizeInBytes)
+	assert.True(t, result.AutoTieringConfig.EnableHotTierAutoResize)
+	assert.Equal(t, existingBucketName, result.AutoTieringConfig.BucketName)
+	mockSE.AssertExpectations(t)
+}
+
+// TestUpdatedPoolWithVLMConfig_AutoTieringWithIOPS tests updating a pool with AutoTiering and IOPS
+func TestUpdatedPoolWithVLMConfig_AutoTieringWithIOPS(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		BaseModel:         datamodel.BaseModel{ID: 1},
+		Name:              "test-pool",
+		PoolAttributes:    &datamodel.PoolAttributes{},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{}, // Initialize AutoTiering config
+	}
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			Provider: "gcp",
+		},
+	}
+
+	updatePoolParams := &commonparams.UpdatePoolParams{
+		SizeInBytes:             5000,
+		Description:             "Updated description with IOPS",
+		TotalThroughputMibps:    250,
+		TotalIops:               nillable.ToPointer(int64(2048)),
+		AllowAutoTiering:        true,
+		HotTierSizeInBytes:      2000,
+		EnableHotTierAutoResize: false,
+		Labels: &datamodel.JSONB{
+			"environment": "test",
+			"team":        "platform",
+		},
+	}
+
+	expectedPool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1},
+		Name:             "test-pool",
+		State:            coremodel.LifeCycleStateInUse,
+		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
+		SizeInBytes:      5000,
+		Description:      "Updated description with IOPS",
+		AllowAutoTiering: true,
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      2000,
+			EnableHotTierAutoResize: false,
+			BucketName:              "",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 250,
+			Iops:            2048,
+			Labels: &datamodel.JSONB{
+				"environment": "test",
+				"team":        "platform",
+			},
+		},
+	}
+
+	mockSE.On("UpdatedPool", ctx, mock.MatchedBy(func(p *datamodel.Pool) bool {
+		return p.AllowAutoTiering == true &&
+			p.AutoTieringConfig != nil &&
+			p.AutoTieringConfig.HotTierSizeInBytes == 2000 &&
+			p.AutoTieringConfig.EnableHotTierAutoResize == false &&
+			p.PoolAttributes.Iops == 2048 &&
+			p.PoolAttributes.Labels != nil
+	})).Return(expectedPool, nil)
+
+	result, err := activity.UpdatedPoolWithVLMConfig(ctx, pool, vlmConfig, updatePoolParams)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.AllowAutoTiering)
+	assert.NotNil(t, result.AutoTieringConfig)
+	assert.Equal(t, int64(2000), result.AutoTieringConfig.HotTierSizeInBytes)
+	assert.False(t, result.AutoTieringConfig.EnableHotTierAutoResize)
+	assert.Equal(t, int64(2048), result.PoolAttributes.Iops)
+	assert.NotNil(t, result.PoolAttributes.Labels)
 	mockSE.AssertExpectations(t)
 }
 

@@ -332,6 +332,15 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 		pool.PoolAttributes.Labels = updatePoolParams.Labels
 	}
 
+	if updatePoolParams.AllowAutoTiering {
+		pool.AllowAutoTiering = true
+		pool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.HotTierSizeInBytes)
+		pool.AutoTieringConfig.EnableHotTierAutoResize = updatePoolParams.EnableHotTierAutoResize
+	} else {
+		// Keep HotTierSizeInBytes in sync with SizeInBytes when AutoTiering is disabled
+		pool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.SizeInBytes)
+	}
+
 	return se.UpdatedPool(ctx, pool)
 }
 

@@ -7235,3 +7235,245 @@ func TestUpdatePoolWorkflow_RetryPolicyParams(t *testing.T) {
 		})
 	})
 }
+
+// TestUpdateAutoTieringFields tests the updateAutoTieringFields function with various scenarios
+func TestUpdateAutoTieringFields(t *testing.T) {
+	tests := []struct {
+		name                      string
+		dbPool                    *datamodel.Pool
+		updatePoolParams          *common.UpdatePoolParams
+		originalPool              *datamodel.Pool
+		expectedAllowAutoTiering  bool
+		expectedAutoTieringConfig *datamodel.AutoTieringConfig
+		description               string
+	}{
+		{
+			name: "EnableAutoTieringOnNewPool",
+			dbPool: &datamodel.Pool{
+				AllowAutoTiering: false,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      0,
+					EnableHotTierAutoResize: false,
+					BucketName:              "",
+				},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				AllowAutoTiering:        true,
+				HotTierSizeInBytes:      1000,
+				EnableHotTierAutoResize: true,
+			},
+			originalPool: &datamodel.Pool{
+				AutoTieringConfig: nil,
+			},
+			expectedAllowAutoTiering: true,
+			expectedAutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      1000,
+				EnableHotTierAutoResize: true,
+				BucketName:              "", // No existing bucket
+			},
+			description: "Should enable AutoTiering on a pool that didn't have it",
+		},
+		{
+			name: "EnableAutoTieringWithExistingBucket",
+			dbPool: &datamodel.Pool{
+				AllowAutoTiering: false,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      0,
+					EnableHotTierAutoResize: false,
+					BucketName:              "",
+				},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				AllowAutoTiering:        true,
+				HotTierSizeInBytes:      2000,
+				EnableHotTierAutoResize: false,
+			},
+			originalPool: &datamodel.Pool{
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					BucketName: "existing-bucket-name",
+				},
+			},
+			expectedAllowAutoTiering: true,
+			expectedAutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      2000,
+				EnableHotTierAutoResize: false,
+				BucketName:              "", // BucketName is not updated by this function
+			},
+			description: "Should enable AutoTiering but not modify bucket name",
+		},
+		{
+			name: "UpdateExistingAutoTieringConfig",
+			dbPool: &datamodel.Pool{
+				AllowAutoTiering: true,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      1000,
+					EnableHotTierAutoResize: false,
+					BucketName:              "my-bucket",
+				},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				AllowAutoTiering:        true,
+				HotTierSizeInBytes:      2000, // Increase size
+				EnableHotTierAutoResize: true, // Toggle setting
+			},
+			originalPool: &datamodel.Pool{
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					BucketName: "my-bucket",
+				},
+			},
+			expectedAllowAutoTiering: true,
+			expectedAutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      2000,        // Should be updated
+				EnableHotTierAutoResize: true,        // Should be updated
+				BucketName:              "my-bucket", // Should remain unchanged
+			},
+			description: "Should update existing AutoTiering configuration",
+		},
+		{
+			name: "UpdateHotTierSizeDirectly",
+			dbPool: &datamodel.Pool{
+				AllowAutoTiering: true,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      2000,
+					EnableHotTierAutoResize: true,
+					BucketName:              "my-bucket",
+				},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				AllowAutoTiering:        true,
+				HotTierSizeInBytes:      1000, // This will be set directly
+				EnableHotTierAutoResize: false,
+			},
+			originalPool: &datamodel.Pool{
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					BucketName: "my-bucket",
+				},
+			},
+			expectedAllowAutoTiering: true,
+			expectedAutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      1000,  // Should be updated directly
+				EnableHotTierAutoResize: false, // Should be updated
+				BucketName:              "my-bucket",
+			},
+			description: "Should update hot tier size directly",
+		},
+		{
+			name: "UpdateWithZeroHotTierSize",
+			dbPool: &datamodel.Pool{
+				AllowAutoTiering: true,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      1500,
+					EnableHotTierAutoResize: true,
+					BucketName:              "test-bucket",
+				},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				AllowAutoTiering:        true,
+				HotTierSizeInBytes:      0,     // Will be set to 0
+				EnableHotTierAutoResize: false, // Toggle off
+			},
+			originalPool: &datamodel.Pool{
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					BucketName: "test-bucket",
+				},
+			},
+			expectedAllowAutoTiering: true,
+			expectedAutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      0,     // Should be set to 0
+				EnableHotTierAutoResize: false, // Should be updated
+				BucketName:              "test-bucket",
+			},
+			description: "Should set hot tier size to 0 when provided",
+		},
+		{
+			name: "NoAutoTieringChange",
+			dbPool: &datamodel.Pool{
+				AllowAutoTiering: false,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      0,
+					EnableHotTierAutoResize: false,
+					BucketName:              "",
+				},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				AllowAutoTiering:        false,
+				HotTierSizeInBytes:      0,
+				EnableHotTierAutoResize: false,
+			},
+			originalPool: &datamodel.Pool{
+				AutoTieringConfig: &datamodel.AutoTieringConfig{},
+			},
+			expectedAllowAutoTiering: false,
+			expectedAutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      0,     // Not updated since AllowAutoTiering is false
+				EnableHotTierAutoResize: false, // Not updated since AllowAutoTiering is false
+				BucketName:              "",
+			},
+			description: "Should not modify HotTierSizeInBytes when AutoTiering is not enabled",
+		},
+		{
+			name: "AutoTieringDisabledPoolSyncsHotTierSize",
+			dbPool: &datamodel.Pool{
+				AllowAutoTiering: false,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      1000,
+					EnableHotTierAutoResize: true,
+					BucketName:              "preserved-bucket",
+				},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				AllowAutoTiering:        false, // AutoTiering remains disabled
+				SizeInBytes:             3000,  // New pool size
+				HotTierSizeInBytes:      2000,  // This will be ignored
+				EnableHotTierAutoResize: false,
+			},
+			originalPool: &datamodel.Pool{
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					BucketName: "preserved-bucket",
+				},
+			},
+			expectedAllowAutoTiering: false, // Should remain disabled
+			expectedAutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      3000, // Should sync with SizeInBytes, not use HotTierSizeInBytes param
+				EnableHotTierAutoResize: true, // Should NOT be updated when AutoTiering is disabled
+				BucketName:              "preserved-bucket",
+			},
+			description: "Should sync HotTierSizeInBytes with SizeInBytes when AutoTiering is disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create copies to avoid modifying test data
+			dbPoolCopy := *tt.dbPool
+			if tt.dbPool.AutoTieringConfig != nil {
+				config := *tt.dbPool.AutoTieringConfig
+				dbPoolCopy.AutoTieringConfig = &config
+			}
+
+			// Execute the function under test
+			updateAutoTieringFields(&dbPoolCopy, tt.updatePoolParams, tt.originalPool)
+
+			// Verify results
+			assert.Equal(t, tt.expectedAllowAutoTiering, dbPoolCopy.AllowAutoTiering,
+				"AllowAutoTiering should match expected value: %s", tt.description)
+
+			if tt.expectedAutoTieringConfig == nil {
+				assert.Nil(t, dbPoolCopy.AutoTieringConfig,
+					"AutoTieringConfig should be nil: %s", tt.description)
+			} else {
+				assert.NotNil(t, dbPoolCopy.AutoTieringConfig,
+					"AutoTieringConfig should not be nil: %s", tt.description)
+				assert.Equal(t, tt.expectedAutoTieringConfig.HotTierSizeInBytes,
+					dbPoolCopy.AutoTieringConfig.HotTierSizeInBytes,
+					"HotTierSizeInBytes should match: %s", tt.description)
+				assert.Equal(t, tt.expectedAutoTieringConfig.EnableHotTierAutoResize,
+					dbPoolCopy.AutoTieringConfig.EnableHotTierAutoResize,
+					"EnableHotTierAutoResize should match: %s", tt.description)
+				assert.Equal(t, tt.expectedAutoTieringConfig.BucketName,
+					dbPoolCopy.AutoTieringConfig.BucketName,
+					"BucketName should match: %s", tt.description)
+			}
+		})
+	}
+}

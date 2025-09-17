@@ -606,6 +606,25 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		param.Labels = jsonbLabels
 	}
 
+	// AutoTiering parameter handling
+	if req.AllowAutoTiering.IsSet() {
+		param.AllowAutoTiering = req.AllowAutoTiering.Value
+	} else {
+		param.AllowAutoTiering = existingPool.AllowAutoTiering
+	}
+
+	if req.HotTierSizeInBytes.IsSet() {
+		param.HotTierSizeInBytes = uint64(req.HotTierSizeInBytes.Value)
+	} else if existingPool.AutoTieringConfig != nil {
+		param.HotTierSizeInBytes = uint64(existingPool.AutoTieringConfig.HotTierSizeInBytes)
+	}
+
+	if req.EnableHotTierAutoResize.IsSet() {
+		param.EnableHotTierAutoResize = req.EnableHotTierAutoResize.Value
+	} else if existingPool.AutoTieringConfig != nil {
+		param.EnableHotTierAutoResize = existingPool.AutoTieringConfig.EnableHotTierAutoResize
+	}
+
 	updatedPool, operationID, err := h.Orchestrator.UpdatePool(ctx, param)
 	if err != nil {
 		logger.Error("Failed to update pool", "error", err.Error())
@@ -963,24 +982,35 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
+	// Feature flag validation
+	if !autoTieringEnabled && (req.AllowAutoTiering.IsSet() ||
+		(req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0) ||
+		(req.EnableHotTierAutoResize.IsSet())) {
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "Auto-Tiering feature is currently not enabled",
+		}
+	}
+
+	// HotTierSizeInBytes is required when enabling auto-tiering
+	if req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value {
+		if !req.HotTierSizeInBytes.IsSet() || req.HotTierSizeInBytes.Value == 0 {
+			return &gcpgenserver.V1betaUpdatePoolBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: "HotTierSizeInBytes is required when enabling auto-tiering",
+			}
+		}
+	}
+
+	// AutoTiering parameter validation - HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering
+	allowAutoTieringValue := false
 	if req.AllowAutoTiering.IsSet() {
-		return &gcpgenserver.V1betaUpdatePoolBadRequest{
-			Code:    http.StatusBadRequest,
-			Message: "Updating Auto tiering is currently not supported",
-		}
+		allowAutoTieringValue = req.AllowAutoTiering.Value
 	}
-
-	if req.HotTierSizeInBytes.IsSet() {
+	if !allowAutoTieringValue && ((req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0) || req.EnableHotTierAutoResize.IsSet()) {
 		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
-			Message: "Updating HotTierSize is currently not supported",
-		}
-	}
-
-	if req.EnableHotTierAutoResize.IsSet() {
-		return &gcpgenserver.V1betaUpdatePoolBadRequest{
-			Code:    http.StatusBadRequest,
-			Message: "Updating HotTier auto resize is currently not supported",
+			Message: "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering",
 		}
 	}
 

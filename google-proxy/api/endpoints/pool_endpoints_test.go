@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -2135,35 +2136,35 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			req: &gcpgenserver.PoolUpdateV1beta{
 				AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
 			},
-			message: "Updating Auto tiering is currently not supported",
+			message: "Auto-Tiering feature is currently not enabled",
 		},
 		{
 			name: "AllowAutoTiering is set to false",
 			req: &gcpgenserver.PoolUpdateV1beta{
 				AllowAutoTiering: gcpgenserver.NewOptNilBool(false),
 			},
-			message: "Updating Auto tiering is currently not supported",
+			message: "Auto-Tiering feature is currently not enabled",
 		},
 		{
 			name: "HotTierSizeInBytes is set",
 			req: &gcpgenserver.PoolUpdateV1beta{
 				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(1024),
 			},
-			message: "Updating HotTierSize is currently not supported",
+			message: "Auto-Tiering feature is currently not enabled",
 		},
 		{
 			name: "EnableHotTierAutoResize is set to false",
 			req: &gcpgenserver.PoolUpdateV1beta{
 				EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(false),
 			},
-			message: "Updating HotTier auto resize is currently not supported",
+			message: "Auto-Tiering feature is currently not enabled",
 		},
 		{
 			name: "EnableHotTierAutoResize is set to true",
 			req: &gcpgenserver.PoolUpdateV1beta{
 				EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
 			},
-			message: "Updating HotTier auto resize is currently not supported",
+			message: "Auto-Tiering feature is currently not enabled",
 		},
 		{
 			name: "Shrink pool size",
@@ -3271,6 +3272,38 @@ func TestValidateCreatePoolParams_AutoTieringValidation(t *testing.T) {
 		})
 	})
 
+	t.Run("Auto-Tiering Required Field Validation", func(tt *testing.T) {
+		t.Run("AllowAutoTiering enabled but HotTierSizeInBytes is missing", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:          gcpgenserver.NewOptBool(true),
+				SizeInBytes:      validPoolSize,
+				AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
+				// HotTierSizeInBytes not set
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes is missing with auto-tiering enabled")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes is a required field to enable auto-tiering")
+		})
+
+		t.Run("AllowAutoTiering enabled but HotTierSizeInBytes is zero", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(0), // Zero value
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes is zero with auto-tiering enabled")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes is a required field to enable auto-tiering")
+		})
+	})
+
 	t.Run("Auto-Tiering Disabled Scenarios", func(tt *testing.T) {
 		t.Run("AllowAutoTiering disabled but HotTierSizeInBytes is set", func(ttt *testing.T) {
 			req := &gcpgenserver.PoolV1beta{
@@ -3846,5 +3879,527 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		internalErr, ok := errResp.(*gcpgenserver.V1betaCreatePoolBadRequest)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(http.StatusBadRequest), internalErr.Code)
+	})
+}
+
+func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
+	// Save original autoTieringEnabled and restore at end of test.
+	originalAutoTieringEnabled := autoTieringEnabled
+	defer func() { autoTieringEnabled = originalAutoTieringEnabled }()
+
+	// Save original parseAndValidateRegionAndZone function and restore at end of test.
+	originalParseAndValidate := parseAndValidateRegionAndZone
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+	defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+	params := gcpgenserver.V1betaUpdatePoolParams{
+		LocationId:    "us-east4",
+		ProjectNumber: "project-number",
+		PoolId:        "pool-id",
+	}
+
+	existingPool := &models.Pool{
+		BaseModel: models.BaseModel{
+			UUID: "pool-uuid",
+		},
+		AllowAutoTiering: false,
+		AutoTieringConfig: &models.AutoTieringConfig{
+			HotTierSizeInBytes:      1073741824, // 1GB
+			EnableHotTierAutoResize: false,
+		},
+		CustomPerformanceParams: &models.CustomPerformanceParams{
+			Throughput: 64,   // 64 MiBps
+			Iops:       1024, // 1024 IOPS
+		},
+		PoolAttributes: &models.PoolAttributes{
+			PrimaryZone: "us-east4-a",
+		},
+	}
+
+	t.Run("AutoTiering feature disabled - rejects AllowAutoTiering=true", func(tt *testing.T) {
+		autoTieringEnabled = false
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "Auto-Tiering feature is currently not enabled")
+	})
+
+	t.Run("AutoTiering feature disabled - rejects HotTierSizeInBytes", func(tt *testing.T) {
+		autoTieringEnabled = false
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(2147483648), // 2GB
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "Auto-Tiering feature is currently not enabled")
+	})
+
+	t.Run("AutoTiering feature disabled - rejects EnableHotTierAutoResize", func(tt *testing.T) {
+		autoTieringEnabled = false
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "Auto-Tiering feature is currently not enabled")
+	})
+
+	t.Run("AutoTiering feature disabled - allows non-AutoTiering updates", func(tt *testing.T) {
+		autoTieringEnabled = false
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, "op-123", nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description: gcpgenserver.NewOptNilString("Updated description"),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+
+	t.Run("AutoTiering feature enabled - rejects HotTierSizeInBytes without AllowAutoTiering", func(tt *testing.T) {
+		autoTieringEnabled = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			// AllowAutoTiering not set (defaults to false)
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(2147483648), // 2GB
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering", badReq.Message)
+	})
+
+	t.Run("AutoTiering feature enabled - rejects EnableHotTierAutoResize without AllowAutoTiering", func(tt *testing.T) {
+		autoTieringEnabled = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			// AllowAutoTiering not set (defaults to false)
+			EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering", badReq.Message)
+	})
+
+	t.Run("AutoTiering feature enabled - rejects both HotTierSizeInBytes and EnableHotTierAutoResize without AllowAutoTiering", func(tt *testing.T) {
+		autoTieringEnabled = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			// AllowAutoTiering not set (defaults to false)
+			HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(2147483648), // 2GB
+			EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering", badReq.Message)
+	})
+
+	t.Run("AutoTiering feature enabled - rejects HotTierSizeInBytes with AllowAutoTiering explicitly set to false", func(tt *testing.T) {
+		autoTieringEnabled = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:   gcpgenserver.NewOptNilBool(false),         // Explicitly set to false
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(2147483648), // 2GB
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering", badReq.Message)
+	})
+
+	t.Run("AutoTiering feature enabled - allows HotTierSizeInBytes with AllowAutoTiering enabled", func(tt *testing.T) {
+		autoTieringEnabled = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			Name:        "test-pool",
+			Description: "test description",
+			State:       models.LifeCycleStateCreated,
+			SizeInBytes: 2199023255552, // 2TB
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone:     "us-east4-a",
+				Labels:          nil,
+				AllocatedBytes:  0,
+				NumberOfVolumes: 0,
+			},
+			VendorSubNetID: "/projects/123456789/global/networks/default",
+			ServiceLevel:   "premium",
+			QosType:        "auto",
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 128.0,
+				Iops:       2048,
+				Enabled:    true,
+			},
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      2147483648, // 2GB
+				EnableHotTierAutoResize: false,
+			},
+			LargeCapacity: false,
+		}, "op-123", nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),          // Explicitly enabled
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(2147483648), // 2GB
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.True(tt, op.Name.IsSet(), "Expected operation name to be set")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+}
+
+func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
+	// Save original utils.AutoTieringEnabled and restore at end of test.
+	originalAutoTieringEnabled := utils.AutoTieringEnabled
+	defer func() { utils.AutoTieringEnabled = originalAutoTieringEnabled }()
+	utils.AutoTieringEnabled = true
+
+	// Save original autoTieringEnabled and restore at end of test.
+	originalLocalAutoTieringEnabled := autoTieringEnabled
+	defer func() { autoTieringEnabled = originalLocalAutoTieringEnabled }()
+	autoTieringEnabled = true
+
+	// Save original parseAndValidateRegionAndZone function and restore at end of test.
+	originalParseAndValidate := parseAndValidateRegionAndZone
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+	defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+	params := gcpgenserver.V1betaUpdatePoolParams{
+		LocationId:    "us-east4",
+		ProjectNumber: "project-number",
+		PoolId:        "pool-id",
+	}
+
+	t.Run("Successfully updates pool with AutoTiering enabled", func(tt *testing.T) {
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:             "test-pool",
+			Description:      "test description",
+			State:            models.LifeCycleStateREADY,
+			SizeInBytes:      2147483648, // 2GB
+			QosType:          "auto",
+			AllowAutoTiering: false,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1073741824, // 1GB
+				EnableHotTierAutoResize: false,
+			},
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 64,   // 64 MiBps
+				Iops:       1024, // 1024 IOPS
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			Name:             "test-pool",
+			Description:      "test description",
+			State:            models.LifeCycleStateUpdating,
+			SizeInBytes:      2147483648, // 2GB
+			QosType:          "auto",
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1073741824,
+				EnableHotTierAutoResize: false,
+			},
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, "op-123", nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(1073741824), // Must provide HotTierSizeInBytes
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.True(tt, op.Name.IsSet(), "Expected operation name to be set")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+
+	t.Run("Successfully updates HotTierSizeInBytes", func(tt *testing.T) {
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:             "test-pool",
+			Description:      "test description",
+			State:            models.LifeCycleStateREADY,
+			SizeInBytes:      2147483648, // 2GB
+			QosType:          "auto",
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1073741824, // 1GB
+				EnableHotTierAutoResize: false,
+			},
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 64,   // 64 MiBps
+				Iops:       1024, // 1024 IOPS
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			Name:        "test-pool",
+			Description: "test description",
+			State:       models.LifeCycleStateUpdating,
+			SizeInBytes: 2147483648, // 2GB
+			QosType:     "auto",
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, "op-123", nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(2147483648), // 2GB
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.True(tt, op.Name.IsSet(), "Expected operation name to be set")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+
+	t.Run("Successfully updates EnableHotTierAutoResize", func(tt *testing.T) {
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:             "test-pool",
+			Description:      "test description",
+			State:            models.LifeCycleStateREADY,
+			SizeInBytes:      2147483648, // 2GB
+			QosType:          "auto",
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1073741824, // 1GB
+				EnableHotTierAutoResize: false,
+			},
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 64,   // 64 MiBps
+				Iops:       1024, // 1024 IOPS
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			Name:        "test-pool",
+			Description: "test description",
+			State:       models.LifeCycleStateUpdating,
+			SizeInBytes: 2147483648, // 2GB
+			QosType:     "auto",
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, "op-123", nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:        gcpgenserver.NewOptNilBool(true),
+			HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(1073741824), // Must provide HotTierSizeInBytes when enabling AutoTiering
+			EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.True(tt, op.Name.IsSet(), "Expected operation name to be set")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+
+	t.Run("Handles pool with nil AutoTieringConfig", func(tt *testing.T) {
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			AllowAutoTiering:  false,
+			AutoTieringConfig: nil, // No existing AutoTiering config
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,   // 64 MiBps
+				Iops:       1024, // 1024 IOPS
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, "op-123", nil)
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:        gcpgenserver.NewOptNilBool(true),
+			HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(1073741824), // 1GB
+			EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(false),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.True(tt, op.Name.IsSet(), "Expected operation name to be set")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
 	})
 }

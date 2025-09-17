@@ -575,8 +575,23 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	wf.Logger.Info("Updating pool with new parameters", "params", updatePoolParams) // Update the pool with the new parameters
 
+	// Determine the size to provision in VLM (hot tier size for AutoTiering, full size otherwise)
+	toProvisionPoolSizeInBytes := updatePoolParams.SizeInBytes
+	if updatePoolParams.AllowAutoTiering {
+		toProvisionPoolSizeInBytes = updatePoolParams.HotTierSizeInBytes
+	}
+
+	// Get current provisioned size - what was actually provisioned in VLM
+	var currentProvisionedSize int64
+	if !dbPool.AllowAutoTiering {
+		currentProvisionedSize = dbPool.SizeInBytes
+	} else {
+		currentProvisionedSize = dbPool.AutoTieringConfig.HotTierSizeInBytes
+	}
+
 	// if there is no need of vlm workflow, just perform update pool in db
-	if dbPool.SizeInBytes == int64(updatePoolParams.SizeInBytes) && dbPool.PoolAttributes.ThroughputMibps == int64(updatePoolParams.TotalThroughputMibps) &&
+	if currentProvisionedSize == int64(toProvisionPoolSizeInBytes) &&
+		dbPool.PoolAttributes.ThroughputMibps == int64(updatePoolParams.TotalThroughputMibps) &&
 		dbPool.PoolAttributes.Iops == *updatePoolParams.TotalIops {
 		if dbPool.Description != updatePoolParams.Description {
 			dbPool.Description = updatePoolParams.Description
@@ -584,7 +599,15 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		if updatePoolParams.Labels != nil {
 			dbPool.PoolAttributes.Labels = updatePoolParams.Labels
 		}
-		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil) // replace with the actual activity to update the pool
+
+		// Always update SizeInBytes for metadata/billing (even with AutoTiering)
+		dbPool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
+
+		// Update AutoTiering configuration
+		updateAutoTieringFields(dbPool, updatePoolParams, pool)
+
+		rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil)
 		return nil, ConvertToVSAError(err)
 	}
 
@@ -602,10 +625,11 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	// Find the optimal VMs based on the customer requested performance.
+	// Use toProvisionPoolSizeInBytes which accounts for AutoTiering (hot tier size vs full size)
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
 		DesiredIOPS:             *updatePoolParams.TotalIops,
 		DesiredThroughputInMiBs: int64(updatePoolParams.TotalThroughputMibps),
-		DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(updatePoolParams.SizeInBytes)),
+		DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(toProvisionPoolSizeInBytes)),
 	}
 
 	// Identify secondary and mediator zones first
@@ -1511,5 +1535,17 @@ func _waitForGCPNetworkOperationStatus(ctx workflow.Context, poolActivity *activ
 		if err != nil {
 			return vsaerror.Errorf("failed to sleep while waiting for GCP Operation %s: %w", operation.Name, err)
 		}
+	}
+}
+
+// updateAutoTieringFields updates the AutoTiering configuration fields in the pool
+func updateAutoTieringFields(dbPool *datamodel.Pool, updatePoolParams *common.UpdatePoolParams, pool *datamodel.Pool) {
+	if updatePoolParams.AllowAutoTiering {
+		dbPool.AllowAutoTiering = true
+		dbPool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.HotTierSizeInBytes)
+		dbPool.AutoTieringConfig.EnableHotTierAutoResize = updatePoolParams.EnableHotTierAutoResize
+	} else {
+		// Keep HotTierSizeInBytes in sync with SizeInBytes when AutoTiering is disabled
+		dbPool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.SizeInBytes)
 	}
 }
