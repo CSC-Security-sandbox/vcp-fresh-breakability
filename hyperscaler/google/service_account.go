@@ -52,8 +52,8 @@ func _createServiceAccountKey(gcpService *GcpServices, ctx context.Context, serv
 	request := &iam.CreateServiceAccountKeyRequest{}
 	key, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Keys.Create(fmt.Sprintf("projects/-/serviceAccounts/%s", serviceAccountEmail), request).Context(ctx).Do()
 	if err != nil {
-		util.GetLogger(ctx).Errorf("Failed to create service account key: %v", err)
-		return nil, fmt.Errorf("failed to create service account key for %s: %w", serviceAccountEmail, err)
+		util.GetLogger(ctx).Errorf("Failed to create service account key for %s: %v", serviceAccountEmail, err)
+		return nil, fmt.Errorf("failed to create service account key for %s: %v", serviceAccountEmail, err)
 	}
 	if key == nil {
 		util.GetLogger(ctx).Errorf("Received nil key when creating service account key for %s", serviceAccountEmail)

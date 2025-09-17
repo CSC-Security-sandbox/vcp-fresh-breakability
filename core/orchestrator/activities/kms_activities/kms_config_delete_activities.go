@@ -25,10 +25,10 @@ func (a *KmsConfigActivity) DeleteSDEKmsConfig(ctx context.Context, kmsConfig *d
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("KmsConfig:%s delete sent to sde", kmsConfig.ResourceID)
+	logger.Debugf("KmsConfig:%s delete sent to sde", kmsConfig.ResourceID)
 
 	operation, ok := resp.(*gcpserver.OperationV1beta)
-	if ok {
+	if ok && !operation.Done.Value {
 		return &strings.Split(operation.Name.Value, "/")[7], nil
 	}
 	return nil, nil

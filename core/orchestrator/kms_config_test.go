@@ -1408,6 +1408,48 @@ func TestDeleteKmsConfig(t *testing.T) {
 		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
 	})
 
+	t.Run("SuccessfulDeleteWhenInErrorState", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateError,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "test-job-uuid", jobUUID)
+		assert.NotNil(tt, kmsConfig)
+		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+	})
+
 	t.Run("SuccessfulUpdateWhenVcpKmsConfigNotFound", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
 		mockTemporal := new(workflow_engine.MockTemporalTestClient)
@@ -1554,7 +1596,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "can not delete a gcpKmsConfig which is in creating or error state.")
+		assert.Contains(tt, err.Error(), "can not delete a gcpKmsConfig which is in creating")
 		assert.Nil(tt, kmsConfig)
 		assert.Empty(tt, jobUUID)
 	})

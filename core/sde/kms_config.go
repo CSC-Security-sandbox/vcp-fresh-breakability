@@ -2,7 +2,6 @@ package sde
 
 import (
 	"context"
-	"go.temporal.io/sdk/temporal"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
@@ -10,12 +9,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 )
 
 var createClient = cvp.CreateClient
@@ -68,13 +68,19 @@ func DeleteSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 	}
 	res, _, err := cvpClient.KmsConfigurations.V1betaDeleteKmsConfiguration(deleteKmsConfigParams)
 	if err != nil {
-		return convertCvpClientDeleteKmsConfigErrorToVcpError(err), errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrKMSDeleteSDE, err))
+		switch err.(type) {
+		case *kms_configurations.V1betaDeleteKmsConfigurationNotFound:
+			return &gcpgenserver.OperationV1beta{
+				Done: gcpgenserver.NewOptBool(true),
+			}, nil
+		}
+		return nil, vsaerrors.WrapAsTemporalApplicationError(convertCvpClientDeleteKmsConfigErrorToVcpError(err))
 	}
 	if res == nil || res.Payload == nil {
 		return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{
 			Code:    500,
 			Message: "unknown error during the delete kms configurations",
-		}, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrKMSDeleteSDE, err))
+		}, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, err))
 	}
 	return convertToOperationV1beta(res.Payload), nil
 }
@@ -97,12 +103,12 @@ func DescribeSDEJob(ctx context.Context, operationId, region, accountName, corre
 	if *res.Payload.Done {
 		if res.Payload.Error != nil {
 			logger.Errorf("job failed in SDE: %v", res.Payload.Error)
-			return errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrDescribingSDEJob, errors2.New("sde job failed")))
+			return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDescribingSDEJob, vsaerrors.New("sde job failed")))
 		}
 		return nil
 	}
 
-	return errors2.NewVCPError(errors2.ErrSDEJobNotFinished, errors2.New("sde job not finished"))
+	return vsaerrors.NewVCPError(vsaerrors.ErrSDEJobNotFinished, vsaerrors.New("sde job not finished"))
 }
 
 func convertCvpClientUpdateKmsConfigErrorToVcpError(cvpErr error) gcpgenserver.V1betaUpdateKmsConfigurationRes {
@@ -161,59 +167,31 @@ func convertCvpClientUpdateKmsConfigErrorToVcpError(cvpErr error) gcpgenserver.V
 	}
 }
 
-func convertCvpClientDeleteKmsConfigErrorToVcpError(cvpErr error) gcpgenserver.V1betaDeleteKmsConfigurationRes {
-	getMsg := func(msg *string) string {
-		return nillable.GetString(msg, "")
-	}
-	getCode := func(floatVal *float64) float64 {
-		return nillable.GetFloat64(floatVal, 0)
-	}
+func convertCvpClientDeleteKmsConfigErrorToVcpError(cvpErr error) error {
 	switch e := cvpErr.(type) {
 	case *kms_configurations.V1betaDeleteKmsConfigurationUnprocessableEntity:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationUnprocessableEntity{
-			Code:    getCode(&e.Payload.Code),
-			Message: getMsg(&e.Payload.Message),
-		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+
 	case *kms_configurations.V1betaDeleteKmsConfigurationConflict:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationConflict{
-			Code:    getCode(&e.Payload.Code),
-			Message: getMsg(&e.Payload.Message),
-		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+
 	case *kms_configurations.V1betaDeleteKmsConfigurationBadRequest:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationBadRequest{
-			Code:    getCode(&e.Payload.Code),
-			Message: getMsg(&e.Payload.Message),
-		}
-	case *kms_configurations.V1betaDeleteKmsConfigurationNotFound:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationNotFound{
-			Code:    getCode(&e.Payload.Code),
-			Message: getMsg(&e.Payload.Message),
-		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+
 	case *kms_configurations.V1betaDeleteKmsConfigurationForbidden:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationForbidden{
-			Code:    getCode(&e.Payload.Code),
-			Message: getMsg(&e.Payload.Message),
-		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+
 	case *kms_configurations.V1betaDeleteKmsConfigurationUnauthorized:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationUnauthorized{
-			Code:    getCode(&e.Payload.Code),
-			Message: getMsg(&e.Payload.Message),
-		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+
 	case *kms_configurations.V1betaDeleteKmsConfigurationTooManyRequests:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationTooManyRequests{
-			Code:    getCode(&e.Payload.Code),
-			Message: getMsg(&e.Payload.Message),
-		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+
 	case *kms_configurations.V1betaDeleteKmsConfigurationDefault:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{
-			Code:    getCode(&e.Payload.Code),
-			Message: getMsg(&e.Payload.Message),
-		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+
 	default:
-		return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{
-			Code:    500,
-			Message: "unknown error during the delete kms configurations",
-		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New("unknown error during the delete kms configurations"))
 	}
 }
 

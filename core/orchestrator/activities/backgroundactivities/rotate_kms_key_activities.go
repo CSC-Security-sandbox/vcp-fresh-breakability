@@ -95,11 +95,13 @@ func (a *RotateKmsSAKeyActivity) GetKmsConfig(ctx context.Context, kmsConfigID s
 // RotateServiceAccountKey rotates the service account key for a given service account.
 func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, serviceAccount *datamodel.ServiceAccount, kmsConfig *datamodel.KmsConfig) error {
 	logger := util.GetLogger(ctx)
+	logger.Infof("Rotating KMS Service Account Key for service account: %s", serviceAccount.ServiceAccountEmail)
 	se := a.SE
 
 	// Extract the keyID from the service account key
 	saKeyId, err := extractKeyID(serviceAccount.ServiceAccountPasswordLocation)
 	if err != nil {
+		logger.Errorf("Failed to extract key ID for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
 		return err
 	}
 	existingKey := "projects/" + kmsConfig.KeyProjectID + "/serviceAccounts/" + serviceAccount.ServiceAccountEmail + keyPrefix + saKeyId
@@ -117,12 +119,12 @@ func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, se
 
 	secretPassword, err := utils.EncryptPassword(log.Secret(serviceAccountKey.PrivateKeyData))
 	if err != nil {
-		logger.Errorf("Failed to encrypt service account key: %v", err)
+		logger.Errorf("Failed to encrypt service account key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
 		return err
 	}
 	err = kms_activities.AccessCryptoKeyAndEncryptData(ctx, kmsConfig, *secretPassword)
 	if err != nil {
-		logger.Errorf("Failed to access crypto key: %v", err)
+		logger.Errorf("Failed to access crypto key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
 		return err
 	}
 
@@ -135,6 +137,7 @@ func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, se
 	// First sync the new key with all ONTAP clusters to validate it works
 	for _, pool := range pools {
 		if err = syncKeyWithOntap(ctx, se, serviceAccountKey.PrivateKeyData, serviceAccount.ServiceAccountPasswordLocation, pool); err != nil {
+			logger.Errorf("Failed to sync key with ontap for pool: %s : %v", pool.Name, err)
 			return err
 		}
 	}
@@ -142,14 +145,14 @@ func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, se
 	// Only if all ONTAP sync operations succeed, update the database
 	_, err = se.UpdateServiceAccountEmailAndKey(ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, serviceAccountKey.PrivateKeyData)
 	if err != nil {
-		logger.Errorf("Failed to update service account key: %v", err)
+		logger.Errorf("Failed to update service account key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
 		return err
 	}
 
 	defer func() {
 		if err != nil {
 			keyToExclude = existingKey
-			logger.Errorf("Failed to rotate kms key: %v", err)
+			logger.Errorf("Failed to rotate kms key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
 		}
 		// Delete the stale service account keys
 		err = deleteServiceAccountKeysExcludingKey(ctx, gcpService, serviceAccount.ServiceAccountEmail, keyToExclude)
@@ -234,7 +237,7 @@ func _syncKeyWithOntap(ctx context.Context, se database.Storage, newServiceAccou
 		}
 		return err
 	}
-	logger.Infof(fmt.Sprintf("CMEK_KEY_ROTATION : Checked reachability for svm : %s on ontap", svm.UUID))
+	logger.Infof(fmt.Sprintf("CMEK_KEY_ROTATION : Checked reachability for svm : %s & pool : %s on ontap", svm.UUID, pool.Name))
 
 	return nil
 }

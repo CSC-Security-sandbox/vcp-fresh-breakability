@@ -491,9 +491,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
 		assert.Error(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationBadRequest).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationBadRequest).Message)
+		assert.Nil(t, result)
 	})
 
 	t.Run("WhenDeleteKmsConfigurationFailsWithUnprocessableEntity", func(t *testing.T) {
@@ -525,9 +523,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
 		assert.Error(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnprocessableEntity).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnprocessableEntity).Message)
+		assert.Nil(t, result)
 	})
 
 	t.Run("WhenDeleteKmsConfigurationFailsWithConflict", func(t *testing.T) {
@@ -559,9 +555,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
 		assert.Error(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationConflict).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationConflict).Message)
+		assert.Nil(t, result)
 	})
 
 	t.Run("WhenDeleteKmsConfigurationFailsWithUnauthorized", func(t *testing.T) {
@@ -593,9 +587,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
 		assert.Error(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnauthorized).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnauthorized).Message)
+		assert.Nil(t, result)
 	})
 
 	t.Run("WhenDeleteKmsConfigurationFailsWithForbidden", func(t *testing.T) {
@@ -627,9 +619,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
 		assert.Error(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationForbidden).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationForbidden).Message)
+		assert.Nil(t, result)
 	})
 
 	t.Run("WhenDeleteKmsConfigurationFailsWithTooManyRequests", func(t *testing.T) {
@@ -661,9 +651,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
 		assert.Error(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationTooManyRequests).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationTooManyRequests).Message)
+		assert.Nil(t, result)
 	})
 
 	t.Run("WhenDeleteKmsConfigurationFailsWithDefault", func(t *testing.T) {
@@ -695,9 +683,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
 		assert.Error(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Message)
+		assert.Nil(t, result)
 	})
 
 	t.Run("WhenDeleteKmsConfigurationFailsWithUnknownError", func(t *testing.T) {
@@ -729,9 +715,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
 		assert.Error(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Message)
+		assert.Nil(t, result)
 	})
 }
 

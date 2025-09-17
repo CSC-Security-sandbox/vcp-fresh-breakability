@@ -516,10 +516,6 @@ func _validateUpdateKmsConfigParams(ctx context.Context, se database.Storage, km
 }
 
 func _validateDeleteKmsConfigParams(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, params *common.DeleteKmsConfigParams) error {
-	if kmsConfig.State == models.LifeCycleStateCreating || kmsConfig.State == models.LifeCycleStateError {
-		return errors.NewConflictErr("can not delete a gcpKmsConfig which is in creating or error state.")
-	}
-
 	isConfigInUse, err := se.IsKmsConfigInUse(ctx, kmsConfig.UUID)
 	if err != nil {
 		return err
@@ -527,6 +523,10 @@ func _validateDeleteKmsConfigParams(ctx context.Context, se database.Storage, km
 
 	if isConfigInUse {
 		return errors.NewConflictErr("can not delete this policy as it is still in use by one or more pools")
+	}
+
+	if kmsConfig.State == models.LifeCycleStateCreating {
+		return errors.NewConflictErr("can not delete a gcpKmsConfig which is in creating")
 	}
 
 	findOngoingJobs, err := se.ListOngoingPoolJobsWithKmsConfigId(ctx, kmsConfig.ID, kmsConfig.AccountID)

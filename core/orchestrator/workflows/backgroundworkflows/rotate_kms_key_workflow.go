@@ -6,9 +6,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
@@ -18,6 +20,11 @@ var (
 )
 
 func RotateKmsSAKeyWorkflow(ctx workflow.Context) error {
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{
+		"workflowID": workflow.GetInfo(ctx).WorkflowExecution.ID,
+		// Adding a unique request ID for tracking purposes
+		"requestID": utils.RandomUUID(),
+	})
 	logger := workflow.GetLogger(ctx)
 
 	if !kmsRotationEnabled {
