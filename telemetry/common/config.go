@@ -2,9 +2,10 @@ package common
 
 import (
 	_ "embed"
+	"log"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"gopkg.in/yaml.v3"
-	"log"
 )
 
 const (
@@ -14,16 +15,18 @@ const (
 
 type TelemetryConfig struct {
 	// Server configuration
-	OperationBatchSize        int64
-	PusherServiceName         string
-	PusherServiceProject      string
-	RootUrl                   string
-	RegionName                string
-	EnableVolumeMetrics       bool
-	PushBatchSize             int64
-	Environment               string
-	MaxGoogleBillingPushRetry int64
-	PageSize                  int32
+	OperationBatchSize         int64
+	PusherServiceName          string
+	PusherServiceProject       string
+	RootUrl                    string
+	RegionName                 string
+	EnableVolumeMetrics        bool
+	EnableBackupMetrics        bool
+	EnableBackupBillingMetrics bool
+	PushBatchSize              int64
+	Environment                string
+	MaxGoogleBillingPushRetry  int64
+	PageSize                   int32
 }
 
 type MetricItem struct {
@@ -44,22 +47,26 @@ func LoadConfig() *TelemetryConfig {
 	pusherServiceProject := env.GetString("PUSHER_SERVICE_PROJECT", "netapp-au-se1-autopush-sde-tst")
 	regionName := env.GetString("LOCAL_REGION", "")
 	enableVolumeMetrics := env.GetBool("ENABLE_VOLUME_METRICS", false)
+	enableBackupMetrics := env.GetBool("ENABLE_BACKUP_METRICS", false)
+	enableBackupBillingMetrics := env.GetBool("ENABLE_BACKUP_BILLING_METRICS", false)
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
 	pageSize := env.GetInt64("PAGE_SIZE", 1000)
 
 	return &TelemetryConfig{
-		RootUrl:                   rootUrl,
-		PusherServiceName:         pusherServiceName,
-		PusherServiceProject:      pusherServiceProject,
-		OperationBatchSize:        operationBatchSize,
-		RegionName:                regionName,
-		EnableVolumeMetrics:       enableVolumeMetrics,
-		PushBatchSize:             pushBatchSize,
-		Environment:               environment,
-		MaxGoogleBillingPushRetry: maxGoogleBillingPushRetry,
-		PageSize:                  int32(pageSize),
+		RootUrl:                    rootUrl,
+		PusherServiceName:          pusherServiceName,
+		PusherServiceProject:       pusherServiceProject,
+		OperationBatchSize:         operationBatchSize,
+		RegionName:                 regionName,
+		EnableVolumeMetrics:        enableVolumeMetrics,
+		PushBatchSize:              pushBatchSize,
+		Environment:                environment,
+		MaxGoogleBillingPushRetry:  maxGoogleBillingPushRetry,
+		PageSize:                   int32(pageSize),
+		EnableBackupMetrics:        enableBackupMetrics,
+		EnableBackupBillingMetrics: enableBackupBillingMetrics,
 	}
 }
 

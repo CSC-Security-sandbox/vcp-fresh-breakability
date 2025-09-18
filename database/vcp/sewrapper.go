@@ -3343,6 +3343,46 @@ func (re *retryEngine) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.C
 	return err
 }
 
+func (re *retryEngine) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupLogicalSizeMetrics(ctx)
+		if err != nil {
+			re.logError("GetBackupLogicalSizeMetrics", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
+	var var0 []*datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListVolumesWithAccounts(ctx)
+		if err != nil {
+			re.logError("ListVolumesWithAccounts", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

@@ -1091,6 +1091,14 @@ func (s *PersistenceStore) ListTpProjects(ctx context.Context) ([]string, error)
 	return s.dataStore.ListTpProjects(ctx)
 }
 
+func (s *PersistenceStore) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetBackupLogicalSizeMetrics(ctx)
+}
+
+func (s *PersistenceStore) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
+	return s.dataStore.ListVolumesWithAccounts(ctx)
+}
+
 func (s *PersistenceStore) UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error {
 	return s.dataStore.UpdateBackupFields(ctx, backupUUID, updates)
 }

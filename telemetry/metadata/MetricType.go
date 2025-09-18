@@ -35,6 +35,8 @@ const (
 	XregionReplicationReplicationSchedule                MeasuredType = "XREGION_REPLICATION_REPLICATION_SCHEDULE"
 	XregionReplicationTotalTransferBytes                 MeasuredType = "XREGION_REPLICATION_TOTAL_TRANSFER_BYTES"
 	CbsVolumeBackupSize                                  MeasuredType = "CBS_VOLUME_BACKUP_SIZE"
+	BackupLogicalSize                                    MeasuredType = "BACKUP_LOGICAL_SIZE"
+	BackupVolumeAllocatedSize                            MeasuredType = "BACKUP_VOLUME_ALLOCATED_SIZE"
 	TotalLogicalSize                                     MeasuredType = "TOTAL_LOGICAL_SIZE"
 )
 
@@ -47,6 +49,8 @@ func init() {
 	CombinedKeyResourceTypeMeasuredTypeMap["allocated_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: AllocatedUsed}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_space_logical_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: LogicalSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_snapshot_reserve_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: SnapshotSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["backup_logical_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: BackupLogicalSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["backup_volume_allocated_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: BackupVolumeAllocatedSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_capacity"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: AllocatedSize}
 }
 

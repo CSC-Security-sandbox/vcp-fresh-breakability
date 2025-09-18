@@ -3798,6 +3798,64 @@ func (_c *MockDataStore_GetBackupCountByVolumeUUIDs_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetBackupLogicalSizeMetrics provides a mock function with given fields: ctx
+func (_m *MockDataStore) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupLogicalSizeMetrics")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*datamodel.Backup); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupLogicalSizeMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupLogicalSizeMetrics'
+type MockDataStore_GetBackupLogicalSizeMetrics_Call struct {
+	*mock.Call
+}
+
+// GetBackupLogicalSizeMetrics is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) GetBackupLogicalSizeMetrics(ctx interface{}) *MockDataStore_GetBackupLogicalSizeMetrics_Call {
+	return &MockDataStore_GetBackupLogicalSizeMetrics_Call{Call: _e.mock.On("GetBackupLogicalSizeMetrics", ctx)}
+}
+
+func (_c *MockDataStore_GetBackupLogicalSizeMetrics_Call) Run(run func(ctx context.Context)) *MockDataStore_GetBackupLogicalSizeMetrics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupLogicalSizeMetrics_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockDataStore_GetBackupLogicalSizeMetrics_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupLogicalSizeMetrics_Call) RunAndReturn(run func(context.Context) ([]*datamodel.Backup, error)) *MockDataStore_GetBackupLogicalSizeMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupPolicyByNameAndOwnerID provides a mock function with given fields: ctx, backupPolicyName, accountID
 func (_m *MockDataStore) GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName string, accountID int64) (*datamodel.BackupPolicy, error) {
 	ret := _m.Called(ctx, backupPolicyName, accountID)
@@ -8455,6 +8513,64 @@ func (_c *MockDataStore_ListVolumes_Call) Return(_a0 []*datamodel.Volume, _a1 er
 }
 
 func (_c *MockDataStore_ListVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.Volume, error)) *MockDataStore_ListVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVolumesWithAccounts provides a mock function with given fields: ctx
+func (_m *MockDataStore) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVolumesWithAccounts")
+	}
+
+	var r0 []*datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*datamodel.Volume, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*datamodel.Volume); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListVolumesWithAccounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVolumesWithAccounts'
+type MockDataStore_ListVolumesWithAccounts_Call struct {
+	*mock.Call
+}
+
+// ListVolumesWithAccounts is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) ListVolumesWithAccounts(ctx interface{}) *MockDataStore_ListVolumesWithAccounts_Call {
+	return &MockDataStore_ListVolumesWithAccounts_Call{Call: _e.mock.On("ListVolumesWithAccounts", ctx)}
+}
+
+func (_c *MockDataStore_ListVolumesWithAccounts_Call) Run(run func(ctx context.Context)) *MockDataStore_ListVolumesWithAccounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListVolumesWithAccounts_Call) Return(_a0 []*datamodel.Volume, _a1 error) *MockDataStore_ListVolumesWithAccounts_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListVolumesWithAccounts_Call) RunAndReturn(run func(context.Context) ([]*datamodel.Volume, error)) *MockDataStore_ListVolumesWithAccounts_Call {
 	_c.Call.Return(run)
 	return _c
 }

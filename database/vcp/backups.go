@@ -467,6 +467,30 @@ func (d *DataStoreRepository) UpdateBackupLatestLogicalBackupSizeByVolume(ctx co
 	return nil
 }
 
+// GetBackupLogicalSizeMetrics retrieves backup logical size metrics grouped by volume UUID
+// Returns the latest backup entry for each volume with state 'available'
+func (d *DataStoreRepository) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var results []*datamodel.Backup
+
+	// Query to get the latest backup for each volume with state 'available'
+	// Only select the columns we need for metrics
+	err := db.Table("backups").
+		Select("backups.uuid, backups.name, backups.volume_uuid, backups.latest_logical_backup_size, backups.attributes").
+		Where("backups.state = ?", models.LifeCycleStateAvailable).
+		Where("backups.id IN (?)", db.Table("backups").
+			Select("MAX(id)").
+			Where("state = ?", models.LifeCycleStateAvailable).
+			Group("volume_uuid")).
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
 // UpdateLatestBackupLogicalSize updates the latest backup's logical size for a given volume
 func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
 	db := d.db.GORM().WithContext(ctx)

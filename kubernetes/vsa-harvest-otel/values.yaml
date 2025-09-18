@@ -75,6 +75,7 @@ harvestConfig:
   enableVolumeOnline: "false"
   enableVolumeMetrics: "false"
   enableBackupMetrics: "false"
+  enableBackupBillingMetrics: "false"
   enableReplicationMetrics: "false"
 
 lifecycleHooks: {}

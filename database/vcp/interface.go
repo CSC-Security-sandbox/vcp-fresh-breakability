@@ -218,6 +218,8 @@ type (
 		GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUUIDs []string, conditions [][]interface{}) (map[string]int64, error)
 		GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error)
 		UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error
+		GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error)
+		ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error)
 		UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error
 		GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error)
 		GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error)

@@ -2620,3 +2620,286 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 		})
 	}
 }
+
+func TestGetBackupLogicalSizeMetrics(t *testing.T) {
+	t.Run("ReturnsLatestBackupForEachVolumeSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault first
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create multiple backups for volume 1 (only the latest should be returned)
+		backup1 := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			Name:                    "backup-1",
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 1024,
+			State:                   models.LifeCycleStateAvailable,
+			BackupVaultID:           backupVault.ID,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "account-1",
+				VolumeName:        "volume-1",
+			},
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-2"},
+			Name:                    "backup-2",
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 2048,
+			State:                   models.LifeCycleStateAvailable,
+			BackupVaultID:           backupVault.ID,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "account-1",
+				VolumeName:        "volume-1",
+			},
+		}
+		// Create backup for volume 2
+		backup3 := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-3"},
+			Name:                    "backup-3",
+			VolumeUUID:              "volume-uuid-2",
+			LatestLogicalBackupSize: 4096,
+			State:                   models.LifeCycleStateAvailable,
+			BackupVaultID:           backupVault.ID,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "account-2",
+				VolumeName:        "volume-2",
+			},
+		}
+		// Create backup with different state (should be filtered out)
+		backup4 := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-4"},
+			Name:                    "backup-4",
+			VolumeUUID:              "volume-uuid-3",
+			LatestLogicalBackupSize: 8192,
+			State:                   models.LifeCycleStateCreating,
+			BackupVaultID:           backupVault.ID,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "account-3",
+				VolumeName:        "volume-3",
+			},
+		}
+
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup3).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup4).Error()
+		assert.NoError(tt, err)
+
+		// Test: should return only the latest available backup for each volume
+		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2) // Only 2 volumes with available backups
+
+		// Verify the results contain the latest backups
+		volume1Backup := findBackupByVolumeUUID(results, "volume-uuid-1")
+		volume2Backup := findBackupByVolumeUUID(results, "volume-uuid-2")
+
+		assert.NotNil(tt, volume1Backup)
+		assert.Equal(tt, "backup-uuid-2", volume1Backup.UUID) // Latest backup for volume 1
+		assert.Equal(tt, "backup-2", volume1Backup.Name)
+		assert.Equal(tt, "volume-uuid-1", volume1Backup.VolumeUUID)
+		assert.Equal(tt, int64(2048), volume1Backup.LatestLogicalBackupSize)
+		assert.NotNil(tt, volume1Backup.Attributes)
+
+		assert.NotNil(tt, volume2Backup)
+		assert.Equal(tt, "backup-uuid-3", volume2Backup.UUID)
+		assert.Equal(tt, "backup-3", volume2Backup.Name)
+		assert.Equal(tt, "volume-uuid-2", volume2Backup.VolumeUUID)
+		assert.Equal(tt, int64(4096), volume2Backup.LatestLogicalBackupSize)
+		assert.NotNil(tt, volume2Backup.Attributes)
+	})
+
+	t.Run("ReturnsEmptySliceWhenNoAvailableBackups", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault first
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup with non-available state
+		backup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			Name:                    "backup-1",
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 1024,
+			State:                   models.LifeCycleStateCreating,
+			BackupVaultID:           backupVault.ID,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test: should return empty slice when no available backups
+		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		// Test: should return error on DB failure
+		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		assert.Error(tt, err)
+		assert.Nil(tt, results)
+	})
+
+	t.Run("HandlesMultipleBackupsWithSameVolumeUUID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault first
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create multiple backups for the same volume with different IDs
+		// The one with the highest ID should be returned
+		backup1 := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			Name:                    "backup-1",
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 1024,
+			State:                   models.LifeCycleStateAvailable,
+			BackupVaultID:           backupVault.ID,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-2"},
+			Name:                    "backup-2",
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 2048,
+			State:                   models.LifeCycleStateAvailable,
+			BackupVaultID:           backupVault.ID,
+		}
+		backup3 := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-3"},
+			Name:                    "backup-3",
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 4096,
+			State:                   models.LifeCycleStateAvailable,
+			BackupVaultID:           backupVault.ID,
+		}
+
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup3).Error()
+		assert.NoError(tt, err)
+
+		// Test: should return only the latest backup (highest ID)
+		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		// Verify it's the latest backup
+		assert.Equal(tt, "backup-uuid-3", results[0].UUID)
+		assert.Equal(tt, "backup-3", results[0].Name)
+		assert.Equal(tt, "volume-uuid-1", results[0].VolumeUUID)
+		assert.Equal(tt, int64(4096), results[0].LatestLogicalBackupSize)
+	})
+
+	t.Run("HandlesBackupsWithNilAttributes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault first
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup with nil attributes
+		backup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			Name:                    "backup-1",
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 1024,
+			State:                   models.LifeCycleStateAvailable,
+			BackupVaultID:           backupVault.ID,
+			Attributes:              nil, // Nil attributes
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test: should still return the backup even with nil attributes
+		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		assert.Equal(tt, "backup-uuid-1", results[0].UUID)
+		assert.Equal(tt, "backup-1", results[0].Name)
+		assert.Equal(tt, "volume-uuid-1", results[0].VolumeUUID)
+		assert.Equal(tt, int64(1024), results[0].LatestLogicalBackupSize)
+		// GORM creates an empty BackupAttributes struct instead of nil for JSONB fields
+		// So we check that the attributes are present but have default values
+		assert.NotNil(tt, results[0].Attributes)
+		assert.Equal(tt, "", results[0].Attributes.AccountIdentifier)
+		assert.Equal(tt, "", results[0].Attributes.VolumeName)
+	})
+}
+
+// Helper function to find backup by volume UUID in results
+func findBackupByVolumeUUID(backups []*datamodel.Backup, volumeUUID string) *datamodel.Backup {
+	for _, backup := range backups {
+		if backup.VolumeUUID == volumeUUID {
+			return backup
+		}
+	}
+	return nil
+}

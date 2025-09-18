@@ -1782,3 +1782,79 @@ func TestGetVolumeByNameAccountIDAndZone(t *testing.T) {
 		}
 	})
 }
+
+func TestListVolumesWithAccounts(t *testing.T) {
+	t.Run("ReturnsVolumesWithPreloadedAccountsSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+			Name:      "Account1",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+			Name:      "Pool1",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			Name:        "Volume1",
+			SizeInBytes: 1024,
+			AccountID:   account.ID,
+			Account:     account,
+			PoolID:      pool.ID,
+			Pool:        pool,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err)
+
+		results, err := store.ListVolumesWithAccounts(context.Background())
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "volume-uuid-1", results[0].UUID)
+		assert.NotNil(tt, results[0].Account)
+		assert.Equal(tt, "Account1", results[0].Account.Name)
+	})
+
+	t.Run("ReturnsEmptySliceWhenNoVolumesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		results, err := store.ListVolumesWithAccounts(context.Background())
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		results, err := store.ListVolumesWithAccounts(context.Background())
+		assert.Error(tt, err)
+		assert.Nil(tt, results)
+	})
+}

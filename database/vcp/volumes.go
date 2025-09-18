@@ -420,3 +420,22 @@ func _volumesWithHG(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*data
 	volumesWithBD = append(volumesWithBD, volumesWithBP...)
 	return volumesWithBD, err
 }
+
+// ListVolumesWithAccounts retrieves all volumes with preloaded accounts
+// Filtering for backup logical size > 0 is done in the collector
+func (d *DataStoreRepository) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var volumes []*datamodel.Volume
+
+	// Query to get all volumes with preloaded accounts
+	err := db.Preload("Account", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, name")
+	}).
+		Find(&volumes).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}

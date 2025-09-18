@@ -9,4 +9,5 @@ data:
   ENABLE_VOLUME_ONLINE: {{ .Values.harvestConfig.enableVolumeOnline | quote }}
   ENABLE_VOLUME_METRICS: {{ .Values.harvestConfig.enableVolumeMetrics | quote }}
   ENABLE_BACKUP_METRICS: {{ .Values.harvestConfig.enableBackupMetrics | quote }}
+  ENABLE_BACKUP_BILLING_METRICS: {{ .Values.harvestConfig.enableBackupBillingMetrics | quote }}
   ENABLE_REPLICATION_METRICS: {{ .Values.harvestConfig.enableReplicationMetrics | quote }}

@@ -10,6 +10,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -38,16 +40,48 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 	telemetryConfig := common.LoadConfig()
 	logger.Infof("Process %s!\n", "Performance Metrics")
 
+	// hydrated metrics data model for database storage
+	var allHydratedMetricsDataModel []datamodel.HydratedMetrics
+
+	// hydrated metrics for sink delivery
+	var allHydratedMetrics []entity.HydratedMetric
+
 	poolMetricsResult, err := collector.GetPoolMetrics(ctx, mp.vcpDatastore, telemetryConfig)
 	if err != nil {
 		logger.Error("Failed to get pool metrics", "error", err.Error())
 		return err
 	}
-	if err := mp.telemetryDatastore.CreateHydratedMetricsBatch(ctx, poolMetricsResult.HydratedMetricsDataModel, int(telemetryConfig.PushBatchSize)); err != nil {
+
+	if telemetryConfig.EnableBackupMetrics || telemetryConfig.EnableBackupBillingMetrics {
+		backupMetricsResult, err := collector.GetBackupMetrics(ctx, mp.vcpDatastore, telemetryConfig)
+		if err != nil {
+			logger.Error("Failed to get backup metrics", "error", err.Error())
+			return err
+		}
+		volumeMetricsResult, err := collector.GetVolumeMetrics(ctx, mp.vcpDatastore, telemetryConfig)
+		if err != nil {
+			logger.Error("Failed to get volume metrics", "error", err.Error())
+			return err
+		}
+		if telemetryConfig.EnableBackupMetrics {
+			allHydratedMetrics = append(allHydratedMetrics, backupMetricsResult.HydratedMetrics...)
+		}
+		if telemetryConfig.EnableBackupBillingMetrics {
+			allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, backupMetricsResult.HydratedMetricsDataModel...)
+			allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, volumeMetricsResult.HydratedMetricsDataModel...)
+		}
+	}
+
+	allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, poolMetricsResult.HydratedMetricsDataModel...)
+
+	if err := mp.telemetryDatastore.CreateHydratedMetricsBatch(ctx, allHydratedMetricsDataModel, int(telemetryConfig.PushBatchSize)); err != nil {
 		logger.Errorf("Failed to insert hydrated metrics batch: %v", err)
 		return err
 	}
-	mp.sink.DeliverMetrics(ctx, poolMetricsResult.HydratedMetrics)
+
+	allHydratedMetrics = append(allHydratedMetrics, poolMetricsResult.HydratedMetrics...)
+
+	mp.sink.DeliverMetrics(ctx, allHydratedMetrics)
 	if telemetryConfig.EnableVolumeMetrics {
 		metricClient := mp.googleMetricProvider.GetClient()
 		if metricClient == nil {

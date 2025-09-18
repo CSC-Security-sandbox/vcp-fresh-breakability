@@ -10,9 +10,10 @@ func (rt ResourceType) String() string {
 
 // ResourceType constants
 const (
-	Volume                          ResourceType = "VOLUME"
-	VolumePool                      ResourceType = "VOLUME_POOL"
-	VolumeReplicationRelationship   ResourceType = "VOLUME_REPLICATION_RELATIONSHIP"
-	CBS                             ResourceType = "CBS"
-	MetricsNamePrefixPoolFirstParty              = "netapp.googleapis.com/storage_pool/"
+	Volume                            ResourceType = "VOLUME"
+	VolumePool                        ResourceType = "VOLUME_POOL"
+	VolumeReplicationRelationship     ResourceType = "VOLUME_REPLICATION_RELATIONSHIP"
+	CBS                               ResourceType = "CBS"
+	MetricsNamePrefixPoolFirstParty                = "netapp.googleapis.com/storage_pool/"
+	MetricsNamePrefixVolumeFirstParty              = "netapp.googleapis.com/volume/"
 )

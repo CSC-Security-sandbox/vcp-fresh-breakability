@@ -540,6 +540,8 @@ func (client *GoogleMetricsClient) GetMetricName(metric common.GoogleMetric) (st
 		switch resourceType {
 		case metadata.VolumePool:
 			metricsName = metadata.MetricsNamePrefixPoolFirstParty + nameAndKeyLabel.Left
+		case metadata.Volume:
+			metricsName = metadata.MetricsNamePrefixVolumeFirstParty + nameAndKeyLabel.Left
 		default:
 			return "", fmt.Errorf("unrecognized resource type: %s", resourceType)
 		}
