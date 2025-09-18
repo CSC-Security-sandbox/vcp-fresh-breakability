@@ -19,8 +19,8 @@ import (
 )
 
 var (
-	CustomerTaskQueue   = env.GetString("CUSTOMER_TASK_QUEUE", "customer-workflows")
-	BackgroundTaskQueue = env.GetString("BACKGROUND_TASK_QUEUE", "background-workflows")
+	CustomerTaskQueue   = fetchQueueVersionFromEnv(CustomerWorkerType)
+	BackgroundTaskQueue = fetchQueueVersionFromEnv(BackgroundWorkerType)
 
 	CustomerWorkerType   = "customer-workflows"
 	BackgroundWorkerType = "background-workflows"
@@ -160,4 +160,12 @@ func _createClientOptionsFromEnv(cfg workflow_engine.ClientConfig, logger log.Lo
 	}
 
 	return clientOpts, nil
+}
+
+func fetchQueueVersionFromEnv(workerType string) string {
+	version := env.GetString("TASK_QUEUE_VERSION", "")
+	if version != "" {
+		return workerType + "-" + version
+	}
+	return workerType
 }

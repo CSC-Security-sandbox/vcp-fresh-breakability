@@ -14,6 +14,16 @@ global:
   chartSecondaryImageRegistry: ""
   environment: gcp
 
+
+# This will be overridden automatically in deployment repo with build versions.
+versionsSupported:
+  - name: v0.0.1
+    sha: "abc"
+  - name: v0.0.2
+    sha: "xyz"
+  - name: v0.0.3
+    sha: "pqr"
+
 # Application configuration
 app:
   - name: "vcp-customer-worker"

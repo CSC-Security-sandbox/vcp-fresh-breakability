@@ -1,15 +1,20 @@
-{{- range $.Values.app }}
+{{- range .Values.app }}
+  {{- $name := .name }}
+  {{- $workerAdditionalConfig := .workerAdditionalConfig }}
+  {{- range $ver := $.Values.versionsSupported }}
+    {{- $versionName := $ver.name }}
+    {{- $version := ($versionName | lower | replace "." "-") }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "vcp-worker.configMapName" .name }}
+  name: {{ include "vcp-worker.configMapName" (printf "%s-%s" $name $version) }}
   namespace: {{ $.Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
   labels:
-    app: {{ .name }}
+    app: {{ $name }}-{{ $version }}
 data:
-  {{- range $key, $value := .workerAdditionalConfig }}
+  {{- range $key, $value := $workerAdditionalConfig }}
   {{ include "toUpperSnakeCase" $key }}: {{ $value | quote }}
   {{- end }}
   TEMPORAL_ADDRESS: {{$.Values.workerConfig.temporalAddress | quote }}
@@ -106,6 +111,7 @@ data:
   MIN_LV_THROUGHPUT: {{$.Values.workerConfig.minLvThroughput | quote }}
   MAX_LV_THROUGHPUT: {{$.Values.workerConfig.maxLvThroughput | quote }}
   MIN_HOT_TIER_SIZE: {{$.Values.workerConfig.minHotTierSize | quote }}
+  TASK_QUEUE_VERSION: "{{ $version }}"
 
   MGMT_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.mgmtFirewallSourceRanges | quote }}
   RSM_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.rsmFirewallSourceRanges | quote }}
@@ -155,4 +161,5 @@ data:
   ORPHAN_JOB_PROCESSING_ENABLED: {{$.Values.workerConfig.orphanJobProcessingEnabled | quote }}
 
 ---
+  {{- end }}
 {{- end }}

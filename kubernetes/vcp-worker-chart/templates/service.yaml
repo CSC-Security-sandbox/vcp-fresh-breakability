@@ -13,6 +13,9 @@ spec:
       port: {{ $.Values.workerConfig.metricsPort }}
       targetPort: {{ $.Values.workerConfig.metricsPort }}
   selector:
-    app: {{ .name }}
+    {{- /* Get last version object and use its name field */}}
+    {{- $lastVer := (last $.Values.versionsSupported) }}
+    {{- $lastVersionName := $lastVer.name }}
+    app: {{ .name }}-{{ $lastVersionName | lower | replace "." "-" }}
 ---
 {{- end }}

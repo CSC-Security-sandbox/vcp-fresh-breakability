@@ -3,6 +3,7 @@ package temporal
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -397,4 +398,14 @@ func TestWorkflowEngine_CloseClient(t *testing.T) {
 	testClient.On("Close").Return(nil).Once()
 	engine.CloseClient(testClient)
 	testClient.AssertCalled(t, "Close")
+}
+
+func TestWorkerQueueNamesFromEnv(t *testing.T) {
+	err := os.Setenv("TASK_QUEUE_VERSION", "v1")
+	if err != nil {
+		t.Fatalf("Failed to set env var: %v", err)
+	}
+
+	assert.Equal(t, "customer-workflows-v1", fetchQueueVersionFromEnv(CustomerWorkerType))
+	assert.Equal(t, "background-workflows-v1", fetchQueueVersionFromEnv(BackgroundWorkerType))
 }
