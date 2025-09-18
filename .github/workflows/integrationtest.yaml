@@ -101,7 +101,6 @@ jobs:
             chmod +x temporal
             sudo mv temporal /usr/local/bin/
           fi
-        continue-on-error: true
 
       - name: Set PROJECT_ROOT
         run: |
@@ -131,7 +130,6 @@ jobs:
               exit 1
             fi
           }
-        continue-on-error: true
 
       - name: Build Docker Containers
         run: |
@@ -162,7 +160,6 @@ jobs:
             wait
           }
           echo "All container builds completed successfully"
-        continue-on-error: true
 
       - name: Starting Test
         id: starting_tests
@@ -173,11 +170,12 @@ jobs:
           cd $PROJECT_ROOT/src/main && go run .
 
       - name: Notify on Infra Failure
-        if: failure()
+        if: failure() && steps.starting_tests.outcome != 'failure'
         env:
-          JSON: ${{ toJson(github.event.pull_request) }}
+          JSON: ${{ toJson(github.event.pull_request.base) }}
           URL: "https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
           WEBHOOK: ${{ secrets.VSA_INFRA_FAILURE_WEBHOOK }}
           MESSAGE: "Integration tests infrastructure failure"
         run: |
           vsacictl slack notify
+          exit 1
