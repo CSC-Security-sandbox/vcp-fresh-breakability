@@ -6,6 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -251,6 +252,31 @@ func (d *DataStoreRepository) UpdateBackup(ctx context.Context, backup *datamode
 
 	return dbBackup, nil
 }
+
+func (d *DataStoreRepository) UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbBackup, err := getBackupWithDetails(tx, &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: backupUUID}})
+	if err != nil {
+		return err
+	}
+
+	updates["updated_at"] = time.Now()
+
+	err = tx.Model(&dbBackup).Updates(updates).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	return nil
+}
+
 func (d *DataStoreRepository) UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
@@ -387,7 +413,7 @@ func (d *DataStoreRepository) GetBackupCountByVolumeUUIDs(ctx context.Context, v
 		return nil, err
 	}
 
-	var backupsCountByVolume = make(map[string]int64)
+	backupsCountByVolume := make(map[string]int64)
 	for _, result := range results {
 		backupsCountByVolume[result.VolumeUUID] = result.BackupCount
 	}
@@ -423,4 +449,82 @@ func (d *DataStoreRepository) UpdateBackupLatestLogicalBackupSizeByVolume(ctx co
 	}
 
 	return nil
+}
+
+func (d *DataStoreRepository) GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error) {
+	logger := util.GetLogger(ctx)
+	logger.Infof("Getting volume node latest backup map")
+
+	// Step 1: Get latest backups grouped by volume_uuid
+	latestBackups, err := d.GetLatestBackupsGroupedByVolumeUUID(ctx)
+	if err != nil {
+		logger.Errorf("Failed to get latest backups grouped by volume UUID: %v", err)
+		return nil, err
+	}
+	logger.Infof("Retrieved %d latest backups", len(latestBackups))
+
+	if len(latestBackups) == 0 {
+		logger.Info("No latest backups found, returning empty map")
+		return make(map[int64]*datamodel.VolumeLatestBackup), nil
+	}
+
+	// Extract volume UUIDs from latest backups
+	volumeUUIDs := make([]string, 0, len(latestBackups))
+	backupMap := make(map[string]*datamodel.Backup)
+	for i := range latestBackups {
+		volumeUUIDs = append(volumeUUIDs, latestBackups[i].VolumeUUID)
+		backupMap[latestBackups[i].VolumeUUID] = &latestBackups[i]
+	}
+	logger.Infof("Extracted %d volume UUIDs from latest backups", len(volumeUUIDs))
+
+	// Step 2: Get volumes with pool preloaded using the volume UUIDs
+	conditions := [][]interface{}{{"uuid in ?", volumeUUIDs}}
+	conditions = append(conditions, []interface{}{"state = ?", models.LifeCycleStateREADY})
+	logger.Info("Fetching volumes with pool preloaded for extracted volume UUIDs")
+	volumes, err2 := d.GetMultipleVolumes(ctx, conditions)
+	if err2 != nil {
+		logger.Errorf("Failed to get volumes: %v", err2)
+		return nil, err2
+	}
+	logger.Infof("Retrieved %d volumes", len(volumes))
+
+	// Step 3: Create map of volume_uuid -> {volume, latestBackup}
+	resultMap := make(map[int64]*datamodel.VolumeLatestBackup)
+	for i := range volumes {
+		volumeUUID := volumes[i].UUID
+		volumeID := volumes[i].ID
+		if backup, exists := backupMap[volumeUUID]; exists {
+			resultMap[volumeID] = &datamodel.VolumeLatestBackup{
+				Volume:       volumes[i],
+				LatestBackup: backup,
+			}
+			logger.Infof("Mapped volume %s (ID: %d) with its latest backup %s", volumeUUID, volumeID, backup.UUID)
+		}
+	}
+	logger.Infof("Created result map with %d volume-backup pairs", len(resultMap))
+
+	return resultMap, nil
+}
+
+// GetLatestBackupsGroupedByVolumeUUID gets all latest backups grouped by volume_uuid
+func (d *DataStoreRepository) GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var latestBackups []datamodel.Backup
+
+	// Use GORM's Raw method with a window function for better performance
+	// Select only the necessary columns instead of * to improve performance
+	err := db.Raw(`
+		SELECT id, uuid, name, attributes, volume_uuid, state, size_in_bytes, latest_logical_backup_size
+		FROM (
+			SELECT id, uuid, name, attributes, volume_uuid, state, size_in_bytes, latest_logical_backup_size,
+				   ROW_NUMBER() OVER (PARTITION BY volume_uuid ORDER BY created_at DESC) as rn
+			FROM backups 
+			WHERE deleted_at IS NULL AND state = ?
+		) ranked 
+		WHERE rn = 1
+	`, models.LifeCycleStateAvailable).Scan(&latestBackups).Error
+	if err != nil {
+		return nil, err
+	}
+	return latestBackups, nil
 }

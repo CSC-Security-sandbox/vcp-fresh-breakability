@@ -13,5 +13,10 @@
     "jobType": "ORPHANED_JOB_SCHEDULER",
     "cronExpression": "*/2 * * * *",
     "state": "CREATING"
+  },
+  "SYNC_LATEST_BACKUP_LOGICAL_SIZE": {
+    "jobType": "SYNC_LATEST_BACKUP_LOGICAL_SIZE",
+    "cronExpression": "*/5 * * * *",
+    "state": "CREATING"
   }
 }

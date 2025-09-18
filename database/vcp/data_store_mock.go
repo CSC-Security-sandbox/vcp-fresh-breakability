@@ -4633,6 +4633,64 @@ func (_c *MockDataStore_GetKmsConfigByUUID_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// GetLatestBackupsGroupedByVolumeUUID provides a mock function with given fields: ctx
+func (_m *MockDataStore) GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLatestBackupsGroupedByVolumeUUID")
+	}
+
+	var r0 []datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]datamodel.Backup, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []datamodel.Backup); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestBackupsGroupedByVolumeUUID'
+type MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call struct {
+	*mock.Call
+}
+
+// GetLatestBackupsGroupedByVolumeUUID is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) GetLatestBackupsGroupedByVolumeUUID(ctx interface{}) *MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call {
+	return &MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call{Call: _e.mock.On("GetLatestBackupsGroupedByVolumeUUID", ctx)}
+}
+
+func (_c *MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call) Run(run func(ctx context.Context)) *MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call) Return(_a0 []datamodel.Backup, _a1 error) *MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call) RunAndReturn(run func(context.Context) ([]datamodel.Backup, error)) *MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLifByNodeID provides a mock function with given fields: ctx, nodeID, accountID
 func (_m *MockDataStore) GetLifByNodeID(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {
 	ret := _m.Called(ctx, nodeID, accountID)
@@ -6938,6 +6996,64 @@ func (_c *MockDataStore_GetVolumeCountByPoolID_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// GetVolumeLatestBackupMap provides a mock function with given fields: ctx
+func (_m *MockDataStore) GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeLatestBackupMap")
+	}
+
+	var r0 map[int64]*datamodel.VolumeLatestBackup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (map[int64]*datamodel.VolumeLatestBackup, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) map[int64]*datamodel.VolumeLatestBackup); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[int64]*datamodel.VolumeLatestBackup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetVolumeLatestBackupMap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeLatestBackupMap'
+type MockDataStore_GetVolumeLatestBackupMap_Call struct {
+	*mock.Call
+}
+
+// GetVolumeLatestBackupMap is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) GetVolumeLatestBackupMap(ctx interface{}) *MockDataStore_GetVolumeLatestBackupMap_Call {
+	return &MockDataStore_GetVolumeLatestBackupMap_Call{Call: _e.mock.On("GetVolumeLatestBackupMap", ctx)}
+}
+
+func (_c *MockDataStore_GetVolumeLatestBackupMap_Call) Run(run func(ctx context.Context)) *MockDataStore_GetVolumeLatestBackupMap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeLatestBackupMap_Call) Return(_a0 map[int64]*datamodel.VolumeLatestBackup, _a1 error) *MockDataStore_GetVolumeLatestBackupMap_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeLatestBackupMap_Call) RunAndReturn(run func(context.Context) (map[int64]*datamodel.VolumeLatestBackup, error)) *MockDataStore_GetVolumeLatestBackupMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeReplication provides a mock function with given fields: ctx, id
 func (_m *MockDataStore) GetVolumeReplication(ctx context.Context, id string) (*datamodel.VolumeReplication, error) {
 	ret := _m.Called(ctx, id)
@@ -8542,6 +8658,54 @@ func (_c *MockDataStore_UpdateBackup_Call) Return(_a0 *datamodel.Backup, _a1 err
 }
 
 func (_c *MockDataStore_UpdateBackup_Call) RunAndReturn(run func(context.Context, *datamodel.Backup) (*datamodel.Backup, error)) *MockDataStore_UpdateBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupFields provides a mock function with given fields: ctx, backupUUID, updates
+func (_m *MockDataStore) UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error {
+	ret := _m.Called(ctx, backupUUID, updates)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupFields")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]interface{}) error); ok {
+		r0 = rf(ctx, backupUUID, updates)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateBackupFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupFields'
+type MockDataStore_UpdateBackupFields_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupUUID string
+//   - updates map[string]interface{}
+func (_e *MockDataStore_Expecter) UpdateBackupFields(ctx interface{}, backupUUID interface{}, updates interface{}) *MockDataStore_UpdateBackupFields_Call {
+	return &MockDataStore_UpdateBackupFields_Call{Call: _e.mock.On("UpdateBackupFields", ctx, backupUUID, updates)}
+}
+
+func (_c *MockDataStore_UpdateBackupFields_Call) Run(run func(ctx context.Context, backupUUID string, updates map[string]interface{})) *MockDataStore_UpdateBackupFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(map[string]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupFields_Call) Return(_a0 error) *MockDataStore_UpdateBackupFields_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupFields_Call) RunAndReturn(run func(context.Context, string, map[string]interface{}) error) *MockDataStore_UpdateBackupFields_Call {
 	_c.Call.Return(run)
 	return _c
 }

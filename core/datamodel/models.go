@@ -204,7 +204,6 @@ type VolumeAttributes struct {
 	Labels                  *JSONB           `json:"labels"`
 	RestoredBackupID        string           `json:"restored_backup_id"`
 	RestoredBackupPath      string           `json:"restored_backup_path"`
-	LatestLogicalBackupSize int64            `json:"latest_logical_backup_size"`
 }
 
 type BlockProperties struct {
@@ -652,6 +651,7 @@ type BackupAttributes struct {
 	AccountIdentifier              string    `json:"account_identifier"`
 	EnforcedRetentionDuration      time.Time `json:"enforced_retention_duration"`
 	DeleteInitiated                bool      `json:"delete_initiated"`
+	ObjectStoreUUID                string    `json:"object_store_uuid"`
 }
 
 func (b *BackupAttributes) Scan(value interface{}) error {
@@ -809,4 +809,10 @@ func (cp *CacheParameters) Scan(value interface{}) error {
 
 func (cp CacheParameters) Value() (driver.Value, error) {
 	return json.Marshal(cp)
+}
+
+// VolumeLatestBackup represents a volume with its latest backup
+type VolumeLatestBackup struct {
+	Volume       *Volume
+	LatestBackup *Backup
 }

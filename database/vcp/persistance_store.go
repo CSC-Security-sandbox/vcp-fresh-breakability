@@ -555,6 +555,10 @@ func (s *PersistenceStore) CreateAccount(ctx context.Context, account *datamodel
 	return s.dataStore.CreateAccount(ctx, account)
 }
 
+func (s *PersistenceStore) GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error) {
+	return s.dataStore.GetVolumeLatestBackupMap(ctx)
+}
+
 func (s *PersistenceStore) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
 	return s.dataStore.CreateJob(ctx, job)
 }
@@ -1077,6 +1081,14 @@ func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, pref
 
 func (s *PersistenceStore) ListTpProjects(ctx context.Context) ([]string, error) {
 	return s.dataStore.ListTpProjects(ctx)
+}
+
+func (s *PersistenceStore) UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error {
+	return s.dataStore.UpdateBackupFields(ctx, backupUUID, updates)
+}
+
+func (s *PersistenceStore) GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error) {
+	return s.dataStore.GetLatestBackupsGroupedByVolumeUUID(ctx)
 }
 
 func (s *PersistenceStore) GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {

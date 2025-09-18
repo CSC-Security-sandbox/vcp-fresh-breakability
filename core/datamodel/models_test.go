@@ -50,7 +50,7 @@ func TestVolumeAttributes_Value(t *testing.T) {
 	va := VolumeAttributes{CreationToken: "token"}
 	val, err := va.Value()
 	assert.NoError(t, err)
-	assert.Equal(t, `{"creation_token":"token","protocols":null,"vendor_subnet_id":"","external_uuid":"","block_properties":null,"block_devices":null,"file_properties":null,"is_data_protection":false,"mounted":false,"snap_reserve":0,"labels":null,"restored_backup_id":"","restored_backup_path":"","latest_logical_backup_size":0}`, string(val.([]byte)))
+	assert.Equal(t, `{"creation_token":"token","protocols":null,"vendor_subnet_id":"","external_uuid":"","block_properties":null,"block_devices":null,"file_properties":null,"is_data_protection":false,"mounted":false,"snap_reserve":0,"labels":null,"restored_backup_id":"","restored_backup_path":""}`, string(val.([]byte)))
 }
 
 func TestReplicationDetails_Scan(t *testing.T) {
@@ -101,6 +101,7 @@ func TestImmutableAttributes_Value(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `{"backupMinimumEnforcedRetentionDuration":null,"isDailyBackupImmutable":true,"isWeeklyBackupImmutable":false,"isMonthlyBackupImmutable":false,"isAdhocBackupImmutable":false}`, string(val.([]byte)))
 }
+
 func TestHosts_Scan(t *testing.T) {
 	var h Hosts
 	err := h.Scan([]byte(`{"hosts": ["host1", "host2"]}`))
@@ -209,12 +210,13 @@ func TestBackupAttributes_Value(t *testing.T) {
 		VolumeName:                     "volume1",
 		AccountIdentifier:              "project123",
 		EnforcedRetentionDuration:      time.Time{}, // Ensure this field is properly initialized
+		ObjectStoreUUID:                "",
 	}
 
 	val, err := ba.Value()
 	assert.NoError(t, err)
 
-	expectedJSON := `{"backup_policy_name":"policy1","snapshot_id":"snap123","snapshot_name":"snapshot1","snapshot_creation_time":"2023-01-01T00:00:00Z","completion_time":"2023-01-01T01:00:00Z","life_cycle_tracking_id":"track123","constituent_volumes_per_aggregate":"vol1","delete_initiated":false,"use_existing_snapshot":true,"number_of_aggregates":2,"ontap_volume_style":"flexvol","service_account_name":"service1","endpoint_uuid":"endpoint123","bucket_name":"bucket1","protocols":["nfs","cifs"],"volume_name":"volume1","account_identifier":"project123","enforced_retention_duration":"0001-01-01T00:00:00Z"}`
+	expectedJSON := `{"backup_policy_name":"policy1","snapshot_id":"snap123","snapshot_name":"snapshot1","snapshot_creation_time":"2023-01-01T00:00:00Z","completion_time":"2023-01-01T01:00:00Z","life_cycle_tracking_id":"track123","constituent_volumes_per_aggregate":"vol1","delete_initiated":false,"use_existing_snapshot":true,"number_of_aggregates":2,"ontap_volume_style":"flexvol","service_account_name":"service1","endpoint_uuid":"endpoint123","bucket_name":"bucket1","protocols":["nfs","cifs"],"volume_name":"volume1","account_identifier":"project123","enforced_retention_duration":"0001-01-01T00:00:00Z","object_store_uuid":""}`
 	assert.JSONEq(t, expectedJSON, string(val.([]byte)))
 }
 

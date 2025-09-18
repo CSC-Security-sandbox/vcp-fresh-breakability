@@ -3105,6 +3105,25 @@ func (re *retryEngine) UpdateBackup(ctx context.Context, backup *datamodel.Backu
 	return var0, err
 }
 
+func (re *retryEngine) UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateBackupFields(ctx, backupUUID, updates)
+		if err != nil {
+			re.logError("UpdateBackupFields", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	var var0 *datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -3302,6 +3321,46 @@ func (re *retryEngine) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.C
 	}
 
 	return err
+}
+
+func (re *retryEngine) GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error) {
+	var var0 map[int64]*datamodel.VolumeLatestBackup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeLatestBackupMap(ctx)
+		if err != nil {
+			re.logError("GetVolumeLatestBackupMap", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error) {
+	var var0 []datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetLatestBackupsGroupedByVolumeUUID(ctx)
+		if err != nil {
+			re.logError("GetLatestBackupsGroupedByVolumeUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
 }
 
 func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {

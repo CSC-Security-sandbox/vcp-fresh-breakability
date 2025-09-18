@@ -69,6 +69,7 @@ workerConfig:
   gcpSmcSecretVersionName: ""
   vcpPairedRegions: ""
   gcpKmsKeyRotationEnabled: "false"
+  backupLogicalSizeSyncEnabled: "true"
   enableAutoVolOfflineCronForGcpKms: "true"
   gcpAuthServiceAccount: ""
   gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"

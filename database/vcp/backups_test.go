@@ -561,6 +561,7 @@ func TestUpdateBackup(t *testing.T) {
 		assert.Empty(tt, backups)
 	})
 }
+
 func TestUpdateBackupState(t *testing.T) {
 	t.Run("UpdatesBackupStateSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -640,6 +641,7 @@ func TestUpdateBackupState(t *testing.T) {
 		assert.Error(tt, err)
 	})
 }
+
 func TestFinishBackup(t *testing.T) {
 	t.Run("FinishesBackupSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -1333,19 +1335,19 @@ func TestUpdateBackupLatestLogicalBackupSizeByVolume(t *testing.T) {
 
 		// Create backups for the volume
 		backup1 := &datamodel.Backup{
-			BaseModel:                datamodel.BaseModel{UUID: "backup-uuid-1"},
-			VolumeUUID:               "volume-uuid-1",
-			LatestLogicalBackupSize:  1024,
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 1024,
 		}
 		backup2 := &datamodel.Backup{
-			BaseModel:                datamodel.BaseModel{UUID: "backup-uuid-2"},
-			VolumeUUID:               "volume-uuid-1",
-			LatestLogicalBackupSize:  2048,
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-2"},
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 2048,
 		}
 		backup3 := &datamodel.Backup{
-			BaseModel:                datamodel.BaseModel{UUID: "backup-uuid-3"},
-			VolumeUUID:               "volume-uuid-1",
-			LatestLogicalBackupSize:  4096,
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-3"},
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 4096,
 		}
 		err = store.db.Create(backup1).Error()
 		assert.NoError(tt, err)
@@ -1426,4 +1428,802 @@ func TestUpdateBackupLatestLogicalBackupSizeByVolume(t *testing.T) {
 		err = store.UpdateBackupLatestLogicalBackupSizeByVolume(context.Background(), "volume-uuid-1", "backup-uuid-2")
 		assert.Error(tt, err)
 	})
+}
+
+func TestDataStoreRepository_UpdateBackupFields(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupData     func(*DataStoreRepository) *datamodel.Backup
+		backupUUID    string
+		updates       map[string]interface{}
+		expectedError bool
+		errorContains string
+		verifyUpdate  func(*testing.T, *DataStoreRepository, string)
+	}{
+		{
+			name: "Success - Updates backup fields",
+			setupData: func(store *DataStoreRepository) *datamodel.Backup {
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+					Name:      "test-backup-vault",
+				}
+				err := store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backup := &datamodel.Backup{
+					BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+					Name:                    "test-backup",
+					BackupVaultID:           backupVault.ID,
+					LatestLogicalBackupSize: 1024,
+					Attributes:              &datamodel.BackupAttributes{},
+				}
+				err = store.db.Create(backup).Error()
+				if err != nil {
+					panic(err)
+				}
+				return backup
+			},
+			backupUUID: "test-backup-uuid",
+			updates: map[string]interface{}{
+				"latest_logical_backup_size": int64(2048),
+				"attributes":                 &datamodel.BackupAttributes{ObjectStoreUUID: "new-object-store-uuid"},
+			},
+			expectedError: false,
+			verifyUpdate: func(t *testing.T, store *DataStoreRepository, backupUUID string) {
+				var updatedBackup datamodel.Backup
+				err := store.db.GORM().Where("uuid = ?", backupUUID).First(&updatedBackup).Error
+				assert.NoError(t, err)
+				assert.Equal(t, int64(2048), updatedBackup.LatestLogicalBackupSize)
+				assert.Equal(t, "new-object-store-uuid", updatedBackup.Attributes.ObjectStoreUUID)
+			},
+		},
+		{
+			name: "Success - Updates single field",
+			setupData: func(store *DataStoreRepository) *datamodel.Backup {
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-2"},
+					Name:      "test-backup-vault-2",
+				}
+				err := store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backup := &datamodel.Backup{
+					BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid-2"},
+					Name:                    "test-backup-2",
+					BackupVaultID:           backupVault.ID,
+					LatestLogicalBackupSize: 512,
+				}
+				err = store.db.Create(backup).Error()
+				if err != nil {
+					panic(err)
+				}
+				return backup
+			},
+			backupUUID: "test-backup-uuid-2",
+			updates: map[string]interface{}{
+				"latest_logical_backup_size": int64(4096),
+			},
+			expectedError: false,
+			verifyUpdate: func(t *testing.T, store *DataStoreRepository, backupUUID string) {
+				var updatedBackup datamodel.Backup
+				err := store.db.GORM().Where("uuid = ?", backupUUID).First(&updatedBackup).Error
+				assert.NoError(t, err)
+				assert.Equal(t, int64(4096), updatedBackup.LatestLogicalBackupSize)
+			},
+		},
+		{
+			name: "Error - Backup not found",
+			setupData: func(store *DataStoreRepository) *datamodel.Backup {
+				return nil // No backup created
+			},
+			backupUUID: "non-existent-uuid",
+			updates: map[string]interface{}{
+				"latest_logical_backup_size": int64(1024),
+			},
+			expectedError: true,
+			errorContains: "not found",
+		},
+		{
+			name: "Success - Updates updated_at timestamp",
+			setupData: func(store *DataStoreRepository) *datamodel.Backup {
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-3"},
+					Name:      "test-backup-vault-3",
+				}
+				err := store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backup := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid-3"},
+					Name:          "test-backup-3",
+					BackupVaultID: backupVault.ID,
+				}
+				err = store.db.Create(backup).Error()
+				if err != nil {
+					panic(err)
+				}
+				return backup
+			},
+			backupUUID: "test-backup-uuid-3",
+			updates: map[string]interface{}{
+				"latest_logical_backup_size": int64(8192),
+			},
+			expectedError: false,
+			verifyUpdate: func(t *testing.T, store *DataStoreRepository, backupUUID string) {
+				var updatedBackup datamodel.Backup
+				err := store.db.GORM().Where("uuid = ?", backupUUID).First(&updatedBackup).Error
+				assert.NoError(t, err)
+				assert.Equal(t, int64(8192), updatedBackup.LatestLogicalBackupSize)
+				assert.True(t, updatedBackup.UpdatedAt.After(updatedBackup.CreatedAt))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			db, err := SetupTestDB()
+			assert.NoError(t, err)
+
+			wrapper := gormwrapper.New(db)
+			store := NewDataStoreRepository(wrapper)
+
+			err = ClearInMemoryDB(store.db.GORM())
+			assert.NoError(t, err)
+
+			if tt.setupData != nil {
+				_ = tt.setupData(store)
+			}
+
+			// Execute
+			err = store.UpdateBackupFields(context.Background(), tt.backupUUID, tt.updates)
+
+			// Verify
+			if tt.expectedError {
+				assert.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				if tt.verifyUpdate != nil {
+					tt.verifyUpdate(t, store, tt.backupUUID)
+				}
+			}
+		})
+	}
+}
+
+func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupData     func(*DataStoreRepository) ([]*datamodel.Backup, []*datamodel.Volume)
+		expectedCount int
+		expectedError bool
+		verifyResults func(*testing.T, []datamodel.Backup, []*datamodel.Backup)
+	}{
+		{
+			name: "Success - Returns latest backups for multiple volumes",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Backup, []*datamodel.Volume) {
+				// Create accounts and pools
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+					Name:      "test-account",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+					Name:      "test-pool",
+					AccountID: account.ID,
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create backup vault
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+					Name:      "test-backup-vault",
+				}
+				err = store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create volumes
+				volume1 := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+					Name:      "test-volume-1",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				volume2 := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
+					Name:      "test-volume-2",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				err = store.db.Create(volume1).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(volume2).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create backups for volume1 (older backup first, then newer)
+				backup1Old := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-1-old-uuid", CreatedAt: time.Now().Add(-2 * time.Hour)},
+					Name:          "backup-1-old",
+					VolumeUUID:    volume1.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				backup1New := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-1-new-uuid", CreatedAt: time.Now().Add(-1 * time.Hour)},
+					Name:          "backup-1-new",
+					VolumeUUID:    volume1.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+
+				// Create backup for volume2
+				backup2 := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-2-uuid", CreatedAt: time.Now().Add(-30 * time.Minute)},
+					Name:          "backup-2",
+					VolumeUUID:    volume2.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+
+				err = store.db.Create(backup1Old).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(backup1New).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(backup2).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Backup{backup1New, backup2}, []*datamodel.Volume{volume1, volume2}
+			},
+			expectedCount: 2,
+			expectedError: false,
+			verifyResults: func(t *testing.T, results []datamodel.Backup, expectedBackups []*datamodel.Backup) {
+				assert.Len(t, results, 2)
+
+				// Create a map for easier verification
+				resultMap := make(map[string]datamodel.Backup)
+				for _, backup := range results {
+					resultMap[backup.VolumeUUID] = backup
+				}
+
+				// Verify volume1 has the newer backup
+				backup1, exists := resultMap["volume-uuid-1"]
+				assert.True(t, exists)
+				assert.Equal(t, "backup-1-new-uuid", backup1.UUID)
+
+				// Verify volume2 has its backup
+				backup2, exists := resultMap["volume-uuid-2"]
+				assert.True(t, exists)
+				assert.Equal(t, "backup-2-uuid", backup2.UUID)
+			},
+		},
+		{
+			name: "Success - Returns empty when no backups exist",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Backup, []*datamodel.Volume) {
+				// No backups created
+				return []*datamodel.Backup{}, []*datamodel.Volume{}
+			},
+			expectedCount: 0,
+			expectedError: false,
+		},
+		{
+			name: "Success - Filters out non-available backups",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Backup, []*datamodel.Volume) {
+				// Create minimal setup
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-2"},
+					Name:      "test-account-2",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+					Name:      "test-pool-2",
+					AccountID: account.ID,
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-2"},
+					Name:      "test-backup-vault-2",
+				}
+				err = store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				volume := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-3"},
+					Name:      "test-volume-3",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				err = store.db.Create(volume).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create one available and one creating backup
+				backupAvailable := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-available-uuid"},
+					Name:          "backup-available",
+					VolumeUUID:    volume.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				backupCreating := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-creating-uuid"},
+					Name:          "backup-creating",
+					VolumeUUID:    volume.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateCreating,
+				}
+
+				err = store.db.Create(backupAvailable).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(backupCreating).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Backup{backupAvailable}, []*datamodel.Volume{volume}
+			},
+			expectedCount: 1,
+			expectedError: false,
+			verifyResults: func(t *testing.T, results []datamodel.Backup, expectedBackups []*datamodel.Backup) {
+				assert.Len(t, results, 1)
+				assert.Equal(t, "backup-available-uuid", results[0].UUID)
+				assert.Equal(t, models.LifeCycleStateAvailable, results[0].State)
+			},
+		},
+		{
+			name: "Success - Filters out soft-deleted backups",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Backup, []*datamodel.Volume) {
+				// Create minimal setup
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-3"},
+					Name:      "test-account-3",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-3"},
+					Name:      "test-pool-3",
+					AccountID: account.ID,
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-3"},
+					Name:      "test-backup-vault-3",
+				}
+				err = store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				volume := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-4"},
+					Name:      "test-volume-4",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				err = store.db.Create(volume).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create one normal and one soft-deleted backup
+				backupNormal := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-normal-uuid"},
+					Name:          "backup-normal",
+					VolumeUUID:    volume.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				backupDeleted := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-deleted-uuid", DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}},
+					Name:          "backup-deleted",
+					VolumeUUID:    volume.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+
+				err = store.db.Create(backupNormal).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(backupDeleted).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Backup{backupNormal}, []*datamodel.Volume{volume}
+			},
+			expectedCount: 1,
+			expectedError: false,
+			verifyResults: func(t *testing.T, results []datamodel.Backup, expectedBackups []*datamodel.Backup) {
+				assert.Len(t, results, 1)
+				assert.Equal(t, "backup-normal-uuid", results[0].UUID)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			db, err := SetupTestDB()
+			assert.NoError(t, err)
+
+			wrapper := gormwrapper.New(db)
+			store := NewDataStoreRepository(wrapper)
+
+			err = ClearInMemoryDB(store.db.GORM())
+			assert.NoError(t, err)
+
+			var expectedBackups []*datamodel.Backup
+			if tt.setupData != nil {
+				expectedBackups, _ = tt.setupData(store)
+			}
+
+			// Execute
+			results, err := store.GetLatestBackupsGroupedByVolumeUUID(context.Background())
+
+			// Verify
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, results, tt.expectedCount)
+				if tt.verifyResults != nil {
+					tt.verifyResults(t, results, expectedBackups)
+				}
+			}
+		})
+	}
+}
+
+func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupData     func(*DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup)
+		expectedCount int
+		expectedError bool
+		verifyResults func(*testing.T, map[int64]*datamodel.VolumeLatestBackup, []*datamodel.Volume, []*datamodel.Backup)
+	}{
+		{
+			name: "Success - Returns volume latest backup map",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
+				// Create accounts and pools with credentials
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+					Name:      "test-account",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+					Name:           "test-pool",
+					AccountID:      account.ID,
+					DeploymentName: "test-deployment",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password:      "test-password",
+						SecretID:      "test-secret-id",
+						CertificateID: "test-cert-id",
+						AuthType:      0, // USERNAME_PWD for basic authentication
+					},
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create backup vault
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+					Name:      "test-backup-vault",
+				}
+				err = store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create volumes
+				volume1 := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+					Name:      "test-volume-1",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				volume2 := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
+					Name:      "test-volume-2",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				err = store.db.Create(volume1).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(volume2).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create backups
+				backup1 := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-1-uuid"},
+					Name:          "backup-1",
+					VolumeUUID:    volume1.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				backup2 := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-2-uuid"},
+					Name:          "backup-2",
+					VolumeUUID:    volume2.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				err = store.db.Create(backup1).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(backup2).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Volume{volume1, volume2}, []*datamodel.Backup{backup1, backup2}
+			},
+			expectedCount: 2,
+			expectedError: false,
+			verifyResults: func(t *testing.T, results map[int64]*datamodel.VolumeLatestBackup, volumes []*datamodel.Volume, backups []*datamodel.Backup) {
+				assert.Len(t, results, 2)
+
+				// Verify volume1 mapping
+				volume1Mapping, exists := results[volumes[0].ID]
+				assert.True(t, exists)
+				assert.Equal(t, volumes[0].UUID, volume1Mapping.Volume.UUID)
+				assert.Equal(t, backups[0].UUID, volume1Mapping.LatestBackup.UUID)
+				assert.NotNil(t, volume1Mapping.Volume.Pool)
+				assert.Equal(t, "test-deployment", volume1Mapping.Volume.Pool.DeploymentName)
+
+				// Verify volume2 mapping
+				volume2Mapping, exists := results[volumes[1].ID]
+				assert.True(t, exists)
+				assert.Equal(t, volumes[1].UUID, volume2Mapping.Volume.UUID)
+				assert.Equal(t, backups[1].UUID, volume2Mapping.LatestBackup.UUID)
+			},
+		},
+		{
+			name: "Success - Returns empty map when no volumes exist",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
+				return []*datamodel.Volume{}, []*datamodel.Backup{}
+			},
+			expectedCount: 0,
+			expectedError: false,
+		},
+		{
+			name: "Success - Returns empty map when no backups exist",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
+				// Create account and pool
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-2"},
+					Name:      "test-account-2",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+					Name:      "test-pool-2",
+					AccountID: account.ID,
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create volume but no backups
+				volume := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-no-backup"},
+					Name:      "test-volume-no-backup",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				err = store.db.Create(volume).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Volume{volume}, []*datamodel.Backup{}
+			},
+			expectedCount: 0,
+			expectedError: false,
+		},
+		{
+			name: "Success - Filters out non-ready volumes",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
+				// Create account and pool
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-3"},
+					Name:      "test-account-3",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-3"},
+					Name:      "test-pool-3",
+					AccountID: account.ID,
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create backup vault
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-3"},
+					Name:      "test-backup-vault-3",
+				}
+				err = store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create ready and creating volumes
+				volumeReady := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-ready"},
+					Name:      "test-volume-ready",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				volumeCreating := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-creating"},
+					Name:      "test-volume-creating",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateCreating,
+				}
+				err = store.db.Create(volumeReady).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(volumeCreating).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Create backups for both volumes
+				backupReady := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-ready-uuid"},
+					Name:          "backup-ready",
+					VolumeUUID:    volumeReady.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				backupCreating := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-creating-uuid"},
+					Name:          "backup-creating",
+					VolumeUUID:    volumeCreating.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				err = store.db.Create(backupReady).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(backupCreating).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Volume{volumeReady}, []*datamodel.Backup{backupReady}
+			},
+			expectedCount: 1,
+			expectedError: false,
+			verifyResults: func(t *testing.T, results map[int64]*datamodel.VolumeLatestBackup, volumes []*datamodel.Volume, backups []*datamodel.Backup) {
+				assert.Len(t, results, 1)
+
+				// Should only contain the ready volume
+				volumeMapping, exists := results[volumes[0].ID]
+				assert.True(t, exists)
+				assert.Equal(t, volumes[0].UUID, volumeMapping.Volume.UUID)
+				assert.Equal(t, models.LifeCycleStateREADY, volumeMapping.Volume.State)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			db, err := SetupTestDB()
+			assert.NoError(t, err)
+
+			wrapper := gormwrapper.New(db)
+			store := NewDataStoreRepository(wrapper)
+
+			err = ClearInMemoryDB(store.db.GORM())
+			assert.NoError(t, err)
+
+			var expectedVolumes []*datamodel.Volume
+			var expectedBackups []*datamodel.Backup
+			if tt.setupData != nil {
+				expectedVolumes, expectedBackups = tt.setupData(store)
+			}
+
+			// Execute
+			results, err := store.GetVolumeLatestBackupMap(context.Background())
+
+			// Verify
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, results, tt.expectedCount)
+				if tt.verifyResults != nil {
+					tt.verifyResults(t, results, expectedVolumes, expectedBackups)
+				}
+			}
+		})
+	}
 }

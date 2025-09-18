@@ -146,7 +146,7 @@ func (b *BackupActivity) GetOrCreateObjectStoreActivity(ctx context.Context, bac
 	backupActivitiesContext.ObjStore = objStore
 	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.BucketName = backupActivitiesContext.BucketName
 	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.ServiceAccountName = backupActivitiesContext.BucketDetails.ServiceAccountName
-
+	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.ObjectStoreUUID = objStore.UUID
 	return backupActivitiesContext, nil
 }
 

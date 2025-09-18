@@ -206,6 +206,7 @@ type (
 		GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error)
 		DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
 		UpdateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
+		UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error
 		FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
@@ -216,6 +217,8 @@ type (
 		GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUUIDs []string, conditions [][]interface{}) (map[string]int64, error)
 		GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error)
 		UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error
+		GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error)
+		GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error)
 
 		CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
 		GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error)

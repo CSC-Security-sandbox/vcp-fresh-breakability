@@ -304,6 +304,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(jobmanagerworkflows.JobManagerWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncVSASnapshotsWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncSnapshotsForPoolWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupInitWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.DeleteScheduledBackupWorkflow)
@@ -327,4 +328,5 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.OrphanJobActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&backgroundactivities.VolumeBackupSyncActivity{SE: conn})
 }
