@@ -11,9 +11,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	volumeDeleteJobsRetryMaxAttempts = env.GetInt("REPLICATION_JOBS_RETRY_MAX_ATTEMPTS", 10)
 )
 
 type volumeDeleteWorkflow struct {
@@ -115,6 +120,10 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
+	ao1 := options
+	ao1.RetryPolicy.MaximumAttempts = int32(volumeDeleteJobsRetryMaxAttempts)
+	ctx1 := workflow.WithActivityOptions(ctx, ao1)
+
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
@@ -146,7 +155,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror in ontap: %w", err))
 	}
 
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx1, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx1, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
