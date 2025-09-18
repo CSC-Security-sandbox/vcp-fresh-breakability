@@ -36,6 +36,7 @@ type StorageClient interface {
 	VolumeCreate(params *VolumeCreateParams) (*Volume, *JobAccepted, error)
 	FlexCacheVolumeCreate(params *FlexCacheVolumeCreateParams) (*Flexcache, *JobAccepted, error)
 	VolumeDelete(params *VolumeDeleteParams) error
+	VolumeMount(params *VolumeMountParams) (*JobAccepted, error)
 	VolumeUnmount(params *VolumeUnmountParams) (*JobAccepted, error)
 	FlexCacheVolumeDelete(params *FlexCacheVolumeDeleteParams) (*JobAccepted, error)
 
@@ -473,6 +474,19 @@ func (sc *storageClient) VolumeDelete(params *VolumeDeleteParams) error {
 // VolumeUnmount invokes pkg/ontap-rest/client/storage/Client.VolumeModify to unmount a volume
 func (sc *storageClient) VolumeUnmount(params *VolumeUnmountParams) (*JobAccepted, error) {
 	_, accepted, err := sc.api.VolumeModify(volumeUnmountParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	job := &JobAccepted{
+		JobUUID: accepted.Payload.Job.UUID.String(),
+	}
+	return job, nil
+}
+
+// VolumeMount invokes pkg/ontap-rest/client/storage/Client.VolumeModify to mount a volume
+func (sc *storageClient) VolumeMount(params *VolumeMountParams) (*JobAccepted, error) {
+	_, accepted, err := sc.api.VolumeModify(volumeMountParamsToONTAP(params), nil)
 	if err != nil {
 		return nil, err
 	}

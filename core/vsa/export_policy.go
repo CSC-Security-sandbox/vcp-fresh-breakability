@@ -129,3 +129,38 @@ func (rc *OntapRestProvider) CreateExportPolicy(params *ExportPolicy) error {
 	}
 	return nil
 }
+
+// UpdateExportPolicyRules updates the export policy rules for a volume
+func (rc *OntapRestProvider) UpdateExportPolicyRules(params UpdateExportPolicyRulesParams) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return fmt.Errorf("failed to get ONTAP client: %w", err)
+	}
+
+	// Convert VSA export rules to ONTAP export rules
+	ontapExportRules := make([]*ontapRest.ExportRule, 0)
+	for _, rule := range params.ExportPolicy.ExportRules {
+		ontapExportRule := convertStorageExportPolicyRuleToONTAP(*rule)
+		ontapExportRules = append(ontapExportRules, ontapExportRule)
+	}
+
+	targetPolicy, err := client.NAS().ExportPolicyGet(&ontapRest.ExportPolicyGetParams{
+		Name:    &params.ExportPolicy.ExportPolicyName,
+		SvmName: &params.SvmName,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get export policy %s: %w", params.ExportPolicy.ExportPolicyName, err)
+	}
+	if targetPolicy != nil {
+		// Policy exists, update its rules
+		err = client.NAS().ExportPolicyModify(&ontapRest.ExportPolicyModifyParams{
+			SvmName: params.SvmName,
+			ID:      *targetPolicy.ID,
+			Rules:   ontapExportRules,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update export policy %s rules: %w", params.ExportPolicy.ExportPolicyName, err)
+		}
+	}
+	return nil
+}

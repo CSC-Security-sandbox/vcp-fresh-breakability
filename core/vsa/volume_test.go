@@ -1386,6 +1386,7 @@ func TestUnmountVolume(t *testing.T) {
 		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
 		mockClient.EXPECT().Storage().Return(mockStorage)
 		mockStorage.EXPECT().VolumeUnmount(mock.Anything).Return(accepted, nil)
+		mockClient.EXPECT().Poll("").Return(nil)
 
 		resp, err := rc.UnmountVolume(volumeUUID)
 
@@ -1422,5 +1423,186 @@ func TestUnmountVolume(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, resp)
 		assert.Contains(tt, err.Error(), errMsg)
+	})
+
+	t.Run("WhenPollingError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		accepted := &ontaprest.JobAccepted{JobUUID: "job-uuid-123"}
+		pollErr := errors.New("polling failed")
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().VolumeUnmount(mock.Anything).Return(accepted, nil)
+		mockClient.EXPECT().Poll("job-uuid-123").Return(pollErr)
+
+		resp, err := rc.UnmountVolume("testUUID")
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, pollErr, err)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestMountVolume(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		accepted := &ontaprest.JobAccepted{JobUUID: ""}
+		params := MountVolumeParams{
+			UUID:         "test-uuid",
+			JunctionPath: "/test/path",
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().VolumeMount(mock.MatchedBy(func(p *ontaprest.VolumeMountParams) bool {
+			return p.UUID == params.UUID && p.JunctionPath == params.JunctionPath
+		})).Return(accepted, nil)
+		mockClient.EXPECT().Poll("").Return(nil)
+
+		resp, err := rc.MountVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, "", resp.JobUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("SuccessWithJob", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		jobUUID := "job-uuid-123"
+		accepted := &ontaprest.JobAccepted{JobUUID: jobUUID}
+		params := MountVolumeParams{
+			UUID:         "test-uuid",
+			JunctionPath: "/test/path",
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().VolumeMount(mock.MatchedBy(func(p *ontaprest.VolumeMountParams) bool {
+			return p.UUID == params.UUID && p.JunctionPath == params.JunctionPath
+		})).Return(accepted, nil)
+		mockClient.EXPECT().Poll(jobUUID).Return(nil)
+
+		resp, err := rc.MountVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, jobUUID, resp.JobUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetOntapClientFuncError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		rc := &OntapRestProvider{}
+		errMsg := "client error"
+		params := MountVolumeParams{
+			UUID:         "test-uuid",
+			JunctionPath: "/test/path",
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(nil, errors.New(errMsg))
+
+		resp, err := rc.MountVolume(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Contains(tt, err.Error(), errMsg)
+	})
+
+	t.Run("WhenVolumeMountError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+		errMsg := "mount error"
+		params := MountVolumeParams{
+			UUID:         "test-uuid",
+			JunctionPath: "/test/path",
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().VolumeMount(mock.Anything).Return(nil, errors.New(errMsg))
+
+		resp, err := rc.MountVolume(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Contains(tt, err.Error(), errMsg)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenPollingError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		jobUUID := "job-uuid-123"
+		accepted := &ontaprest.JobAccepted{JobUUID: jobUUID}
+		pollErr := errors.New("polling failed")
+		params := MountVolumeParams{
+			UUID:         "test-uuid",
+			JunctionPath: "/test/path",
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().VolumeMount(mock.Anything).Return(accepted, nil)
+		mockClient.EXPECT().Poll(jobUUID).Return(pollErr)
+
+		resp, err := rc.MountVolume(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, pollErr, err)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("EmptyJunctionPath", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		accepted := &ontaprest.JobAccepted{JobUUID: ""}
+		params := MountVolumeParams{
+			UUID:         "test-uuid",
+			JunctionPath: "", // Empty junction path
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().VolumeMount(mock.MatchedBy(func(p *ontaprest.VolumeMountParams) bool {
+			return p.UUID == params.UUID && p.JunctionPath == ""
+		})).Return(accepted, nil)
+		mockClient.EXPECT().Poll("").Return(nil)
+
+		resp, err := rc.MountVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
 	})
 }

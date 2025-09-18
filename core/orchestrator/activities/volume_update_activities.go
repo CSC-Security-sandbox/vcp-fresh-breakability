@@ -2,7 +2,6 @@ package activities
 
 import (
 	"context"
-
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -111,7 +110,7 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	
+
 	var lunUUID string
 	var lunName string
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
@@ -519,4 +518,98 @@ func (a *VolumeUpdateActivity) FetchAndCreateBackupPolicyFromSDE(ctx context.Con
 // CreateScheduleForBackupPolicy creates a backup policy schedule in the VCP
 func (a *VolumeUpdateActivity) CreateScheduleForBackupPolicy(ctx context.Context, backupPolicy *datamodel.BackupPolicy, customSchedule string) error {
 	return CreateBackupPolicySchedule(ctx, a.Scheduler, backupPolicy, customSchedule)
+}
+
+// UpdateJunctionPathInONTAP updates the junction path for a volume in ONTAP
+func (a *VolumeUpdateActivity) UpdateJunctionPathInONTAP(ctx context.Context, volume *datamodel.Volume, junctionPath string, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Get current junction path from volume attributes
+	var currentJunctionPath string
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
+		currentJunctionPath = volume.VolumeAttributes.FileProperties.JunctionPath
+	}
+
+	// Only proceed if junction path is different
+	if currentJunctionPath != junctionPath {
+		// If volume is currently mounted (has existing junction path), unmount it first
+		logger.Debugf("Unmounting volume %s from junction path %s", volume.Name, currentJunctionPath)
+		_, err := provider.UnmountVolume(volume.VolumeAttributes.ExternalUUID)
+		if err != nil {
+			logger.Errorf("Failed to unmount volume %s: %v", volume.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		logger.Debugf("Volume %s unmounted successfully", volume.Name)
+	}
+
+	// Now mount the volume to the new junction path
+	logger.Debugf("Mounting volume %s to new junction path %s", volume.Name,
+		junctionPath)
+	_, err = provider.MountVolume(vsa.MountVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: junctionPath,
+	})
+	if err != nil {
+		logger.Errorf("Failed to mount volume %s to junction path %s: %v", volume.Name, junctionPath, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Debugf("Junction path updated successfully for volume %s in ONTAP", volume.Name)
+	return nil
+}
+
+// UpdateExportPolicyRulesInONTAP updates the export policy rules for a volume in ONTAP
+func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Context, volume *datamodel.Volume, exportPolicy *models.ExportPolicy, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Convert models.ExportPolicy to vsa.ExportPolicy
+	vsaExportPolicy := &vsa.ExportPolicy{
+		ExportPolicyName: exportPolicy.ExportPolicyName,
+		ExportRules:      make([]*vsa.ExportRule, 0, len(exportPolicy.ExportRules)),
+	}
+
+	for _, rule := range exportPolicy.ExportRules {
+		vsaRule := &vsa.ExportRule{
+			AllowedClients:      rule.AllowedClients,
+			AnonymousUser:       rule.AnonymousUser,
+			Index:               rule.Index,
+			ChownMode:           rule.ChownMode,
+			AccessType:          rule.AccessType,
+			CIFS:                rule.CIFS,
+			NFSv3:               rule.NFSv3,
+			NFSv4:               rule.NFSv4,
+			S3:                  rule.S3,
+			UnixReadOnly:        rule.UnixReadOnly,
+			UnixReadWrite:       rule.UnixReadWrite,
+			Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
+			Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
+			Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
+			Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
+			Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
+			Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
+			Superuser:           rule.Superuser,
+		}
+		vsaExportPolicy.ExportRules = append(vsaExportPolicy.ExportRules, vsaRule)
+	}
+
+	err = provider.UpdateExportPolicyRules(vsa.UpdateExportPolicyRulesParams{
+		VolumeName:   volume.Name,
+		SvmName:      volume.Svm.Name,
+		ExportPolicy: vsaExportPolicy,
+	})
+	if err != nil {
+		logger.Errorf("Failed to update export policy for volume %s in ONTAP: %v", volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Debugf("Export policy updated successfully for volume %s in ONTAP", volume.Name)
+	return nil
 }

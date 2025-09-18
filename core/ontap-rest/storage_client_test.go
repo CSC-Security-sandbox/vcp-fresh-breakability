@@ -113,6 +113,31 @@ func TestVolumeUnmount(t *testing.T) {
 	})
 }
 
+func TestVolumeMount(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.VolumeMount(&VolumeMountParams{UUID: "someUUID", JunctionPath: "/test/path"})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.VolumeModifyAccepted{
+			Payload: &models.VolumeJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		accepted, err := client.VolumeMount(&VolumeMountParams{UUID: "someUUID", JunctionPath: "/test/path"})
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, accepted.JobUUID, jobUUID)
+	})
+}
+
 func TestVolumeCreate(t *testing.T) {
 	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}

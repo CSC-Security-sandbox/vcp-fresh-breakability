@@ -86,11 +86,16 @@ func (m *MockNASClient) CifsServiceModify(params *ontapRest.CifsServiceModifyPar
 // MockRESTClientForNAS extends the existing MockRESTClient to include NAS
 type MockRESTClientForNAS struct {
 	ontapRest.MockRESTClient
-	nasClient *MockNASClient
+	nasClient     *MockNASClient
+	storageClient *ontapRest.MockStorageClient
 }
 
 func (m *MockRESTClientForNAS) NAS() ontapRest.NASClient {
 	return m.nasClient
+}
+
+func (m *MockRESTClientForNAS) Storage() ontapRest.StorageClient {
+	return m.storageClient
 }
 
 func TestConvertStorageExportPolicyRuleToONTAP(t *testing.T) {
@@ -1442,3 +1447,329 @@ func TestConvertStorageExportPolicyRuleToONTAP_AuthenticationRules(t *testing.T)
 		})
 	}
 }
+
+func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
+	t.Run("WhenGetOntapClientFuncFails_ShouldReturnError", func(t *testing.T) {
+		provider := &OntapRestProvider{}
+
+		// Mock getOntapClientFunc to return error
+		originalFunc := getOntapClientFunc
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return nil, errors.New("client creation failed")
+		}
+		defer func() { getOntapClientFunc = originalFunc }()
+
+		params := UpdateExportPolicyRulesParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			ExportPolicy: &ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules:      []*ExportRule{},
+			},
+		}
+
+		err := provider.UpdateExportPolicyRules(params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get ONTAP client")
+	})
+
+	t.Run("WhenExportPolicyGetFails_ShouldReturnError", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		mockRESTClient := &MockRESTClientForNAS{
+			nasClient:     mockNASClient,
+			storageClient: mockStorageClient,
+		}
+
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+		mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
+			return params.Name != nil && *params.Name == "test-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(nil, errors.New("export policy get failed"))
+
+		provider := &OntapRestProvider{}
+
+		params := UpdateExportPolicyRulesParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			ExportPolicy: &ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules:      []*ExportRule{},
+			},
+		}
+
+		err := provider.UpdateExportPolicyRules(params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get export policy")
+	})
+
+	t.Run("WhenExportPolicyDoesNotExist_ShouldSkipUpdate", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		mockRESTClient := &MockRESTClientForNAS{
+			nasClient:     mockNASClient,
+			storageClient: mockStorageClient,
+		}
+
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+		// Mock export policy not found
+		mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
+			return params.Name != nil && *params.Name == "test-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(nil, nil) // Return nil for both policy and error to indicate policy doesn't exist
+
+		provider := &OntapRestProvider{}
+
+		params := UpdateExportPolicyRulesParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			ExportPolicy: &ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules:      []*ExportRule{},
+			},
+		}
+
+		err := provider.UpdateExportPolicyRules(params)
+		assert.NoError(t, err) // Should not error when policy doesn't exist (since export policy rules are optional)
+	})
+
+	t.Run("WhenExportPolicyNameIsDifferent_AndCreatePolicyFails_ShouldReturnError", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		mockRESTClient := &MockRESTClientForNAS{
+			nasClient:     mockNASClient,
+			storageClient: mockStorageClient,
+		}
+
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+		volumeResp := &ontapRest.Volume{
+			Volume: ontaprestmodels.Volume{
+				Nas: &ontaprestmodels.VolumeInlineNas{
+					ExportPolicy: &ontaprestmodels.VolumeInlineNasInlineExportPolicy{
+						Name: nillable.ToPointer("current-policy"),
+					},
+				},
+			},
+		}
+		mockStorageClient.On("VolumeGet", mock.MatchedBy(func(params *ontapRest.VolumeGetParams) bool {
+			return params.Name == "test-volume" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(volumeResp, nil)
+
+		// Mock target policy doesn't exist
+		mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
+			return params.Name != nil && *params.Name == "new-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(nil, errors.New("policy not found"))
+
+		// Mock create policy fails
+		mockNASClient.On("ExportPolicyCreate", mock.Anything).
+			Return("", errors.New("create failed"))
+
+		provider := &OntapRestProvider{}
+
+		params := UpdateExportPolicyRulesParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			ExportPolicy: &ExportPolicy{
+				ExportPolicyName: "new-policy",
+				ExportRules: []*ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						NFSv3:          true,
+					},
+				},
+			},
+		}
+
+		err := provider.UpdateExportPolicyRules(params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get export policy")
+	})
+
+	t.Run("WhenExportPolicyNameIsSame_AndCurrentPolicyGetFails_ShouldReturnError", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		mockRESTClient := &MockRESTClientForNAS{
+			nasClient:     mockNASClient,
+			storageClient: mockStorageClient,
+		}
+
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+		volumeResp := &ontapRest.Volume{
+			Volume: ontaprestmodels.Volume{
+				Nas: &ontaprestmodels.VolumeInlineNas{
+					ExportPolicy: &ontaprestmodels.VolumeInlineNasInlineExportPolicy{
+						Name: nillable.ToPointer("same-policy"),
+					},
+				},
+			},
+		}
+		mockStorageClient.On("VolumeGet", mock.MatchedBy(func(params *ontapRest.VolumeGetParams) bool {
+			return params.Name == "test-volume" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(volumeResp, nil)
+
+		// Mock current policy get fails
+		mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
+			return params.Name != nil && *params.Name == "same-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(nil, errors.New("get policy failed"))
+
+		provider := &OntapRestProvider{}
+
+		params := UpdateExportPolicyRulesParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			ExportPolicy: &ExportPolicy{
+				ExportPolicyName: "same-policy",
+				ExportRules: []*ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						NFSv3:          true,
+					},
+				},
+			},
+		}
+
+		err := provider.UpdateExportPolicyRules(params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get export policy")
+	})
+
+	t.Run("WhenExportPolicyNameIsSame_AndPolicyModifyFails_ShouldReturnError", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		mockRESTClient := &MockRESTClientForNAS{
+			nasClient:     mockNASClient,
+			storageClient: mockStorageClient,
+		}
+
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+		volumeResp := &ontapRest.Volume{
+			Volume: ontaprestmodels.Volume{
+				Nas: &ontaprestmodels.VolumeInlineNas{
+					ExportPolicy: &ontaprestmodels.VolumeInlineNasInlineExportPolicy{
+						Name: nillable.ToPointer("same-policy"),
+					},
+				},
+			},
+		}
+		mockStorageClient.On("VolumeGet", mock.MatchedBy(func(params *ontapRest.VolumeGetParams) bool {
+			return params.Name == "test-volume" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(volumeResp, nil)
+
+		// Mock current policy get
+		currentPolicy := &ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ID: nillable.ToPointer(int64(123)),
+			},
+		}
+		mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
+			return params.Name != nil && *params.Name == "same-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(currentPolicy, nil)
+
+		// Mock policy modify fails
+		mockNASClient.On("ExportPolicyModify", mock.Anything).
+			Return(errors.New("modify failed"))
+
+		provider := &OntapRestProvider{}
+
+		params := UpdateExportPolicyRulesParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			ExportPolicy: &ExportPolicy{
+				ExportPolicyName: "same-policy",
+				ExportRules: []*ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						NFSv3:          true,
+					},
+				},
+			},
+		}
+
+		err := provider.UpdateExportPolicyRules(params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update export policy")
+	})
+
+	t.Run("WhenSuccess_ShouldUpdatePolicyRules", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		mockRESTClient := &MockRESTClientForNAS{
+			nasClient:     mockNASClient,
+			storageClient: mockStorageClient,
+		}
+
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+		volumeResp := &ontapRest.Volume{
+			Volume: ontaprestmodels.Volume{
+				Nas: &ontaprestmodels.VolumeInlineNas{
+					ExportPolicy: &ontaprestmodels.VolumeInlineNasInlineExportPolicy{
+						Name: nillable.ToPointer("test-policy"),
+					},
+				},
+			},
+		}
+		mockStorageClient.On("VolumeGet", mock.MatchedBy(func(params *ontapRest.VolumeGetParams) bool {
+			return params.Name == "test-volume" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(volumeResp, nil)
+
+		// Mock current policy get
+		currentPolicy := &ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ID: nillable.ToPointer(int64(123)),
+			},
+		}
+		mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
+			return params.Name != nil && *params.Name == "test-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
+		})).Return(currentPolicy, nil)
+
+		// Mock policy modify success
+		mockNASClient.On("ExportPolicyModify", mock.Anything).
+			Return(nil)
+
+		provider := &OntapRestProvider{}
+
+		params := UpdateExportPolicyRulesParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			ExportPolicy: &ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules: []*ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						NFSv3:          true,
+						Superuser:      true,
+					},
+				},
+			},
+		}
+
+		err := provider.UpdateExportPolicyRules(params)
+		assert.NoError(t, err)
+
+		mockNASClient.AssertCalled(t, "ExportPolicyModify", mock.Anything)
+	})
+}
+
+var originalGetOntapClientFunc = getOntapClientFunc

@@ -351,11 +351,14 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		}
 	}
 
-	param.FileProperties = &models.FileProperties{
-		ExportPolicy: &models.ExportPolicy{
-			ExportPolicyName: req.Volume.CreationToken.Value,
-		},
+	if len(param.Protocols) > 0 && !utils.IsSANProtocol(param.Protocols[0]) {
+		param.FileProperties = &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportPolicyName: req.Volume.CreationToken.Value,
+			},
+		}
 	}
+
 	if req.Volume.ExportPolicy.IsSet() {
 		var exportRules []*models.ExportRule
 		for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
@@ -709,6 +712,56 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		param.SnapReserve = nil
 	}
 
+	if req.CreationToken.IsSet() {
+		if param.FileProperties == nil {
+			param.FileProperties = &models.FileProperties{}
+		}
+		param.FileProperties.JunctionPath = "/" + req.CreationToken.Value
+	}
+
+	if req.ExportPolicy.IsSet() {
+		exportPolicy := req.ExportPolicy.Value
+		if param.FileProperties == nil {
+			param.FileProperties = &models.FileProperties{}
+		}
+		if param.FileProperties.ExportPolicy == nil {
+			param.FileProperties.ExportPolicy = &models.ExportPolicy{}
+		}
+
+		// Deep copy export rules
+		param.FileProperties.ExportPolicy.ExportRules = make([]*models.ExportRule, 0, len(exportPolicy.GetRules()))
+		for _, rule := range exportPolicy.GetRules() {
+			exportRule := &models.ExportRule{}
+			exportRule.AllowedClients = rule.AllowedClients
+			exportRule.AccessType = string(rule.AccessType)
+
+			if rule.Nfsv3.IsSet() {
+				exportRule.NFSv3 = rule.Nfsv3.Value
+			}
+			if rule.Nfsv4.IsSet() {
+				exportRule.NFSv4 = rule.Nfsv4.Value
+			}
+			if rule.Kerberos5ReadOnly.IsSet() {
+				exportRule.Kerberos5ReadOnly = rule.Kerberos5ReadOnly.Value
+			}
+			if rule.Kerberos5ReadWrite.IsSet() {
+				exportRule.Kerberos5ReadWrite = rule.Kerberos5ReadWrite.Value
+			}
+			if rule.Kerberos5iReadOnly.IsSet() {
+				exportRule.Kerberos5iReadOnly = rule.Kerberos5iReadOnly.Value
+			}
+			if rule.Kerberos5iReadWrite.IsSet() {
+				exportRule.Kerberos5iReadWrite = rule.Kerberos5iReadWrite.Value
+			}
+			if rule.Kerberos5pReadOnly.IsSet() {
+				exportRule.Kerberos5pReadOnly = rule.Kerberos5pReadOnly.Value
+			}
+			if rule.Kerberos5pReadWrite.IsSet() {
+				exportRule.Kerberos5pReadWrite = rule.Kerberos5pReadWrite.Value
+			}
+			param.FileProperties.ExportPolicy.ExportRules = append(param.FileProperties.ExportPolicy.ExportRules, exportRule)
+		}
+	}
 	return param, nil
 }
 
@@ -1539,7 +1592,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 			cacheParams.EnableGlobalFileLock = gcpgenserver.NewOptNilBool(*in.CacheParameters.EnableGlobalFileLock)
 		}
 		if in.CacheParameters.PeeringCommandExpiryTime != nil {
-			cacheParams.CommandExpiryTime = gcpgenserver.NewOptNilDateTime(time.Time(*in.CacheParameters.PeeringCommandExpiryTime))
+			cacheParams.PeeringCommandExpiryTime = gcpgenserver.NewOptNilDateTime(time.Time(*in.CacheParameters.PeeringCommandExpiryTime))
 		}
 		if in.CacheParameters.Passphrase != nil {
 			cacheParams.Passphrase = gcpgenserver.NewOptNilString(*in.CacheParameters.Passphrase)

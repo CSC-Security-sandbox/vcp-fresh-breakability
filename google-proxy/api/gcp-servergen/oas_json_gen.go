@@ -5497,12 +5497,14 @@ func (s *ExportPolicyV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExportPolicyV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("rules")
-		e.ArrStart()
-		for _, elem := range s.Rules {
-			elem.Encode(e)
+		if s.Rules != nil {
+			e.FieldStart("rules")
+			e.ArrStart()
+			for _, elem := range s.Rules {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
 		}
-		e.ArrEnd()
 	}
 }
 
@@ -5515,12 +5517,10 @@ func (s *ExportPolicyV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ExportPolicyV1beta to nil")
 	}
-	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
 		case "rules":
-			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				s.Rules = make([]SimpleExportPolicyRuleV1beta, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -5543,38 +5543,6 @@ func (s *ExportPolicyV1beta) Decode(d *jx.Decoder) error {
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "decode ExportPolicyV1beta")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000001,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfExportPolicyV1beta) {
-					name = jsonFieldsNameOfExportPolicyV1beta[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
 	}
 
 	return nil
@@ -5893,9 +5861,9 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.CommandExpiryTime.Set {
-			e.FieldStart("commandExpiryTime")
-			s.CommandExpiryTime.Encode(e, json.EncodeDateTime)
+		if s.PeeringCommandExpiryTime.Set {
+			e.FieldStart("peeringCommandExpiryTime")
+			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
 		}
 	}
 	{
@@ -5918,7 +5886,7 @@ var jsonFieldsNameOfFlexCacheV1beta = [13]string{
 	8:  "stateDetailsCode",
 	9:  "previousCacheState",
 	10: "command",
-	11: "commandExpiryTime",
+	11: "peeringCommandExpiryTime",
 	12: "passphrase",
 }
 
@@ -6058,15 +6026,15 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"command\"")
 			}
-		case "commandExpiryTime":
+		case "peeringCommandExpiryTime":
 			if err := func() error {
-				s.CommandExpiryTime.Reset()
-				if err := s.CommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+				s.PeeringCommandExpiryTime.Reset()
+				if err := s.PeeringCommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"commandExpiryTime\"")
+				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
 			}
 		case "passphrase":
 			if err := func() error {
@@ -51998,6 +51966,12 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.CreationToken.Set {
+			e.FieldStart("creationToken")
+			s.CreationToken.Encode(e)
+		}
+	}
+	{
 		if s.UnixPermissions.Set {
 			e.FieldStart("unixPermissions")
 			s.UnixPermissions.Encode(e)
@@ -52023,7 +51997,7 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [16]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [17]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -52036,10 +52010,11 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [16]string{
 	9:  "protocols",
 	10: "restrictedActions",
 	11: "smbSettings",
-	12: "unixPermissions",
-	13: "labels",
-	14: "poolId",
-	15: "description",
+	12: "creationToken",
+	13: "unixPermissions",
+	14: "labels",
+	15: "poolId",
+	16: "description",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -52181,6 +52156,16 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"smbSettings\"")
+			}
+		case "creationToken":
+			if err := func() error {
+				s.CreationToken.Reset()
+				if err := s.CreationToken.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"creationToken\"")
 			}
 		case "unixPermissions":
 			if err := func() error {

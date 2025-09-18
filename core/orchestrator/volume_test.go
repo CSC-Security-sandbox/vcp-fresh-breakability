@@ -10949,21 +10949,6 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 		assert.EqualError(tt, err, "FileProperties cannot be nil for NAS volumes")
 	})
 
-	t.Run("Error_EmptyExportRules", func(tt *testing.T) {
-		params := &common.CreateVolumeParams{
-			CreationToken: "test-token",
-			FileProperties: &models.FileProperties{
-				ExportPolicy: &models.ExportPolicy{
-					ExportPolicyName: "test-policy",
-					ExportRules:      []*models.ExportRule{},
-				},
-			},
-		}
-
-		err := processor.Validate(ctx, mockStorage, params, accountID)
-		assert.EqualError(tt, err, "Export Rules cannot be empty in Export Policy")
-	})
-
 	t.Run("Error_EmptyAllowedClients", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
@@ -12800,4 +12785,156 @@ func TestHotTierBypassModeWithPausedTieringPolicy(t *testing.T) {
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.NoError(tt, err, "Validation should pass when tiering policy is enabled and hot tier bypass is enabled")
 	})
+}
+
+func TestValidateUpdateFileProperties_NonNFSProtocol(t *testing.T) {
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:      []string{"CIFS"},
+			FileProperties: &datamodel.FileProperties{}, // Add this so it passes the first check but fails on protocol check
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		FileProperties: &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     "rw",
+						AnonymousUser:  "65534",
+					},
+				},
+			},
+		},
+	}
+
+	err := validateUpdateFileProperties(params, volume)
+	expectedError := errors.NewUserInputValidationErr("file properties can only be supported for volumes with NAS protocols")
+	assert.EqualError(t, err, expectedError.Error())
+}
+
+func TestValidateUpdateFileProperties_ISCSIProtocol(t *testing.T) {
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:      []string{"ISCSI"},
+			FileProperties: &datamodel.FileProperties{}, // Add this so it passes the first check but fails on protocol check
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		FileProperties: &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     "rw",
+						AnonymousUser:  "65534",
+					},
+				},
+			},
+		},
+	}
+
+	err := validateUpdateFileProperties(params, volume)
+	expectedError := errors.NewUserInputValidationErr("file properties can only be supported for volumes with NAS protocols")
+	assert.EqualError(t, err, expectedError.Error())
+}
+
+func TestValidateUpdateFileProperties_NoFileProperties(t *testing.T) {
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"ISCSI"},
+			// No FileProperties - this makes it a block volume
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		FileProperties: nil,
+	}
+
+	err := validateUpdateFileProperties(params, volume)
+	expectedError := errors.NewUserInputValidationErr("File properties is mandatory to update file properties on the volume")
+	assert.EqualError(t, err, expectedError.Error())
+}
+
+func TestValidateUpdateFileProperties_NoExportPolicy(t *testing.T) {
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"ISCSI"},
+			// No FileProperties - this makes it a block volume
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		FileProperties: &models.FileProperties{
+			ExportPolicy: nil,
+			JunctionPath: "/test/path",
+		},
+	}
+
+	err := validateUpdateFileProperties(params, volume)
+	expectedError := errors.NewUserInputValidationErr("File properties is mandatory to update file properties on the volume")
+	assert.EqualError(t, err, expectedError.Error())
+}
+
+func TestValidateUpdateFileProperties_EmptyProtocols(t *testing.T) {
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{},
+			// No FileProperties - this makes it a block volume
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		FileProperties: &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     "rw",
+						AnonymousUser:  "65534",
+					},
+				},
+			},
+		},
+	}
+
+	err := validateUpdateFileProperties(params, volume)
+	expectedError := errors.NewUserInputValidationErr("File properties is mandatory to update file properties on the volume")
+	assert.EqualError(t, err, expectedError.Error())
+}
+
+func TestValidateUpdateFileProperties_NilVolumeAttributes(t *testing.T) {
+	volume := &datamodel.Volume{
+		Name:             "test-volume",
+		VolumeAttributes: nil,
+	}
+
+	params := &common.UpdateVolumeParams{
+		FileProperties: &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportPolicyName: "test-policy",
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     "rw",
+						AnonymousUser:  "65534",
+					},
+				},
+			},
+		},
+	}
+
+	err := validateUpdateFileProperties(params, volume)
+	expectedError := errors.NewUserInputValidationErr("File properties is mandatory to update file properties on the volume")
+	assert.EqualError(t, err, expectedError.Error())
 }

@@ -1653,6 +1653,64 @@ func (_c *MockStorageClient_VolumeModify_Call) RunAndReturn(run func(*VolumeModi
 	return _c
 }
 
+// VolumeMount provides a mock function with given fields: params
+func (_m *MockStorageClient) VolumeMount(params *VolumeMountParams) (*JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VolumeMount")
+	}
+
+	var r0 *JobAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeMountParams) (*JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeMountParams) *JobAccepted); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeMountParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_VolumeMount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VolumeMount'
+type MockStorageClient_VolumeMount_Call struct {
+	*mock.Call
+}
+
+// VolumeMount is a helper method to define mock.On call
+//   - params *VolumeMountParams
+func (_e *MockStorageClient_Expecter) VolumeMount(params interface{}) *MockStorageClient_VolumeMount_Call {
+	return &MockStorageClient_VolumeMount_Call{Call: _e.mock.On("VolumeMount", params)}
+}
+
+func (_c *MockStorageClient_VolumeMount_Call) Run(run func(params *VolumeMountParams)) *MockStorageClient_VolumeMount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeMountParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_VolumeMount_Call) Return(_a0 *JobAccepted, _a1 error) *MockStorageClient_VolumeMount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_VolumeMount_Call) RunAndReturn(run func(*VolumeMountParams) (*JobAccepted, error)) *MockStorageClient_VolumeMount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // VolumeUnmount provides a mock function with given fields: params
 func (_m *MockStorageClient) VolumeUnmount(params *VolumeUnmountParams) (*JobAccepted, error) {
 	ret := _m.Called(params)

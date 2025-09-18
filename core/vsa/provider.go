@@ -32,6 +32,7 @@ type Provider interface {
 	CreateVolume(params CreateVolumeParams) (*VolumeResponse, error)
 	CreateFlexCacheVolume(params CreateFlexCacheVolumeParams) (*VolumeResponse, error)
 	UnmountVolume(volumeUUID string) (*OntapAsyncResponse, error)
+	MountVolume(params MountVolumeParams) (*OntapAsyncResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
 	DeleteFlexCacheVolume(volumeUUID, name string) (*OntapAsyncResponse, error)
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
@@ -105,6 +106,7 @@ type Provider interface {
 	FindQoSGroupPolicy(params FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
 	UpdateQoSGroupPolicy(params UpdateQoSGroupPolicyParams) error
 	CreateExportPolicy(params *ExportPolicy) error
+	UpdateExportPolicyRules(params UpdateExportPolicyRulesParams) error
 	CreateSecurityLogForwarding(params CreateSecurityLogForwardingParams) (*CreateSecurityLogForwardingResponse, error)
 	GetSecurityLogForwarding(params GetSecurityLogForwardingParams) error
 	UpdateSecurityAudit(params UpdateSecurityAuditParams) (*SecurityAudit, error)

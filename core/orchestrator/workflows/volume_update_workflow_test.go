@@ -3006,6 +3006,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateLunReturnedError
 		SizeInBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
+			Protocols:        []string{"ISCSI"},
 		},
 	}
 	params := &common.UpdateVolumeParams{
@@ -3017,4 +3018,465 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateLunReturnedError
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Unit tests for standalone functions
+
+func TestIsExportPolicyRulesUpdateRequired(t *testing.T) {
+	t.Run("WhenCurrentPolicyNilAndUpdatePolicyNotNil_ShouldReturnTrue", func(t *testing.T) {
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules:      []*models.ExportRule{},
+		}
+		result := isExportPolicyRulesUpdateRequired(nil, updatePolicy)
+		assert.True(t, result)
+	})
+
+	t.Run("WhenCurrentPolicyNotNilAndUpdatePolicyNil_ShouldReturnTrue", func(t *testing.T) {
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules:      []*datamodel.ExportRule{},
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, nil)
+		assert.True(t, result)
+	})
+
+	t.Run("WhenBothPoliciesNil_ShouldReturnFalse", func(t *testing.T) {
+		result := isExportPolicyRulesUpdateRequired(nil, nil)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenPolicyNamesAreDifferentAndUpdatePolicyNameIsNotEmpty_ShouldReturnFalse", func(t *testing.T) {
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "current-policy",
+			ExportRules:      []*datamodel.ExportRule{},
+		}
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "different-policy",
+			ExportRules:      []*models.ExportRule{},
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, updatePolicy)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenUpdatePolicyNameIsEmpty_ShouldProceedWithRuleComparison", func(t *testing.T) {
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "current-policy",
+			ExportRules:      []*datamodel.ExportRule{},
+		}
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "",
+			ExportRules:      []*models.ExportRule{},
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, updatePolicy)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenRuleCountsDiffer_ShouldReturnTrue", func(t *testing.T) {
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*datamodel.ExportRule{
+				{AllowedClients: "192.168.1.0/24"},
+			},
+		}
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules:      []*models.ExportRule{},
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, updatePolicy)
+		assert.True(t, result)
+	})
+
+	t.Run("WhenRulesAreIdentical_ShouldReturnFalse", func(t *testing.T) {
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*datamodel.ExportRule{
+				{
+					AllowedClients:      "192.168.1.0/24",
+					AnonymousUser:       "nobody",
+					AccessType:          "rw",
+					CIFS:                false,
+					NFSv3:               true,
+					NFSv4:               false,
+					S3:                  false,
+					UnixReadOnly:        false,
+					UnixReadWrite:       true,
+					Kerberos5ReadOnly:   false,
+					Kerberos5ReadWrite:  false,
+					Kerberos5iReadOnly:  false,
+					Kerberos5iReadWrite: false,
+					Kerberos5pReadOnly:  false,
+					Kerberos5pReadWrite: false,
+					Superuser:           true,
+				},
+			},
+		}
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*models.ExportRule{
+				{
+					AllowedClients:      "192.168.1.0/24",
+					AnonymousUser:       "nobody",
+					AccessType:          "rw",
+					CIFS:                false,
+					NFSv3:               true,
+					NFSv4:               false,
+					S3:                  false,
+					UnixReadOnly:        false,
+					UnixReadWrite:       true,
+					Kerberos5ReadOnly:   false,
+					Kerberos5ReadWrite:  false,
+					Kerberos5iReadOnly:  false,
+					Kerberos5iReadWrite: false,
+					Kerberos5pReadOnly:  false,
+					Kerberos5pReadWrite: false,
+					Superuser:           true,
+				},
+			},
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, updatePolicy)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenUpdateRuleNotFoundInCurrent_ShouldReturnTrue", func(t *testing.T) {
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*datamodel.ExportRule{
+				{AllowedClients: "192.168.1.0/24", NFSv3: true},
+			},
+		}
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*models.ExportRule{
+				{AllowedClients: "192.168.2.0/24", NFSv3: true}, // Different client
+			},
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, updatePolicy)
+		assert.True(t, result)
+	})
+
+	t.Run("WhenCurrentRuleNotFoundInUpdate_ShouldReturnTrue", func(t *testing.T) {
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*datamodel.ExportRule{
+				{AllowedClients: "192.168.1.0/24", NFSv3: true},
+				{AllowedClients: "192.168.2.0/24", NFSv3: true},
+			},
+		}
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*models.ExportRule{
+				{AllowedClients: "192.168.1.0/24", NFSv3: true}, // Missing second rule
+			},
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, updatePolicy)
+		assert.True(t, result)
+	})
+}
+
+func TestRulesEqual(t *testing.T) {
+	t.Run("WhenAllFieldsAreEqual_ShouldReturnTrue", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{
+			AllowedClients:      "192.168.1.0/24",
+			AnonymousUser:       "nobody",
+			AccessType:          "rw",
+			CIFS:                false,
+			NFSv3:               true,
+			NFSv4:               false,
+			S3:                  false,
+			UnixReadOnly:        false,
+			UnixReadWrite:       true,
+			Kerberos5ReadOnly:   false,
+			Kerberos5ReadWrite:  false,
+			Kerberos5iReadOnly:  false,
+			Kerberos5iReadWrite: false,
+			Kerberos5pReadOnly:  false,
+			Kerberos5pReadWrite: false,
+			Superuser:           true,
+		}
+		updateRule := &models.ExportRule{
+			AllowedClients:      "192.168.1.0/24",
+			AnonymousUser:       "nobody",
+			AccessType:          "rw",
+			CIFS:                false,
+			NFSv3:               true,
+			NFSv4:               false,
+			S3:                  false,
+			UnixReadOnly:        false,
+			UnixReadWrite:       true,
+			Kerberos5ReadOnly:   false,
+			Kerberos5ReadWrite:  false,
+			Kerberos5iReadOnly:  false,
+			Kerberos5iReadWrite: false,
+			Kerberos5pReadOnly:  false,
+			Kerberos5pReadWrite: false,
+			Superuser:           true,
+		}
+		result := rulesEqual(currentRule, updateRule)
+		assert.True(t, result)
+	})
+
+	t.Run("WhenAllowedClientsDiffer_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{AllowedClients: "192.168.1.0/24"}
+		updateRule := &models.ExportRule{AllowedClients: "192.168.2.0/24"}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenAnonymousUserDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{AnonymousUser: "nobody"}
+		updateRule := &models.ExportRule{AnonymousUser: "root"}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenAccessTypeDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{AccessType: "rw"}
+		updateRule := &models.ExportRule{AccessType: "ro"}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenCIFSFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{CIFS: true}
+		updateRule := &models.ExportRule{CIFS: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenNFSv3FlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{NFSv3: true}
+		updateRule := &models.ExportRule{NFSv3: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenNFSv4FlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{NFSv4: true}
+		updateRule := &models.ExportRule{NFSv4: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenS3FlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{S3: true}
+		updateRule := &models.ExportRule{S3: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenUnixReadOnlyFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{UnixReadOnly: true}
+		updateRule := &models.ExportRule{UnixReadOnly: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenUnixReadWriteFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{UnixReadWrite: true}
+		updateRule := &models.ExportRule{UnixReadWrite: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenKerberos5ReadOnlyFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{Kerberos5ReadOnly: true}
+		updateRule := &models.ExportRule{Kerberos5ReadOnly: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenKerberos5ReadWriteFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{Kerberos5ReadWrite: true}
+		updateRule := &models.ExportRule{Kerberos5ReadWrite: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenKerberos5iReadOnlyFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{Kerberos5iReadOnly: true}
+		updateRule := &models.ExportRule{Kerberos5iReadOnly: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenKerberos5iReadWriteFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{Kerberos5iReadWrite: true}
+		updateRule := &models.ExportRule{Kerberos5iReadWrite: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenKerberos5pReadOnlyFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{Kerberos5pReadOnly: true}
+		updateRule := &models.ExportRule{Kerberos5pReadOnly: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenKerberos5pReadWriteFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{Kerberos5pReadWrite: true}
+		updateRule := &models.ExportRule{Kerberos5pReadWrite: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenSuperuserFlagDiffers_ShouldReturnFalse", func(t *testing.T) {
+		currentRule := &datamodel.ExportRule{Superuser: true}
+		updateRule := &models.ExportRule{Superuser: false}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+}
+
+func TestGetUpdatedExportPolicy(t *testing.T) {
+	t.Run("WhenUpdatePolicyIsNil_ShouldReturnNil", func(t *testing.T) {
+		result := getUpdatedExportPolicy(nil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("WhenUpdatePolicyIsEmpty_ShouldReturnEmptyDatamodelPolicy", func(t *testing.T) {
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules:      []*models.ExportRule{},
+		}
+		result := getUpdatedExportPolicy(updatePolicy)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-policy", result.ExportPolicyName)
+		assert.Equal(t, 0, len(result.ExportRules))
+	})
+
+	t.Run("WhenUpdatePolicyHasSingleRule_ShouldConvertCorrectly", func(t *testing.T) {
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*models.ExportRule{
+				{
+					AllowedClients:      "192.168.1.0/24",
+					AnonymousUser:       "nobody",
+					Index:               1,
+					ChownMode:           "restricted",
+					AccessType:          "rw",
+					CIFS:                false,
+					NFSv3:               true,
+					NFSv4:               false,
+					S3:                  false,
+					UnixReadOnly:        false,
+					UnixReadWrite:       true,
+					Kerberos5ReadOnly:   false,
+					Kerberos5ReadWrite:  false,
+					Kerberos5iReadOnly:  false,
+					Kerberos5iReadWrite: false,
+					Kerberos5pReadOnly:  false,
+					Kerberos5pReadWrite: false,
+					Superuser:           true,
+				},
+			},
+		}
+		result := getUpdatedExportPolicy(updatePolicy)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-policy", result.ExportPolicyName)
+		assert.Equal(t, 1, len(result.ExportRules))
+
+		rule := result.ExportRules[0]
+		assert.Equal(t, "192.168.1.0/24", rule.AllowedClients)
+		assert.Equal(t, "nobody", rule.AnonymousUser)
+		assert.Equal(t, 1, rule.Index)
+		assert.Equal(t, "restricted", rule.ChownMode)
+		assert.Equal(t, "rw", rule.AccessType)
+		assert.False(t, rule.CIFS)
+		assert.True(t, rule.NFSv3)
+		assert.False(t, rule.NFSv4)
+		assert.False(t, rule.S3)
+		assert.False(t, rule.UnixReadOnly)
+		assert.True(t, rule.UnixReadWrite)
+		assert.False(t, rule.Kerberos5ReadOnly)
+		assert.False(t, rule.Kerberos5ReadWrite)
+		assert.False(t, rule.Kerberos5iReadOnly)
+		assert.False(t, rule.Kerberos5iReadWrite)
+		assert.False(t, rule.Kerberos5pReadOnly)
+		assert.False(t, rule.Kerberos5pReadWrite)
+		assert.True(t, rule.Superuser)
+	})
+
+	t.Run("WhenUpdatePolicyHasMultipleRules_ShouldConvertAllRules", func(t *testing.T) {
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "multi-rule-policy",
+			ExportRules: []*models.ExportRule{
+				{
+					AllowedClients: "192.168.1.0/24",
+					NFSv3:          true,
+					AccessType:     "rw",
+					Index:          1,
+				},
+				{
+					AllowedClients: "10.0.0.0/8",
+					NFSv4:          true,
+					AccessType:     "ro",
+					Index:          2,
+				},
+			},
+		}
+		result := getUpdatedExportPolicy(updatePolicy)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "multi-rule-policy", result.ExportPolicyName)
+		assert.Equal(t, 2, len(result.ExportRules))
+
+		rule1 := result.ExportRules[0]
+		assert.Equal(t, "192.168.1.0/24", rule1.AllowedClients)
+		assert.True(t, rule1.NFSv3)
+		assert.Equal(t, "rw", rule1.AccessType)
+		assert.Equal(t, 1, rule1.Index)
+
+		rule2 := result.ExportRules[1]
+		assert.Equal(t, "10.0.0.0/8", rule2.AllowedClients)
+		assert.True(t, rule2.NFSv4)
+		assert.Equal(t, "ro", rule2.AccessType)
+		assert.Equal(t, 2, rule2.Index)
+	})
+
+	t.Run("WhenUpdatePolicyHasAllProtocolFlags_ShouldConvertCorrectly", func(t *testing.T) {
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "all-protocols-policy",
+			ExportRules: []*models.ExportRule{
+				{
+					AllowedClients:      "0.0.0.0/0",
+					CIFS:                true,
+					NFSv3:               true,
+					NFSv4:               true,
+					S3:                  true,
+					UnixReadOnly:        true,
+					UnixReadWrite:       true,
+					Kerberos5ReadOnly:   true,
+					Kerberos5ReadWrite:  true,
+					Kerberos5iReadOnly:  true,
+					Kerberos5iReadWrite: true,
+					Kerberos5pReadOnly:  true,
+					Kerberos5pReadWrite: true,
+					Superuser:           true,
+				},
+			},
+		}
+		result := getUpdatedExportPolicy(updatePolicy)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, len(result.ExportRules))
+
+		rule := result.ExportRules[0]
+		assert.True(t, rule.CIFS)
+		assert.True(t, rule.NFSv3)
+		assert.True(t, rule.NFSv4)
+		assert.True(t, rule.S3)
+		assert.True(t, rule.UnixReadOnly)
+		assert.True(t, rule.UnixReadWrite)
+		assert.True(t, rule.Kerberos5ReadOnly)
+		assert.True(t, rule.Kerberos5ReadWrite)
+		assert.True(t, rule.Kerberos5iReadOnly)
+		assert.True(t, rule.Kerberos5iReadWrite)
+		assert.True(t, rule.Kerberos5pReadOnly)
+		assert.True(t, rule.Kerberos5pReadWrite)
+		assert.True(t, rule.Superuser)
+	})
 }

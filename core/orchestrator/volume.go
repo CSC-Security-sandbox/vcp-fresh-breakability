@@ -691,10 +691,7 @@ func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage,
 		return customerrors.NewUserInputValidationErr("FileProperties cannot be nil for NAS volumes")
 	}
 
-	if params.FileProperties.ExportPolicy != nil {
-		if len(params.FileProperties.ExportPolicy.ExportRules) == 0 {
-			return customerrors.NewUserInputValidationErr("Export Rules cannot be empty in Export Policy")
-		}
+	if params.FileProperties.ExportPolicy != nil && params.FileProperties.ExportPolicy.ExportRules != nil {
 		for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
 			if rule.AllowedClients == "" {
 				return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
@@ -1480,6 +1477,13 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 	}
 
+	if params.FileProperties != nil {
+		err := validateUpdateFileProperties(params, volume)
+		if err != nil {
+			return err
+		}
+	}
+
 	if params.DataProtection != nil && params.DataProtection.BackupVaultID != nil && *params.DataProtection.BackupVaultID != "" {
 		bv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, *params.DataProtection.BackupVaultID, pool.Account.ID)
 		if err != nil && !customerrors.IsNotFoundErr(err) {
@@ -1568,6 +1572,35 @@ func validateBlockProperties(ctx context.Context, se database.Storage, hostGroup
 		}
 	}
 
+	return nil
+}
+
+func validateUpdateFileProperties(params *common.UpdateVolumeParams, volume *datamodel.Volume) error {
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.FileProperties == nil {
+		return customerrors.NewUserInputValidationErr("File properties is mandatory to update file properties on the volume")
+	}
+
+	// Validate that the volume supports NFS protocols before allowing file property updates
+	if !utils.IsFileProtocolSupported(volume.Account.Name) {
+		return customerrors.NewUserInputValidationErr("file properties can only be supported for volumes with NAS protocols")
+	}
+
+	if params.FileProperties == nil {
+		return customerrors.NewUserInputValidationErr("File properties cannot be nil")
+	}
+
+	if params.FileProperties.ExportPolicy != nil && params.FileProperties.ExportPolicy.ExportRules != nil {
+		for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
+			if rule.AllowedClients == "" {
+				return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
+			} else {
+				// Validate allowed clients
+				if err := validateAllowedClients(rule.AllowedClients); err != nil {
+					return customerrors.NewUserInputValidationErr(fmt.Sprintf("allowed clients validation failed: %v", err))
+				}
+			}
+		}
+	}
 	return nil
 }
 

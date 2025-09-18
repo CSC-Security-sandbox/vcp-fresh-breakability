@@ -597,3 +597,24 @@ type SmObjectStoreEndpointt struct {
 	LogicalSize *int64
 	UUID        *strfmt.UUID
 }
+
+// UpdateVolumeJunctionPathParams describes parameters for updating a volume's junction path
+type UpdateVolumeJunctionPathParams struct {
+	UUID         string
+	VolumeName   string
+	SvmName      string
+	JunctionPath string
+}
+
+// MountVolumeParams describes parameters for mounting a volume
+type MountVolumeParams struct {
+	UUID         string
+	JunctionPath string
+}
+
+// UpdateExportPolicyRulesParams describes parameters for updating export policy rules for a volume
+type UpdateExportPolicyRulesParams struct {
+	VolumeName   string
+	SvmName      string
+	ExportPolicy *ExportPolicy
+}

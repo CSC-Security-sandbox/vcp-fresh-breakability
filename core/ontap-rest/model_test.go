@@ -765,6 +765,28 @@ func TestVolumeUnmountParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestVolumeMountParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		result := volumeMountParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+		assert.Empty(tt, result.UUID)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &VolumeMountParams{
+			UUID:         "volume-uuid-123",
+			JunctionPath: "/test/junction/path",
+		}
+		result := volumeMountParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "volume-uuid-123", result.UUID)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.NotNil(tt, result.Info.Nas.Path)
+		assert.Equal(tt, "/test/junction/path", *result.Info.Nas.Path)
+	})
+}
+
 func TestLunModifyParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
 		result := lunModifyParamsToONTAP(nil)

@@ -2670,3 +2670,270 @@ func TestGetUpdatedFieldsFromParams_HotTierBypassModeComparisonLogic(t *testing.
 		assert.Equal(tt, ontapModels.VolumeInlineTieringPolicyNone, autoTieringPolicy.TieringPolicy)
 	})
 }
+
+func TestUpdateJunctionPathInONTAP_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+	}
+	junctionPath := "/new/path"
+	node := &models.Node{}
+
+	mockProvider.On("UnmountVolume", volume.VolumeAttributes.ExternalUUID).Return(&vsa.OntapAsyncResponse{}, nil)
+	mockProvider.On("MountVolume", vsa.MountVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: junctionPath,
+	}).Return(&vsa.OntapAsyncResponse{}, nil)
+
+	err := activity.UpdateJunctionPathInONTAP(ctx, volume, junctionPath, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateJunctionPathInONTAP_GetProviderError(t *testing.T) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	expectedError := errors.New("failed to get provider")
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{}
+	junctionPath := "/new/path"
+	node := &models.Node{}
+
+	err := activity.UpdateJunctionPathInONTAP(ctx, volume, junctionPath, node)
+	assert.Error(t, err)
+}
+
+func TestUpdateJunctionPathInONTAP_UnmountError(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+	}
+	junctionPath := "/new/path"
+	node := &models.Node{}
+
+	expectedError := errors.New("unmount failed")
+	mockProvider.On("UnmountVolume", volume.VolumeAttributes.ExternalUUID).Return(nil, expectedError)
+
+	err := activity.UpdateJunctionPathInONTAP(ctx, volume, junctionPath, node)
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateJunctionPathInONTAP_MountError(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+	}
+	junctionPath := "/new/path"
+	node := &models.Node{}
+
+	expectedError := errors.New("mount failed")
+	mockProvider.On("UnmountVolume", volume.VolumeAttributes.ExternalUUID).Return(&vsa.OntapAsyncResponse{}, nil)
+	mockProvider.On("MountVolume", vsa.MountVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: junctionPath,
+	}).Return(nil, expectedError)
+
+	err := activity.UpdateJunctionPathInONTAP(ctx, volume, junctionPath, node)
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateExportPolicyRulesInONTAP_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+	}
+
+	exportPolicy := &models.ExportPolicy{
+		ExportPolicyName: "test-policy",
+		ExportRules: []*models.ExportRule{
+			{
+				AllowedClients: "192.168.1.0/24",
+				AccessType:     "ro",
+				AnonymousUser:  "65534",
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	mockProvider.On("UpdateExportPolicyRules", mock.MatchedBy(func(params vsa.UpdateExportPolicyRulesParams) bool {
+		return params.VolumeName == volume.Name &&
+			params.SvmName == volume.Svm.Name &&
+			params.ExportPolicy.ExportPolicyName == exportPolicy.ExportPolicyName
+	})).Return(nil)
+
+	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateExportPolicyRulesInONTAP_GetProviderError(t *testing.T) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	expectedError := errors.New("failed to get provider")
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{}
+	exportPolicy := &models.ExportPolicy{}
+	node := &models.Node{}
+
+	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
+	assert.Error(t, err)
+}
+
+func TestUpdateExportPolicyRulesInONTAP_UpdateError(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+	}
+
+	exportPolicy := &models.ExportPolicy{
+		ExportPolicyName: "test-policy",
+		ExportRules: []*models.ExportRule{
+			{
+				AllowedClients: "192.168.1.0/24",
+				AccessType:     "ro",
+				AnonymousUser:  "65534",
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	expectedError := errors.New("update export policy rules failed")
+	mockProvider.On("UpdateExportPolicyRules", mock.Anything).Return(expectedError)
+
+	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateExportPolicyRulesInONTAP_EmptyRules(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+	}
+
+	exportPolicy := &models.ExportPolicy{
+		ExportPolicyName: "test-policy",
+		ExportRules:      []*models.ExportRule{}, // Empty rules
+	}
+
+	node := &models.Node{}
+
+	mockProvider.On("UpdateExportPolicyRules", mock.MatchedBy(func(params vsa.UpdateExportPolicyRulesParams) bool {
+		return params.VolumeName == volume.Name &&
+			params.SvmName == volume.Svm.Name &&
+			params.ExportPolicy.ExportPolicyName == exportPolicy.ExportPolicyName &&
+			len(params.ExportPolicy.ExportRules) == 0
+	})).Return(nil)
+
+	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}

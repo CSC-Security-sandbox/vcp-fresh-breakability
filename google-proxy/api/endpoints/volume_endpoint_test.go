@@ -118,11 +118,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupVaultID:          "backup-vault-id",
 				BackupPolicyId:         "backup-policy-id",
 			},
-			FileProperties: &models.FileProperties{
-				ExportPolicy: &models.ExportPolicy{
-					ExportPolicyName: req.Volume.CreationToken.Value,
-				},
-			},
 		}
 		result, err := _prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
@@ -183,11 +178,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupPolicyId:         "backup-policy-id",
 			},
 			SnapshotID: "test-snapshot-id",
-			FileProperties: &models.FileProperties{
-				ExportPolicy: &models.ExportPolicy{
-					ExportPolicyName: req.Volume.CreationToken.Value,
-				},
-			},
 		}
 		result, err := _prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
@@ -334,11 +324,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				TieringPolicy:        "auto",
 				RetrievalPolicy:      "default",
 			},
-			FileProperties: &models.FileProperties{
-				ExportPolicy: &models.ExportPolicy{
-					ExportPolicyName: req.Volume.CreationToken.Value,
-				},
-			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
@@ -409,11 +394,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			AutoTieringPolicy: &common.AutoTieringPolicy{
 				AutoTieringEnabled: false,
 				TieringPolicy:      "none",
-			},
-			FileProperties: &models.FileProperties{
-				ExportPolicy: &models.ExportPolicy{
-					ExportPolicyName: req.Volume.CreationToken.Value,
-				},
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region, zone)
@@ -586,11 +566,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			Protocols: []string{
 				"ISCSI",
 			},
-			FileProperties: &models.FileProperties{
-				ExportPolicy: &models.ExportPolicy{
-					ExportPolicyName: req.Volume.CreationToken.Value,
-				},
-			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
@@ -638,11 +613,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			},
 			Protocols: []string{
 				"ISCSI",
-			},
-			FileProperties: &models.FileProperties{
-				ExportPolicy: &models.ExportPolicy{
-					ExportPolicyName: req.Volume.CreationToken.Value,
-				},
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region, zone)
@@ -2364,7 +2334,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 
 		assert.Equal(tt, "origin-volume", cache.PeerVolumeName)
 		assert.False(tt, cache.EnableGlobalFileLock.IsSet())
-		assert.False(tt, cache.CommandExpiryTime.IsSet())
+		assert.False(tt, cache.PeeringCommandExpiryTime.IsSet())
 		assert.False(tt, cache.Passphrase.IsSet())
 	})
 
@@ -6447,4 +6417,287 @@ func contains(s, substr string) bool {
 				}
 				return false
 			}())))
+}
+
+func TestPrepareUpdateVolumeParamsCreationToken(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-central1",
+		VolumeId:      "test-volume",
+	}
+	region := "us-central1"
+
+	t.Run("CreationToken_ShouldSetJunctionPath", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:        gcpgenserver.NewOptNilString("test-pool"),
+			CreationToken: gcpgenserver.NewOptNilString("my-junction-path"),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "/my-junction-path", result.FileProperties.JunctionPath)
+	})
+
+	t.Run("CreationToken_EmptyValue_ShouldSetJunctionPathWithSlash", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:        gcpgenserver.NewOptNilString("test-pool"),
+			CreationToken: gcpgenserver.NewOptNilString(""),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "/", result.FileProperties.JunctionPath)
+	})
+
+	t.Run("CreationToken_WithSpecialCharacters_ShouldPreserveValue", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:        gcpgenserver.NewOptNilString("test-pool"),
+			CreationToken: gcpgenserver.NewOptNilString("path-with_special.chars123"),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "/path-with_special.chars123", result.FileProperties.JunctionPath)
+	})
+
+	t.Run("CreationToken_NotSet_ShouldNotCreateFileProperties", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId: gcpgenserver.NewOptNilString("test-pool"),
+			// CreationToken not set
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result.FileProperties)
+	})
+
+	t.Run("CreationToken_WithExistingFileProperties_ShouldPreserveOtherFields", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:        gcpgenserver.NewOptNilString("test-pool"),
+			CreationToken: gcpgenserver.NewOptNilString("new-path"),
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+					},
+				},
+			}),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "/new-path", result.FileProperties.JunctionPath)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 1)
+	})
+}
+
+func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-central1",
+		VolumeId:      "test-volume",
+	}
+	region := "us-central1"
+
+	t.Run("ExportPolicy_SingleRule_ShouldCreateExportRule", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId: gcpgenserver.NewOptNilString("test-pool"),
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+					},
+				},
+			}),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 1)
+
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.Equal(tt, "192.168.1.0/24", rule.AllowedClients)
+		assert.Equal(tt, "READ_WRITE", rule.AccessType)
+	})
+
+	t.Run("ExportPolicy_MultipleRules_ShouldCreateAllRules", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId: gcpgenserver.NewOptNilString("test-pool"),
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+					},
+					{
+						AllowedClients: "10.0.0.0/8",
+						AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY,
+					},
+				},
+			}),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 2)
+
+		rule1 := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.Equal(tt, "192.168.1.0/24", rule1.AllowedClients)
+		assert.Equal(tt, "READ_WRITE", rule1.AccessType)
+
+		rule2 := result.FileProperties.ExportPolicy.ExportRules[1]
+		assert.Equal(tt, "10.0.0.0/8", rule2.AllowedClients)
+		assert.Equal(tt, "READ_ONLY", rule2.AccessType)
+	})
+
+	t.Run("ExportPolicy_AllProtocolFlags_ShouldSetCorrectly", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId: gcpgenserver.NewOptNilString("test-pool"),
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+					{
+						AllowedClients:      "192.168.1.0/24",
+						AccessType:          gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+						Nfsv3:               gcpgenserver.NewOptNilBool(true),
+						Nfsv4:               gcpgenserver.NewOptNilBool(true),
+						Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(true),
+						Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
+						Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(true),
+						Kerberos5iReadWrite: gcpgenserver.NewOptNilBool(false),
+						Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(true),
+						Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(false),
+					},
+				},
+			}),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 1)
+
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.Equal(tt, "192.168.1.0/24", rule.AllowedClients)
+		assert.Equal(tt, "READ_WRITE", rule.AccessType)
+		assert.True(tt, rule.NFSv3)
+		assert.True(tt, rule.NFSv4)
+		assert.True(tt, rule.Kerberos5ReadOnly)
+		assert.False(tt, rule.Kerberos5ReadWrite)
+		assert.True(tt, rule.Kerberos5iReadOnly)
+		assert.False(tt, rule.Kerberos5iReadWrite)
+		assert.True(tt, rule.Kerberos5pReadOnly)
+		assert.False(tt, rule.Kerberos5pReadWrite)
+	})
+
+	t.Run("ExportPolicy_PartialProtocolFlags_ShouldSetOnlyProvidedFlags", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId: gcpgenserver.NewOptNilString("test-pool"),
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+						Nfsv3:          gcpgenserver.NewOptNilBool(true),
+						Nfsv4:          gcpgenserver.NewOptNilBool(false),
+						// Other kerberos flags not set
+					},
+				},
+			}),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 1)
+
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.Equal(tt, "192.168.1.0/24", rule.AllowedClients)
+		assert.Equal(tt, "READ_WRITE", rule.AccessType)
+		assert.True(tt, rule.NFSv3)
+		assert.False(tt, rule.NFSv4)
+		// Kerberos flags should have default values (false)
+		assert.False(tt, rule.Kerberos5ReadOnly)
+		assert.False(tt, rule.Kerberos5ReadWrite)
+		assert.False(tt, rule.Kerberos5iReadOnly)
+		assert.False(tt, rule.Kerberos5iReadWrite)
+		assert.False(tt, rule.Kerberos5pReadOnly)
+		assert.False(tt, rule.Kerberos5pReadWrite)
+	})
+
+	t.Run("ExportPolicy_EmptyRules_ShouldCreateEmptyExportPolicy", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId: gcpgenserver.NewOptNilString("test-pool"),
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{},
+			}),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 0)
+	})
+
+	t.Run("ExportPolicy_NotSet_ShouldNotCreateFileProperties", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId: gcpgenserver.NewOptNilString("test-pool"),
+			// ExportPolicy not set
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result.FileProperties)
+	})
+
+	t.Run("ExportPolicy_WithCreationToken_ShouldPreserveBothFields", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:        gcpgenserver.NewOptNilString("test-pool"),
+			CreationToken: gcpgenserver.NewOptNilString("my-path"),
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+					},
+				},
+			}),
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "/my-path", result.FileProperties.JunctionPath)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 1)
+
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.Equal(tt, "192.168.1.0/24", rule.AllowedClients)
+		assert.Equal(tt, "READ_WRITE", rule.AccessType)
+	})
 }

@@ -2976,9 +2976,6 @@ func (s *ExportPolicyV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.Rules == nil {
-			return errors.New("nil is invalid value")
-		}
 		var failures []validate.FieldError
 		for i, elem := range s.Rules {
 			if err := func() error {
@@ -15548,6 +15545,32 @@ func (s *VolumeUpdateV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "smbSettings",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.CreationToken.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    80,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "creationToken",
 			Error: err,
 		})
 	}

@@ -172,7 +172,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Avoid updating the lun if the size is not changed
-	if (params.QuotaInBytes > volume.SizeInBytes || (params.SnapReserve != nil && volume.VolumeAttributes != nil && *params.SnapReserve != volume.VolumeAttributes.SnapReserve)) && !volume.VolumeAttributes.IsDataProtection {
+	if volume.VolumeAttributes != nil && len(volume.VolumeAttributes.Protocols) > 0 && utils.IsSANProtocol(volume.VolumeAttributes.Protocols[0]) && (params.QuotaInBytes > volume.SizeInBytes || (params.SnapReserve != nil && volume.VolumeAttributes != nil && *params.SnapReserve != volume.VolumeAttributes.SnapReserve)) && !volume.VolumeAttributes.IsDataProtection {
 		updatedLun := &vsa.LunResponse{}
 		err = workflow.ExecuteActivity(ctx, updateActivity.GetVolumeFromONTAP, volume, &node).Get(ctx, &volResponse)
 		if err != nil {
@@ -267,6 +267,28 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 					return nil, ConvertToVSAError(err)
 				}
 			}
+		}
+	}
+
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
+		// Update junction path only if it is provided in the params
+		if params.FileProperties != nil && params.FileProperties.JunctionPath != "" && params.FileProperties.JunctionPath != volume.VolumeAttributes.FileProperties.JunctionPath {
+			rollbackManager.AddActivity(updateActivity.UpdateJunctionPathInONTAP, &volume, volume.VolumeAttributes.FileProperties.JunctionPath, &node)
+			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateJunctionPathInONTAP, &volume, params.FileProperties.JunctionPath, &node).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+			volume.VolumeAttributes.FileProperties.JunctionPath = params.FileProperties.JunctionPath
+		}
+		// Update export policy rules only if it is provided in the params
+		if params.FileProperties != nil && isExportPolicyRulesUpdateRequired(volume.VolumeAttributes.FileProperties.ExportPolicy, params.FileProperties.ExportPolicy) {
+			params.FileProperties.ExportPolicy.ExportPolicyName = volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
+			rollbackManager.AddActivity(updateActivity.UpdateExportPolicyRulesInONTAP, &volume, volume.VolumeAttributes.FileProperties.ExportPolicy, &node)
+			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateExportPolicyRulesInONTAP, &volume, params.FileProperties.ExportPolicy, &node).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+			volume.VolumeAttributes.FileProperties.ExportPolicy = getUpdatedExportPolicy(params.FileProperties.ExportPolicy)
 		}
 	}
 
@@ -365,6 +387,75 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	return nil, ConvertToVSAError(err)
 }
 
+func isExportPolicyRulesUpdateRequired(currentPolicy *datamodel.ExportPolicy, updatePolicy *models.ExportPolicy) bool {
+	if currentPolicy == nil && updatePolicy != nil {
+		return true
+	}
+	if currentPolicy != nil && updatePolicy == nil {
+		return true
+	}
+	if currentPolicy == nil && updatePolicy == nil {
+		return false
+	}
+	if updatePolicy.ExportPolicyName != "" && currentPolicy.ExportPolicyName != updatePolicy.ExportPolicyName {
+		return false
+	}
+	if len(currentPolicy.ExportRules) != len(updatePolicy.ExportRules) {
+		return true
+	}
+	// For each rule in updatePolicy, find a matching rule in currentPolicy
+	for _, updateRule := range updatePolicy.ExportRules {
+		found := false
+		for _, currentRule := range currentPolicy.ExportRules {
+			if rulesEqual(currentRule, updateRule) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return true
+		}
+	}
+
+	// Also check the reverse: for each rule in currentPolicy, find a matching rule in updatePolicy
+	for _, currentRule := range currentPolicy.ExportRules {
+		found := false
+		for _, updateRule := range updatePolicy.ExportRules {
+			if rulesEqual(currentRule, updateRule) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Helper function to compare two export rules
+func rulesEqual(currentRule *datamodel.ExportRule, updateRule *models.ExportRule) bool {
+	// Compare the fields that matter for equality
+	// Adjust these field names to match your actual struct fields
+	return currentRule.AllowedClients == updateRule.AllowedClients &&
+		currentRule.AnonymousUser == updateRule.AnonymousUser &&
+		currentRule.AccessType == updateRule.AccessType &&
+		currentRule.CIFS == updateRule.CIFS &&
+		currentRule.NFSv3 == updateRule.NFSv3 &&
+		currentRule.NFSv4 == updateRule.NFSv4 &&
+		currentRule.S3 == updateRule.S3 &&
+		currentRule.UnixReadOnly == updateRule.UnixReadOnly &&
+		currentRule.UnixReadWrite == updateRule.UnixReadWrite &&
+		currentRule.Kerberos5ReadOnly == updateRule.Kerberos5ReadOnly &&
+		currentRule.Kerberos5ReadWrite == updateRule.Kerberos5ReadWrite &&
+		currentRule.Kerberos5iReadOnly == updateRule.Kerberos5iReadOnly &&
+		currentRule.Kerberos5iReadWrite == updateRule.Kerberos5iReadWrite &&
+		currentRule.Kerberos5pReadOnly == updateRule.Kerberos5pReadOnly &&
+		currentRule.Kerberos5pReadWrite == updateRule.Kerberos5pReadWrite &&
+		currentRule.Superuser == updateRule.Superuser
+}
+
 func populateSnapshotPolicyFromParams(params *models.SnapshotPolicy) *datamodel.SnapshotPolicy {
 	snapshotPolicy := &datamodel.SnapshotPolicy{
 		Name:      params.Name,
@@ -431,4 +522,42 @@ func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse, existingVolume 
 	}
 
 	return params
+}
+
+// getUpdatedExportPolicy converts models.ExportPolicy to datamodel.ExportPolicy
+func getUpdatedExportPolicy(updatePolicy *models.ExportPolicy) *datamodel.ExportPolicy {
+	if updatePolicy == nil {
+		return nil
+	}
+
+	exportPolicy := &datamodel.ExportPolicy{
+		ExportPolicyName: updatePolicy.ExportPolicyName,
+		ExportRules:      make([]*datamodel.ExportRule, 0, len(updatePolicy.ExportRules)),
+	}
+
+	for _, rule := range updatePolicy.ExportRules {
+		dataRule := &datamodel.ExportRule{
+			AllowedClients:      rule.AllowedClients,
+			AnonymousUser:       rule.AnonymousUser,
+			Index:               rule.Index,
+			ChownMode:           rule.ChownMode,
+			AccessType:          rule.AccessType,
+			CIFS:                rule.CIFS,
+			NFSv3:               rule.NFSv3,
+			NFSv4:               rule.NFSv4,
+			S3:                  rule.S3,
+			UnixReadOnly:        rule.UnixReadOnly,
+			UnixReadWrite:       rule.UnixReadWrite,
+			Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
+			Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
+			Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
+			Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
+			Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
+			Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
+			Superuser:           rule.Superuser,
+		}
+		exportPolicy.ExportRules = append(exportPolicy.ExportRules, dataRule)
+	}
+
+	return exportPolicy
 }

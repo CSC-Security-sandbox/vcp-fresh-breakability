@@ -21249,6 +21249,9 @@ type VolumeUpdateV1beta struct {
 	Protocols         []ProtocolsV1beta       `json:"protocols"`
 	RestrictedActions RestrictedActionsV1beta `json:"restrictedActions"`
 	SmbSettings       SMBSettingsV1beta       `json:"smbSettings"`
+	// A creation token is required for creation of NAS volumes. Junction path is created as
+	// /creationToken.
+	CreationToken OptNilString `json:"creationToken"`
 	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user
 	// Id(4), set group Id (2) and sticky (1) attributes. Second digit selects permission for the owner
 	// of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the
@@ -21321,6 +21324,11 @@ func (s *VolumeUpdateV1beta) GetRestrictedActions() RestrictedActionsV1beta {
 // GetSmbSettings returns the value of SmbSettings.
 func (s *VolumeUpdateV1beta) GetSmbSettings() SMBSettingsV1beta {
 	return s.SmbSettings
+}
+
+// GetCreationToken returns the value of CreationToken.
+func (s *VolumeUpdateV1beta) GetCreationToken() OptNilString {
+	return s.CreationToken
 }
 
 // GetUnixPermissions returns the value of UnixPermissions.
@@ -21401,6 +21409,11 @@ func (s *VolumeUpdateV1beta) SetRestrictedActions(val RestrictedActionsV1beta) {
 // SetSmbSettings sets the value of SmbSettings.
 func (s *VolumeUpdateV1beta) SetSmbSettings(val SMBSettingsV1beta) {
 	s.SmbSettings = val
+}
+
+// SetCreationToken sets the value of CreationToken.
+func (s *VolumeUpdateV1beta) SetCreationToken(val OptNilString) {
+	s.CreationToken = val
 }
 
 // SetUnixPermissions sets the value of UnixPermissions.

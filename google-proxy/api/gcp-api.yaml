@@ -7903,6 +7903,13 @@ components:
           $ref: '#/components/schemas/RestrictedActions_v1beta'
         smbSettings:
           $ref: '#/components/schemas/SMBSettings_v1beta'
+        creationToken:
+          title: creationToken
+          type: string
+          maxLength: 80
+          description: A creation token is required for creation of NAS volumes. Junction path is created as /creationToken.
+          example: hopefully-sufficient-newton
+          nullable: true
         unixPermissions:
           title: unixPermissions
           maxLength: 4
@@ -8115,8 +8122,6 @@ components:
         - HARDWARE
     ExportPolicy_v1beta:
       title: ExportPolicy
-      required:
-        - rules
       type: object
       properties:
         rules:

@@ -1245,6 +1245,18 @@ func volumeUnmountParamsToONTAP(params *VolumeUnmountParams) *storage.VolumeModi
 	return otParams
 }
 
+// volumeMountParamsToONTAP converts VolumeMountParams to ONTAP VolumeModifyParams for mounting
+func volumeMountParamsToONTAP(params *VolumeMountParams) *storage.VolumeModifyParams {
+	otParams := storage.NewVolumeModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetInfo(&models.Volume{Nas: &models.VolumeInlineNas{Path: &params.JunctionPath}})
+	return otParams
+}
+
 // VolumeMountParams is the input params struct for tunnelledStorageClient.VolumeMount
 type VolumeMountParams struct {
 	UUID         string

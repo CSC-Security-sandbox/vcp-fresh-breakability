@@ -3840,6 +3840,64 @@ func (_c *MockProvider_ModifySVMWithQoSPolicy_Call) RunAndReturn(run func(Modify
 	return _c
 }
 
+// MountVolume provides a mock function with given fields: params
+func (_m *MockProvider) MountVolume(params MountVolumeParams) (*OntapAsyncResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MountVolume")
+	}
+
+	var r0 *OntapAsyncResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(MountVolumeParams) (*OntapAsyncResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(MountVolumeParams) *OntapAsyncResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapAsyncResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(MountVolumeParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_MountVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MountVolume'
+type MockProvider_MountVolume_Call struct {
+	*mock.Call
+}
+
+// MountVolume is a helper method to define mock.On call
+//   - params MountVolumeParams
+func (_e *MockProvider_Expecter) MountVolume(params interface{}) *MockProvider_MountVolume_Call {
+	return &MockProvider_MountVolume_Call{Call: _e.mock.On("MountVolume", params)}
+}
+
+func (_c *MockProvider_MountVolume_Call) Run(run func(params MountVolumeParams)) *MockProvider_MountVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(MountVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_MountVolume_Call) Return(_a0 *OntapAsyncResponse, _a1 error) *MockProvider_MountVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_MountVolume_Call) RunAndReturn(run func(MountVolumeParams) (*OntapAsyncResponse, error)) *MockProvider_MountVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ObjectStoreEndpointInfoGet provides a mock function with given fields: objectStoreUUID, EndpointUUID
 func (_m *MockProvider) ObjectStoreEndpointInfoGet(objectStoreUUID string, EndpointUUID string) (*SmObjectStoreEndpointt, error) {
 	ret := _m.Called(objectStoreUUID, EndpointUUID)
@@ -4694,6 +4752,52 @@ func (_c *MockProvider_UnmountVolume_Call) Return(_a0 *OntapAsyncResponse, _a1 e
 }
 
 func (_c *MockProvider_UnmountVolume_Call) RunAndReturn(run func(string) (*OntapAsyncResponse, error)) *MockProvider_UnmountVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateExportPolicyRules provides a mock function with given fields: params
+func (_m *MockProvider) UpdateExportPolicyRules(params UpdateExportPolicyRulesParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateExportPolicyRules")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(UpdateExportPolicyRulesParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateExportPolicyRules_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateExportPolicyRules'
+type MockProvider_UpdateExportPolicyRules_Call struct {
+	*mock.Call
+}
+
+// UpdateExportPolicyRules is a helper method to define mock.On call
+//   - params UpdateExportPolicyRulesParams
+func (_e *MockProvider_Expecter) UpdateExportPolicyRules(params interface{}) *MockProvider_UpdateExportPolicyRules_Call {
+	return &MockProvider_UpdateExportPolicyRules_Call{Call: _e.mock.On("UpdateExportPolicyRules", params)}
+}
+
+func (_c *MockProvider_UpdateExportPolicyRules_Call) Run(run func(params UpdateExportPolicyRulesParams)) *MockProvider_UpdateExportPolicyRules_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(UpdateExportPolicyRulesParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateExportPolicyRules_Call) Return(_a0 error) *MockProvider_UpdateExportPolicyRules_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateExportPolicyRules_Call) RunAndReturn(run func(UpdateExportPolicyRulesParams) error) *MockProvider_UpdateExportPolicyRules_Call {
 	_c.Call.Return(run)
 	return _c
 }

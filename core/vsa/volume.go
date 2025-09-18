@@ -149,6 +149,37 @@ func (rc *OntapRestProvider) UnmountVolume(volumeUUID string) (*OntapAsyncRespon
 		return nil, err
 	}
 
+	// Poll the job if it exists
+	if jobAccepted != nil {
+		if err = client.Poll(jobAccepted.JobUUID); err != nil {
+			return nil, err
+		}
+	}
+
+	return &OntapAsyncResponse{JobUUID: jobAccepted.JobUUID}, nil
+}
+
+func (rc *OntapRestProvider) MountVolume(params MountVolumeParams) (*OntapAsyncResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+
+	jobAccepted, err := client.Storage().VolumeMount(&ontapRest.VolumeMountParams{
+		UUID:         params.UUID,
+		JunctionPath: params.JunctionPath,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Poll the job if it exists
+	if jobAccepted != nil {
+		if err = client.Poll(jobAccepted.JobUUID); err != nil {
+			return nil, err
+		}
+	}
+
 	return &OntapAsyncResponse{JobUUID: jobAccepted.JobUUID}, nil
 }
 

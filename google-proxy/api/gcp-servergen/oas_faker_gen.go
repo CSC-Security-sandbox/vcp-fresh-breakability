@@ -1293,7 +1293,7 @@ func (s *FlexCacheV1beta) SetFake() {
 	}
 	{
 		{
-			s.CommandExpiryTime.SetFake()
+			s.PeeringCommandExpiryTime.SetFake()
 		}
 	}
 	{
@@ -11726,6 +11726,11 @@ func (s *VolumeUpdateV1beta) SetFake() {
 	{
 		{
 			s.SmbSettings.SetFake()
+		}
+	}
+	{
+		{
+			s.CreationToken.SetFake()
 		}
 	}
 	{
