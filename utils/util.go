@@ -444,6 +444,7 @@ func RetrierOnCodes(logger log.Logger, fn func() (bool, error), retryCodes []int
 					continue
 				}
 			}
+			logger.Errorf("Got a non-retryable error while calling server %v: attempt %d", err, i+1)
 			break
 		}
 		return

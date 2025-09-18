@@ -199,16 +199,24 @@ func _batchHydrateDeletedSnapshots(ctx context.Context, logger log.Logger, hydra
 func _hydrateCreatedScheduledBackups(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
 	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/backupVaults/%s/resources:%s", baseUri, projectId, location, backupVaultName, Create)
 	err := hydrateToCffe(ctx, logger, models.GcpHydrateCreate{Requests: resources}, url, http.MethodPost, token)
+	if err != nil {
+		logger.Errorf("Created Scheduled Backup Hydration failed for backupVault %s with error %v", backupVaultName, err)
+		return err
+	}
 	logger.Infof("Successfully hydrated created backups to CCFE for the backupVault %s", backupVaultName)
-	return err
+	return nil
 }
 
 // _hydrateDeletedScheduledBackups hydrates deleted scheduled backups to CCFE.
 func _hydrateDeletedScheduledBackups(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
 	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/backupVaults/%s/resources:%s", baseUri, projectId, location, backupVaultName, Delete)
 	err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: names}, url, http.MethodPost, token)
+	if err != nil {
+		logger.Errorf("Deleted Scheduled Backup Hydration failed for backupVault %s with error %v", backupVaultName, err)
+		return err
+	}
 	logger.Infof("Successfully hydrated deleted backups to CCFE for the backupVault %s", backupVaultName)
-	return err
+	return nil
 }
 
 // convertDeleteResource converts a slice of requests into a GCP-compatible delete resource object.

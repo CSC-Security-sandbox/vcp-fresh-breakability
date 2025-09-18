@@ -297,7 +297,7 @@ func TestHydrateCreatedScheduledBackups(t *testing.T) {
 		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
 			return errors.New("could not hydrate backups to ccfe")
 		}
-		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+		mockLogger.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		err := HydrateCreatedScheduledBackups(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
 		assert.Error(tt, err)
@@ -330,7 +330,7 @@ func TestHydrateDeletedScheduledBackups(t *testing.T) {
 		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
 			return errors.New("could not hydrate backups to ccfe")
 		}
-		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+		mockLogger.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		err := HydrateDeletedScheduledBackups(ctx, mockLogger, names, backupVaultName, location, projectId, token)
 		assert.Error(tt, err)
