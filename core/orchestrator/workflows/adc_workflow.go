@@ -88,6 +88,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 	backupVault.Account = account
 
 	adcActivity := &activities.ADCActivity{}
+	backupActivity := &activities.BackupActivity{}
 
 	// Define roles that will be attached to service account
 	roles := []string{
@@ -355,7 +356,30 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 		return nil, ConvertToVSAError(fmt.Errorf("ADC delete request failed with status code: %d", adcResponse.StatusCode))
 	}
 
-	// Step 9: Cleanup Cloud Run service
+	// Step 9: Calculate logical size for orphan backup deletion (non-blocking)
+	logicalSizeCtx, cancel := workflow.WithCancel(ctx)
+	defer cancel()
+
+	logicalSizeCtx = workflow.WithActivityOptions(logicalSizeCtx, workflow.ActivityOptions{
+		StartToCloseTimeout: time.Minute * 5,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts: 3,
+		},
+	})
+
+	// Check if backup is latest and update logical size if needed
+	var isLatestBackup bool
+	err = workflow.ExecuteActivity(logicalSizeCtx, backupActivity.IsLatestBackupAnyStateActivity, backup.UUID, backup.VolumeUUID).Get(logicalSizeCtx, &isLatestBackup)
+	if err != nil {
+		log.Warnf("Skipping logical size calculation due to error: %v", err)
+	} else if !isLatestBackup {
+		err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchLogicalSizeAndUpdateActivity, backup.UUID, backup.VolumeUUID, adcParams, serviceURL).Get(logicalSizeCtx, nil)
+		if err != nil {
+			log.Warnf("Failed to update logical size after 3 attempts: %v", err)
+		}
+	}
+
+	// Step 10: Cleanup Cloud Run service
 	var cleanupResponse *hyperscalermodels.CloudRunOperationResponse
 	err = workflow.ExecuteActivity(ctx, adcActivity.CleanupADCCloudRunService, adcProjectID, adcRegion, cloudRunConfig.ServiceName).Get(ctx, &cleanupResponse)
 	if err != nil {
@@ -385,14 +409,14 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 		log.Warnf("Cloud Run service cleanup timed out after %d attempts, but continuing with workflow", adcMaxCloudRunAttempts)
 	}
 
-	// Step 10: Remove roles from service account
+	// Step 11: Remove roles from service account
 	err = workflow.ExecuteActivity(ctx, adcActivity.RemoveRolesFromServiceAccount, bucketDetails.TenantProjectNumber, serviceAccountID, roles).Get(ctx, nil)
 	if err != nil {
 		log.Errorf("Failed to remove roles from service account: %v", err)
 		return nil, ConvertToVSAError(err)
 	}
 
-	// Step 11: Cleanup service account
+	// Step 12: Cleanup service account
 	err = workflow.ExecuteActivity(ctx, adcActivity.DeleteSA, bucketDetails.TenantProjectNumber, serviceAccountID).Get(ctx, nil)
 	if err != nil {
 		log.Errorf("Failed to cleanup service account: %v", err)

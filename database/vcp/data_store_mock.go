@@ -7693,6 +7693,64 @@ func (_c *MockDataStore_IsLatestBackup_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// IsLatestBackupAnyState provides a mock function with given fields: ctx, backupUUID, volumeUUID
+func (_m *MockDataStore) IsLatestBackupAnyState(ctx context.Context, backupUUID string, volumeUUID string) (bool, error) {
+	ret := _m.Called(ctx, backupUUID, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsLatestBackupAnyState")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (bool, error)); ok {
+		return rf(ctx, backupUUID, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+		r0 = rf(ctx, backupUUID, volumeUUID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, backupUUID, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_IsLatestBackupAnyState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsLatestBackupAnyState'
+type MockDataStore_IsLatestBackupAnyState_Call struct {
+	*mock.Call
+}
+
+// IsLatestBackupAnyState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupUUID string
+//   - volumeUUID string
+func (_e *MockDataStore_Expecter) IsLatestBackupAnyState(ctx interface{}, backupUUID interface{}, volumeUUID interface{}) *MockDataStore_IsLatestBackupAnyState_Call {
+	return &MockDataStore_IsLatestBackupAnyState_Call{Call: _e.mock.On("IsLatestBackupAnyState", ctx, backupUUID, volumeUUID)}
+}
+
+func (_c *MockDataStore_IsLatestBackupAnyState_Call) Run(run func(ctx context.Context, backupUUID string, volumeUUID string)) *MockDataStore_IsLatestBackupAnyState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_IsLatestBackupAnyState_Call) Return(_a0 bool, _a1 error) *MockDataStore_IsLatestBackupAnyState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_IsLatestBackupAnyState_Call) RunAndReturn(run func(context.Context, string, string) (bool, error)) *MockDataStore_IsLatestBackupAnyState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListBackupPolicies provides a mock function with given fields: ctx, conditions
 func (_m *MockDataStore) ListBackupPolicies(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupPolicy, error) {
 	ret := _m.Called(ctx, conditions)
@@ -9542,6 +9600,54 @@ func (_c *MockDataStore_UpdateKmsConfigStateForHandleResource_Call) Return(_a0 *
 }
 
 func (_c *MockDataStore_UpdateKmsConfigStateForHandleResource_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.KmsConfig, error)) *MockDataStore_UpdateKmsConfigStateForHandleResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateLatestBackupLogicalSize provides a mock function with given fields: ctx, volumeUUID, newLogicalSize
+func (_m *MockDataStore) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
+	ret := _m.Called(ctx, volumeUUID, newLogicalSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateLatestBackupLogicalSize")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) error); ok {
+		r0 = rf(ctx, volumeUUID, newLogicalSize)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateLatestBackupLogicalSize_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateLatestBackupLogicalSize'
+type MockDataStore_UpdateLatestBackupLogicalSize_Call struct {
+	*mock.Call
+}
+
+// UpdateLatestBackupLogicalSize is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - newLogicalSize int64
+func (_e *MockDataStore_Expecter) UpdateLatestBackupLogicalSize(ctx interface{}, volumeUUID interface{}, newLogicalSize interface{}) *MockDataStore_UpdateLatestBackupLogicalSize_Call {
+	return &MockDataStore_UpdateLatestBackupLogicalSize_Call{Call: _e.mock.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, newLogicalSize)}
+}
+
+func (_c *MockDataStore_UpdateLatestBackupLogicalSize_Call) Run(run func(ctx context.Context, volumeUUID string, newLogicalSize int64)) *MockDataStore_UpdateLatestBackupLogicalSize_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateLatestBackupLogicalSize_Call) Return(_a0 error) *MockDataStore_UpdateLatestBackupLogicalSize_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateLatestBackupLogicalSize_Call) RunAndReturn(run func(context.Context, string, int64) error) *MockDataStore_UpdateLatestBackupLogicalSize_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -3204,6 +3204,26 @@ func (re *retryEngine) IsLatestBackup(ctx context.Context, backupUUID, volumeUUI
 	return var0, err
 }
 
+func (re *retryEngine) IsLatestBackupAnyState(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.IsLatestBackupAnyState(ctx, backupUUID, volumeUUID)
+		if err != nil {
+			re.logError("IsLatestBackupAnyState", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -3310,6 +3330,25 @@ func (re *retryEngine) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.C
 		err = re.dataStore.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, excludeBackupUUID)
 		if err != nil {
 			re.logError("UpdateBackupLatestLogicalBackupSizeByVolume", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateLatestBackupLogicalSize(ctx, volumeUUID, newLogicalSize)
+		if err != nil {
+			re.logError("UpdateLatestBackupLogicalSize", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

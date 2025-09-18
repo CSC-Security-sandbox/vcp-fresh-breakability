@@ -4860,3 +4860,67 @@ func TestHydrateSnapshotDeletionToCCFEActivity_HydrationFailure(t *testing.T) {
 	assert.Contains(t, err.Error(), "deletion hydration failed")
 	mockStorage.AssertExpectations(t)
 }
+
+func TestIsLatestBackupAnyStateActivity_Success(t *testing.T) {
+	ctx := context.Background()
+	backupUUID := "backup-uuid"
+	volumeUUID := "volume-uuid"
+	expectedIsLatest := true
+
+	// Create mock storage
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("IsLatestBackupAnyState", ctx, backupUUID, volumeUUID).Return(expectedIsLatest, nil)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+
+	// Execute the function
+	isLatest, err := activity.IsLatestBackupAnyStateActivity(ctx, backupUUID, volumeUUID)
+
+	// Assertions
+	assert.Nil(t, err)
+	assert.Equal(t, expectedIsLatest, isLatest)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestIsLatestBackupAnyStateActivity_DatabaseError(t *testing.T) {
+	ctx := context.Background()
+	backupUUID := "backup-uuid"
+	volumeUUID := "volume-uuid"
+	expectedError := fmt.Errorf("database error")
+
+	// Create mock storage
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("IsLatestBackupAnyState", ctx, backupUUID, volumeUUID).Return(false, expectedError)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+
+	// Execute the function
+	isLatest, err := activity.IsLatestBackupAnyStateActivity(ctx, backupUUID, volumeUUID)
+
+	// Assertions
+	assert.NotNil(t, err)
+	assert.False(t, isLatest)
+	assert.Contains(t, err.Error(), "database error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestIsLatestBackupAnyStateActivity_NotLatest(t *testing.T) {
+	ctx := context.Background()
+	backupUUID := "backup-uuid"
+	volumeUUID := "volume-uuid"
+	expectedIsLatest := false
+
+	// Create mock storage
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("IsLatestBackupAnyState", ctx, backupUUID, volumeUUID).Return(expectedIsLatest, nil)
+
+	activity := activities.BackupActivity{SE: mockStorage}
+
+	// Execute the function
+	isLatest, err := activity.IsLatestBackupAnyStateActivity(ctx, backupUUID, volumeUUID)
+
+	// Assertions
+	assert.Nil(t, err)
+	assert.Equal(t, expectedIsLatest, isLatest)
+	mockStorage.AssertExpectations(t)
+}

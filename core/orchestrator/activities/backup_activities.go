@@ -999,3 +999,16 @@ func (a BackupActivity) HydrateSnapshotDeletionToCCFEActivity(ctx context.Contex
 	logger.Infof("Successfully hydrated snapshot deletion %s to CCFE", snapshot.Name)
 	return nil
 }
+
+// IsLatestBackupAnyStateActivity checks if a backup is the latest for its volume regardless of state
+func (b *BackupActivity) IsLatestBackupAnyStateActivity(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
+	logger := util.GetLogger(ctx)
+
+	isLatest, err := b.SE.IsLatestBackupAnyState(ctx, backupUUID, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to check if backup is latest: %v", err)
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return isLatest, nil
+}

@@ -315,6 +315,22 @@ func (d *DataStoreRepository) IsLatestBackup(ctx context.Context, backupUUID, vo
 	return false, nil
 }
 
+// IsLatestBackupAnyState checks if a backup is the latest for its volume regardless of state
+func (d *DataStoreRepository) IsLatestBackupAnyState(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	backup := &datamodel.Backup{}
+	// get backup by created_at timestamp under a volume (any state)
+	err := db.Where("volume_uuid = ?", volumeUUID).Order("created_at desc").First(&backup).Error
+	if err != nil {
+		return false, err
+	}
+	// check if the backup is latest
+	if backup.UUID == backupUUID {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (d *DataStoreRepository) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var count int64
@@ -444,6 +460,34 @@ func (d *DataStoreRepository) UpdateBackupLatestLogicalBackupSizeByVolume(ctx co
 	err = tx.Model(&datamodel.Backup{}).
 		Where("volume_uuid = ? AND uuid != ?", volumeUUID, excludeBackupUUID).
 		Update("latest_logical_backup_size", 0).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateLatestBackupLogicalSize updates the latest backup's logical size for a given volume
+func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	// Find the latest backup for the volume (by created_at timestamp)
+	var latestBackup datamodel.Backup
+	err = tx.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).
+		Order("id desc").
+		First(&latestBackup).Error
+	if err != nil {
+		return err
+	}
+
+	// Update the latest backup's logical size
+	err = tx.Model(&latestBackup).
+		Update("latest_logical_backup_size", newLogicalSize).Error
 	if err != nil {
 		return err
 	}

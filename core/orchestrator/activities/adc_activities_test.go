@@ -3,6 +3,7 @@ package activities_test
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,9 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -1078,4 +1081,373 @@ func createTestADCParams() *common.ADCParams {
 		AccountName:      "test-account",
 		Port:             443,
 	}
+}
+
+func TestCalculateLogicalBytesAndOptimizedBytes(t *testing.T) {
+	t.Run("OnSuccess", func(t *testing.T) {
+		// Create a test server that returns successful response
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "GET", r.Method)
+			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+			assert.Equal(t, "application/json", r.Header.Get("Accept"))
+			assert.Equal(t, "test-access-key", r.Header.Get("access_key"))
+			assert.Equal(t, "test-secret-key", r.Header.Get("secret_password"))
+			assert.Equal(t, "443", r.Header.Get("port"))
+			assert.Equal(t, "test-bucket", r.Header.Get("container"))
+			assert.Equal(t, "storage.googleapis.com", r.Header.Get("server"))
+			assert.Equal(t, "GoogleCloud", r.Header.Get("provider_type"))
+			assert.Contains(t, r.URL.Path, "/api/endpoints/endpoint-uuid")
+
+			response := activities.LogicalBytesResp{
+				EndpointMetrics: activities.EndpointMetrics{
+					LogicalSize:                1024000,
+					CompressedBytesTransferred: 512000,
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(response)
+		}))
+		defer server.Close()
+
+		ctx := setupTestContext()
+		adcParams := createTestADCParams()
+		serviceURL := server.URL
+
+		activity := activities.ADCActivity{}
+		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
+		assert.Nil(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, uint64(1024000), result.LogicalSize)
+		assert.Equal(t, uint64(512000), result.OptimizedSize)
+	})
+
+	t.Run("OnErrorResponse", func(t *testing.T) {
+		// Create a test server that returns error response
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			errorResp := activities.LogicalBytesRespErr{
+				Code:    500,
+				Message: "Internal server error",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(errorResp)
+		}))
+		defer server.Close()
+
+		ctx := setupTestContext()
+		adcParams := createTestADCParams()
+		serviceURL := server.URL
+
+		activity := activities.ADCActivity{}
+		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "An internal error occurred.")
+	})
+
+	t.Run("OnInvalidADCParams", func(t *testing.T) {
+		ctx := setupTestContext()
+		adcParams := &common.ADCParams{
+			AccessKey: "invalid-base64",
+			SecretKey: "invalid-base64",
+		}
+		serviceURL := "http://test.com"
+
+		activity := activities.ADCActivity{}
+		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "An internal error occurred.")
+	})
+
+	t.Run("OnHTTPRequestFailure", func(t *testing.T) {
+		ctx := setupTestContext()
+		adcParams := createTestADCParams()
+		serviceURL := "http://invalid-url-that-does-not-exist"
+
+		activity := activities.ADCActivity{}
+		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "An internal error occurred.")
+	})
+
+	t.Run("OnInvalidJSONResponse", func(t *testing.T) {
+		// Create a test server that returns invalid JSON
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("invalid json"))
+		}))
+		defer server.Close()
+
+		ctx := setupTestContext()
+		adcParams := createTestADCParams()
+		serviceURL := server.URL
+
+		activity := activities.ADCActivity{}
+		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "An internal error occurred.")
+	})
+
+	t.Run("OnInvalidErrorJSONResponse", func(t *testing.T) {
+		// Create a test server that returns invalid JSON for error response
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("invalid json"))
+		}))
+		defer server.Close()
+
+		ctx := setupTestContext()
+		adcParams := createTestADCParams()
+		serviceURL := server.URL
+
+		activity := activities.ADCActivity{}
+		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "An internal error occurred.")
+	})
+}
+
+func TestCreateADCGetRequestForLogicalSize(t *testing.T) {
+	t.Run("OnSuccess", func(t *testing.T) {
+		adcParams := createTestADCParams()
+		serviceURL := "https://test-service.com"
+
+		activity := activities.ADCActivity{}
+		req, err := activity.CreateADCGetRequestForLogicalSize(adcParams, serviceURL)
+		assert.Nil(t, err)
+		assert.NotNil(t, req)
+
+		// Verify URL
+		expectedURL := fmt.Sprintf("%s/api/endpoints/%s", serviceURL, adcParams.DestEndpointUUID)
+		assert.Equal(t, expectedURL, req.URL.String())
+
+		// Verify method
+		assert.Equal(t, "GET", req.Method)
+
+		// Verify headers
+		assert.Equal(t, "test-access-key", req.Header.Get("access_key"))
+		assert.Equal(t, "test-secret-key", req.Header.Get("secret_password"))
+		assert.Equal(t, "443", req.Header.Get("port"))
+		assert.Equal(t, "test-bucket", req.Header.Get("container"))
+		assert.Equal(t, "storage.googleapis.com", req.Header.Get("server"))
+		assert.Equal(t, "GoogleCloud", req.Header.Get("provider_type"))
+		assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+		assert.Equal(t, "application/json", req.Header.Get("Accept"))
+	})
+
+	t.Run("OnInvalidAccessKey", func(t *testing.T) {
+		adcParams := &common.ADCParams{
+			AccessKey:        "invalid-base64",
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			DestEndpointUUID: "endpoint-uuid",
+			Port:             443,
+			BucketName:       "test-bucket",
+			ServerURL:        "storage.googleapis.com",
+			ProvideType:      "GoogleCloud",
+		}
+		serviceURL := "https://test-service.com"
+
+		activity := activities.ADCActivity{}
+		req, err := activity.CreateADCGetRequestForLogicalSize(adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, req)
+		assert.Contains(t, err.Error(), "failed to decode access key")
+	})
+
+	t.Run("OnInvalidSecretKey", func(t *testing.T) {
+		adcParams := &common.ADCParams{
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        "invalid-base64",
+			DestEndpointUUID: "endpoint-uuid",
+			Port:             443,
+			BucketName:       "test-bucket",
+			ServerURL:        "storage.googleapis.com",
+			ProvideType:      "GoogleCloud",
+		}
+		serviceURL := "https://test-service.com"
+
+		activity := activities.ADCActivity{}
+		req, err := activity.CreateADCGetRequestForLogicalSize(adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, req)
+		assert.Contains(t, err.Error(), "failed to decode secret key")
+	})
+
+	t.Run("OnInvalidURL", func(t *testing.T) {
+		adcParams := createTestADCParams()
+		serviceURL := "://invalid-url"
+
+		activity := activities.ADCActivity{}
+		req, err := activity.CreateADCGetRequestForLogicalSize(adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, req)
+		assert.Contains(t, err.Error(), "failed to create HTTP request")
+	})
+}
+
+func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
+	ctx := context.Background()
+	deletingBackupUUID := "deleting-backup-uuid"
+	volumeUUID := "volume-uuid"
+	expectedLogicalSize := uint64(1024000)
+
+	// Create test ADC params
+	adcParams := &commonparams.ADCParams{
+		ADCName:          "test-adc",
+		DestEndpointUUID: "endpoint-uuid",
+		SnapshotUUID:     "snapshot-uuid",
+		BucketName:       "test-bucket",
+		AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+		SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+		ProvideType:      "GoogleCloud",
+		ServerURL:        "storage.googleapis.com",
+		AccountName:      "test-account",
+		Port:             443,
+	}
+
+	// Create mock storage
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, int64(expectedLogicalSize)).Return(nil)
+
+	// Create a test server that returns successful response
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := activities.LogicalBytesResp{
+			EndpointMetrics: activities.EndpointMetrics{
+				LogicalSize:                expectedLogicalSize,
+				CompressedBytesTransferred: 512000,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	activity := activities.ADCActivity{SE: mockStorage}
+
+	// Execute the function
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, deletingBackupUUID, volumeUUID, adcParams, server.URL)
+
+	// Assertions
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestFetchLogicalSizeAndUpdateActivity_ADCError(t *testing.T) {
+	ctx := context.Background()
+	deletingBackupUUID := "deleting-backup-uuid"
+	volumeUUID := "volume-uuid"
+	serviceURL := "https://test-service.com"
+
+	// Create test ADC params with invalid data to trigger ADC error
+	adcParams := &commonparams.ADCParams{
+		AccessKey: "invalid-base64",
+		SecretKey: "invalid-base64",
+	}
+
+	// Create mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.ADCActivity{SE: mockStorage}
+
+	// Execute the function
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, deletingBackupUUID, volumeUUID, adcParams, serviceURL)
+
+	// Assertions
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "An internal error occurred.")
+	// Verify that UpdateLatestBackupLogicalSize was not called
+	mockStorage.AssertNotCalled(t, "UpdateLatestBackupLogicalSize")
+}
+
+func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
+	ctx := context.Background()
+	deletingBackupUUID := "deleting-backup-uuid"
+	volumeUUID := "volume-uuid"
+	expectedLogicalSize := uint64(1024000)
+	expectedError := fmt.Errorf("database update failed")
+
+	// Create test ADC params
+	adcParams := &commonparams.ADCParams{
+		ADCName:          "test-adc",
+		DestEndpointUUID: "endpoint-uuid",
+		SnapshotUUID:     "snapshot-uuid",
+		BucketName:       "test-bucket",
+		AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+		SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+		ProvideType:      "GoogleCloud",
+		ServerURL:        "storage.googleapis.com",
+		AccountName:      "test-account",
+		Port:             443,
+	}
+
+	// Create mock storage
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, int64(expectedLogicalSize)).Return(expectedError)
+
+	// Create a test server that returns successful response
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := activities.LogicalBytesResp{
+			EndpointMetrics: activities.EndpointMetrics{
+				LogicalSize:                expectedLogicalSize,
+				CompressedBytesTransferred: 512000,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	activity := activities.ADCActivity{SE: mockStorage}
+
+	// Execute the function
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, deletingBackupUUID, volumeUUID, adcParams, server.URL)
+
+	// Assertions
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "database update failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestFetchLogicalSizeAndUpdateActivity_HTTPError(t *testing.T) {
+	ctx := context.Background()
+	deletingBackupUUID := "deleting-backup-uuid"
+	volumeUUID := "volume-uuid"
+
+	// Create test ADC params
+	adcParams := &commonparams.ADCParams{
+		ADCName:          "test-adc",
+		DestEndpointUUID: "endpoint-uuid",
+		SnapshotUUID:     "snapshot-uuid",
+		BucketName:       "test-bucket",
+		AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+		SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+		ProvideType:      "GoogleCloud",
+		ServerURL:        "storage.googleapis.com",
+		AccountName:      "test-account",
+		Port:             443,
+	}
+
+	// Create mock storage
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.ADCActivity{SE: mockStorage}
+
+	// Use an invalid URL to trigger HTTP error
+	invalidURL := "https://invalid-url-that-will-fail.com"
+
+	// Execute the function
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, deletingBackupUUID, volumeUUID, adcParams, invalidURL)
+
+	// Assertions
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "An internal error occurred.")
+	// Verify that UpdateLatestBackupLogicalSize was not called
+	mockStorage.AssertNotCalled(t, "UpdateLatestBackupLogicalSize")
 }

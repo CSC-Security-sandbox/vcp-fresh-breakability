@@ -211,12 +211,14 @@ type (
 		UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
 		IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error)
+		IsLatestBackupAnyState(ctx context.Context, backupUUID, volumeUUID string) (bool, error)
 		BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error)
 		FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error)
 		IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error)
 		GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUUIDs []string, conditions [][]interface{}) (map[string]int64, error)
 		GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error)
 		UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error
+		UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error
 		GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error)
 		GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error)
 

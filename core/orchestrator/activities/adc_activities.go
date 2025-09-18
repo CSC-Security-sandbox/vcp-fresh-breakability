@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -19,7 +20,8 @@ import (
 )
 
 const (
-	adcDeleteEndpointTemplate = "%s/api/endpoints/%s/snapshots/%s"
+	adcDeleteEndpointTemplate      = "%s/api/endpoints/%s/snapshots/%s"
+	adcLogicalSizeEndpointTemplate = "%s/api/endpoints/%s"
 )
 
 var (
@@ -42,6 +44,29 @@ type BackupDeleteAdcBody struct {
 
 type BackupDeleteAdcReq struct {
 	ObjectStore BackupDeleteAdcBody `json:"object_store"`
+}
+
+// LogicalBytesResp represents the response from ADC for logical size calculation
+type LogicalBytesResp struct {
+	EndpointMetrics EndpointMetrics `json:"endpoint_metrics"`
+}
+
+// EndpointMetrics contains the logical size information
+type EndpointMetrics struct {
+	LogicalSize                uint64 `json:"logical_size"`
+	CompressedBytesTransferred uint64 `json:"compressed_bytes_transferred"`
+}
+
+// LogicalBytesRespErr represents error response from ADC
+type LogicalBytesRespErr struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+// LogicalSizeResult represents the result of logical size calculation
+type LogicalSizeResult struct {
+	LogicalSize   uint64 `json:"logical_size"`
+	OptimizedSize uint64 `json:"optimized_size"`
 }
 
 // DeployADCCloudRunService deploys the ADC service to Cloud Run
@@ -381,6 +406,105 @@ func ConvertADCParamsToRequest(adcParams *common.ADCParams) (BackupDeleteAdcReq,
 	}, nil
 }
 
+// CalculateLogicalBytesAndOptimizedBytes calculates logical bytes and optimized bytes from ADC service
+func (a *ADCActivity) CalculateLogicalBytesAndOptimizedBytes(ctx context.Context, adcParams *common.ADCParams, serviceURL string) (*LogicalSizeResult, error) {
+	logger := util.GetLogger(ctx)
+
+	// Create ADC request for logical size calculation
+	req, err := a.CreateADCGetRequestForLogicalSize(adcParams, serviceURL)
+	if err != nil {
+		logger.Errorf("Failed to create ADC request for logical size: %v", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to create ADC request: %w", err))
+	}
+
+	// Make HTTP request to ADC service
+	resp, err := restHTTPClient.Do(req)
+	if err != nil {
+		logger.Errorf("HTTP request failed in CalculateLogicalBytesAndOptimizedBytes: %v", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("HTTP request failed: %w", err))
+	}
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			err = resp.Body.Close()
+			if err != nil {
+				logger.Error("failed to close response body", "error", err)
+			}
+		}
+	}()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Errorf("Failed to read response body: %v", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to read response body: %w", err))
+	}
+
+	// Parse response based on status code
+	status := resp.StatusCode
+	if status == http.StatusOK {
+		var logicalBytesResp LogicalBytesResp
+		err = json.Unmarshal(body, &logicalBytesResp)
+		if err != nil {
+			logger.Errorf("Failed to unmarshal logical bytes response: %v", err)
+			return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to unmarshal response: %w", err))
+		}
+
+		logger.Infof("Successfully retrieved logical size: %d, compressed bytes: %d",
+			logicalBytesResp.EndpointMetrics.LogicalSize,
+			logicalBytesResp.EndpointMetrics.CompressedBytesTransferred)
+
+		return &LogicalSizeResult{
+			LogicalSize:   logicalBytesResp.EndpointMetrics.LogicalSize,
+			OptimizedSize: logicalBytesResp.EndpointMetrics.CompressedBytesTransferred,
+		}, nil
+	} else {
+		var logicalBytesRespErr LogicalBytesRespErr
+		err = json.Unmarshal(body, &logicalBytesRespErr)
+		if err != nil {
+			logger.Errorf("Failed to unmarshal error response: %v", err)
+			return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to unmarshal error response: %w", err))
+		}
+
+		logger.Errorf("ADC logical size calculation failed with status %d: %s", status, logicalBytesRespErr.Message)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("ADC logical size calculation failed with status %d: %s", status, logicalBytesRespErr.Message))
+	}
+}
+
+// CreateADCGetRequestForLogicalSize creates HTTP request for ADC logical size calculation
+func (a *ADCActivity) CreateADCGetRequestForLogicalSize(adcParams *common.ADCParams, serviceURL string) (*http.Request, error) {
+	// Create URL for logical size endpoint
+	adcURL := fmt.Sprintf(adcLogicalSizeEndpointTemplate, serviceURL, adcParams.DestEndpointUUID)
+
+	// Create HTTP request
+	req, err := http.NewRequest("GET", adcURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	// Decode HMAC keys
+	accessKeyBytes, err := base64.StdEncoding.DecodeString(adcParams.AccessKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode access key: %w", err)
+	}
+
+	secretKeyBytes, err := base64.StdEncoding.DecodeString(adcParams.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode secret key: %w", err)
+	}
+
+	// Add headers for ADC authentication
+	req.Header.Add("access_key", string(accessKeyBytes))
+	req.Header.Add("secret_password", string(secretKeyBytes))
+	req.Header.Add("port", fmt.Sprintf("%d", adcParams.Port))
+	req.Header.Add("container", adcParams.BucketName)
+	req.Header.Add("server", adcParams.ServerURL)
+	req.Header.Add("provider_type", adcParams.ProvideType)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+
+	return req, nil
+}
+
 // GetStandardAuthToken fetches a standard Google Cloud identity token for authentication
 func _getStandardAuthToken(ctx context.Context, audience string) (string, error) {
 	logger := util.GetLogger(ctx)
@@ -398,4 +522,24 @@ func _getStandardAuthToken(ctx context.Context, audience string) (string, error)
 	}
 
 	return token, nil
+}
+
+func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, deletingBackupUUID, volumeUUID string, adcParams *common.ADCParams, serviceURL string) error {
+	logger := util.GetLogger(ctx)
+
+	// Fetch logical size from ADC
+	logicalSizeResult, err := a.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
+	if err != nil {
+		logger.Errorf("Failed to calculate logical size from ADC: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Update the latest backup's logical size
+	err = a.SE.UpdateLatestBackupLogicalSize(ctx, volumeUUID, int64(logicalSizeResult.LogicalSize))
+	if err != nil {
+		logger.Errorf("Failed to update latest backup logical size: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
 }

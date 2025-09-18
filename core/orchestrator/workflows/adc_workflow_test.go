@@ -33,6 +33,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -94,6 +95,9 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Step 9: Logical size calculation activities
+		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
@@ -120,6 +124,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -183,6 +188,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -250,6 +256,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -318,6 +325,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -388,6 +396,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -462,6 +471,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -545,6 +555,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -628,6 +639,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -711,6 +723,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -774,6 +787,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -836,6 +850,9 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(false, nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Step 9: Logical size calculation activities
+		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
@@ -862,6 +879,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -923,6 +941,9 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Step 9: Logical size calculation activities
+		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
@@ -948,6 +969,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data with non-matching bucket name
 		params := &common.DeleteBackupParams{
@@ -1012,6 +1034,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -1077,6 +1100,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
@@ -1127,6 +1151,277 @@ func TestADCWorkflow(t *testing.T) {
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("IsLatestBackupAnyStateActivityFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Set up test data
+		params := &common.DeleteBackupParams{
+			BackupVaultUUID: "vault-uuid",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "test-account",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+			},
+		}
+
+		// Mock activity responses - all succeed until logical size calculation
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "dGVzdC1hY2Nlc3Mta2V5",
+			SecretKey: "dGVzdC1zZWNyZXQta2V5",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/test-operation",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
+			StatusCode: http.StatusOK,
+		}, nil)
+		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/cleanup-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
+		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Step 9: Logical size calculation activities - IsLatestBackupAnyStateActivity fails
+		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, errors.New("failed to check if backup is latest"))
+
+		// Execute workflow
+		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+		// Assert workflow execution - should complete successfully even with logical size error
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("FetchLogicalSizeAndUpdateActivityFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Set up test data
+		params := &common.DeleteBackupParams{
+			BackupVaultUUID: "vault-uuid",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "test-account",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+			},
+		}
+
+		// Mock activity responses - all succeed until logical size calculation
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "dGVzdC1hY2Nlc3Mta2V5",
+			SecretKey: "dGVzdC1zZWNyZXQta2V5",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/test-operation",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
+			StatusCode: http.StatusOK,
+		}, nil)
+		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/cleanup-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
+		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Step 9: Logical size calculation activities - IsLatestBackupAnyStateActivity succeeds but FetchLogicalSizeAndUpdateActivity fails
+		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to fetch logical size"))
+
+		// Execute workflow
+		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+		// Assert workflow execution - should complete successfully even with logical size error
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("IsLatestBackupTrue", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Set up test data
+		params := &common.DeleteBackupParams{
+			BackupVaultUUID: "vault-uuid",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "test-account",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+			},
+		}
+
+		// Mock activity responses - all succeed
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "dGVzdC1hY2Nlc3Mta2V5",
+			SecretKey: "dGVzdC1zZWNyZXQta2V5",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/test-operation",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
+			StatusCode: http.StatusOK,
+		}, nil)
+		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/cleanup-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
+		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Step 9: Logical size calculation activities - backup is latest, so no logical size update needed
+		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+
+		// Execute workflow
+		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 }

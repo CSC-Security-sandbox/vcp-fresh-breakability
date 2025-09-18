@@ -1430,6 +1430,399 @@ func TestUpdateBackupLatestLogicalBackupSizeByVolume(t *testing.T) {
 	})
 }
 
+func TestIsLatestBackupAnyState(t *testing.T) {
+	t.Run("ReturnsTrueWhenBackupIsLatest", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backups for the same volume with different timestamps
+		backup1 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now().Add(-2 * time.Hour), // 2 hours ago
+			},
+			VolumeUUID: "volume-uuid-1",
+			State:      models.LifeCycleStateAvailable,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-2",
+				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (latest)
+			},
+			VolumeUUID: "volume-uuid-1",
+			State:      models.LifeCycleStateAvailable,
+		}
+		backup3 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-3",
+				CreatedAt: time.Now().Add(-30 * time.Minute), // 30 minutes ago (most recent)
+			},
+			VolumeUUID: "volume-uuid-1",
+			State:      models.LifeCycleStateDeleting, // Different state
+		}
+
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup3).Error()
+		assert.NoError(tt, err)
+
+		// Test: backup3 should be latest (most recent created_at, any state)
+		isLatest, err := store.IsLatestBackupAnyState(context.Background(), "backup-uuid-3", "volume-uuid-1")
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest)
+	})
+
+	t.Run("ReturnsFalseWhenBackupIsNotLatest", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backups for the same volume with different timestamps
+		backup1 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now().Add(-2 * time.Hour), // 2 hours ago
+			},
+			VolumeUUID: "volume-uuid-1",
+			State:      models.LifeCycleStateAvailable,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-2",
+				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (latest)
+			},
+			VolumeUUID: "volume-uuid-1",
+			State:      models.LifeCycleStateAvailable,
+		}
+
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// Test: backup1 should not be latest
+		isLatest, err := store.IsLatestBackupAnyState(context.Background(), "backup-uuid-1", "volume-uuid-1")
+		assert.NoError(tt, err)
+		assert.False(tt, isLatest)
+	})
+
+	t.Run("ReturnsFalseWhenNoBackupsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Test: no backups exist for the volume
+		isLatest, err := store.IsLatestBackupAnyState(context.Background(), "backup-uuid-1", "volume-uuid-1")
+		assert.Error(tt, err)
+		assert.False(tt, isLatest)
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		isLatest, err := store.IsLatestBackupAnyState(context.Background(), "backup-uuid-1", "volume-uuid-1")
+		assert.Error(tt, err)
+		assert.False(tt, isLatest)
+	})
+
+	t.Run("ReturnsTrueWhenOnlyOneBackupExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create only one backup
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now(),
+			},
+			VolumeUUID: "volume-uuid-1",
+			State:      models.LifeCycleStateAvailable,
+		}
+
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test: the only backup should be latest
+		isLatest, err := store.IsLatestBackupAnyState(context.Background(), "backup-uuid-1", "volume-uuid-1")
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest)
+	})
+}
+
+func TestUpdateLatestBackupLogicalSize(t *testing.T) {
+	t.Run("UpdatesLatestBackupSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backups for the same volume with different IDs
+		backup1 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now().Add(-2 * time.Hour), // 2 hours ago
+			},
+			VolumeUUID:              "volume-uuid-1",
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-2",
+				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (latest by ID)
+			},
+			VolumeUUID:              "volume-uuid-1",
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 2048,
+		}
+
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// Test: update the latest backup's logical size
+		newLogicalSize := int64(4096)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", newLogicalSize)
+		assert.NoError(tt, err)
+
+		// Verify the update
+		var updatedBackup datamodel.Backup
+		err = store.db.GORM().Where("uuid = ?", "backup-uuid-2").First(&updatedBackup).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, newLogicalSize, updatedBackup.LatestLogicalBackupSize)
+
+		// Verify backup1 was not updated
+		var unchangedBackup datamodel.Backup
+		err = store.db.GORM().Where("uuid = ?", "backup-uuid-1").First(&unchangedBackup).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1024), unchangedBackup.LatestLogicalBackupSize)
+	})
+
+	t.Run("ReturnsErrorWhenNoAvailableBackupsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a backup with non-available state
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now(),
+			},
+			VolumeUUID:              "volume-uuid-1",
+			State:                   models.LifeCycleStateDeleting, // Not available
+			LatestLogicalBackupSize: 1024,
+		}
+
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test: should return error when no available backups exist
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", 4096)
+		assert.Error(tt, err)
+	})
+
+	t.Run("ReturnsErrorWhenNoBackupsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Test: should return error when no backups exist for the volume
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", 4096)
+		assert.Error(tt, err)
+	})
+
+	t.Run("ReturnsErrorOnTransactionFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a backup first
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now(),
+			},
+			VolumeUUID:              "volume-uuid-1",
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		defer func() {
+			startTransaction = _startTransaction
+		}()
+		// Simulate transaction failure
+		startTransaction = func(db *gorm.DB) (*gorm.DB, error) {
+			return nil, errors.New("transaction failed")
+		}
+
+		// Test: should return error when transaction fails
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", 4096)
+		assert.Error(tt, err)
+		assert.Equal(tt, "transaction failed", err.Error())
+	})
+
+	t.Run("ReturnsErrorOnUpdateFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a backup first
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now(),
+			},
+			VolumeUUID:              "volume-uuid-1",
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection after transaction starts
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		// Test: should return error when update fails
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", 4096)
+		assert.Error(tt, err)
+	})
+
+	t.Run("UpdatesCorrectBackupWhenMultipleAvailableBackupsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create multiple available backups with different IDs
+		backup1 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now().Add(-3 * time.Hour), // 3 hours ago
+			},
+			VolumeUUID:              "volume-uuid-1",
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-2",
+				CreatedAt: time.Now().Add(-2 * time.Hour), // 2 hours ago
+			},
+			VolumeUUID:              "volume-uuid-1",
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 2048,
+		}
+		backup3 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-3",
+				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (latest by ID)
+			},
+			VolumeUUID:              "volume-uuid-1",
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 3072,
+		}
+
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup3).Error()
+		assert.NoError(tt, err)
+
+		// Test: update the latest backup's logical size
+		newLogicalSize := int64(8192)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", newLogicalSize)
+		assert.NoError(tt, err)
+
+		// Verify only backup3 (latest) was updated
+		var updatedBackup datamodel.Backup
+		err = store.db.GORM().Where("uuid = ?", "backup-uuid-3").First(&updatedBackup).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, newLogicalSize, updatedBackup.LatestLogicalBackupSize)
+
+		// Verify backup1 and backup2 were not updated
+		var unchangedBackup1 datamodel.Backup
+		err = store.db.GORM().Where("uuid = ?", "backup-uuid-1").First(&unchangedBackup1).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1024), unchangedBackup1.LatestLogicalBackupSize)
+
+		var unchangedBackup2 datamodel.Backup
+		err = store.db.GORM().Where("uuid = ?", "backup-uuid-2").First(&unchangedBackup2).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(2048), unchangedBackup2.LatestLogicalBackupSize)
+	})
+}
+
 func TestDataStoreRepository_UpdateBackupFields(t *testing.T) {
 	tests := []struct {
 		name          string
