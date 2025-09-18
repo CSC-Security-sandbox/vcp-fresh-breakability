@@ -110,6 +110,8 @@ func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx conte
 		return a.handleSnapshot(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeVolume:
 		return a.handleVolume(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+	case common.ResourceStateV1ResourceTypeAD:
+		return false, nil
 	default:
 		return false, errors.New("unsupported resource type")
 	}
@@ -120,11 +122,13 @@ func (a *ResourceEventsActivity) HandleResourceEventsONForVCPActivity(ctx contex
 	case common.ResourceStateV1ResourceTypeKmsConfig:
 		return a.handleKmsConfig(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
 	case common.ResourceStateV1ResourceTypeStoragePool:
-		return a.handleStoragePool(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
+		return a.handleStoragePool(ctx, params, common.ResourceStateReady, common.ResourceLifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeSnapshot:
-		return a.handleSnapshot(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
+		return a.handleSnapshot(ctx, params, common.ResourceStateReady, common.ResourceLifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeVolume:
-		return a.handleVolume(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
+		return a.handleVolume(ctx, params, common.ResourceStateReady, common.ResourceLifeCycleStateAvailableDetails)
+	case common.ResourceStateV1ResourceTypeAD:
+		return false, nil
 	default:
 		return false, errors.New("unsupported resource type")
 	}
@@ -199,7 +203,7 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 	operationParams := async.NewV1betaDescribeOperationParams()
 	operationParams.OperationID = operationUUID
 	operationParams.ProjectNumber = params.ProjectNumber
-	operationParams.LocationID = params.LocationID
+	operationParams.LocationID = params.LocationId
 	res, err := PollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 	if err != nil {
 		logger.Errorf("Error while polling SDE handleResourceEvent operation: %s", operationUUID)

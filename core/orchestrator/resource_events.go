@@ -112,7 +112,7 @@ func _updateResourceState(ctx context.Context, se database.Storage, temporal cli
 
 	// check if the resource is of common type (AD, KMS-Config or Backup/policy)
 	params.IsCommonResource = params.ResourceType == commonparams.ResourceStateV1ResourceTypeBackupPolicy ||
-		params.ResourceType == commonparams.ResourceStateV1ResourceTypeKmsConfig
+		params.ResourceType == commonparams.ResourceStateV1ResourceTypeKmsConfig || params.ResourceType == commonparams.ResourceStateV1ResourceTypeAD
 
 	var jobType string
 	var wf func(ctx workflow.Context, params *commonparams.UpdateResourceStateParams) (interface{}, error)

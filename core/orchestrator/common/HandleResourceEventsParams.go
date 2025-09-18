@@ -23,6 +23,8 @@ const (
 	ResourceLifeCycleStateDisabledDetails   string = "Disabled"
 	ResourceStateEnabled                    string = "enabled"
 	ResourceLifeCycleStateEnabledDetails    string = "Enabled"
+	ResourceStateReady                      string = "READY"
+	ResourceLifeCycleStateAvailableDetails  string = "Available for use"
 )
 
 type HandleResourceEventResult struct {

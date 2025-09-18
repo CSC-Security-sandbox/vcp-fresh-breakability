@@ -93,7 +93,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 			ResourceType:   common.ResourceStateV1ResourceTypeVolume,
@@ -138,7 +138,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -175,7 +175,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		}
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -209,7 +209,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		}
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -239,7 +239,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -275,7 +275,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -320,7 +320,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -356,7 +356,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -392,7 +392,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -425,7 +425,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 		params := &common.HandleResourceEventParams{
 			State:          models.StateOff,
-			LocationID:     "test-location-id",
+			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
@@ -508,12 +508,27 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		mockSE.On("UpdatePoolState", ctx, &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
-			}, State: common.ResourceStateDisabled,
+			}, State:     common.ResourceStateDisabled,
 			StateDetails: common.ResourceLifeCycleStateDisabledDetails,
 		}, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsOFFForVCPActivity_WhenResourceTypeIsAD", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
+		assert.False(tt, result)
 		assert.Nil(tt, err)
 	})
 
@@ -685,8 +700,8 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateVolume", ctx, &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        common.ResourceStateEnabled,
-			StateDetails: common.ResourceLifeCycleStateEnabledDetails,
+			State:        common.ResourceStateReady,
+			StateDetails: common.ResourceLifeCycleStateAvailableDetails,
 		}).Return(nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -722,8 +737,8 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateSnapshotForHandleResource", ctx, &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        common.ResourceStateEnabled,
-			StateDetails: common.ResourceLifeCycleStateEnabledDetails,
+			State:        common.ResourceStateReady,
+			StateDetails: common.ResourceLifeCycleStateAvailableDetails,
 		}).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -744,12 +759,27 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 		mockSE.On("UpdatePoolState", ctx, &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
-			}, State: common.ResourceStateEnabled,
-			StateDetails: common.ResourceLifeCycleStateEnabledDetails,
-		}, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails).Return(nil, nil)
+			}, State:     common.ResourceStateReady,
+			StateDetails: common.ResourceLifeCycleStateAvailableDetails,
+		}, common.ResourceStateReady, common.ResourceLifeCycleStateAvailableDetails).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
 		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsAD", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.False(tt, result)
 		assert.Nil(tt, err)
 	})
 
@@ -781,8 +811,8 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateVolume", ctx, &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        common.ResourceStateEnabled,
-			StateDetails: common.ResourceLifeCycleStateEnabledDetails,
+			State:        common.ResourceStateReady,
+			StateDetails: common.ResourceLifeCycleStateAvailableDetails,
 		}).Return(errors.New("update failed"))
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
