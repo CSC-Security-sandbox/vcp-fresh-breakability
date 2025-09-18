@@ -1294,7 +1294,6 @@ func TestCreateADCGetRequestForLogicalSize(t *testing.T) {
 
 func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
 	ctx := context.Background()
-	deletingBackupUUID := "deleting-backup-uuid"
 	volumeUUID := "volume-uuid"
 	expectedLogicalSize := uint64(1024000)
 
@@ -1333,7 +1332,7 @@ func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
 	activity := activities.ADCActivity{SE: mockStorage}
 
 	// Execute the function
-	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, deletingBackupUUID, volumeUUID, adcParams, server.URL)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL)
 
 	// Assertions
 	assert.Nil(t, err)
@@ -1342,7 +1341,6 @@ func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
 
 func TestFetchLogicalSizeAndUpdateActivity_ADCError(t *testing.T) {
 	ctx := context.Background()
-	deletingBackupUUID := "deleting-backup-uuid"
 	volumeUUID := "volume-uuid"
 	serviceURL := "https://test-service.com"
 
@@ -1357,7 +1355,7 @@ func TestFetchLogicalSizeAndUpdateActivity_ADCError(t *testing.T) {
 	activity := activities.ADCActivity{SE: mockStorage}
 
 	// Execute the function
-	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, deletingBackupUUID, volumeUUID, adcParams, serviceURL)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, adcParams, serviceURL)
 
 	// Assertions
 	assert.NotNil(t, err)
@@ -1368,7 +1366,6 @@ func TestFetchLogicalSizeAndUpdateActivity_ADCError(t *testing.T) {
 
 func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
 	ctx := context.Background()
-	deletingBackupUUID := "deleting-backup-uuid"
 	volumeUUID := "volume-uuid"
 	expectedLogicalSize := uint64(1024000)
 	expectedError := fmt.Errorf("database update failed")
@@ -1408,7 +1405,7 @@ func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
 	activity := activities.ADCActivity{SE: mockStorage}
 
 	// Execute the function
-	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, deletingBackupUUID, volumeUUID, adcParams, server.URL)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL)
 
 	// Assertions
 	assert.NotNil(t, err)
@@ -1418,7 +1415,6 @@ func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
 
 func TestFetchLogicalSizeAndUpdateActivity_HTTPError(t *testing.T) {
 	ctx := context.Background()
-	deletingBackupUUID := "deleting-backup-uuid"
 	volumeUUID := "volume-uuid"
 
 	// Create test ADC params
@@ -1443,7 +1439,7 @@ func TestFetchLogicalSizeAndUpdateActivity_HTTPError(t *testing.T) {
 	invalidURL := "https://invalid-url-that-will-fail.com"
 
 	// Execute the function
-	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, deletingBackupUUID, volumeUUID, adcParams, invalidURL)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, adcParams, invalidURL)
 
 	// Assertions
 	assert.NotNil(t, err)

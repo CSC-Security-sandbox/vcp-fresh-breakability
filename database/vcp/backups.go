@@ -319,8 +319,8 @@ func (d *DataStoreRepository) IsLatestBackup(ctx context.Context, backupUUID, vo
 func (d *DataStoreRepository) IsLatestBackupAnyState(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
 	db := d.db.GORM().WithContext(ctx)
 	backup := &datamodel.Backup{}
-	// get backup by created_at timestamp under a volume (any state)
-	err := db.Where("volume_uuid = ?", volumeUUID).Order("created_at desc").First(&backup).Error
+	// get backup by id under a volume (any state)
+	err := db.Where("volume_uuid = ?", volumeUUID).Order("id desc").First(&backup).Error
 	if err != nil {
 		return false, err
 	}
@@ -476,7 +476,7 @@ func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context,
 	}
 	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
 
-	// Find the latest backup for the volume (by created_at timestamp)
+	// Find the latest backup for the volume (by id)
 	var latestBackup datamodel.Backup
 	err = tx.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).
 		Order("id desc").

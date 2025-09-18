@@ -97,7 +97,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Step 9: Logical size calculation activities
 		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
-		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
@@ -852,7 +852,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Step 9: Logical size calculation activities
 		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
-		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
@@ -943,7 +943,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Step 9: Logical size calculation activities
 		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
-		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
@@ -1321,7 +1321,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Step 9: Logical size calculation activities - IsLatestBackupAnyStateActivity succeeds but FetchLogicalSizeAndUpdateActivity fails
 		env.OnActivity("IsLatestBackupAnyStateActivity", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
-		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to fetch logical size"))
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to fetch logical size"))
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)

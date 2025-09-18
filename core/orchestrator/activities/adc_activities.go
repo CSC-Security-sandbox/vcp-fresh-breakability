@@ -524,7 +524,7 @@ func _getStandardAuthToken(ctx context.Context, audience string) (string, error)
 	return token, nil
 }
 
-func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, deletingBackupUUID, volumeUUID string, adcParams *common.ADCParams, serviceURL string) error {
+func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, volumeUUID string, adcParams *common.ADCParams, serviceURL string) error {
 	logger := util.GetLogger(ctx)
 
 	// Fetch logical size from ADC

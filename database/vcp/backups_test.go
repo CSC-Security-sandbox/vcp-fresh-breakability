@@ -1441,7 +1441,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
-		// Create backups for the same volume with different timestamps
+		// Create backups for the same volume with different IDs
 		backup1 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
 				UUID:      "backup-uuid-1",
@@ -1453,7 +1453,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 		backup2 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
 				UUID:      "backup-uuid-2",
-				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (latest)
+				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago
 			},
 			VolumeUUID: "volume-uuid-1",
 			State:      models.LifeCycleStateAvailable,
@@ -1461,7 +1461,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 		backup3 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
 				UUID:      "backup-uuid-3",
-				CreatedAt: time.Now().Add(-30 * time.Minute), // 30 minutes ago (most recent)
+				CreatedAt: time.Now().Add(-30 * time.Minute), // 30 minutes ago (highest ID)
 			},
 			VolumeUUID: "volume-uuid-1",
 			State:      models.LifeCycleStateDeleting, // Different state
@@ -1474,7 +1474,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 		err = store.db.Create(backup3).Error()
 		assert.NoError(tt, err)
 
-		// Test: backup3 should be latest (most recent created_at, any state)
+		// Test: backup3 should be latest (highest id, any state)
 		isLatest, err := store.IsLatestBackupAnyState(context.Background(), "backup-uuid-3", "volume-uuid-1")
 		assert.NoError(tt, err)
 		assert.True(tt, isLatest)
@@ -1490,7 +1490,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
-		// Create backups for the same volume with different timestamps
+		// Create backups for the same volume with different IDs
 		backup1 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
 				UUID:      "backup-uuid-1",
@@ -1502,7 +1502,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 		backup2 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
 				UUID:      "backup-uuid-2",
-				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (latest)
+				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (highest ID)
 			},
 			VolumeUUID: "volume-uuid-1",
 			State:      models.LifeCycleStateAvailable,
@@ -1513,7 +1513,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 		err = store.db.Create(backup2).Error()
 		assert.NoError(tt, err)
 
-		// Test: backup1 should not be latest
+		// Test: backup1 should not be latest (backup2 has higher ID)
 		isLatest, err := store.IsLatestBackupAnyState(context.Background(), "backup-uuid-1", "volume-uuid-1")
 		assert.NoError(tt, err)
 		assert.False(tt, isLatest)

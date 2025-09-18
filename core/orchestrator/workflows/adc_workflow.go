@@ -373,7 +373,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 	if err != nil {
 		log.Warnf("Skipping logical size calculation due to error: %v", err)
 	} else if !isLatestBackup {
-		err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchLogicalSizeAndUpdateActivity, backup.UUID, backup.VolumeUUID, adcParams, serviceURL).Get(logicalSizeCtx, nil)
+		err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchLogicalSizeAndUpdateActivity, backup.VolumeUUID, adcParams, serviceURL).Get(logicalSizeCtx, nil)
 		if err != nil {
 			log.Warnf("Failed to update logical size after 3 attempts: %v", err)
 		}
