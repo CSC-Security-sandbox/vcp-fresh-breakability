@@ -1,4 +1,4 @@
-package backgroundworkflows
+package background_kms_workflows
 
 import (
 	"fmt"

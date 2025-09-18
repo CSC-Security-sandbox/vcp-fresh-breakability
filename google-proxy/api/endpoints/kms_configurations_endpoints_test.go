@@ -346,12 +346,14 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateError}
+		job := &vsaCoreModels.Job{}
+		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateError,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatingState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)

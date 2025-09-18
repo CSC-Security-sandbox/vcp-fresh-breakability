@@ -183,6 +183,7 @@ workerConfig:
   integrationTest: "false"
   nkdevTest: false
   disableVsaCleanupOnVlmFailure: false
+  orphanJobProcessingEnabled: true
 
   # Database configuration
   database:

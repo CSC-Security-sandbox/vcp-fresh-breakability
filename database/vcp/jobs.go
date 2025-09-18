@@ -72,6 +72,26 @@ func (d *DataStoreRepository) UpdateJob(ctx context.Context, id, status string, 
 	return nil
 }
 
+func (d *DataStoreRepository) UpdateJobAttributes(ctx context.Context, uuid string, jobAttributes *datamodel.JobAttributes) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	job, err := getJobWithDetails(tx, &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: uuid}})
+	if err != nil {
+		return err
+	}
+	job.UpdatedAt = time.Now()
+	job.JobAttributes = jobAttributes
+	if err = tx.Updates(job).Error; err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
+}
+
 func (d *DataStoreRepository) DeleteJob(ctx context.Context, id, errorDetails string) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

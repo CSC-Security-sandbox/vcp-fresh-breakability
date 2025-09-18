@@ -38,6 +38,7 @@ var (
 	getImpersonatedKmsService            = google.GetImpersonatedKmsService
 	synchronizeServiceAccountKeys        = _synchronizeServiceAccountKeys
 	UpdateKmsConfigHealth                = _updateKmsConfigHealth
+	FailedKmsConfigCreateActivity        = _failedKmsConfigCreateActivity
 )
 
 const (
@@ -199,17 +200,19 @@ func (j *KmsConfigActivity) GrantRoleActivity(ctx context.Context, kmsConfig *da
 
 // FailedKmsConfigCreateActivity updates the KMS configuration state to "error" with the provided error message.
 func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, errMsg string, location string) error {
+	return _failedKmsConfigCreateActivity(ctx, j.SE, kmsConfig, errMsg, location)
+}
+
+func _failedKmsConfigCreateActivity(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, errMsg, location string) error {
 	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	logger := util.GetLogger(ctx)
 	cvpClient := createClient(logger, jwtToken)
-	se := j.SE
 
 	_, err := se.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateDeleted, errMsg)
 	if err != nil {
 		return err
 	}
 
-	// it's possible that before creating the service account workflow failed
 	if kmsConfig.ServiceAccount != nil {
 		_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.LifeCycleStateError, errMsg)
 		if err != nil {
@@ -217,12 +220,11 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 		}
 	}
 
-	// Delete the sde kms also in case of failure
-	// Prepare delete parameters
-	deleteParams := &kms_configurations.V1betaDeleteKmsConfigurationParams{}
-	deleteParams.KmsConfigID = kmsConfig.UUID
-	deleteParams.ProjectNumber = kmsConfig.CustomerProjectID
-	deleteParams.LocationID = location
+	deleteParams := &kms_configurations.V1betaDeleteKmsConfigurationParams{
+		KmsConfigID:   kmsConfig.UUID,
+		ProjectNumber: kmsConfig.CustomerProjectID,
+		LocationID:    location,
+	}
 	response, _, cvpErr := cvpClient.KmsConfigurations.V1betaDeleteKmsConfiguration(deleteParams)
 	if cvpErr != nil {
 		switch cvpErr.(type) {
@@ -232,17 +234,14 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 		return cvpErr
 	}
 
-	// Poll the operation until it is done
-	// Check if the operation is done
 	if response != nil && !*response.Payload.Done {
-		// Extract the operation UUID
 		operationUUID := utils.GetOperationUUID(response.Payload.Name)
 		operationParams := async.NewV1betaDescribeOperationParams()
 		operationParams.OperationID = operationUUID
 		operationParams.ProjectNumber = kmsConfig.CustomerProjectID
 		operationParams.LocationID = location
 
-		err = retryDo(ctx, RetryTimeOutForDescribeSDEJob, RetryIntervalForDescribeSDEJob, "AccessCryptoKeyAndEncryptDataWithImpersonation", func(attempt int) (bool, error) {
+		err = retryDo(ctx, RetryTimeOutForDescribeSDEJob, RetryIntervalForDescribeSDEJob, "PollCvpOperationForWorkflow", func(attempt int) (bool, error) {
 			_, err = pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 			if err != nil {
 				return true, retry.NewRetriableErr(err.Error())

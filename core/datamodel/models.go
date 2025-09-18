@@ -338,8 +338,9 @@ type Job struct {
 }
 
 type JobAttributes struct {
-	ResourceUUID string `json:"resource_uuid"`
-	PoolUUID     string `json:"pool_uuid"`
+	ResourceUUID      string `json:"resource_uuid"`
+	PoolUUID          string `json:"pool_uuid"`
+	CurrentRetryCount int    `json:"current_retry_count"`
 }
 
 // Scan method for JobAttributes to handle JSONB data

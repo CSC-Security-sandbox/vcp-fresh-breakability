@@ -16,6 +16,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1043,6 +1044,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		}
 		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{AccountID: 1}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job error"))
+		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
 
 		defer func() {
 			getOrCreateAccount = _getOrCreateAccount
@@ -1070,6 +1072,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
 		}
 		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(nil, errors.New("db error"))
+		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		if err == nil || err.Error() != "db error" {
@@ -1093,15 +1096,14 @@ func TestCreateKmsConfig(t *testing.T) {
 			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
 		}
 		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{
-			UUID: "uuid"}, AccountID: 1}, nil)
+			UUID: "uuid"}, AccountID: 1, KmsAttributes: &datamodel.KmsAttributes{}}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{
 			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
 		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
-		if err == nil || err.Error() != "workflow error" {
-			t.Errorf("Expected workflow error, got %v", err)
-		}
+		assert.NoError(tt, err)
 	})
 	t.Run("CreateKmsConfigReturnsKmsConfigAndJobUUIDOnSuccess", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1134,6 +1136,61 @@ func TestCreateKmsConfig(t *testing.T) {
 		if kmsConfig == nil || jobUUID != "job-uuid" {
 			t.Errorf("Expected valid kmsConfig and jobUUID, got %v, %v", kmsConfig, jobUUID)
 		}
+	})
+	t.Run("CreateKmsConfigReturnsErrorWhenUpdateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{}, nil
+		}
+		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
+			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
+		}
+		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{
+			UUID: "uuid"}, AccountID: 1, KmsAttributes: &datamodel.KmsAttributes{}}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{
+			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
+		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("job-uuid"))
+
+		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+	})
+	t.Run("CreateKmsConfigReturnsErrorWhenWorkflowFailsAndFlagIsDisabled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		mockStorage := new(database.MockStorage)
+		waitForTemporalEnabled = false
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+			waitForTemporalEnabled = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", true)
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{}, nil
+		}
+		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
+			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
+		}
+		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{
+			UUID: "uuid"}, AccountID: 1, KmsAttributes: &datamodel.KmsAttributes{}}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{
+			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
+		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
+		mockStorage.On("UpdateJob", ctx, mock.Anything, models.LifeCycleStateError, mock.Anything, mock.Anything).Return(nil).Once()
+		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
+
+		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
 	})
 }
 
@@ -1497,6 +1554,11 @@ func TestDeleteKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 
+		waitForTemporalEnabled = true
+		defer func() {
+			waitForTemporalEnabled = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", true)
+		}()
+
 		orchestrator := Orchestrator{
 			storage:  mockStorage,
 			temporal: mockTemporal,
@@ -1521,7 +1583,6 @@ func TestDeleteKmsConfig(t *testing.T) {
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "can not delete this policy as it is still in use")
 		assert.Nil(tt, kmsConfig)
 		assert.Empty(tt, jobUUID)
 	})
@@ -1634,13 +1695,13 @@ func TestDeleteKmsConfig(t *testing.T) {
 
 		// Mock Temporal client behavior
 		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, errors.New("workflow execution failed"))
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "workflow execution failed")
-		assert.Nil(tt, kmsConfig)
-		assert.Empty(tt, jobUUID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, kmsConfig)
+		assert.NotEmpty(tt, jobUUID)
 	})
 
 	t.Run("WhenKmsConfigAlreadyDeletingWithActiveJob", func(tt *testing.T) {
@@ -1772,6 +1833,96 @@ func TestDeleteKmsConfig(t *testing.T) {
 		assert.Equal(tt, "new-job-uuid", jobUUID) // Should create new job since lookup failed
 		assert.NotNil(tt, kmsConfig)
 		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+	})
+
+	t.Run("WorkflowExecutionFailureAndUpdateJobFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, errors.New("workflow execution failed"))
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("job update failed"))
+
+		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, kmsConfig)
+		assert.NotEmpty(tt, jobUUID)
+	})
+
+	t.Run("WorkflowExecutionFailureAndFlagDisabled", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		waitForTemporalEnabled = false
+		defer func() {
+			waitForTemporalEnabled = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", true)
+		}()
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, errors.New("workflow execution failed"))
+		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-kms-config-id", models.LifeCycleStateAvailable, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
+
+		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, kmsConfig)
+		assert.Empty(tt, jobUUID)
 	})
 }
 

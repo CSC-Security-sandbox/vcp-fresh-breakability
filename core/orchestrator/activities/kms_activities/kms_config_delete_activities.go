@@ -44,6 +44,11 @@ func (a *KmsConfigActivity) DescribeSDEDeleteJob(ctx context.Context, jobUuid *s
 // DisableKmsServiceAccount updates the KMS ServiceAccounts as disabled in the database.
 func (j *KmsConfigActivity) DisableKmsServiceAccount(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
 	se := j.SE
+	// it's possible that the KMS config was created without a service account
+	// in that case, there's nothing to disable
+	if kmsConfig.ServiceAccount == nil {
+		return nil
+	}
 	_, err := se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.LifeCycleStateDisabled, models.LifeCycleStateDisabledDetails)
 	return err
 }

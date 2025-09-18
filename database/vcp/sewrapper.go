@@ -1220,6 +1220,25 @@ func (re *retryEngine) GetOngoingMigrateKmsConfigJob(ctx context.Context, accoun
 	return var0, err
 }
 
+func (re *retryEngine) UpdateJobAttributes(ctx context.Context, jobUUID string, jobAttributes *datamodel.JobAttributes) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateJobAttributes(ctx, jobUUID, jobAttributes)
+		if err != nil {
+			re.logError("UpdateJobAttributes", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	var var0 *datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {

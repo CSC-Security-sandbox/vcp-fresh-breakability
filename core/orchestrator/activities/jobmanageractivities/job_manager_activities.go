@@ -6,6 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -16,12 +17,14 @@ import (
 const (
 	SyncVsaSnapshots         = "SYNC_VSA_SNAPSHOTS"
 	RotateKmsServiceAccounts = "ROTATE_KMS_SERVICE_ACCOUNTS"
+	OrphanJobScheduler       = "ORPHANED_JOB_SCHEDULER"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
 var JobTypeToWorkflow = map[string]interface{}{
 	SyncVsaSnapshots:         backgroundworkflows.SyncVSASnapshotsWorkflow,
-	RotateKmsServiceAccounts: backgroundworkflows.RotateKmsSAKeyWorkflow,
+	RotateKmsServiceAccounts: background_kms_workflows.RotateKmsSAKeyWorkflow,
+	OrphanJobScheduler:       backgroundworkflows.OrphanJobSchedulerWorkflow,
 }
 
 type JobManagerActivity struct {

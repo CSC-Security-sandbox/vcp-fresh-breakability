@@ -8,5 +8,10 @@
     "jobType": "ROTATE_KMS_SERVICE_ACCOUNTS",
     "cronExpression": "0 0 * * *",
     "state": "CREATING"
+  },
+  "ORPHANED_JOB_SCHEDULER": {
+    "jobType": "ORPHANED_JOB_SCHEDULER",
+    "cronExpression": "*/2 * * * *",
+    "state": "CREATING"
   }
 }

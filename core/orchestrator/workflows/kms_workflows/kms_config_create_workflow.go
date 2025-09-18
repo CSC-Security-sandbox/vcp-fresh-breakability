@@ -22,7 +22,7 @@ type createKmsConfigWorkflow struct {
 	workflows.BaseWorkflow
 }
 
-// Enforcing the WorkflowInterface on volumeCreateWorkflow
+// Enforcing the WorkflowInterface on createKmsConfigWorkflow
 var _ workflows.WorkflowInterface = &createKmsConfigWorkflow{}
 
 var (
@@ -145,7 +145,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 
 	// Describe KMS configurations to get the created KMS configuration; this must be called after polling the operation to get the sde kms config information
 	getKmsConfigParams := &common.GetKmsConfigParams{
-		UUID:          kmsConfig.KmsAttributes.SdeKmsConfigUUID,
+		UUID:          params.UUID,
 		LocationID:    params.LocationID,
 		ProjectNumber: params.ProjectNumber,
 	}

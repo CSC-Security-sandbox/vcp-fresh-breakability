@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/jobmanagerworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
@@ -205,7 +206,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(kms_workflows.DeleteKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.CreateKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.MigrateKmsConfigWorkflow)
-	worker.RegisterWorkflow(kms_workflows.RotateKmsConfigWorkflow)
+	worker.RegisterWorkflow(background_kms_workflows.RotateKmsConfigWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.UpdateInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
@@ -306,8 +307,9 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupInitWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.DeleteScheduledBackupWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.OrphanJobSchedulerWorkflow)
 	worker.RegisterWorkflow(workflows.VolumeRefreshWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.RotateKmsSAKeyWorkflow)
+	worker.RegisterWorkflow(background_kms_workflows.RotateKmsSAKeyWorkflow)
 	worker.RegisterWorkflow(workflows.RestoreBackupWorkflow)
 	worker.RegisterWorkflow(workflows.PreBlockVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.PostBlockVolumeWorkflow)
@@ -323,5 +325,6 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundworkflows.StartSyncSnapshotForPoolActivity{})
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.OrphanJobActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
 }

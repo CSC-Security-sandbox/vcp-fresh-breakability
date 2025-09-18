@@ -26,11 +26,13 @@ type KmsConfig struct {
 	ServiceAccount    *ServiceAccount
 }
 type KmsAttributes struct {
-	SdeKmsConfigUUID        string
-	SdeServiceAccountEmail  string
-	Instructions            string
-	SdeKmsConfigIsHealthy   bool
-	SdeKmsConfigHealthError string
+	SdeKmsConfigUUID          string
+	SdeServiceAccountEmail    string
+	Instructions              string
+	SdeKmsConfigIsHealthy     bool
+	SdeKmsConfigHealthError   string
+	SdeKmsConfigOperationURI  string
+	SdeKmsConfigOperationDone bool
 }
 
 // KmsConfigCheck describes an gcp kms configuration check object in the cloud volumes model

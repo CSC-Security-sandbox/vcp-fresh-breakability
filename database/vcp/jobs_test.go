@@ -520,3 +520,55 @@ func TestGetOngoingMigrateKmsConfigJob(t *testing.T) {
 		assert.EqualError(tt, errQuery.(*vsaerrors.CustomError).OriginalErr, "job not found")
 	})
 }
+
+func TestUpdateJobAttributes(t *testing.T) {
+	t.Run("SuccessfullyUpdatesJobAttributes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		job := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+			JobAttributes: &datamodel.JobAttributes{},
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err)
+
+		newAttrs := &datamodel.JobAttributes{ResourceUUID: "updated"}
+		err = store.UpdateJobAttributes(context.Background(), job.UUID, newAttrs)
+		assert.NoError(tt, err)
+
+		updatedJob, err := store.GetJob(context.Background(), job.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "updated", updatedJob.JobAttributes.ResourceUUID)
+	})
+
+	t.Run("ReturnsErrorIfJobNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		newAttrs := &datamodel.JobAttributes{}
+		err = store.UpdateJobAttributes(context.Background(), "non-existent-uuid", newAttrs)
+		assert.Error(tt, err)
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		newAttrs := &datamodel.JobAttributes{ResourceUUID: "updated"}
+		err = store.UpdateJobAttributes(context.Background(), "any-uuid", newAttrs)
+		assert.Error(tt, err)
+	})
+}

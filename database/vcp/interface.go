@@ -99,6 +99,7 @@ type (
 		GetJob(ctx context.Context, jobID string) (*datamodel.Job, error)
 		GetJobsWithCondition(ctx context.Context, filter dbutils.Filter) ([]*datamodel.Job, error)
 		GetOngoingMigrateKmsConfigJob(ctx context.Context, accountId int64) (*datamodel.Job, error)
+		UpdateJobAttributes(ctx context.Context, jobUUID string, jobAttributes *datamodel.JobAttributes) error
 
 		GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error)
 		GetNodesByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)

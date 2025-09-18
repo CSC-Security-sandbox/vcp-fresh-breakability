@@ -11,11 +11,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -36,6 +38,7 @@ var (
 	updateSDEKmsConfiguration     = sde.UpdateSDEKmsConfiguration
 	createAndSyncKmsConfig        = kms_activities.CreateAndSyncKmsConfig
 	getSDEKmsConfiguration        = kms_activities.GetSDEKmsConfiguration
+	waitForTemporalEnabled        = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", true)
 )
 
 type KmsConfigInterface interface {
@@ -64,27 +67,48 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	if err != nil {
 		return nil, "", err
 	}
+
+	var kmsConfig *datamodel.KmsConfig = nil
+	var createdJob *datamodel.Job = nil
+
+	defer func() {
+		if !waitForTemporalEnabled {
+			if err != nil {
+				if createdJob != nil {
+					// Mark the job as error
+					_ = se.UpdateJob(ctx, createdJob.UUID, models.LifeCycleStateError, createdJob.TrackingID, err.Error())
+				}
+				if kmsConfig != nil {
+					// bring back the kms config to original state
+					_, _ = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateError, err.Error())
+				}
+			}
+		}
+	}()
+
 	parsedKeyFullPath, err := parseKeyFullPathResource(params.KeyFullPath)
 	if err != nil {
 		return nil, "", err
 	}
-	dbKmsConfig := &datamodel.KmsConfig{}
-	dbKmsConfig.CreatedAt = time.Now()
-	dbKmsConfig.UUID = params.UUID // Use the uuid of the sde; this is to make sure CCFE gets the same UUID as SDE for PO volume creation
-	dbKmsConfig.State = models.LifeCycleStateCreating
-	dbKmsConfig.StateDetails = models.LifeCycleStateCreatingDetails
-	dbKmsConfig.AccountID = account.ID
-	dbKmsConfig.UpdatedAt = time.Now()
-	dbKmsConfig.KeyName = parsedKeyFullPath.CryptoKey
-	dbKmsConfig.CustomerProjectID = params.ProjectNumber
-	dbKmsConfig.KeyRingLocation = parsedKeyFullPath.Location
-	dbKmsConfig.KeyRing = parsedKeyFullPath.KeyRing
-	dbKmsConfig.ResourceID = params.ResourceID
-	dbKmsConfig.KeyProjectID = parsedKeyFullPath.ProjectID
-	dbKmsConfig.KmsAttributes = &datamodel.KmsAttributes{SdeKmsConfigUUID: params.UUID}
-	dbKmsConfig.Description = params.Description
+	kmsConfig = &datamodel.KmsConfig{}
+	kmsConfig.CreatedAt = time.Now()
+	kmsConfig.UUID = params.UUID // Use the uuid of the sde; this is to make sure CCFE gets the same UUID as SDE for PO volume creation
+	kmsConfig.State = models.LifeCycleStateCreating
+	kmsConfig.StateDetails = models.LifeCycleStateCreatingDetails
+	kmsConfig.AccountID = account.ID
+	kmsConfig.UpdatedAt = time.Now()
+	kmsConfig.KeyName = parsedKeyFullPath.CryptoKey
+	kmsConfig.CustomerProjectID = params.ProjectNumber
+	kmsConfig.KeyRingLocation = parsedKeyFullPath.Location
+	kmsConfig.KeyRing = parsedKeyFullPath.KeyRing
+	kmsConfig.ResourceID = params.ResourceID
+	kmsConfig.KeyProjectID = parsedKeyFullPath.ProjectID
+	kmsConfig.KmsAttributes = &datamodel.KmsAttributes{SdeKmsConfigUUID: params.UUID,
+		SdeKmsConfigOperationURI:  params.OperationUri,
+		SdeKmsConfigOperationDone: params.OperationDone}
+	kmsConfig.Description = params.Description
 
-	dbKmsConfig, err = se.CreateKmsConfig(ctx, dbKmsConfig)
+	kmsConfig, err = se.CreateKmsConfig(ctx, kmsConfig)
 	if err != nil {
 		return nil, "", err
 	}
@@ -94,17 +118,16 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		State:         string(models.JobsStateNEW),
 		ResourceName:  params.ResourceID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbKmsConfig.UUID},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: kmsConfig.UUID},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
-	createdJob, err := se.CreateJob(ctx, job)
+	createdJob, err = se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create job in database", "error", err.Error())
 		return nil, "", err
 	}
-
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -114,13 +137,22 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		},
 		kms_workflows.CreateKmsConfigWorkflow,
 		params,
-		dbKmsConfig,
+		kmsConfig,
 	)
 	if err != nil {
-		logger.Error("Failed to start create kms workflow: ", "error", err)
-		return nil, "", err
+		logger.Warn("Failed to start create kms workflow: ", "error", err)
+		if waitForTemporalEnabled {
+			// Update job to pending state if workflow fails to start, so that pending job processor can pick it up later, do not return error
+			logger.Info("Updating job to pending state, so that pending job processor can pick it up later")
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateWaitForTemporal), createdJob.TrackingID, err.Error())
+			if updateErr != nil {
+				logger.Error("Failed to update job to temporal pending state", "error", updateErr)
+			}
+		} else {
+			return nil, "", err
+		}
 	}
-	return convertDatastoreKmsConfigToModel(dbKmsConfig), createdJob.UUID, nil
+	return convertDatastoreKmsConfigToModel(kmsConfig), createdJob.UUID, nil
 }
 
 // GetKmsConfig retrieves a KMS configuration by its UUID.
@@ -249,14 +281,33 @@ func (o *Orchestrator) DeleteKmsConfig(ctx context.Context, params *common.Delet
 
 func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error) {
 	logger := util.GetLogger(ctx)
+	var createdJob *datamodel.Job = nil
+	var kmsConfig *datamodel.KmsConfig = nil
+	kmsConfigOriginalState := models.LifeCycleStateUnknown
 
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err
 	}
 
-	kmsConfig, err := se.GetKmsConfig(ctx, params.KmsConfigID)
+	defer func() {
+		if !waitForTemporalEnabled {
+			if err != nil {
+				if createdJob != nil {
+					// Mark the job as error
+					_ = se.UpdateJob(ctx, createdJob.UUID, models.LifeCycleStateError, createdJob.TrackingID, err.Error())
+				}
+				if kmsConfig != nil {
+					// bring back the kms config to original state
+					_, _ = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, kmsConfigOriginalState, "Reverted to previous state due to error: "+err.Error())
+				}
+			}
+		}
+	}()
+
+	kmsConfig, err = se.GetKmsConfig(ctx, params.KmsConfigID)
 	if err == nil {
+		kmsConfigOriginalState = kmsConfig.State
 		// If KMS config is already in DELETING state, check for existing delete job
 		if kmsConfig.State == models.LifeCycleStateDeleting {
 			existingJob, jobErr := se.GetJobByResourceUUID(ctx, params.KmsConfigID, string(models.JobTypeDeleteKmsConfig))
@@ -297,7 +348,7 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: params.KmsConfigID},
 		CorrelationID: params.XCorrelationID,
 	}
-	createdJob, err := se.CreateJob(ctx, job)
+	createdJob, err = se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
@@ -314,9 +365,19 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		kmsConfig,
 		params,
 	)
+
 	if err != nil {
 		logger.Error("Failed to start update kms config workflow: ", "error", err)
-		return nil, "", err
+		if waitForTemporalEnabled {
+			logger.Info("Updating job to pending state, so that pending job processor can pick it up later")
+			// Update job to pending state if workflow fails to start, so that pending job processor can pick it up later
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateWaitForTemporal), createdJob.TrackingID, err.Error())
+			if updateErr != nil {
+				logger.Error("Failed to update job to temporal pending state", "error", updateErr)
+			}
+		} else {
+			return nil, "", err
+		}
 	}
 
 	return convertDataStoreKmsConfigToModel(kmsConfig), createdJob.UUID, nil
@@ -445,7 +506,7 @@ func rotateKmsConfig(ctx context.Context, se database.Storage, temporal client.C
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		},
-		kms_workflows.RotateKmsConfigWorkflow,
+		background_kms_workflows.RotateKmsConfigWorkflow,
 		params,
 	)
 	if err != nil {

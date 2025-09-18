@@ -28,11 +28,13 @@ type KmsConfig struct {
 }
 
 type KmsAttributes struct {
-	SdeKmsConfigUUID        string `json:"sde_kms_config_uuid"`
-	SdeServiceAccountEmail  string `json:"sde_service_account_email"`
-	Instructions            string `json:"instructions"`
-	SdeKmsConfigIsHealthy   bool   `json:"sde_is_healthy"`
-	SdeKmsConfigHealthError string `json:"sde_health_error"`
+	SdeKmsConfigUUID          string `json:"sde_kms_config_uuid"`
+	SdeServiceAccountEmail    string `json:"sde_service_account_email"`
+	Instructions              string `json:"instructions"`
+	SdeKmsConfigIsHealthy     bool   `json:"sde_is_healthy"`
+	SdeKmsConfigHealthError   string `json:"sde_health_error"`
+	SdeKmsConfigOperationURI  string `json:"sde_operation_uri"`
+	SdeKmsConfigOperationDone bool   `json:"sde_operation_done"`
 }
 
 func (kmsAttributes *KmsAttributes) Scan(value interface{}) error {

@@ -8,10 +8,12 @@ import (
 type JobState string
 
 const (
-	JobsStateNEW        JobState = "NEW"
-	JobsStatePROCESSING JobState = "PROCESSING"
-	JobsStateERROR      JobState = "ERROR"
-	JobsStateDONE       JobState = "DONE"
+	JobsStateNEW                    JobState = "NEW"
+	JobsStatePROCESSING             JobState = "PROCESSING"
+	JobsStateERROR                  JobState = "ERROR"
+	JobsStateDONE                   JobState = "DONE"
+	JobsStateWaitForTemporal        JobState = "WAIT_FOR_TEMPORAL"
+	WaitForTemporalJobMaxRetryCount          = 5
 )
 
 type JobType string

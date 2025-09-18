@@ -362,10 +362,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 	done := true
 	switch kmsConfig.State {
 	case coremodel.LifeCycleStateError:
-		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
-			Message: "A previous config operation ran into error for this region and project, run verify operation to check the status or contact support",
-			Code:    http.StatusConflict,
-		}, nil
+		// do nothing, return the error state kms config, so that it can be cleaned up with delete later
 	case coremodel.LifeCycleStateCreating:
 		done = false
 	case coremodel.LifeCycleStateDeleting, coremodel.LifeCycleStateUpdating, coremodel.LifeCycleStateMigrating:

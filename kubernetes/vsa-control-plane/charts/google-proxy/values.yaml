@@ -49,6 +49,7 @@ minCustomThroughput: "64"
 maxCustomIops: "160000"
 maxCustomThroughput: "5120"
 iopsPerMibps: "16"
+waitForTemporalEnabled: true
 
 # Mock gcp access token for testing purposes
 mockAccessToken: ""

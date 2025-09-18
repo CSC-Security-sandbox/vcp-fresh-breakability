@@ -9366,6 +9366,54 @@ func (_c *MockStorage_UpdateJob_Call) RunAndReturn(run func(context.Context, str
 	return _c
 }
 
+// UpdateJobAttributes provides a mock function with given fields: ctx, jobUUID, jobAttributes
+func (_m *MockStorage) UpdateJobAttributes(ctx context.Context, jobUUID string, jobAttributes *datamodel.JobAttributes) error {
+	ret := _m.Called(ctx, jobUUID, jobAttributes)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateJobAttributes")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *datamodel.JobAttributes) error); ok {
+		r0 = rf(ctx, jobUUID, jobAttributes)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdateJobAttributes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateJobAttributes'
+type MockStorage_UpdateJobAttributes_Call struct {
+	*mock.Call
+}
+
+// UpdateJobAttributes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobUUID string
+//   - jobAttributes *datamodel.JobAttributes
+func (_e *MockStorage_Expecter) UpdateJobAttributes(ctx interface{}, jobUUID interface{}, jobAttributes interface{}) *MockStorage_UpdateJobAttributes_Call {
+	return &MockStorage_UpdateJobAttributes_Call{Call: _e.mock.On("UpdateJobAttributes", ctx, jobUUID, jobAttributes)}
+}
+
+func (_c *MockStorage_UpdateJobAttributes_Call) Run(run func(ctx context.Context, jobUUID string, jobAttributes *datamodel.JobAttributes)) *MockStorage_UpdateJobAttributes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*datamodel.JobAttributes))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateJobAttributes_Call) Return(_a0 error) *MockStorage_UpdateJobAttributes_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdateJobAttributes_Call) RunAndReturn(run func(context.Context, string, *datamodel.JobAttributes) error) *MockStorage_UpdateJobAttributes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateKmsConfig provides a mock function with given fields: ctx, kmsUUID, updates
 func (_m *MockStorage) UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error {
 	ret := _m.Called(ctx, kmsUUID, updates)
