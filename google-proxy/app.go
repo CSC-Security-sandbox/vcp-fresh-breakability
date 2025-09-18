@@ -18,10 +18,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler/adminbackgroundjobs"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/drivers/postgres"
 	dbtuils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -218,7 +218,7 @@ func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
-	mux.Use(middleware.AuthMiddleware)
+	mux.Use(auth.AuthMiddleware(false)) // false = do not skip project number validation. Must always be false for google proxy
 	mux.Use(log.RecoverMiddleware)
 	mux.Mount("/", handler)
 	mux.Handle("/metrics", promhttp.Handler())

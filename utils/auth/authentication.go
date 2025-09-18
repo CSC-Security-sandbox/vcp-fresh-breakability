@@ -1,4 +1,4 @@
-package middleware
+package auth
 
 import (
 	"context"
@@ -35,10 +35,11 @@ var (
 	gcpAcceptedServiceAccounts  = env.GetString("GCP_AUTH_ACCEPTED_SERVICE_ACCOUNTS", "")
 	gcpServiceURL               = env.GetString("GCP_SERVICE_URL", "")
 	jwkURL                      = env.GetString("JWK_KIDS_URL", "https://www.googleapis.com/service_accounts/v1/metadata/x509/")
-	jwkRetryCount               = 5
-	jwkSleepRetryInterval       = time.Duration(2) * time.Second
-	certCacheMaxRetryCount      = 3
-	retryErrors                 = []string{"crypto/rsa: verification error", "context deadline exceeded"}
+
+	jwkRetryCount          = 5
+	jwkSleepRetryInterval  = time.Duration(2) * time.Second
+	certCacheMaxRetryCount = 3
+	retryErrors            = []string{"crypto/rsa: verification error", "context deadline exceeded"}
 
 	jwtParseWithClaims          = jwt.ParseWithClaims
 	jwtParseRSAPublicKeyFromPEM = jwt.ParseRSAPublicKeyFromPEM
@@ -78,29 +79,32 @@ func (ar *authenticationResponderGCP) WriteResponse(rw http.ResponseWriter, prod
 	}
 }
 
-func AuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip authentication for the /health endpoint
-		if r.URL.Path == "/health" || r.URL.Path == "/metrics" {
-			next.ServeHTTP(w, r)
-			return
-		}
+// AuthMiddleware returns a middleware handler that can be parameterized by skipProjectNumberValidation.
+func AuthMiddleware(skipProjectNumberValidation bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip authentication for the /health endpoint
+			if r.URL.Path == "/health" || r.URL.Path == "/metrics" {
+				next.ServeHTTP(w, r)
+				return
+			}
 
-		responder := AuthenticatedGCP(r, func() middleware.Responder {
-			ctx := context.WithValue(r.Context(), utilsmiddleware.HeaderContextKey, r.Header)
-			r = r.WithContext(ctx)
-			next.ServeHTTP(w, r)
-			return nil
+			responder := AuthenticatedGCP(r, skipProjectNumberValidation, func() middleware.Responder {
+				ctx := context.WithValue(r.Context(), utilsmiddleware.HeaderContextKey, r.Header)
+				r = r.WithContext(ctx)
+				next.ServeHTTP(w, r)
+				return nil
+			})
+			if responder != nil {
+				responder.WriteResponse(w, runtime.JSONProducer())
+			}
 		})
-		if responder != nil {
-			responder.WriteResponse(w, runtime.JSONProducer())
-		}
-	})
+	}
 }
 
 // AuthenticatedGCP authenticates the specified request and, if authentication fails, responds with an authentication failure.
 // If the authentication succeeds, invokes the specified handler function and responds with its results.
-func AuthenticatedGCP(req *http.Request, handler func() middleware.Responder) middleware.Responder {
+func AuthenticatedGCP(req *http.Request, skipProjectNumberValidation bool, handler func() middleware.Responder) middleware.Responder {
 	if runningEnv == "local" {
 		return handler()
 	}
@@ -129,11 +133,13 @@ func AuthenticatedGCP(req *http.Request, handler func() middleware.Responder) mi
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 
-	tokenProjectNumber := strconv.Itoa(claims.Google.ConsumerProjectNumber)
-	err1 := validateProjectNumber(req, tokenProjectNumber)
-	if err1 != nil {
-		slogger.Error("Authentication failure", err1)
-		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
+	if !skipProjectNumberValidation {
+		tokenProjectNumber := strconv.Itoa(claims.Google.ConsumerProjectNumber)
+		err1 := validateProjectNumber(req, tokenProjectNumber)
+		if err1 != nil {
+			slogger.Error("Authentication failure", err1)
+			return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
+		}
 	}
 
 	return handler()
@@ -314,6 +320,11 @@ func shouldRetry(err error, errs []string) bool {
 }
 
 func validateProjectNumber(req *http.Request, tokenProjectNumber string) error {
+	// Check if the URL contains /projects and if it does, then check if the project number matches the token project number
+	if !strings.Contains(req.URL.String(), "/projects") {
+		return errors.New("invalid URL, URL does not contain /projects")
+	}
+
 	splitURL := strings.Split(strings.SplitAfter(req.URL.String(), "/projects")[1], "/")
 	urlProjectNumber := splitURL[1]
 	if urlProjectNumber != tokenProjectNumber {

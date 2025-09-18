@@ -17,6 +17,8 @@ global:
   #NOTE: Adding key values to below coreConfig will be used in creating configmaps for both core and google-proxy as we wanted core config to get reflected in google-proxy as well, override of keys between services can be done by adding key values under resp. service values' overrideCoreConfig tag
   coreConfig:
     gcp: {}
+    gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
+    gcoAuthAcceptedServiceAccounts: ""
     apiCvpMaxRetries: "3"
     apiCvpRetryDelay: "100ms"
     broadcastDomainMtu: "9000"

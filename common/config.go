@@ -19,6 +19,7 @@ type Config struct {
 	GCPPort             string
 	GCPHost             string
 	CorePort            string
+	CoreHost            string
 	ReadTimeout         time.Duration
 	WriteTimeout        time.Duration
 	IdleTimeout         time.Duration
@@ -79,6 +80,7 @@ func LoadConfig() *Config {
 	gcpPort := env.GetString("GCP_PROXY_PORT", "8080")
 	gcpHost := env.GetString("GCP_PROXY_HOST", "")
 	corePort := env.GetString("CORE_API_PORT", "8081")
+	coreHost := env.GetString("CORE_API_HOST", "")
 	readTimeout := parseDuration(env.GetString("READ_TIMEOUT", "30s"))
 	writeTimeout := parseDuration(env.GetString("WRITE_TIMEOUT", "60s"))
 	idleTimeout := parseDuration(env.GetString("IDLE_TIMEOUT", "120s"))
@@ -138,6 +140,7 @@ func LoadConfig() *Config {
 		GCPPort:              gcpPort,
 		GCPHost:              gcpHost,
 		CorePort:             corePort,
+		CoreHost:             coreHost,
 		ReadTimeout:          readTimeout,
 		WriteTimeout:         writeTimeout,
 		IdleTimeout:          idleTimeout,

@@ -1,4 +1,4 @@
-package middleware
+package auth
 
 import (
 	"bytes"
@@ -10,9 +10,11 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,7 +52,7 @@ func TestAuthenticatedGCP(t *testing.T) {
 
 	t.Run("WhenParsingJWTWithClaimsReturnsError", func(tt *testing.T) {
 		jwtErr = errors.New("something went wrong")
-		responder := AuthenticatedGCP(req, nil)
+		responder := AuthenticatedGCP(req, false, nil)
 		if responder == nil {
 			tt.Error("Responder not returned")
 		} else {
@@ -65,7 +67,7 @@ func TestAuthenticatedGCP(t *testing.T) {
 	})
 	t.Run("WhenParsingJWTWithClaimsReturnsValidationError", func(tt *testing.T) {
 		jwtErr = &jwt.ValidationError{Errors: jwt.ValidationErrorMalformed, Inner: errors.New("malformed token")}
-		responder := AuthenticatedGCP(req, nil)
+		responder := AuthenticatedGCP(req, false, nil)
 		if responder == nil {
 			tt.Error("Responder not returned")
 		} else {
@@ -80,7 +82,7 @@ func TestAuthenticatedGCP(t *testing.T) {
 	})
 	t.Run("WhenParsingJWTWithClaimsReturnsNilToken", func(tt *testing.T) {
 		jwtToken = nil
-		responder := AuthenticatedGCP(req, nil)
+		responder := AuthenticatedGCP(req, false, nil)
 		if responder == nil {
 			tt.Error("Responder not returned")
 		} else {
@@ -95,7 +97,7 @@ func TestAuthenticatedGCP(t *testing.T) {
 	})
 	t.Run("WhenParsingJWTWithClaimsReturnsInvalidToken", func(tt *testing.T) {
 		jwtToken = &jwt.Token{}
-		responder := AuthenticatedGCP(req, nil)
+		responder := AuthenticatedGCP(req, false, nil)
 		if responder == nil {
 			tt.Error("Responder not returned")
 		} else {
@@ -110,7 +112,7 @@ func TestAuthenticatedGCP(t *testing.T) {
 	})
 	t.Run("WhenParsingJWTWithClaimsReturnsTokenWithMissingClaims", func(tt *testing.T) {
 		jwtToken = &jwt.Token{Valid: true}
-		responder := AuthenticatedGCP(req, nil)
+		responder := AuthenticatedGCP(req, false, nil)
 		if responder == nil {
 			tt.Error("Responder not returned")
 		} else {
@@ -131,7 +133,7 @@ func TestAuthenticatedGCP(t *testing.T) {
 		jwtToken = &jwt.Token{Valid: true, Claims: &googleClaims{
 			Google: &google{ConsumerProjectNumber: 123456},
 		}}
-		responder := AuthenticatedGCP(req, nil)
+		responder := AuthenticatedGCP(req, false, nil)
 		if responder == nil {
 			tt.Error("Responder not returned")
 		} else {
@@ -529,23 +531,46 @@ func TestFetchJWK(t *testing.T) {
 }
 
 func TestValidateProjectNumber(t *testing.T) {
-	req := &http.Request{}
-	req.Header = make(http.Header)
-	req.Header.Set("Authorization", "")
-	req.URL = &url.URL{
-		Host: "localhost:8000",
-		Path: "/v1beta/projects/123/locations/:locationId/operations/:operationId",
-	}
 	t.Run("WhenValidateProjectNumberFails", func(tt *testing.T) {
+		req := &http.Request{}
+		req.Header = make(http.Header)
+		req.Header.Set("Authorization", "")
+		req.URL = &url.URL{
+			Host: "localhost:8000",
+			Path: "/v1beta/projects/123/locations/:locationId/operations/:operationId",
+		}
 		err := validateProjectNumber(req, "1234")
 		if err == nil {
 			tt.Error("Error expected")
 		}
 	})
 	t.Run("WhenValidateProjectNumberSucceeds", func(tt *testing.T) {
+		req := &http.Request{}
+		req.Header = make(http.Header)
+		req.Header.Set("Authorization", "")
+		req.URL = &url.URL{
+			Host: "localhost:8000",
+			Path: "/v1beta/projects/123/locations/:locationId/operations/:operationId",
+		}
 		err := validateProjectNumber(req, "123")
 		if err != nil {
 			tt.Error("Error unexpectedly returned")
+		}
+	})
+	t.Run("WhenURLDoesNotContainProjects", func(tt *testing.T) {
+		req := &http.Request{}
+		req.Header = make(http.Header)
+		req.Header.Set("Authorization", "")
+		req.URL = &url.URL{
+			Host: "localhost:8000",
+			Path: "/v1beta/locations/:locationId/operations/:operationId",
+		}
+		err := validateProjectNumber(req, "123")
+		if err == nil {
+			tt.Error("Error expected when URL does not contain /projects")
+		}
+		if err != nil && !strings.Contains(err.Error(), "invalid URL, URL does not contain /projects") {
+			tt.Errorf("Expected error about missing /projects, got: %v", err)
 		}
 	})
 }
@@ -569,7 +594,7 @@ func TestAuthMiddleware_BypassForHealthAndMetrics(t *testing.T) {
 			called = false
 			req := httptest.NewRequest("GET", tt.path, nil)
 			rr := httptest.NewRecorder()
-			handler := AuthMiddleware(next)
+			handler := AuthMiddleware(true)(next)
 			handler.ServeHTTP(rr, req)
 			assert.True(t, called, "Handler should be called for %s", tt.path)
 			assert.Equal(t, http.StatusOK, rr.Code)
@@ -591,11 +616,207 @@ func TestAuthMiddleware_DoesNotBypassForOtherRoutes(t *testing.T) {
 			})
 			req := httptest.NewRequest("GET", path, nil)
 			rr := httptest.NewRecorder()
-			handler := AuthMiddleware(next)
+			handler := AuthMiddleware(true)(next)
 			handler.ServeHTTP(rr, req)
 			tt.Errorf("Handler should not return normally for %s", path)
 		})
 	}
+}
+
+func TestAuthMiddleware_SuccessfulAuthentication(t *testing.T) {
+	t.Run("WhenAuthenticationSucceeds", func(tt *testing.T) {
+		// Mock the environment to be non-local so authentication is required
+		originalEnv := runningEnv
+		runningEnv = "test"
+		defer func() { runningEnv = originalEnv }()
+
+		// Mock successful JWT parsing
+		var jwtToken *jwt.Token
+		var jwtErr error
+		jwtParseWithClaimsMock := func(tokenString string, claims jwt.Claims, keyFunc jwt.Keyfunc, options ...jwt.ParserOption) (*jwt.Token, error) {
+			return jwtToken, jwtErr
+		}
+		jwtParseWithClaims = jwtParseWithClaimsMock
+		defer func() { jwtParseWithClaims = jwt.ParseWithClaims }()
+
+		// Set up a valid token
+		jwtToken = &jwt.Token{
+			Valid: true,
+			Claims: &googleClaims{
+				Google: &google{ConsumerProjectNumber: 123},
+			},
+		}
+
+		// Mock successful certificate fetching
+		fetchGoogleCertificates = func(string, string) (map[string]string, error) {
+			return map[string]string{"test-kid": "test-cert"}, nil
+		}
+		defer func() { fetchGoogleCertificates = _fetchGoogleCertificates }()
+
+		// Mock successful RSA key parsing
+		jwtParseRSAPublicKeyFromPEM = func(key []byte) (*rsa.PublicKey, error) {
+			return &rsa.PublicKey{}, nil
+		}
+		defer func() { jwtParseRSAPublicKeyFromPEM = jwt.ParseRSAPublicKeyFromPEM }()
+
+		// Mock successful issuer/audience validation
+		validateIssuerAndAudience = func(claims googleClaims) bool {
+			return true
+		}
+		defer func() { validateIssuerAndAudience = _validateIssuerAndAudience }()
+
+		called := false
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		})
+
+		req := httptest.NewRequest("GET", "/api/test", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		mockLogger := log.NewLogger()
+		req = req.WithContext(context.WithValue(req.Context(), utilsmiddleware.ContextSLoggerKey, mockLogger))
+
+		rr := httptest.NewRecorder()
+		handler := AuthMiddleware(true)(next) // Skip project number validation
+		handler.ServeHTTP(rr, req)
+
+		assert.True(tt, called, "Next handler should be called on successful authentication")
+		assert.Equal(tt, http.StatusOK, rr.Code)
+	})
+}
+
+func TestAuthenticatedGCP_SkipProjectNumberValidation(t *testing.T) {
+	t.Run("WhenSkipProjectNumberValidationIsTrue", func(tt *testing.T) {
+		// Mock the environment to be non-local so authentication is required
+		originalEnv := runningEnv
+		runningEnv = "test"
+		defer func() { runningEnv = originalEnv }()
+
+		// Mock successful JWT parsing
+		var jwtToken *jwt.Token
+		var jwtErr error
+		jwtParseWithClaimsMock := func(tokenString string, claims jwt.Claims, keyFunc jwt.Keyfunc, options ...jwt.ParserOption) (*jwt.Token, error) {
+			return jwtToken, jwtErr
+		}
+		jwtParseWithClaims = jwtParseWithClaimsMock
+		defer func() { jwtParseWithClaims = jwt.ParseWithClaims }()
+
+		// Set up a valid token
+		jwtToken = &jwt.Token{
+			Valid: true,
+			Claims: &googleClaims{
+				Google: &google{ConsumerProjectNumber: 123},
+			},
+		}
+
+		// Mock successful certificate fetching
+		fetchGoogleCertificates = func(string, string) (map[string]string, error) {
+			return map[string]string{"test-kid": "test-cert"}, nil
+		}
+		defer func() { fetchGoogleCertificates = _fetchGoogleCertificates }()
+
+		// Mock successful RSA key parsing
+		jwtParseRSAPublicKeyFromPEM = func(key []byte) (*rsa.PublicKey, error) {
+			return &rsa.PublicKey{}, nil
+		}
+		defer func() { jwtParseRSAPublicKeyFromPEM = jwt.ParseRSAPublicKeyFromPEM }()
+
+		// Mock successful issuer/audience validation
+		validateIssuerAndAudience = func(claims googleClaims) bool {
+			return true
+		}
+		defer func() { validateIssuerAndAudience = _validateIssuerAndAudience }()
+
+		req := &http.Request{}
+		req.Header = make(http.Header)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		mockLogger := log.NewLogger()
+		req = req.WithContext(context.WithValue(req.Context(), utilsmiddleware.ContextSLoggerKey, mockLogger))
+
+		handlerCalled := false
+		handler := func() middleware.Responder {
+			handlerCalled = true
+			return nil
+		}
+
+		responder := AuthenticatedGCP(req, true, handler) // Skip project number validation
+
+		assert.True(tt, handlerCalled, "Handler should be called when skipProjectNumberValidation is true")
+		assert.Nil(tt, responder, "Responder should be nil when handler returns nil")
+	})
+
+	t.Run("WhenSkipProjectNumberValidationIsFalseAndValidationFails", func(tt *testing.T) {
+		// Mock the environment to be non-local so authentication is required
+		originalEnv := runningEnv
+		runningEnv = "test"
+		defer func() { runningEnv = originalEnv }()
+
+		// Mock successful JWT parsing
+		var jwtToken *jwt.Token
+		var jwtErr error
+		jwtParseWithClaimsMock := func(tokenString string, claims jwt.Claims, keyFunc jwt.Keyfunc, options ...jwt.ParserOption) (*jwt.Token, error) {
+			return jwtToken, jwtErr
+		}
+		jwtParseWithClaims = jwtParseWithClaimsMock
+		defer func() { jwtParseWithClaims = jwt.ParseWithClaims }()
+
+		// Set up a valid token with different project number
+		jwtToken = &jwt.Token{
+			Valid: true,
+			Claims: &googleClaims{
+				Google: &google{ConsumerProjectNumber: 123456},
+			},
+		}
+
+		// Mock successful certificate fetching
+		fetchGoogleCertificates = func(string, string) (map[string]string, error) {
+			return map[string]string{"test-kid": "test-cert"}, nil
+		}
+		defer func() { fetchGoogleCertificates = _fetchGoogleCertificates }()
+
+		// Mock successful RSA key parsing
+		jwtParseRSAPublicKeyFromPEM = func(key []byte) (*rsa.PublicKey, error) {
+			return &rsa.PublicKey{}, nil
+		}
+		defer func() { jwtParseRSAPublicKeyFromPEM = jwt.ParseRSAPublicKeyFromPEM }()
+
+		// Mock successful issuer/audience validation
+		validateIssuerAndAudience = func(claims googleClaims) bool {
+			return true
+		}
+		defer func() { validateIssuerAndAudience = _validateIssuerAndAudience }()
+
+		req := &http.Request{}
+		req.Header = make(http.Header)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		req.URL = &url.URL{
+			Host: "localhost:8000",
+			Path: "/v1beta/projects/123/locations/:locationId/operations/:operationId",
+		}
+		mockLogger := log.NewLogger()
+		req = req.WithContext(context.WithValue(req.Context(), utilsmiddleware.ContextSLoggerKey, mockLogger))
+
+		handlerCalled := false
+		handler := func() middleware.Responder {
+			handlerCalled = true
+			return nil
+		}
+
+		responder := AuthenticatedGCP(req, false, handler) // Don't skip project number validation
+
+		assert.False(tt, handlerCalled, "Handler should not be called when project number validation fails")
+		if responder == nil {
+			tt.Error("Responder not returned")
+		} else {
+			if authResponder, ok := responder.(*authenticationResponderGCP); !ok {
+				tt.Error("Responder type does not match expected one")
+			} else {
+				if authResponder.code != http.StatusUnauthorized {
+					tt.Error("Wrong error code in responder")
+				}
+			}
+		}
+	})
 }
 
 type bodyReadCloser struct {

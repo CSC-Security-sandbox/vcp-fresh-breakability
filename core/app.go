@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -25,7 +26,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// github.com/vcp-vsa-control-Plane/vsa-control-plane/core
 func main() {
 	ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, uuid.NewString())
 
@@ -34,7 +34,7 @@ func main() {
 	defer cancel()
 
 	logger := log.NewLogger()
-	logger.Info("Starting VCP Core API")
+	logger.Info("Starting VCP Core API Service")
 
 	// Setup metrics, tracing, and context propagation
 	shutdown, err := log.SetupOpenTelemetry(ctx)
@@ -70,32 +70,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Setup HTTP router
-	mux := chi.NewRouter()
-	mux.Use(httphelpers.LoggingHttpHandler)
-	mux.Use(log.LoggingMiddleware)
-	mux.Use(log.RecoverMiddleware)
-
-	// Mount the generated API handler
-	mux.Mount("/", http.Handler(oasserver))
-	mux.Handle("/metrics", promhttp.Handler())
-
-	// Setup HTTP server with proper timeouts
-	httpServer := &http.Server{
-		Addr:              "localhost:" + cfg.CorePort,
-		Handler:           mux,
-		ReadTimeout:       cfg.ReadTimeout,
-		WriteTimeout:      cfg.WriteTimeout,
-		IdleTimeout:       cfg.IdleTimeout,
-		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
-	}
+	httpServer := setupHTTPServer(cfg, oasserver)
 
 	// Use errgroup to manage goroutines and context
 	eg, ctx := errgroup.WithContext(ctx)
 
 	// Start HTTP server
 	eg.Go(func() error {
-		logger.Info("Starting HTTP server on localhost:" + cfg.CorePort)
+		logger.Info("Starting HTTP server on " + cfg.CoreHost + ":" + cfg.CorePort)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("Failed to start HTTP server", "error", err.Error())
 			return err
@@ -191,4 +173,27 @@ func GetDBConfig(cfg *common.Config) dbutils.DbConfig {
 		dbConfig.AdminUser = cfg.MSIDBUser
 	}
 	return dbConfig
+}
+
+func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
+	// Setup HTTP router
+	mux := chi.NewRouter()
+	mux.Use(httphelpers.LoggingHttpHandler)
+	mux.Use(log.LoggingMiddleware)
+	mux.Use(auth.AuthMiddleware(true)) // true = skip project number validation
+	mux.Use(log.RecoverMiddleware)
+
+	// Mount the generated API handler
+	mux.Mount("/", http.Handler(handler))
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// Setup HTTP server with proper timeouts
+	return &http.Server{
+		Addr:              cfg.CoreHost + ":" + cfg.CorePort,
+		Handler:           mux,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+	}
 }
