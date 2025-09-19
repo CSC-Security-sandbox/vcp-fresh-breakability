@@ -1388,11 +1388,6 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		Deleted:                 utils.SafeTime(in.Deleted),
 		VolumeState:             gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeState(in.VolumeState)),
 		VolumeStateDetails:      gcpgenserver.NewOptString(in.VolumeStateDetails),
-		SecurityStyle:           gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyle(in.SecurityStyle)),
-		ServiceLevel:            gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevel(in.ServiceLevel)),
-		EncryptionType:          gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(in.EncryptionType)),
-		StorageClass:            gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(in.StorageClass)),
-		Network:                 gcpgenserver.NewOptString(in.Network),
 		Zone:                    gcpgenserver.NewOptString(in.Zone),
 		UsedBytes:               utils.SafeFloat64(in.UsedBytes),
 		IsOnPremMigration:       utils.SafeBool(in.IsOnPremMigration),
@@ -1415,6 +1410,26 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		IsDataProtection:        utils.GetOptBool(in.IsDataProtection),
 		CreationToken:           utils.GetOptString(in.CreationToken),
 		HotTierSizeGib:          utils.SafeOptNilFloat64(in.HotTierSizeGib),
+	}
+
+	if in.Network != "" {
+		volume.Network = gcpgenserver.NewOptString(in.Network)
+	}
+
+	if in.SecurityStyle != "" {
+		volume.SecurityStyle = gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyle(in.SecurityStyle))
+	}
+
+	if in.ServiceLevel != "" {
+		volume.ServiceLevel = gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevel(in.ServiceLevel))
+	}
+
+	if in.EncryptionType != "" {
+		volume.EncryptionType = gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(in.EncryptionType))
+	}
+
+	if in.StorageClass != "" {
+		volume.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1beta(in.StorageClass))
 	}
 
 	if in.ExportPolicy != nil {
@@ -1585,6 +1600,10 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 			PeerIpAddresses: in.CacheParameters.PeerIPAddresses,
 			CacheState:      gcpgenserver.NewOptFlexCacheV1betaCacheState(gcpgenserver.FlexCacheV1betaCacheState(in.CacheParameters.CacheState)),
 			Command:         gcpgenserver.NewOptString(in.CacheParameters.Command),
+		}
+
+		if len(in.CacheParameters.PeerIPAddresses) > 0 {
+			cacheParams.PeerIpAddresses = in.CacheParameters.PeerIPAddresses
 		}
 
 		// Add nil checks for these pointer fields

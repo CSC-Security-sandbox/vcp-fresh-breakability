@@ -2456,6 +2456,138 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, "backup-vault-id", result.BackupConfig.Value.BackupVaultId.Value)
 		assert.True(tt, result.BackupConfig.Value.ScheduledBackupEnabled.Value)
 	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithEmptyStringFields", func(tt *testing.T) {
+		// Test that empty string fields are not set in the result
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:       "vol-123",
+			VolumeState:    "active",
+			SecurityStyle:  "", // Empty string
+			ServiceLevel:   "", // Empty string
+			EncryptionType: "", // Empty string
+			StorageClass:   "", // Empty string
+			Network:        "", // Empty string
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "vol-123", result.VolumeId.Value)
+		assert.Equal(tt, gcpgenserver.VolumeV1betaVolumeState("active"), result.VolumeState.Value)
+
+		// These fields should not be set when input values are empty strings
+		assert.False(tt, result.SecurityStyle.IsSet(), "SecurityStyle should not be set for empty string")
+		assert.False(tt, result.ServiceLevel.IsSet(), "ServiceLevel should not be set for empty string")
+		assert.False(tt, result.EncryptionType.IsSet(), "EncryptionType should not be set for empty string")
+		assert.False(tt, result.StorageClass.IsSet(), "StorageClass should not be set for empty string")
+		assert.False(tt, result.Network.IsSet(), "Network should not be set for empty string")
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithNonEmptyStringFields", func(tt *testing.T) {
+		// Test that non-empty string fields are properly set in the result
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:       "vol-123",
+			VolumeState:    "active",
+			SecurityStyle:  "unix",
+			ServiceLevel:   "FLEX",
+			EncryptionType: "SOFTWARE",
+			StorageClass:   "BASIC",
+			Network:        "network-123",
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "vol-123", result.VolumeId.Value)
+		assert.Equal(tt, gcpgenserver.VolumeV1betaVolumeState("active"), result.VolumeState.Value)
+
+		// These fields should be properly set when input values are non-empty
+		assert.True(tt, result.SecurityStyle.IsSet(), "SecurityStyle should be set for non-empty string")
+		assert.Equal(tt, gcpgenserver.VolumeV1betaSecurityStyle("unix"), result.SecurityStyle.Value)
+
+		assert.True(tt, result.ServiceLevel.IsSet(), "ServiceLevel should be set for non-empty string")
+		assert.Equal(tt, gcpgenserver.VolumeV1betaServiceLevel("FLEX"), result.ServiceLevel.Value)
+
+		assert.True(tt, result.EncryptionType.IsSet(), "EncryptionType should be set for non-empty string")
+		assert.Equal(tt, gcpgenserver.VolumeV1betaEncryptionType("SOFTWARE"), result.EncryptionType.Value)
+
+		assert.True(tt, result.StorageClass.IsSet(), "StorageClass should be set for non-empty string")
+		assert.Equal(tt, gcpgenserver.StorageClassV1beta("BASIC"), result.StorageClass.Value)
+
+		assert.True(tt, result.Network.IsSet(), "Network should be set for non-empty string")
+		assert.Equal(tt, "network-123", result.Network.Value)
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithEmptyPeerIPAddresses", func(tt *testing.T) {
+		// Test that empty PeerIPAddresses slice is not set in the result
+		cacheParams := &cvpmodels.FlexCacheV1beta{
+			PeerClusterName:      "test-cluster",
+			PeerSvmName:          "test-svm",
+			PeerVolumeName:       "test-volume",
+			PeerIPAddresses:      []string{}, // Empty slice
+			EnableGlobalFileLock: nillable.GetBoolPtr(true),
+		}
+
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:        "vol-123",
+			VolumeState:     "active",
+			CacheParameters: cacheParams,
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "vol-123", result.VolumeId.Value)
+		assert.True(tt, result.CacheParameters.IsSet(), "CacheParameters should be set")
+		assert.Equal(tt, "test-cluster", result.CacheParameters.Value.PeerClusterName)
+		assert.Equal(tt, "test-svm", result.CacheParameters.Value.PeerSvmName)
+		assert.Equal(tt, "test-volume", result.CacheParameters.Value.PeerVolumeName)
+
+		// PeerIpAddresses should not be set when input slice is empty
+		assert.Len(tt, result.CacheParameters.Value.PeerIpAddresses, 0, "PeerIpAddresses should be empty for empty input slice")
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithNonEmptyPeerIPAddresses", func(tt *testing.T) {
+		// Test that non-empty PeerIPAddresses slice is properly set in the result
+		cacheParams := &cvpmodels.FlexCacheV1beta{
+			PeerClusterName:      "test-cluster",
+			PeerSvmName:          "test-svm",
+			PeerVolumeName:       "test-volume",
+			PeerIPAddresses:      []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"}, // Non-empty slice
+			EnableGlobalFileLock: nillable.GetBoolPtr(true),
+		}
+
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:        "vol-123",
+			VolumeState:     "active",
+			CacheParameters: cacheParams,
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "vol-123", result.VolumeId.Value)
+		assert.True(tt, result.CacheParameters.IsSet(), "CacheParameters should be set")
+		assert.Equal(tt, "test-cluster", result.CacheParameters.Value.PeerClusterName)
+		assert.Equal(tt, "test-svm", result.CacheParameters.Value.PeerSvmName)
+		assert.Equal(tt, "test-volume", result.CacheParameters.Value.PeerVolumeName)
+
+		// PeerIpAddresses should be properly set when input slice is non-empty
+		assert.Len(tt, result.CacheParameters.Value.PeerIpAddresses, 3, "PeerIpAddresses should have 3 elements")
+		assert.Equal(tt, "10.0.0.1", result.CacheParameters.Value.PeerIpAddresses[0])
+		assert.Equal(tt, "10.0.0.2", result.CacheParameters.Value.PeerIpAddresses[1])
+		assert.Equal(tt, "10.0.0.3", result.CacheParameters.Value.PeerIpAddresses[2])
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithNilCacheParameters", func(tt *testing.T) {
+		// Test that nil CacheParameters doesn't cause issues
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:        "vol-123",
+			VolumeState:     "active",
+			CacheParameters: nil, // nil cache parameters
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "vol-123", result.VolumeId.Value)
+		assert.False(tt, result.CacheParameters.IsSet(), "CacheParameters should not be set when nil")
+	})
 }
 
 func TestConvertFromSnapshotPolicyV2(t *testing.T) {
