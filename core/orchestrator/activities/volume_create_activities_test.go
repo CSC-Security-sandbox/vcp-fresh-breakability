@@ -2324,6 +2324,238 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		mockProvider.AssertExpectations(tt)
 	})
 }
+func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	// Set up file protocol support for testing
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
+	defer func() {
+		// Clean up environment variables after test
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduler := &scheduler.TemporalScheduler{}
+	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Create test data
+	exportPolicyName := "test-export-policy"
+	junctionPath := "/test/junction/path"
+
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:        "test-volume",
+		SizeInBytes: 1073741824, // 1GB
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account", // This should be a file protocol account
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			SnapReserve:  10,
+			Protocols:    []string{"NFS"}, // Add this line - NAS protocol for file volume
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: exportPolicyName,
+				},
+				JunctionPath: junctionPath,
+			},
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "test-snapshot-policy",
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		ExternalUUID:    "test-node-uuid",
+		EndpointAddress: "test-endpoint",
+		State:           "online",
+	}
+
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test-snapshot",
+	}
+
+	// Mock the provider
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock hyperscaler2.GetProviderByNode (note: use hyperscaler2, not hyperscaler)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Act
+	err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node, snapshot)
+
+	// Assert
+	assert.NoError(t, err)
+
+	// Verify that UpdateVolume was called with the correct parameters
+	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.Size == volume.SizeInBytes &&
+			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
+			*params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.ExportPolicy != nil && *params.ExportPolicy == exportPolicyName &&
+			params.JunctionPath != nil && *params.JunctionPath == junctionPath
+	}))
+
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
+	// This test covers the case where file protocol is not supported
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduler := &scheduler.TemporalScheduler{}
+	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Create test data for non-file volume
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:        "test-volume",
+		SizeInBytes: 1073741824, // 1GB
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "block-account", // This should be a block protocol account
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			SnapReserve:  10,
+			// No FileProperties for block volume
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "test-snapshot-policy",
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		ExternalUUID:    "test-node-uuid",
+		EndpointAddress: "test-endpoint",
+		State:           "online",
+	}
+
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test-snapshot",
+	}
+
+	// Mock the provider
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Act
+	err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node, snapshot)
+
+	// Assert
+	assert.NoError(t, err)
+
+	// Verify that UpdateVolume was called with the correct parameters (without ExportPolicy and JunctionPath)
+	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.Size == volume.SizeInBytes &&
+			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
+			*params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.ExportPolicy == nil &&
+			params.JunctionPath == nil
+	}))
+
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t *testing.T) {
+	// This test covers the case where file protocol is supported but ExportPolicy is nil
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduler := &scheduler.TemporalScheduler{}
+	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Create test data for file volume without ExportPolicy
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:        "test-volume",
+		SizeInBytes: 1073741824, // 1GB
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account", // This should be a file protocol account
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			SnapReserve:  10,
+			FileProperties: &datamodel.FileProperties{
+				// ExportPolicy is nil
+				JunctionPath: "/test/junction/path",
+			},
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "test-snapshot-policy",
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		ExternalUUID:    "test-node-uuid",
+		EndpointAddress: "test-endpoint",
+		State:           "online",
+	}
+
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test-snapshot",
+	}
+
+	// Mock the provider
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Act
+	err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node, snapshot)
+
+	// Assert
+	assert.NoError(t, err)
+
+	// Verify that UpdateVolume was called with the correct parameters (without ExportPolicy and JunctionPath)
+	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.Size == volume.SizeInBytes &&
+			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
+			*params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.ExportPolicy == nil &&
+			params.JunctionPath == nil
+	}))
+
+	mockProvider.AssertExpectations(t)
+}
 
 func TestUpdateLunName(t *testing.T) {
 	t.Run("TestUpdateLunNameSuccess", func(tt *testing.T) {

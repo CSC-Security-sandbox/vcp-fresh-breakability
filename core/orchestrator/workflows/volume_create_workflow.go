@@ -362,9 +362,11 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// Calculate the available LUN space by subtracting the reserved space for snapshots
 	lunSpace := dbVolume.SizeInBytes * (100 - int64(dbVolume.VolumeAttributes.SnapReserve)) / 100
 	if isRestoreSnapshot {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.LunSizeUpdateValidation, &dbVolume, &node, lunSpace, &snapshot).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
+		if utils.IsSanProtocols(dbVolume.VolumeAttributes.Protocols) {
+			err = workflow.ExecuteActivity(ctx, volumeActivity.LunSizeUpdateValidation, &dbVolume, &node, lunSpace, &snapshot).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
 		}
 		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateClonedVolumeBeforeSplit, &dbVolume, &node, &snapshot).Get(ctx, nil)
 		if err != nil {

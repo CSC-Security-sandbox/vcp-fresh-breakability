@@ -121,6 +121,12 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			logger.Error("Failed to fetch parent snapshot for volume creation. Please use the correct snapshot and retry again.", "error", err)
 			return nil, "", err
 		}
+		if params.Protocols != nil && dbSnapshot != nil && dbSnapshot.Volume != nil && dbSnapshot.Volume.VolumeAttributes != nil && dbSnapshot.Volume.VolumeAttributes.Protocols != nil {
+			if (utils.IsSanProtocols(params.Protocols) && utils.IsNasProtocols(dbSnapshot.Volume.VolumeAttributes.Protocols)) || (utils.IsNasProtocols(params.Protocols) && utils.IsSanProtocols(dbSnapshot.Volume.VolumeAttributes.Protocols)) {
+				logger.Error("Snapshot volume protocol type does not match requested volume protocol type", "snapshot_protocols", dbSnapshot.Volume.VolumeAttributes.Protocols, "requested_protocols", params.Protocols)
+				return nil, "", customerrors.NewUserInputValidationErr("Snapshot volume protocol type does not match requested volume protocol type. Please use the correct snapshot and retry again.")
+			}
+		}
 		if dbSnapshot.State != models.LifeCycleStateREADY {
 			logger.Error("Parent snapshot is not in a valid state for volume creation", "snapshot_state", dbSnapshot.State)
 			return nil, "", customerrors.NewUserInputValidationErr("Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
@@ -1524,7 +1530,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 	}
 
 	// Validate snapReserve changes to ensure sufficient LUN space
-	if params.SnapReserve != nil && volume.VolumeAttributes != nil && *params.SnapReserve != volume.VolumeAttributes.SnapReserve {
+	if params.SnapReserve != nil && volume.VolumeAttributes != nil && utils.IsSanProtocols(volume.VolumeAttributes.Protocols) && *params.SnapReserve != volume.VolumeAttributes.SnapReserve {
 		if *params.SnapReserve > volume.VolumeAttributes.SnapReserve {
 			var requiredQuotaInBytes int64
 			// Calculate current available LUN space

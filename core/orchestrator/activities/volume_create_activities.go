@@ -995,6 +995,10 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 		SnapshotPolicyName: volume.SnapshotPolicy.Name,
 		SnapReserve:        &volume.VolumeAttributes.SnapReserve,
 	}
+	if volume.VolumeAttributes != nil && utils.IsNasProtocols(volume.VolumeAttributes.Protocols) && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
+		preSplitUpdateParams.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
+		preSplitUpdateParams.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
+	}
 	err = updateVolume(ctx, provider, *preSplitUpdateParams)
 	if err != nil {
 		logger.Errorf("Failed to update cloned volume %s in ontap before split: %v", volume.Name, err)

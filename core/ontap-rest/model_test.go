@@ -742,6 +742,38 @@ func TestVolumeModifyParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result.Info.AntiRansomware)
 		assert.Equal(tt, &val, result.Info.AntiRansomware.State)
 	})
+
+	t.Run("WhenExportPolicySet_ThenNasExportPolicyIsSet", func(tt *testing.T) {
+		exportPolicy := "test-export-policy"
+		params := &VolumeModifyParams{UUID: "uuid", ExportPolicy: &exportPolicy}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.NotNil(tt, result.Info.Nas.ExportPolicy)
+		assert.Equal(tt, exportPolicy, *result.Info.Nas.ExportPolicy.Name)
+	})
+
+	t.Run("WhenPathSet_ThenNasPathIsSet", func(tt *testing.T) {
+		path := "/test/junction/path"
+		params := &VolumeModifyParams{UUID: "uuid", Path: &path}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.Equal(tt, &path, result.Info.Nas.Path)
+	})
+
+	t.Run("WhenExportPolicyAndPathSet_ThenBothNasFieldsAreSet", func(tt *testing.T) {
+		exportPolicy := "test-export-policy"
+		path := "/test/junction/path"
+		params := &VolumeModifyParams{
+			UUID:         "uuid",
+			ExportPolicy: &exportPolicy,
+			Path:         &path,
+		}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.NotNil(tt, result.Info.Nas.ExportPolicy)
+		assert.Equal(tt, exportPolicy, *result.Info.Nas.ExportPolicy.Name)
+		assert.Equal(tt, &path, result.Info.Nas.Path)
+	})
 }
 
 func TestVolumeUnmountParamsToONTAP(t *testing.T) {

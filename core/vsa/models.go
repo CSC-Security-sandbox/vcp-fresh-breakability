@@ -198,6 +198,8 @@ type UpdateVolumeParams struct {
 	TieringPolicy      *TieringPolicy
 	SnapReserve        *int64
 	EncryptionEnable   bool
+	JunctionPath       *string
+	ExportPolicy       *string
 }
 
 // RevertVolumeParams describes parameters supplied to Provider.RevertVolume

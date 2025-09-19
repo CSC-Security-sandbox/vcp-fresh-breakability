@@ -1094,6 +1094,140 @@ func TestUpdateVolumeEnableEncryption(t *testing.T) {
 	})
 }
 
+func TestUpdateVolume_WithExportPolicyAndJunctionPath(t *testing.T) {
+	t.Run("WhenExportPolicyIsSet_ShouldSetExportPolicyInVolumeModifyParams", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		exportPolicy := "test-export-policy"
+		params := UpdateVolumeParams{
+			UUID:         "testUUID",
+			ExportPolicy: &exportPolicy,
+		}
+
+		// Mock VolumeModify to capture the parameters and verify ExportPolicy is set
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(volumeModifyParams *ontaprest.VolumeModifyParams) bool {
+			return volumeModifyParams.ExportPolicy != nil && *volumeModifyParams.ExportPolicy == exportPolicy
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenJunctionPathIsSet_ShouldSetPathInVolumeModifyParams", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		junctionPath := "/test/junction/path"
+		params := UpdateVolumeParams{
+			UUID:         "testUUID",
+			JunctionPath: &junctionPath,
+		}
+
+		// Mock VolumeModify to capture the parameters and verify Path is set
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(volumeModifyParams *ontaprest.VolumeModifyParams) bool {
+			return volumeModifyParams.Path != nil && *volumeModifyParams.Path == junctionPath
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBothExportPolicyAndJunctionPathAreSet_ShouldSetBothInVolumeModifyParams", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		exportPolicy := "test-export-policy"
+		junctionPath := "/test/junction/path"
+		params := UpdateVolumeParams{
+			UUID:         "testUUID",
+			ExportPolicy: &exportPolicy,
+			JunctionPath: &junctionPath,
+		}
+
+		// Mock VolumeModify to capture the parameters and verify both are set
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(volumeModifyParams *ontaprest.VolumeModifyParams) bool {
+			return volumeModifyParams.ExportPolicy != nil && *volumeModifyParams.ExportPolicy == exportPolicy &&
+				volumeModifyParams.Path != nil && *volumeModifyParams.Path == junctionPath
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenExportPolicyAndJunctionPathAreNil_ShouldNotSetInVolumeModifyParams", func(tt *testing.T) {
+		// This test ensures the conditional logic works correctly when fields are nil
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := UpdateVolumeParams{
+			UUID:         "testUUID",
+			ExportPolicy: nil, // nil - should not trigger line 254
+			JunctionPath: nil, // nil - should not trigger line 257
+		}
+
+		// Mock VolumeModify to capture the parameters and verify neither is set
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(volumeModifyParams *ontaprest.VolumeModifyParams) bool {
+			return volumeModifyParams.ExportPolicy == nil && volumeModifyParams.Path == nil
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 func TestRevertVolume(t *testing.T) {
 	t.Run("TestRevertVolume_Success", func(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)

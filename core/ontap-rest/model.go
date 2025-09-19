@@ -1219,6 +1219,16 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 		info.Encryption = &models.VolumeInlineEncryption{Enabled: params.EncryptionEnable}
 	}
 
+	if params.ExportPolicy != nil || params.Path != nil {
+		info.Nas = &models.VolumeInlineNas{}
+		if params.ExportPolicy != nil {
+			info.Nas.ExportPolicy = &models.VolumeInlineNasInlineExportPolicy{Name: params.ExportPolicy}
+		}
+		if params.Path != nil {
+			info.Nas.Path = params.Path
+		}
+	}
+
 	otParams.SetInfo(info)
 	return otParams
 }

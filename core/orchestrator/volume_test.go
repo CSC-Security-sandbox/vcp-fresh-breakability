@@ -4186,6 +4186,744 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 	assert.Equal(tt, int32(5), *volume.LargeVolumeConstituentCount)
 }
 
+func TestCreateVolume_ProtocolValidation(t *testing.T) {
+	t.Run("WhenNASProtocolMismatchWithSANSnapshot", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Errorf("Failed to create test storage: %v", err)
+			return
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Errorf("Failed to clean up test storage: %v", err)
+			return
+		}
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Errorf("Failed to create account: %v", err)
+			return
+		}
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Errorf("Failed to create pool: %v", err)
+			return
+		}
+
+		// Create test SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Errorf("Failed to create svm: %v", err)
+			return
+		}
+
+		// Create source volume with SAN protocols (ISCSI)
+		sourceVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-source-volume-uuid"},
+			Name:      "test_source_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			SvmID:     svm.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"ISCSI"}, // SAN protocol
+			},
+		}
+		err = store.DB().Create(sourceVolume).Error
+		if err != nil {
+			tt.Errorf("Failed to create source volume: %v", err)
+			return
+		}
+
+		// Create snapshot with SAN source volume
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  sourceVolume.ID,
+			State:     "READY",
+			Volume:    sourceVolume,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Errorf("Failed to create snapshot: %v", err)
+			return
+		}
+
+		// Create volume params with NAS protocols (NFS)
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_volume",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"}, // NAS protocol - mismatch with snapshot
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		// Mock functions
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+
+		// Should fail with protocol mismatch error
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Snapshot volume protocol type does not match requested volume protocol type")
+	})
+
+	t.Run("WhenSANProtocolMismatchWithNASSnapshot", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Errorf("Failed to create test storage: %v", err)
+			return
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Errorf("Failed to clean up test storage: %v", err)
+			return
+		}
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Errorf("Failed to create account: %v", err)
+			return
+		}
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Errorf("Failed to create pool: %v", err)
+			return
+		}
+
+		// Create test SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Errorf("Failed to create svm: %v", err)
+			return
+		}
+
+		// Create source volume with NAS protocols (NFS)
+		sourceVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-source-volume-uuid"},
+			Name:      "test_source_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			SvmID:     svm.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFS"}, // NAS protocol
+			},
+		}
+		err = store.DB().Create(sourceVolume).Error
+		if err != nil {
+			tt.Errorf("Failed to create source volume: %v", err)
+			return
+		}
+
+		// Create snapshot with NAS source volume
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  sourceVolume.ID,
+			State:     "READY",
+			Volume:    sourceVolume,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Errorf("Failed to create snapshot: %v", err)
+			return
+		}
+
+		// Create volume params with SAN protocols (ISCSI)
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_volume",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"ISCSI"}, // SAN protocol - mismatch with snapshot
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		// Mock functions
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+
+		// Should fail with protocol mismatch error
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Snapshot volume protocol type does not match requested volume protocol type")
+	})
+
+	t.Run("WhenProtocolsMatch_SANToSAN", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Errorf("Failed to create test storage: %v", err)
+			return
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Errorf("Failed to clean up test storage: %v", err)
+			return
+		}
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Errorf("Failed to create account: %v", err)
+			return
+		}
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Errorf("Failed to create pool: %v", err)
+			return
+		}
+
+		// Create test SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Errorf("Failed to create svm: %v", err)
+			return
+		}
+
+		// Create source volume with SAN protocols (ISCSI)
+		sourceVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-source-volume-uuid"},
+			Name:      "test_source_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			SvmID:     svm.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"ISCSI"}, // SAN protocol
+			},
+		}
+		err = store.DB().Create(sourceVolume).Error
+		if err != nil {
+			tt.Errorf("Failed to create source volume: %v", err)
+			return
+		}
+
+		// Create snapshot with SAN source volume
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  sourceVolume.ID,
+			State:     "READY",
+			Volume:    sourceVolume,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Errorf("Failed to create snapshot: %v", err)
+			return
+		}
+
+		// Create volume params with SAN protocols (ISCSI) - matching
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_volume",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"ISCSI"}, // SAN protocol - matches snapshot
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		// Mock functions
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		// Mock the workflow execution to return success
+		temporal.On("SignalWithStartWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, _, err = createVolume(ctx, store, temporal, params)
+
+		// Should not fail due to protocol validation (may fail for other reasons like workflow execution)
+		// The key is that it should not fail with protocol mismatch error
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Snapshot volume protocol type does not match requested volume protocol type")
+		}
+	})
+
+	t.Run("WhenProtocolsMatch_NASToNAS", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Errorf("Failed to create test storage: %v", err)
+			return
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Errorf("Failed to clean up test storage: %v", err)
+			return
+		}
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Errorf("Failed to create account: %v", err)
+			return
+		}
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Errorf("Failed to create pool: %v", err)
+			return
+		}
+
+		// Create test SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Errorf("Failed to create svm: %v", err)
+			return
+		}
+
+		// Create source volume with NAS protocols (NFS)
+		sourceVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-source-volume-uuid"},
+			Name:      "test_source_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			SvmID:     svm.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFS"}, // NAS protocol
+			},
+		}
+		err = store.DB().Create(sourceVolume).Error
+		if err != nil {
+			tt.Errorf("Failed to create source volume: %v", err)
+			return
+		}
+
+		// Create snapshot with NAS source volume
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  sourceVolume.ID,
+			State:     "READY",
+			Volume:    sourceVolume,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Errorf("Failed to create snapshot: %v", err)
+			return
+		}
+
+		// Create volume params with NAS protocols (NFS) - matching
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_volume",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"}, // NAS protocol - matches snapshot
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		// Mock functions
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		// Mock the workflow execution to return success
+		temporal.On("SignalWithStartWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, _, err = createVolume(ctx, store, temporal, params)
+
+		// Should not fail due to protocol validation (may fail for other reasons like workflow execution)
+		// The key is that it should not fail with protocol mismatch error
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Snapshot volume protocol type does not match requested volume protocol type")
+		}
+	})
+
+	t.Run("WhenSnapshotVolumeIsNil", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Errorf("Failed to create test storage: %v", err)
+			return
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Errorf("Failed to clean up test storage: %v", err)
+			return
+		}
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Errorf("Failed to create account: %v", err)
+			return
+		}
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Errorf("Failed to create pool: %v", err)
+			return
+		}
+
+		// Create snapshot without volume (nil volume)
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  999, // Non-existent volume ID
+			State:     "READY",
+			Volume:    nil, // Nil volume
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Errorf("Failed to create snapshot: %v", err)
+			return
+		}
+
+		// Create volume params
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_volume",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		// Mock functions
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		_, _, err = createVolume(ctx, store, temporal, params)
+
+		// Should not fail due to protocol validation since volume is nil
+		// The validation should be skipped when volume is nil
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Snapshot volume protocol type does not match requested volume protocol type")
+		}
+	})
+
+	t.Run("WhenSnapshotVolumeAttributesIsNil", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Errorf("Failed to create test storage: %v", err)
+			return
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Errorf("Failed to clean up test storage: %v", err)
+			return
+		}
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Errorf("Failed to create account: %v", err)
+			return
+		}
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Errorf("Failed to create pool: %v", err)
+			return
+		}
+
+		// Create test SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Errorf("Failed to create svm: %v", err)
+			return
+		}
+
+		// Create source volume with nil VolumeAttributes
+		sourceVolume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "test-source-volume-uuid"},
+			Name:             "test_source_volume",
+			AccountID:        account.ID,
+			PoolID:           pool.ID,
+			SvmID:            svm.ID,
+			VolumeAttributes: nil, // Nil VolumeAttributes
+		}
+		err = store.DB().Create(sourceVolume).Error
+		if err != nil {
+			tt.Errorf("Failed to create source volume: %v", err)
+			return
+		}
+
+		// Create snapshot with volume that has nil VolumeAttributes
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  sourceVolume.ID,
+			State:     "READY",
+			Volume:    sourceVolume,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Errorf("Failed to create snapshot: %v", err)
+			return
+		}
+
+		// Create volume params
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_volume",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		// Mock functions
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		// Mock the workflow execution to return success
+		temporal.On("SignalWithStartWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, _, err = createVolume(ctx, store, temporal, params)
+
+		// Should not fail due to protocol validation since VolumeAttributes is nil
+		// The validation should be skipped when VolumeAttributes is nil
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Snapshot volume protocol type does not match requested volume protocol type")
+		}
+	})
+}
+
 func TestOrchestrator_CreateVolume(t *testing.T) {
 	// Arrange
 	mockStorage := &database.MockStorage{}
@@ -9166,6 +9904,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 20, // 20% current snapReserve
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(30) // 30% new snapReserve
@@ -9184,6 +9923,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 20, // 20% current snapReserve
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(99) // 99% new snapReserve (leaves 1GB, which is exactly at minimum)
@@ -9202,6 +9942,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 20, // 20% current snapReserve
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		// 99GB snapReserve leaves 1GB for LUN (exactly at minimum)
@@ -9221,6 +9962,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 50, // 50% current snapReserve
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(30) // 30% new snapReserve
@@ -9238,6 +9980,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 30, // 30% current snapReserve
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(30) // Same snapReserve value
@@ -9255,6 +9998,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 2 * 1024 * 1024 * 1024, // 2 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 10, // 10% current snapReserve
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(60) // 60% new snapReserve (would leave 0.8GB for LUN)
@@ -9273,6 +10017,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 1024 * 1024 * 1024 * 1024, // 1 TB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 20, // 20% current snapReserve
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(80) // 80% new snapReserve (would leave 200GB for LUN)
@@ -9307,6 +10052,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 20, // 20% current snapReserve (leaves 80GB for LUN)
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(80)                        // 80% new snapReserve
@@ -9332,6 +10078,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 20, // 20% current snapReserve (leaves 80GB for LUN)
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(60)                        // 60% new snapReserve
@@ -9356,6 +10103,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 20, // 20% current snapReserve (leaves 80GB for LUN)
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(40)                        // 40% new snapReserve
@@ -9379,6 +10127,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 1000 * 1024 * 1024 * 1024, // 1000 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 25, // 25% current snapReserve (leaves 750GB for LUN)
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(50)                         // 50% new snapReserve
@@ -9403,6 +10152,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 20, // 20% current snapReserve (leaves 80GB for LUN)
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(40)                        // 40% new snapReserve
@@ -9427,6 +10177,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GB
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 0, // Starting with 0% snapReserve
+				Protocols:   []string{utils.ProtocolISCSI},
 			},
 		}
 		newSnapReserve := int64(50) // 50% new snapReserve

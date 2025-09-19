@@ -296,6 +296,13 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		}
 		volumeModifyParams.SnapshotPolicyName = nillable.GetStringPtr(params.SnapshotPolicyName)
 	}
+
+	if params.ExportPolicy != nil {
+		volumeModifyParams.ExportPolicy = params.ExportPolicy
+	}
+	if params.JunctionPath != nil {
+		volumeModifyParams.Path = params.JunctionPath
+	}
 	success, job, err := client.Storage().VolumeModify(volumeModifyParams)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
