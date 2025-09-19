@@ -42,8 +42,8 @@ data:
             metric_statements:
               - context: resource
                 statements:
-                  - set(resource.attributes["gcp.project.id"], resource.attributes["tenant_project"])
-                  - delete_key(resource.attributes, "tenant_project")
+                  - set(attributes["gcp.project.id"],attributes["tenant_project"])
+                  - delete_key(attributes, "tenant_project")
     receivers:
         prometheus:
             config:
