@@ -2,8 +2,9 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 )
 
@@ -17,8 +18,12 @@ func NewProcessUsageMetrics(data string) *ProcessUsageMetrics {
 	}
 }
 
-func (e ProcessUsageMetrics) Perform(p *processor.MetricsProcessor, attempt int32) error {
-	err := (*p).ProcessUsageMetrics(context.Background())
+func (e ProcessUsageMetrics) Perform(p interface{}, attempt int32) error {
+	proc, ok := p.(common.VCPProcessor)
+	if !ok {
+		return fmt.Errorf("invalid processor type: %T", p)
+	}
+	err := proc.ProcessUsageMetrics(context.Background())
 	if err != nil {
 		return err
 	}

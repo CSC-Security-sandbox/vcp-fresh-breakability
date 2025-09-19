@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"time"
 )
@@ -33,8 +34,10 @@ func (w *MetricClientWrapper) IsNil() bool {
 }
 
 type VolumeMetricsProvider interface {
-	GetVolumeMetrics(context.Context, log.Logger) ([]datamodel.HydratedMetrics, error)
+	GetVolumeMetrics(context.Context, log.Logger) error
+	CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error)
 	GetClient() MonitoringClient
+	SetJobQueue(q *utils.JobQueue)
 	RefreshTimeWindow()
 }
 type TenantProjectProvider interface {
@@ -54,6 +57,10 @@ func (p *GoogleVolumeMetricsProvider) GetClient() MonitoringClient {
 	return p.client
 }
 
+func (g *GoogleVolumeMetricsProvider) SetJobQueue(q *utils.JobQueue) {
+	g.jobQueue = q
+}
+
 func (p *GoogleVolumeMetricsProvider) RefreshTimeWindow() {
 	p.startTime = time.Now().Add(-5 * time.Minute)
 	p.endTime = time.Now()
@@ -65,6 +72,8 @@ type GoogleVolumeMetricsProvider struct {
 	startTime             time.Time
 	endTime               time.Time
 	metrics               []common.MetricItem
+	jobQueue              *utils.JobQueue
+	MetricList            []datamodel.HydratedMetrics
 }
 
 func NewGoogleVolumeMetricsProvider(tenantProjectProvider TenantProjectProvider, client MonitoringClient, VolumeMetrics []common.MetricItem) *GoogleVolumeMetricsProvider {

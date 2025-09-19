@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
 )
 
 // MockJob implements the Job interface for testing
@@ -23,7 +22,7 @@ type MockJob struct {
 	Data string `json:"data"`
 }
 
-func (m MockJob) Perform(processor *processor.MetricsProcessor, attempt int32) error {
+func (m MockJob) Perform(processor interface{}, attempt int32) error {
 	if m.ID == "fail" {
 		return fmt.Errorf("mock job failed")
 	}
@@ -44,7 +43,7 @@ type FailingJob struct {
 	ID string `json:"id"`
 }
 
-func (f FailingJob) Perform(processor *processor.MetricsProcessor, attempt int32) error {
+func (f FailingJob) Perform(processor interface{}, attempt int32) error {
 	return fmt.Errorf("failing job always fails")
 }
 
@@ -62,7 +61,7 @@ type UnmarshalableJob struct {
 	BadField chan string `json:"bad_field"` // channels can't be marshaled
 }
 
-func (u UnmarshalableJob) Perform(processor *processor.MetricsProcessor, attempt int32) error {
+func (u UnmarshalableJob) Perform(processor interface{}, attempt int32) error {
 	return nil
 }
 
@@ -103,19 +102,19 @@ func setupTestDB(t *testing.T) (*sql.DB, func()) {
 	return sqlDB, cleanup
 }
 
-// mockJobQueue wraps JobQueue but modifies the Dequeue method to work with SQLite
-type mockJobQueue struct {
+// MockJobQueue wraps JobQueue but modifies the Dequeue method to work with SQLite
+type MockJobQueue struct {
 	*JobQueue
 }
 
-func newMockQueue(db *sql.DB, processor *processor.MetricsProcessor) *mockJobQueue {
-	return &mockJobQueue{
+func newMockQueue(db *sql.DB, processor interface{}) *MockJobQueue {
+	return &MockJobQueue{
 		JobQueue: NewQueue(db, processor),
 	}
 }
 
 // Dequeue method modified for SQLite compatibility
-func (mq *mockJobQueue) Dequeue(ctx context.Context, queues []string) error {
+func (mq *MockJobQueue) Dequeue(ctx context.Context, queues []string) error {
 	var job datamodel.Job
 
 	tx, err := mq.db.BeginTx(ctx, nil)
@@ -242,7 +241,7 @@ func TestNewQueue(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	assert.NotNil(t, queue)
@@ -256,7 +255,7 @@ func TestJobQueue_Enqueue(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -291,7 +290,7 @@ func TestJobQueue_EnqueueAt(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -317,7 +316,7 @@ func TestJobQueue_EnqueueMarshalError(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -339,7 +338,7 @@ func TestJobQueue_Dequeue_NoJobs(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 
 	// Register the job type
@@ -353,7 +352,7 @@ func TestJobQueue_Dequeue_Success(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -380,7 +379,7 @@ func TestJobQueue_Dequeue_JobFailure(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -411,7 +410,7 @@ func TestJobQueue_Dequeue_UnknownJobType(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -436,7 +435,7 @@ func TestJobQueue_Dequeue_ScheduledJob_NotReady(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -464,7 +463,7 @@ func TestJobQueue_Dequeue_ScheduledJob_Ready(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -495,7 +494,7 @@ func TestJobQueue_Dequeue_RetryLogic(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -533,7 +532,7 @@ func TestJobQueue_Worker(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Create a context that will be canceled after a short time
@@ -550,7 +549,7 @@ func TestJobQueue_Worker_ProcessesJobs(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor) // Use real queue instead of mock
 
 	// Enqueue a job before starting the worker
@@ -579,7 +578,7 @@ func TestJobQueue_TypeName(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Test with pointer type
@@ -597,7 +596,7 @@ func TestJobQueue_RegisterType(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Register a type
@@ -612,7 +611,7 @@ func TestJobQueue_GetType(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Register a type
@@ -748,7 +747,7 @@ func TestJobQueue_Dequeue_DatabaseError(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -764,7 +763,7 @@ func TestJobQueue_Enqueue_DatabaseError(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -782,7 +781,7 @@ func TestJobQueue_Dequeue_MultipleQueues(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -842,7 +841,7 @@ func TestJobQueue_EnqueueAt_DatabaseError(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -861,7 +860,7 @@ func TestJobQueue_EnqueueAt_MarshalError(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -879,7 +878,7 @@ type LoadErrorJob struct {
 	ID string `json:"id"`
 }
 
-func (l LoadErrorJob) Perform(processor *processor.MetricsProcessor, attempt int32) error {
+func (l LoadErrorJob) Perform(processor interface{}, attempt int32) error {
 	return nil
 }
 
@@ -891,7 +890,7 @@ func TestJobQueue_Dequeue_LoadError(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -913,7 +912,7 @@ func TestJobQueue_Dequeue_EmptyQueues(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -940,7 +939,7 @@ func TestJobQueue_Dequeue_TransactionBeginError(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 	ctx := context.Background()
 
@@ -955,7 +954,7 @@ func TestJobQueue_Worker_EmptyTypes(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Create a context that will be canceled after a short time
@@ -972,7 +971,7 @@ func TestJobQueue_Worker_WithMultipleTypes(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Create a context that will be canceled after a short time
@@ -994,7 +993,7 @@ func TestJobQueue_Dequeue_ContextCancellation(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := newMockQueue(db, mockProcessor)
 
 	// Register the job type
@@ -1014,7 +1013,7 @@ func TestJobQueue_TypeName_EdgeCases(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Test with double pointer
@@ -1032,7 +1031,7 @@ func TestJobQueue_RegisterType_Multiple(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Register multiple types
@@ -1051,7 +1050,7 @@ func TestJobQueue_GetType_AfterRegistration(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(db, mockProcessor)
 
 	// Register types
@@ -1195,7 +1194,7 @@ func BenchmarkJobQueue_Enqueue(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	mockProcessor := &processor.MetricsProcessor{}
+	var mockProcessor interface{}
 	queue := NewQueue(sqlDB, mockProcessor)
 	ctx := context.Background()
 

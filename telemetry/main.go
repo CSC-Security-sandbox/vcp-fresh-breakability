@@ -32,6 +32,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var (
+	PerformanceQueue = "performance"
+	UsageQueue       = "usage"
+	CollectionQueue  = "collection"
+)
+
 func main() {
 	logger := log.NewLogger()
 	logger.Info("Starting Telemetry Server")
@@ -61,6 +67,8 @@ func main() {
 
 	logger.Info("Successfully connected to Telemetry database...")
 
+	tdb := telemetryDbConn.SQLDB()
+
 	googleSink := performance.NewSink(ctx, metricscommon.LoadConfig())
 	billingSink := usage.NewSink(ctx, metricscommon.LoadConfig(), telemetryDbConn)
 	tenantProvider := collector.NewGoogleTenantProjectProvider(VCPDbConn)
@@ -73,11 +81,13 @@ func main() {
 	provider := collector.NewGoogleProvider(tenantProvider, wrapper, config.VolumeMetrics)
 	billingProvidor := aggregator.NewBillingProvider(telemetryDbConn, metricscommon.LoadConfig(), billingSink)
 	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvidor)
-	tdb := telemetryDbConn.SQLDB()
 
+	queue := utils.NewQueue(tdb, &metricsProcessor)
+	provider.SetJobQueue(queue)
+	// provider.SetJobQueue(queue)
 	// Create a new server instance with the API handler
 	var gcpServer *coreapiserver.Server
-	if gcpServer, err = coreapiserver.NewServer(api.NewHandler(VCPDbConn, telemetryDbConn, metricsProcessor)); err != nil {
+	if gcpServer, err = coreapiserver.NewServer(api.NewHandler(VCPDbConn, telemetryDbConn, metricsProcessor, queue)); err != nil {
 		logger.Error("Fatal error occurred", "error", err.Error())
 		os.Exit(1)
 	}
@@ -92,6 +102,7 @@ func main() {
 	mux.Handle("/metrics", promhttp.Handler())
 
 	cfg := common.LoadConfig()
+	telemetryConfig := metricscommon.LoadConfig()
 	// Setup HTTP server with proper timeouts
 	httpServer := &http.Server{
 		Addr:              ":" + cfg.MetricsServerPort,
@@ -104,6 +115,7 @@ func main() {
 
 	eg, _ := errgroup.WithContext(ctx)
 
+	logger.Infof("Starting HTTP server on port %s", cfg.MetricsServerPort)
 	eg.Go(func() error {
 		logger.Info("Starting Telemetry server", "port", cfg.MetricsServerPort)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -112,10 +124,28 @@ func main() {
 		return nil
 	})
 
-	queue := utils.NewQueue(tdb, &metricsProcessor)
-	queues := []string{"performance"}
-	if err := queue.Worker(context.Background(), queues, &jobs.ProcessPerformanceMetrics{}); err != nil {
-		logger.Errorf(err.Error())
+	logger.Infof("Telemetry server started with workers %d", telemetryConfig.NumWorkers)
+	for i := 0; i < telemetryConfig.NumWorkers; i++ {
+		go func() {
+			queues := []string{PerformanceQueue}
+			if err := queue.Worker(context.Background(), queues, &jobs.ProcessPerformanceMetrics{}); err != nil {
+				logger.Errorf(err.Error())
+			}
+		}()
+
+		go func() {
+			queues := []string{UsageQueue}
+			if err := queue.Worker(context.Background(), queues, &jobs.ProcessUsageMetrics{}); err != nil {
+				logger.Errorf(err.Error())
+			}
+		}()
+
+		go func() {
+			queues := []string{CollectionQueue}
+			if err := queue.Worker(context.Background(), queues, &jobs.CollectMetrics{}); err != nil {
+				logger.Errorf(err.Error())
+			}
+		}()
 	}
 
 	handleGracefulShutdown(eg, ctx, httpServer, logger)

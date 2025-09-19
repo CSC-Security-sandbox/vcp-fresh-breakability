@@ -6,9 +6,8 @@ import (
 	"errors"
 	"fmt"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"sync"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -24,50 +23,26 @@ func (g *GoogleTenantProjectProvider) GetTenantProjects(ctx context.Context, log
 	return GetTenantProject(ctx, logger, g.vcpDatastore)
 }
 
-func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logger log.Logger) ([]datamodel.HydratedMetrics, error) {
-	var results []datamodel.HydratedMetrics
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
+func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logger log.Logger) error {
 	projects, err := g.tenantProjectProvider.GetTenantProjects(ctx, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tenant projects: %v", err)
+		return fmt.Errorf("failed to get tenant projects: %v", err)
 	}
-
-	errChan := make(chan error, len(projects))
-
+	logger.Infof("Got projects: %v", projects)
 	for _, projectID := range projects {
-		wg.Add(1)
-		go func(pid string) {
-			defer wg.Done()
-
-			projectResults, err := g.collectProjectMetrics(ctx, logger, pid)
-			if err != nil {
-				errChan <- fmt.Errorf("failed to collect metrics for project %s: %v", pid, err)
-				return
-			}
-
-			mu.Lock()
-			results = append(results, projectResults...)
-			mu.Unlock()
-		}(projectID)
+		j := jobs.NewCollectMetrics(projectID)
+		err := g.jobQueue.Enqueue(ctx, j, "collection")
+		if err != nil {
+			logger.Errorf("Failed to enqueue CollectMetrics job: %v", err)
+			return err
+		}
 	}
-
-	wg.Wait()
-	close(errChan)
-
-	if len(errChan) > 0 {
-		return nil, <-errChan
-	}
-
-	logger.Infof("Found %d Metrics ", len(results))
-	return results, nil
+	return err
 }
 
-func (g *GoogleVolumeMetricsProvider) collectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error) {
+func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error) {
 	var projectResults []datamodel.HydratedMetrics
 	projectName := fmt.Sprintf("projects/%s", projectID)
-	telemetryConfig := common.LoadConfig()
 	for _, metric := range g.metrics {
 		filter := fmt.Sprintf(`metric.type="%s/%s"`, metric.ResourceType, metric.Metric)
 		req := &monitoringpb.ListTimeSeriesRequest{
@@ -78,7 +53,7 @@ func (g *GoogleVolumeMetricsProvider) collectProjectMetrics(ctx context.Context,
 				EndTime:   timestamppb.New(g.endTime),
 			},
 			View:     monitoringpb.ListTimeSeriesRequest_FULL,
-			PageSize: telemetryConfig.PageSize,
+			PageSize: 100,
 		}
 
 		it := g.client.ListTimeSeries(ctx, req)
@@ -124,7 +99,7 @@ func GetTenantProject(ctx context.Context, logger log.Logger, vcpDatastore datab
 	return projects, nil
 }
 
-func collectVolumeMetrics(ctx context.Context, logger log.Logger, provider VolumeMetricsProvider) ([]datamodel.HydratedMetrics, error) {
+func collectVolumeMetrics(ctx context.Context, logger log.Logger, provider VolumeMetricsProvider) error {
 	return provider.GetVolumeMetrics(ctx, logger)
 }
 

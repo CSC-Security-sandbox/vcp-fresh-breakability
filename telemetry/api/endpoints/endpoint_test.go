@@ -2,6 +2,7 @@ package api
 
 import (
 	context "context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"sync"
 	"testing"
 
@@ -20,6 +21,10 @@ type MockVCPProcessor struct {
 
 // ProcessUsageMetrics implements the missing interface method
 func (m *MockVCPProcessor) ProcessUsageMetrics(ctx context.Context) error {
+	return nil
+}
+
+func (m *MockVCPProcessor) CollectMetrics(ctx context.Context, projectId string) error {
 	return nil
 }
 
@@ -47,10 +52,12 @@ func Test_ReturnsAcceptedResponseForPerformanceEndpoint(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
 	handler := Handler{
 		vcpDatastore:       vcpStore,
 		telemetryDatastore: telemetryStore,
 		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
 	}
 	response, err := handler.V1Performance(context.Background())
 	assert.NoError(t, err)
@@ -73,15 +80,17 @@ func Test_V1Performance_DBError(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
 	handler := Handler{
 		vcpDatastore:       vcpStore,
 		telemetryDatastore: telemetryStore,
 		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
 	}
 	response, err := handler.V1Performance(context.Background())
 
-	assert.NoError(t, err, "Handler should not return error even if DB fails")
-	assert.IsType(t, &oasgenserver.V1PerformanceAccepted{}, response)
+	assert.Error(t, err, "Handler should return error if DB fails")
+	assert.IsType(t, &oasgenserver.V1PerformanceInternalServerError{}, response)
 }
 
 func Test_V1Performance_ContextCancel(t *testing.T) {
@@ -95,11 +104,13 @@ func Test_V1Performance_ContextCancel(t *testing.T) {
 	wg.Add(1)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
 
 	handler := Handler{
 		vcpDatastore:       vcpStore,
 		telemetryDatastore: telemetryStore,
 		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
 	}
 
 	// Context cancellation should not affect the response since we use context.WithoutCancel
@@ -121,11 +132,13 @@ func Test_ReturnsAcceptedResponseForUsageEndpoint(t *testing.T) {
 	wg.Add(1)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
 
 	handler := Handler{
 		vcpDatastore:       vcpStore,
 		telemetryDatastore: telemetryStore,
 		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
 	}
 
 	// Context cancellation should not affect the response since we use context.WithoutCancel
@@ -134,4 +147,30 @@ func Test_ReturnsAcceptedResponseForUsageEndpoint(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.IsType(t, &oasgenserver.V1UsageAccepted{}, response)
+}
+
+func Test_V1Usage_DBError(t *testing.T) {
+	vcpStore := &vcpdb.MockStorage{}
+	telemetryStore, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Force DB error by closing the connection
+	_ = telemetryStore.Close()
+
+	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
+	handler := Handler{
+		vcpDatastore:       vcpStore,
+		telemetryDatastore: telemetryStore,
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
+	}
+	response, err := handler.V1Usage(context.Background())
+
+	assert.Error(t, err, "Handler should return error if DB fails")
+	assert.IsType(t, &oasgenserver.V1UsageInternalServerError{}, response)
 }

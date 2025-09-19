@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"log"
 	"reflect"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
 )
 
 const (
@@ -28,19 +28,19 @@ var PollInterval = 1 * time.Second
 var JobsTableName = "jobs"
 
 type Job interface {
-	Perform(processor *processor.MetricsProcessor, attempt int32) error
+	Perform(processor interface{}, attempt int32) error
 	Load(data string) (Job, error)
 }
 
 type JobQueue struct {
 	db        *sql.DB
-	processor *processor.MetricsProcessor
+	processor interface{}
 
 	mutex        sync.Mutex
 	typeRegistry map[string]reflect.Type
 }
 
-func NewQueue(db *sql.DB, p *processor.MetricsProcessor) *JobQueue {
+func NewQueue(db *sql.DB, p interface{}) *JobQueue {
 	return &JobQueue{
 		db:           db,
 		processor:    p,
@@ -72,7 +72,8 @@ func (j *JobQueue) EnqueueAt(ctx context.Context, job Job, queue string, at time
 }
 
 func (j *JobQueue) Enqueue(ctx context.Context, job Job, queue string) error {
-	log.Printf("queue: enqueing queue=%v job=%+v", queue, job)
+	logger := util.GetLogger(ctx)
+	logger.Debugf("queue: enqueing queue=%v job=%+v", queue, job)
 
 	typeName := j.typeName(job)
 
@@ -97,13 +98,14 @@ func (j *JobQueue) Enqueue(ctx context.Context, job Job, queue string) error {
 
 func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 	var job datamodel.Job
+	logger := util.GetLogger(ctx)
 
 	sqlStmt := ` 
 		UPDATE
 		  ` + JobsTableName + `
 		SET
 		  status = $1,
-		  started_at = now(),
+		  started_at = clock_timestamp(),
 		  attempt = attempt + 1
 		WHERE
 		  id IN (
@@ -154,14 +156,12 @@ func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 		return err
 	}
 
-	if err != nil {
-		return err
-	}
+	logger.Debugf("Dequeued job: id=%v type=%v attempt=%v queue=%v", job.ID, job.TypeName, job.Attempt, queues)
 
 	// get original go type based on type name
 	jobType, err := j.getType(job.TypeName)
 	if err != nil {
-		_, err = tx.ExecContext(ctx, `UPDATE `+JobsTableName+` SET status = $1, finished_at = NOW(), error = $3 WHERE id = $2`, JOB_STATUS_FAILED, job.ID, err.Error())
+		_, err = tx.ExecContext(ctx, `UPDATE `+JobsTableName+` SET status = $1, finished_at = clock_timestamp(), error = $3 WHERE id = $2`, JOB_STATUS_FAILED, job.ID, err.Error())
 		if err != nil {
 			return fmt.Errorf("unable to exec error for failed job %v", err)
 		}
@@ -178,19 +178,18 @@ func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 	if err != nil {
 		return err
 	}
-
 	// execute job
 	err = loadedJob.Perform(j.processor, int32(job.Attempt))
 	if err != nil {
 		// TODO: add retry handling and save error to job row
-		_, err = tx.ExecContext(ctx, `UPDATE `+JobsTableName+` SET status = $1, finished_at = NOW(), error = $3 WHERE id = $2`, JOB_STATUS_FAILED, job.ID, err.Error())
+		_, err = tx.ExecContext(ctx, `UPDATE `+JobsTableName+` SET status = $1, finished_at = clock_timestamp(), error = $3 WHERE id = $2`, JOB_STATUS_FAILED, job.ID, err.Error())
 		if err != nil {
 			return err
 		}
 		return tx.Commit()
 	}
 
-	_, err = tx.ExecContext(ctx, `UPDATE `+JobsTableName+` SET status = $1, finished_at = NOW() WHERE id = $2`, JOB_STATUS_FINISHED, job.ID)
+	_, err = tx.ExecContext(ctx, `UPDATE `+JobsTableName+` SET status = $1, finished_at = clock_timestamp() WHERE id = $2`, JOB_STATUS_FINISHED, job.ID)
 	if err != nil {
 		return fmt.Errorf("failed updating job status: %w", err)
 	}

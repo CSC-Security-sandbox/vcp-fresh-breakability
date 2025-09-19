@@ -17,13 +17,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-type VCPProcessor interface {
-	ProcessPerformanceMetrics(ctx context.Context) error
-	ProcessUsageMetrics(ctx context.Context) error
-}
-
 type MetricsProcessor struct {
-	VCPProcessor
+	common.VCPProcessor
 	vcpDatastore         database.Storage
 	telemetryDatastore   metricdb.Storage
 	sink                 performance.Sink
@@ -99,23 +94,13 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 
 func (mp *MetricsProcessor) processRawMetrics(ctx context.Context) {
 	logger := util.GetLogger(ctx)
-	telemetryConfig := common.LoadConfig()
 	logger.Infof("Processing Raw Metrics")
 	mp.googleMetricProvider.RefreshTimeWindow()
-	result, err := collector.CollectVolumeMetrics(ctx, logger, mp.googleMetricProvider)
+	err := collector.CollectVolumeMetrics(ctx, logger, mp.googleMetricProvider)
 	if err != nil {
 		logger.Errorf("CollectRawMetrics failed: %v", err)
 		return
 	}
-	if len(result) == 0 {
-		logger.Warn("No Raw metrics found to process")
-		return
-	}
-	if err := mp.telemetryDatastore.CreateHydratedMetricsBatch(ctx, result, int(telemetryConfig.PushBatchSize)); err != nil {
-		logger.Errorf("Failed to insert hydrated metrics batch: %v", err)
-		return
-	}
-	logger.Info(" Hydrated Metrics processing completed successfully")
 }
 
 func (mp *MetricsProcessor) ProcessUsageMetrics(ctx context.Context) error {
@@ -127,5 +112,21 @@ func (mp *MetricsProcessor) ProcessUsageMetrics(ctx context.Context) error {
 		logger.Error("Failed to aggregate hydrated metrics", "error", err.Error())
 		return err
 	}
+	return nil
+}
+
+func (mp *MetricsProcessor) CollectMetrics(ctx context.Context, projectId string) error {
+	telemetryConfig := common.LoadConfig()
+	logger := util.GetLogger(ctx)
+	results, err := mp.googleMetricProvider.CollectProjectMetrics(ctx, logger, projectId)
+	if err != nil {
+		logger.Error("Failed to get project metrics", "error", err.Error())
+		return err
+	}
+	if err := mp.telemetryDatastore.CreateHydratedMetricsBatch(ctx, results, int(telemetryConfig.PushBatchSize)); err != nil {
+		logger.Errorf("Failed to insert hydrated metrics batch: %v", err)
+		return err
+	}
+	logger.Debugf("Successfully collected %d metrics %v", len(results), projectId)
 	return nil
 }

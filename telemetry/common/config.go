@@ -27,6 +27,7 @@ type TelemetryConfig struct {
 	Environment                string
 	MaxGoogleBillingPushRetry  int64
 	PageSize                   int32
+	NumWorkers                int
 }
 
 type MetricItem struct {
@@ -53,6 +54,7 @@ func LoadConfig() *TelemetryConfig {
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
 	pageSize := env.GetInt64("PAGE_SIZE", 1000)
+	numWorkers := env.GetInt("NUM_WORKERS", 5)
 
 	return &TelemetryConfig{
 		RootUrl:                    rootUrl,
@@ -67,6 +69,7 @@ func LoadConfig() *TelemetryConfig {
 		PageSize:                   int32(pageSize),
 		EnableBackupMetrics:        enableBackupMetrics,
 		EnableBackupBillingMetrics: enableBackupBillingMetrics,
+		NumWorkers:                numWorkers,
 	}
 }
 
