@@ -1771,7 +1771,7 @@ func TestIsFileProtocolSupported(t *testing.T) {
 			}
 
 			// Reset the global variables to pick up new environment values
-			fileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+			FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
 			fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 
 			result := IsFileProtocolSupported(tt.accountID)
@@ -1813,8 +1813,8 @@ func TestSetFileProtocolSupportedForTesting(t *testing.T) {
 			}
 
 			// Verify the cached value was updated correctly
-			if fileProtocolSupported != tt.expected {
-				t.Errorf("fileProtocolSupported = %v, want %v", fileProtocolSupported, tt.expected)
+			if FileProtocolSupported != tt.expected {
+				t.Errorf("FileProtocolSupported = %v, want %v", FileProtocolSupported, tt.expected)
 			}
 		})
 	}

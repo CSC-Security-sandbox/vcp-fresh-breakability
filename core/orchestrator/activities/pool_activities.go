@@ -55,6 +55,7 @@ var (
 	GetCreateDataSubnetworkOp         = _getCreateDataSubnetworkOp
 	GetSubnetToBeUsed                 = getSubnetToBeUsed
 	SetupNetworkFirewallsForIscsi     = setupNetworkFirewallsForIscsi
+	SetupNetworkFirewallsForNFS       = setupNetworkFirewallsForNFS
 	CreateGCPBucket                   = _createGCPBucket
 	CheckReusableSubnet               = _checkReusableSubnet
 	CreateServiceAccountAndAttachRole = _createServiceAccountAndAttachRole
@@ -163,6 +164,7 @@ const (
 	RsmFirewallName = "ingress-" + RsmVpcName
 
 	iscsiDataFirewallName = "ingress-data-iscsi"
+	nfsDataFirewallName   = "ingress-data-nfs"
 
 	AllowAllPorts = "all"
 )
@@ -198,6 +200,7 @@ var (
 	IcFirewallPortRules   = env.GetString("IC_FIREWALL_PORT_RULES", "tcp,udp")
 
 	IscsiFirewallPortRules = env.GetString("ISCSI_FIREWALL_PORT_RULES", "tcp,3260")
+	NFSFirewallPortRules   = env.GetString("NFS_FIREWALL_PORT_RULES", "tcp,111,635,2049,4045,udp,111,4046")
 	RegionNumber           = getRegionNumber()
 )
 
@@ -579,6 +582,23 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 			Project:            snHostProject,
 		})
 	}
+
+	if utils.FileProtocolSupported {
+		op, err = SetupNetworkFirewallsForNFS(service, snHostProject, network)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if op != "" {
+			operations = append(operations, commonparams.Operations{
+				OperationName:      op,
+				OperationType:      "firewall",
+				IsDone:             false,
+				IsRegionalResource: false,
+				Project:            snHostProject,
+			})
+		}
+	}
+
 	return &operations, nil
 }
 
@@ -684,6 +704,11 @@ func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.
 // setupNetworkFirewallsForIscsi sets up a firewall for iSCSI traffic in GCP
 func setupNetworkFirewallsForIscsi(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
 	return InsertFirewall(service, snHostProject, iscsiDataFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(DataFirewallSourceRanges, ","), strings.Split(IscsiFirewallPortRules, ","))
+}
+
+// setupNetworkFirewallsForNFS sets up a firewall for NFS traffic in GCP
+func setupNetworkFirewallsForNFS(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+	return InsertFirewall(service, snHostProject, nfsDataFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(DataFirewallSourceRanges, ","), strings.Split(NFSFirewallPortRules, ","))
 }
 
 func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentName, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {

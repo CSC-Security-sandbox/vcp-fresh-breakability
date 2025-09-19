@@ -29,6 +29,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler3 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -3460,6 +3461,48 @@ func Test_setupNetworkFirewallsForIscsi(t *testing.T) {
 		_, err := activities.SetupNetworkFirewallsForIscsi(mockService, snHostProject, network)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "firewall error")
+	})
+}
+
+func Test_setupNetworkFirewallsForNFS(t *testing.T) {
+	mockService := new(hyperscaler2.MockGoogleServices)
+	snHostProject := "test-sn-host-project"
+	network := "test-network"
+	firewallPriority := int64(1000)
+	ingressTrafficDirection := "INGRESS"
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+	t.Run("WhenSetupNetworkFirewallsForNFSSucceeds", func(tt *testing.T) {
+		defer func() {
+			activities.DataFirewallSourceRanges = "" // Reset the environment variable after the test
+		}()
+		activities.DataFirewallSourceRanges = "172.16.0.0/12,192.168.0.0/16,10.152.0.0/20"
+		mockService.On("GetLogger").Return(logger)
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			assert.Equal(t, snHostProject, project)
+			assert.Equal(t, "ingress-data-nfs", name)
+			assert.Equal(t, network, network)
+			assert.Equal(t, firewallPriority, priority)
+			assert.Equal(t, ingressTrafficDirection, direction)
+			assert.ElementsMatch(t, []string{"172.16.0.0/12", "192.168.0.0/16", "10.152.0.0/20"}, sourceRanges)
+			assert.ElementsMatch(t, []string{"tcp", "111", "635", "2049", "4045", "udp", "111", "4046"}, allowedPorts)
+			return "op", nil
+		}
+		op, err := activities.SetupNetworkFirewallsForNFS(mockService, snHostProject, network)
+		assert.NoError(t, err)
+		assert.Equal(t, op, "op")
+	})
+	t.Run("WhenSetupNetworkFirewallsForNFSFails", func(tt *testing.T) {
+		defer func() {
+			activities.DataFirewallSourceRanges = "" // Reset the environment variable after the test
+		}()
+		activities.DataFirewallSourceRanges = "172.16.0.0/12,192.168.0.0/16,10.152.0.0/20"
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			return "", errors.New("nfs firewall error")
+		}
+		_, err := activities.SetupNetworkFirewallsForNFS(mockService, snHostProject, network)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "nfs firewall error")
 	})
 }
 
@@ -7972,10 +8015,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 	originalGetGCPService := hyperscaler2.GetGCPService
 	originalInsertFirewall := activities.InsertFirewall
 	originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
+	originalSetupNetworkFirewallsForNFS := activities.SetupNetworkFirewallsForNFS
 	defer func() {
 		hyperscaler2.GetGCPService = originalGetGCPService
 		activities.InsertFirewall = originalInsertFirewall
 		activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
+		activities.SetupNetworkFirewallsForNFS = originalSetupNetworkFirewallsForNFS
 	}()
 
 	t.Run("Success_AllFirewallsCreated", func(t *testing.T) {
@@ -7984,6 +8029,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &activities.PoolActivity{SE: mockSE}
 		env.RegisterActivity(activity)
+
+		// Enable file protocol support for this test to ensure NFS firewall is created
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+		}()
 
 		mockGCPService := &google.GcpServices{}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -8002,6 +8053,11 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "operation-iscsi-firewall", nil
 		}
 
+		// Mock SetupNetworkFirewallsForNFS to return operation name
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-nfs-firewall", nil
+		}
+
 		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
 
 		assert.NoError(t, err)
@@ -8011,7 +8067,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
-		assert.Len(t, *operations, 5) // 3 VPC firewalls + 1 iSCSI firewall
+		assert.Len(t, *operations, 6) // 3 VPC firewalls + 1 iSCSI firewall + 1 NFS firewall
 
 		// Check all operations are present and not done
 		operationNames := make([]string, len(*operations))
@@ -8024,6 +8080,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.Contains(t, operationNames, "operation-firewall-3")
 		assert.Contains(t, operationNames, "operation-firewall-4")
 		assert.Contains(t, operationNames, "operation-iscsi-firewall")
+		assert.Contains(t, operationNames, "operation-nfs-firewall")
 	})
 
 	t.Run("Success_SomeFirewallsAlreadyExist", func(t *testing.T) {
@@ -8032,6 +8089,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &activities.PoolActivity{SE: mockSE}
 		env.RegisterActivity(activity)
+
+		// Enable file protocol support for this test so NFS firewall function gets called
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+		}()
 
 		mockGCPService := &google.GcpServices{}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -8050,6 +8113,11 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 
 		// Mock SetupNetworkFirewallsForIscsi to return empty (already exists)
 		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		// Mock SetupNetworkFirewallsForNFS to return empty (already exists)
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
 			return "", nil
 		}
 
@@ -8136,10 +8204,55 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "", errors.New("failed to setup iSCSI firewalls")
 		}
 
+		// Mock SetupNetworkFirewallsForNFS to succeed (test focuses on iSCSI failure)
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-nfs-firewall", nil
+		}
+
 		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to setup iSCSI firewalls")
+		_ = result // result unused in error case
+	})
+
+	t.Run("SetupNetworkFirewallsForNFS_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		// Enable file protocol support for this test to ensure NFS firewall is called
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+		}()
+
+		mockGCPService := &google.GcpServices{}
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock InsertFirewall to succeed for all VPC firewalls
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return "operation-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForIscsi to succeed
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-iscsi-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForNFS to fail
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", errors.New("failed to setup NFS firewalls")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to setup NFS firewalls")
 		_ = result // result unused in error case
 	})
 
@@ -8149,6 +8262,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &activities.PoolActivity{SE: mockSE}
 		env.RegisterActivity(activity)
+
+		// Enable file protocol support for this test so NFS firewall function gets called
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+		}()
 
 		mockGCPService := &google.GcpServices{}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -8161,6 +8280,10 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 
 		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
 			return "operation-iscsi-firewall", nil
+		}
+
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-nfs-firewall", nil
 		}
 
 		result, err := env.ExecuteActivity(activity.CreateFirewalls, "", snHostProject, network)
@@ -8177,6 +8300,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		activity := &activities.PoolActivity{SE: mockSE}
 		env.RegisterActivity(activity)
 
+		// Enable file protocol support for this test so NFS firewall function gets called
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+		}()
+
 		mockGCPService := &google.GcpServices{}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return mockGCPService, nil
@@ -8188,6 +8317,10 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		}
 
 		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
 			return "", nil
 		}
 

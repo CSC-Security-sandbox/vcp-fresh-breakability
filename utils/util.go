@@ -74,8 +74,8 @@ var (
 	GetLocation                    = _getLocation
 	GenerateStrongPassword         = _generateStrongPassword
 	ParsePEMCertificate            = _parsePEMCertificate
-	// fileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
-	fileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
+	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
 	// fileProtocolAllowlistedAccounts contains the parsed set of account IDs that are allowlisted for file protocol support
 	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
@@ -929,7 +929,7 @@ func ParseCommaSeparatedStringToMap(input string) map[string]struct{} {
 // If no allowlisted accounts are configured, it returns false even if the flag is enabled.
 func IsFileProtocolSupported(accountID string) bool {
 	// First check if the flag is enabled
-	if !fileProtocolSupported {
+	if !FileProtocolSupported {
 		return false
 	}
 
@@ -960,7 +960,7 @@ func SetFileProtocolSupportedForTesting(enabled bool) {
 		return
 	}
 	// Re-read the environment variable to update the cached value
-	fileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
 }
 
 // SetFileProtocolAllowlistedAccountsForTesting is a test helper function that allows tests to set
