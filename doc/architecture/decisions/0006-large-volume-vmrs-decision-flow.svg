@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <defs>
+    <style>
+      .box { fill: #e1f5fe; stroke: #01579b; stroke-width: 2; }
+      .decision { fill: #fff3e0; stroke: #e65100; stroke-width: 2; }
+      .process { fill: #f3e5f5; stroke: #4a148c; stroke-width: 2; }
+      .data { fill: #e8f5e8; stroke: #1b5e20; stroke-width: 2; }
+      .text { font-family: Arial, sans-serif; font-size: 12px; text-anchor: middle; }
+      .title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" class="title" fill="#01579b">Large Volume VMRS Decision Flow</text>
+  
+  <!-- Customer Request -->
+  <rect x="320" y="50" width="160" height="60" rx="10" class="box"/>
+  <text x="400" y="75" class="title" fill="#01579b">Customer Request</text>
+  <text x="400" y="90" class="text" fill="#333">IOPS: 50,000</text>
+  <text x="400" y="105" class="text" fill="#333">Throughput: 20 GiB/s</text>
+  
+  <!-- Get HA Pairs -->
+  <rect x="320" y="140" width="160" height="40" rx="10" class="process"/>
+  <text x="400" y="160" class="text" fill="#4a148c">Get HA Pairs Count</text>
+  <text x="400" y="175" class="text" fill="#4a148c">env: 12 HA pairs</text>
+  
+  <!-- Apply Scaling -->
+  <rect x="320" y="210" width="160" height="60" rx="10" class="decision"/>
+  <text x="400" y="230" class="text" fill="#e65100">Apply Non-Linear Scaling</text>
+  <text x="400" y="245" class="text" fill="#e65100">IOPS: 4.9x → 245,000</text>
+  <text x="400" y="260" class="text" fill="#e65100">Throughput: 5.8x → 116 GiB/s</text>
+  
+  <!-- Calculate Per-Node -->
+  <rect x="320" y="300" width="160" height="60" rx="10" class="process"/>
+  <text x="400" y="320" class="text" fill="#4a148c">Calculate Per-Node</text>
+  <text x="400" y="335" class="text" fill="#4a148c">IOPS: 20,417 per node</text>
+  <text x="400" y="350" class="text" fill="#4a148c">Throughput: 9.7 GiB/s</text>
+  
+  <!-- VM Performance Data -->
+  <rect x="50" y="380" width="150" height="80" rx="10" class="data"/>
+  <text x="125" y="405" class="title" fill="#1b5e20">VM Performance</text>
+  <text x="125" y="420" class="text" fill="#1b5e20">c3-standard-4: 8.3K IOPS</text>
+  <text x="125" y="435" class="text" fill="#1b5e20">c3-standard-22: 34K IOPS</text>
+  <text x="125" y="450" class="text" fill="#1b5e20">c3-standard-88: 230K IOPS</text>
+  
+  <!-- Find Optimal VM -->
+  <rect x="320" y="390" width="160" height="60" rx="10" class="decision"/>
+  <text x="400" y="410" class="text" fill="#e65100">Find Optimal VM</text>
+  <text x="400" y="425" class="text" fill="#e65100">Cost-optimized selection</text>
+  <text x="400" y="440" class="text" fill="#e65100">Meeting per-node reqs</text>
+  
+  <!-- Cost Optimization -->
+  <rect x="550" y="380" width="150" height="80" rx="10" class="data"/>
+  <text x="625" y="405" class="title" fill="#1b5e20">Cost Data</text>
+  <text x="625" y="420" class="text" fill="#1b5e20">c3-standard-4: 4x cost</text>
+  <text x="625" y="435" class="text" fill="#1b5e20">c3-standard-22: 22x cost</text>
+  <text x="625" y="450" class="text" fill="#1b5e20">c3-standard-88: 88x cost</text>
+  
+  <!-- Result -->
+  <rect x="320" y="480" width="160" height="80" rx="10" class="box"/>
+  <text x="400" y="505" class="title" fill="#01579b">Decision Result</text>
+  <text x="400" y="520" class="text" fill="#333">VM: c3-standard-88-lssd</text>
+  <text x="400" y="535" class="text" fill="#333">HA Pairs: 12</text>
+  <text x="400" y="550" class="text" fill="#333">Total Cost Optimized</text>
+  
+  <!-- Arrows -->
+  <line x1="400" y1="110" x2="400" y2="140" class="arrow"/>
+  <line x1="400" y1="180" x2="400" y2="210" class="arrow"/>
+  <line x1="400" y1="270" x2="400" y2="300" class="arrow"/>
+  <line x1="400" y1="360" x2="400" y2="390" class="arrow"/>
+  <line x1="400" y1="450" x2="400" y2="480" class="arrow"/>
+  
+  <!-- Side arrows -->
+  <line x1="200" y1="420" x2="320" y2="420" class="arrow"/>
+  <line x1="480" y1="420" x2="550" y2="420" class="arrow"/>
+  
+  <!-- Scaling factors box -->
+  <rect x="520" y="210" width="200" height="60" rx="10" class="data" fill="#f0f8f0"/>
+  <text x="620" y="230" class="title" fill="#1b5e20">Scaling Factors (12 HA)</text>
+  <text x="620" y="245" class="text" fill="#1b5e20">IOPS: 4.9x (not linear 12x)</text>
+  <text x="620" y="260" class="text" fill="#1b5e20">Throughput: 5.8x</text>
+  
+  <!-- Arrow to scaling factors -->
+  <line x1="480" y1="240" x2="520" y2="240" class="arrow"/>
+</svg>

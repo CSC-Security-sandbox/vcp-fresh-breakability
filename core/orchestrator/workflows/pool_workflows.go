@@ -56,7 +56,6 @@ var (
 	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1x49")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
-	numOfLvHAPairs               = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
 
 	serviceAttachment                 = env.GetString("GIN_SERVICE_ATTACHMENT", "")
 	ginLoggingMetricsProtocol         = env.GetString("GIN_METRICS_PROTOCOL", "tcp-unencrypted")
@@ -317,7 +316,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	// Use resolved zones to identify VMs and build VLM config
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, tenancyDetails, serviceAccount.Email, bucketName).Get(ctx, vlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, tenancyDetails, serviceAccount.Email, bucketName, pool.LargeCapacity).Get(ctx, vlmConfig)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -648,7 +647,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		SubnetworkNames:       pool.ClusterDetails.SubnetNames,
 		SnHostProject:         pool.ClusterDetails.SnHostProject,
 	}
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, poolTenancyInfo, saEmail, bucketName).Get(ctx, newVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, poolTenancyInfo, saEmail, bucketName, pool.LargeCapacity).Get(ctx, newVlmConfig)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1305,9 +1304,6 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
 		if utils.IsFileProtocolSupported(pool.Account.Name) {
 			// Set the NFS V3 support flag based on the file protocol support
-			if pool.LargeCapacity {
-				vlmConfig.Deployment.NumHAPair = numOfLvHAPairs
-			}
 			vlmConfig.Deployment.DevFlags.EnableNfsV3Support = true
 			vlmConfig.Deployment.Images.VSAImageName = vsaFilesImageName
 		}

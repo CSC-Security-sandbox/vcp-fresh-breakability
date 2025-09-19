@@ -3897,7 +3897,45 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false)
+
+	assert.NoError(t, err)
+}
+
+func Test_IdentifyVMs_SuccessfullyPreparesConfig_LargeVolume(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	prepareVLMConfig := activities.PrepareVlmConfig
+	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	defer func() {
+		activities.PrepareVlmConfig = prepareVLMConfig
+		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+	}()
+	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
+		return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "password"}}, nil
+	}
+
+	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
+		return nil
+	}
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             5000,
+		DesiredThroughputInMiBs: 2048,
+		DesiredCapacityInGiB:    12288, // 12 TiB - typical large volume size
+	}
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true)
 
 	assert.NoError(t, err)
 }
@@ -3931,7 +3969,44 @@ func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to prepare VLM config")
+}
+
+func Test_IdentifyVMs_FailsToPrepareConfig_LargeVolume(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	prepareVLMConfig := activities.PrepareVlmConfig
+	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	defer func() {
+		activities.PrepareVlmConfig = prepareVLMConfig
+		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+	}()
+	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
+		return errors.New("failed to prepare VLM config for large volume")
+	}
+	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler3.CustomSecret, error) {
+		return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "password"}}, nil
+	}
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             8000,
+		DesiredThroughputInMiBs: 4096,
+		DesiredCapacityInGiB:    24576, // 24 TiB - large volume
+	}
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to prepare VLM config")
@@ -3960,10 +4035,42 @@ func Test_IdentifyVMs_FailsToLoadConfig(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load VMRS config from file")
+}
+
+func Test_IdentifyVMs_FailsToLoadConfig_LargeVolume(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	loadVMRSConfig := activities.LoadVMRSConfig
+	defer func() {
+		activities.LoadVMRSConfig = loadVMRSConfig
+	}()
+	activities.LoadVMRSConfig = func(filePath string) (*vmrs.VMRSConfig, error) {
+		return nil, errors.New("failed to load VMRS config for large volume cluster")
+	}
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             15000,
+		DesiredThroughputInMiBs: 8192,
+		DesiredCapacityInGiB:    51200, // 50 TiB - very large volume
+	}
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to load VMRS config for large volume cluster")
 }
 
 func Test_IdentifyVMs_FailsToCreateDecisionMaker(t *testing.T) {
@@ -3997,7 +4104,47 @@ func Test_IdentifyVMs_FailsToCreateDecisionMaker(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create decision maker")
+}
+
+func Test_IdentifyVMs_FailsToCreateDecisionMaker_LargeVolume(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	loadVMRSConfig := activities.LoadVMRSConfig
+	defer func() {
+		activities.LoadVMRSConfig = loadVMRSConfig
+	}()
+	activities.LoadVMRSConfig = func(filePath string) (*vmrs.VMRSConfig, error) {
+		return &vmrs.VMRSConfig{}, nil
+	}
+
+	createDecisionMaker := activities.CreateDecisionMaker
+	defer func() {
+		activities.CreateDecisionMaker = createDecisionMaker
+	}()
+	activities.CreateDecisionMaker = func(cfg *vmrs.VMRSConfig) (vmrs.DecisionMaker, error) {
+		return nil, errors.New("failed to create decision maker for large volume cluster")
+	}
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             25000,
+		DesiredThroughputInMiBs: 16384,
+		DesiredCapacityInGiB:    102400, // 100 TiB - extremely large volume
+	}
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create decision maker")
@@ -4036,7 +4183,46 @@ func Test_IdentifyVMs_FailsToFindOptimalVMs(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to find optimal VMs")
+}
+
+func Test_IdentifyVMs_FailsToFindOptimalVMs_LargeVolume(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	loadVMRSConfig := activities.LoadVMRSConfig
+	defer func() {
+		activities.LoadVMRSConfig = loadVMRSConfig
+	}()
+	activities.LoadVMRSConfig = func(filePath string) (*vmrs.VMRSConfig, error) {
+		return &vmrs.VMRSConfig{}, nil
+	}
+
+	mockDecisionMaker := vmrs_decision.NewDecisionMakerMock()
+	createDecisionMaker := activities.CreateDecisionMaker
+	defer func() {
+		activities.CreateDecisionMaker = createDecisionMaker
+	}()
+	activities.CreateDecisionMaker = func(cfg *vmrs.VMRSConfig) (vmrs.DecisionMaker, error) {
+		return mockDecisionMaker, nil
+	}
+	mockDecisionMaker.Mock.On("FindOptimalVMs", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to find optimal VMs for large volume cluster"))
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find optimal VMs")

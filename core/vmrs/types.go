@@ -13,6 +13,8 @@ type VMSelectionStrategy string
 const (
 	// DecisionMakerTypeLeastCostSingleVM is the type of the decision maker that selects the least cost single VM that satisfies the customer request.
 	LeastCostSingleVM VMSelectionStrategy = "least_cost_single_vm"
+	// LeastCostLargeVolumeCluster selects the optimal homogeneous cluster configuration for large volumes.
+	LeastCostLargeVolumeCluster VMSelectionStrategy = "least_cost_large_volume_cluster"
 )
 
 // VMRS configuration object that holds performance limits for different hyperscalers.
@@ -33,6 +35,11 @@ type HyperscalerPerfLimits struct {
 	DiskPerfLimits []DiskTypePerfLimit `yaml:"disk_limits" validate:"required,min=1"`
 	// The max. multiplier by which disks can be overprovisioned.
 	MaxDiskOverprovisioningFactors PerfAmplificationFactors `yaml:"max_disk_overprovisioning_factors" validate:"required"`
+
+	// Non-linear scaling factors for HA pairs in active-passive mode (optional).
+	NonLinearScalingActivePassive *NonLinearScalingFactors `yaml:"non_linear_scaling_active_passive,omitempty"`
+	// Non-linear scaling factors for HA pairs in active-active mode (optional).
+	NonLinearScalingActiveActive *NonLinearScalingFactors `yaml:"non_linear_scaling_active_active,omitempty"`
 }
 
 // OntapOverheads contains the overheads that need to be accounted for when provisioning volumes.
@@ -125,6 +132,8 @@ type Decision struct {
 	ChosenVMs []string // The list of VMs that satisfy the customer request
 	// Storage pool performance limits to request from VLM.
 	StoragePoolRequirements CustomerRequestedPerformance
+	// Optional cluster metadata for large volume deployments.
+	ClusterMetadata *ClusterMetadata
 }
 
 // The DecisionMaker interface defines the method to make decisions based on the VMRS configuration and customer requested performance.
@@ -154,4 +163,58 @@ func (config *VMRSConfig) ScaleCustomerRequestedPerformance(customerRequest Cust
 		DesiredThroughputInMiBs: throughputInMibpsToProvision,
 		DesiredCapacityInGiB:    capacityInGiBToProvision,
 	}
+}
+
+// NonLinearScalingFactors defines performance scaling factors for HA pairs.
+type NonLinearScalingFactors struct {
+	// IOPS scaling factors by HA pair count.
+	IOPSFactors map[int]float64 `yaml:"iops_factors" validate:"required"`
+	// Throughput scaling factors by HA pair count.
+	ThroughputFactors map[int]float64 `yaml:"throughput_factors" validate:"required"`
+	// Base performance factor (typically 1.0).
+	BaseFactor float64 `yaml:"base_factor" validate:"required"`
+	// Maximum scaling factor to prevent over-scaling.
+	MaxScalingFactor float64 `yaml:"max_scaling_factor" validate:"required"`
+}
+
+// ClusterMetadata contains metadata about the cluster configuration for large volume deployments.
+type ClusterMetadata struct {
+	// Number of HA pairs in the cluster.
+	NumHAPairs int
+	// Total number of nodes in the cluster.
+	NumNodes int
+	// Number of LIFs in the cluster.
+	NumLIFs int
+	// Whether the cluster uses homogeneous VM types.
+	IsHomogeneous bool
+	// The VM type used for homogeneous clusters.
+	VMType string
+	// Capacity per node in GiB.
+	CapacityPerNode int64
+	// Throughput per node in MiB/s.
+	ThroughputPerNode int64
+	// IOPS per node.
+	IOPSPerNode int64
+}
+
+// FindVMsByType finds two VM types from a slice of VMs and returns pointers to them.
+// Returns nil for VMs that are not found.
+// Uses early break optimization when both VMs are found.
+func FindVMsByType(vms []VMPerfLimit, currentType, newType string) (*VMPerfLimit, *VMPerfLimit) {
+	var currentVM, newVM *VMPerfLimit
+
+	for i := range vms {
+		if vms[i].VMType == currentType {
+			currentVM = &vms[i]
+		}
+		if vms[i].VMType == newType {
+			newVM = &vms[i]
+		}
+		// Early break when both found - optimization for performance
+		if currentVM != nil && newVM != nil {
+			break
+		}
+	}
+
+	return currentVM, newVM
 }

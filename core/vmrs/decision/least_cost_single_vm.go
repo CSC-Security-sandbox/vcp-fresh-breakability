@@ -108,9 +108,9 @@ func sortVMsByCost(config *vmrs.VMRSConfig, workloadHeadroom vmrs.PerfAmplificat
 		return sortedVMs[i].RelativeCost < sortedVMs[j].RelativeCost
 	})
 
-	for _, vm := range sortedVMs {
-		vm.OntapLimits.IOPS = int64(math.Ceil(float64(vm.OntapLimits.IOPS) * workloadHeadroom.IOPS))
-		vm.OntapLimits.ThroughputInMiBs = int64(math.Ceil(float64(vm.OntapLimits.ThroughputInMiBs) * workloadHeadroom.Throughput))
+	for i := range sortedVMs {
+		sortedVMs[i].OntapLimits.IOPS = int64(math.Ceil(float64(sortedVMs[i].OntapLimits.IOPS) * workloadHeadroom.IOPS))
+		sortedVMs[i].OntapLimits.ThroughputInMiBs = int64(math.Ceil(float64(sortedVMs[i].OntapLimits.ThroughputInMiBs) * workloadHeadroom.Throughput))
 	}
 
 	return sortedVMs
@@ -125,21 +125,8 @@ func (d *LeastCostSingleVMDecisionMaker) GetVMsSortedByCost() []vmrs.VMPerfLimit
 // Returns true if scaling up (new VM is more expensive), false if scaling down (new VM is cheaper).
 // Returns error if either VM type is not found in the configuration.
 func (d *LeastCostSingleVMDecisionMaker) CompareVMScalingDirection(currentInstanceType, newInstanceType string) (bool, error) {
-	// Find the VM types and their relative costs
-	var currentVM, newVM *vmrs.VMPerfLimit
-
-	for i := range d.vmsSortedByCost {
-		if d.vmsSortedByCost[i].VMType == currentInstanceType {
-			currentVM = &d.vmsSortedByCost[i]
-		}
-		if d.vmsSortedByCost[i].VMType == newInstanceType {
-			newVM = &d.vmsSortedByCost[i]
-		}
-		// If we found both, we can break early
-		if currentVM != nil && newVM != nil {
-			break
-		}
-	}
+	// Use shared utility function to find both VMs with early break optimization
+	currentVM, newVM := vmrs.FindVMsByType(d.vmsSortedByCost, currentInstanceType, newInstanceType)
 
 	// Validate that we found both VM types
 	if currentVM == nil {

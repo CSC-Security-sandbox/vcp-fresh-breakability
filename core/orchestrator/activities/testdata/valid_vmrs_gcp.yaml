@@ -50,6 +50,36 @@ vmrs:
   max_disk_overprovisioning_factors:
     iops: 1.1
     throughput: 1.1
+  
+  # Non-linear scaling factors for HA pairs in active-passive mode
+  non_linear_scaling_active_passive:
+    base_factor: 1.0              # Base scaling factor
+    max_scaling_factor: 10.0      # Maximum scaling factor
+    iops_factors:
+      1: 1.0                      # 1 HA pair = 100% performance
+      2: 1.8                      # 2 HA pairs = 180% performance
+      6: 4.0                      # 6 HA pairs = 400% performance
+      12: 4.9                     # 12 HA pairs = 490% performance
+    throughput_factors:
+      1: 1.0                      # 1 HA pair = 100% performance
+      2: 1.9                      # 2 HA pairs = 190% performance
+      6: 4.5                      # 6 HA pairs = 450% performance
+      12: 5.8                     # 12 HA pairs = 580% performance
+      
+  # Non-linear scaling factors for HA pairs in active-active mode
+  non_linear_scaling_active_active:
+    base_factor: 1.0              # Base scaling factor
+    max_scaling_factor: 10.0      # Maximum scaling factor
+    iops_factors:
+      1: 1.0                      # 1 HA pair = 100% performance
+      2: 1.8                      # 2 HA pairs = 180% performance
+      6: 4.0                      # 6 HA pairs = 400% performance
+      12: 4.9                     # 12 HA pairs = 490% performance
+    throughput_factors:
+      1: 1.0                      # 1 HA pair = 100% performance
+      2: 1.9                      # 2 HA pairs = 190% performance
+      6: 4.5                      # 6 HA pairs = 450% performance
+      12: 5.8                     # 12 HA pairs = 580% performance
   ontap_overheads:
     amplification_factors:
       iops: 1

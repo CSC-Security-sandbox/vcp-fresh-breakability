@@ -63,6 +63,7 @@ var (
 	DeleteGCPBucket                   = _deleteGCPBucket
 	LoadVMRSConfig                    = vmrs_config.LoadConfig
 	CreateDecisionMaker               = vmrs_decision.NewDecisionMaker
+	CreateLargeVolumeVMRSConfig       = _createLargeVolumeVMRSConfig
 	VlmConfigFilePath                 = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
 	ValidateVlmConfigInputs           = _validateVlmConfigInputs
 	GetCreateSubnetworkOperation      = _getCreateSubnetworkOperation
@@ -1125,7 +1126,7 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
-func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string) (*vlm.VLMConfig, error) {
+func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string, isLargeCapacityPool bool) (*vlm.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying VMs to use for VSA cluster")
 
@@ -1136,7 +1137,15 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	}
 
 	// Identify the right VMs to use using the selection strategy defined in the VMRS config.
-	decisionMaker, err := CreateDecisionMaker(vmrsConfig)
+	// For large capacity pools, force the use of the large volume cluster strategy.
+	var decisionMaker vmrs.DecisionMaker
+	if isLargeCapacityPool {
+		// Force large volume cluster strategy for large capacity pools
+		largeVolumeConfig := CreateLargeVolumeVMRSConfig(vmrsConfig)
+		decisionMaker, err = CreateDecisionMaker(largeVolumeConfig)
+	} else {
+		decisionMaker, err = CreateDecisionMaker(vmrsConfig)
+	}
 	if err != nil {
 		logger.Error("Failed to create decision maker", "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1159,6 +1168,9 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	if err != nil {
 		logger.Error("Failed to prepare VLM config", "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if isLargeCapacityPool {
+		vlmConfig.Deployment.NumHAPair = decision.ClusterMetadata.NumHAPairs
 	}
 
 	return vlmConfig, nil
@@ -2655,4 +2667,18 @@ func (j *PoolActivity) UpdatePoolFields(ctx context.Context, poolUUID string, up
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
+}
+
+// _createLargeVolumeVMRSConfig creates a copy of the provided VMRS configuration and
+// modifies it to use the large volume cluster selection strategy.
+// This ensures that large capacity pools always use the appropriate decision maker
+// regardless of the original configuration strategy.
+func _createLargeVolumeVMRSConfig(originalConfig *vmrs.VMRSConfig) *vmrs.VMRSConfig {
+	// Create a copy of the configuration to avoid modifying the original
+	configCopy := *originalConfig
+
+	// Override the VM selection strategy for large volume deployments
+	configCopy.HyperscalerPerfLimits.VMSelectionStrategy = vmrs.LeastCostLargeVolumeCluster
+
+	return &configCopy
 }

@@ -148,6 +148,7 @@ workerConfig:
   enableUniqueSerialNumberGeneration: false
   clusterSerialNumberPrefix: "935"
   numberOfHaPairsLargeCapacity: 2
+  nonLinearScalingActivePassive: true
   vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv: 45
   vlmMinLvHaPairs: 2
   startToCloseWorkflowTimeoutLv: "60m"

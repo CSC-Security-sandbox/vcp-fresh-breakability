@@ -101,6 +101,7 @@ data:
   VLM_RETRY_ERROR_PATTERNS: {{$.Values.workerConfig.vlmRetryErrorPatterns | quote }}
   GCE_METADATA_HOST: {{$.Values.workerConfig.gceMetadataHost | quote }}
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{$.Values.workerConfig.numberOfHaPairsLargeCapacity | quote }}
+  NON_LINEAR_SCALING_ACTIVE_PASSIVE: {{$.Values.workerConfig.nonLinearScalingActivePassive | quote }}
   VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV: {{$.Values.workerConfig.vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv | quote }}
   VLM_MIN_LV_HA_PAIRS: {{$.Values.workerConfig.vlmMinLvHaPairs | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_LV: {{$.Values.workerConfig.startToCloseWorkflowTimeoutLv | quote }}

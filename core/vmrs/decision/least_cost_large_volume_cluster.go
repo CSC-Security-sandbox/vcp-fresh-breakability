@@ -1,0 +1,220 @@
+// Decision maker for large volume (FlexGroup) clusters using non-linear scaling.
+
+package decision
+
+import (
+	"fmt"
+	"math"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+)
+
+const (
+	// ScalingModeActivePassive represents the active-passive scaling mode
+	ScalingModeActivePassive = "active-passive"
+	// ScalingModeActiveActive represents the active-active scaling mode
+	ScalingModeActiveActive = "active-active"
+)
+
+var (
+	LVHaPair        = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
+	IsActivePassive = env.GetBool("NON_LINEAR_SCALING_ACTIVE_PASSIVE", true)
+)
+
+// fivePiBInGiB represents the maximum capacity limit for large volume clusters (5 PiB in GiB).
+const fivePiBInGiB = int64(5 * 1024 * 1024)
+
+// LeastCostLargeVolumeClusterDecisionMaker implements the DecisionMaker interface for large volume (FlexGroup) clusters.
+// It uses non-linear scaling factors to account for cluster overhead and selects optimal homogeneous VM configurations.
+type LeastCostLargeVolumeClusterDecisionMaker struct {
+	config                        *vmrs.VMRSConfig
+	vmsSortedByCost               []vmrs.VMPerfLimit
+	overallWorkloadHeadroom       vmrs.PerfAmplificationFactors
+	nonLinearScalingActivePassive *vmrs.NonLinearScalingFactors
+	nonLinearScalingActiveActive  *vmrs.NonLinearScalingFactors
+}
+
+// NewLeastCostLargeVolumeClusterDecisionMaker creates a new decision maker for large volume clusters.
+// It pre-computes sorted VMs by cost and applies workload headroom for VM selection optimization.
+func NewLeastCostLargeVolumeClusterDecisionMaker(config *vmrs.VMRSConfig) *LeastCostLargeVolumeClusterDecisionMaker {
+	totalWorkloadHeadroom := computeWorkloadHeadroom(config)
+	forDetermining := vmrs.PerfAmplificationFactors{IOPS: 1.0 - totalWorkloadHeadroom.IOPS, Throughput: 1.0 - totalWorkloadHeadroom.Throughput}
+	forProvisioning := vmrs.PerfAmplificationFactors{IOPS: 1.0 + totalWorkloadHeadroom.IOPS, Throughput: 1.0 + totalWorkloadHeadroom.Throughput}
+	return &LeastCostLargeVolumeClusterDecisionMaker{
+		config:                        config,
+		vmsSortedByCost:               sortVMsByCost(config, forDetermining),
+		overallWorkloadHeadroom:       forProvisioning,
+		nonLinearScalingActivePassive: config.HyperscalerPerfLimits.NonLinearScalingActivePassive,
+		nonLinearScalingActiveActive:  config.HyperscalerPerfLimits.NonLinearScalingActiveActive,
+	}
+}
+
+// CompareVMScalingDirection compares two VM types and determines if the change represents scaling up or down.
+// Returns true if scaling up (new VM is more expensive), false if scaling down (new VM is cheaper).
+// Returns error if either VM type is not found in the configuration.
+func (d *LeastCostLargeVolumeClusterDecisionMaker) CompareVMScalingDirection(currentInstanceType, newInstanceType string) (bool, error) {
+	// Use shared utility function to find both VMs with early break optimization
+	currentVM, newVM := vmrs.FindVMsByType(d.vmsSortedByCost, currentInstanceType, newInstanceType)
+
+	// Validate that we found both VM types with specific error messages
+	if currentVM == nil {
+		return false, &vmrs.NoSuitableVMError{
+			Message:         "current VM type not found in sorted list",
+			CustomerRequest: vmrs.CustomerRequestedPerformance{},
+		}
+	}
+	if newVM == nil {
+		return false, &vmrs.NoSuitableVMError{
+			Message:         "new VM type not found in sorted list",
+			CustomerRequest: vmrs.CustomerRequestedPerformance{},
+		}
+	}
+
+	// Determine scaling direction using RelativeCost
+	// Higher RelativeCost means more expensive VM
+	return newVM.RelativeCost > currentVM.RelativeCost, nil
+}
+
+// FindOptimalVMs finds the optimal VM configuration for large volume clusters.
+// It applies non-linear scaling factors to customer requirements, distributes load across HA pairs,
+// and returns a homogeneous cluster configuration with the cheapest suitable VM type.
+func (d *LeastCostLargeVolumeClusterDecisionMaker) FindOptimalVMs(config *vmrs.VMRSConfig, customerRequest vmrs.CustomerRequestedPerformance, currentConfig *vlm.VLMConfig) (*vmrs.Decision, error) {
+	requiredHAPairs := LVHaPair
+
+	scaledIOPSPerHaPair, scaledThroughputPerHaPair, err := d.applyNonLinearScaling(customerRequest.DesiredIOPS, customerRequest.DesiredThroughputInMiBs, requiredHAPairs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply non-linear scaling: %w", err)
+	}
+
+	scaledCustomerReq := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             scaledIOPSPerHaPair,
+		DesiredThroughputInMiBs: scaledThroughputPerHaPair,
+		DesiredCapacityInGiB:    min64(customerRequest.DesiredCapacityInGiB, fivePiBInGiB),
+	}
+
+	vmType, err := d.findOptimalVMTypeForCluster(scaledCustomerReq, requiredHAPairs)
+	if err != nil {
+		return nil, err
+	}
+
+	layout := d.generateHomogeneousClusterLayout(vmType, requiredHAPairs, scaledCustomerReq)
+
+	scaledWithOverheads := d.config.ScaleCustomerRequestedPerformance(customerRequest, d.overallWorkloadHeadroom)
+	numNodes := requiredHAPairs * 2
+	limits := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             min64(scaledWithOverheads.DesiredIOPS, int64(math.Ceil(float64(vmType.DiskLimits.IOPS)*config.HyperscalerPerfLimits.MaxDiskOverprovisioningFactors.IOPS))*int64(numNodes)),
+		DesiredThroughputInMiBs: min64(scaledWithOverheads.DesiredThroughputInMiBs, int64(math.Ceil(float64(vmType.DiskLimits.ThroughputInMiBs)*config.HyperscalerPerfLimits.MaxDiskOverprovisioningFactors.Throughput))*int64(numNodes)),
+		DesiredCapacityInGiB:    min64(scaledWithOverheads.DesiredCapacityInGiB, fivePiBInGiB),
+	}
+
+	return &vmrs.Decision{ChosenVMs: layout.VMTypes, StoragePoolRequirements: limits, ClusterMetadata: layout.ClusterMetadata}, nil
+}
+
+// findOptimalVMTypeForCluster finds the cheapest VM type that can satisfy the per-node requirements
+// for a cluster with the specified number of HA pairs. It distributes the total requirements evenly
+// across all nodes and selects the first (cheapest) VM that meets the per-node capacity, throughput, and IOPS needs.
+func (d *LeastCostLargeVolumeClusterDecisionMaker) findOptimalVMTypeForCluster(scaledCustomerReq vmrs.CustomerRequestedPerformance, haPairs int) (*vmrs.VMPerfLimit, error) {
+	numNodes := haPairs * 2
+	capacityPerNode := scaledCustomerReq.DesiredCapacityInGiB / int64(numNodes)
+	for _, vm := range d.vmsSortedByCost {
+		if vm.OntapLimits.CapacityInGiB >= capacityPerNode && vm.OntapLimits.ThroughputInMiBs >= scaledCustomerReq.DesiredThroughputInMiBs && vm.OntapLimits.IOPS >= scaledCustomerReq.DesiredIOPS {
+			return &vm, nil
+		}
+	}
+	return nil, fmt.Errorf("no suitable VM type found for cluster requirements")
+}
+
+// ClusterLayout represents the physical layout and configuration of a large volume cluster.
+// It contains the VM types for each node, cluster sizing information, and metadata about the deployment.
+type ClusterLayout struct {
+	VMTypes         []string
+	NumNodes        int
+	NumHAPairs      int
+	NumLIFs         int
+	ClusterMetadata *vmrs.ClusterMetadata
+}
+
+// generateHomogeneousClusterLayout creates a cluster layout where all nodes use the same VM type.
+// It calculates the per-node resource distribution and generates cluster metadata for deployment.
+// Returns a ClusterLayout with uniform VM types across all nodes in the cluster.
+func (d *LeastCostLargeVolumeClusterDecisionMaker) generateHomogeneousClusterLayout(vm *vmrs.VMPerfLimit, haPairs int, scaledCustomerReq vmrs.CustomerRequestedPerformance) *ClusterLayout {
+	numNodes := haPairs * 2
+
+	// Calculate numLIFs based on scaling mode
+	// Active-Active: Both nodes in each HA pair have LIFs (haPairs * 2)
+	// Active-Passive: Only active node in each HA pair has LIF (haPairs * 1)
+	var numLIFs int
+	if IsActivePassive {
+		numLIFs = haPairs // Only active nodes have LIFs
+	} else {
+		numLIFs = haPairs * 2 // Both active and passive nodes have LIFs
+	}
+	capacityPerNode := scaledCustomerReq.DesiredCapacityInGiB / int64(numNodes)
+	throughputPerNode := scaledCustomerReq.DesiredThroughputInMiBs / 2
+	iopsPerNode := scaledCustomerReq.DesiredIOPS / 2
+	vmTypes := make([]string, numNodes)
+	for i := 0; i < numNodes; i++ {
+		vmTypes[i] = vm.VMType
+	}
+	meta := &vmrs.ClusterMetadata{NumHAPairs: haPairs, NumNodes: numNodes, NumLIFs: numLIFs, IsHomogeneous: true, VMType: vm.VMType, CapacityPerNode: capacityPerNode, ThroughputPerNode: throughputPerNode, IOPSPerNode: iopsPerNode}
+	return &ClusterLayout{VMTypes: vmTypes, NumNodes: numNodes, NumHAPairs: haPairs, NumLIFs: numLIFs, ClusterMetadata: meta}
+}
+
+// applyNonLinearScaling applies non-linear scaling factors to IOPS and throughput based on the number of HA pairs.
+// For clusters with multiple HA pairs, performance doesn't scale linearly due to coordination overhead.
+// Uses active-passive or active-active scaling configuration based on NON_LINEAR_SCALING_ACTIVE_PASSIVE environment variable.
+// Returns scaled IOPS and throughput values that account for cluster inefficiencies, or an error if scaling configuration is missing.
+func (d *LeastCostLargeVolumeClusterDecisionMaker) applyNonLinearScaling(customerIOPS, customerThroughput int64, haPairs int) (int64, int64, error) {
+	var scalingConfig *vmrs.NonLinearScalingFactors
+
+	// Choose scaling configuration based on environment variable
+	if IsActivePassive {
+		scalingConfig = d.nonLinearScalingActivePassive
+	} else {
+		scalingConfig = d.nonLinearScalingActiveActive
+	}
+
+	// Return error if no scaling configuration is available
+	if scalingConfig == nil {
+		scalingMode := ScalingModeActiveActive
+		if IsActivePassive {
+			scalingMode = ScalingModeActivePassive
+		}
+		return 0, 0, fmt.Errorf("no non-linear scaling configuration found for %s mode", scalingMode)
+	}
+
+	iopsFactor, err := d.getScalingFactor(scalingConfig.IOPSFactors, haPairs, scalingConfig.BaseFactor)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to get IOPS scaling factor: %w", err)
+	}
+
+	thrFactor, err := d.getScalingFactor(scalingConfig.ThroughputFactors, haPairs, scalingConfig.BaseFactor)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to get throughput scaling factor: %w", err)
+	}
+
+	iopsFactor = math.Min(iopsFactor, scalingConfig.MaxScalingFactor)
+	thrFactor = math.Min(thrFactor, scalingConfig.MaxScalingFactor)
+	return int64(math.Ceil(float64(customerIOPS) / iopsFactor)), int64(math.Ceil(float64(customerThroughput) / thrFactor)), nil
+}
+
+// getScalingFactor retrieves the scaling factor for a given number of HA pairs.
+// If an exact match is found, returns that factor. Otherwise, returns an error.
+// No longer falls back to baseFactor - requires explicit configuration for the HA pair count.
+func (d *LeastCostLargeVolumeClusterDecisionMaker) getScalingFactor(factors map[int]float64, haPairs int, baseFactor float64) (float64, error) {
+	if factor, ok := factors[haPairs]; ok {
+		return factor, nil
+	}
+	return 0, fmt.Errorf("no scaling factor configured for %d HA pairs", haPairs)
+}
+
+// min64 returns the smaller of two int64 values.
+// This utility function is used for capacity and performance limit calculations.
+func min64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
+}
