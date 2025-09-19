@@ -559,7 +559,7 @@ func GetCCFEURI(projectNumber, location, volumeName, replicationName string) str
 	return out
 }
 
-func _validateReplicationParams(ctx context.Context, event *CommonReplicationEventParams, accountID int64, se database.Storage) error {
+func _validateReplicationParams(ctx context.Context, event *CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 	logger := util.GetLogger(ctx)
 	ccfeURI := internalUtilGetCCFEURI(event.AccountName, event.Location, event.VolumeResourceID, event.ReplicationResourceID)
 	filter := utils2.CreateFilterWithConditions(
@@ -626,11 +626,14 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 		return errors.NewVCPError(errors.ErrGetDstBasePath, err)
 	}
 
-	// Check if replication job is in process
-	err = replicationJobInProcess(ctx, event.SourceProjectNumber, event.DestinationProjectNumber, srcBasePath, dstBasePath, replication.ReplicationAttributes.SourceLocation, replication.ReplicationAttributes.DestinationLocation, srcToken, dstToken, replication.Uri, replication.RemoteUri, replication.ReplicationAttributes.SourcePoolUUID, replication.ReplicationAttributes.DestinationPoolUUID, event.XCorrelationID)
-	if err != nil {
-		return err
+	if !isCleanup {
+		// Check if replication job is in process
+		err = replicationJobInProcess(ctx, event.SourceProjectNumber, event.DestinationProjectNumber, srcBasePath, dstBasePath, replication.ReplicationAttributes.SourceLocation, replication.ReplicationAttributes.DestinationLocation, srcToken, dstToken, replication.Uri, replication.RemoteUri, replication.ReplicationAttributes.SourcePoolUUID, replication.ReplicationAttributes.DestinationPoolUUID, event.XCorrelationID)
+		if err != nil {
+			return err
+		}
 	}
+
 	event.SrcBasePath = srcBasePath
 	event.DstBasePath = dstBasePath
 	event.SrcToken = srcToken

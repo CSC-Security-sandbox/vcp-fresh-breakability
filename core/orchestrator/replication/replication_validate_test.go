@@ -1847,7 +1847,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrDatabaseDataReadError, errors.New("some error"))
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
 
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -1858,7 +1858,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		response := []*datamodel.VolumeReplication{}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
 		expectedError := errors.NewUserInputValidationErr("No replication found for the given URI")
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 		mockStorage.AssertExpectations(tt)
@@ -1885,7 +1885,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", vsaErrors.NewVCPError(vsaErrors.ErrProjectParsingError, parseError)
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1917,7 +1917,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		InternalParseRegionAndZone = func(location string) (string, string, error) {
 			return location, "", nil
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1953,7 +1953,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
 			return "", errors.New("some error")
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1993,7 +1993,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
 			return errors.New("some error")
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2033,7 +2033,47 @@ func TestValidateReplicationParams(t *testing.T) {
 		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
 			return nil
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenSuccessInCaseOfCleanup", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east4-1",
+					DestinationLocation: "us-central1-a",
+				},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return nil
+		}
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, true)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})

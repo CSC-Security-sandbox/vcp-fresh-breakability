@@ -323,7 +323,7 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1150,7 +1150,7 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1238,7 +1238,7 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1487,7 +1487,7 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, isCleanUp)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1593,7 +1593,7 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1753,7 +1753,7 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
 	if err != nil {
 		return nil, nil, err
 	}

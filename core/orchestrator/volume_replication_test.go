@@ -3301,7 +3301,7 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return errors.New("validation error")
 		}
 		params := &commonparams.ResumeReplicationParams{
@@ -3332,7 +3332,7 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return nil
 		}
 
@@ -3368,7 +3368,7 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3414,7 +3414,7 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3468,7 +3468,7 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3530,7 +3530,7 @@ func TestResumeReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.ResumeReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3600,7 +3600,7 @@ func TestResumeReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.ResumeReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -4097,7 +4097,7 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return errors.New("validation error")
 		}
 		params := &commonparams.StopReplicationParams{
@@ -4128,7 +4128,7 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return nil
 		}
 
@@ -4164,7 +4164,7 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -4211,7 +4211,7 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -4267,7 +4267,7 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -4330,7 +4330,7 @@ func TestStopReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.StopReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -4401,7 +4401,7 @@ func TestStopReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.StopReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -5001,7 +5001,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return errors.New("validation error")
 		}
 		params := &commonparams.DeleteReplicationParams{
@@ -5032,7 +5032,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5081,7 +5081,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5130,7 +5130,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5195,7 +5195,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5260,7 +5260,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5321,7 +5321,7 @@ func TestDeleteReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.DeleteReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5392,7 +5392,7 @@ func TestDeleteReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.DeleteReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5482,7 +5482,7 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return errors.New("validation error")
 		}
 		params := &commonparams.ResumeReplicationParams{
@@ -5513,7 +5513,7 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return nil
 		}
 
@@ -5549,7 +5549,7 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5600,7 +5600,7 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5667,7 +5667,7 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -5946,7 +5946,7 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return errors.New("validation error")
 		}
 		params := &commonparams.UpdateReplicationParams{
@@ -5977,7 +5977,7 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			return nil
 		}
 
@@ -6013,7 +6013,7 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					Pool: &datamodel.Pool{
@@ -6064,7 +6064,7 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					Pool: &datamodel.Pool{
@@ -6131,7 +6131,7 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					Pool: &datamodel.Pool{
@@ -7010,7 +7010,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
 			return errors.New("validation failed")
 		}
 
@@ -7044,7 +7044,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
 			return nil
 		}
 
@@ -7084,7 +7084,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
 			return nil
 		}
 
@@ -7147,7 +7147,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
 			return nil
 		}
 
@@ -7219,7 +7219,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage) error {
+		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
 			return nil
 		}
 

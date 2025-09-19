@@ -134,6 +134,10 @@ func (a *CleanupVolumeReplicationActivity) GetReplicationOnDestinationForCleanup
 func (a *CleanupVolumeReplicationActivity) GetDestinationVolumeForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("GetDestinationVolumeForCleanup")
+	if result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID == "" {
+		logger.Debugf("DestinationVolumeUUID is empty, skipping volume retrieval")
+		return result, nil
+	}
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 	params := &googleproxyclient.V1betaDescribeVolumeParams{
 		ProjectNumber:  *result.DstProjectNumber,

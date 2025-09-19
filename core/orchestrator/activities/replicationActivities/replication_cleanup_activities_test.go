@@ -1075,6 +1075,36 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 	})
+	t.Run("WhenDestinationVolumeUUIDIsEmpty", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstPrj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        locationID,
+							DestinationReplicationUUID: replicationUUID,
+							DestinationVolumeUUID:      "",
+						},
+					},
+				},
+			},
+		}
+		updatedResult, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+	})
 	t.Run("SuccessNotFound", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
 		mockClient := googleproxyclient.NewMockInvoker(tt)
