@@ -2,8 +2,11 @@
   {{- $name := .name }}
   {{- $workerAdditionalConfig := .workerAdditionalConfig }}
   {{- range $ver := $.Values.versionsSupported }}
-    {{- $versionName := $ver.name }}
-    {{- $version := ($versionName | lower | replace "." "-") }}
+    {{ $versionName := $.Chart.Version -}}
+    {{ if not $.Values.workerConfig.nkdevTest -}}
+      {{ $versionName = $ver.name -}}
+    {{ end -}}
+    {{ $version := ($versionName | lower | replace "." "-") -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:

@@ -14,8 +14,11 @@ spec:
       targetPort: {{ $.Values.workerConfig.metricsPort }}
   selector:
     {{- /* Get last version object and use its name field */}}
-    {{- $lastVer := (last $.Values.versionsSupported) }}
-    {{- $lastVersionName := $lastVer.name }}
+    {{ $lastVersionName := $.Chart.Version -}}
+    {{ if not $.Values.workerConfig.nkdevTest -}}
+      {{- $lastVer := (last $.Values.versionsSupported) }}
+      {{- $lastVersionName = $lastVer.name }}
+    {{ end -}}
     app: {{ .name }}-{{ $lastVersionName | lower | replace "." "-" }}
 ---
 {{- end }}

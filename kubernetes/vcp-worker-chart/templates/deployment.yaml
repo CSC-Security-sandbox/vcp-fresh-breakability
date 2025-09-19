@@ -3,8 +3,11 @@
   {{- $replicas := .replicas }}
   {{- $workerAdditionalConfig := .workerAdditionalConfig }}
   {{- range $ver := $.Values.versionsSupported }}
-    {{- $versionName := $ver.name }}
-    {{- $version := ($versionName | lower | replace "." "-") }}
+    {{ $versionName := $.Chart.Version -}}
+    {{ if not $.Values.workerConfig.nkdevTest -}}
+      {{ $versionName = $ver.name -}}
+    {{ end -}}
+    {{ $version := ($versionName | lower | replace "." "-") -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
