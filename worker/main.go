@@ -26,7 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -316,6 +316,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(workflows.PostBlockVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.PreFileVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.PostFileVolumeWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncForHardDeleteWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.HardDeleteResourcesAndAccountWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -328,5 +330,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.OrphanJobActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&backgroundactivities.HardDeleteResourcesAndAccountActivity{SE: conn})
+	worker.RegisterActivity(&backgroundworkflows.HardDeleteResourcesAndAccountworkflow{})
+	worker.RegisterActivity(&resource_events_activities.FinishProjectEventActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.VolumeBackupSyncActivity{SE: conn})
 }

@@ -72,6 +72,8 @@ data:
   MOCK_ACCESS_TOKEN: "{{ index .Values "mockAccessToken" }}"
   INTEGRATION_TEST: "{{ index .Values "integrationTest" }}"
   NKDEV_TEST: "{{ index .Values "nkdevTest" }}"
+  HARD_DELETE_RESOURCES: "{{ index .Values "hardDeleteResources" }}"
+  SCHEDULED_HARD_DELETE: "{{ index.Values "scheduleHardDelete}}"}}"
   WAIT_FOR_TEMPORAL_ENABLED: "{{ index .Values "waitForTemporalEnabled" }}"
   TASK_QUEUE_VERSION: "{{ index .Chart.Version | lower | replace "." "-" }}"
 

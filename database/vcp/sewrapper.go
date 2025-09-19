@@ -1082,6 +1082,84 @@ func (re *retryEngine) GetAccountByUUID(ctx context.Context, uuid string) (*data
 	return var0, err
 }
 
+func (re *retryEngine) GetSoftDeleteAccount(ctx context.Context, name string) (*datamodel.Account, error) {
+	var var0 *datamodel.Account
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSoftDeleteAccount(ctx, name)
+		if err != nil {
+			re.logError("GetSoftDeleteAccount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetDeletedAccounts(ctx context.Context) ([]*datamodel.Account, error) {
+	var var0 []*datamodel.Account
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetDeletedAccounts(ctx)
+		if err != nil {
+			re.logError("GetDeletedAccounts", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) DeleteAccount(ctx context.Context, accountID int64) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteAccount(ctx, accountID)
+		if err != nil {
+			re.logError("DeleteAccount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) RollBackDeletedAccount(ctx context.Context, accountID int64) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.RollBackDeletedAccount(ctx, accountID)
+		if err != nil {
+			re.logError("RollBackDeletedAccount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
 	var var0 []*datamodel.Account
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1366,6 +1444,26 @@ func (re *retryEngine) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datam
 		var0, err = re.dataStore.UpdateSvmWithKmsConfigIDs(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
 		if err != nil {
 			re.logError("UpdateSvmWithKmsConfigIDs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
+	var var0 []*datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListSvmsWithAccountId(ctx, accountId)
+		if err != nil {
+			re.logError("ListSvmsWithAccountId", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -3796,4 +3894,23 @@ func (re *retryEngine) AssignTwoNodesToTwoGroups(ctx context.Context, params dat
 	}
 
 	return var0, err
+}
+
+func (re *retryEngine) HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.HardDeleteResourceByTable(ctx, table, query, id)
+		if err != nil {
+			re.logError("HardDeleteResourceByTable", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
 }

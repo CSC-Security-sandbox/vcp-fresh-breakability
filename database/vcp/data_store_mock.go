@@ -1651,6 +1651,53 @@ func (_c *MockDataStore_CreatingSnapshot_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// DeleteAccount provides a mock function with given fields: ctx, accountID
+func (_m *MockDataStore) DeleteAccount(ctx context.Context, accountID int64) error {
+	ret := _m.Called(ctx, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAccount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = rf(ctx, accountID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_DeleteAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAccount'
+type MockDataStore_DeleteAccount_Call struct {
+	*mock.Call
+}
+
+// DeleteAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID int64
+func (_e *MockDataStore_Expecter) DeleteAccount(ctx interface{}, accountID interface{}) *MockDataStore_DeleteAccount_Call {
+	return &MockDataStore_DeleteAccount_Call{Call: _e.mock.On("DeleteAccount", ctx, accountID)}
+}
+
+func (_c *MockDataStore_DeleteAccount_Call) Run(run func(ctx context.Context, accountID int64)) *MockDataStore_DeleteAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteAccount_Call) Return(_a0 error) *MockDataStore_DeleteAccount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteAccount_Call) RunAndReturn(run func(context.Context, int64) error) *MockDataStore_DeleteAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteBackup provides a mock function with given fields: ctx, backupUUID
 func (_m *MockDataStore) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backupUUID)
@@ -4275,6 +4322,64 @@ func (_c *MockDataStore_GetBackupsByVolumeUUID_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// GetDeletedAccounts provides a mock function with given fields: ctx
+func (_m *MockDataStore) GetDeletedAccounts(ctx context.Context) ([]*datamodel.Account, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDeletedAccounts")
+	}
+
+	var r0 []*datamodel.Account
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*datamodel.Account, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*datamodel.Account); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Account)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetDeletedAccounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDeletedAccounts'
+type MockDataStore_GetDeletedAccounts_Call struct {
+	*mock.Call
+}
+
+// GetDeletedAccounts is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) GetDeletedAccounts(ctx interface{}) *MockDataStore_GetDeletedAccounts_Call {
+	return &MockDataStore_GetDeletedAccounts_Call{Call: _e.mock.On("GetDeletedAccounts", ctx)}
+}
+
+func (_c *MockDataStore_GetDeletedAccounts_Call) Run(run func(ctx context.Context)) *MockDataStore_GetDeletedAccounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetDeletedAccounts_Call) Return(_a0 []*datamodel.Account, _a1 error) *MockDataStore_GetDeletedAccounts_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetDeletedAccounts_Call) RunAndReturn(run func(context.Context) ([]*datamodel.Account, error)) *MockDataStore_GetDeletedAccounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetHostGroup provides a mock function with given fields: ctx, id, accountID
 func (_m *MockDataStore) GetHostGroup(ctx context.Context, id string, accountID int64) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, id, accountID)
@@ -6410,6 +6515,65 @@ func (_c *MockDataStore_GetSnapshotsWithCondition_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GetSoftDeleteAccount provides a mock function with given fields: ctx, name
+func (_m *MockDataStore) GetSoftDeleteAccount(ctx context.Context, name string) (*datamodel.Account, error) {
+	ret := _m.Called(ctx, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSoftDeleteAccount")
+	}
+
+	var r0 *datamodel.Account
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Account, error)); ok {
+		return rf(ctx, name)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Account); ok {
+		r0 = rf(ctx, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Account)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetSoftDeleteAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSoftDeleteAccount'
+type MockDataStore_GetSoftDeleteAccount_Call struct {
+	*mock.Call
+}
+
+// GetSoftDeleteAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+func (_e *MockDataStore_Expecter) GetSoftDeleteAccount(ctx interface{}, name interface{}) *MockDataStore_GetSoftDeleteAccount_Call {
+	return &MockDataStore_GetSoftDeleteAccount_Call{Call: _e.mock.On("GetSoftDeleteAccount", ctx, name)}
+}
+
+func (_c *MockDataStore_GetSoftDeleteAccount_Call) Run(run func(ctx context.Context, name string)) *MockDataStore_GetSoftDeleteAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetSoftDeleteAccount_Call) Return(_a0 *datamodel.Account, _a1 error) *MockDataStore_GetSoftDeleteAccount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetSoftDeleteAccount_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Account, error)) *MockDataStore_GetSoftDeleteAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSvmForPoolID provides a mock function with given fields: ctx, poolID
 func (_m *MockDataStore) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	ret := _m.Called(ctx, poolID)
@@ -7522,6 +7686,55 @@ func (_c *MockDataStore_GetWronglyDeletedSnapshot_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// HardDeleteResourceByTable provides a mock function with given fields: ctx, table, query, id
+func (_m *MockDataStore) HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error {
+	ret := _m.Called(ctx, table, query, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HardDeleteResourceByTable")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) error); ok {
+		r0 = rf(ctx, table, query, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_HardDeleteResourceByTable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HardDeleteResourceByTable'
+type MockDataStore_HardDeleteResourceByTable_Call struct {
+	*mock.Call
+}
+
+// HardDeleteResourceByTable is a helper method to define mock.On call
+//   - ctx context.Context
+//   - table string
+//   - query string
+//   - id int64
+func (_e *MockDataStore_Expecter) HardDeleteResourceByTable(ctx interface{}, table interface{}, query interface{}, id interface{}) *MockDataStore_HardDeleteResourceByTable_Call {
+	return &MockDataStore_HardDeleteResourceByTable_Call{Call: _e.mock.On("HardDeleteResourceByTable", ctx, table, query, id)}
+}
+
+func (_c *MockDataStore_HardDeleteResourceByTable_Call) Run(run func(ctx context.Context, table string, query string, id int64)) *MockDataStore_HardDeleteResourceByTable_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_HardDeleteResourceByTable_Call) Return(_a0 error) *MockDataStore_HardDeleteResourceByTable_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_HardDeleteResourceByTable_Call) RunAndReturn(run func(context.Context, string, string, int64) error) *MockDataStore_HardDeleteResourceByTable_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsBackupInCreatingorDeletingStateByVolume provides a mock function with given fields: ctx, volumeUUID
 func (_m *MockDataStore) IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error) {
 	ret := _m.Called(ctx, volumeUUID)
@@ -8341,6 +8554,65 @@ func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
+// ListSvmsWithAccountId provides a mock function with given fields: ctx, accountId
+func (_m *MockDataStore) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
+	ret := _m.Called(ctx, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListSvmsWithAccountId")
+	}
+
+	var r0 []*datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.Svm, error)); ok {
+		return rf(ctx, accountId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.Svm); ok {
+		r0 = rf(ctx, accountId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, accountId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListSvmsWithAccountId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSvmsWithAccountId'
+type MockDataStore_ListSvmsWithAccountId_Call struct {
+	*mock.Call
+}
+
+// ListSvmsWithAccountId is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId int64
+func (_e *MockDataStore_Expecter) ListSvmsWithAccountId(ctx interface{}, accountId interface{}) *MockDataStore_ListSvmsWithAccountId_Call {
+	return &MockDataStore_ListSvmsWithAccountId_Call{Call: _e.mock.On("ListSvmsWithAccountId", ctx, accountId)}
+}
+
+func (_c *MockDataStore_ListSvmsWithAccountId_Call) Run(run func(ctx context.Context, accountId int64)) *MockDataStore_ListSvmsWithAccountId_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListSvmsWithAccountId_Call) Return(_a0 []*datamodel.Svm, _a1 error) *MockDataStore_ListSvmsWithAccountId_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListSvmsWithAccountId_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.Svm, error)) *MockDataStore_ListSvmsWithAccountId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListTpProjects provides a mock function with given fields: ctx
 func (_m *MockDataStore) ListTpProjects(ctx context.Context) ([]string, error) {
 	ret := _m.Called(ctx)
@@ -8631,6 +8903,53 @@ func (_c *MockDataStore_RevertedVolume_Call) Return(_a0 []*datamodel.Snapshot, _
 }
 
 func (_c *MockDataStore_RevertedVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *datamodel.Snapshot) ([]*datamodel.Snapshot, error)) *MockDataStore_RevertedVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RollBackDeletedAccount provides a mock function with given fields: ctx, accountID
+func (_m *MockDataStore) RollBackDeletedAccount(ctx context.Context, accountID int64) error {
+	ret := _m.Called(ctx, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RollBackDeletedAccount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = rf(ctx, accountID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_RollBackDeletedAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RollBackDeletedAccount'
+type MockDataStore_RollBackDeletedAccount_Call struct {
+	*mock.Call
+}
+
+// RollBackDeletedAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID int64
+func (_e *MockDataStore_Expecter) RollBackDeletedAccount(ctx interface{}, accountID interface{}) *MockDataStore_RollBackDeletedAccount_Call {
+	return &MockDataStore_RollBackDeletedAccount_Call{Call: _e.mock.On("RollBackDeletedAccount", ctx, accountID)}
+}
+
+func (_c *MockDataStore_RollBackDeletedAccount_Call) Run(run func(ctx context.Context, accountID int64)) *MockDataStore_RollBackDeletedAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_RollBackDeletedAccount_Call) Return(_a0 error) *MockDataStore_RollBackDeletedAccount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_RollBackDeletedAccount_Call) RunAndReturn(run func(context.Context, int64) error) *MockDataStore_RollBackDeletedAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }

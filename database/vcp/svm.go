@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	getSvmsByKmsConfigID = _getSvmsByKmsConfigID
+	getSvmsByKmsConfigID  = _getSvmsByKmsConfigID
+	listSvmsWithAccountId = _listSvmsWithAccountId
 )
 
 // GetSvmsByPoolID retrieves SVMs by its corresponding pool ID
@@ -182,4 +183,17 @@ func (d *DataStoreRepository) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm
 	}
 
 	return svm, nil
+}
+
+func (d *DataStoreRepository) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
+	return listSvmsWithAccountId(d.db.GORM().WithContext(ctx), accountId)
+}
+
+func _listSvmsWithAccountId(db *gorm.DB, accountId int64) ([]*datamodel.Svm, error) {
+	var svms []*datamodel.Svm
+	err := db.Where("account_id = ?", accountId).Find(&svms).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return svms, nil
 }

@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -14,13 +16,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
-	"time"
 )
 
 var (
 	finishProjectCVPJobRetryMaxAttempts           = env.GetInt("FINISH_PROJECT_CVP_CLIENT_RETRY_MAX_ATTEMPTS", 10)
 	finishProjectInitialRetryIntervalForCVPClient = env.GetString("FINISH_PROJECT_CVP_CLIENT_RETRY_INTERVAL", "30s")
 	finishProjectBackoffCoefficientForCVPClient   = env.GetFloat64("FINISH_PROJECT_CVP_CLIENT_BACKOFF_COEFFICIENT", 1.0)
+	hardDeleteResources                           = env.GetBool("HARD_DELETE_RESOURCES", false)
 )
 
 // FinishProjectEventDeleteStateWorkflow is a workflow that handles the DELETE state for FinishProjectEvent.
@@ -141,9 +143,7 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 			}
 		}
 	}
-
 	// TODO: Delete Active directory from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
-
 	// Delete KMS config from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
 	kmsActivities := &kms_activities.KmsConfigActivity{}
 	var kmsConfigs []*datamodel.KmsConfig
@@ -160,5 +160,35 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 			return nil, ConvertToVSAError(err)
 		}
 	}
+
+	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteAccountActivity, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
+	var errRollBack error
+	defer func() {
+		if errRollBack != nil {
+			err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.RollbackAccountStateActivity, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+			if err != nil {
+				s.Logger.Errorf("RollbackAccountStateActivity failed: %v", err)
+			}
+		}
+	}()
+
+	if hardDeleteResources {
+		var canHardDelete bool
+		errRollBack = workflow.ExecuteActivity(ctx, finishProjectEventActivity.VerifySoftDeletedResourcesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, &canHardDelete)
+		if errRollBack != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		if canHardDelete {
+			errRollBack = workflow.ExecuteActivity(ctx, finishProjectEventActivity.HardDeleteResourcesInOrder, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+			if errRollBack != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
+	}
+
 	return nil, ConvertToVSAError(err)
 }

@@ -8,9 +8,18 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
+
+func (d *DataStoreRepository) GetSoftDeleteAccount(ctx context.Context, name string) (*datamodel.Account, error) {
+	return getSoftDeleteAccount(d.db.GORM().WithContext(ctx), name)
+}
+
+func (d *DataStoreRepository) GetDeletedAccounts(ctx context.Context) ([]*datamodel.Account, error) {
+	return getDeletedAccounts(d.db.GORM().WithContext(ctx))
+}
 
 // GetAccount retrieves an account by its name
 func (d *DataStoreRepository) GetAccount(ctx context.Context, name string) (*datamodel.Account, error) {
@@ -63,6 +72,29 @@ func createAccount(db *gorm.DB, account *datamodel.Account) (*datamodel.Account,
 		return account, nil
 	}
 	return nil, errors.New("account already exists")
+}
+
+func getSoftDeleteAccount(db *gorm.DB, name string) (*datamodel.Account, error) {
+	accountSoftDelete := datamodel.Account{}
+	err := db.Unscoped().Where("name = ?", name).First(&accountSoftDelete).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrAccountNotFound, customerrors.NewNotFoundErr("account", nil))
+	}
+	return &accountSoftDelete, nil
+}
+
+func getDeletedAccounts(db *gorm.DB) ([]*datamodel.Account, error) {
+	accounts := []datamodel.Account{}
+	err := db.Unscoped().Where("state = ?", models.AccountStateDeleted).Find(&accounts).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	result := make([]*datamodel.Account, 0, len(accounts))
+	for i := range accounts {
+		result = append(result, &accounts[i])
+	}
+	return result, nil
 }
 
 func getAccounts(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {

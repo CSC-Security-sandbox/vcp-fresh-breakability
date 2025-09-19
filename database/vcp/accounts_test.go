@@ -2,15 +2,15 @@ package database
 
 import (
 	"context"
-	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"gorm.io/gorm"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	"gorm.io/gorm"
 )
 
 func TestGetAccount(t *testing.T) {
@@ -104,6 +104,132 @@ func TestCreateAccount(t *testing.T) {
 
 		_, err = store.CreateAccount(context.Background(), account)
 		assert.EqualError(tt, err, "account already exists")
+	})
+}
+
+func TestGetSoftDeleteAccount(t *testing.T) {
+	t.Run("WhenSoftDeletedAccountExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "soft-deleted-account",
+		}
+		createdAccount, err := store.CreateAccount(context.Background(), account)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdAccount)
+
+		// Soft delete the account
+		err = store.db.GORM().Delete(&datamodel.Account{}, "uuid = ?", account.UUID).Error
+		assert.NoError(tt, err)
+
+		// Retrieve the soft-deleted account
+		retrievedAccount, err := store.GetSoftDeleteAccount(context.Background(), "soft-deleted-account")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, retrievedAccount)
+		assert.Equal(tt, "soft-deleted-account", retrievedAccount.Name)
+		assert.Equal(tt, "test-uuid", retrievedAccount.UUID)
+		assert.NotNil(tt, retrievedAccount.DeletedAt)
+	})
+
+	t.Run("WhenActiveAccountExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active account (not soft-deleted)
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "active-uuid",
+			},
+			Name: "active-account",
+		}
+		createdAccount, err := store.CreateAccount(context.Background(), account)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdAccount)
+
+		// Retrieve the active account using GetSoftDeleteAccount
+		retrievedAccount, err := store.GetSoftDeleteAccount(context.Background(), "active-account")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, retrievedAccount)
+		assert.Equal(tt, "active-account", retrievedAccount.Name)
+		assert.Equal(tt, "active-uuid", retrievedAccount.UUID)
+		assert.Nil(tt, retrievedAccount.DeletedAt)
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Try to retrieve a non-existent account
+		retrievedAccount, err := store.GetSoftDeleteAccount(context.Background(), "non-existent-account")
+		assert.Error(tt, err)
+		assert.Nil(tt, retrievedAccount)
+
+		// Verify the error is the expected type
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, 404, *customErr.HttpCode)
+	})
+
+	t.Run("WhenMultipleAccountsExistWithSameName", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create first account
+		account1 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "uuid-1",
+			},
+			Name: "duplicate-name",
+		}
+		_, err = store.CreateAccount(context.Background(), account1)
+		assert.NoError(tt, err)
+
+		// Soft delete the first account
+		err = store.db.GORM().Delete(&datamodel.Account{}, "uuid = ?", account1.UUID).Error
+		assert.NoError(tt, err)
+
+		// Create second account with same name (this would normally fail with CreateAccount,
+		// but we're creating it directly to test the scenario)
+		account2 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "uuid-2",
+			},
+			Name: "duplicate-name",
+		}
+		err = store.db.GORM().Create(account2).Error
+		assert.NoError(tt, err)
+
+		// GetSoftDeleteAccount should return one of them (typically the first one found)
+		retrievedAccount, err := store.GetSoftDeleteAccount(context.Background(), "duplicate-name")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, retrievedAccount)
+		assert.Equal(tt, "duplicate-name", retrievedAccount.Name)
+		assert.True(tt, retrievedAccount.UUID == "uuid-1" || retrievedAccount.UUID == "uuid-2")
 	})
 }
 

@@ -658,3 +658,69 @@ func TestGetSvmsByKmsConfigID(t *testing.T) {
 		assert.Nil(t, updated)
 	})
 }
+
+func TestListSvmsWithAccountId(t *testing.T) {
+	t.Run("WhenSoftDeletedSvmsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		// soft delete
+		svm.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+		assert.NoError(tt, store.db.GORM().Unscoped().Save(svm).Error)
+
+		svms, err := store.ListSvmsWithAccountId(context.Background(), account.ID)
+		assert.NoError(tt, err)
+		// soft-deleted SVMs should not be returned by the non-unscoped listing
+		assert.Len(tt, svms, 0)
+	})
+
+	t.Run("WhenNoSoftDeletedSvms", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		svms, err := store.ListSvmsWithAccountId(context.Background(), 9999)
+		assert.NoError(tt, err)
+		assert.Empty(tt, svms)
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		assert.NoError(tt, sqlDB.Close())
+
+		svms, err := store.ListSvmsWithAccountId(context.Background(), 1)
+		assert.Error(tt, err)
+		assert.Nil(tt, svms)
+	})
+}

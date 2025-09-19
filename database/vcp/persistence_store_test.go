@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -1949,4 +1950,131 @@ func TestListSnHostsReturnsEmptyWhenNoPoolsPresent(t *testing.T) {
 	hosts, err := store.ListTpProjects(ctx)
 	assert.NoError(t, err)
 	assert.Empty(t, hosts)
+}
+
+func TestGetSoftDeleteAccount_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	storage, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+
+	ps := storage.(*PersistenceStore)
+	ctx := context.Background()
+
+	// Create test accounts
+	account1 := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "uuid-1"},
+		Name:      "test-account-1",
+	}
+	account2 := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "uuid-2"},
+		Name:      "test-account-2",
+	}
+
+	createdAccount1, err := ps.CreateAccount(ctx, account1)
+	require.NoError(t, err)
+	_, err = ps.CreateAccount(ctx, account2)
+	require.NoError(t, err)
+
+	// Soft delete account1
+	err = ps.DeleteAccount(ctx, createdAccount1.ID)
+	require.NoError(t, err)
+
+	// Test GetSoftDeleteAccount returns soft deleted account
+	retrievedAccount, err := ps.GetSoftDeleteAccount(ctx, "test-account-1")
+	assert.NoError(t, err)
+	assert.NotNil(t, retrievedAccount)
+	assert.Equal(t, "test-account-1", retrievedAccount.Name)
+	assert.NotNil(t, retrievedAccount.DeletedAt)
+
+	// Test GetAccount does not return soft deleted account
+	_, err = ps.GetAccount(ctx, "test-account-1")
+	assert.Error(t, err)
+
+	// Test GetAccount still returns non-deleted account
+	retrievedAccount2, err := ps.GetAccount(ctx, "test-account-2")
+	assert.NoError(t, err)
+	assert.Equal(t, "test-account-2", retrievedAccount2.Name)
+
+	// Test GetSoftDeleteAccount returns error for non-existent account
+	_, err = ps.GetSoftDeleteAccount(ctx, "non-existent")
+	assert.Error(t, err)
+
+	_ = ps.Close()
+}
+
+// Add after TestGetSoftDeleteAccount_Persistence_Store
+func TestAccountSoftDelete_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	storage, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+
+	ps := storage.(*PersistenceStore)
+	ctx := context.Background()
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "uuid-test"},
+		Name:      "test-account",
+	}
+	createdAccount, err := ps.CreateAccount(ctx, account)
+	require.NoError(t, err)
+
+	// Soft delete the account
+	err = ps.DeleteAccount(ctx, createdAccount.ID)
+	assert.NoError(t, err)
+
+	var result datamodel.Account
+	err = ps.DB().Unscoped().First(&result, createdAccount.ID).Error
+	assert.NoError(t, err)
+	assert.NotNil(t, result.DeletedAt)
+	assert.True(t, result.DeletedAt.Valid)
+
+	err = ps.DeleteAccount(ctx, 99999)
+	assert.Error(t, err)
+
+	assert.Error(t, err)
+
+	_ = ps.Close()
+}
+
+func TestPersistenceStore_AccountDelegates(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+
+	// Create an account for testing
+	account := &datamodel.Account{Name: "test-account"}
+	created, err := store.CreateAccount(ctx, account)
+	assert.NoError(t, err)
+
+	// Test GetSoftDeleteAccount (should return the account if not deleted)
+	acc, err := store.GetSoftDeleteAccount(ctx, created.Name)
+	assert.NoError(t, err)
+	assert.NotNil(t, acc)
+
+	// Test GetDeletedAccounts (should be empty since not deleted)
+	deleted, err := store.GetDeletedAccounts(ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, deleted)
+
+	// Test RollBackDeletedAccount (should succeed even if not deleted)
+	err = store.RollBackDeletedAccount(ctx, created.ID)
+	assert.NoError(t, err)
+}
+
+func TestPersistenceStore_AccountDelegates_ErrorCases(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, err := NewTestStorage(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+
+	// Close the DB to simulate error
+	sqlDB, _ := store.DB().DB()
+	_ = sqlDB.Close()
+
+	_, err = store.GetDeletedAccounts(ctx)
+	assert.Error(t, err)
+
+	err = store.RollBackDeletedAccount(ctx, 12345)
+	assert.Error(t, err)
 }

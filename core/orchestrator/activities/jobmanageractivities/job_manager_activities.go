@@ -15,18 +15,20 @@ import (
 )
 
 const (
-	SyncVsaSnapshots         = "SYNC_VSA_SNAPSHOTS"
-	RotateKmsServiceAccounts = "ROTATE_KMS_SERVICE_ACCOUNTS"
-	OrphanJobScheduler       = "ORPHANED_JOB_SCHEDULER"
-	SyncLatestBackupLogicalSize = "SYNC_LATEST_BACKUP_LOGICAL_SIZE"
+	SyncVsaSnapshots              = "SYNC_VSA_SNAPSHOTS"
+	RotateKmsServiceAccounts      = "ROTATE_KMS_SERVICE_ACCOUNTS"
+	OrphanJobScheduler            = "ORPHANED_JOB_SCHEDULER"
+	SyncLatestBackupLogicalSize   = "SYNC_LATEST_BACKUP_LOGICAL_SIZE"
+	HardDeleteResourcesAndAccount = "HARD_DELETE_RESOURCES_AND_ACCOUNT"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
 var JobTypeToWorkflow = map[string]interface{}{
-	SyncVsaSnapshots:         backgroundworkflows.SyncVSASnapshotsWorkflow,
-	RotateKmsServiceAccounts: background_kms_workflows.RotateKmsSAKeyWorkflow,
-	OrphanJobScheduler:       backgroundworkflows.OrphanJobSchedulerWorkflow,
-	SyncLatestBackupLogicalSize: backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,
+	SyncVsaSnapshots:              backgroundworkflows.SyncVSASnapshotsWorkflow,
+	RotateKmsServiceAccounts:      background_kms_workflows.RotateKmsSAKeyWorkflow,
+	OrphanJobScheduler:            backgroundworkflows.OrphanJobSchedulerWorkflow,
+	SyncLatestBackupLogicalSize:   backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,
+	HardDeleteResourcesAndAccount: backgroundworkflows.HardDeleteResourcesAndAccountWorkflow,
 }
 
 type JobManagerActivity struct {

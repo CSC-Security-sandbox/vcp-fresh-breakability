@@ -9,6 +9,11 @@
     "cronExpression": "0 0 * * *",
     "state": "CREATING"
   },
+  "HARD_DELETE_RESOURCES_AND_ACCOUNT": {
+    "jobType": "HARD_DELETE_RESOURCES_AND_ACCOUNT",
+    "cronExpression": "* 8 * * *",
+    "state": "CREATING"
+  },
   "ORPHANED_JOB_SCHEDULER": {
     "jobType": "ORPHANED_JOB_SCHEDULER",
     "cronExpression": "*/2 * * * *",
@@ -19,4 +24,5 @@
     "cronExpression": "*/5 * * * *",
     "state": "CREATING"
   }
+  
 }

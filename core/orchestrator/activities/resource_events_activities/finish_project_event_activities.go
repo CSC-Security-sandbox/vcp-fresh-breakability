@@ -2,11 +2,13 @@ package resource_events_activities
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -94,4 +96,85 @@ func (j *FinishProjectEventActivity) PollFinishProjectEventSDEOperationActivity(
 		return nil
 	}
 	return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSDEJobNotFinished, errors.New("job not finished")))
+}
+
+func (j *FinishProjectEventActivity) DeleteAccountActivity(ctx context.Context, projectNumber string) error {
+	se := j.SE
+	account, err := se.GetAccount(ctx, projectNumber)
+	if err != nil {
+		return err
+	}
+	return se.DeleteAccount(ctx, account.ID)
+}
+
+func (j *FinishProjectEventActivity) VerifySoftDeletedResourcesForAccount(ctx context.Context, projectNumber string) (bool, error) {
+	// TODO: Add check for Backup
+	var (
+		softDelVolume = true
+		softDelPool   = true
+		softDelSvms   = true
+	)
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	account, err := se.GetSoftDeleteAccount(ctx, projectNumber)
+	if err != nil {
+		logger.Errorf("Error getting soft-deleted account for project %s", projectNumber)
+		return false, err
+	}
+
+	conditions := [][]interface{}{
+		{"account_id = ?", account.ID},
+	}
+	softDeletedVols, err := se.ListVolumes(ctx, conditions)
+	if err != nil {
+		logger.Errorf("Error listing soft-deleted volumes for account %d", account.ID)
+		return false, err
+	}
+	if len(softDeletedVols) > 0 {
+		softDelVolume = false
+	}
+
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", account.ID),
+	)
+	softDelPools, err := se.ListPools(ctx, filter)
+	if err != nil {
+		logger.Errorf("Error listing soft-deleted pools for account %d", account.ID)
+		return false, err
+	}
+	if len(softDelPools) > 0 {
+		softDelPool = false
+	}
+
+	softDeletedSvms, err := se.ListSvmsWithAccountId(ctx, account.ID)
+	if err != nil {
+		logger.Errorf("Error listing soft-deleted svms for account %d", account.ID)
+		return false, err
+	}
+	if len(softDeletedSvms) > 0 {
+		softDelSvms = false
+	}
+
+	if softDelVolume && softDelPool && softDelSvms {
+		return true, nil
+	}
+
+	return false, errors.New("Soft-deleted")
+}
+
+func (j *FinishProjectEventActivity) RollbackAccountStateActivity(ctx context.Context, projectNumber string) error {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+	account, err := se.GetSoftDeleteAccount(ctx, projectNumber)
+	if err != nil {
+		logger.Errorf("Error getting soft-deleted account for project %s", projectNumber)
+		return err
+	}
+
+	err = se.RollBackDeletedAccount(ctx, account.ID)
+	if err != nil {
+		logger.Errorf("Error rolling back soft-deleted account for project %s", projectNumber)
+	}
+	return nil
 }

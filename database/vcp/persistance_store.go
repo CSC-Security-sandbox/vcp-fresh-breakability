@@ -1091,6 +1091,30 @@ func (s *PersistenceStore) ListTpProjects(ctx context.Context) ([]string, error)
 	return s.dataStore.ListTpProjects(ctx)
 }
 
+func (s *PersistenceStore) GetSoftDeleteAccount(ctx context.Context, name string) (*datamodel.Account, error) {
+	return s.dataStore.GetSoftDeleteAccount(ctx, name)
+}
+
+func (s *PersistenceStore) GetDeletedAccounts(ctx context.Context) ([]*datamodel.Account, error) {
+	return s.dataStore.GetDeletedAccounts(ctx)
+}
+
+func (s *PersistenceStore) HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error {
+	return s.dataStore.HardDeleteResourceByTable(ctx, table, query, id)
+}
+
+func (s *PersistenceStore) DeleteAccount(ctx context.Context, accountID int64) error {
+	return s.dataStore.DeleteAccount(ctx, accountID)
+}
+
+func (s *PersistenceStore) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
+	return s.dataStore.ListSvmsWithAccountId(ctx, accountId)
+}
+
+func (s *PersistenceStore) RollBackDeletedAccount(ctx context.Context, accountID int64) error {
+	return s.dataStore.RollBackDeletedAccount(ctx, accountID)
+}
+
 func (s *PersistenceStore) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
 	return s.dataStore.GetBackupLogicalSizeMetrics(ctx)
 }

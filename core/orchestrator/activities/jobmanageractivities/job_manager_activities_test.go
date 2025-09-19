@@ -46,6 +46,84 @@ func TestCreateScheduleActivity_Success(t *testing.T) {
 	mockScheduleClient.AssertExpectations(t)
 }
 
+func TestCreateScheduleActivity_HardDeleteResourcesAndAccount(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduleClient := &mocks.ScheduleClient{}
+	mockScheduleHandle := &mocks.ScheduleHandle{}
+	temporalScheduler := scheduler.NewTemporalScheduler(mockScheduleClient)
+
+	jobManagerActivity := &JobManagerActivity{SE: mockStorage, Scheduler: temporalScheduler}
+	env.RegisterActivity(jobManagerActivity.CreateScheduleActivity)
+
+	jobs := []*datamodel.AdminJobSpec{
+		{
+			BaseModel:      datamodel.BaseModel{UUID: "job-hard-delete"},
+			JobType:        HardDeleteResourcesAndAccount,
+			CronExpression: "0 2 * * *",
+			State:          scheduler.JobStatusCreating,
+		},
+	}
+	mockStorage.On("GetAdminJobSpecsByState", mock.Anything, scheduler.JobStatusCreating).Return(jobs, nil)
+	mockStorage.On("UpdateAdminJobSpec", mock.Anything, jobs[0]).Return(nil)
+
+	mockScheduleClient.On("Create", mock.Anything, mock.Anything).Return(mockScheduleHandle, nil)
+	mockScheduleHandle.On("GetID").Return("schedule-hard-delete")
+
+	_, err := env.ExecuteActivity(jobManagerActivity.CreateScheduleActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockScheduleClient.AssertExpectations(t)
+}
+
+func TestCreateScheduleActivity_MultipleJobTypes(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduleClient := &mocks.ScheduleClient{}
+	mockScheduleHandle := &mocks.ScheduleHandle{}
+	temporalScheduler := scheduler.NewTemporalScheduler(mockScheduleClient)
+
+	jobManagerActivity := &JobManagerActivity{SE: mockStorage, Scheduler: temporalScheduler}
+	env.RegisterActivity(jobManagerActivity.CreateScheduleActivity)
+
+	jobs := []*datamodel.AdminJobSpec{
+		{
+			BaseModel:      datamodel.BaseModel{UUID: "job-1"},
+			JobType:        SyncVsaSnapshots,
+			CronExpression: "* * * * *",
+			State:          scheduler.JobStatusCreating,
+		},
+		{
+			BaseModel:      datamodel.BaseModel{UUID: "job-2"},
+			JobType:        RotateKmsServiceAccounts,
+			CronExpression: "0 0 * * *",
+			State:          scheduler.JobStatusCreating,
+		},
+		{
+			BaseModel:      datamodel.BaseModel{UUID: "job-3"},
+			JobType:        HardDeleteResourcesAndAccount,
+			CronExpression: "0 2 * * *",
+			State:          scheduler.JobStatusCreating,
+		},
+	}
+	mockStorage.On("GetAdminJobSpecsByState", mock.Anything, scheduler.JobStatusCreating).Return(jobs, nil)
+	mockStorage.On("UpdateAdminJobSpec", mock.Anything, mock.Anything).Return(nil).Times(3)
+
+	mockScheduleClient.On("Create", mock.Anything, mock.Anything).Return(mockScheduleHandle, nil).Times(3)
+	mockScheduleHandle.On("GetID").Return("schedule-id")
+
+	_, err := env.ExecuteActivity(jobManagerActivity.CreateScheduleActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockScheduleClient.AssertExpectations(t)
+}
+
 func TestUpdateScheduleActivity_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
@@ -81,6 +159,41 @@ func TestUpdateScheduleActivity_Success(t *testing.T) {
 	mockScheduleHandle.AssertExpectations(t)
 }
 
+func TestUpdateScheduleActivity_HardDeleteResourcesAndAccount(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduleClient := &mocks.ScheduleClient{}
+	mockScheduleHandle := &mocks.ScheduleHandle{}
+	temporalScheduler := scheduler.NewTemporalScheduler(mockScheduleClient)
+
+	jobManagerActivity := &JobManagerActivity{SE: mockStorage, Scheduler: temporalScheduler}
+	env.RegisterActivity(jobManagerActivity.UpdateScheduleActivity)
+
+	jobs := []*datamodel.AdminJobSpec{
+		{
+			BaseModel:      datamodel.BaseModel{UUID: "job-hard-delete-update"},
+			JobType:        HardDeleteResourcesAndAccount,
+			CronExpression: "0 3 * * *",
+			State:          scheduler.JobStatusUpdating,
+		},
+	}
+
+	mockStorage.On("GetAdminJobSpecsByState", mock.Anything, scheduler.JobStatusUpdating).Return(jobs, nil)
+	mockStorage.On("UpdateAdminJobSpec", mock.Anything, jobs[0]).Return(nil)
+
+	mockScheduleClient.On("GetHandle", mock.Anything, "job-hard-delete-update").Return(mockScheduleHandle)
+	mockScheduleHandle.On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	_, err := env.ExecuteActivity(jobManagerActivity.UpdateScheduleActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockScheduleClient.AssertExpectations(t)
+	mockScheduleHandle.AssertExpectations(t)
+}
+
 func TestDeleteScheduleActivity_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
@@ -106,6 +219,41 @@ func TestDeleteScheduleActivity_Success(t *testing.T) {
 	mockStorage.On("UpdateAdminJobSpec", mock.Anything, jobs[0]).Return(nil)
 
 	mockScheduleClient.On("GetHandle", mock.Anything, "job-3").Return(mockScheduleHandle)
+	mockScheduleHandle.On("Delete", mock.Anything).Return(nil)
+
+	_, err := env.ExecuteActivity(jobManagerActivity.DeleteScheduleActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockScheduleClient.AssertExpectations(t)
+	mockScheduleHandle.AssertExpectations(t)
+}
+
+func TestDeleteScheduleActivity_HardDeleteResourcesAndAccount(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduleClient := &mocks.ScheduleClient{}
+	mockScheduleHandle := &mocks.ScheduleHandle{}
+	temporalScheduler := scheduler.NewTemporalScheduler(mockScheduleClient)
+
+	jobManagerActivity := &JobManagerActivity{SE: mockStorage, Scheduler: temporalScheduler}
+	env.RegisterActivity(jobManagerActivity.DeleteScheduleActivity)
+
+	jobs := []*datamodel.AdminJobSpec{
+		{
+			BaseModel:      datamodel.BaseModel{UUID: "job-hard-delete-del"},
+			JobType:        HardDeleteResourcesAndAccount,
+			CronExpression: "0 2 * * *",
+			State:          scheduler.JobStatusDeleting,
+		},
+	}
+
+	mockStorage.On("GetAdminJobSpecsByState", mock.Anything, scheduler.JobStatusDeleting).Return(jobs, nil)
+	mockStorage.On("UpdateAdminJobSpec", mock.Anything, jobs[0]).Return(nil)
+
+	mockScheduleClient.On("GetHandle", mock.Anything, "job-hard-delete-del").Return(mockScheduleHandle)
 	mockScheduleHandle.On("Delete", mock.Anything).Return(nil)
 
 	_, err := env.ExecuteActivity(jobManagerActivity.DeleteScheduleActivity)
@@ -192,4 +340,34 @@ func TestDeleteScheduleActivity_UpdateAdminJobSpecError(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 	mockScheduleClient.AssertExpectations(t)
 	mockScheduleHandle.AssertExpectations(t)
+}
+
+func TestCreateScheduleActivity_UnknownJobType(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduleClient := &mocks.ScheduleClient{}
+	temporalScheduler := scheduler.NewTemporalScheduler(mockScheduleClient)
+
+	jobManagerActivity := &JobManagerActivity{SE: mockStorage, Scheduler: temporalScheduler}
+	env.RegisterActivity(jobManagerActivity.CreateScheduleActivity)
+
+	jobs := []*datamodel.AdminJobSpec{
+		{
+			BaseModel:      datamodel.BaseModel{UUID: "job-unknown"},
+			JobType:        "UNKNOWN_JOB_TYPE",
+			CronExpression: "* * * * *",
+			State:          scheduler.JobStatusCreating,
+		},
+	}
+	mockStorage.On("GetAdminJobSpecsByState", mock.Anything, scheduler.JobStatusCreating).Return(jobs, nil)
+
+	// No schedule should be created for unknown job type
+	_, err := env.ExecuteActivity(jobManagerActivity.CreateScheduleActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	// Ensure Create was never called on mockScheduleClient
+	mockScheduleClient.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }

@@ -91,6 +91,10 @@ type (
 		GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
 		CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)
 		GetAccountByUUID(ctx context.Context, uuid string) (*datamodel.Account, error)
+		GetSoftDeleteAccount(ctx context.Context, name string) (*datamodel.Account, error)
+		GetDeletedAccounts(ctx context.Context) ([]*datamodel.Account, error)
+		DeleteAccount(ctx context.Context, accountID int64) error
+		RollBackDeletedAccount(ctx context.Context, accountID int64) error
 		GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error)
 
 		CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
@@ -109,6 +113,7 @@ type (
 		GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error)
 		GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error)
 		UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error)
+		ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error)
 
 		CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)
 		GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)
@@ -249,5 +254,7 @@ type (
 		// AssignTwoNodesToTwoGroups assigns two nodes to two different node groups, ensuring no group exceeds maxNodesPerGroup nodes
 		// Assumes that node1 and node2 are precreated and have valid IDs
 		AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error)
+
+		HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error
 	}
 )
