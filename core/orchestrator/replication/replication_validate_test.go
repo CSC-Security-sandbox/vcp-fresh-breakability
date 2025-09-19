@@ -1338,7 +1338,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(0, errors.New("quota limit error")).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(0, errors.New("quota limit error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
@@ -1378,7 +1378,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, errors.New("replication count error")).Once()
 
@@ -1420,7 +1420,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(5, nil).Once()
 
@@ -1462,11 +1462,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(0, errors.New("volume quota limit error")).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(0, errors.New("volume quota limit error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
@@ -1506,11 +1506,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(5, nil).Once()
 
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, errors.New("volume count error")).Once()
 
@@ -1552,11 +1552,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(5, nil).Once()
 
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(5, nil).Once()
 
@@ -1598,11 +1598,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(10, nil).Once()
 
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
@@ -1651,11 +1651,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(10, nil).Once()
 
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
@@ -1704,11 +1704,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(10, nil).Once()
 
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
@@ -1756,11 +1756,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(10, nil).Once()
 
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
@@ -1814,11 +1814,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
 
 		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(10, nil).Once()
 
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 

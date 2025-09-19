@@ -207,7 +207,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 			return nil, errors.NewVCPError(errors.ErrGetSignedCallbackToken, err)
 		}
 
-		replicationQuotaLimit, err := getQuotaLimit(ctx, logger, event.LocationID, event.SourceProjectNumber, callbackToken, common.ResourceTypeReplication)
+		replicationQuotaLimit, err := getQuotaLimit(ctx, logger, event.DestinationLocationID, event.DestinationProjectNumber, callbackToken, common.ResourceTypeReplication)
 		if err != nil {
 			println(err.Error())
 			logger.Error("Get replication quota limit error", common.Error(err))
@@ -344,7 +344,7 @@ func _getDestinationPool(ctx context.Context, destBasePath string, token string,
 	logger := util.GetLogger(ctx)
 
 	logger.Debug(
-		"cvp getDestinationPool",
+		"getDestinationPool",
 		common.String("destBasePath", destBasePath),
 		common.String("projectNumber", projectNumber),
 		common.String("remoteLocationID", remoteLocationID),
@@ -384,7 +384,7 @@ func _getReplicationJobs(ctx context.Context, basePath string, token string, loc
 	logger := util.GetLogger(ctx)
 
 	logger.Debug(
-		"cvp getReplicationJobs",
+		"getReplicationJobs",
 		common.String("destBasePath", basePath),
 		common.String("projectNumber", projectNumber),
 		common.String("locationID", locationID),

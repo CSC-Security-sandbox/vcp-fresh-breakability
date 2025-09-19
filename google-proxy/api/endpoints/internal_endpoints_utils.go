@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 var convertToVolumeReplicationsInternalV1Beta = _convertToVolumeReplicationsInternalV1Beta
@@ -52,7 +53,7 @@ func mapMirrorStateToInternal(mirrorState string) gcpgenserver.VolumeReplication
 	case models.OntapSnapmirrored:
 		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED
 	default:
-		return ""
+		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
 	}
 }
 
@@ -71,7 +72,7 @@ func mapRelationshipStatusToInternal(relationshipStatus string) gcpgenserver.Vol
 	case models.SnapmirrorRelationshipHardAborted:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusHardAborted
 	default:
-		return ""
+		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle
 	}
 }
 
@@ -118,8 +119,8 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		DestinationVolumeName: replication.ReplicationAttributes.DestinationVolumeName,
 		DestinationVolumeUuid: gcpgenserver.NewOptString(replication.ReplicationAttributes.DestinationVolumeUUID),
 		Name:                  gcpgenserver.NewOptString(replication.Name),
-		MirrorState:           gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(mapMirrorStateToInternal(*replication.MirrorState)),
-		RelationshipStatus:    gcpgenserver.NewOptVolumeReplicationInternalV1betaRelationshipStatus(mapRelationshipStatusToInternal(*replication.RelationshipStatus)),
+		MirrorState:           gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(mapMirrorStateToInternal(nillable.GetString(replication.MirrorState, ""))),
+		RelationshipStatus:    gcpgenserver.NewOptVolumeReplicationInternalV1betaRelationshipStatus(mapRelationshipStatusToInternal(nillable.GetString(replication.RelationshipStatus, ""))),
 		TotalProgress:         gcpgenserver.NewOptInt64(replication.TotalProgress),
 		Healthy:               gcpgenserver.NewOptBool(replication.Healthy), // fix this
 		TotalTransferBytes:    gcpgenserver.NewOptInt64(replication.TotalTransferBytes),

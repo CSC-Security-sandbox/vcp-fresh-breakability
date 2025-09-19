@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/replications"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -56,6 +57,16 @@ func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.
 				Code:    400,
 				Message: err.Error(),
 			}, nil
+		}
+
+		vsaerror, ok := err.(*vsaerrors.CustomError)
+		if ok {
+			if *vsaerror.HttpCode == 400 || *vsaerror.HttpCode == 404 || *vsaerror.HttpCode == 409 {
+				return &gcpgenserver.V1betaCreateReplicationBadRequest{
+					Code:    400,
+					Message: vsaerror.Message,
+				}, nil
+			}
 		}
 
 		logger.Error("Failed to create volume replication", "error", err.Error())
@@ -423,6 +434,16 @@ func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserve
 			}, nil
 		}
 
+		vsaerror, ok := err.(*vsaerrors.CustomError)
+		if ok {
+			if *vsaerror.HttpCode == 400 || *vsaerror.HttpCode == 404 || *vsaerror.HttpCode == 409 {
+				return &gcpgenserver.V1betaResumeReplicationBadRequest{
+					Code:    400,
+					Message: vsaerror.Message,
+				}, nil
+			}
+		}
+
 		logger.Error("Failed to resume replication", "error", err.Error())
 		return &gcpgenserver.V1betaResumeReplicationInternalServerError{
 			Code:    500,
@@ -497,6 +518,16 @@ func (h Handler) V1betaUpdateReplication(ctx context.Context, req *gcpgenserver.
 			}, nil
 		}
 
+		vsaerror, ok := err.(*vsaerrors.CustomError)
+		if ok {
+			if *vsaerror.HttpCode == 400 || *vsaerror.HttpCode == 404 || *vsaerror.HttpCode == 409 {
+				return &gcpgenserver.V1betaUpdateReplicationBadRequest{
+					Code:    400,
+					Message: vsaerror.Message,
+				}, nil
+			}
+		}
+
 		logger.Error("Failed to update replication", "error", err.Error())
 		return &gcpgenserver.V1betaUpdateReplicationInternalServerError{
 			Code:    500,
@@ -564,6 +595,17 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 				Message: err.Error(),
 			}, nil
 		}
+
+		vsaerror, ok := err.(*vsaerrors.CustomError)
+		if ok {
+			if *vsaerror.HttpCode == 400 || *vsaerror.HttpCode == 404 || *vsaerror.HttpCode == 409 {
+				return &gcpgenserver.V1betaDeleteReplicationBadRequest{
+					Code:    400,
+					Message: vsaerror.Message,
+				}, nil
+			}
+		}
+
 		logger.Error("Failed to delete replication", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteReplicationInternalServerError{
 			Code:    500,
@@ -676,6 +718,16 @@ func (h Handler) V1betaStopReplication(ctx context.Context, req *gcpgenserver.Re
 			}, nil
 		}
 
+		vsaerror, ok := err.(*vsaerrors.CustomError)
+		if ok {
+			if *vsaerror.HttpCode == 400 || *vsaerror.HttpCode == 404 || *vsaerror.HttpCode == 409 {
+				return &gcpgenserver.V1betaStopReplicationBadRequest{
+					Code:    400,
+					Message: vsaerror.Message,
+				}, nil
+			}
+		}
+
 		logger.Error("Failed to stop replication", "error", err.Error())
 		return &gcpgenserver.V1betaStopReplicationInternalServerError{
 			Code:    500,
@@ -737,6 +789,16 @@ func (h Handler) V1betaSyncReplication(ctx context.Context, params gcpgenserver.
 				Code:    400,
 				Message: err.Error(),
 			}, nil
+		}
+
+		vsaerror, ok := err.(*vsaerrors.CustomError)
+		if ok {
+			if *vsaerror.HttpCode == 400 || *vsaerror.HttpCode == 404 || *vsaerror.HttpCode == 409 {
+				return &gcpgenserver.V1betaSyncReplicationBadRequest{
+					Code:    400,
+					Message: vsaerror.Message,
+				}, nil
+			}
 		}
 
 		logger.Error("Failed to sync replication", "error", err.Error())
@@ -802,6 +864,17 @@ func (h Handler) V1betaReverseAndResumeReplication(ctx context.Context, params g
 				Message: err.Error(),
 			}, nil
 		}
+
+		vsaerror, ok := err.(*vsaerrors.CustomError)
+		if ok {
+			if *vsaerror.HttpCode == 400 || *vsaerror.HttpCode == 404 || *vsaerror.HttpCode == 409 {
+				return &gcpgenserver.V1betaReverseAndResumeReplicationBadRequest{
+					Code:    400,
+					Message: vsaerror.Message,
+				}, nil
+			}
+		}
+
 		logger.Error("Failed to reverse and resume replication", "error", err)
 		return &gcpgenserver.V1betaReverseAndResumeReplicationInternalServerError{
 			Code:    500,

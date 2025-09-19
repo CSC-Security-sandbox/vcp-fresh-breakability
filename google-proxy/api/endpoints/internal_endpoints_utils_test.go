@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestMapReplicationStateToInternalLifeCycleState(t *testing.T) {
@@ -64,7 +65,7 @@ func TestMapMirrorStateToInternal(t *testing.T) {
 		{"Uninitialized", models.OntapUninitialized, gcpgenserver.VolumeReplicationInternalV1betaMirrorStatePREPARING},
 		{"BrokenOff", models.OntapBrokenOff, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateSTOPPED},
 		{"Snapmirrored", models.OntapSnapmirrored, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED},
-		{"Unknown", "unknown", ""},
+		{"Unknown", "unknown", gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -90,7 +91,7 @@ func TestMapRelationshipStatusToInternal(t *testing.T) {
 		{"Aborted", models.SnapmirrorRelationshipAborted, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusAborted},
 		{"HardAborted", models.SnapmirrorRelationshipHardAborted, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusHardAborted},
 		{"Success", models.SnapmirrorRelationshipSuccess, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
-		{"Unknown", "unknown", ""},
+		{"Unknown", "unknown", gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
 	}
 
 	for _, tt := range tests {
@@ -129,6 +130,12 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 				mirrorState:         models.OntapSnapmirrored,
 				expectedMirrorState: gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED,
 			},
+			{
+				name:                "Unspecified",
+				replicationStatus:   "",
+				mirrorState:         "",
+				expectedMirrorState: gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED,
+			},
 		}
 
 		for _, tt := range tests {
@@ -162,7 +169,7 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 						DestinationReplicationUUID: "test-dest-repl",
 					},
 					RelationshipStatus: &tt.replicationStatus,
-					MirrorState:        &tt.mirrorState,
+					MirrorState:        nillable.GetNilIfEmptyString(tt.mirrorState),
 					TotalProgress:      100,
 					Healthy:            true,
 				}

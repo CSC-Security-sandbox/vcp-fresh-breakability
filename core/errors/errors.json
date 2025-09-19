@@ -687,7 +687,7 @@
     "description": "Parse Destination Location Error",
     "message": "Failed to parse destination location",
     "retriable": false,
-    "http_code": 500
+    "http_code": 400
   },
   "6111": {
     "description": "Get Source Base Path Error",
@@ -960,7 +960,7 @@
     "http_code": 500
   },
   "6156": {
-    "description": "CVP Replication Job Already In Process Error",
+    "description": "Replication Job Already In Process Error",
     "message": "Another replication job is already in progress for this resource",
     "retriable": false,
     "http_code": 409

@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/replications"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -773,6 +774,38 @@ func TestV1betaCreateReplication(t *testing.T) {
 		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaCreateReplicationInternalServerError).Code)
 		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaCreateReplicationInternalServerError).Message)
 	})
+	t.Run("WhenCreateReplicationFailsWithCustomVCPError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		params := gcpgenserver.V1betaCreateReplicationParams{
+			ProjectNumber:    "project-number",
+			LocationId:       "location-id",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		req := &gcpgenserver.ReplicationCreateV1beta{
+			ResourceId:  "resource-id",
+			Description: gcpgenserver.NewOptString("description"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("CreateVolumeReplication", mock.Anything, mock.Anything).Return(nil, "", errors2.NewVCPError(errors2.ErrParseDestinationLocation, errors2.New("some error")))
+
+		result, _ := handler.V1betaCreateReplication(context.Background(), req, params)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreateReplicationBadRequest).Code)
+		assert.Equal(tt, "Failed to parse destination location", result.(*gcpgenserver.V1betaCreateReplicationBadRequest).Message)
+	})
 }
 
 func TestV1betaResumeReplication(t *testing.T) {
@@ -951,6 +984,36 @@ func TestV1betaResumeReplication(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
+	t.Run("WhenResumeReplicationFailsWithCustomVCPError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaResumeReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("ResumeReplication", mock.Anything, mock.Anything).Return(nil, "", errors2.NewVCPError(errors2.ErrorCvpReplicationJobAlreadyInProcess, errors2.New("some error")))
+
+		result, err := handler.V1betaResumeReplication(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaResumeReplicationBadRequest).Code)
+		assert.Equal(tt, "Another replication job is already in progress for this resource", result.(*gcpgenserver.V1betaResumeReplicationBadRequest).Message)
+	})
 }
 
 func TestV1betaStopReplication(t *testing.T) {
@@ -1073,6 +1136,32 @@ func TestV1betaStopReplication(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+	t.Run("WhenStopReplicationFailsWithCustomVcpError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		params := gcpgenserver.V1betaStopReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+		req := &gcpgenserver.ReplicationStopV1beta{}
+
+		mockOrchestrator.On("StopReplication", mock.Anything, mock.Anything).Return(nil, "", errors2.NewVCPError(errors2.ErrorCvpReplicationJobAlreadyInProcess, errors2.New("some error")))
+
+		result, err := handler.V1betaStopReplication(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaStopReplicationBadRequest).Code)
+		assert.Equal(tt, "Another replication job is already in progress for this resource", result.(*gcpgenserver.V1betaStopReplicationBadRequest).Message)
 	})
 }
 
@@ -1305,6 +1394,38 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		assert.NotNil(tt, resp)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", resp.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
+	t.Run("WhenDeleteReplicationFailsWithCustomVcpError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaDeleteReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := gcpgenserver.ReplicationDeleteV1beta{
+			CleanupResourcesJobId: gcpgenserver.NewOptString(""),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, "", errors2.NewVCPError(errors2.ErrorCvpReplicationJobAlreadyInProcess, errors2.New("some error")))
+
+		resp, err := handler.V1betaDeleteReplication(context.Background(), &req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, float64(400), resp.(*gcpgenserver.V1betaDeleteReplicationBadRequest).Code)
+		assert.Equal(tt, "Another replication job is already in progress for this resource", resp.(*gcpgenserver.V1betaDeleteReplicationBadRequest).Message)
+	})
 }
 
 func TestV1betaSyncReplication(t *testing.T) {
@@ -1476,6 +1597,32 @@ func TestV1betaSyncReplication(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+	t.Run("WhenSyncFailsWithCustomVcpError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		params := gcpgenserver.V1betaSyncReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "region", "zone", nil
+		}
+
+		mockOrchestrator.On("SyncReplication", mock.Anything, mock.Anything).Return(nil, "", errors2.NewVCPError(errors2.ErrorCvpReplicationJobAlreadyInProcess, errors2.New("some error")))
+
+		result, err := handler.V1betaSyncReplication(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaSyncReplicationBadRequest).Code)
+		assert.Equal(tt, "Another replication job is already in progress for this resource", result.(*gcpgenserver.V1betaSyncReplicationBadRequest).Message)
 	})
 }
 
@@ -1670,6 +1817,38 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
+	t.Run("WhenResumeReplicationFailsWithCustomVcpError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description"),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("UpdateReplication", mock.Anything, mock.Anything).Return(nil, "", errors2.NewVCPError(errors2.ErrorEmptyUpdateReplicationPayload, errors2.New("some error")))
+
+		result, err := handler.V1betaUpdateReplication(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Code)
+		assert.Equal(tt, "Update replication payload is empty", result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Message)
+	})
 }
 
 func TestV1betaReverseAndResumeReplication(t *testing.T) {
@@ -1847,5 +2026,31 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 		assert.False(tt, result.(*gcpgenserver.OperationV1beta).Done.Value)
+	})
+
+	t.Run("WhenReverseAndResumeReplicationFailsWithCustomVcpError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		params := gcpgenserver.V1betaReverseAndResumeReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-id",
+			ReplicationResourceId: "replication-id",
+			XCorrelationID:        gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "region", "zone", nil
+		}
+
+		mockOrchestrator.On("ReverseAndResumeReplication", mock.Anything, mock.Anything).Return(nil, nil, errors2.NewVCPError(errors2.ErrorCvpReplicationJobAlreadyInProcess, errors2.New("some error")))
+
+		result, err := handler.V1betaReverseAndResumeReplication(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaReverseAndResumeReplicationBadRequest).Code)
+		assert.Equal(tt, "Another replication job is already in progress for this resource", result.(*gcpgenserver.V1betaReverseAndResumeReplicationBadRequest).Message)
 	})
 }
