@@ -72,7 +72,10 @@ func (j *ScheduledBackupActivity) HydrateCreatedBackupsToCCFE(ctx context.Contex
 	if err != nil {
 		return err
 	}
-	region := backups[0].BackupVault.RegionName
+	region, err := utils.GetBackupRegion(volume)
+	if err != nil {
+		return err
+	}
 	projectId := volume.Account.Name
 	requests := convertToGCPHydrateCreateRequests(backups)
 	err = common.HydrateCreatedScheduledBackups(ctx, logger, requests, backupVaultName, region, projectId, token)
@@ -251,7 +254,7 @@ func convertToGCPHydrateCreateRequests(backups []*datamodel.Backup) []models.Req
 func convertToGCPHydrateDeleteRequests(backups []*datamodel.Backup) []string {
 	var names []string
 	for _, backup := range backups {
-		names = append(names, backup.Name)
+		names = append(names, fmt.Sprintf("backups/%s", backup.Name))
 	}
 	return names
 }

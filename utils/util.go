@@ -72,6 +72,7 @@ var (
 	generateRandomString           = _generateRandomString
 	ReplicationUriRegex            = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
 	GetLocation                    = _getLocation
+	GetBackupRegion                = _getBackupRegion
 	GenerateStrongPassword         = _generateStrongPassword
 	ParsePEMCertificate            = _parsePEMCertificate
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
@@ -826,6 +827,17 @@ func _getLocation(snapshot datamodel.Snapshot) string {
 		location = snapshot.Volume.Pool.PoolAttributes.PrimaryZone
 	}
 	return location
+}
+
+func _getBackupRegion(volume *datamodel.Volume) (string, error) {
+	if volume == nil || volume.Pool == nil || volume.Pool.PoolAttributes == nil {
+		return "", errors.New("Volume or Pool Attributes is nil when extracting backup region")
+	}
+	region, _, err := ParseRegionAndZone(volume.Pool.PoolAttributes.PrimaryZone)
+	if err != nil {
+		return "", err
+	}
+	return region, nil
 }
 
 func GetHgUUIDs(hgDetails []datamodel.HostGroupDetail) []string {

@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -391,6 +392,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		backup.Attributes.SnapshotCreationTime = workflow.Now(ctx).String()
 		backup.Attributes.BucketName = bucketDetails.BucketName
 		backup.Attributes.ServiceAccountName = bucketDetails.ServiceAccountName
+		backup.Attributes.AccountIdentifier = volume.Account.Name
 		if snapmirrorRelationship != nil && snapmirrorRelationship.DestinationUUID != nil {
 			backup.Attributes.EndpointUUID = *snapmirrorRelationship.DestinationUUID
 		}
@@ -431,10 +433,18 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	}
 
 	if hydrationEnabled {
+		// TODO: Consider validating the "GetBackupRegion" function for CRB
+		region, err := utils.GetBackupRegion(volume)
+		if err != nil {
+			wf.Logger.Errorf("Failed to get backup region for volume %s: %v", volume.Name, err)
+			postTransferErr = err
+			return nil, workflows.ConvertToVSAError(postTransferErr)
+		}
+
 		err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotToCCFEActivity,
 			dbSnapshot,
 			volume.Name,
-			backupVault.RegionName,
+			region,
 			volume.Account.Name).Get(ctx, nil)
 		if err != nil {
 			// Log the error but don't fail the entire workflow

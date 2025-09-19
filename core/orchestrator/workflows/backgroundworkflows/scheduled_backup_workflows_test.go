@@ -3838,6 +3838,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 				CertificateID: "test-cert-id",
 				AuthType:      0, // USERNAME_PWD
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
 		},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID:   "test-external-uuid",

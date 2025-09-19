@@ -2494,3 +2494,230 @@ func TestGetCorrelationIDFromWorkflowContextLoggerFields(t *testing.T) {
 		})
 	}
 }
+
+func TestGetBackupRegion(t *testing.T) {
+	tests := []struct {
+		name        string
+		volume      *datamodel.Volume
+		expected    string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "ValidVolumeWithRegionalZone",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "us-central1-a",
+					},
+				},
+			},
+			expected:    "us-central1",
+			expectError: false,
+		},
+		{
+			name: "ValidVolumeWithRegionOnly",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "us-east1",
+					},
+				},
+			},
+			expected:    "us-east1",
+			expectError: false,
+		},
+		{
+			name: "ValidVolumeWithMultiRegionZone",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "europe-west1-b",
+					},
+				},
+			},
+			expected:    "europe-west1",
+			expectError: false,
+		},
+		{
+			name: "ValidVolumeWithAsiaRegion",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "asia-southeast1-c",
+					},
+				},
+			},
+			expected:    "asia-southeast1",
+			expectError: false,
+		},
+		{
+			name:        "NilVolume",
+			volume:      nil,
+			expected:    "",
+			expectError: true,
+			errorMsg:    "Volume or Pool Attributes is nil when extracting backup region",
+		},
+		{
+			name: "NilPool",
+			volume: &datamodel.Volume{
+				Pool: nil,
+			},
+			expected:    "",
+			expectError: true,
+			errorMsg:    "Volume or Pool Attributes is nil when extracting backup region",
+		},
+		{
+			name: "NilPoolAttributes",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: nil,
+				},
+			},
+			expected:    "",
+			expectError: true,
+			errorMsg:    "Volume or Pool Attributes is nil when extracting backup region",
+		},
+		{
+			name: "EmptyPrimaryZone",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "",
+					},
+				},
+			},
+			expected:    "",
+			expectError: true,
+			errorMsg:    "LocationID represents neither a region nor a zone",
+		},
+		{
+			name: "InvalidPrimaryZoneFormat",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "invalid-zone-format",
+					},
+				},
+			},
+			expected:    "",
+			expectError: true,
+			errorMsg:    "LocationID represents neither a region nor a zone",
+		},
+		{
+			name: "InvalidPrimaryZoneWithNumbers",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "us123-central1-a",
+					},
+				},
+			},
+			expected:    "",
+			expectError: true,
+			errorMsg:    "LocationID represents neither a region nor a zone",
+		},
+		{
+			name: "InvalidPrimaryZoneWithSpecialChars",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "us-central1@a",
+					},
+				},
+			},
+			expected:    "",
+			expectError: true,
+			errorMsg:    "LocationID represents neither a region nor a zone",
+		},
+		{
+			name: "ValidVolumeWithCompletePoolAttributes",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone:     "us-west2-b",
+						SecondaryZone:   "us-west2-c",
+						MediatorZone:    "us-west2-a",
+						ThroughputMibps: 1000,
+						Iops:            10000,
+						IsRegionalHA:    true,
+					},
+				},
+			},
+			expected:    "us-west2",
+			expectError: false,
+		},
+		{
+			name: "ValidVolumeWithMinimalPoolAttributes",
+			volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone: "australia-southeast1",
+					},
+				},
+			},
+			expected:    "australia-southeast1",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := GetBackupRegion(tt.volume)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected error for test case: %s", tt.name)
+				assert.Equal(t, tt.errorMsg, err.Error(), "Error message mismatch for test case: %s", tt.name)
+				assert.Equal(t, tt.expected, result, "Result should be empty string when error occurs for test case: %s", tt.name)
+			} else {
+				require.NoError(t, err, "Unexpected error for test case: %s", tt.name)
+				assert.Equal(t, tt.expected, result, "Region mismatch for test case: %s", tt.name)
+			}
+		})
+	}
+}
+
+func TestGetBackupRegionEdgeCases(t *testing.T) {
+	t.Run("VolumeWithEmptyPoolAttributesStruct", func(t *testing.T) {
+		volume := &datamodel.Volume{
+			Pool: &datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{},
+			},
+		}
+
+		result, err := GetBackupRegion(volume)
+		require.Error(t, err)
+		assert.Equal(t, "", result)
+		assert.Contains(t, err.Error(), "LocationID represents neither a region nor a zone")
+	})
+
+	t.Run("VolumeWithWhitespacePrimaryZone", func(t *testing.T) {
+		volume := &datamodel.Volume{
+			Pool: &datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "   ",
+				},
+			},
+		}
+
+		result, err := GetBackupRegion(volume)
+		require.Error(t, err)
+		assert.Equal(t, "", result)
+		assert.Contains(t, err.Error(), "LocationID represents neither a region nor a zone")
+	})
+
+	t.Run("VolumeWithVeryLongZoneName", func(t *testing.T) {
+		volume := &datamodel.Volume{
+			Pool: &datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "very-long-region-name-that-exceeds-normal-limits-a",
+				},
+			},
+		}
+
+		result, err := GetBackupRegion(volume)
+		require.Error(t, err)
+		assert.Equal(t, "", result)
+		assert.Contains(t, err.Error(), "LocationID represents neither a region nor a zone")
+	})
+}

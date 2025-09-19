@@ -50,7 +50,7 @@ type Backup struct {
 }
 
 type HydrateBackup struct {
-	ResourceId       string  `json:"resourceId"`
-	BackupId         string  `json:"backupId"`
-	VolumeUsageBytes *uint64 `json:"volumeUsageBytes"`
+	ResourceId       string  `json:"name"`
+	BackupId         string  `json:"netapp_uuid"`
+	VolumeUsageBytes *uint64 `json:"volume_usage_bytes"`
 }
