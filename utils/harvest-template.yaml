@@ -110,6 +110,7 @@ Pollers:
     labels:
       - project: {{.PROJECT}}
       - tenant_project: {{.TENANT_PROJECT}}
+      - deployment_name: {{.DEPLOYMENT_NAME}}
     use_insecure_tls: true  # Disable TLS verification when connecting to ONTAP cluster
     exporters:
       - service_control

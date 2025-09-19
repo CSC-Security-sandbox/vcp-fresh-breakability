@@ -191,19 +191,19 @@ func (j JSONB) Value() (driver.Value, error) {
 }
 
 type VolumeAttributes struct {
-	CreationToken           string           `json:"creation_token"`
-	Protocols               []string         `json:"protocols"`
-	VendorSubnetID          string           `json:"vendor_subnet_id"`
-	ExternalUUID            string           `json:"external_uuid"`
-	BlockProperties         *BlockProperties `json:"block_properties"`
-	BlockDevices            *[]BlockDevice   `json:"block_devices"`
-	FileProperties          *FileProperties  `json:"file_properties"`
-	IsDataProtection        bool             `json:"is_data_protection"`
-	Mounted                 bool             `json:"mounted"`
-	SnapReserve             int64            `json:"snap_reserve"`
-	Labels                  *JSONB           `json:"labels"`
-	RestoredBackupID        string           `json:"restored_backup_id"`
-	RestoredBackupPath      string           `json:"restored_backup_path"`
+	CreationToken      string           `json:"creation_token"`
+	Protocols          []string         `json:"protocols"`
+	VendorSubnetID     string           `json:"vendor_subnet_id"`
+	ExternalUUID       string           `json:"external_uuid"`
+	BlockProperties    *BlockProperties `json:"block_properties"`
+	BlockDevices       *[]BlockDevice   `json:"block_devices"`
+	FileProperties     *FileProperties  `json:"file_properties"`
+	IsDataProtection   bool             `json:"is_data_protection"`
+	Mounted            bool             `json:"mounted"`
+	SnapReserve        int64            `json:"snap_reserve"`
+	Labels             *JSONB           `json:"labels"`
+	RestoredBackupID   string           `json:"restored_backup_id"`
+	RestoredBackupPath string           `json:"restored_backup_path"`
 }
 
 type BlockProperties struct {
@@ -698,6 +698,7 @@ type HarvestConfig struct {
 	SECRET_ID           string
 	SECRET_PROJECT      string
 	TENANT_PROJECT      string
+	DEPLOYMENT_NAME     string
 }
 
 // NodeNodeGroupMap represents the mapping between a node and a node group
@@ -737,6 +738,7 @@ type NodeGroupAssignmentParams struct {
 	MaxNodesPerGroup int
 	CustomerProject  string
 	TenantProject    string // Adding this for future extensibility
+	DeploymentName   string
 }
 
 type AutoTieringConfig struct {

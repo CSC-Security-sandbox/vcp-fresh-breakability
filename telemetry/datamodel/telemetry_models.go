@@ -15,6 +15,7 @@ type HydratedMetrics struct {
 	ConsumerID      string                `gorm:"column:consumer_id;size:255;index" json:"consumer_id"`
 	Location        string                `gorm:"column:location;size:255;index" json:"location"`
 	Metadata        []byte                `gorm:"column:metadata;type:jsonb" json:"metadata"`
+	DeploymentName  string                `gorm:"column:deployment_name;size:255;index" json:"deployment_name"`
 }
 
 type AggregatedUsage struct {

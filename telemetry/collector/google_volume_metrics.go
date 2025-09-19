@@ -112,6 +112,7 @@ func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metad
 		ResourceName:    resp.Metric.Labels["volume"],
 		Location:        resp.Metric.Labels["datacenter"],
 		Quantity:        extractValue(resp.Points[0].Value),
+		DeploymentName:  resp.Metric.Labels["deployment_name"],
 	}
 }
 

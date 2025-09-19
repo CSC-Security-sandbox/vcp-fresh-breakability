@@ -20,6 +20,7 @@ type RegisterNodeToHarvestFarmWorkflowInput struct {
 	TenantProjectID   string
 	PoolUUID          string
 	AccountID         int64
+	DeploymentName    string
 }
 
 type registerNodeToHarvestFarmWorkflow struct {
@@ -96,6 +97,7 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 			MaxNodesPerGroup:  input.MaxNodesPerGroup,
 			CustomerProjectID: input.CustomerProjectID,
 			TenantProjectID:   input.TenantProjectID,
+			DeploymentName:    input.DeploymentName,
 		}).Get(ctx, &nodeMappings)
 	if err != nil {
 		return nil, ConvertToVSAError(err)

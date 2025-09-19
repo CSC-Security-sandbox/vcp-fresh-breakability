@@ -40,6 +40,7 @@ type RegisterNodeToHarvestFarmInput struct {
 
 	CustomerProjectID string
 	TenantProjectID   string
+	DeploymentName    string
 }
 
 // RegisterNodeToHarvestFarmOutput holds the output for the next activity
@@ -81,6 +82,7 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 		MaxNodesPerGroup: input.MaxNodesPerGroup,
 		CustomerProject:  input.CustomerProjectID,
 		TenantProject:    input.TenantProjectID,
+		DeploymentName:   input.DeploymentName,
 	})
 	if err != nil {
 		logger.Errorf("Failed to assign nodes to groups for pool ID %d: %v", input.PoolID, err)
