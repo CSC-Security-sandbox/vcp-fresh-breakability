@@ -260,7 +260,7 @@ func (a *CleanupVolumeReplicationActivity) DescribeSourceJobForCleanup(ctx conte
 
 func (a *CleanupVolumeReplicationActivity) DeHydrateDestinationVolumeReplicationForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	if hydrationEnabled {
-		err := deHydrateVolumeReplication(ctx, convertVolumeReplicationV1BetaToVolumeModel(result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID), *result.DstProjectNumber)
+		err := deHydrateVolumeReplication(ctx, convertVolumeReplicationV1BetaToVolumeModel(result.Event.ReplicationModel.Name, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeName), *result.DstProjectNumber)
 		if err != nil {
 			if !vsaerrors.IsNotFoundErr(err) {
 				return nil, errors.NewVCPError(errors.ErrDeHydrateVolumeReplication, err)

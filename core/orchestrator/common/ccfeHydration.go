@@ -267,7 +267,7 @@ func _hydrateReplicationDelete(ctx context.Context, logger log.Logger, replicati
 	nameArray := make([]string, 1)
 	nameArray[0] = "replications/" + replicationResourceId
 	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s/resources:%s", baseUri, projectId, region, volumeResourceID, Delete)
-	logger.Infof("Hydrating replication delete to callbackApi, replicationId:: %+v", replicationResourceId)
+	logger.Infof("Hydrating replication delete to callbackApi, replicationId: %+v, url: %s", replicationResourceId, url)
 	err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: nameArray}, url, http.MethodPost, token)
 	return err
 }

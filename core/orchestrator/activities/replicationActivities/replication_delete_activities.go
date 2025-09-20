@@ -293,7 +293,7 @@ func (a *DeleteVolumeReplicationActivity) DeleteSnapmirrorSnapshotsOnSource(ctx 
 
 func (a *DeleteVolumeReplicationActivity) DeHydrateDestinationVolumeReplication(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	if hydrationEnabled {
-		err := deHydrateVolumeReplication(ctx, convertVolumeReplicationV1BetaToVolumeModel(result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID), *result.DstProjectNumber)
+		err := deHydrateVolumeReplication(ctx, convertVolumeReplicationV1BetaToVolumeModel(result.Event.ReplicationModel.Name, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeName), *result.DstProjectNumber)
 		if err != nil {
 			return nil, errors.NewVCPError(errors.ErrDeHydrateVolumeReplication, err)
 		}
@@ -301,14 +301,12 @@ func (a *DeleteVolumeReplicationActivity) DeHydrateDestinationVolumeReplication(
 	return result, nil
 }
 
-func convertVolumeReplicationV1BetaToVolumeModel(destinationReplicationUUID string, dstLocation string, destinationVolumeUUID string) models.VolumeReplication {
+func convertVolumeReplicationV1BetaToVolumeModel(destinationReplicationName string, dstLocation string, destinationVolumeName string) models.VolumeReplication {
 	return models.VolumeReplication{
-		BaseModel: models.BaseModel{
-			UUID: destinationReplicationUUID,
-		},
+		Name:                  destinationReplicationName,
 		ReplicationAttributes: &models.ReplicationDetails{DestinationRegion: dstLocation},
 		Volume: &models.Volume{
-			BaseModel: models.BaseModel{UUID: destinationVolumeUUID},
+			DisplayName: destinationVolumeName,
 		},
 	}
 }

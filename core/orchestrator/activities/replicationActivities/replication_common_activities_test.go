@@ -107,7 +107,7 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 			DestinationReplicationUUID: "mocked-replication-id",
 			DestinationRegion:          "mocked-region",
 		},
-		Volume: &models.Volume{BaseModel: models.BaseModel{UUID: "123"}},
+		Volume: &models.Volume{DisplayName: "123"},
 	}
 	t.Run("WhenTokenError", func(tt *testing.T) {
 		ctx := context.Background()

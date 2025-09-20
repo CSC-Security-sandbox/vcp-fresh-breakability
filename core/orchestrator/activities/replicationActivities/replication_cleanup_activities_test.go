@@ -1688,10 +1688,12 @@ func TestDeHydrateDestinationVolumeReplicationForCleanup(t *testing.T) {
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
 							DestinationLocation:        "location-id",
 							DestinationReplicationUUID: "replication-uuid",
 							DestinationVolumeUUID:      "vol-uuid",
+							DestinationVolumeName:      "volume-name",
 						},
 					},
 				},
@@ -1724,10 +1726,12 @@ func TestDeHydrateDestinationVolumeReplicationForCleanup(t *testing.T) {
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
 							DestinationLocation:        "location-id",
 							DestinationReplicationUUID: "replication-uuid",
 							DestinationVolumeUUID:      "vol-uuid",
+							DestinationVolumeName:      "volume-name",
 						},
 					},
 				},
