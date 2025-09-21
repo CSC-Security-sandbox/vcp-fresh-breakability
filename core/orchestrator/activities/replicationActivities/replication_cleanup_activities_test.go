@@ -1687,24 +1687,37 @@ func TestDeHydrateDestinationVolumeReplicationForCleanup(t *testing.T) {
 			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location:                 "us-east4",
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "location-id",
+							DestinationLocation:        "us-central1-a",
 							DestinationReplicationUUID: "replication-uuid",
 							DestinationVolumeUUID:      "vol-uuid",
 							DestinationVolumeName:      "volume-name",
+							SourceLocation:             "us-central1",
+							SourceVolumeName:           "src-volume-name",
 						},
 					},
 				},
 			},
 		}
 		originalHydrateVolumeReplication := deHydrateVolumeReplication
+		originalReplicationInternalParseRegionAndZone := replicationInternalParseRegionAndZone
 		defer func() {
 			deHydrateVolumeReplication = originalHydrateVolumeReplication
+			replicationInternalParseRegionAndZone = originalReplicationInternalParseRegionAndZone
 			hydrationEnabled = false
 		}()
 
+		replicationInternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-central1", "", nil
+		}
 		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
 			return errors.New("hydration error")
 		}
@@ -1725,13 +1738,61 @@ func TestDeHydrateDestinationVolumeReplicationForCleanup(t *testing.T) {
 			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location:                 "us-central1-a",
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "location-id",
+							DestinationLocation:        "us-central1-a",
 							DestinationReplicationUUID: "replication-uuid",
 							DestinationVolumeUUID:      "vol-uuid",
 							DestinationVolumeName:      "volume-name",
+							SourceLocation:             "us-east4-a",
+							SourceVolumeName:           "src-volume-name",
+						},
+					},
+				},
+			},
+		}
+		originalHydrateVolumeReplication := deHydrateVolumeReplication
+		defer func() {
+			deHydrateVolumeReplication = originalHydrateVolumeReplication
+			hydrationEnabled = false
+		}()
+
+		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			return nil
+		}
+		_, err := activity.DeHydrateDestinationVolumeReplicationForCleanup(ctx, inputResult)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenSuccessForDestinationRegion", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		hydrationEnabled = true
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location:                 "us-east4-a",
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
+					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1-a",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+							DestinationVolumeName:      "volume-name",
+							SourceLocation:             "us-east4-a",
+							SourceVolumeName:           "src-volume-name",
 						},
 					},
 				},

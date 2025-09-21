@@ -293,7 +293,19 @@ func (a *DeleteVolumeReplicationActivity) DeleteSnapmirrorSnapshotsOnSource(ctx 
 
 func (a *DeleteVolumeReplicationActivity) DeHydrateDestinationVolumeReplication(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	if hydrationEnabled {
-		err := deHydrateVolumeReplication(ctx, convertVolumeReplicationV1BetaToVolumeModel(result.Event.ReplicationModel.Name, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation, result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeName), *result.DstProjectNumber)
+		currentLocation := result.Event.Location
+		var remoteLocation, remoteVolume, remoteProject string
+		var err error
+		if currentLocation == result.Event.ReplicationModel.ReplicationAttributes.SourceLocation {
+			remoteLocation = result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation
+			remoteVolume = result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeName
+			remoteProject = result.Event.DestinationProjectNumber
+		} else {
+			remoteLocation = result.Event.ReplicationModel.ReplicationAttributes.SourceLocation
+			remoteVolume = result.Event.ReplicationModel.ReplicationAttributes.SourceVolumeName
+			remoteProject = result.Event.SourceProjectNumber
+		}
+		err = deHydrateVolumeReplication(ctx, convertVolumeReplicationV1BetaToVolumeModel(result.Event.ReplicationModel.Name, remoteLocation, remoteVolume), remoteProject)
 		if err != nil {
 			return nil, errors.NewVCPError(errors.ErrDeHydrateVolumeReplication, err)
 		}

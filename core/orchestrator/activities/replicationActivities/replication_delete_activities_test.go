@@ -1749,13 +1749,18 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location:                 "us-east4-a",
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "location-id",
+							DestinationLocation:        "us-central1-a",
 							DestinationReplicationUUID: "replication-uuid",
 							DestinationVolumeUUID:      "vol-uuid",
 							DestinationVolumeName:      "volume-name",
+							SourceLocation:             "us-central1",
+							SourceVolumeName:           "vol-1",
 						},
 					},
 				},
@@ -1778,6 +1783,49 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 		assert.ErrorContains(t, customErr.OriginalErr, "hydration error")
 		mockStorage.AssertExpectations(tt)
 	})
+	t.Run("WhenSuccessForDestinationRegion", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		hydrationEnabled = true
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location:                 "us-east4-a",
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
+					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1-a",
+							DestinationReplicationUUID: "replication-uuid",
+							DestinationVolumeUUID:      "vol-uuid",
+							DestinationVolumeName:      "volume-name",
+							SourceLocation:             "us-east4-a",
+							SourceVolumeName:           "vol-1",
+						},
+					},
+				},
+			},
+		}
+		originalHydrateVolumeReplication := deHydrateVolumeReplication
+		defer func() {
+			deHydrateVolumeReplication = originalHydrateVolumeReplication
+			hydrationEnabled = false
+		}()
+
+		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			return nil
+		}
+		_, err := activity.DeHydrateDestinationVolumeReplication(ctx, inputResult)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(tt)
+	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		hydrationEnabled = true
@@ -1790,13 +1838,18 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 			CorrelationID:    &correlationID,
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location:                 "us-central1-a",
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "location-id",
+							DestinationLocation:        "us-central1-a",
 							DestinationReplicationUUID: "replication-uuid",
 							DestinationVolumeUUID:      "vol-uuid",
 							DestinationVolumeName:      "volume-name",
+							SourceLocation:             "us-east4-a",
+							SourceVolumeName:           "vol-1",
 						},
 					},
 				},
