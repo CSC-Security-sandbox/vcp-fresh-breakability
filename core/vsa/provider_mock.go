@@ -1850,6 +1850,64 @@ func (_c *MockProvider_FindQoSGroupPolicy_Call) RunAndReturn(run func(FindQoSGro
 	return _c
 }
 
+// GetAggregateByName provides a mock function with given fields: name
+func (_m *MockProvider) GetAggregateByName(name string) (*Aggregate, error) {
+	ret := _m.Called(name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAggregateByName")
+	}
+
+	var r0 *Aggregate
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*Aggregate, error)); ok {
+		return rf(name)
+	}
+	if rf, ok := ret.Get(0).(func(string) *Aggregate); ok {
+		r0 = rf(name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Aggregate)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetAggregateByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAggregateByName'
+type MockProvider_GetAggregateByName_Call struct {
+	*mock.Call
+}
+
+// GetAggregateByName is a helper method to define mock.On call
+//   - name string
+func (_e *MockProvider_Expecter) GetAggregateByName(name interface{}) *MockProvider_GetAggregateByName_Call {
+	return &MockProvider_GetAggregateByName_Call{Call: _e.mock.On("GetAggregateByName", name)}
+}
+
+func (_c *MockProvider_GetAggregateByName_Call) Run(run func(name string)) *MockProvider_GetAggregateByName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetAggregateByName_Call) Return(_a0 *Aggregate, _a1 error) *MockProvider_GetAggregateByName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetAggregateByName_Call) RunAndReturn(run func(string) (*Aggregate, error)) *MockProvider_GetAggregateByName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAggregates provides a mock function with no fields
 func (_m *MockProvider) GetAggregates() ([]*Aggregate, error) {
 	ret := _m.Called()
@@ -4752,6 +4810,52 @@ func (_c *MockProvider_UnmountVolume_Call) Return(_a0 *OntapAsyncResponse, _a1 e
 }
 
 func (_c *MockProvider_UnmountVolume_Call) RunAndReturn(run func(string) (*OntapAsyncResponse, error)) *MockProvider_UnmountVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAggregate provides a mock function with given fields: params
+func (_m *MockProvider) UpdateAggregate(params UpdateAggregateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAggregate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(UpdateAggregateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateAggregate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAggregate'
+type MockProvider_UpdateAggregate_Call struct {
+	*mock.Call
+}
+
+// UpdateAggregate is a helper method to define mock.On call
+//   - params UpdateAggregateParams
+func (_e *MockProvider_Expecter) UpdateAggregate(params interface{}) *MockProvider_UpdateAggregate_Call {
+	return &MockProvider_UpdateAggregate_Call{Call: _e.mock.On("UpdateAggregate", params)}
+}
+
+func (_c *MockProvider_UpdateAggregate_Call) Run(run func(params UpdateAggregateParams)) *MockProvider_UpdateAggregate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(UpdateAggregateParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateAggregate_Call) Return(_a0 error) *MockProvider_UpdateAggregate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateAggregate_Call) RunAndReturn(run func(UpdateAggregateParams) error) *MockProvider_UpdateAggregate_Call {
 	_c.Call.Return(run)
 	return _c
 }

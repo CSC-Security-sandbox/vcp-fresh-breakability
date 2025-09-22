@@ -13,7 +13,6 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -902,100 +901,6 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool(t *testing.T) {
 	assert.Contains(t, result.OntapVolumeMap, "vol-uuid")
 	assert.Len(t, result.OntapSnapshots, 1)
 	mockProvider.AssertExpectations(t)
-}
-
-func TestSyncSnapshotActivity_ListPoolsUUID(t *testing.T) {
-	ctx := context.TODO()
-
-	t.Run("ListPoolsUUID_Success", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		activity := SyncSnapshotActivity{SE: mockStorage}
-
-		expectedPools := []*database.PoolIdentifier{
-			{
-				Name:      "pool-1",
-				AccountID: 123,
-				VendorID:  "/projects/test-project/locations/us-central1/pools/pool-1",
-				UUID:      "pool-uuid-1",
-			},
-			{
-				Name:      "pool-2",
-				AccountID: 124,
-				VendorID:  "/projects/test-project/locations/us-west1/pools/pool-2",
-				UUID:      "pool-uuid-2",
-			},
-		}
-
-		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return(expectedPools, nil)
-
-		result, err := activity.ListPoolsUUID(ctx)
-		assert.NoError(tt, err)
-		assert.Len(tt, result, 2)
-		assert.Equal(tt, expectedPools[0].Name, result[0].Name)
-		assert.Equal(tt, expectedPools[0].AccountID, result[0].AccountID)
-		assert.Equal(tt, expectedPools[0].VendorID, result[0].VendorID)
-		assert.Equal(tt, expectedPools[0].UUID, result[0].UUID)
-		assert.Equal(tt, expectedPools[1].Name, result[1].Name)
-		assert.Equal(tt, expectedPools[1].AccountID, result[1].AccountID)
-		assert.Equal(tt, expectedPools[1].VendorID, result[1].VendorID)
-		assert.Equal(tt, expectedPools[1].UUID, result[1].UUID)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("ListPoolsUUID_EmptyResult", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		activity := SyncSnapshotActivity{SE: mockStorage}
-
-		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*database.PoolIdentifier{}, nil)
-
-		result, err := activity.ListPoolsUUID(ctx)
-		assert.NoError(tt, err)
-		assert.Len(tt, result, 0)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("ListPoolsUUID_DatabaseError", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		activity := SyncSnapshotActivity{SE: mockStorage}
-
-		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return(nil, errors.New("database connection failed"))
-
-		result, err := activity.ListPoolsUUID(ctx)
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "An internal error occurred.")
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("ListPoolsUUID_WithFilterConditions", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		activity := SyncSnapshotActivity{SE: mockStorage}
-
-		expectedPools := []*database.PoolIdentifier{
-			{
-				Name:      "ready-pool",
-				AccountID: 123,
-				VendorID:  "/projects/test-project/locations/us-central1/pools/ready-pool",
-				UUID:      "ready-pool-uuid",
-			},
-		}
-
-		mockStorage.On("ListPoolUUIDs", ctx, mock.MatchedBy(func(filter *utils2.Filter) bool {
-			// Verify that the filter contains the expected condition for state = "ready"
-			for _, condition := range filter.Conditions {
-				if condition.Field == "state" && condition.Op == "=" && condition.Value == models.LifeCycleStateREADY {
-					return true
-				}
-			}
-			return false
-		})).Return(expectedPools, nil)
-
-		result, err := activity.ListPoolsUUID(ctx)
-		assert.NoError(tt, err)
-		assert.Len(tt, result, 1)
-		assert.Equal(tt, expectedPools[0].Name, result[0].Name)
-		mockStorage.AssertExpectations(tt)
-	})
 }
 
 func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {

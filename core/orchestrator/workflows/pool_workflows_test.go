@@ -1684,6 +1684,134 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Setup context propagation and header values
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	// Setup test input data for update workflow.
+	params := &common.UpdatePoolParams{
+		AccountName:               "test-account",
+		PoolId:                    "test-pool-id",
+		SizeInBytes:               2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
+		TotalThroughputMibps:      128,
+		TotalIops:                 nillable.ToPointer(int64(2048)),
+		QosType:                   "Manual",
+		Description:               "Updated pool description",
+		HotTierSizeInBytes:        1024 * 1024 * 1024 * 1024, // 1 TB
+		AutoResizeTriggeredUpdate: true,
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-id-foobar-rchilaka",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		// Set additional fields if required.
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		SizeInBytes: 456,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            10,
+			ThroughputMibps: 6,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-auto-tier-bucket",
+		},
+		VLMConfig: "{\"deployment\": {\"vsa_instance_type\": \"foo-bar\"}}",
+	}
+
+	// Register activity mocks.
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       1,
+			VSAInstanceType: "c3-new-instance-type",
+			SPConfig: vlm.SPConfig{
+				IOps:       2048,
+				Throughput: 128,
+				Size:       "1TiB",
+			},
+		},
+	}, nil)
+	// Mock the ValidateZonesForMachineTypes activity since instance type is changing
+	env.OnActivity("ValidateZonesForMachineTypes", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
+
+	// Mock the new activities for QoS policy modification
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-node-1",
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2},
+			Name:      "test-node-2",
+		},
+	}, nil)
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Mock the new DetermineVMScalingDirection activity
+	env.OnActivity("DetermineVMScalingDirection", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil) // false = scaling down
+
+	// Mock the new UpdatePoolFields activity
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("HydrateUpdatedPoolToCCFE", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	// Execute the workflow.
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+
+	// Optionally query workflow status.
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert the workflow has completed successfully.
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 func TestDeletePoolWorkflow(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()

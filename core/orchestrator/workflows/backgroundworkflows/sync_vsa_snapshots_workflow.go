@@ -7,6 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -48,10 +49,10 @@ func SyncVSASnapshotsWorkflow(ctx workflow.Context) error {
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
+	commonActivities := &activities.CommonActivities{}
 
 	var poolIdentifiers []*database.PoolIdentifier
-	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.ListPoolsUUID).Get(ctx, &poolIdentifiers)
+	err = workflow.ExecuteActivity(ctx, commonActivities.ListPoolsUUID).Get(ctx, &poolIdentifiers)
 	if err != nil {
 		logger.Error("ListPools activity failed.", "Error", err)
 		return err

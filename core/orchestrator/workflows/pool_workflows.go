@@ -743,6 +743,16 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
+	// Only hydrate to CCFE if this update was triggered by auto-tiering hot tier auto-resize.
+	if updatePoolParams.AutoResizeTriggeredUpdate {
+		err = workflow.ExecuteActivity(ctx, poolActivity.HydrateUpdatedPoolToCCFE, pool).Get(ctx, nil)
+		if err != nil {
+			wf.Logger.Errorf("Failed to hydrate pool to CCFE as part of auto-tiering hot tier auto-resize, error: %v", err)
+			// TODO: Add error handling for hydration failure when auto-tiering feature integration is complete
+			// return nil, ConvertToVSAError(err)
+		}
+	}
+
 	// Update pool with VLM config
 	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, updateVSAClusterDeploymentResponse.VLMConfig, updatePoolParams).Get(ctx, nil)
 	return nil, ConvertToVSAError(err)

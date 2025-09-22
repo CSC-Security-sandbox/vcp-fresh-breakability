@@ -65,3 +65,17 @@ type AutoTieringConfig struct {
 	EnableHotTierAutoResize bool
 	BucketName              string
 }
+
+type PoolHydrateObject struct {
+	OwnerID        string
+	PoolID         string
+	Name           string
+	State          string
+	Region         string
+	HotTierSizeGib int64
+}
+
+type PoolUpdateCCFERequest struct {
+	State          interface{} `json:"state"`
+	HotTierSizeGib interface{} `json:"hot_tier_size_gib"`
+}

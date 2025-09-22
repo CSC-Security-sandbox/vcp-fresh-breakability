@@ -585,6 +585,7 @@ func TestGetAggregateByName_Success(t *testing.T) {
 		Aggregate: models.Aggregate{
 			Name:  &aggregateName,
 			State: nillable.ToPointer("online"),
+			UUID:  nillable.ToPointer("uuid"),
 		},
 	}
 
@@ -1010,4 +1011,303 @@ func TestSnapshotGet_OntapClientFuncErr(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, snapshot)
 	assert.Contains(t, err.Error(), "OntapClientFunc error")
+}
+
+func TestUpdateAggregate_Success_SyncResponse(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateAggregateParams{
+		UUID:                     "test-uuid",
+		TieringFullnessThreshold: 75,
+	}
+
+	// Mock sync response with NumRecords > 0
+	mockAggregateSimulate := &ontaprest.AggregateSimulate{}
+	mockAggregateSimulate.NumRecords = nillable.ToPointer(int64(1))
+
+	mockStorage.On("AggregateModify", mock.Anything).Return(mockAggregateSimulate, nil, nil)
+
+	err := rc.UpdateAggregate(params)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateAggregate_Success_AsyncResponse(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateAggregateParams{
+		UUID:                     "test-uuid",
+		TieringFullnessThreshold: 50,
+	}
+
+	// Mock async response with job
+	mockJob := &ontaprest.JobAccepted{JobUUID: "test-job-uuid"}
+	mockStorage.On("AggregateModify", mock.Anything).Return(nil, mockJob, nil)
+	mockClient.On("Poll", "test-job-uuid").Return(nil)
+
+	err := rc.UpdateAggregate(params)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateAggregate_Success_SyncResponseWithZeroRecords(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateAggregateParams{
+		UUID:                     "test-uuid",
+		TieringFullnessThreshold: 80,
+	}
+
+	// Mock sync response with NumRecords = 0, should fall back to polling
+	mockAggregateSimulate := &ontaprest.AggregateSimulate{}
+	mockAggregateSimulate.NumRecords = nillable.ToPointer(int64(0))
+	mockJob := &ontaprest.JobAccepted{JobUUID: "test-job-uuid-2"}
+
+	mockStorage.On("AggregateModify", mock.Anything).Return(mockAggregateSimulate, mockJob, nil)
+	mockClient.On("Poll", "test-job-uuid-2").Return(nil)
+
+	err := rc.UpdateAggregate(params)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateAggregate_Success_SyncResponseWithNilNumRecords(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateAggregateParams{
+		UUID:                     "test-uuid",
+		TieringFullnessThreshold: 90,
+	}
+
+	// Mock sync response with nil NumRecords, should fall back to polling
+	mockAggregateSimulate := &ontaprest.AggregateSimulate{}
+	mockAggregateSimulate.NumRecords = nil // nil NumRecords
+	mockJob := &ontaprest.JobAccepted{JobUUID: "test-job-uuid-3"}
+
+	mockStorage.On("AggregateModify", mock.Anything).Return(mockAggregateSimulate, mockJob, nil)
+	mockClient.On("Poll", "test-job-uuid-3").Return(nil)
+
+	err := rc.UpdateAggregate(params)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateAggregate_Error_AggregateModifyFails(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateAggregateParams{
+		UUID:                     "test-uuid",
+		TieringFullnessThreshold: 75,
+	}
+
+	mockStorage.On("AggregateModify", mock.Anything).Return(nil, nil, errors.New("API error"))
+
+	err := rc.UpdateAggregate(params)
+
+	assert.Error(t, err)
+	assert.Equal(t, "API error", err.Error())
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateAggregate_Error_PollingFails(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateAggregateParams{
+		UUID:                     "test-uuid",
+		TieringFullnessThreshold: 60,
+	}
+
+	// Mock async response with job that fails polling
+	mockJob := &ontaprest.JobAccepted{JobUUID: "test-job-uuid-fail"}
+	mockStorage.On("AggregateModify", mock.Anything).Return(nil, mockJob, nil)
+	mockClient.On("Poll", "test-job-uuid-fail").Return(errors.New("polling failed"))
+
+	err := rc.UpdateAggregate(params)
+
+	assert.Error(t, err)
+	assert.Equal(t, "polling failed", err.Error())
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateAggregate_Error_OntapClientFuncError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return nil, errors.New("OntapClientFunc error")
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateAggregateParams{
+		UUID:                     "test-uuid",
+		TieringFullnessThreshold: 75,
+	}
+
+	err := rc.UpdateAggregate(params)
+
+	assert.Error(t, err)
+	assert.Equal(t, "OntapClientFunc error", err.Error())
+}
+
+func TestUpdateAggregate_ParameterValidation(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	t.Run("ValidateCorrectParametersArePassed", func(tt *testing.T) {
+		params := UpdateAggregateParams{
+			UUID:                     "test-uuid-123",
+			TieringFullnessThreshold: 85,
+		}
+
+		// Mock the AggregateModify call and verify the parameters
+		mockAggregateSimulate := &ontaprest.AggregateSimulate{}
+		mockAggregateSimulate.NumRecords = nillable.ToPointer(int64(1))
+
+		mockStorage.On("AggregateModify", mock.MatchedBy(func(modifyParams *ontaprest.AggregateModifyParams) bool {
+			return modifyParams.UUID == "test-uuid-123" &&
+				modifyParams.TieringFullnessThreshold != nil &&
+				*modifyParams.TieringFullnessThreshold == int64(85)
+		})).Return(mockAggregateSimulate, nil, nil).Once()
+
+		err := rc.UpdateAggregate(params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestUpdateAggregate_BoundaryValues(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	testCases := []struct {
+		name                     string
+		tieringFullnessThreshold int64
+	}{
+		{"Zero threshold", 0},
+		{"Minimum valid threshold", 1},
+		{"Maximum valid threshold", 100},
+		{"Large threshold value", 999},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			params := UpdateAggregateParams{
+				UUID:                     "test-uuid",
+				TieringFullnessThreshold: tc.tieringFullnessThreshold,
+			}
+
+			mockAggregateSimulate := &ontaprest.AggregateSimulate{}
+			mockAggregateSimulate.NumRecords = nillable.ToPointer(int64(1))
+
+			mockStorage.On("AggregateModify", mock.Anything).Return(mockAggregateSimulate, nil, nil).Once()
+
+			err := rc.UpdateAggregate(params)
+
+			assert.NoError(tt, err)
+		})
+	}
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateAggregate_EmptyUUID(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateAggregateParams{
+		UUID:                     "", // Empty UUID
+		TieringFullnessThreshold: 75,
+	}
+
+	// The function should still work with empty UUID (ONTAP might handle validation)
+	mockAggregateSimulate := &ontaprest.AggregateSimulate{}
+	mockAggregateSimulate.NumRecords = nillable.ToPointer(int64(1))
+
+	mockStorage.On("AggregateModify", mock.Anything).Return(mockAggregateSimulate, nil, nil)
+
+	err := rc.UpdateAggregate(params)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
 }

@@ -20,6 +20,7 @@ const (
 	OrphanJobScheduler            = "ORPHANED_JOB_SCHEDULER"
 	SyncLatestBackupLogicalSize   = "SYNC_LATEST_BACKUP_LOGICAL_SIZE"
 	HardDeleteResourcesAndAccount = "HARD_DELETE_RESOURCES_AND_ACCOUNT"
+	SyncVsaAutoTiering            = "SYNC_VSA_AUTO_TIERING"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
@@ -29,6 +30,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	OrphanJobScheduler:            backgroundworkflows.OrphanJobSchedulerWorkflow,
 	SyncLatestBackupLogicalSize:   backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,
 	HardDeleteResourcesAndAccount: backgroundworkflows.HardDeleteResourcesAndAccountWorkflow,
+	SyncVsaAutoTiering:            backgroundworkflows.SyncVSAAutoTieringWorkflow,
 }
 
 type JobManagerActivity struct {

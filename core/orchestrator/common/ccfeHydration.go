@@ -27,6 +27,7 @@ var (
 	BatchHydrateDeletedSnapshots   = _batchHydrateDeletedSnapshots
 	HydrateCreatedScheduledBackups = _hydrateCreatedScheduledBackups
 	HydrateDeletedScheduledBackups = _hydrateDeletedScheduledBackups
+	HydrateUpdatedPool             = _hydrateUpdatedPool
 	MapStateToGcpState             = _mapStateToGcpState
 	HydrateReplicationState        = _hydrateReplicationState
 	HydrateReplicationStateAndType = _hydrateReplicationStateAndType
@@ -449,4 +450,22 @@ func _mapStateToGcpState(state string) string {
 	default:
 		return state
 	}
+}
+
+func _hydrateUpdatedPool(ctx context.Context, poolHydrateObj models.PoolHydrateObject, token string) error {
+	logger := util.GetLogger(ctx)
+	updateMask := "state"
+	updatePoolPayload := models.PoolUpdateCCFERequest{State: poolHydrateObj.State}
+	if poolHydrateObj.HotTierSizeGib > 0 {
+		// TODO: Need to confirm on the update mask value for hot_tier_size_gib as per VCP
+		updateMask = updateMask + ",hot_tier_size_gib"
+		updatePoolPayload.HotTierSizeGib = poolHydrateObj.HotTierSizeGib
+	}
+	fullUrl := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/storagePools/%s?update_mask=%s", baseUri, poolHydrateObj.OwnerID, poolHydrateObj.Region, poolHydrateObj.Name, updateMask)
+	err := hydrateToCffe(ctx, logger, updatePoolPayload, fullUrl, http.MethodPatch, token)
+	if err != nil {
+		logger.Errorf("Failed to hydrate updated pool to CCFE, poolID: %s, error: %v", poolHydrateObj.Name, err)
+		return err
+	}
+	return nil
 }

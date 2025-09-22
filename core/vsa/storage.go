@@ -89,7 +89,27 @@ func (rc *OntapRestProvider) GetAggregateByName(name string) (*Aggregate, error)
 	return &Aggregate{
 		Name:  *aggr.Name,
 		State: *aggr.State,
+		UUID:  *aggr.UUID,
 	}, nil
+}
+
+// UpdateAggregate updates an aggregate by calling the ONTAP REST Client
+func (rc *OntapRestProvider) UpdateAggregate(params UpdateAggregateParams) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	resp, job, err := client.Storage().AggregateModify(&ontapRest.AggregateModifyParams{
+		UUID:                     params.UUID,
+		TieringFullnessThreshold: &params.TieringFullnessThreshold,
+	})
+	if err != nil {
+		return err
+	}
+	if resp != nil && resp.NumRecords != nil && *resp.NumRecords > 0 {
+		return nil
+	}
+	return client.Poll(job.JobUUID)
 }
 
 // LunCreate creates a LUN by calling the ONTAP REST Client

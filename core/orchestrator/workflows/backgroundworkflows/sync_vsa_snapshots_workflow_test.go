@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -25,8 +26,10 @@ func TestSyncVSASnapshotsWorkflow_Success(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
 	startSSWF := &StartSyncSnapshotForPoolActivity{}
+	commonActivities := &activities.CommonActivities{}
 
 	// Register activities
+	env.RegisterActivity(commonActivities)
 	env.RegisterActivity(backgroundActivities)
 	env.RegisterActivity(startSSWF)
 
@@ -47,7 +50,7 @@ func TestSyncVSASnapshotsWorkflow_Success(t *testing.T) {
 	}
 
 	// Mock ListPools activity to return test pools
-	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
+	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
 	// Mock StartSyncSnapshotForPoolWFActivity to return nil for all pools
 	env.OnActivity(startSSWF.StartSyncSnapshotForPoolWFActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Times(len(pools))
@@ -68,13 +71,13 @@ func TestSyncVSASnapshotsWorkflow_Success(t *testing.T) {
 func TestSyncVSASnapshotsWorkflow_ListPoolsError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
-	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
+	commonActivities := &activities.CommonActivities{}
 
 	// Register activities
-	env.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{})
+	env.RegisterActivity(commonActivities)
 
 	// Mock ListPools activity to return error
-	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(nil, assert.AnError)
+	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(nil, assert.AnError)
 
 	// Execute workflow
 	env.ExecuteWorkflow(SyncVSASnapshotsWorkflow)
@@ -89,8 +92,10 @@ func TestSyncVSASnapshotsWorkflow_InvalidVendorID(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
 	startSSWF := &StartSyncSnapshotForPoolActivity{}
+	commonActivities := &activities.CommonActivities{}
 
 	// Register activities
+	env.RegisterActivity(commonActivities)
 	env.RegisterActivity(backgroundActivities)
 	env.RegisterActivity(startSSWF)
 
@@ -105,7 +110,7 @@ func TestSyncVSASnapshotsWorkflow_InvalidVendorID(t *testing.T) {
 	}
 
 	// Mock ListPools activity
-	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
+	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
 	// Execute workflow
 	env.ExecuteWorkflow(SyncVSASnapshotsWorkflow)
@@ -119,8 +124,10 @@ func TestSyncVSASnapshotsWorkflow_CheckRunningError(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
 	startSSWF := &StartSyncSnapshotForPoolActivity{}
+	commonActivities := &activities.CommonActivities{}
 
 	// Register activities
+	env.RegisterActivity(commonActivities)
 	env.RegisterActivity(backgroundActivities)
 	env.RegisterActivity(startSSWF)
 
@@ -135,7 +142,7 @@ func TestSyncVSASnapshotsWorkflow_CheckRunningError(t *testing.T) {
 	}
 
 	// Mock ListPools activity
-	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
+	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 
 	// Mock StartSyncSnapshotForPoolWFActivity to return error
 	env.OnActivity(startSSWF.StartSyncSnapshotForPoolWFActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
@@ -825,7 +832,10 @@ func TestStartSyncSnapshotForPoolWFActivity_Success(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
 	startSyncActivity := &StartSyncSnapshotForPoolActivity{}
-	// Register activity
+	commonActivities := &activities.CommonActivities{}
+
+	// Register activities
+	env.RegisterActivity(commonActivities)
 	env.RegisterActivity(backgroundActivities)
 	env.RegisterActivity(startSyncActivity)
 
@@ -837,7 +847,7 @@ func TestStartSyncSnapshotForPoolWFActivity_Success(t *testing.T) {
 		UUID:      "test-pool",
 	}
 
-	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return([]*database.PoolIdentifier{
+	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return([]*database.PoolIdentifier{
 		pool,
 	}, nil).Once()
 
@@ -868,7 +878,10 @@ func TestStartSyncSnapshotForPoolWFActivity_Error(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 	backgroundActivities := &backgroundactivities.SyncSnapshotActivity{}
 	startSyncActivity := &StartSyncSnapshotForPoolActivity{}
-	// Register activity
+	commonActivities := &activities.CommonActivities{}
+
+	// Register activities
+	env.RegisterActivity(commonActivities)
 	env.RegisterActivity(backgroundActivities)
 	env.RegisterActivity(startSyncActivity)
 
@@ -880,7 +893,7 @@ func TestStartSyncSnapshotForPoolWFActivity_Error(t *testing.T) {
 		UUID:      "test-pool",
 	}
 
-	env.OnActivity(backgroundActivities.ListPoolsUUID, mock.Anything).Return([]*database.PoolIdentifier{
+	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return([]*database.PoolIdentifier{
 		pool,
 	}, nil).Once()
 

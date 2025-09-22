@@ -23,6 +23,11 @@
     "jobType": "SYNC_LATEST_BACKUP_LOGICAL_SIZE",
     "cronExpression": "*/5 * * * *",
     "state": "CREATING"
+  },
+  "SYNC_VSA_AUTO_TIERING": {
+    "jobType": "SYNC_VSA_AUTO_TIERING",
+    "cronExpression": "*/5 * * * *",
+    "state": "CREATING"
   }
   
 }

@@ -12,7 +12,8 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/jobmanagerworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflow_engine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/api/enums/v1"
@@ -38,6 +39,12 @@ func LoadJobSpecs() error {
 	if err != nil {
 		return err
 	}
+
+	// Remove the SYNC_AUTO_TIERING_POOLS job spec if auto tiering feature is not enabled.
+	if !env.GetBool("AUTO_TIERING_ENABLED", false) {
+		delete(adminJobSpecs, "SYNC_VSA_AUTO_TIERING")
+	}
+
 	return nil
 }
 

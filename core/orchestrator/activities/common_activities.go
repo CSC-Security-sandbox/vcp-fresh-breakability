@@ -4,6 +4,7 @@ import (
 	"context"
 	errors2 "errors"
 	"fmt"
+	"go.temporal.io/sdk/client"
 	"strconv"
 	"strings"
 	"time"
@@ -141,6 +142,21 @@ func (j CommonActivities) GetAuthJWTToken(ctx context.Context, accountName strin
 		return "", errors.New("failed to get token")
 	}
 	return jwtToken, nil
+}
+
+func (j CommonActivities) ListPoolsUUID(ctx context.Context) ([]*database.PoolIdentifier, error) {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
+	pools, err := se.ListPoolUUIDs(ctx, filter)
+	if err != nil {
+		logger.Errorf("Failed to list pools: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	logger.Infof("Found %d pools", len(pools))
+	return pools, nil
 }
 
 // _getCloudService initializes and returns a GcpServices instance.
@@ -322,4 +338,33 @@ func _getBackupTenantProject(backup *datamodel.Backup) (string, error) {
 	}
 
 	return "", errors.NewNotFoundErr("tenant project number from backup", nil)
+}
+
+type WFLastExecutionActivity struct {
+	TemporalClient client.Client
+}
+
+// GetWorkflowLastExecutionTime retrieves the completion time of the last run workflow using its workflowID.
+// The workflow being queried must have a query handler registered for "status", which returns the completion time of the workflow.
+func (wle *WFLastExecutionActivity) GetWorkflowLastExecutionTime(ctx context.Context, workflowID string) (*time.Time, error) {
+	temporalClient := wle.TemporalClient
+	logger := util.GetLogger(ctx)
+	var wfCompletionTime time.Time
+
+	// Query the workflow status using the workflow ID.
+	queryResult, err := temporalClient.QueryWorkflow(ctx, workflowID, "", "status")
+	if err != nil {
+		logger.Errorf("Failed to query workflow completion time: %v", err)
+		// If the workflow is not found, return default time (0) without error.
+		// This will allow the caller to handle the case where the workflow has never been run.
+		return &wfCompletionTime, nil
+	}
+
+	if err = queryResult.Get(&wfCompletionTime); err != nil {
+		logger.Errorf("Failed to decode workflow completion time: %v", err)
+		return nil, fmt.Errorf("failed to decode workflow completion time: %w", err)
+	}
+
+	// This will return the completion time of the workflow if it has completed, either Success or Failure.
+	return &wfCompletionTime, nil
 }

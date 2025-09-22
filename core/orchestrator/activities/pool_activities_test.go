@@ -5,6 +5,7 @@ import (
 	digitalCert "crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"os"
 	"strconv"
 	"strings"
@@ -10002,4 +10003,49 @@ func TestResolveZonesForCluster_ExplicitMediatorZoneMachineTypeUnavailable(t *te
 	assert.Contains(t, err.Error(), "Resource unavailable. Please contact support.")
 
 	mockGCPService.AssertExpectations(t)
+}
+
+func TestAutoTierSyncActivity_HydrateUpdatedPoolToCCFE(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("HydrateUpdatedPoolToCCFE_HydrationEnabled", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		pool := datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		}
+
+		// Mock the hydrationActivities.HydrateUpdatedPoolToCCFE function
+		called := false
+		originalHydrateUpdatedPoolToCCFE := hydrationActivities.HydrateUpdatedPoolToCCFE
+		hydrationActivities.HydrateUpdatedPoolToCCFE = func(ctx context.Context, dbPool datamodel.Pool) error {
+			called = true
+			return nil
+		}
+		defer func() { hydrationActivities.HydrateUpdatedPoolToCCFE = originalHydrateUpdatedPoolToCCFE }()
+
+		err := activity.HydrateUpdatedPoolToCCFE(ctx, pool)
+		assert.NoError(tt, err)
+		assert.True(tt, called)
+	})
+
+	t.Run("HydrateUpdatedPoolToCCFE_HydrationFailed", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		pool := datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		}
+
+		// Mock the hydrationActivities.HydrateUpdatedPoolToCCFE function to return error
+		originalHydrateUpdatedPoolToCCFE := hydrationActivities.HydrateUpdatedPoolToCCFE
+		hydrationActivities.HydrateUpdatedPoolToCCFE = func(ctx context.Context, dbPool datamodel.Pool) error {
+			return errors.New("hydration failed")
+		}
+		defer func() { hydrationActivities.HydrateUpdatedPoolToCCFE = originalHydrateUpdatedPoolToCCFE }()
+
+		err := activity.HydrateUpdatedPoolToCCFE(ctx, pool)
+		assert.Error(tt, err)
+	})
 }

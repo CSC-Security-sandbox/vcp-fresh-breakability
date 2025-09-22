@@ -249,6 +249,7 @@ func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 					Svm:       volume.Svm,
 					IsSvmRoot: volume.IsSvmRoot,
 					Style:     volume.Style,
+					Space:     volume.Space,
 				},
 				ExternalUUID: *volume.UUID,
 			}
@@ -259,7 +260,7 @@ func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 
 	err = client.Storage().VolumeCollectionGet(&ontapRest.VolumeCollectionGetParams{
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"uuid", "name", "svm", "is_svm_root", "style"},
+			Fields: []string{"uuid", "name", "svm", "is_svm_root", "style", "space"},
 		},
 	}, ucbf)
 

@@ -10,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -46,21 +45,6 @@ var (
 
 type SyncSnapshotActivity struct {
 	SE database.Storage
-}
-
-func (a *SyncSnapshotActivity) ListPoolsUUID(ctx context.Context) ([]*database.PoolIdentifier, error) {
-	logger := util.GetLogger(ctx)
-	se := a.SE
-
-	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
-	pools, err := se.ListPoolUUIDs(ctx, filter)
-	if err != nil {
-		logger.Errorf("Failed to list pools: %v", err)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
-	}
-
-	logger.Infof("Found %d pools", len(pools))
-	return pools, nil
 }
 
 func (a *SyncSnapshotActivity) FetchPoolByUUID(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error) {

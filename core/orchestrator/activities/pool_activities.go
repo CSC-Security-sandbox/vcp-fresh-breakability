@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"net"
 	"os"
 	"strconv"
@@ -2681,4 +2682,20 @@ func _createLargeVolumeVMRSConfig(originalConfig *vmrs.VMRSConfig) *vmrs.VMRSCon
 	configCopy.HyperscalerPerfLimits.VMSelectionStrategy = vmrs.LeastCostLargeVolumeCluster
 
 	return &configCopy
+}
+
+func (j *PoolActivity) HydrateUpdatedPoolToCCFE(ctx context.Context, dbPool datamodel.Pool) error {
+	logger := util.GetLogger(ctx)
+
+	if !hydrationEnabled {
+		logger.Warn("Hydration is disabled, skipping pool hydration to CCFE")
+		return nil
+	}
+
+	err := hydrationActivities.HydrateUpdatedPoolToCCFE(ctx, dbPool)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
 }

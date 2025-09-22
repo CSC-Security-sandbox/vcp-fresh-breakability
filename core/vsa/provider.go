@@ -24,6 +24,8 @@ type Provider interface {
 	AreAllNodeUpAndRunning() (bool, error)
 	IsAggregateOnline(aggregateName string) (bool, error)
 	GetAggregates() ([]*Aggregate, error)
+	GetAggregateByName(name string) (*Aggregate, error)
+	UpdateAggregate(params UpdateAggregateParams) error
 	GetNodes() ([]*Node, error)
 	GetNodeByName(name string) (*Node, error)
 	CreateSVM(params CreateSvmParams) (*ProviderResponse, error)

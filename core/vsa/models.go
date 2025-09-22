@@ -111,9 +111,15 @@ type Node struct {
 }
 
 type Aggregate struct {
+	UUID        string
 	Name        string
 	State       string
 	VolumeCount int64
+}
+
+type UpdateAggregateParams struct {
+	UUID                     string
+	TieringFullnessThreshold int64
 }
 
 type RestoreFromSnapshotParams struct {

@@ -927,3 +927,344 @@ func TestMapToGcpBulkSnapshotDeleteTests(tt *testing.T) {
 		assert.Equal(tt, expected, result)
 	})
 }
+
+func TestHydrateUpdatedPool(t *testing.T) {
+	ctx := context.Background()
+	mockToken := "mock-token"
+
+	// Save original hydrateToCffe function and restore after tests
+	originalHydrateToCffe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCffe }()
+
+	// Save original baseUri and restore after tests
+	originalBaseUri := baseUri
+	defer func() { baseUri = originalBaseUri }()
+	baseUri = "https://mock-base-uri.com"
+
+	t.Run("Success_StateOnly", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "AVAILABLE",
+			Region:         "us-central1-a",
+			HotTierSizeGib: 0, // Zero to test state-only update
+		}
+
+		var capturedPayload models.PoolUpdateCCFERequest
+		var capturedURL string
+		var capturedMethod string
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedPayload = v.(models.PoolUpdateCCFERequest)
+			capturedURL = url
+			capturedMethod = method
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "AVAILABLE", capturedPayload.State)
+		assert.Equal(tt, nil, capturedPayload.HotTierSizeGib) // Should be nil for state-only update
+		assert.Equal(tt, "PATCH", capturedMethod)
+		expectedURL := "https://mock-base-uri.com/v1internal/projects/test-project/locations/us-central1-a/storagePools/test-pool?update_mask=state"
+		assert.Equal(tt, expectedURL, capturedURL)
+	})
+
+	t.Run("Success_StateAndHotTierSize", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "READY",
+			Region:         "us-central1-b",
+			HotTierSizeGib: 100, // Non-zero to test both state and hot tier update
+		}
+
+		var capturedPayload models.PoolUpdateCCFERequest
+		var capturedURL string
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedPayload = v.(models.PoolUpdateCCFERequest)
+			capturedURL = url
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "READY", capturedPayload.State)
+		assert.Equal(tt, int64(100), capturedPayload.HotTierSizeGib)
+		expectedURL := "https://mock-base-uri.com/v1internal/projects/test-project/locations/us-central1-b/storagePools/test-pool?update_mask=state,hot_tier_size_gib"
+		assert.Equal(tt, expectedURL, capturedURL)
+	})
+
+	t.Run("Success_LargeHotTierSize", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "UPDATING",
+			Region:         "europe-west1-a",
+			HotTierSizeGib: 9999, // Large value
+		}
+
+		var capturedPayload models.PoolUpdateCCFERequest
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedPayload = v.(models.PoolUpdateCCFERequest)
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "UPDATING", capturedPayload.State)
+		assert.Equal(tt, int64(9999), capturedPayload.HotTierSizeGib)
+	})
+
+	t.Run("Success_SpecialCharactersInNames", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project-123",
+			PoolID:         "test-pool-id-456",
+			Name:           "test-pool-with-dashes",
+			State:          "CREATING",
+			Region:         "asia-east1-c",
+			HotTierSizeGib: 50,
+		}
+
+		var capturedURL string
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedURL = url
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.NoError(tt, err)
+		expectedURL := "https://mock-base-uri.com/v1internal/projects/test-project-123/locations/asia-east1-c/storagePools/test-pool-with-dashes?update_mask=state,hot_tier_size_gib"
+		assert.Equal(tt, expectedURL, capturedURL)
+	})
+
+	t.Run("Error_HydrateToCffeError", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "AVAILABLE",
+			Region:         "us-central1-a",
+			HotTierSizeGib: 100,
+		}
+
+		expectedError := &errs.CustomError{
+			Message:     "Failed to hydrate to CCFE",
+			OriginalErr: errors.New("CCFE service unavailable"),
+		}
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return expectedError
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("Error_NetworkError", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "AVAILABLE",
+			Region:         "us-central1-a",
+			HotTierSizeGib: 0,
+		}
+
+		expectedError := errors.New("network timeout")
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return expectedError
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("Error_AuthenticationError", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "AVAILABLE",
+			Region:         "us-central1-a",
+			HotTierSizeGib: 25,
+		}
+
+		httpCode := 401
+		expectedError := &errs.CustomError{
+			Message:  "Unauthorized",
+			HttpCode: &httpCode,
+		}
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return expectedError
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("EdgeCase_EmptyToken", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "AVAILABLE",
+			Region:         "us-central1-a",
+			HotTierSizeGib: 0,
+		}
+
+		var capturedToken string
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedToken = token
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, "")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", capturedToken)
+	})
+
+	t.Run("EdgeCase_EmptyPoolFields", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "",
+			PoolID:         "",
+			Name:           "",
+			State:          "",
+			Region:         "",
+			HotTierSizeGib: 0,
+		}
+
+		var capturedURL string
+		var capturedPayload models.PoolUpdateCCFERequest
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedURL = url
+			capturedPayload = v.(models.PoolUpdateCCFERequest)
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", capturedPayload.State)
+		assert.Equal(tt, nil, capturedPayload.HotTierSizeGib)
+		expectedURL := "https://mock-base-uri.com/v1internal/projects//locations//storagePools/?update_mask=state"
+		assert.Equal(tt, expectedURL, capturedURL)
+	})
+
+	t.Run("EdgeCase_NegativeHotTierSize", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "AVAILABLE",
+			Region:         "us-central1-a",
+			HotTierSizeGib: -10, // Negative value
+		}
+
+		var capturedPayload models.PoolUpdateCCFERequest
+		var capturedURL string
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedPayload = v.(models.PoolUpdateCCFERequest)
+			capturedURL = url
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "AVAILABLE", capturedPayload.State)
+		assert.Equal(tt, nil, capturedPayload.HotTierSizeGib) // Should be nil since -10 is not > 0
+		expectedURL := "https://mock-base-uri.com/v1internal/projects/test-project/locations/us-central1-a/storagePools/test-pool?update_mask=state"
+		assert.Equal(tt, expectedURL, capturedURL)
+	})
+
+	t.Run("EdgeCase_HotTierSizeEqualsOne", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "test-project",
+			PoolID:         "test-pool-id",
+			Name:           "test-pool",
+			State:          "AVAILABLE",
+			Region:         "us-central1-a",
+			HotTierSizeGib: 1, // Minimum positive value
+		}
+
+		var capturedPayload models.PoolUpdateCCFERequest
+		var capturedURL string
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedPayload = v.(models.PoolUpdateCCFERequest)
+			capturedURL = url
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, mockToken)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "AVAILABLE", capturedPayload.State)
+		assert.Equal(tt, int64(1), capturedPayload.HotTierSizeGib)
+		expectedURL := "https://mock-base-uri.com/v1internal/projects/test-project/locations/us-central1-a/storagePools/test-pool?update_mask=state,hot_tier_size_gib"
+		assert.Equal(tt, expectedURL, capturedURL)
+	})
+
+	t.Run("ParameterValidation_CorrectParametersPassedToHydrateToCffe", func(tt *testing.T) {
+		poolHydrateObj := models.PoolHydrateObject{
+			OwnerID:        "validation-project",
+			PoolID:         "validation-pool-id",
+			Name:           "validation-pool",
+			State:          "VALIDATING",
+			Region:         "us-west1-a",
+			HotTierSizeGib: 200,
+		}
+
+		var capturedCtx context.Context
+		var capturedLogger log.Logger
+		var capturedPayload models.PoolUpdateCCFERequest
+		var capturedURL string
+		var capturedMethod string
+		var capturedToken string
+
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			capturedCtx = ctx
+			capturedLogger = logger
+			capturedPayload = v.(models.PoolUpdateCCFERequest)
+			capturedURL = url
+			capturedMethod = method
+			capturedToken = token
+			return nil
+		}
+
+		err := _hydrateUpdatedPool(ctx, poolHydrateObj, "validation-token")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, ctx, capturedCtx)
+		assert.NotNil(tt, capturedLogger)
+		assert.Equal(tt, "VALIDATING", capturedPayload.State)
+		assert.Equal(tt, int64(200), capturedPayload.HotTierSizeGib)
+		assert.Equal(tt, "PATCH", capturedMethod)
+		assert.Equal(tt, "validation-token", capturedToken)
+		expectedURL := "https://mock-base-uri.com/v1internal/projects/validation-project/locations/us-west1-a/storagePools/validation-pool?update_mask=state,hot_tier_size_gib"
+		assert.Equal(tt, expectedURL, capturedURL)
+	})
+}

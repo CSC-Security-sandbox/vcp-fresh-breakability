@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,6 +16,7 @@ import (
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	dbUtils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
@@ -22,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
@@ -953,5 +956,260 @@ func TestDescribeRemoteJob(t *testing.T) {
 		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 
 		assert.Error(tt, err)
+	})
+}
+
+// Mock encoded value for GetWorkflowLastExecutionTime tests
+type mockTimeEncodedValue struct {
+	err   bool
+	value time.Time
+}
+
+func (m mockTimeEncodedValue) Get(valuePtr interface{}) error {
+	if m.err {
+		return fmt.Errorf("encoding error for value: %+v", valuePtr)
+	}
+
+	v, ok := valuePtr.(*time.Time)
+	if !ok {
+		return fmt.Errorf("unexpected type: %T", valuePtr)
+	}
+
+	*v = m.value
+	return nil
+}
+
+func (m mockTimeEncodedValue) HasValue() bool {
+	return true
+}
+
+// TestGetWorkflowLastExecutionTime tests the GetWorkflowLastExecutionTime method
+func TestGetWorkflowLastExecutionTime(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	workflowID := "test-workflow-id"
+
+	t.Run("Success - workflow completion time returned", func(t *testing.T) {
+		mockClient := workflow_engine.NewMockTemporalTestClient(t)
+		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		expectedTime := time.Date(2023, 10, 15, 14, 30, 0, 0, time.UTC)
+		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
+			Return(mockTimeEncodedValue{err: false, value: expectedTime}, nil)
+
+		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedTime, *result)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Success - workflow not found returns zero time", func(t *testing.T) {
+		mockClient := workflow_engine.NewMockTemporalTestClient(t)
+		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		expectedError := errors.New("workflow not found")
+		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
+			Return(nil, expectedError)
+
+		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsZero(), "Expected zero time when workflow is not found")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Error - decode workflow completion time fails", func(t *testing.T) {
+		mockClient := workflow_engine.NewMockTemporalTestClient(t)
+		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
+			Return(mockTimeEncodedValue{err: true}, nil)
+
+		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to decode workflow completion time")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Success - empty workflow ID", func(t *testing.T) {
+		mockClient := workflow_engine.NewMockTemporalTestClient(t)
+		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		mockClient.On("QueryWorkflow", mock.Anything, "", "", "status").
+			Return(nil, errors.New("invalid workflow ID"))
+
+		result, err := activity.GetWorkflowLastExecutionTime(ctx, "")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsZero(), "Expected zero time for empty workflow ID")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Success - query returns zero time value", func(t *testing.T) {
+		mockClient := workflow_engine.NewMockTemporalTestClient(t)
+		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		zeroTime := time.Time{}
+		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
+			Return(mockTimeEncodedValue{err: false, value: zeroTime}, nil)
+
+		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsZero(), "Expected zero time to be returned as is")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Error - temporal client query with connection error", func(t *testing.T) {
+		mockClient := workflow_engine.NewMockTemporalTestClient(t)
+		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		connectionError := errors.New("connection refused")
+		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
+			Return(nil, connectionError)
+
+		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+
+		assert.NoError(t, err, "Connection errors should return zero time, not propagate as error")
+		assert.NotNil(t, result)
+		assert.True(t, result.IsZero(), "Connection error should return zero time")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Success - specific time with nanoseconds", func(t *testing.T) {
+		mockClient := workflow_engine.NewMockTemporalTestClient(t)
+		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		expectedTime := time.Date(2023, 12, 25, 10, 15, 30, 123456789, time.UTC)
+		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
+			Return(mockTimeEncodedValue{err: false, value: expectedTime}, nil)
+
+		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedTime, *result)
+		assert.Equal(t, 123456789, result.Nanosecond(), "Nanoseconds should be preserved")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Error - context timeout", func(t *testing.T) {
+		timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Nanosecond)
+		defer cancel()
+		time.Sleep(2 * time.Nanosecond) // Ensure context is expired
+
+		mockClient := workflow_engine.NewMockTemporalTestClient(t)
+		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		contextError := context.DeadlineExceeded
+		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
+			Return(nil, contextError)
+
+		result, err := activity.GetWorkflowLastExecutionTime(timeoutCtx, workflowID)
+
+		assert.NoError(t, err, "Context timeout should not propagate as error, should return zero time")
+		assert.NotNil(t, result)
+		assert.True(t, result.IsZero(), "Context timeout should return zero time")
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestCommonActivity_ListPoolsUUID(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("ListPoolsUUID_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := CommonActivities{SE: mockStorage}
+
+		expectedPools := []*database.PoolIdentifier{
+			{
+				Name:      "pool-1",
+				AccountID: 123,
+				VendorID:  "/projects/test-project/locations/us-central1/pools/pool-1",
+				UUID:      "pool-uuid-1",
+			},
+			{
+				Name:      "pool-2",
+				AccountID: 124,
+				VendorID:  "/projects/test-project/locations/us-west1/pools/pool-2",
+				UUID:      "pool-uuid-2",
+			},
+		}
+
+		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return(expectedPools, nil)
+
+		result, err := activity.ListPoolsUUID(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, expectedPools[0].Name, result[0].Name)
+		assert.Equal(tt, expectedPools[0].AccountID, result[0].AccountID)
+		assert.Equal(tt, expectedPools[0].VendorID, result[0].VendorID)
+		assert.Equal(tt, expectedPools[0].UUID, result[0].UUID)
+		assert.Equal(tt, expectedPools[1].Name, result[1].Name)
+		assert.Equal(tt, expectedPools[1].AccountID, result[1].AccountID)
+		assert.Equal(tt, expectedPools[1].VendorID, result[1].VendorID)
+		assert.Equal(tt, expectedPools[1].UUID, result[1].UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ListPoolsUUID_EmptyResult", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := CommonActivities{SE: mockStorage}
+
+		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*database.PoolIdentifier{}, nil)
+
+		result, err := activity.ListPoolsUUID(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 0)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ListPoolsUUID_DatabaseError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := CommonActivities{SE: mockStorage}
+
+		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return(nil, errors.New("database connection failed"))
+
+		result, err := activity.ListPoolsUUID(ctx)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ListPoolsUUID_WithFilterConditions", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := CommonActivities{SE: mockStorage}
+
+		expectedPools := []*database.PoolIdentifier{
+			{
+				Name:      "ready-pool",
+				AccountID: 123,
+				VendorID:  "/projects/test-project/locations/us-central1/pools/ready-pool",
+				UUID:      "ready-pool-uuid",
+			},
+		}
+
+		mockStorage.On("ListPoolUUIDs", ctx, mock.MatchedBy(func(filter *dbUtils.Filter) bool {
+			// Verify that the filter contains the expected condition for state = "ready"
+			for _, condition := range filter.Conditions {
+				if condition.Field == "state" && condition.Op == "=" && condition.Value == models2.LifeCycleStateREADY {
+					return true
+				}
+			}
+			return false
+		})).Return(expectedPools, nil)
+
+		result, err := activity.ListPoolsUUID(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, expectedPools[0].Name, result[0].Name)
+		mockStorage.AssertExpectations(tt)
 	})
 }
