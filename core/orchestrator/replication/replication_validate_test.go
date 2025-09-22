@@ -3,6 +3,7 @@ package replication
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -19,6 +20,7 @@ import (
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -250,7 +252,7 @@ func Test_createReplicationObjects_Success(t *testing.T) {
 	resourceID := "replication-1"
 	description := "desc"
 	replicationSchedule := models.ReplicationV1betaReplicationScheduleHOURLY
-	volumeID := "vol-2"
+	volumeID := "vol_2"
 	event := &CreateReplicationEvent{
 		SourceProjectNumber:      "src-proj",
 		DestinationProjectNumber: "dst-proj",
@@ -277,7 +279,7 @@ func Test_createReplicationObjects_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, replication)
 	assert.Contains(t, replication.Uri, "projects/src-proj/locations/loc-1/volumes/vol-1/replications/replication-1")
-	assert.Contains(t, replication.RemoteUri, "projects/dst-proj/locations/loc-2/volumes/vol-2/replications/replication-1")
+	assert.Contains(t, replication.RemoteUri, "projects/dst-proj/locations/loc-2/volumes/vol_2/replications/replication-1")
 	assert.Equal(t, resourceID, replication.Name)
 	assert.Equal(t, description, replication.Description)
 	assert.NotNil(t, replication.ReplicationAttributes)
@@ -305,7 +307,7 @@ func Test_createReplicationObjects_InvalidUUID(t *testing.T) {
 			Description:         &description,
 			ReplicationSchedule: &replicationSchedule,
 			DestinationVolumeParameters: &DestinationVolumeParams{
-				VolumeID: "vol-2",
+				VolumeID: "vol_2",
 			},
 		},
 		SourceVolume: datamodel.Volume{
@@ -688,7 +690,7 @@ func Test_getVolume(t *testing.T) {
 func Test_validateCreateReplicationParams(t *testing.T) {
 	ctx := context.Background()
 	projectNumber := "proj-1"
-	destProjectNumber := "proj-2"
+	destProjectNumber := "proj-1"
 	locationID := "us-east1"
 	destLocationID := "us-east4"
 	volumeResourceID := "vol-1"
@@ -724,8 +726,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 			ReplicationSchedule: &replicationSchedule,
 			Labels:              map[string]string{"env": "prod"},
 			DestinationVolumeParameters: &DestinationVolumeParams{
-				VolumeID:    "vol-2",
-				ShareName:   "share-2",
+				VolumeID:    "vol_2",
+				ShareName:   "share_2",
 				StoragePool: &storagePoolUri,
 			},
 		},
@@ -836,8 +838,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 				ReplicationSchedule: &replicationSchedule,
 				Labels:              map[string]string{"env": "prod"},
 				DestinationVolumeParameters: &DestinationVolumeParams{
-					VolumeID:    "vol-2",
-					ShareName:   "share-2",
+					VolumeID:    "vol_2",
+					ShareName:   "share_2",
 					StoragePool: &storagePoolUri,
 				},
 			},
@@ -872,6 +874,52 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("Fails when cross project replication is attempted", func(t *testing.T) {
+		eventCopy := *event
+		eventCopy.DestinationProjectNumber = "proj-2" // Different from source project
+
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", eventCopy.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", eventCopy.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", eventCopy.LocationID).Return("us-east1", "us-east1-a", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "us-east1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", eventCopy.DestinationLocationID).Return("us-east4", "us-east4-a", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "us-east4").Return("basePath", nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, &eventCopy, mockStorage)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cross project replication is not supported")
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("Fails when cross zone replication is attempted", func(t *testing.T) {
+		eventCopy := *event
+		eventCopy.DestinationLocationID = "us-east1" // Same region as source
+
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		// Only one token call since source and destination projects are the same
+		mm.On("InternalUtilGetSignedToken", eventCopy.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", eventCopy.LocationID).Return("us-east1", "us-east1-a", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "us-east1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", eventCopy.DestinationLocationID).Return("us-east1", "us-east1-b", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "us-east1").Return("basePath", nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, &eventCopy, mockStorage)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cross zone replication is not supported")
+		mm.AssertExpectations(t)
+	})
+
 	t.Run("Fails when GetSignedToken fails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		origGetSignedJwtToken := InternalUtilGetSignedToken
@@ -890,7 +938,6 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("", errors.New("token error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
@@ -904,7 +951,6 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
 		mm.On("InternalParseRegionAndZone", event.LocationID).Return("", "", errors.New("parse error")).Once()
 
@@ -919,7 +965,6 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
 		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("", errors.New("paired region uri error")).Once()
@@ -935,7 +980,6 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
 		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
@@ -952,7 +996,6 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
 		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
 		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
@@ -970,12 +1013,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(errors.New("validate replication resource id error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
@@ -989,12 +1031,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 
 		event.SourceVolume.VolumeAttributes.IsDataProtection = true
@@ -1012,12 +1053,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 
 		// Reset volume state to not ready
@@ -1037,12 +1077,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(errors.New("invalid storage pool URI format")).Once()
 
@@ -1062,12 +1101,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1090,12 +1128,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1126,12 +1163,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1162,12 +1198,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1199,11 +1234,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1235,11 +1270,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1272,11 +1307,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1311,11 +1346,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1351,11 +1386,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1393,11 +1428,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1435,11 +1470,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1479,11 +1514,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1525,11 +1560,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1571,11 +1606,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1608,10 +1643,10 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		// Mock destination volume already exists
 		existingVolume := googleproxyclient.VolumeV1beta{
-			ResourceId:    "vol-2",
-			CreationToken: googleproxyclient.OptString{Value: "share-2", Set: true},
+			ResourceId:    "vol_2",
+			CreationToken: googleproxyclient.OptString{Value: "share_2", Set: true},
 		}
-		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol-2").Return(existingVolume, errors.New("get volume error")).Once()
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol_2").Return(existingVolume, errors.New("get volume error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
@@ -1624,11 +1659,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1661,10 +1696,10 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		// Mock destination volume already exists
 		existingVolume := googleproxyclient.VolumeV1beta{
-			ResourceId:    "vol-2",
-			CreationToken: googleproxyclient.OptString{Value: "share-2", Set: true},
+			ResourceId:    "vol_2",
+			CreationToken: googleproxyclient.OptString{Value: "share_2", Set: true},
 		}
-		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol-2").Return(existingVolume, nil).Once()
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol_2").Return(existingVolume, nil).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
@@ -1677,11 +1712,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1713,9 +1748,9 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
 		// Mock destination volume not found (which is expected)
-		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol-2").Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol_2").Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
 
-		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region", "region").Return(nil, errors.New("create replication objects error")).Once()
+		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region-1", "region-2").Return(nil, errors.New("create replication objects error")).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
@@ -1729,11 +1764,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1766,10 +1801,10 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		// Mock destination volume with conflicting share name
 		existingVolume := googleproxyclient.VolumeV1beta{
-			ResourceId:    "vol-2",
-			CreationToken: googleproxyclient.OptString{Value: "share-2", Set: true}, // Same as event.CreateReplicationParams.DestinationVolumeParameters.ShareName
+			ResourceId:    "vol_2",
+			CreationToken: googleproxyclient.OptString{Value: "share_2", Set: true}, // Same as event.CreateReplicationParams.DestinationVolumeParameters.ShareName
 		}
-		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol-2").Return(existingVolume, nil).Once()
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol_2").Return(existingVolume, nil).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
@@ -1783,11 +1818,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.Patch()
 		defer mm.Unpatch()
 
-		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
 		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
-		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
 
@@ -1825,7 +1860,136 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		// Mock destination volume not found (which is expected)
 		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
 
-		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region", "region").Return(&datamodel.VolumeReplication{Uri: "uri"}, nil).Once()
+		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region-1", "region-2").Return(&datamodel.VolumeReplication{Uri: "uri"}, nil).Once()
+
+		replication, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.NoError(t, err)
+		assert.NotNil(t, replication)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenCrossProjectReplicationIsEnabled", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		event.DestinationProjectNumber = "proj-1"
+		event.SourceProjectNumber = "proj-2"
+
+		// Patch env variable
+		cpcrEnabled = true
+		defer func() {
+			cpcrEnabled = env.GetBool("CPCRR_ENABLED", false)
+		}()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		// Clear destination volume parameters to test default values
+		event.CreateReplicationParams.DestinationVolumeParameters.VolumeID = ""
+		event.CreateReplicationParams.DestinationVolumeParameters.ShareName = ""
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(10, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		// Mock destination volume not found (which is expected)
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+
+		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region-1", "region-2").Return(&datamodel.VolumeReplication{Uri: "uri"}, nil).Once()
+
+		replication, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.NoError(t, err)
+		assert.NotNil(t, replication)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenCrossZoneReplicationIsEnabled", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		event.DestinationProjectNumber = "proj-1"
+		event.SourceProjectNumber = "proj-1"
+
+		// Patch env variable
+		czcrEnabled = true
+		defer func() {
+			czcrEnabled = env.GetBool("CZCRR_ENABLED", false)
+		}()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-1", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		// Clear destination volume parameters to test default values
+		event.CreateReplicationParams.DestinationVolumeParameters.VolumeID = ""
+		event.CreateReplicationParams.DestinationVolumeParameters.ShareName = ""
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeReplication).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", common.ResourceTypeVolume).Return(10, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		// Mock destination volume not found (which is expected)
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+
+		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region-1", "region-1").Return(&datamodel.VolumeReplication{Uri: "uri"}, nil).Once()
 
 		replication, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.NoError(t, err)
@@ -2843,5 +3007,65 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 		resp, err := _verifyDstReplicationReverse(ctx, event)
 		assert.NoError(tt, err)
 		assert.Equal(tt, dstReplication, resp)
+	})
+}
+
+// TestVolumeIDValidation tests the volume ID validation regex pattern
+func TestVolumeIDValidation(t *testing.T) {
+	// Compile the regex pattern used in the validation
+	compiledRegex := regexp.MustCompile(dstVolumeNameRegex)
+
+	t.Run("ValidVolumeIDs", func(tt *testing.T) {
+		validCases := []struct {
+			name     string
+			volumeID string
+		}{
+			{"SingleLetter", "a"},
+			{"LettersAndNumbers", "abc123"},
+			{"WithUnderscores", "test_volume_1"},
+			{"MixedValidChars", "my_volume_123"},
+			{"MaxLength", "a" + strings.Repeat("b", 61) + "c"}, // 63 chars total
+			{"AllLowercase", "abcdefghijklmnopqrstuvwxyz"},
+			{"NumbersOnly", "a123456789"},
+			{"UnderscoresOnly", "a_b_c_d_e"},
+		}
+
+		for _, tc := range validCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				matches := compiledRegex.MatchString(tc.volumeID)
+				assert.True(t, matches, "Volume ID '%s' should match the regex pattern", tc.volumeID)
+			})
+		}
+	})
+
+	t.Run("InvalidVolumeIDs", func(tt *testing.T) {
+		invalidCases := []struct {
+			name     string
+			volumeID string
+		}{
+			{"StartsWithNumber", "123abc"},
+			{"StartsWithUppercase", "Abc123"},
+			{"ContainsHyphen", "test-volume"},
+			{"EndsWithUnderscore", "test_volume_"},
+			{"ContainsSpecialChars", "test@volume"},
+			{"ContainsSpaces", "test volume"},
+			{"EmptyString", ""},
+			{"TooLong", "a" + strings.Repeat("b", 62) + "c"}, // 64 chars total
+			{"StartsWithSpecialChar", "_test"},
+			{"StartsWithHyphen", "-test"},
+		}
+
+		for _, tc := range invalidCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				matches := compiledRegex.MatchString(tc.volumeID)
+				assert.False(t, matches, "Volume ID '%s' should NOT match the regex pattern", tc.volumeID)
+			})
+		}
+	})
+
+	t.Run("EmptyVolumeID", func(tt *testing.T) {
+		// Empty volume ID should not match the regex (since it requires at least one character)
+		matches := compiledRegex.MatchString("")
+		assert.False(t, matches, "Empty volume ID should NOT match the regex pattern")
 	})
 }

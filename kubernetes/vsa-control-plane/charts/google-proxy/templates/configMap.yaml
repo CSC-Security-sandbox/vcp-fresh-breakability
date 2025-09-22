@@ -40,6 +40,8 @@ data:
   BACKUP_ENABLED: "{{ index .Values "backupEnabled" }}"
   QA_ENABLED: "{{ index .Values "qaEnabled" }}"
   CRR_ENABLED: "{{ index .Values "crrEnabled" }}"
+  CPCRR_ENABLED: "{{ index .Values "cpcrrEnabled" }}"
+  CZCRR_ENABLED: "{{ index .Values "czcrrEnabled" }}"
   FLEXCACHE_ENABLED: "{{ index .Values "flexCacheEnabled" }}"
   REFRESH_ADMIN_JOB_SPECS: "{{ index .Values "refreshAdminJobSpecs" }}"
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"

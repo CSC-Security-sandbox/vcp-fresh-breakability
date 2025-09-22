@@ -25,6 +25,8 @@ vcpPairedRegions: ""
 loggerLevel: "info"
 cvpHost: ""
 crrEnabled: false
+cpcrrEnabled: false
+czcrrEnabled: false
 refreshAdminJobSpecs: true
 flexCacheEnabled: false
 autoTieringEnabled: false

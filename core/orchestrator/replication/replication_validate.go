@@ -65,6 +65,8 @@ var (
 	JsonUnMarshal      = json.Unmarshal
 	hydrationEnabled   = env.GetBool("GCP_HYDRATE_ENABLED", true)
 	autoTieringEnabled = env.GetBool("AUTO_TIERING_ENABLED", false)
+	cpcrEnabled        = env.GetBool("CPCRR_ENABLED", false)
+	czcrEnabled        = env.GetBool("CZCRR_ENABLED", false)
 	getQuotaLimit      = common.GetQuotaLimit
 )
 
@@ -72,10 +74,13 @@ type QuotaType string
 type ResourceType string
 
 const (
-	storageUriRegex = "^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/storagePools|pools\\/([^\\/]+)$"
-	maxRuneCount    = 63
-	maxByteCount    = 128
+	storageUriRegex    = "^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/storagePools|pools\\/([^\\/]+)$"
+	maxRuneCount       = 63
+	maxByteCount       = 128
+	dstVolumeNameRegex = "^[a-z]([a-z0-9_]{0,61}[a-z0-9])?$"
 )
+
+var compiledRegex = regexp.MustCompile(dstVolumeNameRegex)
 
 func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicationEvent, se database.Storage) (*datamodel.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
@@ -90,6 +95,10 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		typeErr := errors.NewVCPError(errors.ErrWorkflowConfigurationError, errors.New("replicationSchedule is UNSPECIFIED"))
 		logger.Error("replicationSchedule is UNSPECIFIED", common.Error(typeErr))
 		return nil, typeErr
+	}
+
+	if event.CreateReplicationParams.DestinationVolumeParameters.VolumeID != "" && !compiledRegex.MatchString(event.CreateReplicationParams.DestinationVolumeParameters.VolumeID) {
+		return nil, utilErrors.NewUserInputValidationErr("Volume ID can only contain lowercase letters, numbers, and underscores. It must start with a letter and cannot end with an underscore.")
 	}
 
 	if event.CreateReplicationParams.Labels != nil {
@@ -139,6 +148,19 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	}
 	event.DestinationRegion = destRegion
 	event.CCFEUri = internalUtilGetCCFEURI(event.SourceProjectNumber, event.LocationID, event.VolumeResourceID, *event.CreateReplicationParams.ResourceID)
+
+	// Block Cross Project and Cross Zone Replication for now. Will be enabled once the feature is validated
+	// Check environment variables to control this behavior
+	if event.SourceProjectNumber != event.DestinationProjectNumber {
+		if !cpcrEnabled {
+			return nil, utilErrors.NewUserInputValidationErr("cross project replication is not supported")
+		}
+	}
+	if sourceRegion == destRegion {
+		if !czcrEnabled {
+			return nil, utilErrors.NewUserInputValidationErr("cross zone replication is not supported")
+		}
+	}
 
 	err = validateReplicationResourceId(ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, se)
 	if err != nil {
