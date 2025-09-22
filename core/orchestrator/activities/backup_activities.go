@@ -700,6 +700,59 @@ func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *model
 	return nil
 }
 
+func (a BackupActivity) DeleteBackupSnapshotFromDB(ctx context.Context, backup *datamodel.Backup) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	if backup.Attributes == nil {
+		// If attributes are nil, do nothing
+		return nil
+	}
+
+	if backup.Attributes.UseExistingSnapshot {
+		// If use_existing_snapshot is True, do nothing
+		return nil
+	}
+
+	volume, err := se.GetVolume(ctx, backup.VolumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to get volume for backup %s: %v", backup.UUID, err)
+		return fmt.Errorf("failed to get volume for backup %s: %v", backup.UUID, err)
+	}
+
+	if volume == nil {
+		logger.Errorf("Volume for backup %s is nil", backup.UUID)
+		return fmt.Errorf("volume not found for backup UUID: %s", backup.UUID)
+	}
+
+	// Get the snapshot by name and volume ID
+	snapshot, err := se.GetSnapshotByNameAndVolumeId(ctx, backup.Attributes.SnapshotName, volume.AccountID, volume.ID)
+	if err != nil {
+		logger.Errorf("Failed to get snapshot by name %s for volume %s: %v", backup.Attributes.SnapshotName, backup.VolumeUUID, err)
+		return err
+	}
+
+	// Check if the snapshot is already marked as deleted
+	if snapshot.DeletedAt != nil && snapshot.DeletedAt.Valid {
+		logger.Infof("Snapshot %s is already marked as deleted, skipping deletion for backup %s", snapshot.UUID, backup.UUID)
+		return nil
+	}
+
+	_, err = se.DeleteSnapshot(ctx, snapshot.UUID)
+	if err != nil {
+		logger.Errorf("Failed to delete snapshot %s from database: %v", snapshot.UUID, err)
+		originalErr := err
+		markErr := a.markSnapshotAsError(ctx, snapshot, fmt.Sprintf("Failed to delete from database: %v", err))
+		if markErr != nil {
+			logger.Errorf("Failed to mark snapshot %s as error: %v", snapshot.Name, markErr)
+		}
+		return originalErr
+	}
+
+	logger.Infof("Successfully deleted snapshot %s from database for backup %s", snapshot.UUID, backup.UUID)
+	return nil
+}
+
 func (j *BackupActivity) IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error) {
 	se := j.SE
 	return se.IsBackupShared(ctx, backup)

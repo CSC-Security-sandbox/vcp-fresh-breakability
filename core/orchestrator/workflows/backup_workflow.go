@@ -571,6 +571,12 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
+	// Try to delete snapshot from DB, but don't fail the workflow if this fails
+	snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, dbBackup).Get(ctx, nil)
+	if snapshotErr != nil {
+		workflow.GetLogger(ctx).Error("Failed to delete snapshot from database", "error", snapshotErr)
+	}
+
 	return nil, ConvertToVSAError(err)
 }
 

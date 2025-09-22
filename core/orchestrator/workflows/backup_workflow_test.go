@@ -40,6 +40,25 @@ func setupMockBackupActivity(t *testing.T) *TestBackupActivity {
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock GetVolume for HydrateSnapshotDeletionToCCFEActivity
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(&datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-vol", ID: int64(1)},
+		AccountID: 1,
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}, nil).Maybe()
+	// Mock GetSnapshotByNameAndVolumeId for HydrateSnapshotDeletionToCCFEActivity
+	mockStorage.On("GetSnapshotByNameAndVolumeId", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid", ID: int64(1)},
+		Name:      "test-backup",
+	}, nil).Maybe()
+
+	// Mock DeleteSnapshot for DeleteBackupSnapshotFromDB activity
+	mockStorage.On("DeleteSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
 
 	return &TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}}
 }
@@ -66,6 +85,12 @@ func (b *TestBackupActivity) CleanupOldAdhocBackupSnapshotsActivity(ctx context.
 func (b *TestBackupActivity) GetObjectStoreEndpointActivity(ctx context.Context, backupActivitiesContext *activities.BackupActivitiesContext) (*activities.BackupActivitiesContext, error) {
 	// Always return success for testing purposes, bypassing the nil check
 	return backupActivitiesContext, nil
+}
+
+// HydrateSnapshotDeletionToCCFEActivity overrides the original implementation for testing
+func (b *TestBackupActivity) HydrateSnapshotDeletionToCCFEActivity(ctx context.Context, snapshot *datamodel.Snapshot, volumeName, region, projectId string) error {
+	// Always return success for testing purposes
+	return nil
 }
 
 func TestBackupWorkflow(t *testing.T) {

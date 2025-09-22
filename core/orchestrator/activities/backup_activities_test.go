@@ -26,6 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"gorm.io/gorm"
 )
 
 func assertErrContainsOriginal(t *testing.T, err error, substring string) {
@@ -4151,6 +4152,298 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError_MarkAsErro
 	assert.NoError(t, err) // Should still not fail the entire operation
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
+}
+
+
+func TestDeleteBackupSnapshotFromDB(t *testing.T) {
+	t.Run("WhenUseExistingSnapshotIsFalse_ThenDeleteSnapshot", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			AccountID: 2,
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID: "volume-uuid",
+			Attributes: &datamodel.BackupAttributes{
+				UseExistingSnapshot: false,
+				SnapshotName:        "test-snapshot",
+			},
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				UUID: "snapshot-uuid",
+			},
+			Name: "test-snapshot",
+		}
+
+		deletedSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "snapshot-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+			},
+			Name: "test-snapshot",
+		}
+
+		mockStorage.On("GetVolume", ctx, backup.VolumeUUID).Return(volume, nil)
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, backup.Attributes.SnapshotName, volume.AccountID, volume.ID).Return(snapshot, nil)
+		mockStorage.On("DeleteSnapshot", ctx, snapshot.UUID).Return(deletedSnapshot, nil)
+
+		// Act
+		err := activity.DeleteBackupSnapshotFromDB(ctx, backup)
+
+		// Assert
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenUseExistingSnapshotIsTrue_ThenReturnNil", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Attributes: &datamodel.BackupAttributes{
+				UseExistingSnapshot: true,
+			},
+		}
+
+		// Act
+		err := activity.DeleteBackupSnapshotFromDB(ctx, backup)
+
+		// Assert
+		assert.NoError(t, err)
+		mockStorage.AssertNotCalled(t, "GetVolume")
+		mockStorage.AssertNotCalled(t, "GetSnapshotByNameAndVolumeId")
+		mockStorage.AssertNotCalled(t, "DeleteSnapshot")
+	})
+
+	t.Run("WhenAttributesIsNil_ThenReturnNil", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Attributes: nil,
+		}
+
+		// Act
+		err := activity.DeleteBackupSnapshotFromDB(ctx, backup)
+
+		// Assert
+		assert.NoError(t, err)
+		mockStorage.AssertNotCalled(t, "GetVolume")
+		mockStorage.AssertNotCalled(t, "GetSnapshotByNameAndVolumeId")
+		mockStorage.AssertNotCalled(t, "DeleteSnapshot")
+	})
+
+	t.Run("WhenVolumeNotFound_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID: "volume-uuid",
+			Attributes: &datamodel.BackupAttributes{
+				UseExistingSnapshot: false,
+				SnapshotName:        "test-snapshot",
+			},
+		}
+
+		volumeError := errors.New("volume not found")
+		mockStorage.On("GetVolume", ctx, backup.VolumeUUID).Return(nil, volumeError)
+
+		// Act
+		err := activity.DeleteBackupSnapshotFromDB(ctx, backup)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "volume not found")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeIsNil_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID: "volume-uuid",
+			Attributes: &datamodel.BackupAttributes{
+				UseExistingSnapshot: false,
+				SnapshotName:        "test-snapshot",
+			},
+		}
+
+		mockStorage.On("GetVolume", ctx, backup.VolumeUUID).Return(nil, nil)
+
+		// Act
+		err := activity.DeleteBackupSnapshotFromDB(ctx, backup)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "volume not found for backup UUID")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenSnapshotNotFound_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			AccountID: 2,
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID: "volume-uuid",
+			Attributes: &datamodel.BackupAttributes{
+				UseExistingSnapshot: false,
+				SnapshotName:        "test-snapshot",
+			},
+		}
+
+		snapshotError := errors.New("snapshot not found")
+		mockStorage.On("GetVolume", ctx, backup.VolumeUUID).Return(volume, nil)
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, backup.Attributes.SnapshotName, volume.AccountID, volume.ID).Return(nil, snapshotError)
+
+		// Act
+		err := activity.DeleteBackupSnapshotFromDB(ctx, backup)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "snapshot not found")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenSnapshotAlreadyDeleted_ThenReturnNil", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			AccountID: 2,
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID: "volume-uuid",
+			Attributes: &datamodel.BackupAttributes{
+				UseExistingSnapshot: false,
+				SnapshotName:        "test-snapshot",
+			},
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "snapshot-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+			},
+			Name: "test-snapshot",
+		}
+
+		mockStorage.On("GetVolume", ctx, backup.VolumeUUID).Return(volume, nil)
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, backup.Attributes.SnapshotName, volume.AccountID, volume.ID).Return(snapshot, nil)
+
+		// Act
+		err := activity.DeleteBackupSnapshotFromDB(ctx, backup)
+
+		// Assert
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockStorage.AssertNotCalled(t, "DeleteSnapshot")
+	})
+
+	t.Run("WhenDeleteSnapshotFails_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			AccountID: 2,
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			VolumeUUID: "volume-uuid",
+			Attributes: &datamodel.BackupAttributes{
+				UseExistingSnapshot: false,
+				SnapshotName:        "test-snapshot",
+			},
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				UUID: "snapshot-uuid",
+			},
+			Name: "test-snapshot",
+		}
+
+		deleteError := errors.New("failed to delete snapshot from database")
+		mockStorage.On("GetVolume", ctx, backup.VolumeUUID).Return(volume, nil)
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, backup.Attributes.SnapshotName, volume.AccountID, volume.ID).Return(snapshot, nil)
+		mockStorage.On("DeleteSnapshot", ctx, snapshot.UUID).Return(nil, deleteError)
+
+		// Mock the UpdateSnapshot call that happens when marking snapshot as error
+		mockStorage.On("UpdateSnapshot", ctx, mock.MatchedBy(func(s *datamodel.Snapshot) bool {
+			return s.UUID == "snapshot-uuid" &&
+				s.State == models.LifeCycleStateError &&
+				strings.Contains(s.StateDetails, "Failed to delete from database")
+		})).Return(snapshot, nil)
+
+		// Act
+		err := activity.DeleteBackupSnapshotFromDB(ctx, backup)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete snapshot from database")
+		mockStorage.AssertExpectations(t)
+	})
 }
 
 func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T) {
