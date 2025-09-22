@@ -13,6 +13,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -261,10 +262,11 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		backupActivitiesContext.BackupWorkflowInit.Volume != nil &&
 		backupActivitiesContext.BackupWorkflowInit.BackupVault != nil &&
 		backupActivitiesContext.BackupWorkflowInit.Volume.Account != nil {
+		location := utils.GetLocation(*backupActivitiesContext.DbSnapshot)
 		err = workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotToCCFEActivity,
 			backupActivitiesContext.DbSnapshot,
 			backupActivitiesContext.BackupWorkflowInit.Volume.Name,
-			backupActivitiesContext.BackupWorkflowInit.BackupVault.RegionName,
+			location,
 			backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name).Get(ctx, nil)
 		if err != nil {
 			// Log the error but don't fail the entire backup workflow
@@ -557,10 +559,11 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			},
 		}
 
+		location := utils.GetLocation(*snapshot)
 		err = workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotDeletionToCCFEActivity,
 			snapshot,
 			volume.Name,
-			dbBackupVault.RegionName,
+			location,
 			account.Name).Get(ctx, nil)
 		if err != nil {
 			// Log the error but don't fail the entire backup deletion workflow

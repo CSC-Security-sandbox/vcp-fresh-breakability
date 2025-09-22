@@ -433,18 +433,11 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	}
 
 	if hydrationEnabled {
-		// TODO: Consider validating the "GetBackupRegion" function for CRB
-		region, err := utils.GetBackupRegion(volume)
-		if err != nil {
-			wf.Logger.Errorf("Failed to get backup region for volume %s: %v", volume.Name, err)
-			postTransferErr = err
-			return nil, workflows.ConvertToVSAError(postTransferErr)
-		}
-
+		location := utils.GetLocation(*dbSnapshot)
 		err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotToCCFEActivity,
 			dbSnapshot,
 			volume.Name,
-			region,
+			location,
 			volume.Account.Name).Get(ctx, nil)
 		if err != nil {
 			// Log the error but don't fail the entire workflow
@@ -640,10 +633,11 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 				},
 			}
 
+			location := utils.GetLocation(*snapshot)
 			err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotDeletionToCCFEActivity,
 				snapshot,
 				volume.Name,
-				backupVault.RegionName,
+				location,
 				volume.Account.Name).Get(ctx, nil)
 			if err != nil {
 				// Log the error but don't fail the entire workflow

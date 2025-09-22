@@ -72,6 +72,7 @@ func (j *ScheduledBackupActivity) HydrateCreatedBackupsToCCFE(ctx context.Contex
 	if err != nil {
 		return err
 	}
+	// TODO: Consider validating the "GetBackupRegion" function for CRB
 	region, err := utils.GetBackupRegion(volume)
 	if err != nil {
 		return err
@@ -98,7 +99,11 @@ func (j *ScheduledBackupActivity) HydrateDeletedBackupsToCCFE(ctx context.Contex
 	if err != nil {
 		return err
 	}
-	region := backups[0].BackupVault.RegionName
+	// TODO: Consider validating the "GetBackupRegion" function for CRB
+	region, err := utils.GetBackupRegion(volume)
+	if err != nil {
+		return err
+	}
 	projectId := volume.Account.Name
 	names := convertToGCPHydrateDeleteRequests(backups)
 	err = common.HydrateDeletedScheduledBackups(ctx, logger, names, backupVaultName, region, projectId, token)

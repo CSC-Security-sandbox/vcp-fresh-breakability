@@ -370,10 +370,12 @@ func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
 	originalGenerateCallbackToken := auth.GenerateCallbackToken
 	originalHydrateCreatedScheduledBackups := common.HydrateCreatedScheduledBackups
 	originalHydrateDeletedScheduledBackups := common.HydrateDeletedScheduledBackups
+	originalGetBackupRegion := utils.GetBackupRegion
 	defer func() {
 		auth.GenerateCallbackToken = originalGenerateCallbackToken
 		common.HydrateCreatedScheduledBackups = originalHydrateCreatedScheduledBackups
 		common.HydrateDeletedScheduledBackups = originalHydrateDeletedScheduledBackups
+		utils.GetBackupRegion = originalGetBackupRegion
 	}()
 
 	volume := &datamodel.Volume{
@@ -404,6 +406,9 @@ func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
 		common.HydrateDeletedScheduledBackups = func(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
 			return nil
 		}
+		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
+			return "mock-region", nil
+		}
 
 		err := activity.HydrateDeletedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")
 		assert.NoError(t, err)
@@ -421,12 +426,29 @@ func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
+	t.Run("WhenRegionCouldNotBeFetched", func(t *testing.T) {
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "mock-token", nil
+		}
+		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
+			return "", errors.New("could not get backup region")
+		}
+
+		err := activity.HydrateDeletedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")
+		assert.Error(t, err)
+		assert.Equal(t, "could not get backup region", err.Error())
+		mockStorage.AssertExpectations(t)
+	})
+
 	t.Run("WhenHydrationToCcfeFails", func(t *testing.T) {
 		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mock-token", nil
 		}
 		common.HydrateDeletedScheduledBackups = func(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
 			return errors.New("could not hydrate backups to CCFE")
+		}
+		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
+			return "mock-region", nil
 		}
 
 		err := activity.HydrateDeletedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")

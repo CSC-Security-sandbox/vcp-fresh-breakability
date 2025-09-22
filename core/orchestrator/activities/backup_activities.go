@@ -900,7 +900,7 @@ func (a BackupActivity) markSnapshotAsError(ctx context.Context, snapshot *datam
 }
 
 // HydrateSnapshotToCCFEActivity hydrates the created snapshot to CCFE
-func (a BackupActivity) HydrateSnapshotToCCFEActivity(ctx context.Context, snapshot *datamodel.Snapshot, volumeName, region, projectId string) error {
+func (a BackupActivity) HydrateSnapshotToCCFEActivity(ctx context.Context, snapshot *datamodel.Snapshot, volumeName, location, projectId string) error {
 	logger := util.GetLogger(ctx)
 
 	if !hydrationEnabled {
@@ -928,7 +928,7 @@ func (a BackupActivity) HydrateSnapshotToCCFEActivity(ctx context.Context, snaps
 	requests := []models.Request{request}
 
 	// Hydrate to CCFE using the existing batch hydration function
-	err = commonparams.BatchHydrateCreatedSnapshots(ctx, logger, requests, volumeName, region, projectId, token)
+	err = commonparams.BatchHydrateCreatedSnapshots(ctx, logger, requests, volumeName, location, projectId, token)
 	if err != nil {
 		logger.Errorf("Failed to hydrate snapshot to CCFE: %v", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -962,7 +962,7 @@ func ConvertSnapshotToGCPHydrateSnapshot(snapshot datamodel.Snapshot) models.Hyd
 }
 
 // HydrateSnapshotDeletionToCCFEActivity hydrates the deleted snapshot to CCFE
-func (a BackupActivity) HydrateSnapshotDeletionToCCFEActivity(ctx context.Context, snapshot *datamodel.Snapshot, volumeName, region, projectId string) error {
+func (a BackupActivity) HydrateSnapshotDeletionToCCFEActivity(ctx context.Context, snapshot *datamodel.Snapshot, volumeName, location, projectId string) error {
 	logger := util.GetLogger(ctx)
 
 	if !hydrationEnabled {
@@ -990,7 +990,7 @@ func (a BackupActivity) HydrateSnapshotDeletionToCCFEActivity(ctx context.Contex
 	requests := []models.Request{request}
 
 	// Hydrate deletion to CCFE using the existing batch hydration function
-	err = commonparams.BatchHydrateDeletedSnapshots(ctx, logger, requests, volumeName, region, projectId, token)
+	err = commonparams.BatchHydrateDeletedSnapshots(ctx, logger, requests, volumeName, location, projectId, token)
 	if err != nil {
 		logger.Errorf("Failed to hydrate snapshot deletion to CCFE: %v", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
