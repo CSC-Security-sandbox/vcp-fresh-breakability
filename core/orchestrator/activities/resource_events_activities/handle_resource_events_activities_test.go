@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	dbtuils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -451,7 +452,7 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 			State:        models.StateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, common.ResourceLifeCycleStateDisabledDetails, models.StateOff).Return(nil, nil)
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, models.StateOff).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -486,8 +487,8 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateSnapshotForHandleResource", ctx, &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        common.ResourceStateDisabled,
-			StateDetails: common.ResourceLifeCycleStateDisabledDetails,
+			State:        coremodels.LifeCycleStateDisabled,
+			StateDetails: coremodels.LifeCycleStateDisabledDetails,
 		}).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
@@ -508,9 +509,9 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		mockSE.On("UpdatePoolState", ctx, &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
-			}, State:     common.ResourceStateDisabled,
-			StateDetails: common.ResourceLifeCycleStateDisabledDetails,
-		}, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails).Return(nil, nil)
+			}, State:     coremodels.LifeCycleStateDisabled,
+			StateDetails: coremodels.LifeCycleStateDisabledDetails,
+		}, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -560,8 +561,8 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateVolume", ctx, &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        common.ResourceStateDisabled,
-			StateDetails: common.ResourceLifeCycleStateDisabledDetails,
+			State:        coremodels.LifeCycleStateDisabled,
+			StateDetails: coremodels.LifeCycleStateDisabledDetails,
 		}).Return(errors.New("update failed"))
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
@@ -700,8 +701,8 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateVolume", ctx, &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        common.ResourceStateReady,
-			StateDetails: common.ResourceLifeCycleStateAvailableDetails,
+			State:        coremodels.LifeCycleStateREADY,
+			StateDetails: coremodels.LifeCycleStateAvailableDetails,
 		}).Return(nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -737,8 +738,8 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateSnapshotForHandleResource", ctx, &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        common.ResourceStateReady,
-			StateDetails: common.ResourceLifeCycleStateAvailableDetails,
+			State:        coremodels.LifeCycleStateREADY,
+			StateDetails: coremodels.LifeCycleStateAvailableDetails,
 		}).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -759,9 +760,9 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 		mockSE.On("UpdatePoolState", ctx, &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
-			}, State:     common.ResourceStateReady,
-			StateDetails: common.ResourceLifeCycleStateAvailableDetails,
-		}, common.ResourceStateReady, common.ResourceLifeCycleStateAvailableDetails).Return(nil, nil)
+			}, State:     coremodels.LifeCycleStateREADY,
+			StateDetails: coremodels.LifeCycleStateAvailableDetails,
+		}, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -811,14 +812,31 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateVolume", ctx, &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        common.ResourceStateReady,
-			StateDetails: common.ResourceLifeCycleStateAvailableDetails,
+			State:        coremodels.LifeCycleStateREADY,
+			StateDetails: coremodels.LifeCycleStateAvailableDetails,
 		}).Return(errors.New("update failed"))
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "update failed")
+	})
+
+	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsKmsConfig", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeKmsConfig,
+			ResourceId:   "test-kms-config-id",
+		}
+
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, common.ResourceLifeCycleStateEnabledDetails, params.State).Return(nil, nil)
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
 	})
 }
 

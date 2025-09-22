@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	dbtuils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -103,13 +104,13 @@ func (a *ResourceEventsActivity) checkVolumeExistence(ctx context.Context, param
 func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
 	switch params.ResourceType {
 	case common.ResourceStateV1ResourceTypeKmsConfig:
-		return a.handleKmsConfig(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+		return a.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeStoragePool:
-		return a.handleStoragePool(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+		return a.handleStoragePool(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeSnapshot:
-		return a.handleSnapshot(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+		return a.handleSnapshot(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeVolume:
-		return a.handleVolume(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+		return a.handleVolume(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeAD:
 		return false, nil
 	default:
@@ -120,13 +121,13 @@ func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx conte
 func (a *ResourceEventsActivity) HandleResourceEventsONForVCPActivity(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
 	switch params.ResourceType {
 	case common.ResourceStateV1ResourceTypeKmsConfig:
-		return a.handleKmsConfig(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
+		return a.handleKmsConfig(ctx, params, common.ResourceLifeCycleStateEnabledDetails)
 	case common.ResourceStateV1ResourceTypeStoragePool:
-		return a.handleStoragePool(ctx, params, common.ResourceStateReady, common.ResourceLifeCycleStateAvailableDetails)
+		return a.handleStoragePool(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeSnapshot:
-		return a.handleSnapshot(ctx, params, common.ResourceStateReady, common.ResourceLifeCycleStateAvailableDetails)
+		return a.handleSnapshot(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeVolume:
-		return a.handleVolume(ctx, params, common.ResourceStateReady, common.ResourceLifeCycleStateAvailableDetails)
+		return a.handleVolume(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeAD:
 		return false, nil
 	default:
@@ -219,7 +220,7 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 	return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSDEJobNotFinished, errors.New("job not finished")))
 }
 
-func (a *ResourceEventsActivity) handleKmsConfig(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
+func (a *ResourceEventsActivity) handleKmsConfig(ctx context.Context, params *common.HandleResourceEventParams, stateDetails string) (bool, error) {
 	_, err := a.SE.UpdateKmsConfigStateForHandleResource(ctx, params.ResourceId, stateDetails, params.State)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {

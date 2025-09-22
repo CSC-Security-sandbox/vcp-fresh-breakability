@@ -7,7 +7,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -75,13 +74,15 @@ func (d *DataStoreRepository) UpdateKmsConfigStateForHandleResource(ctx context.
 	}
 
 	newState := ""
+	newStateDetails := ""
 	currState := kmsConfig.State
 
 	switch event {
 	case models.StateOff:
-		newState = common.ResourceStateDisabled
+		newState = models.LifeCycleStateDisabled
+		newStateDetails = models.LifeCycleStateDisabledDetails
 	case models.StateOn:
-		if currState != common.ResourceStateDisabled {
+		if currState != models.LifeCycleStateDisabled {
 			err = errors.New("Cannot Enable gcpKmsConfig which is not in disabled state")
 			return nil, err
 		}
@@ -100,13 +101,24 @@ func (d *DataStoreRepository) UpdateKmsConfigStateForHandleResource(ctx context.
 		if err != nil {
 			return nil, err
 		}
+
+		// Set appropriate state details based on the final state
+		switch newState {
+		case models.LifeCycleStateInUse:
+			newStateDetails = models.LifeCycleStateInUseDetails
+		case models.LifeCycleStateCreated:
+			newStateDetails = models.LifeCycleStateCreatedDetails
+		default:
+			err = errors.NewNotSupportedErrWithMessage("Invalid state")
+			return nil, err
+		}
 	default:
 		err = errors.NewNotSupportedErrWithMessage("Invalid event")
 		return nil, err
 	}
 
 	kmsConfig.State = newState
-	kmsConfig.StateDetails = stateDetails
+	kmsConfig.StateDetails = newStateDetails
 	err = tx.Updates(kmsConfig).Error
 	if err != nil {
 		return nil, err

@@ -19,12 +19,8 @@ const (
 	ResourceStateV1ResourceTypeKmsConfig    string = "KmsConfig"
 	ResourceStateV1ResourceTypeBackupPolicy string = "BackupPolicy"
 	ResourceStateV1ResourceTypeAD           string = "ActiveDirectory"
-	ResourceStateDisabled                   string = "disabled"
-	ResourceLifeCycleStateDisabledDetails   string = "Disabled"
-	ResourceStateEnabled                    string = "enabled"
+	ResourceStateEnabled                    string = "ENABLED"
 	ResourceLifeCycleStateEnabledDetails    string = "Enabled"
-	ResourceStateReady                      string = "READY"
-	ResourceLifeCycleStateAvailableDetails  string = "Available for use"
 )
 
 type HandleResourceEventResult struct {
