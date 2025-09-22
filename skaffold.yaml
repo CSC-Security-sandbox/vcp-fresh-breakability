@@ -81,6 +81,11 @@ portForward:
     port: 8080
     localPort: 9000
   - resourceType: service
+    resourceName: core-service
+    namespace: vcp
+    port: 8080
+    localPort: 9001
+  - resourceType: service
     resourceName: postgres
     namespace: default
     port: 5432
@@ -124,6 +129,17 @@ profiles:
                 dest: "/app"
           docker:
             dockerfile: google-proxy/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+        - image: core
+          context: .
+          sync:
+            manual:
+              - src: artifacts/core
+                dest: "/app"
+          docker:
+            dockerfile: core/Dockerfile.dev
           requires:
             - image: base
               alias: BASE
@@ -175,6 +191,13 @@ profiles:
           context: .
           docker:
             dockerfile: google-proxy/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+        - image: core
+          context: .
+          docker:
+            dockerfile: core/Dockerfile
           requires:
             - image: base
               alias: BASE

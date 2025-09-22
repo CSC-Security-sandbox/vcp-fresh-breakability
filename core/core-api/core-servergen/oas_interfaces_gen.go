@@ -9,6 +9,10 @@ type V1DeletePoolRes interface {
 	v1DeletePoolRes()
 }
 
+type V1GetMultipleReplicationsByExternalUUIDRes interface {
+	v1GetMultipleReplicationsByExternalUUIDRes()
+}
+
 type V1GetOntapCredentialsRes interface {
 	v1GetOntapCredentialsRes()
 }

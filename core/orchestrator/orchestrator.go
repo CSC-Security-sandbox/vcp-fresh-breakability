@@ -59,6 +59,7 @@ type OrchestratorFactory interface {
 	UpdateVolumeReplicationAttributes(ctx context.Context, params models.UpdateVolumeReplicationAttributesParams) (*models.Job, error)
 	GetMultipleReplicationsInternal(ctx context.Context, accountName string, replicationUUIDs []string) ([]*datamodel.VolumeReplication, error)
 	GetMultipleReplications(ctx context.Context, params commonparams.GetMultipleReplicationsParams) ([]gcpserver.ReplicationV1beta, error)
+	GetMultipleReplicationsByExternalUUID(ctx context.Context, params commonparams.GetMultipleReplicationsByExternalUUIDParams) ([]gcpserver.ReplicationV1beta, error)
 	AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, poolID string) (*commonparams.ClusterPeerParams, *datamodel.Job, error)
 	PerformMountCheck(ctx context.Context, replicationUUID string, accountName string) (*models.Job, error)
 	ResumeReplication(ctx context.Context, params *commonparams.ResumeReplicationParams) (*models.VolumeReplication, string, error)

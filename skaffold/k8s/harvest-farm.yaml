@@ -93,6 +93,12 @@ spec:
               value: "false"
             - name: ENABLE_REPLICATION_METRICS
               value: "false"
+            - name: CORE_API_BASE_URL
+              value: "core-service.vcp.svc.cluster.local"
+            - name: CORE_API_PORT
+              value: "8080"
+            - name: CORE_API_BATCH_SIZE
+              value: "1000"
           volumeMounts:
             - mountPath: "/configs/harvest"
               name: harvest-farm-shared

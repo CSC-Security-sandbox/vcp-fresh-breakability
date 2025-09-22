@@ -291,6 +291,173 @@ func decodeV1DeletePoolParams(args [1]string, argsEscaped bool, r *http.Request)
 	return params, nil
 }
 
+// V1GetMultipleReplicationsByExternalUUIDParams is parameters of v1_getMultipleReplicationsByExternalUUID operation.
+type V1GetMultipleReplicationsByExternalUUIDParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Comma-separated list of external UUIDs to filter by.
+	ExternalUuids string
+	// Whether to include source endpoints in results. If false (default), only destination endpoints are
+	// returned.
+	IncludeSourceEndpoints OptBool
+}
+
+func unpackV1GetMultipleReplicationsByExternalUUIDParams(packed middleware.Parameters) (params V1GetMultipleReplicationsByExternalUUIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "externalUuids",
+			In:   "query",
+		}
+		params.ExternalUuids = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "includeSourceEndpoints",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.IncludeSourceEndpoints = v.(OptBool)
+		}
+	}
+	return params
+}
+
+func decodeV1GetMultipleReplicationsByExternalUUIDParams(args [0]string, argsEscaped bool, r *http.Request) (params V1GetMultipleReplicationsByExternalUUIDParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode query: externalUuids.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "externalUuids",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ExternalUuids = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "externalUuids",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: includeSourceEndpoints.
+	{
+		val := bool(false)
+		params.IncludeSourceEndpoints.SetTo(val)
+	}
+	// Decode query: includeSourceEndpoints.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "includeSourceEndpoints",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIncludeSourceEndpointsVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIncludeSourceEndpointsVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.IncludeSourceEndpoints.SetTo(paramsDotIncludeSourceEndpointsVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "includeSourceEndpoints",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1GetOntapCredentialsParams is parameters of v1_getOntapCredentials operation.
 type V1GetOntapCredentialsParams struct {
 	// UUID v4 used to identify the pool.

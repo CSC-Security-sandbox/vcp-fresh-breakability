@@ -607,6 +607,10 @@ func (o *Orchestrator) GetMultipleReplications(ctx context.Context, params commo
 	return _getMultipleReplications(ctx, o.storage, params)
 }
 
+func (o *Orchestrator) GetMultipleReplicationsByExternalUUID(ctx context.Context, params commonparams.GetMultipleReplicationsByExternalUUIDParams) ([]gcpgenserver.ReplicationV1beta, error) {
+	return _getMultipleReplicationsByExternalUUID(ctx, o.storage, params)
+}
+
 func _getMultipleReplications(ctx context.Context, se database.Storage, params commonparams.GetMultipleReplicationsParams) ([]gcpgenserver.ReplicationV1beta, error) {
 	logger := util.GetLogger(ctx)
 	resp := []gcpgenserver.ReplicationV1beta{}
@@ -701,6 +705,45 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 
 	return resp, nil
+}
+
+func _getMultipleReplicationsByExternalUUID(ctx context.Context, se database.Storage, params commonparams.GetMultipleReplicationsByExternalUUIDParams) ([]gcpgenserver.ReplicationV1beta, error) {
+	logger := util.GetLogger(ctx)
+	resp := []gcpgenserver.ReplicationV1beta{}
+
+	// Check if replication exists in the database using external_uuid and endpoint_type filters
+	// For JSONB field filtering, we need to use PostgreSQL JSONB operators
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("replication_attributes->>'external_uuid'", "in", params.ExternalUUIDs),
+		utils2.NewFilterCondition("replication_attributes->>'endpoint_type'", "=", params.EndpointType))
+
+	replications, err := se.ListVolumeReplications(ctx, *filter)
+	if err != nil {
+		logger.Errorf("Failed to list replications with external UUIDs %v and endpoint_type %s: %v", params.ExternalUUIDs, params.EndpointType, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	if len(replications) == 0 {
+		logger.Warnf("No replications found with external UUIDs %v and endpoint_type %s", params.ExternalUUIDs, params.EndpointType)
+		return resp, nil
+	}
+
+	// Convert the replications to the response format
+	for _, replication := range replications {
+		// Convert datamodel.VolumeReplication to gcpgenserver.ReplicationV1beta
+		converted := convertDataStoreReplicationToGcpGenServerModel(replication)
+		resp = append(resp, converted)
+	}
+
+	return resp, nil
+}
+
+// convertDataStoreReplicationToGcpGenServerModel converts a datamodel.VolumeReplication to gcpgenserver.ReplicationV1beta
+func convertDataStoreReplicationToGcpGenServerModel(replication *datamodel.VolumeReplication) gcpgenserver.ReplicationV1beta {
+	return gcpgenserver.ReplicationV1beta{
+		ReplicationId: gcpgenserver.NewOptString(replication.ReplicationAttributes.ExternalUUID),
+		ResourceId:    gcpgenserver.NewOptString(replication.Name),
+	}
 }
 
 func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger logger.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {

@@ -33,6 +33,15 @@ func (UnimplementedHandler) V1DeletePool(ctx context.Context, params V1DeletePoo
 	return r, ht.ErrNotImplemented
 }
 
+// V1GetMultipleReplicationsByExternalUUID implements v1_getMultipleReplicationsByExternalUUID operation.
+//
+// Returns replications filtered by external UUIDs and endpoint type.
+//
+// GET /v1/getMultipleReplicationsByExternalUUID
+func (UnimplementedHandler) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams) (r V1GetMultipleReplicationsByExternalUUIDRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1GetOntapCredentials implements v1_getOntapCredentials operation.
 //
 // Returns the credentials of the specified account name.

@@ -428,6 +428,11 @@ type GetMultipleReplicationsParams struct {
 	VolumeResourceId string
 }
 
+type GetMultipleReplicationsByExternalUUIDParams struct {
+	ExternalUUIDs []string
+	EndpointType  string
+}
+
 type CreateSMCTokenRotationParams struct {
 	AccountName string
 }

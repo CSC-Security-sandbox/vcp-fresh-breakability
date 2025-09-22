@@ -2817,6 +2817,65 @@ func (_c *MockOrchestratorFactory_GetMultipleReplications_Call) RunAndReturn(run
 	return _c
 }
 
+// GetMultipleReplicationsByExternalUUID provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetMultipleReplicationsByExternalUUID(ctx context.Context, params common.GetMultipleReplicationsByExternalUUIDParams) ([]gcpserver.ReplicationV1beta, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleReplicationsByExternalUUID")
+	}
+
+	var r0 []gcpserver.ReplicationV1beta
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.GetMultipleReplicationsByExternalUUIDParams) ([]gcpserver.ReplicationV1beta, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.GetMultipleReplicationsByExternalUUIDParams) []gcpserver.ReplicationV1beta); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]gcpserver.ReplicationV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.GetMultipleReplicationsByExternalUUIDParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleReplicationsByExternalUUID'
+type MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call struct {
+	*mock.Call
+}
+
+// GetMultipleReplicationsByExternalUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params common.GetMultipleReplicationsByExternalUUIDParams
+func (_e *MockOrchestratorFactory_Expecter) GetMultipleReplicationsByExternalUUID(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call {
+	return &MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call{Call: _e.mock.On("GetMultipleReplicationsByExternalUUID", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call) Run(run func(ctx context.Context, params common.GetMultipleReplicationsByExternalUUIDParams)) *MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(common.GetMultipleReplicationsByExternalUUIDParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call) Return(_a0 []gcpserver.ReplicationV1beta, _a1 error) *MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call) RunAndReturn(run func(context.Context, common.GetMultipleReplicationsByExternalUUIDParams) ([]gcpserver.ReplicationV1beta, error)) *MockOrchestratorFactory_GetMultipleReplicationsByExternalUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMultipleReplicationsInternal provides a mock function with given fields: ctx, accountName, replicationUUIDs
 func (_m *MockOrchestratorFactory) GetMultipleReplicationsInternal(ctx context.Context, accountName string, replicationUUIDs []string) ([]*datamodel.VolumeReplication, error) {
 	ret := _m.Called(ctx, accountName, replicationUUIDs)

@@ -1,0 +1,14 @@
+ARG BASE
+FROM $BASE
+
+COPY artifacts/core /app
+COPY common/vsa_config common/vsa_config
+
+# Copy Air config for live reload
+COPY core/air.toml /app/air.toml
+
+ENV GOTRACEBACK=all
+ENTRYPOINT ["air", "-c", "/app/air.toml"]
+
+# Set ownership and permissions - commented out for dev compatibility
+# USER nonroot:nonroot

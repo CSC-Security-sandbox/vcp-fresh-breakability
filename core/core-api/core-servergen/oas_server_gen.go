@@ -22,6 +22,12 @@ type Handler interface {
 	//
 	// DELETE /v1/pools/{poolId}
 	V1DeletePool(ctx context.Context, params V1DeletePoolParams) (V1DeletePoolRes, error)
+	// V1GetMultipleReplicationsByExternalUUID implements v1_getMultipleReplicationsByExternalUUID operation.
+	//
+	// Returns replications filtered by external UUIDs and endpoint type.
+	//
+	// GET /v1/getMultipleReplicationsByExternalUUID
+	V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams) (V1GetMultipleReplicationsByExternalUUIDRes, error)
 	// V1GetOntapCredentials implements v1_getOntapCredentials operation.
 	//
 	// Returns the credentials of the specified account name.

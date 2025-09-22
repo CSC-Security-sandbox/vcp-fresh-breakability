@@ -13,6 +13,8 @@ servers:
 tags:
   - name: pools
     description: Pool operations
+  - name: replications
+    description: Replication operations
 paths:
   /v1/pools:
     get:
@@ -675,6 +677,64 @@ paths:
           $ref: '#/components/responses/StandardError-409'
         '500':
           $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/getMultipleReplicationsByExternalUUID:
+    get:
+      operationId: v1_getMultipleReplicationsByExternalUUID
+      summary: List replications by external UUID
+      description: Returns replications filtered by external UUIDs and endpoint type
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: externalUuids
+          in: query
+          required: true
+          description: Comma-separated list of external UUIDs to filter by
+          schema:
+            type: string
+            example: "uuid1,uuid2,uuid3"
+        - name: includeSourceEndpoints
+          in: query
+          required: false
+          description: Whether to include source endpoints in results. If false (default), only destination endpoints are returned.
+          schema:
+            type: boolean
+            default: false
+            example: false
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  replications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Replication_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
         default:
           description: Unexpected error
           content:
@@ -1568,6 +1628,82 @@ components:
       required:
         - ip
         - dns
+    ReplicationExternalUUIDList_v1:
+      title: ReplicationExternalUUIDList
+      required:
+        - externalUuids
+      type: object
+      properties:
+        externalUuids:
+          title: externalUuids
+          minItems: 1
+          type: array
+          items:
+            type: string
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          description: Array of external UUIDs to filter replications by
+          example:
+            - "9760acf5-4638-11e7-9bdb-020073ca7773"
+            - "8850bcf5-4639-11e7-9bdb-020073ca7774"
+        IncludeSourceEndpoints:
+          title: IncludeSourceEndpoints
+          type: boolean
+          description: Whether to include source endpoints in results. If false (default), only destination endpoints are returned.
+          default: false
+          example: false
+    Replication_v1:
+      title: Replication
+      type: object
+      properties:
+        replicationId:
+          title: replicationId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the replication
+          readOnly: true
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        resourceId:
+          title: resourceId
+          maxLength: 63
+          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          type: string
+          description: "A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum"
+          example: "my-replication"
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the replication
+          nullable: true
+          example: "My replication description"
+        state:
+          title: state
+          type: string
+          description: The current lifecycle state of the replication
+          readOnly: true
+          example: "READY"
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - DELETING
+            - ERROR
+        stateDetails:
+          title: stateDetails
+          type: string
+          description: Details about the current lifecycle state
+          readOnly: true
+          example: "Available for use"
+        created:
+          title: created
+          type: string
+          description: Creation date of the resource
+          format: date-time
+          readOnly: true
+          example: "2016-11-28T19:30:23.123Z"
   responses:
     StandardError-400:
       description: Bad request
