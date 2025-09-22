@@ -2324,6 +2324,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 				EnableGlobalFileLock:     nil, // nil
 				PeeringCommandExpiryTime: nil, // nil
 				Passphrase:               nil, // nil
+				PeerIPAddresses:          []string{"10.0.0.0"},
 			},
 		}
 
@@ -2535,13 +2536,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		result := _convertVolumeV1betaCVPToModel(input)
 
 		assert.Equal(tt, "vol-123", result.VolumeId.Value)
-		assert.True(tt, result.CacheParameters.IsSet(), "CacheParameters should be set")
-		assert.Equal(tt, "test-cluster", result.CacheParameters.Value.PeerClusterName)
-		assert.Equal(tt, "test-svm", result.CacheParameters.Value.PeerSvmName)
-		assert.Equal(tt, "test-volume", result.CacheParameters.Value.PeerVolumeName)
-
-		// PeerIpAddresses should not be set when input slice is empty
-		assert.Len(tt, result.CacheParameters.Value.PeerIpAddresses, 0, "PeerIpAddresses should be empty for empty input slice")
+		assert.False(tt, result.CacheParameters.IsSet(), "CacheParameters should not be set")
 	})
 
 	t.Run("ConvertVolumeV1betaCVPToModelWithNonEmptyPeerIPAddresses", func(tt *testing.T) {

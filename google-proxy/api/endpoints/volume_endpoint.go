@@ -1592,17 +1592,14 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		volume.PoolId = gcpgenserver.NewNilString(*in.PoolID)
 	}
 
-	if in.CacheParameters != nil {
+	if in.CacheParameters != nil && len(in.CacheParameters.PeerIPAddresses) > 0 {
 		cacheParams := gcpgenserver.FlexCacheV1beta{
 			PeerVolumeName:  in.CacheParameters.PeerVolumeName,
 			PeerClusterName: in.CacheParameters.PeerClusterName,
 			PeerSvmName:     in.CacheParameters.PeerSvmName,
+			PeerIpAddresses: in.CacheParameters.PeerIPAddresses,
 			CacheState:      gcpgenserver.NewOptFlexCacheV1betaCacheState(gcpgenserver.FlexCacheV1betaCacheState(in.CacheParameters.CacheState)),
 			Command:         gcpgenserver.NewOptString(in.CacheParameters.Command),
-		}
-
-		if len(in.CacheParameters.PeerIPAddresses) > 0 {
-			cacheParams.PeerIpAddresses = in.CacheParameters.PeerIPAddresses
 		}
 
 		// Add nil checks for these pointer fields
