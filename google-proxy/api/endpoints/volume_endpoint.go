@@ -1597,7 +1597,6 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 			PeerVolumeName:  in.CacheParameters.PeerVolumeName,
 			PeerClusterName: in.CacheParameters.PeerClusterName,
 			PeerSvmName:     in.CacheParameters.PeerSvmName,
-			PeerIpAddresses: in.CacheParameters.PeerIPAddresses,
 			CacheState:      gcpgenserver.NewOptFlexCacheV1betaCacheState(gcpgenserver.FlexCacheV1betaCacheState(in.CacheParameters.CacheState)),
 			Command:         gcpgenserver.NewOptString(in.CacheParameters.Command),
 		}
