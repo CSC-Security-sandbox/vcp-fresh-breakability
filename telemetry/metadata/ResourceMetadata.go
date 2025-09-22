@@ -10,6 +10,7 @@ type ResourceMetadata struct {
 	Tags                map[string]string
 	AutoTierEnabled     *bool
 	AccountName         *string
+	DeploymentName      *string
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {
@@ -38,4 +39,8 @@ func (m *ResourceMetadata) SetRegionName(region string) {
 
 func (m *ResourceMetadata) SetAccountName(accountName string) {
 	m.AccountName = &accountName
+}
+
+func (m *ResourceMetadata) SetDeploymentName(deploymentName string) {
+	m.DeploymentName = &deploymentName
 }

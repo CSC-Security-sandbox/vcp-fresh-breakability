@@ -72,6 +72,7 @@ func assemblePoolMetadata(pool *datamodel.PoolView, config *common.TelemetryConf
 	met.SetSizeInBytes(pool.SizeInBytes)
 	met.SetRegionName(config.RegionName)
 	met.SetAccountName(pool.Account.Name)
+	met.SetDeploymentName(pool.DeploymentName)
 	return met
 }
 
@@ -93,5 +94,6 @@ func setupHydratedMetricsDataModel(measuredType metadata.MeasuredType, resourceT
 		ResourceName:    *resourceMetadata.ResourceName,
 		Location:        *resourceMetadata.RegionName,
 		Quantity:        quantity,
+		DeploymentName:  *resourceMetadata.DeploymentName,
 	}
 }

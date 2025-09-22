@@ -47,3 +47,10 @@ func Test_SetsAccountNameCorrectly(t *testing.T) {
 	metadata.SetAccountName(accountName)
 	assert.Equal(t, &accountName, metadata.AccountName)
 }
+
+func Test_SetsDeploymentNameCorrectly(t *testing.T) {
+	metadata := ResourceMetadata{}
+	deploymentName := "test-deployment"
+	metadata.SetDeploymentName(deploymentName)
+	assert.Equal(t, &deploymentName, metadata.DeploymentName)
+}

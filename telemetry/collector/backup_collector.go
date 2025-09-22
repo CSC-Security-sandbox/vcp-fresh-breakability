@@ -14,6 +14,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+const EmptyDeploymentName = ""
+
 // BackupMetricsResult holds the results from GetBackupMetrics operation
 type BackupMetricsResult struct {
 	// HydratedMetrics contains the traditional hydrated metrics
@@ -78,5 +80,6 @@ func assembleBackupMetadata(backup *datamodel.Backup, config *common.TelemetryCo
 	met.SetResourceName(backup.Attributes.VolumeName)
 	met.SetResourceDisplayName(backup.Attributes.VolumeName)
 	met.SetAccountName(backup.Attributes.AccountIdentifier)
+	met.SetDeploymentName(EmptyDeploymentName)
 	return met
 }

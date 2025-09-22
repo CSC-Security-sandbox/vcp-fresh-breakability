@@ -100,5 +100,6 @@ func assembleVolumeMetadata(volume *datamodel.Volume, config *common.TelemetryCo
 	met.SetSizeInBytes(volume.SizeInBytes)
 	met.SetRegionName(config.RegionName)
 	met.SetAccountName(volume.Account.Name)
+	met.SetDeploymentName(EmptyDeploymentName)
 	return met
 }

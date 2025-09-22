@@ -42,9 +42,10 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 				BaseModel: datamodel.BaseModel{
 					UUID: "pool-uuid-1",
 				},
-				Name:        "Pool1",
-				SizeInBytes: 1000,
-				UsedBytes:   500,
+				Name:           "Pool1",
+				SizeInBytes:    1000,
+				UsedBytes:      500,
+				DeploymentName: "gcp-deployment-1",
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{
 						UUID: "account-uuid-1",
@@ -110,10 +111,11 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 	pools := []*datamodel.PoolView{
 		{
 			Pool: datamodel.Pool{
-				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-1"},
-				Name:        "Pool1",
-				SizeInBytes: 1000,
-				UsedBytes:   300,
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				Name:           "Pool1",
+				SizeInBytes:    1000,
+				UsedBytes:      300,
+				DeploymentName: "gcp-deployment-1",
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 					Name:      "Account1",
@@ -122,10 +124,11 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 		},
 		{
 			Pool: datamodel.Pool{
-				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-2"},
-				Name:        "Pool2",
-				SizeInBytes: 2000,
-				UsedBytes:   800,
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				Name:           "Pool2",
+				SizeInBytes:    2000,
+				UsedBytes:      800,
+				DeploymentName: "gcp-deployment-2",
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 					Name:      "Account2",
@@ -218,10 +221,12 @@ func TestSetupHydratedMetricsDataModel(t *testing.T) {
 	resourceMetadata := metadata.ResourceMetadata{}
 	resourceName := "test-pool"
 	regionName := "us-west-2"
+	deploymentName := "test-deployment"
 	sizeInBytes := int64(2048)
 
 	resourceMetadata.SetResourceName(resourceName)
 	resourceMetadata.SetRegionName(regionName)
+	resourceMetadata.SetDeploymentName(deploymentName)
 	resourceMetadata.SetSizeInBytes(sizeInBytes)
 
 	// Test parameters
@@ -270,10 +275,12 @@ func TestSetupHydratedMetricsDataModel_DifferentMetricTypes(t *testing.T) {
 			resourceMetadata := metadata.ResourceMetadata{}
 			resourceName := "test-pool-" + tt.projectID
 			regionName := "eu-central-1"
+			deploymentName := "test-deployment-" + tt.projectID
 			sizeInBytes := int64(4096)
 
 			resourceMetadata.SetResourceName(resourceName)
 			resourceMetadata.SetRegionName(regionName)
+			resourceMetadata.SetDeploymentName(deploymentName)
 			resourceMetadata.SetSizeInBytes(sizeInBytes)
 
 			timestamp := time.Now()
@@ -302,10 +309,11 @@ func TestGetPoolMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	pools := []*datamodel.PoolView{
 		{
 			Pool: datamodel.Pool{
-				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-integration"},
-				Name:        "IntegrationPool",
-				SizeInBytes: 5000,
-				UsedBytes:   1500,
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-integration"},
+				Name:           "IntegrationPool",
+				SizeInBytes:    5000,
+				UsedBytes:      1500,
+				DeploymentName: "gcp-integration-deployment",
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "account-uuid-integration"},
 					Name:      "IntegrationAccount",
