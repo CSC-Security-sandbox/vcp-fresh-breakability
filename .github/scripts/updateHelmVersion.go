@@ -18,10 +18,12 @@ type UpdateConfig struct {
 }
 
 var digestYAMLPathToKey = map[string]string{
-	".images.core.digest":         "core_digest_gcp",
-	".images.vcpDbMigrate.digest": "vcp_db_migrate_digest_gcp",
-	".images.googleProxy.digest":  "google_proxy_digest_gcp",
-	".images.vcpWorker.digest":    "vcp_worker_digest_gcp",
+	".images.core.digest":              "core_digest_gcp",
+	".images.vcpDbMigrate.digest":      "vcp_db_migrate_digest_gcp",
+	".images.googleProxy.digest":       "google_proxy_digest_gcp",
+	".images.vcpWorker.digest":         "vcp_worker_digest_gcp",
+	".images.telemetryDeployer.digest": "telemetry_deployer_digest_gcp",
+	".images.telemetry.digest":         "telemetry_digest_gcp",
 }
 
 func readDigestsFromFile(filePath string) (map[string]string, error) {
