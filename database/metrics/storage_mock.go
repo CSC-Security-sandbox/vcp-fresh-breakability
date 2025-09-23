@@ -28,6 +28,53 @@ func (_m *MockStorage) EXPECT() *MockStorage_Expecter {
 	return &MockStorage_Expecter{mock: &_m.Mock}
 }
 
+// AggregateUsageForBizOps provides a mock function with given fields: ctx, bizopsAggrParams
+func (_m *MockStorage) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {
+	ret := _m.Called(ctx, bizopsAggrParams)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AggregateUsageForBizOps")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BizOpsAggregateParams) error); ok {
+		r0 = rf(ctx, bizopsAggrParams)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_AggregateUsageForBizOps_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AggregateUsageForBizOps'
+type MockStorage_AggregateUsageForBizOps_Call struct {
+	*mock.Call
+}
+
+// AggregateUsageForBizOps is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bizopsAggrParams *datamodel.BizOpsAggregateParams
+func (_e *MockStorage_Expecter) AggregateUsageForBizOps(ctx interface{}, bizopsAggrParams interface{}) *MockStorage_AggregateUsageForBizOps_Call {
+	return &MockStorage_AggregateUsageForBizOps_Call{Call: _e.mock.On("AggregateUsageForBizOps", ctx, bizopsAggrParams)}
+}
+
+func (_c *MockStorage_AggregateUsageForBizOps_Call) Run(run func(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams)) *MockStorage_AggregateUsageForBizOps_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BizOpsAggregateParams))
+	})
+	return _c
+}
+
+func (_c *MockStorage_AggregateUsageForBizOps_Call) Return(_a0 error) *MockStorage_AggregateUsageForBizOps_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_AggregateUsageForBizOps_Call) RunAndReturn(run func(context.Context, *datamodel.BizOpsAggregateParams) error) *MockStorage_AggregateUsageForBizOps_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Close provides a mock function with no fields
 func (_m *MockStorage) Close() error {
 	ret := _m.Called()

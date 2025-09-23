@@ -22,6 +22,53 @@ func (_m *MockDataStore) EXPECT() *MockDataStore_Expecter {
 	return &MockDataStore_Expecter{mock: &_m.Mock}
 }
 
+// AggregateUsageForBizOps provides a mock function with given fields: ctx, bizopsAggrParams
+func (_m *MockDataStore) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {
+	ret := _m.Called(ctx, bizopsAggrParams)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AggregateUsageForBizOps")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BizOpsAggregateParams) error); ok {
+		r0 = rf(ctx, bizopsAggrParams)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_AggregateUsageForBizOps_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AggregateUsageForBizOps'
+type MockDataStore_AggregateUsageForBizOps_Call struct {
+	*mock.Call
+}
+
+// AggregateUsageForBizOps is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bizopsAggrParams *datamodel.BizOpsAggregateParams
+func (_e *MockDataStore_Expecter) AggregateUsageForBizOps(ctx interface{}, bizopsAggrParams interface{}) *MockDataStore_AggregateUsageForBizOps_Call {
+	return &MockDataStore_AggregateUsageForBizOps_Call{Call: _e.mock.On("AggregateUsageForBizOps", ctx, bizopsAggrParams)}
+}
+
+func (_c *MockDataStore_AggregateUsageForBizOps_Call) Run(run func(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams)) *MockDataStore_AggregateUsageForBizOps_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BizOpsAggregateParams))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_AggregateUsageForBizOps_Call) Return(_a0 error) *MockDataStore_AggregateUsageForBizOps_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_AggregateUsageForBizOps_Call) RunAndReturn(run func(context.Context, *datamodel.BizOpsAggregateParams) error) *MockDataStore_AggregateUsageForBizOps_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAggregatedUsage provides a mock function with given fields: ctx, a
 func (_m *MockDataStore) CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error {
 	ret := _m.Called(ctx, a)

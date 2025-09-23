@@ -185,3 +185,22 @@ func (re *retryEngine) DeleteAggregatedUsage(ctx context.Context, id int64) erro
 
 	return err
 }
+
+func (re *retryEngine) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		if err != nil {
+			re.logError("AggregateUsageForBizOps", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}

@@ -74,7 +74,9 @@ func (m *MockMetricsStorage) UpdateBillingGcpUsage(ctx context.Context, id int64
 	return nil
 }
 func (m *MockMetricsStorage) DeleteBillingGcpUsage(ctx context.Context, id int64) error { return nil }
-
+func (m *MockMetricsStorage) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {
+	return nil
+}
 func TestCreateFilterWithConditions(t *testing.T) {
 	config := &common.TelemetryConfig{}
 	mockDB := &MockMetricsStorage{}

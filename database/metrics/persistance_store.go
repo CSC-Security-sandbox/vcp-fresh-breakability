@@ -394,3 +394,7 @@ func (s *PersistenceStore) UpdateAggregatedUsage(ctx context.Context, id int64, 
 func (s *PersistenceStore) DeleteAggregatedUsage(ctx context.Context, id int64) error {
 	return s.dataStore.dataStore.DeleteAggregatedUsage(ctx, id)
 }
+
+func (s *PersistenceStore) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {
+	return s.dataStore.dataStore.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+}

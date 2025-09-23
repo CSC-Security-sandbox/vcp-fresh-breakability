@@ -2,6 +2,7 @@ package datamodel
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"io"
 	"time"
 )
 
@@ -42,6 +43,12 @@ type AggregatedUsage struct {
 	IsBillable             bool                  `gorm:"column:is_billable;default:false" json:"is_billable"`
 	CreatedAt              time.Time             `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt              time.Time             `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	ResourceUUID           string                `gorm:"column:resource_uuid;size:255;not null;index" json:"resource_uuid"`
+	AccountUUID            string                `gorm:"column:account_uuid;size:255;not null;index" json:"account_uuid"`
+	VolumeStyle            string                `gorm:"column:volume_style;size:255;not null" json:"volume_style"`
+	ReplicationType        string                `gorm:"column:replication_type;size:255;not null" json:"replication_type"`
+	ServiceLevel           string                `gorm:"column:service_level;size:255" json:"service_level"`
+	IsUnified              bool                  `gorm:"column:is_unified;default:true" json:"is_unified"`
 }
 
 type Job struct {
@@ -68,3 +75,18 @@ const (
 	Ignored
 	Invalid
 )
+
+// Below structs are not created in DB
+type AccountInfo struct {
+	UUID     string `json:"uuid"`
+	UserName string `json:"user_name"`
+	IsActive bool   `json:"is_active"`
+}
+type BizOpsAggregateParams struct {
+	AccountsInfo []*AccountInfo
+	ContinentMap map[string]string
+	Region       string
+	AggrStart    time.Time
+	AggrEnd      time.Time
+	Writer       io.Writer
+}

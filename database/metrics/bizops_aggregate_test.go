@@ -1,0 +1,300 @@
+package database
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/stretchr/testify/assert"
+	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"testing"
+	"time"
+)
+
+func setupFailingTestDataStoreRepository(t *testing.T, failurePoint string) *DataStoreRepository {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+
+	gormDB, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: db,
+	}), &gorm.Config{})
+	assert.NoError(t, err)
+
+	if failurePoint == "begin" {
+		mock.ExpectBegin().WillReturnError(fmt.Errorf("failed to begin transaction"))
+		return &DataStoreRepository{
+			db: gormwrapper.New(gormDB),
+		}
+	}
+
+	mock.ExpectBegin()
+
+	// Define common mock expectations
+	setupAccountInfo := func() {
+		mock.ExpectExec("(?i)CREATE TEMP TABLE").WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectExec("(?i)INSERT INTO").WillReturnResult(sqlmock.NewResult(1, 1))
+	}
+
+	setupAggregatedUsage := func() {
+		mock.ExpectExec("(?i)create temp table aggregated_usage_constrained").WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+
+	setupUsageStatistics := func() {
+		mock.ExpectExec("(?i)create temp table usage_statistics").WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+
+	setupGCPContinents := func() {
+		mock.ExpectExec("(?i)create temp table gcp_continents").WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectExec("(?i)INSERT INTO").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("(?i)create temp table google_continents").WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+
+	setupPoolUsage := func() {
+		mock.ExpectExec("(?i)create temp table pool_usage_calculated").WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+
+	switch failurePoint {
+	case "account_info":
+		mock.ExpectExec("(?i)CREATE TEMP TABLE").WillReturnError(fmt.Errorf("failed to ingest account info"))
+	case "aggregated_usage":
+		setupAccountInfo()
+		mock.ExpectExec("(?i)create temp table aggregated_usage_constrained").WillReturnError(fmt.Errorf("failed to create aggregated usage"))
+	case "usage_statistics":
+		setupAccountInfo()
+		setupAggregatedUsage()
+		mock.ExpectExec("(?i)create temp table usage_statistics").WillReturnError(fmt.Errorf("failed to create usage statistics"))
+	case "google_continents":
+		setupAccountInfo()
+		setupAggregatedUsage()
+		setupUsageStatistics()
+		mock.ExpectExec("(?i)create temp table gcp_continents").WillReturnError(fmt.Errorf("failed to create google continents"))
+	case "pool_usage":
+		setupAccountInfo()
+		setupAggregatedUsage()
+		setupUsageStatistics()
+		setupGCPContinents()
+		mock.ExpectExec("(?i)create temp table pool_usage_calculated").WillReturnError(fmt.Errorf("failed to create pool usage"))
+	case "final_report":
+		setupAccountInfo()
+		setupAggregatedUsage()
+		setupUsageStatistics()
+		setupGCPContinents()
+		setupPoolUsage()
+		mock.ExpectQuery(".*").WillReturnError(fmt.Errorf("failed to query final report"))
+	case "success":
+		setupAccountInfo()
+		setupAggregatedUsage()
+		setupUsageStatistics()
+		setupGCPContinents()
+		setupPoolUsage()
+
+		// Mock the final query with actual data
+		rows := sqlmock.NewRows(reportColumns).
+			AddRow("TEST_COMPONENT", "TEST_CUSTOMER", true, 1, 2,
+				"2024-01-01", "2024-01-31", "Standard", "Daily",
+				"Volume", "Block", "us-east1", "us-east1", "us-west1",
+				"NA", "NA", 100.0, 200.0, 300.0, 400.0, 500.0,
+				600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0,
+				1200.0, 1300.0, 1400.0)
+
+		mock.ExpectQuery(".*").WillReturnRows(rows)
+	}
+
+	mock.ExpectCommit()
+
+	return &DataStoreRepository{
+		db: gormwrapper.New(gormDB),
+	}
+}
+
+func TestDataStoreRepository_AggregateUsageForBizOps(t *testing.T) {
+	ctx := context.Background()
+	var buf bytes.Buffer
+	bizopsAggrParams := &datamodel.BizOpsAggregateParams{
+		AccountsInfo: []*datamodel.AccountInfo{
+			{UUID: "123", UserName: "Test Account"},
+		},
+		ContinentMap: map[string]string{
+			"us-east1": "North America",
+		},
+		Region:    "us-east1",
+		AggrStart: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		AggrEnd:   time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC),
+		Writer:    &buf,
+	}
+
+	t.Run("Success", func(t *testing.T) {
+		// Below test will set up in-memory DB for integration test
+		// which will test the full flow including temp tables
+		// Note: we are not mocking DB calls for this test
+		repo := setupTestDataStoreRepository(t)
+		err := repo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		assert.NoError(t, err)
+		// Check if writer has data
+		assert.Greater(t, buf.Len(), 0, "Writer should contain data")
+		// Optionally check CSV header
+		csvData := buf.String()
+		assert.Contains(t, csvData, "COMPONENT")
+		assert.Contains(t, csvData, "CUSTOMER_ID")
+	})
+	// For below tests we are mocking DB calls to simulate failures at different points
+	t.Run("Failure - Database Begin Error", func(t *testing.T) {
+		mockRepo := setupFailingTestDataStoreRepository(t, "begin")
+		err := mockRepo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to begin transaction")
+	})
+	t.Run("Failure - Ingest Account Info Error", func(t *testing.T) {
+		mockRepo := setupFailingTestDataStoreRepository(t, "account_info")
+		err := mockRepo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to ingest account info")
+	})
+	t.Run("Failure - Ingest Aggregated Usage Error", func(t *testing.T) {
+		mockRepo := setupFailingTestDataStoreRepository(t, "aggregated_usage")
+		err := mockRepo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create aggregated usage")
+	})
+	t.Run("Failure - Ingest Usage Statistics Error", func(t *testing.T) {
+		mockRepo := setupFailingTestDataStoreRepository(t, "usage_statistics")
+		err := mockRepo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create usage statistics")
+	})
+	t.Run("Failure - Ingest Continent Error", func(t *testing.T) {
+		mockRepo := setupFailingTestDataStoreRepository(t, "google_continents")
+		err := mockRepo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create google continents")
+	})
+	t.Run("Failure - Ingest Pool Usage Statistics Error", func(t *testing.T) {
+		mockRepo := setupFailingTestDataStoreRepository(t, "pool_usage")
+		err := mockRepo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create pool usage")
+	})
+	t.Run("Failure - Final Report", func(t *testing.T) {
+		mockRepo := setupFailingTestDataStoreRepository(t, "final_report")
+		err := mockRepo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to query final report")
+	})
+}
+
+func TestConvertRowsToCSV(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() {
+		_ = db.Close()
+	}()
+
+	// Create mock rows with expected columns
+	rows := sqlmock.NewRows(reportColumns).
+		AddRow("COMPONENT1", "CUST123", true, 5, 10, "2024-01-01", "2024-01-31",
+			"Standard", "Daily", "Volume", "Block", "us-east1", "us-east1",
+			"us-west1", "NA", "NA", 100.5, 200.5, 300.5, 400.5, 500.5,
+			600.5, 700.5, 800.5, 900.5, 1000.5, 1100.5, 1200.5, 1300.5, 1400.5)
+
+	mock.ExpectQuery(".*").WillReturnRows(rows)
+
+	// Execute query to get rows
+	sqlRows, err := db.Query("SELECT * FROM test")
+	assert.NoError(t, err)
+
+	// Test CSV conversion
+	var buf bytes.Buffer
+	err = convertRowsToCSV(sqlRows, &buf)
+	assert.NoError(t, err)
+
+	// Verify CSV output
+	csvData := buf.String()
+	assert.Contains(t, csvData, "COMPONENT")
+	assert.Contains(t, csvData, "COMPONENT1")
+	assert.Contains(t, csvData, "CUST123")
+}
+
+func TestConvertRowsToCSV_Errors(t *testing.T) {
+	t.Run("Column Error", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		assert.NoError(t, err)
+		defer func() {
+			_ = db.Close()
+		}()
+
+		// Mock rows that will return error on Columns() call
+		mock.ExpectQuery(".*").WillReturnRows(sqlmock.NewRows(nil))
+
+		sqlRows, err := db.Query("SELECT * FROM test")
+		assert.NoError(t, err)
+
+		// Force column error by closing rows before calling convertRowsToCSV
+		err = sqlRows.Close()
+		assert.NoError(t, err)
+
+		var buf bytes.Buffer
+		err = convertRowsToCSV(sqlRows, &buf)
+		assert.Error(t, err)
+	})
+
+	t.Run("Rows Error", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		assert.NoError(t, err)
+		defer func() {
+			_ = db.Close()
+		}()
+
+		// Create rows that will have an error
+		rows := sqlmock.NewRows(reportColumns).
+			AddRow("COMPONENT1", "CUST123", true, 5, 10, "2024-01-01", "2024-01-31",
+				"Standard", "Daily", "Volume", "Block", "us-east1", "us-east1",
+				"us-west1", "NA", "NA", 100.5, 200.5, 300.5, 400.5, 500.5,
+				600.5, 700.5, 800.5, 900.5, 1000.5, 1100.5, 1200.5, 1300.5, 1400.5).
+			RowError(0, fmt.Errorf("row iteration error"))
+
+		mock.ExpectQuery(".*").WillReturnRows(rows)
+
+		sqlRows, err := db.Query("SELECT * FROM test")
+		assert.NoError(t, err)
+
+		var buf bytes.Buffer
+		err = convertRowsToCSV(sqlRows, &buf)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "row iteration error")
+	})
+}
+
+func TestConvertInterfacesToStrings(t *testing.T) {
+	t.Run("Success - All Types", func(t *testing.T) {
+		input := []interface{}{
+			nil,
+			[]byte("bytes"),
+			"string",
+			int(1),
+			int64(2),
+			float64(3.14),
+			true,
+			uint(4),
+			uint64(5),
+		}
+
+		result, err := convertInterfacesToStrings(input)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"", "bytes", "string", "1", "2", "3.140000", "true", "4", "5"}, result)
+	})
+
+	t.Run("Error - Unsupported Type", func(t *testing.T) {
+		input := []interface{}{
+			"valid",
+			struct{}{}, // unsupported type
+		}
+
+		result, err := convertInterfacesToStrings(input)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "unsupported data type")
+	})
+}
