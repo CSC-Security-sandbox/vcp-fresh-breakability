@@ -53,6 +53,7 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 					Name: "Account1",
 				},
 			},
+			QuotaInBytes: 500,
 		},
 	)
 
@@ -121,6 +122,7 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 					Name:      "Account1",
 				},
 			},
+			QuotaInBytes: 300,
 		},
 		{
 			Pool: datamodel.Pool{
@@ -134,6 +136,7 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 					Name:      "Account2",
 				},
 			},
+			QuotaInBytes: 800,
 		},
 	}
 
@@ -319,6 +322,7 @@ func TestGetPoolMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 					Name:      "IntegrationAccount",
 				},
 			},
+			QuotaInBytes: 1500,
 		},
 	}
 

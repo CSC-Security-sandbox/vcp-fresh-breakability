@@ -885,6 +885,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_S
 			PoolAttributes: &datamodel.PoolAttributes{},
 			ClusterDetails: datamodel.ClusterDetails{},
 		},
+		QuotaInBytes: 500,
 	}
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
@@ -1094,6 +1095,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t 
 			PoolAttributes: &datamodel.PoolAttributes{},
 			ClusterDetails: datamodel.ClusterDetails{},
 		},
+		QuotaInBytes: 2147483648,
 	}
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)

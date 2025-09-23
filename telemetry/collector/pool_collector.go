@@ -51,9 +51,9 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 		metrics = append(metrics, metric)
 		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, now, float64(pool.SizeInBytes)))
 
-		metric = setupHydratedMetric(now, poolMetadata, metadata.AllocatedUsed, float64(pool.UsedBytes))
+		metric = setupHydratedMetric(now, poolMetadata, metadata.AllocatedUsed, float64(pool.QuotaInBytes))
 		metrics = append(metrics, metric)
-		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, now, float64(pool.UsedBytes)))
+		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, now, float64(pool.QuotaInBytes)))
 	}
 
 	// Return the structured result
