@@ -21,3 +21,11 @@ Extra annotations specific for core serviceAccount. Fetched from .Values.service
 helm.sh/deprecated: {{ .Chart.Deprecated | quote }}
 sidecar.istio.io/inject: {{ "false" | quote }}
 {{- end -}}
+
+{{- define "vcp-telemetry-deployer.kubernetes.annotations" -}}
+{{- end -}}
+
+{{- define "vcp-telemetry-deployer.helmchart.annotations" -}}
+helm.sh/deprecated: {{ .Chart.Deprecated | quote }}
+sidecar.istio.io/inject: {{ "false" | quote }}
+{{- end -}}

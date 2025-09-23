@@ -105,6 +105,12 @@ externalSecrets:
   dbPassword:
     secretName: "vcp-worker-autopush-sqa-us-e4-db-password-key"
     secretKey: "dbPassword"
+  metricsDbUsername:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-username-key"
+    secretKey: "metricsDbUsername"
+  metricsDbPassword:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-password-key"
+    secretKey: "metricsDbPassword"
   dbAdminUsername:
     secretName: "vcp-worker-autopush-sqa-us-e4-db-adminUsername-key"
     secretKey: "dbAdminUsername"

@@ -37,7 +37,11 @@ spec:
           command: ["/telemetry-deployer"]
           args:
             - "--service={{ .Values.telemetryDeployer.serviceName | default "vsa-harvest-otel" }}"
-            - "--image={{ .Values.telemetryDeployer.image | default "us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:25092.0.0-DEV.15" }}"
+            {{- if .Values.images.telemetry.secondary }}
+            - "--image={{ include "containerImage" (list . (dict "name" "telemetry" "secondary" true)) | trim }}"
+            {{- else }}
+            - "--image={{ include "containerImage" (list . (dict "name" "telemetry" "secondary" false)) | trim }}"
+            {{- end }}
             - "--project={{ .Values.telemetryDeployer.projectID | default "netapp-au-se1-autopush-sde-tst" }}"
             - "--region={{ .Values.telemetryDeployer.region | default "australia-southeast1" }}"
             - "--min-instances={{ .Values.telemetryDeployer.minInstances | default 0 }}"
