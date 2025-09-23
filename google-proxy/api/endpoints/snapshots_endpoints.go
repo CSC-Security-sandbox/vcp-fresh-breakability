@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-faster/jx"
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/snapshots"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -239,7 +240,7 @@ func (h Handler) V1betaUpdateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 		Description:  req.Description,
 	}
 
-	snapshot, jobUUID, err := h.Orchestrator.UpdateSnapshot(ctx, updateParams)
+	snapshot, _, err := h.Orchestrator.UpdateSnapshot(ctx, updateParams)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaUpdateSnapshotNotFound{
@@ -267,15 +268,7 @@ func (h Handler) V1betaUpdateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 		logger.Errorf("Failed to encode snapshot response: %v", err)
 		return &gcpgenserver.V1betaUpdateSnapshotInternalServerError{Code: 500, Message: err.Error()}, err
 	}
-
-	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if snapshot.LifeCycleState == coremodels.LifeCycleStateUpdating {
-		return &gcpgenserver.OperationV1beta{
-			Name:     gcpgenserver.NewOptString(operationID),
-			Response: resp,
-			Done:     gcpgenserver.NewOptBool(false),
-		}, nil
-	}
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
 	return &gcpgenserver.OperationV1beta{
 		Name:     gcpgenserver.NewOptString(operationID),
 		Response: resp,

@@ -1203,6 +1203,71 @@ func TestOrchestrator_GetMultipleSnapshots(t *testing.T) {
 		assert.Empty(tt, jobID)
 	})
 
+	t.Run("WhenUpdateSnapshotSuccessful", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+		}
+		assert.NoError(tt, store.DB().Create(volume).Error)
+		snap1 := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "snap-uuid-1"},
+			Name:      "snap1",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			Account:   account,
+			Volume:    volume,
+		}
+
+		snap2 := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "snap-uuid-2"},
+			Name:      "snap2",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			Account:   account,
+			Volume:    volume,
+		}
+		assert.NoError(tt, store.DB().Create(snap1).Error)
+		assert.NoError(tt, store.DB().Create(snap2).Error)
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = _getAccountWithName }()
+
+		orch := Orchestrator{storage: store}
+		_, err = orch.GetMultipleSnapshots(ctx, volume.UUID, account.Name, []string{"snap-uuid-1", "snap-uuid-2"})
+		assert.NoError(tt, err)
+
+		params := &common.UpdateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: "test_account",
+			},
+			SnapshotUUID: "snap-uuid-1",
+			Description:  "updated_desc",
+		}
+		result, jobID, err := orch.UpdateSnapshot(ctx, params)
+		assert.NoError(tt, err)
+		assert.Empty(tt, jobID)
+		assert.Equal(tt, result.Description, "updated_desc")
+	})
+
 	t.Run("WhenGetMultipleSnapshotsNotFound", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()

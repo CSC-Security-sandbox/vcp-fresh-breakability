@@ -329,53 +329,15 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		logger.Errorf("Snapshot %s cannot be update, while in transitioning state: %s", params.SnapshotUUID, snapshot.State)
 		return nil, "", customerrors.NewConflictErr("Snapshot is in transition state and cannot be updated, state: " + snapshot.State)
 	}
-
-	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateSnapshot),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  snapshot.Name,
-		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
-	}
-
-	// Cleanup in case of error
-	defer func() {
-		if err != nil {
-			if job != nil && job.UUID != "" {
-				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
-				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
-					logger.Errorf("Failed to delete job: %v", delErr)
-				}
-			}
-		}
-	}()
-
-	job, err = se.CreateJob(ctx, job)
-	if err != nil {
-		logger.Errorf("Failed to create job in database. Error: %v", err)
-		return nil, "", err
-	}
-
 	snapshot.Description = params.Description // Only snapshot description is allowed to be updated in GCNV
-
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    job.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
-		workflows.UpdateSnapshotWorkflow,
-		snapshot,
-	)
+	updatedSnapshot, err := se.UpdateSnapshot(ctx, snapshot)
 	if err != nil {
-		logger.Errorf("Failed to start update snapshot workflow. Error: %v ", err)
+		logger.Errorf("Failed to update snapshot: %s. Error: %v", params.SnapshotUUID, err)
 		return nil, "", err
 	}
 
-	dataStoreSnap := ConvertDatastoreSnapshotToModel(snapshot)
-	return dataStoreSnap, job.UUID, nil
+	dataStoreSnap := ConvertDatastoreSnapshotToModel(updatedSnapshot)
+	return dataStoreSnap, "", nil
 }
 
 func _convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snapshot {
