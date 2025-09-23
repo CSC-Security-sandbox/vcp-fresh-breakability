@@ -4242,6 +4242,11 @@ type AggregateInlineSpace struct {
 
 	// snapshot
 	Snapshot *AggregateInlineSpaceInlineSnapshot `json:"snapshot,omitempty"`
+
+	// A summation of all volumes provisioned space in bytes. This can be more than the aggregate total capacity.
+	// Example: 608896
+	// Read Only: true
+	TotalProvisionedSpace *int64 `json:"total_provisioned_space,omitempty"`
 }
 
 // Validate validates this aggregate inline space
@@ -4424,6 +4429,10 @@ func (m *AggregateInlineSpace) ContextValidate(ctx context.Context, formats strf
 		res = append(res, err)
 	}
 
+	if err := m.contextValidateTotalProvisionedSpace(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
@@ -4560,6 +4569,15 @@ func (m *AggregateInlineSpace) contextValidateSnapshot(ctx context.Context, form
 			}
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (m *AggregateInlineSpace) contextValidateTotalProvisionedSpace(ctx context.Context, formats strfmt.Registry) error {
+
+	if err := validate.ReadOnly(ctx, "space"+"."+"total_provisioned_space", "body", m.TotalProvisionedSpace); err != nil {
+		return err
 	}
 
 	return nil

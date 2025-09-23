@@ -111,10 +111,14 @@ type Node struct {
 }
 
 type Aggregate struct {
-	UUID        string
-	Name        string
-	State       string
-	VolumeCount int64
+	Name                 string
+	State                string
+	VolumeCount          int64
+	Size                 int64
+	AvailableSize        int64
+	UsedSize             int64
+	UUID                 string
+	TotalProvisionedSize int64
 }
 
 type UpdateAggregateParams struct {

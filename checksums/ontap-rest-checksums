@@ -529,7 +529,7 @@
 1517062442 2766 ./models/active_directory_security.go
 4007119910 1873 ./models/ad_domain.go
 2226714216 1819 ./models/ad_domain_delete.go
-1405236791 180805 ./models/aggregate.go
+1827935702 181412 ./models/aggregate.go
 1030479823 14721 ./models/aggregate_response.go
 852814400 6179 ./models/aggregate_simulate.go
 3503751323 20151 ./models/aggregate_spare.go
@@ -848,5 +848,5 @@
 180786681 30282 ./models/zapp_s3_bucket_application_components.go
 4173203049 6726 ./models/zapp_s3_bucket_application_components_access_policies.go
 290990735 3069 ./models/zapp_s3_bucket_application_components_access_policies_conditions.go
-3714037556 24020185 swagger.yaml
+3115422031 24020543 swagger.yaml
 450560205 5629 swagger_operations.txt

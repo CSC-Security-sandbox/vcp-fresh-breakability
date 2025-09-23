@@ -52,6 +52,22 @@ func (rc *OntapRestProvider) GetAggregates() ([]*Aggregate, error) {
 				State:       *aggregate.State,
 				VolumeCount: *aggregate.VolumeCount,
 			}
+			if aggregate.Space != nil {
+				if aggregate.Space.BlockStorage != nil {
+					if aggregate.Space.BlockStorage.Size != nil {
+						agg.Size = *aggregate.Space.BlockStorage.Size
+					}
+					if aggregate.Space.BlockStorage.Available != nil {
+						agg.AvailableSize = *aggregate.Space.BlockStorage.Available
+					}
+					if aggregate.Space.BlockStorage.Used != nil {
+						agg.UsedSize = *aggregate.Space.BlockStorage.Used
+					}
+				}
+				if aggregate.Space.TotalProvisionedSpace != nil {
+					agg.TotalProvisionedSize = *aggregate.Space.TotalProvisionedSpace
+				}
+			}
 			resultAggregates = append(resultAggregates, agg)
 		}
 		return nil
@@ -59,7 +75,7 @@ func (rc *OntapRestProvider) GetAggregates() ([]*Aggregate, error) {
 
 	err = client.Storage().AggregateCollectionGet(&ontapRest.AggregateCollectionGetParams{
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"state", "volume-count"},
+			Fields: []string{"state", "volume-count", "space"},
 		},
 	}, ucbf)
 

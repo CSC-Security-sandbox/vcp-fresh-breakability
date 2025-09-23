@@ -39,12 +39,6 @@ const (
 	BytesPerGB                   = 1073741824 // 1024^3 bytes = 1 GB
 )
 
-// AggregateDistributionResult represents the result of CV distribution across aggregates
-type AggregateDistributionResult struct {
-	Aggregates     []string `json:"aggregates"`
-	AggrMultiplier int64    `json:"aggr_multiplier"`
-}
-
 type VolumeCreateActivity struct {
 	SE        database.Storage
 	Scheduler *scheduler.TemporalScheduler
@@ -65,10 +59,6 @@ var (
 	GrantStorageObjectAdminRole      = _grantStorageObjectAdminRole
 )
 
-const AggregateStateOnline = "online"
-
-var availableAggregateStates = []string{AggregateStateOnline}
-
 var fetchTemporalClient = _fetchTemporalClient
 
 func _fetchTemporalClient(ctx context.Context) client.Client {
@@ -81,7 +71,7 @@ func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamode
 	return se.CreateVolume(ctx, volume)
 }
 
-func (a VolumeCreateActivity) GetAggregatesFromOntap(ctx context.Context, volume *datamodel.Volume, node *models.Node, totalNodes int) (*AggregateDistributionResult, error) {
+func (a VolumeCreateActivity) GetAggregatesFromOntap(ctx context.Context, volume *datamodel.Volume, node *models.Node, totalNodes int) (*models.AggregateDistributionResult, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -100,190 +90,23 @@ func (a VolumeCreateActivity) GetAggregatesFromOntap(ctx context.Context, volume
 		largeVolumeConstituentCount = int64(*volume.LargeVolumeAttributes.LargeVolumeConstituentCount)
 	}
 
+	var result *models.AggregateDistributionResult
 	// Get the aggregate distribution using the optimized greedy approach
-	result, err := CalculateAggregatesForConstituentVolumes(res, largeVolumeConstituentCount, totalNodes)
+	if volume.Pool.AllowAutoTiering {
+		result, err = CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, res, largeVolumeConstituentCount, totalNodes)
+	} else {
+		result, err = CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, res, largeVolumeConstituentCount, volume.SizeInBytes, totalNodes)
+	}
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
 	// Log the distribution details for debugging
 	logger.Debugf("CV distribution - Aggregates: %v, HCF: %d", result.Aggregates, result.AggrMultiplier)
 
 	return result, nil
 }
 
-// CalculateAggregatesForConstituentVolumes calculates the optimal distribution of constituent volumes
-// across available aggregates using an optimized greedy approach with first and second minima tracking.
-// Returns the aggregate distribution result containing the list of aggregates and multiplier.
-func CalculateAggregatesForConstituentVolumes(aggregates []*vsa.Aggregate, largeVolumeConstituentCount int64, totalNodes int) (*AggregateDistributionResult, error) {
-	const maxConstituentsPerAggregate int64 = 200
-	expectedAggregateCount := totalNodes / 2
-
-	// Validate that we have exactly 12 aggregates
-	if len(aggregates) != expectedAggregateCount {
-		return nil, fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates))
-	}
-	// Build aggregate state: map of aggregate name to current CV count
-	aggregateState := make(map[string]int64)
-	availableAggregates := make([]string, 0, len(aggregates))
-	totalAvailableCapacity := int64(0)
-
-	for _, agg := range aggregates {
-		// Check if any aggregate is not available - return error immediately
-		if !utils.ContainsString(availableAggregateStates, agg.State) {
-			return nil, fmt.Errorf("aggregate %s is not online (state: %s), all aggregates must be online", agg.Name, agg.State)
-		}
-
-		if agg.VolumeCount < maxConstituentsPerAggregate {
-			aggregateState[agg.Name] = agg.VolumeCount
-			availableAggregates = append(availableAggregates, agg.Name)
-			totalAvailableCapacity += maxConstituentsPerAggregate - agg.VolumeCount
-		}
-	}
-
-	if len(availableAggregates) == 0 {
-		return nil, fmt.Errorf("no aggregates with available capacity (all have reached max %d constituents)", maxConstituentsPerAggregate)
-	}
-
-	// Check if we can serve the customer request
-	if largeVolumeConstituentCount > totalAvailableCapacity {
-		return nil, fmt.Errorf("insufficient total aggregate capacity: requested %d CVs, but only %d capacity available across all aggregates",
-			largeVolumeConstituentCount, totalAvailableCapacity)
-	}
-	// Optimized approach: maintain first and second minima
-	remaining := largeVolumeConstituentCount
-
-	for remaining > 0 {
-		// Find first and second minima
-		firstMin, secondMin := findFirstAndSecondMinima(availableAggregates, aggregateState, maxConstituentsPerAggregate)
-
-		if firstMin == "" {
-			break // No more capacity available
-		}
-
-		// Calculate how many CVs we can place in first minima aggregates
-		var firstMinAggregates []string
-		for _, aggName := range availableAggregates {
-			if aggregateState[aggName] == aggregateState[firstMin] && aggregateState[aggName] < maxConstituentsPerAggregate {
-				firstMinAggregates = append(firstMinAggregates, aggName)
-			}
-		}
-
-		// Place CVs until firstMinima reaches secondMinima or we run out of CVs
-		targetLevel := maxConstituentsPerAggregate
-		if secondMin != "" {
-			targetLevel = aggregateState[secondMin]
-		}
-
-		cvsToPlace := (targetLevel - aggregateState[firstMin]) * int64(len(firstMinAggregates))
-		if cvsToPlace > remaining {
-			cvsToPlace = remaining
-		}
-
-		// Distribute CVs evenly among first minima aggregates
-		cvsPerAggregate := cvsToPlace / int64(len(firstMinAggregates))
-		extraCvs := cvsToPlace % int64(len(firstMinAggregates))
-
-		for i, aggName := range firstMinAggregates {
-			cvs := cvsPerAggregate
-			if int64(i) < extraCvs {
-				cvs++
-			}
-			aggregateState[aggName] += cvs
-			remaining -= cvs
-		}
-	}
-
-	// Create map of aggregate names to CVs placed
-	aggregateDistribution := make(map[string]int64)
-	for _, aggName := range availableAggregates {
-		initialCount := int64(0)
-		for _, agg := range aggregates {
-			if agg.Name == aggName {
-				initialCount = agg.VolumeCount
-				break
-			}
-		}
-		cvsPlaced := aggregateState[aggName] - initialCount
-		if cvsPlaced > 0 {
-			aggregateDistribution[aggName] = cvsPlaced
-		}
-	}
-
-	// Calculate HCF of all CV counts
-	hcf := calculateHCF(aggregateDistribution)
-
-	// Create flattened result based on HCF
-	var result []string
-	for aggName, cvCount := range aggregateDistribution {
-		occurrences := cvCount / hcf
-		for i := int64(0); i < occurrences; i++ {
-			result = append(result, aggName)
-		}
-	}
-
-	return &AggregateDistributionResult{
-		Aggregates:     result,
-		AggrMultiplier: hcf,
-	}, nil
-}
-
-// findFirstAndSecondMinima finds aggregates with minimum and second minimum volume counts
-func findFirstAndSecondMinima(aggregates []string, aggregateState map[string]int64, maxCapacity int64) (string, string) {
-	var firstMin, secondMin string
-	var firstMinVal, secondMinVal int64 = maxCapacity, maxCapacity
-
-	for _, aggName := range aggregates {
-		if aggregateState[aggName] >= maxCapacity {
-			continue
-		}
-
-		count := aggregateState[aggName]
-		if count < firstMinVal {
-			secondMin = firstMin
-			secondMinVal = firstMinVal
-			firstMin = aggName
-			firstMinVal = count
-		} else if count < secondMinVal && count > firstMinVal {
-			secondMin = aggName
-			secondMinVal = count
-		}
-	}
-
-	return firstMin, secondMin
-}
-
-// calculateHCF calculates the highest common factor (GCD) of all values in the distribution map
-func calculateHCF(distribution map[string]int64) int64 {
-	if len(distribution) == 0 {
-		return 1
-	}
-
-	var values []int64
-	for _, count := range distribution {
-		values = append(values, count)
-	}
-
-	result := values[0]
-	for i := 1; i < len(values); i++ {
-		result = gcd(result, values[i])
-		if result == 1 {
-			break // Early exit if GCD becomes 1
-		}
-	}
-
-	return result
-}
-
-// gcd calculates the greatest common divisor of two numbers
-func gcd(a, b int64) int64 {
-	for b != 0 {
-		a, b = b, a%b
-	}
-	return a
-}
-
-func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot, backup *datamodel.Backup, aggrs *AggregateDistributionResult) (*vsa.VolumeResponse, error) {
+func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot, backup *datamodel.Backup, aggrs *models.AggregateDistributionResult) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
