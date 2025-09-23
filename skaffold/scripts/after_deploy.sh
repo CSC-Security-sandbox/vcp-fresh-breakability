@@ -18,8 +18,8 @@ if [[ -z "$GCE_METADATA_HOST" || -z "$VSA_NODE_PASSWORD" || -z "$VSA_NODE_USERNA
   exit 1
 fi
 
-# Update environment variables in vcp-worker deployment
-kubectl set env deployment/vcp-worker \
+# Update environment variables in vcp-customer-worker deployment
+kubectl set env deployment/vcp-customer-worker \
   GCE_METADATA_HOST="$GCE_METADATA_HOST" \
   LOCAL_REGION="$LOCAL_REGION" \
   VSA_NODE_PASSWORD="$VSA_NODE_PASSWORD" \

@@ -1,19 +1,40 @@
 package flexcache_workflows
 
 import (
+	"errors"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
+
+var (
+	clusterPeerTimeout  = env.GetDuration("CLUSTER_PEER_TIMEOUT", 60*time.Minute)
+	clusterPeerInterval = env.GetDuration("CLUSTER_PEER_INTERVAL", 15*time.Second)
+
+	getClusterPeerTimeout  = _getClusterPeerTimeout
+	getClusterPeerInterval = _getClusterPeerInterval
+)
+
+func _getClusterPeerTimeout() time.Duration {
+	return clusterPeerTimeout
+}
+
+func _getClusterPeerInterval() time.Duration {
+	return clusterPeerInterval
+}
 
 type flexCacheCreateWorkflow struct {
 	workflows.BaseWorkflow
@@ -74,7 +95,7 @@ func (wf *flexCacheCreateWorkflow) Setup(ctx workflow.Context, input interface{}
 	})
 }
 
-func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *errors.CustomError) {
+func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	dbVolume := args[0].(*datamodel.Volume)
 	flexCacheVolumeCreateActivity := &flexcache_activities.FlexCacheVolumeCreateActivity{}
@@ -92,13 +113,17 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	flexcacheResult := flexcache.CreateFlexCacheResult{
+		DBVolume: dbVolume,
+	}
 
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(ctx, nil)
+			updateStateDetailsAndCode(&flexcacheResult, workflows.ConvertToVSAError(err))
+			err2 := workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateVolumeDetailsOnErrorActivity, &flexcacheResult).Get(ctx, nil)
 			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+				log.Errorf("Failed to update cache parameters in DB: %v", err2)
 			}
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
@@ -111,11 +136,26 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
+	flexcacheResult.Node = hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
 
-	flexcacheResult := flexcache.CreateFlexCacheResult{
-		DBVolume: dbVolume,
-		Node:     node,
+	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	waitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
+	err = workflow.ExecuteActivity(waitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
+		if temporal.IsTimeoutError(err) {
+			err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerTimeout, err))
+		}
+
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
@@ -129,4 +169,41 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	return nil, nil
+}
+
+func updateStateDetailsAndCode(result *flexcache.CreateFlexCacheResult, err error) {
+	var vsaErr *vsaerrors.CustomError
+	if errors.As(err, &vsaErr) {
+		switch vsaErr.TrackingID {
+		case vsaerrors.ErrClusterPeerTimeout:
+			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ClusterPeeringExpiredCode
+			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ClusterPeeringExpired
+		default:
+			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringClusterPeerCode
+			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringClusterPeer
+		}
+	}
+}
+
+func getWaitContext(ctx workflow.Context, cacheParams *datamodel.CacheParameters) workflow.Context {
+	expiry := getClusterPeerTimeout()
+	if cacheParams.CommandExpiryTime != nil && cacheParams.CommandExpiryTime.After(time.Now()) {
+		expiry = time.Until(*cacheParams.CommandExpiryTime)
+	}
+
+	interval := getClusterPeerInterval()
+	activityOptions := workflow.ActivityOptions{
+		// Total timeout for the activity
+		ScheduleToCloseTimeout: expiry,
+		// Timeout for a single activity execution
+		StartToCloseTimeout: interval,
+		// With an interval of 15s it will take ~10 mins to reach the maximum interval of 45s
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    interval,
+			BackoffCoefficient: 1.05,
+			MaximumInterval:    interval * 3,
+		},
+	}
+
+	return workflow.WithActivityOptions(ctx, activityOptions)
 }

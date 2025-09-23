@@ -1059,6 +1059,42 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]string
 		res.LargeVolumeConstituentCount = volume.LargeVolumeAttributes.LargeVolumeConstituentCount
 	}
 
+	if volume.CacheParameters != nil {
+		var cacheConfig *models.CacheConfig
+		if volume.CacheParameters.CacheConfig != nil {
+			cacheConfig = &models.CacheConfig{
+				AtimeScrubEnabled:       volume.CacheParameters.CacheConfig.AtimeScrubEnabled,
+				AtimeScrubDays:          volume.CacheParameters.CacheConfig.AtimeScrubDays,
+				CifsChangeNotifyEnabled: volume.CacheParameters.CacheConfig.CifsChangeNotifyEnabled,
+				WritebackEnabled:        volume.CacheParameters.CacheConfig.WritebackEnabled,
+			}
+
+			if volume.CacheParameters.CacheConfig.PrePopulate != nil {
+				cacheConfig.PrePopulate = &models.CachePrePopulate{
+					ExcludePathList: volume.CacheParameters.CacheConfig.PrePopulate.ExcludePathList,
+					PathList:        volume.CacheParameters.CacheConfig.PrePopulate.PathList,
+					Recursion:       volume.CacheParameters.CacheConfig.PrePopulate.Recursion,
+				}
+			}
+		}
+
+		res.CacheParameters = &models.CacheParameters{
+			PeerClusterName:       volume.CacheParameters.PeerClusterName,
+			PeerSvmName:           volume.CacheParameters.PeerSvmName,
+			PeerVolumeName:        volume.CacheParameters.PeerVolumeName,
+			PeerIPAddresses:       volume.CacheParameters.PeerIpAddresses,
+			EnableGlobalFileLock:  volume.CacheParameters.EnableGlobalFileLock,
+			CacheConfig:           cacheConfig,
+			CacheState:            volume.CacheParameters.CacheState,
+			PreviousCacheState:    volume.CacheParameters.PreviousCacheState,
+			CacheStateDetails:     volume.CacheParameters.CacheStateDetails,
+			CacheStateDetailsCode: volume.CacheParameters.CacheStateDetailsCode,
+			PeerExpiryTime:        volume.CacheParameters.CommandExpiryTime,
+			PeeringCommand:        nillable.GetString(volume.CacheParameters.Command, ""),
+			Passphrase:            volume.CacheParameters.Passphrase,
+		}
+	}
+
 	return res
 }
 

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-openapi/errors"
 	"github.com/goccy/go-yaml"
@@ -262,6 +263,20 @@ func GetBool(key string, def bool) bool {
 			return false
 		}
 	}
+	return def
+}
+
+func GetDuration(key string, def time.Duration) time.Duration {
+	val, err := getFromVolumeOrEnv(key)
+	if err != nil {
+		return def
+	}
+	if val != "" {
+		if durationVal, parseErr := time.ParseDuration(val); parseErr == nil {
+			return durationVal
+		}
+	}
+
 	return def
 }
 

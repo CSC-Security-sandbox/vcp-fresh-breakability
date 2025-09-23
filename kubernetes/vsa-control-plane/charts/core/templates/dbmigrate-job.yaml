@@ -87,6 +87,8 @@ spec:
               value: {{ .Values.database.name | default "vcp" | quote }}
             - name: DB_TYPE
               value: {{ .Values.database.type | default "postgres" | quote }}
+            - name: DB_SSL_MODE
+              value: {{ .Values.database.sslMode | quote }}
             - name: LOCAL_REGION
               value: {{ .Values.global.coreConfig.localRegion | default "" | quote }}
             - name: REGION_NUMBER_MAP

@@ -1351,9 +1351,9 @@ func (_c *MockProvider_CreateVolumeReplication_Call) RunAndReturn(run func(*Crea
 	return _c
 }
 
-// DeleteClusterPeer provides a mock function with given fields: clusterPeerID
-func (_m *MockProvider) DeleteClusterPeer(clusterPeerID string) error {
-	ret := _m.Called(clusterPeerID)
+// DeleteClusterPeer provides a mock function with given fields: clusterPeerUUID
+func (_m *MockProvider) DeleteClusterPeer(clusterPeerUUID string) error {
+	ret := _m.Called(clusterPeerUUID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteClusterPeer")
@@ -1361,7 +1361,7 @@ func (_m *MockProvider) DeleteClusterPeer(clusterPeerID string) error {
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(clusterPeerID)
+		r0 = rf(clusterPeerUUID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1375,12 +1375,12 @@ type MockProvider_DeleteClusterPeer_Call struct {
 }
 
 // DeleteClusterPeer is a helper method to define mock.On call
-//   - clusterPeerID string
-func (_e *MockProvider_Expecter) DeleteClusterPeer(clusterPeerID interface{}) *MockProvider_DeleteClusterPeer_Call {
-	return &MockProvider_DeleteClusterPeer_Call{Call: _e.mock.On("DeleteClusterPeer", clusterPeerID)}
+//   - clusterPeerUUID string
+func (_e *MockProvider_Expecter) DeleteClusterPeer(clusterPeerUUID interface{}) *MockProvider_DeleteClusterPeer_Call {
+	return &MockProvider_DeleteClusterPeer_Call{Call: _e.mock.On("DeleteClusterPeer", clusterPeerUUID)}
 }
 
-func (_c *MockProvider_DeleteClusterPeer_Call) Run(run func(clusterPeerID string)) *MockProvider_DeleteClusterPeer_Call {
+func (_c *MockProvider_DeleteClusterPeer_Call) Run(run func(clusterPeerUUID string)) *MockProvider_DeleteClusterPeer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string))
 	})
@@ -1965,9 +1965,9 @@ func (_c *MockProvider_GetAggregates_Call) RunAndReturn(run func() ([]*Aggregate
 	return _c
 }
 
-// GetClusterPeer provides a mock function with given fields: clusterPeerID
-func (_m *MockProvider) GetClusterPeer(clusterPeerID string) (*ClusterPeer, error) {
-	ret := _m.Called(clusterPeerID)
+// GetClusterPeer provides a mock function with given fields: clusterPeerUUID
+func (_m *MockProvider) GetClusterPeer(clusterPeerUUID string) (*ClusterPeer, error) {
+	ret := _m.Called(clusterPeerUUID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetClusterPeer")
@@ -1976,10 +1976,10 @@ func (_m *MockProvider) GetClusterPeer(clusterPeerID string) (*ClusterPeer, erro
 	var r0 *ClusterPeer
 	var r1 error
 	if rf, ok := ret.Get(0).(func(string) (*ClusterPeer, error)); ok {
-		return rf(clusterPeerID)
+		return rf(clusterPeerUUID)
 	}
 	if rf, ok := ret.Get(0).(func(string) *ClusterPeer); ok {
-		r0 = rf(clusterPeerID)
+		r0 = rf(clusterPeerUUID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ClusterPeer)
@@ -1987,7 +1987,7 @@ func (_m *MockProvider) GetClusterPeer(clusterPeerID string) (*ClusterPeer, erro
 	}
 
 	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(clusterPeerID)
+		r1 = rf(clusterPeerUUID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2001,12 +2001,12 @@ type MockProvider_GetClusterPeer_Call struct {
 }
 
 // GetClusterPeer is a helper method to define mock.On call
-//   - clusterPeerID string
-func (_e *MockProvider_Expecter) GetClusterPeer(clusterPeerID interface{}) *MockProvider_GetClusterPeer_Call {
-	return &MockProvider_GetClusterPeer_Call{Call: _e.mock.On("GetClusterPeer", clusterPeerID)}
+//   - clusterPeerUUID string
+func (_e *MockProvider_Expecter) GetClusterPeer(clusterPeerUUID interface{}) *MockProvider_GetClusterPeer_Call {
+	return &MockProvider_GetClusterPeer_Call{Call: _e.mock.On("GetClusterPeer", clusterPeerUUID)}
 }
 
-func (_c *MockProvider_GetClusterPeer_Call) Run(run func(clusterPeerID string)) *MockProvider_GetClusterPeer_Call {
+func (_c *MockProvider_GetClusterPeer_Call) Run(run func(clusterPeerUUID string)) *MockProvider_GetClusterPeer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string))
 	})

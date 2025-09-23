@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -2180,4 +2181,57 @@ func TestValidateIpRange(t *testing.T) {
 			assert.Contains(tt, err.Error(), "Invalid CIDR format")
 		}
 	})
+}
+
+func TestGetDuration(t *testing.T) {
+	key := "ENVUTIL_TEST_GET_DURATION"
+	def := 99 * time.Second
+	t.Run("WhenEnvironmentVariableIsNotSet", func(tt *testing.T) {
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
+		if GetDuration(key, def) != def {
+			tt.Fail()
+		}
+	})
+
+	type data struct {
+		env              string
+		expectedDuration time.Duration
+	}
+	testData := []data{
+		// Empty string should return default
+		{env: "", expectedDuration: def},
+		{env: "invalid", expectedDuration: def},
+		{env: "123ns", expectedDuration: 123 * time.Nanosecond},
+		{env: "1µs", expectedDuration: 1 * time.Microsecond},
+		{env: "250ms", expectedDuration: 250 * time.Millisecond},
+		{env: "30s", expectedDuration: 30 * time.Second},
+		{env: "60m", expectedDuration: 60 * time.Minute},
+		{env: "168h", expectedDuration: 168 * time.Hour},
+		{env: "2.5h", expectedDuration: 150 * time.Minute},
+		{env: "-5m", expectedDuration: -5 * time.Minute},
+		{env: "2h45m30s", expectedDuration: 2*time.Hour + 45*time.Minute + 30*time.Second},
+		{env: "0h0m0s", expectedDuration: 0},
+		{env: "525600m", expectedDuration: 525600 * time.Minute}, // 1 year in minutes
+		{env: "0.000001s", expectedDuration: 1 * time.Microsecond},
+		{env: "1h-30m", expectedDuration: def},                           // Invalid format
+		{env: "-1h30m", expectedDuration: -1*time.Hour - 30*time.Minute}, // Valid negative compound
+	}
+
+	for _, td := range testData {
+		err := os.Setenv(key, td.env)
+		if err != nil {
+			t.Errorf("Error setting environment variable %s: %v", key, err)
+		}
+		val := GetDuration(key, def)
+		if val != td.expectedDuration {
+			t.Errorf("For env '%s': expected %v, got %v", td.env, td.expectedDuration, val)
+		}
+		err = os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Error unsetting environment variable %s: %v", key, err)
+		}
+	}
 }

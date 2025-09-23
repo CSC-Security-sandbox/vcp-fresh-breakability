@@ -9,6 +9,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+var (
+	InterclusterServicePolicyName = "default-intercluster"
+)
+
 // CreateClusterPeer creates a cluster peer for the specific host
 func (rc *OntapRestProvider) CreateClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error) {
 	createParams := ontapRest.ClusterPeerCreateParams{
@@ -71,12 +75,12 @@ func (rc *OntapRestProvider) AcceptClusterPeer(params CreateClusterPeerParams) (
 }
 
 // DeleteClusterPeer deletes a cluster peer for the specific host
-func (rc *OntapRestProvider) DeleteClusterPeer(clusterPeerID string) error {
+func (rc *OntapRestProvider) DeleteClusterPeer(clusterPeerUUID string) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
 		return err
 	}
-	err = client.Cluster().ClusterPeerDelete(clusterPeerID)
+	err = client.Cluster().ClusterPeerDelete(clusterPeerUUID)
 	if err != nil {
 		return err
 	}
@@ -84,15 +88,17 @@ func (rc *OntapRestProvider) DeleteClusterPeer(clusterPeerID string) error {
 }
 
 // GetClusterPeer Gets a single cluster peer by clusterPeerID
-func (rc *OntapRestProvider) GetClusterPeer(clusterPeerID string) (*ClusterPeer, error) {
+func (rc *OntapRestProvider) GetClusterPeer(clusterPeerUUID string) (*ClusterPeer, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
 		return nil, err
 	}
-	peer, err := client.Cluster().ClusterPeerGet(clusterPeerID)
+
+	peer, err := client.Cluster().ClusterPeerGet(clusterPeerUUID)
 	if err != nil {
 		return nil, err
 	}
+
 	clusterPeer := &ClusterPeer{
 		ExternalUUID:        peer.UUID,
 		PeerClusterName:     peer.PeerClusterName,

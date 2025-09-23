@@ -16,13 +16,19 @@ type CacheConfig struct {
 	PrePopulate *CachePrePopulate `json:"prePopulate"`
 }
 type CacheParameters struct {
-	PeerIPAddresses      []string     `json:"peerIPAddresses"`
 	PeerClusterName      string       `json:"peerClusterName"`
 	PeerSvmName          string       `json:"peerSvmName"`
 	PeerVolumeName       string       `json:"peerVolumeName"`
-	PeerExpiryTime       *time.Time   `json:"peerExpiryTime,omitempty"`
-	PeeringCommand       string       `json:"peeringCommand,omitempty"`
-	Passphrase           *string      `json:"passphrase,omitempty"`
-	CacheConfig          *CacheConfig `json:"cacheConfig"`
+	PeerIPAddresses      []string     `json:"peerIPAddresses"`
 	EnableGlobalFileLock *bool        `json:"enableGlobalFileLock,omitempty"`
+	CacheConfig          *CacheConfig `json:"cacheConfig"`
+
+	CacheState            string `json:"cache_state"`
+	PreviousCacheState    string `json:"previous_cache_state"`
+	CacheStateDetails     string `json:"cache_state_details"`
+	CacheStateDetailsCode int    `json:"cache_state_details_code"`
+
+	PeerExpiryTime *time.Time `json:"peerExpiryTime,omitempty"`
+	PeeringCommand string     `json:"peeringCommand,omitempty"`
+	Passphrase     *string    `json:"passphrase,omitempty"`
 }

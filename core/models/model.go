@@ -74,6 +74,26 @@ const (
 	DefaultIndexExportPolicyRule    = int64(7)
 )
 
+const (
+	InitiatingClusterPeering = "Initiating cluster peering on destination cluster"
+	WaitingForClusterPeering = "Waiting for cluster peering to be created on source cluster"
+	ErrorDuringClusterPeer   = "Cluster peering failed, please try again"
+	ClusterPeeringExpired    = "Cluster peering expired"
+)
+
+const (
+	DefaultCode                  = 0
+	ErrorDuringClusterPeerCode   = 100000
+	ClusterPeeringExpiredCode    = 100001
+	SourceClusterUnreachableCode = 100002
+	WaitingForClusterPeeringCode = 100003
+	ErrorDuringSVMPeeringCode    = 100004
+	SVMPeeringExpiredCode        = 100005
+	InitiatingSVMPeeringCode     = 100006
+	WaitingForSVMPeeringCode     = 100007
+	InitiatingClusterPeeringCode = 100008
+)
+
 // SVM represents a single SVM resource
 type SVM struct {
 	BaseModel

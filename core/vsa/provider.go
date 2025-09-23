@@ -2,7 +2,6 @@ package vsa
 
 import (
 	"context"
-
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
@@ -57,8 +56,8 @@ type Provider interface {
 	IscsiServiceCreate(svmUUID string) error
 	CreateClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error)
 	AcceptClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error)
-	DeleteClusterPeer(clusterPeerID string) error
-	GetClusterPeer(clusterPeerID string) (*ClusterPeer, error)
+	DeleteClusterPeer(clusterPeerUUID string) error
+	GetClusterPeer(clusterPeerUUID string) (*ClusterPeer, error)
 	ListClusterPeers() ([]*ClusterPeer, error)
 	GetInterclusterLIFs(servicePolicyName string) ([]*InterclusterLif, error)
 	CreateSvmPeering(srcClusterName, srcSVMName, dstSVMName string, snapmirrorApplication ontaprestmodels.SvmPeerApplications) error

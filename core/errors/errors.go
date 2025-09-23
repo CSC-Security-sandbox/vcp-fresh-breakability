@@ -259,6 +259,10 @@ const (
 	ErrCreatingFlexCacheVolume   = 10001
 	ErrUnmountingFlexCacheVolume = 10002
 	ErrDeletingFlexCacheVolume   = 10003
+
+	// Cluster peering specific errors (11000-11999 range)
+	ErrClusterPeerError   = 11000
+	ErrClusterPeerTimeout = 11001
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.
@@ -465,5 +469,6 @@ func ExtractCustomError(err error) *CustomError {
 		// If the error is already a CustomError, return it directly.
 		return customErr
 	}
+
 	return NewVCPError(ErrInternalServerError, err)
 }

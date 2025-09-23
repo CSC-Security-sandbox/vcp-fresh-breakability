@@ -9,6 +9,7 @@ import (
 type CreateFlexCacheResult struct {
 	DBVolume       *datamodel.Volume
 	Node           *models.Node
+	ClusterPeer    *vsa.ClusterPeer
 	VolumeResponse *vsa.VolumeResponse
 }
 

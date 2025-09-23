@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
@@ -11468,6 +11469,75 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 		assert.Nil(tt, result.FileProperties)
 		assert.Equal(tt, result.EncryptionType, "CLOUD_KMS")
 		assert.Equal(tt, result.KmsConfig.UUID, "test-kms-uuid")
+	})
+}
+
+func TestConvertDatastoreVolumeToModelCacheParameters(t *testing.T) {
+	t.Run("ConvertVolumeWithCacheParameters", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:             "test-volume",
+			Description:      "test description",
+			SizeInBytes:      107374182400,
+			Account:          account,
+			Pool:             pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName:       "peer-cluster",
+				PeerSvmName:           "peer-svm",
+				PeerVolumeName:        "peer-volume",
+				PeerIpAddresses:       []string{"0.0.0.0"},
+				CacheStateDetailsCode: models.ErrorDuringClusterPeerCode,
+				CacheStateDetails:     "Error",
+				Passphrase:            nillable.ToPointer("passphrase"),
+				Command:               nillable.ToPointer("some command"),
+				CommandExpiryTime:     nillable.ToPointer(time.Now()),
+				EnableGlobalFileLock:  nillable.ToPointer(true),
+
+				CacheConfig: &datamodel.CacheConfig{
+					PrePopulate: &datamodel.CachePrePopulate{
+						Recursion: nillable.ToPointer(true),
+					},
+					WritebackEnabled: nillable.ToPointer(true),
+				},
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+		assert.Equal(tt, "peer-cluster", result.CacheParameters.PeerClusterName)
+		assert.Equal(tt, "peer-svm", result.CacheParameters.PeerSvmName)
+		assert.Equal(tt, "peer-volume", result.CacheParameters.PeerVolumeName)
+		assert.Equal(tt, []string{"0.0.0.0"}, result.CacheParameters.PeerIPAddresses)
+		assert.Equal(tt, models.ErrorDuringClusterPeerCode, result.CacheParameters.CacheStateDetailsCode)
+		assert.Equal(tt, "Error", result.CacheParameters.CacheStateDetails)
+		assert.Equal(tt, "passphrase", *result.CacheParameters.Passphrase)
+		assert.Equal(tt, "some command", result.CacheParameters.PeeringCommand)
+		assert.NotNil(tt, result.CacheParameters.PeerExpiryTime)
+		assert.True(tt, *result.CacheParameters.EnableGlobalFileLock)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig.PrePopulate)
+		assert.True(tt, *result.CacheParameters.CacheConfig.PrePopulate.Recursion)
+		assert.True(tt, *result.CacheParameters.CacheConfig.WritebackEnabled)
 	})
 }
 

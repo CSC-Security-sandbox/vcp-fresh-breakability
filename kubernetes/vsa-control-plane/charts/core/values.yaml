@@ -51,9 +51,11 @@ database:
   name: vcp
   port: 5432
   type: postgres
+  sslMode: "disable"
   metricsHost: postgres-service
   metricsPort: 5432
   metricsDbName: metrics
+
 resources:
   limits:
     cpu: 1000m

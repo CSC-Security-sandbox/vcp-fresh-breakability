@@ -395,6 +395,19 @@ type CreateClusterPeerParams struct {
 	Passphrase          *string
 }
 
+const (
+	ClusterPeerAuthenticationStateOK      = "ok"
+	ClusterPeerAuthenticationStateAbsent  = "absent"
+	ClusterPeerAuthenticationStatePending = "pending"
+	ClusterPeerAuthenticationStateProblem = "problem"
+
+	ClusterPeerAvailabilityStateAvailable    = "available"
+	ClusterPeerAvailabilityStatePartial      = "partial"
+	ClusterPeerAvailabilityStateUnavailable  = "unavailable"
+	ClusterPeerAvailabilityStatePending      = "pending"
+	ClusterPeerAvailabilityStateUnidentified = "unidentified"
+)
+
 type ClusterPeer struct {
 	UUID                string
 	PeerAddresses       []string

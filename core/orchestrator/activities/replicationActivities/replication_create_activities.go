@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -50,7 +51,7 @@ func (a *VolumeReplicationCreateActivity) GetSourceInterclusterLifs(ctx context.
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	interClusterLifs, err := provider.GetInterclusterLIFs("default-intercluster")
+	interClusterLifs, err := provider.GetInterclusterLIFs(vsa.InterclusterServicePolicyName)
 	if err != nil {
 		logger.Error("Failed to get interCluster lifs", "error", err)
 		return nil, err

@@ -463,10 +463,16 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	if req.Volume.CacheParameters.IsSet() {
 		reqCacheProperties, _ := req.Volume.CacheParameters.Get()
 		param.CacheParameters = &models.CacheParameters{
-			PeerVolumeName:  reqCacheProperties.PeerVolumeName,
-			PeerClusterName: reqCacheProperties.PeerClusterName,
-			PeerSvmName:     reqCacheProperties.PeerSvmName,
-			PeerIPAddresses: reqCacheProperties.PeerIpAddresses,
+			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
+			CacheStateDetails:     models.InitiatingClusterPeering,
+			PeerVolumeName:        reqCacheProperties.PeerVolumeName,
+			PeerClusterName:       reqCacheProperties.PeerClusterName,
+			PeerSvmName:           reqCacheProperties.PeerSvmName,
+			PeerIPAddresses:       reqCacheProperties.PeerIpAddresses,
+		}
+
+		if reqCacheProperties.PeeringCommandExpiryTime.IsSet() {
+			param.CacheParameters.PeerExpiryTime = &reqCacheProperties.PeeringCommandExpiryTime.Value
 		}
 	}
 
@@ -1888,12 +1894,43 @@ func convertToSnapshotPolicyV2(pol *models.SnapshotPolicy) *gcpgenserver.Snapsho
 	}
 }
 
+func convertCacheStateToV1(state string) (gcpgenserver.FlexCacheV1betaCacheState, gcpgenserver.FlexCacheV1betaPreviousCacheState) {
+	switch state {
+	case string(gcpgenserver.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED):
+		return gcpgenserver.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED, gcpgenserver.FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED
+	case string(gcpgenserver.FlexCacheV1betaCacheStatePENDINGSVMPEERING):
+		return gcpgenserver.FlexCacheV1betaCacheStatePENDINGSVMPEERING, gcpgenserver.FlexCacheV1betaPreviousCacheStatePENDINGSVMPEERING
+	case string(gcpgenserver.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING):
+		return gcpgenserver.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING, gcpgenserver.FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING
+	case string(gcpgenserver.FlexCacheV1betaCacheStatePEERED):
+		return gcpgenserver.FlexCacheV1betaCacheStatePEERED, gcpgenserver.FlexCacheV1betaPreviousCacheStatePEERED
+	case string(gcpgenserver.FlexCacheV1betaCacheStateERROR):
+		return gcpgenserver.FlexCacheV1betaCacheStateERROR, gcpgenserver.FlexCacheV1betaPreviousCacheStateERROR
+	default:
+		return gcpgenserver.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED, gcpgenserver.FlexCacheV1betaPreviousCacheStateCACHESTATEUNSPECIFIED
+	}
+}
+
 func convertToFlexCacheV1(cp *models.CacheParameters) gcpgenserver.FlexCacheV1beta {
+	cacheState, prevCacheState := convertCacheStateToV1(cp.CacheState)
 	cacheParameters := gcpgenserver.FlexCacheV1beta{
-		PeerVolumeName:  cp.PeerVolumeName,
-		PeerClusterName: cp.PeerClusterName,
-		PeerSvmName:     cp.PeerSvmName,
-		PeerIpAddresses: cp.PeerIPAddresses,
+		PeerVolumeName:     cp.PeerVolumeName,
+		PeerClusterName:    cp.PeerClusterName,
+		PeerSvmName:        cp.PeerSvmName,
+		PeerIpAddresses:    cp.PeerIPAddresses,
+		CacheState:         gcpgenserver.NewOptFlexCacheV1betaCacheState(cacheState),
+		PreviousCacheState: gcpgenserver.NewOptFlexCacheV1betaPreviousCacheState(prevCacheState),
+		Command:            gcpgenserver.NewOptString(cp.PeeringCommand),
+		StateDetails:       gcpgenserver.NewOptString(cp.CacheStateDetails),
+		StateDetailsCode:   gcpgenserver.NewOptInt32((int32)(cp.CacheStateDetailsCode)),
+	}
+
+	if cp.Passphrase != nil {
+		cacheParameters.Passphrase = gcpgenserver.NewOptNilString(*cp.Passphrase)
+	}
+
+	if cp.PeerExpiryTime != nil {
+		cacheParameters.PeeringCommandExpiryTime = gcpgenserver.NewOptNilDateTime(*cp.PeerExpiryTime)
 	}
 
 	if cp.CacheConfig != nil {

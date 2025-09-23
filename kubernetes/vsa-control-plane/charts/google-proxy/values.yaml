@@ -89,6 +89,7 @@ database:
   name: vcp
   adminUser: postgres
   adminPassword: testpass
+  sslMode: "disable"
 
 # Annotations
 serviceAccountAnnotations:

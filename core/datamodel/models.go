@@ -167,6 +167,10 @@ type Volume struct {
 	AutoTieringPolicy     *AutoTieringPolicy     `gorm:"column:auto_tiering_policy;type:jsonb"`
 	CacheParameters       *CacheParameters       `gorm:"column:cache_parameters;type:jsonb"`
 	LargeVolumeAttributes *LargeVolumeAttributes `gorm:"column:large_volume_attributes;type:jsonb"`
+
+	// Used to track what volumes are in a peering relationship
+	ClusterPeerUUID *string `gorm:"column:cluster_peer_uuid"`
+	SvmPeerUUID     *string `gorm:"column:svm_peer_uuid"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL
@@ -792,11 +796,37 @@ func (atp AutoTieringPolicy) Value() (driver.Value, error) {
 	return json.Marshal(atp)
 }
 
+type CachePrePopulate struct {
+	ExcludePathList []string `json:"exclude_path_list"`
+	PathList        []string `json:"path_list"`
+	Recursion       *bool    `json:"recursion"`
+}
+type CacheConfig struct {
+	AtimeScrubEnabled       *bool  `json:"atime_scrub_enabled"`
+	AtimeScrubDays          *int16 `json:"atime_scrub_days"`
+	CifsChangeNotifyEnabled *bool  `json:"cifs_change_notify_enabled"`
+	WritebackEnabled        *bool  `json:"writeback_enabled"`
+
+	PrePopulate *CachePrePopulate `json:"pre_populate"`
+}
+
 type CacheParameters struct {
-	PeerVolumeName  string   `json:"peer_volume_name"`
-	PeerClusterName string   `json:"peer_cluster_name"`
-	PeerSvmName     string   `json:"peer_svm_name"`
-	PeerIpAddresses []string `json:"peer_ip_addresses"`
+	PeerClusterName      string   `json:"peer_cluster_name"`
+	PeerSvmName          string   `json:"peer_svm_name"`
+	PeerVolumeName       string   `json:"peer_volume_name"`
+	PeerIpAddresses      []string `json:"peer_ip_addresses"`
+	EnableGlobalFileLock *bool    `json:"enable_global_file_lock,omitempty"`
+
+	CacheConfig *CacheConfig `json:"cache_config,omitempty"`
+
+	CacheState            string `json:"cache_state"`
+	PreviousCacheState    string `json:"previous_cache_state"`
+	CacheStateDetails     string `json:"cache_state_details"`
+	CacheStateDetailsCode int    `json:"cache_state_details_code"`
+
+	Passphrase        *string    `json:"passphrase,omitempty"`
+	Command           *string    `json:"command,omitempty"`
+	CommandExpiryTime *time.Time `json:"peer_command_expiry,omitempty"`
 }
 
 func (cp *CacheParameters) Scan(value interface{}) error {

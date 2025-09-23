@@ -1342,5 +1342,17 @@
     "message": "Error deleting FlexCache volume",
     "retriable": false,
     "http_code": 400
+  },
+  "11000": {
+    "description": "Error during cluster peering",
+    "message": "Error during cluster peering",
+    "retriable": false,
+    "http_code": 400
+  },
+  "11001": {
+    "description": "Cluster peering expired",
+    "message": "Cluster peering expired",
+    "retriable": false,
+    "http_code": 400
   }
 }
