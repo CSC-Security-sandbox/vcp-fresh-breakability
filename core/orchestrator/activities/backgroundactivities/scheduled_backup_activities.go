@@ -238,6 +238,18 @@ func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *
 	return nil
 }
 
+func (j *ScheduledBackupActivity) GetSnapshotByNameAndVolumeID(ctx context.Context, snapshotName string, accountID, volumeID int64) (*datamodel.Snapshot, error) {
+	logger := util.GetLogger(ctx)
+
+	se := j.SE
+	snapshot, err := se.GetSnapshotByNameAndVolumeId(ctx, snapshotName, accountID, volumeID)
+	if err != nil {
+		logger.Errorf("Failed to get snapshot by name and volumeID: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return snapshot, nil
+}
+
 // convertToGCPHydrateCreateRequests converts a slice of Backup objects to GCP hydrate create requests.
 // Returns a slice of Request objects.
 func convertToGCPHydrateCreateRequests(backups []*datamodel.Backup) []models.Request {

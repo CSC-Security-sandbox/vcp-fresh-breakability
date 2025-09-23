@@ -615,33 +615,35 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 			wf.Logger.Errorf("Failed to delete backup %s: %v", backup.Name, err)
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to delete backup %s: %w", backup.Name, err))
 		}
+
 		if hydrationEnabled {
 			// Hydrate snapshot deletions to CCFE for each deleted backup
-			snapshot := &datamodel.Snapshot{
-				BaseModel: datamodel.BaseModel{
-					UUID:      backup.Attributes.SnapshotID,
-					CreatedAt: backup.CreatedAt,
-				},
-				Name:         backup.Name,
-				State:        models.LifeCycleStateDeleted,
-				StateDetails: models.LifeCycleStateDeletedDetails,
-				Description:  backup.Description,
-				Volume:       volume,
-				Account:      volume.Account,
-				SnapshotAttributes: &datamodel.SnapshotAttributes{
-					SizeInBytes: backup.SizeInBytes,
-				},
-			}
+			var snapshot *datamodel.Snapshot
+			// snapshotErr is used instead of err to avoid the execution of rollbackManager for snapshot hydration errors
+			snapshotHydrationErr := workflow.ExecuteActivity(ctx, scheduledBackupActivities.GetSnapshotByNameAndVolumeID, backup.Attributes.SnapshotName, volume.AccountID, volume.ID).Get(ctx, &snapshot)
+			if snapshotHydrationErr != nil {
+				// Log the error but don't fail the workflow
+				wf.Logger.Errorf("Failed to get snapshot from database to hydrate deletion %v", snapshotHydrationErr)
+			} else {
+				// Delete snapshot entry from the database
+				snapshotHydrationErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.DeleteBackupSnapshotInDB, snapshot.UUID).Get(ctx, nil)
+				if snapshotHydrationErr != nil {
+					wf.Logger.Errorf("Failed to delete snapshot in the database %s: %v", snapshot.Name, snapshotHydrationErr)
+				}
 
-			location := utils.GetLocation(*snapshot)
-			err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotDeletionToCCFEActivity,
-				snapshot,
-				volume.Name,
-				location,
-				volume.Account.Name).Get(ctx, nil)
-			if err != nil {
-				// Log the error but don't fail the entire workflow
-				wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", backup.Name, err)
+				// Hydrate snapshot deletion to CCFE
+				location := utils.GetLocation(*snapshot)
+				snapshot.State = models.LifeCycleStateDeleted
+				snapshot.StateDetails = models.LifeCycleStateDeletedDetails
+				snapshotHydrationErr = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotDeletionToCCFEActivity,
+					snapshot,
+					volume.Name,
+					location,
+					volume.Account.Name).Get(ctx, nil)
+				if snapshotHydrationErr != nil {
+					// Log the error but don't fail the entire workflow
+					wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", backup.Name, snapshotHydrationErr)
+				}
 			}
 		}
 	}

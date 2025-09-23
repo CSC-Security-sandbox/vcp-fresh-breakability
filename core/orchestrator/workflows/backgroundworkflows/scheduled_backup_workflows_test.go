@@ -3285,6 +3285,12 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 		Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
 		Return(nil, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetSnapshotByNameAndVolumeID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test-snapshot",
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.DeleteBackupSnapshotInDB, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(errors.New("could not hydrate deleted backups to CCFE"))
@@ -3705,11 +3711,15 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDe
 		Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
 		Return(nil, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetSnapshotByNameAndVolumeID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test-snapshot",
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.DeleteBackupSnapshotInDB, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	// HydrateSnapshotDeletionToCCFEActivity is not called when hydrationEnabled = false
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -3923,11 +3933,15 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDe
 		Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
 		Return(nil, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetSnapshotByNameAndVolumeID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test-snapshot",
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.DeleteBackupSnapshotInDB, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not hydrate deleted snapshots to CCFE"))
 	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	// HydrateSnapshotDeletionToCCFEActivity is not called when hydrationEnabled = false
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -3959,6 +3973,222 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDe
 	s.env.ExecuteWorkflow(DeleteScheduledBackupWorkflow, volume, backupPolicy)
 
 	// Workflow should still complete successfully even if snapshot de-hydration fails
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetSnapshotByNameAndVolumeIDError() {
+	// Enable hydration for tests
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = false }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	// Mock all the required activities
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:     "vsa-backup-bucket",
+					VendorSubnetID: "test-vendor-subnet-id",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.FetchScheduledBackupForDeletion, mock.Anything, mock.Anything, mock.Anything).
+		Return([]*datamodel.Backup{{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid-1"},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID:   "test-snapshot-id-1",
+				SnapshotName: "test-snapshot-name-1",
+			},
+			Name:        "Weekly-backup1",
+			SizeInBytes: 1024,
+			ScheduleTag: nillable.ToPointer("weekly"),
+		}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test-node",
+			State:           "available",
+			StateDetails:    "available",
+			EndpointAddress: "192.168.1.100",
+			HostDNSName:     "test-node.example.com",
+			ZoneName:        "us-central1-a",
+		}}, nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("test-obj-store", nil)
+	s.env.OnActivity(backupActivity.GetObjectStore, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{UUID: "test-cloud-target-uuid"}, nil)
+	s.env.OnActivity(backupActivity.IsBackupShared, mock.Anything, mock.Anything).
+		Return(false, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapAsyncResponse{JobUUID: "test-delete-job-uuid"}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
+		Return(nil, nil)
+
+	// Mock GetSnapshotByNameAndVolumeID to return an error
+	s.env.OnActivity(scheduledBackupActivity.GetSnapshotByNameAndVolumeID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("failed to get snapshot from database"))
+	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-backup-vault-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				AuthType:      0, // USERNAME_PWD
+			},
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+
+	s.env.ExecuteWorkflow(DeleteScheduledBackupWorkflow, volume, backupPolicy)
+
+	// Workflow should complete successfully even if GetSnapshotByNameAndVolumeID fails
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBackupSnapshotInDBError() {
+	// Enable hydration for tests
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = false }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	// Mock all the required activities
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			RegionName:            "us-central1",
+			LifeCycleState:        "available",
+			LifeCycleStateDetails: "available",
+			BackupVaultType:       "standard",
+			AccountVendorID:       "test-vendor-id",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:     "vsa-backup-bucket",
+					VendorSubnetID: "test-vendor-subnet-id",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.FetchScheduledBackupForDeletion, mock.Anything, mock.Anything, mock.Anything).
+		Return([]*datamodel.Backup{{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid-1"},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID:   "test-snapshot-id-1",
+				SnapshotName: "test-snapshot-name-1",
+			},
+			Name:        "Weekly-backup1",
+			SizeInBytes: 1024,
+			ScheduleTag: nillable.ToPointer("weekly"),
+		}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test-node",
+			State:           "available",
+			StateDetails:    "available",
+			EndpointAddress: "192.168.1.100",
+			HostDNSName:     "test-node.example.com",
+			ZoneName:        "us-central1-a",
+		}}, nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("test-obj-store", nil)
+	s.env.OnActivity(backupActivity.GetObjectStore, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{UUID: "test-cloud-target-uuid"}, nil)
+	s.env.OnActivity(backupActivity.IsBackupShared, mock.Anything, mock.Anything).
+		Return(false, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapAsyncResponse{JobUUID: "test-delete-job-uuid"}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
+		Return(nil, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetSnapshotByNameAndVolumeID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test-snapshot",
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.DeleteBackupSnapshotInDB, mock.Anything, mock.Anything).
+		Return(errors.New("failed to delete snapshot in database"))
+	s.env.OnActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-backup-vault-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				AuthType:      0, // USERNAME_PWD
+			},
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+
+	s.env.ExecuteWorkflow(DeleteScheduledBackupWorkflow, volume, backupPolicy)
+
+	// Workflow should complete successfully even if DeleteBackupSnapshotInDB fails
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 	s.env.AssertExpectations(s.T())

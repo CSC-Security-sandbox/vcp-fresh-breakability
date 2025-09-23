@@ -773,3 +773,195 @@ func TestUpdateBackupSize(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 }
+
+func TestGetSnapshotByNameAndVolumeID(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := ScheduledBackupActivity{SE: mockStorage}
+
+	snapshotName := "test-snapshot-name"
+	accountID := int64(123)
+	volumeID := int64(456)
+
+	t.Run("GetSnapshotByNameAndVolumeIDSuccess", func(t *testing.T) {
+		expectedSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				ID:   789,
+				UUID: "snapshot-uuid",
+			},
+			Name:      snapshotName,
+			AccountID: accountID,
+			VolumeID:  volumeID,
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{
+					ID:   volumeID,
+					UUID: "volume-uuid",
+				},
+				AccountID: accountID,
+			},
+		}
+
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, snapshotName, accountID, volumeID).Return(expectedSnapshot, nil).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, snapshotName, accountID, volumeID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSnapshot, snapshot)
+		assert.Equal(t, snapshotName, snapshot.Name)
+		assert.Equal(t, accountID, snapshot.AccountID)
+		assert.Equal(t, volumeID, snapshot.VolumeID)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapshotByNameAndVolumeIDDatabaseError", func(t *testing.T) {
+		dbError := errors.New("database connection failed")
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, snapshotName, accountID, volumeID).Return(nil, dbError).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, snapshotName, accountID, volumeID)
+		assert.Error(t, err)
+		assert.Nil(t, snapshot)
+		assert.Contains(t, err.Error(), "database connection failed")
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapshotByNameAndVolumeIDNotFound", func(t *testing.T) {
+		notFoundError := errors.New("snapshot not found")
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, snapshotName, accountID, volumeID).Return(nil, notFoundError).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, snapshotName, accountID, volumeID)
+		assert.Error(t, err)
+		assert.Nil(t, snapshot)
+		assert.Contains(t, err.Error(), "snapshot not found")
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapshotByNameAndVolumeIDEmptySnapshotName", func(t *testing.T) {
+		emptySnapshotName := ""
+		expectedSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				ID:   789,
+				UUID: "snapshot-uuid",
+			},
+			Name:      emptySnapshotName,
+			AccountID: accountID,
+			VolumeID:  volumeID,
+		}
+
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, emptySnapshotName, accountID, volumeID).Return(expectedSnapshot, nil).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, emptySnapshotName, accountID, volumeID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSnapshot, snapshot)
+		assert.Equal(t, emptySnapshotName, snapshot.Name)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapshotByNameAndVolumeIDZeroIDs", func(t *testing.T) {
+		zeroAccountID := int64(0)
+		zeroVolumeID := int64(0)
+		expectedSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				ID:   789,
+				UUID: "snapshot-uuid",
+			},
+			Name:      snapshotName,
+			AccountID: zeroAccountID,
+			VolumeID:  zeroVolumeID,
+		}
+
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, snapshotName, zeroAccountID, zeroVolumeID).Return(expectedSnapshot, nil).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, snapshotName, zeroAccountID, zeroVolumeID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSnapshot, snapshot)
+		assert.Equal(t, zeroAccountID, snapshot.AccountID)
+		assert.Equal(t, zeroVolumeID, snapshot.VolumeID)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapshotByNameAndVolumeIDNegativeIDs", func(t *testing.T) {
+		negativeAccountID := int64(-1)
+		negativeVolumeID := int64(-1)
+		dbError := errors.New("invalid ID")
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, snapshotName, negativeAccountID, negativeVolumeID).Return(nil, dbError).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, snapshotName, negativeAccountID, negativeVolumeID)
+		assert.Error(t, err)
+		assert.Nil(t, snapshot)
+		assert.Contains(t, err.Error(), "invalid ID")
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapshotByNameAndVolumeIDLargeIDs", func(t *testing.T) {
+		largeAccountID := int64(9223372036854775807) // Max int64
+		largeVolumeID := int64(9223372036854775807)  // Max int64
+		expectedSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				ID:   789,
+				UUID: "snapshot-uuid",
+			},
+			Name:      snapshotName,
+			AccountID: largeAccountID,
+			VolumeID:  largeVolumeID,
+		}
+
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, snapshotName, largeAccountID, largeVolumeID).Return(expectedSnapshot, nil).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, snapshotName, largeAccountID, largeVolumeID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSnapshot, snapshot)
+		assert.Equal(t, largeAccountID, snapshot.AccountID)
+		assert.Equal(t, largeVolumeID, snapshot.VolumeID)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapshotByNameAndVolumeIDSpecialCharactersInName", func(t *testing.T) {
+		specialSnapshotName := "test-snapshot_@#$%^&*()_+-=[]{}|;':\",./<>?"
+		expectedSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				ID:   789,
+				UUID: "snapshot-uuid",
+			},
+			Name:      specialSnapshotName,
+			AccountID: accountID,
+			VolumeID:  volumeID,
+		}
+
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, specialSnapshotName, accountID, volumeID).Return(expectedSnapshot, nil).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, specialSnapshotName, accountID, volumeID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSnapshot, snapshot)
+		assert.Equal(t, specialSnapshotName, snapshot.Name)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapshotByNameAndVolumeIDLongSnapshotName", func(t *testing.T) {
+		longSnapshotName := strings.Repeat("a", 1000) // 1000 character long name
+		expectedSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				ID:   789,
+				UUID: "snapshot-uuid",
+			},
+			Name:      longSnapshotName,
+			AccountID: accountID,
+			VolumeID:  volumeID,
+		}
+
+		mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, longSnapshotName, accountID, volumeID).Return(expectedSnapshot, nil).Once()
+
+		snapshot, err := activity.GetSnapshotByNameAndVolumeID(ctx, longSnapshotName, accountID, volumeID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSnapshot, snapshot)
+		assert.Equal(t, longSnapshotName, snapshot.Name)
+
+		mockStorage.AssertExpectations(t)
+	})
+}
