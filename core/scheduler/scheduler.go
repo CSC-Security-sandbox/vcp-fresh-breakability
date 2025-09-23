@@ -60,10 +60,21 @@ type UnpauseScheduleParams struct {
 	TemporalScheduleOptions TemporalUnpauseScheduleParams
 }
 
+// DescribeScheduleParams contains parameters required to describe a schedule.
+type DescribeScheduleParams struct {
+	ScheduleParams
+}
+
 // ScheduleResponse represents the result of a schedule operation.
 type ScheduleResponse struct {
 	ID     string
 	Status ScheduleState
+}
+
+// ScheduleDescription represents detailed information about a schedule.
+type ScheduleDescription struct {
+	ID     string
+	Paused bool
 }
 
 // Scheduler provides an interface for managing schedules.
@@ -78,4 +89,6 @@ type Scheduler interface {
 	Pause(ctx context.Context, params PauseScheduleParams) (*ScheduleResponse, error)
 	// Unpause pauses an existing schedule with the given parameters.
 	Unpause(ctx context.Context, params UnpauseScheduleParams) (*ScheduleResponse, error)
+	// Describe retrieves the current state and information of an existing schedule.
+	Describe(ctx context.Context, params DescribeScheduleParams) (*ScheduleDescription, error)
 }

@@ -649,6 +649,7 @@ func TestPauseBackupPolicySchedule(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockScheduler := scheduler.NewMockScheduler(tt)
 
+		mockScheduler.On("Describe", mock.Anything, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: false}, nil)
 		mockScheduler.On("Pause", mock.Anything, mock.Anything).Return(&scheduler.ScheduleResponse{}, nil)
 
 		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -661,6 +662,7 @@ func TestPauseBackupPolicySchedule(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockScheduler := scheduler.NewMockScheduler(tt)
 
+		mockScheduler.On("Describe", mock.Anything, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: false}, nil)
 		mockScheduler.On("Pause", mock.Anything, mock.Anything).Return(nil, errors.New("could not pause backup policy schedule"))
 
 		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -676,6 +678,7 @@ func TestUnpauseBackupPolicySchedule(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockScheduler := scheduler.NewMockScheduler(tt)
 
+		mockScheduler.On("Describe", mock.Anything, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: true}, nil)
 		mockScheduler.On("Unpause", mock.Anything, mock.Anything).Return(&scheduler.ScheduleResponse{}, nil)
 
 		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -688,6 +691,7 @@ func TestUnpauseBackupPolicySchedule(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockScheduler := scheduler.NewMockScheduler(tt)
 
+		mockScheduler.On("Describe", mock.Anything, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: true}, nil)
 		mockScheduler.On("Unpause", mock.Anything, mock.Anything).Return(nil, errors.New("could not unpause backup policy schedule"))
 
 		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -695,6 +699,34 @@ func TestUnpauseBackupPolicySchedule(t *testing.T) {
 			&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid"}})
 		assert.Error(t, err)
 		assert.Equal(t, "could not unpause backup policy schedule", err.Error())
+	})
+
+	t.Run("PauseBackupPolicySchedule_SkipsWhenAlreadyPaused", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockScheduler.On("Describe", mock.Anything, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: true}, nil)
+		// No Pause call should be made
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := backupPolicyActivity.PauseBackupPolicySchedule(context.Background(),
+			&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid"}})
+		assert.NoError(t, err)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("UnpauseBackupPolicySchedule_SkipsWhenAlreadyActive", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockScheduler.On("Describe", mock.Anything, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: false}, nil)
+		// No Unpause call should be made
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := backupPolicyActivity.UnpauseBackupPolicySchedule(context.Background(),
+			&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid"}})
+		assert.NoError(t, err)
+		mockScheduler.AssertExpectations(tt)
 	})
 }
 

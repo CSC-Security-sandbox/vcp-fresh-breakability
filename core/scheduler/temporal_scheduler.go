@@ -243,3 +243,21 @@ func (temporalScheduler TemporalScheduler) Unpause(ctx context.Context, params U
 	logger.Error("ALERT: Failed to unpause schedule after multiple attempts", "error", lastErr)
 	return nil, lastErr
 }
+
+// Describe retrieves information about an existing schedule in Temporal using the provided parameters.
+func (temporalScheduler TemporalScheduler) Describe(ctx context.Context, params DescribeScheduleParams) (*ScheduleDescription, error) {
+	logger := util.GetLogger(ctx)
+
+	scheduleHandler := temporalScheduler.schedulerClient.GetHandle(ctx, params.ScheduleID)
+	description, err := scheduleHandler.Describe(ctx)
+	if err != nil {
+		logger.Error("Failed to describe schedule", "error", err)
+		return nil, err
+	}
+
+	logger.Info("Schedule described successfully")
+	return &ScheduleDescription{
+		ID:     scheduleHandler.GetID(),
+		Paused: description.Schedule.State.Paused,
+	}, nil
+}

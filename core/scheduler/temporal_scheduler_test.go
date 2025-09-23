@@ -13,11 +13,12 @@ import (
 
 type mockScheduleHandle struct {
 	client.ScheduleHandle
-	id          string
-	updateFunc  func(ctx context.Context, opts client.ScheduleUpdateOptions) error
-	deleteFunc  func(ctx context.Context) error
-	pauseFunc   func(ctx context.Context, opts client.SchedulePauseOptions) error
-	unpauseFunc func(ctx context.Context, opts client.ScheduleUnpauseOptions) error
+	id           string
+	updateFunc   func(ctx context.Context, opts client.ScheduleUpdateOptions) error
+	deleteFunc   func(ctx context.Context) error
+	pauseFunc    func(ctx context.Context, opts client.SchedulePauseOptions) error
+	unpauseFunc  func(ctx context.Context, opts client.ScheduleUnpauseOptions) error
+	describeFunc func(ctx context.Context) (*client.ScheduleDescription, error)
 }
 
 func (m *mockScheduleHandle) GetID() string { return m.id }
@@ -48,6 +49,13 @@ func (m *mockScheduleHandle) Unpause(ctx context.Context, opts client.ScheduleUn
 		return m.unpauseFunc(ctx, opts)
 	}
 	return nil
+}
+
+func (m *mockScheduleHandle) Describe(ctx context.Context) (*client.ScheduleDescription, error) {
+	if m.describeFunc != nil {
+		return m.describeFunc(ctx)
+	}
+	return &client.ScheduleDescription{}, nil
 }
 
 func TestTemporalScheduler_Create(t *testing.T) {
@@ -307,6 +315,107 @@ func TestTemporalScheduler_Unpause_Error(t *testing.T) {
 
 	resp, err := scheduler.Unpause(ctx, params)
 	require.Error(t, err)
+	require.Nil(t, resp)
+	mockClient.AssertExpectations(t)
+}
+
+func TestTemporalScheduler_Describe(t *testing.T) {
+	mockClient := &mocks.ScheduleClient{}
+	scheduler := NewTemporalScheduler(mockClient)
+
+	ctx := context.Background()
+	scheduleID := "test-schedule"
+
+	// Test describing an active schedule
+	mockHandle := &mockScheduleHandle{
+		id: scheduleID,
+		describeFunc: func(ctx context.Context) (*client.ScheduleDescription, error) {
+			return &client.ScheduleDescription{
+				Schedule: client.Schedule{
+					State: &client.ScheduleState{
+						Paused: false,
+					},
+				},
+			}, nil
+		},
+	}
+
+	mockClient.On("GetHandle", ctx, scheduleID).Return(mockHandle).Once()
+
+	params := DescribeScheduleParams{
+		ScheduleParams: ScheduleParams{
+			ScheduleID: scheduleID,
+		},
+	}
+
+	resp, err := scheduler.Describe(ctx, params)
+	require.NoError(t, err)
+	require.Equal(t, scheduleID, resp.ID)
+	require.False(t, resp.Paused)
+	mockClient.AssertExpectations(t)
+}
+
+func TestTemporalScheduler_Describe_Paused(t *testing.T) {
+	mockClient := &mocks.ScheduleClient{}
+	scheduler := NewTemporalScheduler(mockClient)
+
+	ctx := context.Background()
+	scheduleID := "test-schedule"
+
+	// Test describing a paused schedule
+	mockHandle := &mockScheduleHandle{
+		id: scheduleID,
+		describeFunc: func(ctx context.Context) (*client.ScheduleDescription, error) {
+			return &client.ScheduleDescription{
+				Schedule: client.Schedule{
+					State: &client.ScheduleState{
+						Paused: true,
+					},
+				},
+			}, nil
+		},
+	}
+
+	mockClient.On("GetHandle", ctx, scheduleID).Return(mockHandle).Once()
+
+	params := DescribeScheduleParams{
+		ScheduleParams: ScheduleParams{
+			ScheduleID: scheduleID,
+		},
+	}
+
+	resp, err := scheduler.Describe(ctx, params)
+	require.NoError(t, err)
+	require.Equal(t, scheduleID, resp.ID)
+	require.True(t, resp.Paused)
+	mockClient.AssertExpectations(t)
+}
+
+func TestTemporalScheduler_Describe_Error(t *testing.T) {
+	mockClient := &mocks.ScheduleClient{}
+	scheduler := NewTemporalScheduler(mockClient)
+
+	ctx := context.Background()
+	scheduleID := "test-schedule"
+
+	mockHandle := &mockScheduleHandle{
+		id: scheduleID,
+		describeFunc: func(ctx context.Context) (*client.ScheduleDescription, error) {
+			return nil, errors.New("describe error")
+		},
+	}
+
+	mockClient.On("GetHandle", ctx, scheduleID).Return(mockHandle).Once()
+
+	params := DescribeScheduleParams{
+		ScheduleParams: ScheduleParams{
+			ScheduleID: scheduleID,
+		},
+	}
+
+	resp, err := scheduler.Describe(ctx, params)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "describe error")
 	require.Nil(t, resp)
 	mockClient.AssertExpectations(t)
 }

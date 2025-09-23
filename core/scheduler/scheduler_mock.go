@@ -316,6 +316,65 @@ func (_c *MockScheduler_Update_Call) RunAndReturn(run func(context.Context, Upda
 	return _c
 }
 
+// Describe provides a mock function with given fields: ctx, params
+func (_m *MockScheduler) Describe(ctx context.Context, params DescribeScheduleParams) (*ScheduleDescription, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Describe")
+	}
+
+	var r0 *ScheduleDescription
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, DescribeScheduleParams) (*ScheduleDescription, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, DescribeScheduleParams) *ScheduleDescription); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ScheduleDescription)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, DescribeScheduleParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockScheduler_Describe_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Describe'
+type MockScheduler_Describe_Call struct {
+	*mock.Call
+}
+
+// Describe is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params DescribeScheduleParams
+func (_e *MockScheduler_Expecter) Describe(ctx interface{}, params interface{}) *MockScheduler_Describe_Call {
+	return &MockScheduler_Describe_Call{Call: _e.mock.On("Describe", ctx, params)}
+}
+
+func (_c *MockScheduler_Describe_Call) Run(run func(ctx context.Context, params DescribeScheduleParams)) *MockScheduler_Describe_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(DescribeScheduleParams))
+	})
+	return _c
+}
+
+func (_c *MockScheduler_Describe_Call) Return(_a0 *ScheduleDescription, _a1 error) *MockScheduler_Describe_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockScheduler_Describe_Call) RunAndReturn(run func(context.Context, DescribeScheduleParams) (*ScheduleDescription, error)) *MockScheduler_Describe_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockScheduler creates a new instance of MockScheduler. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockScheduler(t interface {

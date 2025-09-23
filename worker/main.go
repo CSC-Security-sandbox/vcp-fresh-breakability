@@ -291,7 +291,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.UnRegisterNodeFromHarvestActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.DeleteVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.BackupPolicyActivity{SE: dbcon, Scheduler: temporalScheduler})
-	worker.RegisterActivity(&resource_events_activities.ResourceEventsActivity{SE: dbcon})
+	worker.RegisterActivity(&resource_events_activities.ResourceEventsActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&resource_events_activities.FinishProjectEventActivity{SE: dbcon})
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: dbcon})
 	worker.RegisterActivity(ontaprest.PollOntapJobActivity)

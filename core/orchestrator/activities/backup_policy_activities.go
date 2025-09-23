@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
+	logger "golang.org/x/exp/slog"
 )
 
 var (
@@ -93,7 +94,22 @@ func (j *BackupPolicyActivity) RevertBackupPolicyUpdateInVCP(ctx context.Context
 
 func (j *BackupPolicyActivity) PauseBackupPolicySchedule(ctx context.Context, dbBackupPolicy *datamodel.BackupPolicy) error {
 	temporalScheduler := j.Scheduler
-	_, err := temporalScheduler.Pause(ctx, scheduler.PauseScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: dbBackupPolicy.UUID}})
+
+	// Check current scheduler state to avoid pausing an already paused schedule
+	description, err := temporalScheduler.Describe(ctx, scheduler.DescribeScheduleParams{
+		ScheduleParams: scheduler.ScheduleParams{ScheduleID: dbBackupPolicy.UUID},
+	})
+	if err != nil {
+		return err
+	}
+
+	// If already paused, no need to pause again
+	if description.Paused {
+		logger.Info("Backup policy schedule is already paused")
+		return nil
+	}
+
+	_, err = temporalScheduler.Pause(ctx, scheduler.PauseScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: dbBackupPolicy.UUID}})
 	if err != nil {
 		return err
 	}
@@ -102,7 +118,22 @@ func (j *BackupPolicyActivity) PauseBackupPolicySchedule(ctx context.Context, db
 
 func (j *BackupPolicyActivity) UnpauseBackupPolicySchedule(ctx context.Context, dbBackupPolicy *datamodel.BackupPolicy) error {
 	temporalScheduler := j.Scheduler
-	_, err := temporalScheduler.Unpause(ctx, scheduler.UnpauseScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: dbBackupPolicy.UUID}})
+
+	// Check current scheduler state to avoid unpausing an already active schedule
+	description, err := temporalScheduler.Describe(ctx, scheduler.DescribeScheduleParams{
+		ScheduleParams: scheduler.ScheduleParams{ScheduleID: dbBackupPolicy.UUID},
+	})
+	if err != nil {
+		return err
+	}
+
+	// If already active (not paused), no need to unpause again
+	if !description.Paused {
+		logger.Info("Backup policy schedule is already un-paused")
+		return nil
+	}
+
+	_, err = temporalScheduler.Unpause(ctx, scheduler.UnpauseScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: dbBackupPolicy.UUID}})
 	if err != nil {
 		return err
 	}

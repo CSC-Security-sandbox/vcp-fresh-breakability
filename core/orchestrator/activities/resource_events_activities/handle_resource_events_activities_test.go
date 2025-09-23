@@ -2,33 +2,35 @@ package resource_events_activities
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
-	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	dbtuils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/temporal"
-	"testing"
 )
 
 func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 	t.Run("HandleResourceEventCheckForVCPActivity_WhenResourceTypeIsKmsConfig", func(tt *testing.T) {
 		ctx := context.Background()
 		mockSE := database.NewMockStorage(tt)
-		activity := &ResourceEventsActivity{SE: mockSE}
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
 
 		params := &common.HandleResourceEventParams{
 			ResourceType: common.ResourceStateV1ResourceTypeKmsConfig,
@@ -93,7 +95,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -107,7 +109,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		}
 
 		created := &resource_events.V1betaResourceStateUpdateCreated{
-			Payload: &models2.OperationV1beta{
+			Payload: &cvpmodels.OperationV1beta{
 				Name: "test-operation-name",
 				Done: nillable.GetBoolPtr(true),
 			},
@@ -138,14 +140,14 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
 		}
 
 		accepted := &resource_events.V1betaResourceStateUpdateAccepted{
-			Payload: &models2.OperationV1beta{
+			Payload: &cvpmodels.OperationV1beta{
 				Name: "test-operation-name",
 				Done: nillable.GetBoolPtr(false),
 			},
@@ -175,7 +177,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -189,7 +191,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		assert.ErrorContains(tt, err, "Client error during HandleResouceEvent")
 
 		var applicationError *temporal.ApplicationError
-		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, vsaerrors.As(err, &applicationError))
 		assert.False(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
@@ -209,7 +211,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -239,7 +241,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -250,7 +252,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 
 		response := &async.V1betaDescribeOperationOK{
-			Payload: &models2.OperationV1beta{
+			Payload: &cvpmodels.OperationV1beta{
 				Name: "test-operation-name",
 				Done: nillable.GetBoolPtr(true),
 			},
@@ -275,7 +277,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -286,10 +288,10 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 
 		response := &async.V1betaDescribeOperationOK{
-			Payload: &models2.OperationV1beta{
+			Payload: &cvpmodels.OperationV1beta{
 				Name: "test-operation-name",
 				Done: nillable.GetBoolPtr(true),
-				Error: &models2.StatusV1Beta{
+				Error: &cvpmodels.StatusV1Beta{
 					Code:    float64(500),
 					Message: "Internal Server Error",
 				},
@@ -301,7 +303,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		err := activity.PollHandleResourceEventSDEOperationActivity(ctx, params, result)
 		var applicationError *temporal.ApplicationError
 		assert.NotNil(tt, err)
-		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, vsaerrors.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
 		assert.ErrorContains(tt, err, "Client error during HandleResouceEvent")
@@ -320,7 +322,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -331,7 +333,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 
 		response := &async.V1betaDescribeOperationOK{
-			Payload: &models2.OperationV1beta{
+			Payload: &cvpmodels.OperationV1beta{
 				Name: "test-operation-name",
 			},
 		}
@@ -356,7 +358,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -374,7 +376,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		assert.ErrorContains(tt, err, "Error describing SDE Operation")
 
 		var applicationError *temporal.ApplicationError
-		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, vsaerrors.As(err, &applicationError))
 		assert.False(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
@@ -392,7 +394,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -407,7 +409,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		assert.ErrorContains(tt, err, "Invalid Operation Name")
 
 		var applicationError *temporal.ApplicationError
-		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, vsaerrors.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
@@ -425,7 +427,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          models.StateOff,
+			State:          coremodels.StateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -449,10 +451,10 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		params := &common.HandleResourceEventParams{
 			ResourceType: common.ResourceStateV1ResourceTypeKmsConfig,
 			ResourceId:   "test-resource-id",
-			State:        models.StateOff,
+			State:        coremodels.StateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, models.StateOff).Return(nil, nil)
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, coremodels.StateOff).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -509,7 +511,7 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		mockSE.On("UpdatePoolState", ctx, &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
-			}, State:     coremodels.LifeCycleStateDisabled,
+			}, State: coremodels.LifeCycleStateDisabled,
 			StateDetails: coremodels.LifeCycleStateDisabledDetails,
 		}, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(nil, nil)
 
@@ -671,6 +673,32 @@ func Test_HandleResourceEventCheckForVCPActivity(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
+	t.Run("HandleResourceEventCheckForVCPActivity_BackupPolicyExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeBackupPolicy,
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-123",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-id"},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
+
+		result, err := activity.HandleResourceEventCheckForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
 	t.Run("HandleResourceEventCheckForVCPActivity_UnsupportedResourceType", func(tt *testing.T) {
 		ctx := context.Background()
 		mockSE := database.NewMockStorage(tt)
@@ -760,7 +788,7 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 		mockSE.On("UpdatePoolState", ctx, &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
-			}, State:     coremodels.LifeCycleStateREADY,
+			}, State: coremodels.LifeCycleStateREADY,
 			StateDetails: coremodels.LifeCycleStateAvailableDetails,
 		}, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails).Return(nil, nil)
 
@@ -1234,9 +1262,9 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 			State:     common.ResourceStateEnabled,
 		}
 
-		filter := dbtuils.CreateFilterWithConditions(
-			dbtuils.NewFilterCondition("account_id", "=", volume.AccountID),
-			dbtuils.NewFilterCondition("volume_id", "=", volume.ID))
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
 
 		mockSE.On("ListVolumeReplications", ctx, *filter).Return([]*datamodel.VolumeReplication{volumeReplication}, nil)
 		mockSE.On("DeleteVolumeReplication", ctx, volumeReplication).Return(volumeReplication, nil)
@@ -1260,9 +1288,9 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 			State:     common.ResourceStateEnabled,
 		}
 
-		filter := dbtuils.CreateFilterWithConditions(
-			dbtuils.NewFilterCondition("account_id", "=", volume.AccountID),
-			dbtuils.NewFilterCondition("volume_id", "=", volume.ID))
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
 
 		mockSE.On("ListVolumeReplications", ctx, *filter).Return(nil, errors.New("listing failed"))
 
@@ -1296,9 +1324,9 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 			State:     common.ResourceStateEnabled,
 		}
 
-		filter := dbtuils.CreateFilterWithConditions(
-			dbtuils.NewFilterCondition("account_id", "=", volume.AccountID),
-			dbtuils.NewFilterCondition("volume_id", "=", volume.ID))
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
 
 		mockSE.On("ListVolumeReplications", ctx, *filter).Return([]*datamodel.VolumeReplication{volumeReplication}, nil)
 		mockSE.On("DeleteVolumeReplication", ctx, volumeReplication).Return(nil, errors.New("deletion failed"))
@@ -1306,5 +1334,529 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 		err := activity.DeleteReplicationsForVolume(ctx, volume)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "deletion failed")
+	})
+}
+
+// Unit tests for checkBackupPolicyExistence
+func TestCheckBackupPolicyExistence(t *testing.T) {
+	t.Run("BackupPolicyExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-id"},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
+
+		result, err := activity.checkBackupPolicyExistence(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("BackupPolicyNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, errors.NewNotFoundErr("BackupPolicy", nil))
+
+		result, err := activity.checkBackupPolicyExistence(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "BackupPolicy not found")
+		assert.IsType(tt, &temporal.ApplicationError{}, err)
+	})
+
+	t.Run("GetAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(nil, errors.New("account error"))
+
+		result, err := activity.checkBackupPolicyExistence(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "account error")
+	})
+
+	t.Run("UnexpectedErrorWhileRetrievingBackupPolicy", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, errors.New("unexpected error"))
+
+		result, err := activity.checkBackupPolicyExistence(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "unexpected error")
+	})
+}
+
+func Test_HandleBackupPolicyResourceEvent(t *testing.T) {
+	t.Run("HandleBackupPolicyResourceEventOFF_PausesSchedule", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeBackupPolicy,
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: true,
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, account.ID).Return(backupPolicy, nil)
+
+		// Mock the scheduler describe call to return that it's currently not paused
+		mockScheduler.On("Describe", ctx, mock.AnythingOfType("scheduler.DescribeScheduleParams")).Return(&scheduler.ScheduleDescription{Paused: false}, nil)
+		// Mock the scheduler pause call
+		mockScheduler.On("Pause", ctx, mock.AnythingOfType("scheduler.PauseScheduleParams")).Return(&scheduler.ScheduleResponse{}, nil)
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("HandleBackupPolicyResourceEventON_UnpausesScheduleWhenEnabled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeBackupPolicy,
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: true,
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, account.ID).Return(backupPolicy, nil)
+
+		// Mock the scheduler describe call to return that it's currently paused
+		mockScheduler.On("Describe", ctx, mock.AnythingOfType("scheduler.DescribeScheduleParams")).Return(&scheduler.ScheduleDescription{Paused: true}, nil)
+		// Mock the scheduler unpause call
+		mockScheduler.On("Unpause", ctx, mock.AnythingOfType("scheduler.UnpauseScheduleParams")).Return(&scheduler.ScheduleResponse{}, nil)
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("HandleBackupPolicyResourceEventON_SkipsUnpauseWhenDisabled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeBackupPolicy,
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: false, // Policy is disabled in DB
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, account.ID).Return(backupPolicy, nil)
+
+		// Scheduler unpause should NOT be called - no mock setup for Unpause
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+		mockScheduler.AssertExpectations(tt) // Should pass because Unpause was not called
+	})
+
+	t.Run("HandleBackupPolicyResourceEventOFF_SkipsPauseWhenDisabled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeBackupPolicy,
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: false, // Policy is disabled in DB
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, account.ID).Return(backupPolicy, nil)
+
+		// Scheduler pause should NOT be called - no mock setup for Pause
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+		mockScheduler.AssertExpectations(tt) // Should pass because Pause was not called
+	})
+
+	t.Run("HandleBackupPolicyResourceEventOFF_SkipsPauseWhenAlreadyPaused", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeBackupPolicy,
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: true, // Policy is enabled in DB
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, account.ID).Return(backupPolicy, nil)
+
+		// Mock the scheduler describe call to return that it's already paused
+		mockScheduler.On("Describe", ctx, mock.AnythingOfType("scheduler.DescribeScheduleParams")).Return(&scheduler.ScheduleDescription{Paused: true}, nil)
+		// Scheduler pause should NOT be called because it's already paused
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("HandleBackupPolicyResourceEventON_SkipsUnpauseWhenAlreadyActive", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeBackupPolicy,
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: true, // Policy is enabled in DB
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, account.ID).Return(backupPolicy, nil)
+
+		// Mock the scheduler describe call to return that it's already active (not paused)
+		mockScheduler.On("Describe", ctx, mock.AnythingOfType("scheduler.DescribeScheduleParams")).Return(&scheduler.ScheduleDescription{Paused: false}, nil)
+		// Scheduler unpause should NOT be called because it's already active
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+		mockScheduler.AssertExpectations(tt)
+	})
+}
+
+func Test_HandleResourceEventsOFFForVCPActivity_UnsupportedType(t *testing.T) {
+	ctx := context.Background()
+	mockSE := database.NewMockStorage(t)
+	activity := &ResourceEventsActivity{SE: mockSE}
+
+	params := &common.HandleResourceEventParams{
+		ResourceType: "UnsupportedType",
+	}
+
+	result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
+	assert.False(t, result)
+	assert.NotNil(t, err)
+	assert.ErrorContains(t, err, "unsupported resource type")
+}
+
+func Test_HandleResourceEventsONForVCPActivity_UnsupportedType(t *testing.T) {
+	ctx := context.Background()
+	mockSE := database.NewMockStorage(t)
+	activity := &ResourceEventsActivity{SE: mockSE}
+
+	params := &common.HandleResourceEventParams{
+		ResourceType: "UnsupportedType",
+	}
+
+	result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+	assert.False(t, result)
+	assert.NotNil(t, err)
+	assert.ErrorContains(t, err, "unsupported resource type")
+}
+
+func Test_HandleBackupPolicyErrorCases(t *testing.T) {
+	t.Run("GetAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(nil, errors.New("account error"))
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "account error")
+	})
+
+	t.Run("GetBackupPolicyFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, errors.New("backup policy error"))
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "backup policy error")
+	})
+
+	t.Run("GetBackupPolicyNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, errors.NewNotFoundErr("BackupPolicy", nil))
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+	})
+
+	t.Run("PauseBackupPolicyScheduleFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: true,
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
+
+		// Mock scheduler calls for pause operation
+		mockScheduler.On("Describe", ctx, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: false}, nil)
+		mockScheduler.On("Pause", ctx, mock.Anything).Return(nil, errors.New("pause failed"))
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "pause failed")
+	})
+
+	t.Run("UnpauseBackupPolicyScheduleFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: true,
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
+
+		// Mock scheduler calls for unpause operation
+		mockScheduler.On("Describe", ctx, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: true}, nil)
+		mockScheduler.On("Unpause", ctx, mock.Anything).Return(nil, errors.New("unpause failed"))
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "unpause failed")
+	})
+
+	t.Run("UnknownState", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: true,
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
+
+		result, err := activity.handleBackupPolicy(ctx, params, "unknown-state", "unknown-details")
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "unknown state for backup policy resource event")
+	})
+
+	t.Run("BackupPolicyDisabledInDatabase_SkipPause", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: false, // Disabled in database
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("BackupPolicyDisabledInDatabase_SkipUnpause", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		activity := &ResourceEventsActivity{SE: mockSE, Scheduler: mockScheduler}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-backup-policy-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
+			PolicyEnabled: false, // Disabled in database
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
+
+		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
 	})
 }
