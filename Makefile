@@ -44,7 +44,7 @@ vcp-db-migrate-linux:
 
 .PHONY: vcp-cloudrun-deployer-linux-image
 vcp-cloudrun-deployer-linux-image: vcp-cloudrun-deployer-linux
-	docker buildx build -t ${IMAGE_TAG_GOOGLE_PROXY_MIGRATE} --platform linux/amd64 -f core/cloud-run-deployer.Dockerfile .
+	docker buildx build -t ${IMAGE_TAG_GOOGLE_CLOUD_RUN} --platform linux/amd64 -f core/cloud-run-deployer.Dockerfile .
 
 .PHONY: vcp-cloudrun-deployer-linux
 vcp-cloudrun-deployer-linux:
