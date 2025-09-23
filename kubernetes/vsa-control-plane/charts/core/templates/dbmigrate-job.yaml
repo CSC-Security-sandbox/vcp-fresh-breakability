@@ -153,10 +153,31 @@ spec:
               value: {{ .Values.database.name | default "vcp" | quote }}
             - name: DB_TYPE
               value: {{ .Values.database.type | default "postgres" | quote }}
+            {{- if and (.Values.enabled) (.Values.metricsEnabled) }}
+            - name: METRICS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: METRICS_DB_USER
+            - name: METRICS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: METRICS_DB_PASSWORD
+            - name: METRICS_DB_HOST
+              value: {{ .Values.database.metricsHost | default "localhost" | quote }}
+            - name: METRICS_DB_PORT
+              value: {{ .Values.database.metricsPort | default "5432" | quote }}
+            - name: METRICS_DB_NAME
+              value: {{ .Values.database.metricsUser | default "vcp" | quote }}
+            - name: METRICS_DB_TYPE
+              value: {{ .Values.database.type | default "postgres" | quote }}
             - name: LOCAL_REGION
               value: {{ .Values.global.coreConfig.localRegion | default "" | quote }}
             - name: REGION_NUMBER_MAP
               value: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
+            - name: METRICS_ENABLED
+              value: {{ .Values.metricsEnabled | quote }}
           resources:
             limits:
               cpu: {{ .Values.resources.limits.cpu }}
@@ -164,5 +185,6 @@ spec:
             requests:
               cpu: {{ .Values.resources.requests.cpu }}
               memory: {{ .Values.resources.requests.memory }}
+          {{- end }}
       restartPolicy: Never
 {{- end }}

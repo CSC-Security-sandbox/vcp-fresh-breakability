@@ -1,5 +1,6 @@
 imageVersion ?= latest
 IMAGE_TAG_GOOGLE_PROXY_MIGRATE := vcp-db-migrate:${imageVersion}
+IMAGE_TAG_GOOGLE_CLOUD_RUN:= vcp-cloudrun-deployer:${imageVersion}
 GHVSA_PAT := ${GHVSA_PAT}
 
 # Tool versions
@@ -39,6 +40,15 @@ vcp-db-migrate-image: vcp-db-migrate-linux
 .PHONY: vcp-db-migrate-linux
 vcp-db-migrate-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o core/build/linux/bin/vcp-db-migrate ./tools/migrate
+
+
+.PHONY: vcp-cloudrun-deployer-linux-image
+vcp-cloudrun-deployer-linux-image: vcp-cloudrun-deployer-linux
+	docker buildx build -t ${IMAGE_TAG_GOOGLE_PROXY_MIGRATE} --platform linux/amd64 -f core/cloud-run-deployer.Dockerfile .
+
+.PHONY: vcp-cloudrun-deployer-linux
+vcp-cloudrun-deployer-linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o core/build/linux/bin/vcp-cloudrun-deployer ./tools/telemetry-deployer
 
 .PHONY: generate-google-proxy
 generate-google-proxy:

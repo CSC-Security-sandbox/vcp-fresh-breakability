@@ -47,6 +47,12 @@ on:
       GCP_vcp_db_migrate_URL:
         description: "URL of the vcp-db-migrate image in GCP"
         value: ${{ jobs.build_and_publish.outputs.GCP_vcp_db_migrate_URL }}
+      GHCR_vcp_cloudrun_deployer_URL:
+        description: "URL of the vcp-cloudrun-deployer image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_cloudrun_deployer_URL }}
+      GCP_vcp_db_migrate_URL:
+        description: "URL of the vcp-cloudrun-deployer image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_cloudrun_deployer_URL }}
       GHCR_vcp_worker_URL:
         description: "URL of the vcp-worker image in GHCR"
         value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_worker_URL }}
@@ -88,7 +94,7 @@ jobs:
     name: Build and Publish Docker Images
     runs-on: [self-hosted, linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v35
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v37
       options: --user root
     permissions:
       contents: read
@@ -101,6 +107,8 @@ jobs:
       GCP_google_proxy_URL: ${{ steps.generate_output_urls.outputs.GCP_google-proxy_URL }}
       GHCR_vcp_db_migrate_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-db-migrate_URL }}
       GCP_vcp_db_migrate_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-db-migrate_URL }}
+      GHCR_vcp_cloudrun_deployer_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-cloudrun-deployer_URL }}
+      GCP_vcp_cloudrun_deployer_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-cloudrun-deployer_URL }}
       GHCR_vcp_worker_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_URL }}
       GCP_vcp_worker_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_URL }}
       GHCR_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-control-plane_HELM_URL }}
@@ -127,13 +135,13 @@ jobs:
           make build-all-binaries-prod 
           skaffold build
           make vcp-db-migrate-image imageVersion=${{ inputs.tag }}
-          
+          make vcp-cloudrun-deployer-linux-image imageVersion=${{ inputs.tag }}
 
       - name: Check if digest exists in the gcloud or not
         shell: bash -e {0}
         run: |
           ALL_DIGESTS_EXIST=1
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer")
           for IMAGE in "${IMAGES[@]}"; do
               gcpDigest=$(docker inspect "$IMAGE:${{ inputs.tag }}" | jq -r '.[] | .RepoDigests[] | select(contains("-docker.pkg.dev"))')
               echo "gcp digest is $gcpDigest"
@@ -182,7 +190,7 @@ jobs:
           
           token_value=$(echo "$token" | jq -r '.token')
           
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer")
           for IMAGE in "${IMAGES[@]}"; do
             digest=$(curl -s -H "Authorization: Bearer $token_value" \
             -H "Accept: application/vnd.oci.image.manifest.v1+json" \
@@ -195,7 +203,7 @@ jobs:
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer")
           for IMAGE in "${IMAGES[@]}"; do
             DIGEST=$(gcloud artifacts docker images describe ${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_GCP_REPO }}/${IMAGE}:${{ inputs.tag }} \
               --format="value(image_summary.digest)")
@@ -213,7 +221,7 @@ jobs:
         run: |
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer")
           
           for IMAGE in "${IMAGES[@]}"; do
             # Sign GHCR image
@@ -299,7 +307,7 @@ jobs:
         id: generate_output_urls
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer")
           for IMAGE in "${IMAGES[@]}"; do
             echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
             echo "GCP_${IMAGE}_URL=${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_GCP_REPO }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
@@ -358,7 +366,7 @@ jobs:
       - name: Run BlackDuck Scan for container images
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "cloud-backup-adc" "telemetry")
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "cloud-backup-adc" "telemetry" "vcp-cloudrun-deployer")
           for IMAGE in "${IMAGES[@]}"; do
             echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.7" || echo "${{ inputs.tag }}")"
             docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
@@ -398,6 +406,7 @@ jobs:
           - "vcp-db-migrate"
           - "vcp-worker"
           - "cloud-backup-adc"
+          - "vcp-cloudrun-deployer"
 
     steps:
       - name: Log in to the Container registry

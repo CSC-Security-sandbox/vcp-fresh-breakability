@@ -244,6 +244,7 @@ jobs:
           skaffold config set default-repo ""
           skaffold build || exit 1
           make vcp-db-migrate-image imageVersion=test-build || exit 1
+          make vcp-cloudrun-deployer-linux-image imageVersion=test-build || exit 1
 
   lint:
     runs-on: [self-hosted, linux]

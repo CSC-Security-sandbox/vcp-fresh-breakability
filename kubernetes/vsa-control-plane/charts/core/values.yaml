@@ -4,7 +4,7 @@ ttlSecondsAfterFinished: 3600
 msiEnabled: false
 msiUser: db-msi-user
 serviceAccountName: vcp-core
-
+metricsEnabled: false
 replicaCount: 1
 
 images:
@@ -16,6 +16,12 @@ images:
     pullPolicy: IfNotPresent
   vcpDbMigrate:
     name: vcp-db-migrate
+    tag: 0.0.0
+    digest: ""
+    secondary: true
+    pullPolicy: IfNotPresent
+  telemetryDeployer:
+    name: telemetry-deployer
     tag: 0.0.0
     digest: ""
     secondary: true
@@ -32,12 +38,16 @@ database:
   host: postgres-service
   user: vcp-db-user
   password: vcp-db-pass
+  metricsUser: vcp-db-user
+  metricsPassword: vcp-db-pass
   dbAdminUser: dbAdminUser
   dbAdminPassword: dbAdminPassword
   name: vcp
   port: 5432
   type: postgres
-
+  metricsHost: postgres-service
+  metricsPort: 5432
+  metricsDbName: metrics
 resources:
   limits:
     cpu: 1000m
@@ -45,6 +55,32 @@ resources:
   requests:
     cpu: 200m
     memory: 256Mi
+
+telemetryDeployer:
+  enabled: false
+  gcpProxyPort: 8090
+  serviceName: telemetry-service
+  image: us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:0.0.0-DEV.15
+  projectID: netapp-au-se1-autopush-sde-tst
+  region: australia-southeast1
+  minInstances: 1
+  maxInstances: 3
+  runMigrationOnStart: false
+  rootUrl: "https://servicecontrol.googleapis.com"
+  operationBatchSize: 200
+  pusherServiceName: "autopush-netapp.sandbox.googleapis.com"
+  pusherServiceProject: "netapp-au-se1-autopush-sde-tst"
+  enableVolumeMetrics: false
+  pushBatchSize: 1000
+  maxGoogleBillingPushRetry: 5
+  pageSize: 1000
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
 
 # Annotations
 serviceAccountAnnotations:

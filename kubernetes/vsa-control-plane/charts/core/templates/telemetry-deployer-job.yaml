@@ -1,0 +1,135 @@
+{{- if and (.Values.enabled) (.Values.telemetryDeployer.enabled) }}
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: vcp-telemetry-deployer
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- if .Release.IsUpgrade }}
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- else }}
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
+    {{- include "vcp-telemetry-deployer.kubernetes.annotations" . | nindent 4 }}
+    {{- include "vcp-telemetry-deployer.helmchart.annotations" . | nindent 4 }}
+  labels:
+    {{- include "vcp-telemetry-deployer.kubernetes.labels" . | nindent 4 }}
+    {{- include "vcp-telemetry-deployer.helmchart.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished | default 3600 }}
+  template:
+    metadata:
+      annotations:
+        {{- include "vcp-telemetry-deployer.kubernetes.annotations" . | nindent 8 }}
+        {{- include "vcp-telemetry-deployer.helmchart.annotations" . | nindent 8 }}
+      labels:
+        {{- include "vcp-telemetry-deployer.kubernetes.labels" . | nindent 8 }}
+        {{- include "vcp-telemetry-deployer.helmchart.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: vcp-telemetry-deployer
+          command: ["/telemetry-deployer"]
+          args:
+            - "--service={{ .Values.telemetryDeployer.serviceName | default "vsa-harvest-otel" }}"
+            - "--image={{ .Values.telemetryDeployer.image | default "us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:25092.0.0-DEV.15" }}"
+            - "--project={{ .Values.telemetryDeployer.projectID | default "netapp-au-se1-autopush-sde-tst" }}"
+            - "--region={{ .Values.telemetryDeployer.region | default "australia-southeast1" }}"
+            - "--min-instances={{ .Values.telemetryDeployer.minInstances | default 0 }}"
+          {{- if .Values.images.telemetryDeployer.secondary }}
+          image: "{{ include "containerImage" (list . (dict "name" "telemetryDeployer" "secondary" true)) | trim }}"
+          {{- else }}
+          image: "{{ include "containerImage" (list . (dict "name" "telemetryDeployer" "secondary" false)) | trim }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.images.telemetryDeployer.pullPolicy | default "IfNotPresent" }}
+          env:
+            - name: GCP_PROXY_PORT
+              value: {{ .Values.telemetryDeployer.gcpProxyPort | default "8090" | quote }}
+            
+            # Database configuration
+            - name: DB_TYPE
+              value: {{ .Values.database.type | default "postgres" | quote }}
+            - name: DB_HOST
+              value: {{ .Values.database.host | default "postgres.default.svc.cluster.local" | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | default "5432" | quote }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              value: {{ .Values.database.name | default "vcp" | quote }}
+            
+            # Migration configuration
+            - name: DB_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_ADMIN_USER
+            - name: DB_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_ADMIN_PASSWORD
+            
+            # Metrics database configuration
+            - name: METRICS_DB_TYPE
+              value: {{ .Values.database.type | default "postgres" | quote }}
+            - name: METRICS_DB_HOST
+              value: {{ .Values.database.metricsHost | default "postgres.default.svc.cluster.local" | quote }}
+            - name: METRICS_DB_PORT
+              value: {{ .Values.database.metricsPort | default "5432" | quote }}
+            - name: METRICS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: METRICS_DB_USER
+            - name: METRICS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: METRICS_DB_PASSWORD
+            - name: METRICS_DB_NAME
+              value: {{ .Values.database.metricsDbName | default "metrics" | quote }}
+            # Runtime configuration
+            - name: RUN_MIGRATION_ON_START
+              value: {{ .Values.telemetryDeployer.runMigrationOnStart | default "true" | quote }}
+            - name: ROOT_URL
+              value: {{ .Values.telemetryDeployer.rootUrl | default "https://servicecontrol.googleapis.com" | quote }}
+            - name: OPERATION_BATCH_SIZE
+              value: {{ .Values.telemetryDeployer.operationBatchSize | default "200" | quote }}
+            - name: PUSHER_SERVICE_NAME
+              value: {{ .Values.telemetryDeployer.pusherServiceName | default "autopush-netapp.sandbox.googleapis.com" | quote }}
+            - name: PUSHER_SERVICE_PROJECT
+              value: {{ .Values.telemetryDeployer.pusherServiceProject | default "netapp-au-se1-autopush-sde-tst" | quote }}
+            - name: LOCAL_REGION
+              value: {{ .Values.global.coreConfig.localRegion | default "us-west2" | quote }}
+            - name: ENABLE_VOLUME_METRICS
+              value: {{ .Values.telemetryDeployer.enableVolumeMetrics | default "false" | quote }}
+            - name: PUSH_BATCH_SIZE
+              value: {{ .Values.telemetryDeployer.pushBatchSize | default "1000" | quote }}
+            - name: MAX_GOOGLE_BILLING_PUSH_RETRY
+              value: {{ .Values.telemetryDeployer.maxGoogleBillingPushRetry | default "5" | quote }}
+            - name: PAGE_SIZE
+              value: {{ .Values.telemetryDeployer.pageSize | default "1000" | quote }}
+          resources:
+            limits:
+              cpu: {{ .Values.telemetryDeployer.resources.limits.cpu | default .Values.resources.limits.cpu }}
+              memory: {{ .Values.telemetryDeployer.resources.limits.memory | default .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.telemetryDeployer.resources.requests.cpu | default .Values.resources.requests.cpu }}
+              memory: {{ .Values.telemetryDeployer.resources.requests.memory | default .Values.resources.requests.memory }}
+      
+      restartPolicy: Never
+{{- end }} 
