@@ -17,7 +17,7 @@ data:
                 prefix: custom.googleapis.com
                 skip_create_descriptor: true
             sending_queue:
-                enabled: false
+                enabled: {{.Values.harvestConfig.sendingQueueEnabled}}
                 queue_size: 40000
     extensions:
         health_check:

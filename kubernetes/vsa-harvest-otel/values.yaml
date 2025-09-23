@@ -80,6 +80,7 @@ harvestConfig:
   coreApiBaseUrl: "core-service.vcp.svc.cluster.local"
   coreApiPort: "8080"
   coreApiBatchSize: "1000"
+  sendingQueueEnabled: true
 
 lifecycleHooks: {}
 
