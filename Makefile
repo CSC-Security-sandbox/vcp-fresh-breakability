@@ -95,6 +95,7 @@ build-all-binaries-dev:
 		vsa-binaries-builder sh -c '\
 		go build -gcflags="all=-N -l" -o /src/app/vcp-worker ./worker/ && \
 		go build -gcflags="all=-N -l" -o /src/app/google-proxy ./google-proxy/ && \
+		go build -gcflags="all=-N -l" -o /src/app/core ./core && \
 		go build -gcflags="all=-N -l" -o /src/app/telemetry ./telemetry/ && \
 		go build -gcflags="all=-N -l" -o /src/app/ontap-proxy ./ontap-proxy/'
 
@@ -156,6 +157,20 @@ build-ontap-proxy:
 		-e GOCACHE=/go-build-cache \
 		-e GOMODCACHE=/go/pkg/mod \
 		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/ontap-proxy ./ontap-proxy'
+
+.PHONY: build-core
+build-core:
+	@echo "Building core service..."
+	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all.dev -t vsa-binaries-builder builder
+	mkdir -p app
+	docker run --rm \
+		-e GHVSA_PAT=$(GHVSA_PAT) \
+		-v $(PWD):/src \
+		-v $(GOCACHE):/go-build-cache \
+		-v $(GOMODCACHE):/go/pkg/mod \
+		-e GOCACHE=/go-build-cache \
+		-e GOMODCACHE=/go/pkg/mod \
+		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/core ./core'
 		
 .PHONY: build-worker
 build-worker:
@@ -180,6 +195,11 @@ base-image:
 google-proxy-dev-image: build-google-proxy base-image
 	@echo "Building google-proxy development Docker image..."
 	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f google-proxy/Dockerfile.dev -t $(DEV_REGISTRY)/google-proxy:$(IMAGE_TAG) .
+
+.PHONY: core-dev-image
+core-dev-image: build-core base-image
+	@echo "Building core development Docker image..."
+	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f core/Dockerfile.dev -t $(DEV_REGISTRY)/core:$(IMAGE_TAG) .
 
 .PHONY: worker-dev-image
 worker-dev-image: build-worker base-image

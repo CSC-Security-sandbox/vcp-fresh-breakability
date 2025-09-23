@@ -197,7 +197,7 @@ profiles:
         - image: core
           context: .
           docker:
-            dockerfile: core/Dockerfile
+            dockerfile: core/Dockerfile.dev
           requires:
             - image: base
               alias: BASE

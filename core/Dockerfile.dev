@@ -1,7 +1,7 @@
 ARG BASE
 FROM $BASE
 
-COPY artifacts/core /app
+COPY app/core /app
 COPY common/vsa_config common/vsa_config
 
 # Copy Air config for live reload
