@@ -50,7 +50,7 @@ on:
       GHCR_vcp_cloudrun_deployer_URL:
         description: "URL of the vcp-cloudrun-deployer image in GHCR"
         value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_cloudrun_deployer_URL }}
-      GCP_vcp_db_migrate_URL:
+      GCP_vcp_cloudrun_deployer_URL:
         description: "URL of the vcp-cloudrun-deployer image in GCP"
         value: ${{ jobs.build_and_publish.outputs.GCP_vcp_cloudrun_deployer_URL }}
       GHCR_vcp_worker_URL:
