@@ -270,7 +270,6 @@ func _validateReplicationURIList(param common.GetMultipleReplicationsParams) err
 
 func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenserver.ReplicationV1beta {
 	replicationResp := gcpgenserver.ReplicationV1beta{
-		ReplicationId:       gcpgenserver.NewOptString(replication.ReplicationID),
 		ResourceId:          gcpgenserver.NewOptString(replication.ResourceID),
 		Created:             gcpgenserver.NewOptDateTime(time.Time(replication.Created)),
 		State:               gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaState(replication.State)),
@@ -280,6 +279,9 @@ func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenser
 		ReplicationSchedule: gcpgenserver.NewOptReplicationV1betaReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(replication.ReplicationSchedule)),
 		Role:                gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRole(replication.Role)),
 		StateDetailsCode:    gcpgenserver.NewOptInt32(replication.StateDetailsCode),
+	}
+	if replication.ReplicationID != "" {
+		replicationResp.ReplicationId = gcpgenserver.NewOptString(replication.ReplicationID)
 	}
 	if replication.ClusterLocation != nil {
 		replicationResp.ClusterLocation = gcpgenserver.NewOptString(*replication.ClusterLocation)

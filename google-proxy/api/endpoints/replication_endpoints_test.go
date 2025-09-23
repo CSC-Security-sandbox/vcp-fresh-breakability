@@ -524,6 +524,59 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, "replication-id-1", successResult.Replications[0].ReplicationId.Value)
 	})
+	t.Run("WhenGetMultipleReplicationsSucceedsWithBlankReplId", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
+		}
+		clusterLocation := "cluster-location"
+		description := "description"
+		destination := models.ReplicationVolumeInformationV1beta{
+			VolumeName: "volume-name",
+			VolumeID:   "volume-id",
+		}
+		mockResponse := &replications.V1betaGetMultipleReplicationsOK{
+			Payload: &replications.V1betaGetMultipleReplicationsOKBody{
+				Replications: []*models.ReplicationV1beta{
+					{
+						ClusterLocation: &clusterLocation,
+						ReplicationID:   "",
+						ResourceID:      "replication-id-1",
+						Description:     &description,
+						Destination:     &destination,
+					},
+				},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaGetMultipleReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, "replication-id-1", successResult.Replications[0].ResourceId.Value)
+	})
 }
 
 func TestV1betaGetReplicationCount(t *testing.T) {
