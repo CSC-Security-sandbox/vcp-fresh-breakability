@@ -1477,3 +1477,159 @@ func TestUpdateKmsConfigStateForHandleResource_StateDetails(t *testing.T) {
 		assert.Equal(tt, coremodels.LifeCycleStateDisabledDetails, result.StateDetails)
 	})
 }
+
+func TestIsStateReady(t *testing.T) {
+	t.Run("WhenStateIsReady_ShouldReturnNil", func(tt *testing.T) {
+		// Test states that are considered "ready" - should return nil (no error)
+		readyStates := []string{
+			models.LifeCycleStateAvailable,
+			models.LifeCycleStateCreated,
+			models.LifeCycleStateDisabled,
+			models.LifeCycleStateInUse,
+			"", // empty state should be considered ready
+		}
+
+		for _, state := range readyStates {
+			tt.Run(fmt.Sprintf("State_%s", state), func(t *testing.T) {
+				err := isStateReady(state)
+				assert.NoError(t, err, "Expected no error for state: %s", state)
+			})
+		}
+	})
+
+	t.Run("WhenStateIsDeleting_ShouldReturnNotFoundError", func(tt *testing.T) {
+		err := isStateReady(models.LifeCycleStateDeleting)
+
+		assert.NotNil(tt, err, "Expected error for deleting state")
+		assert.True(tt, customerrors.IsNotFoundErr(err), "Expected NotFoundErr for deleting state")
+		assert.Contains(tt, err.Error(), "Config does not exist", "Error message should indicate config doesn't exist")
+	})
+
+	t.Run("WhenStateIsDeleted_ShouldReturnNotFoundError", func(tt *testing.T) {
+		err := isStateReady(models.LifeCycleStateDeleted)
+
+		assert.NotNil(tt, err, "Expected error for deleted state")
+		assert.True(tt, customerrors.IsNotFoundErr(err), "Expected NotFoundErr for deleted state")
+		assert.Contains(tt, err.Error(), "Config does not exist", "Error message should indicate config doesn't exist")
+	})
+
+	t.Run("WhenStateIsError_ShouldReturnUserInputValidationError", func(tt *testing.T) {
+		err := isStateReady(models.LifeCycleStateError)
+
+		assert.NotNil(tt, err, "Expected error for error state")
+		assert.True(tt, customerrors.IsUserInputValidationErr(err), "Expected UserInputValidationErr for error state")
+		assert.Contains(tt, err.Error(), "Can not update a KmsConfig which is in creating or error state",
+			"Error message should indicate config is in error state")
+	})
+
+	t.Run("WhenStateIsCreating_ShouldReturnUserInputValidationError", func(tt *testing.T) {
+		err := isStateReady(models.LifeCycleStateCreating)
+
+		assert.NotNil(tt, err, "Expected error for creating state")
+		assert.True(tt, customerrors.IsUserInputValidationErr(err), "Expected UserInputValidationErr for creating state")
+		assert.Contains(tt, err.Error(), "Can not update a KmsConfig which is in creating or error state",
+			"Error message should indicate config is in creating state")
+	})
+
+	t.Run("WhenStateIsUpdating_ShouldReturnUserInputValidationError", func(tt *testing.T) {
+		err := isStateReady(models.LifeCycleStateUpdating)
+
+		assert.NotNil(tt, err, "Expected error for updating state")
+		assert.True(tt, customerrors.IsUserInputValidationErr(err), "Expected UserInputValidationErr for updating state")
+		assert.Contains(tt, err.Error(), "GCP KMS configuration is already transitioning between states",
+			"Error message should indicate config is transitioning")
+	})
+
+	t.Run("WhenStateIsMigrating_ShouldReturnUserInputValidationError", func(tt *testing.T) {
+		err := isStateReady(models.LifeCycleStateMigrating)
+
+		assert.NotNil(tt, err, "Expected error for migrating state")
+		assert.True(tt, customerrors.IsUserInputValidationErr(err), "Expected UserInputValidationErr for migrating state")
+		assert.Contains(tt, err.Error(), "GCP KMS configuration is already transitioning between states",
+			"Error message should indicate config is transitioning")
+	})
+
+	t.Run("WhenStateIsUnknown_ShouldReturnNil", func(tt *testing.T) {
+		// Test with unknown/custom states - should return nil as they're not explicitly handled
+		unknownStates := []string{
+			"unknown_state",
+			"custom_state",
+			"invalid_state",
+		}
+
+		for _, state := range unknownStates {
+			tt.Run(fmt.Sprintf("State_%s", state), func(t *testing.T) {
+				err := isStateReady(state)
+				assert.NoError(t, err, "Expected no error for unknown state: %s", state)
+			})
+		}
+	})
+
+	t.Run("ErrorTypes_ShouldBeCorrect", func(tt *testing.T) {
+		// Test that the correct error types are returned for different categories of states
+		testCases := []struct {
+			state       string
+			expectError bool
+			errorCheck  func(error) bool
+			description string
+		}{
+			{
+				state:       models.LifeCycleStateDeleting,
+				expectError: true,
+				errorCheck:  customerrors.IsNotFoundErr,
+				description: "Deleting state should return NotFoundErr",
+			},
+			{
+				state:       models.LifeCycleStateDeleted,
+				expectError: true,
+				errorCheck:  customerrors.IsNotFoundErr,
+				description: "Deleted state should return NotFoundErr",
+			},
+			{
+				state:       models.LifeCycleStateError,
+				expectError: true,
+				errorCheck:  customerrors.IsUserInputValidationErr,
+				description: "Error state should return UserInputValidationErr",
+			},
+			{
+				state:       models.LifeCycleStateCreating,
+				expectError: true,
+				errorCheck:  customerrors.IsUserInputValidationErr,
+				description: "Creating state should return UserInputValidationErr",
+			},
+			{
+				state:       models.LifeCycleStateUpdating,
+				expectError: true,
+				errorCheck:  customerrors.IsUserInputValidationErr,
+				description: "Updating state should return UserInputValidationErr",
+			},
+			{
+				state:       models.LifeCycleStateMigrating,
+				expectError: true,
+				errorCheck:  customerrors.IsUserInputValidationErr,
+				description: "Migrating state should return UserInputValidationErr",
+			},
+			{
+				state:       models.LifeCycleStateAvailable,
+				expectError: false,
+				errorCheck:  nil,
+				description: "Available state should return no error",
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.description, func(t *testing.T) {
+				err := isStateReady(tc.state)
+
+				if tc.expectError {
+					assert.NotNil(t, err, "Expected error for state: %s", tc.state)
+					if tc.errorCheck != nil {
+						assert.True(t, tc.errorCheck(err), "Error type check failed for state: %s", tc.state)
+					}
+				} else {
+					assert.NoError(t, err, "Expected no error for state: %s", tc.state)
+				}
+			})
+		}
+	})
+}

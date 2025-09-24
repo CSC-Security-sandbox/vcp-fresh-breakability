@@ -12,7 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
@@ -188,12 +188,12 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		activity := &ResourceEventsActivity{SE: mockSE}
 		_, err := activity.HandleResourceEventsForSDEActivity(ctx, params)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "Client error during HandleResouceEvent")
+		assert.ErrorContains(tt, err, "Client not available")
 
 		var applicationError *temporal.ApplicationError
-		assert.True(tt, vsaerrors.As(err, &applicationError))
-		assert.False(tt, applicationError.NonRetryable())
-		assert.Equal(tt, "CustomError", applicationError.Type())
+		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, applicationError.NonRetryable())
+		assert.Equal(tt, "NonRetryableError", applicationError.Type())
 	})
 	t.Run("HandleResourceEventForSDEActivity_WhenCVPClientReturnsUnexpectedResponse", func(tt *testing.T) {
 		ctx := context.Background()
@@ -223,6 +223,48 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		res, err := activity.HandleResourceEventsForSDEActivity(ctx, params)
 		assert.NoError(tt, err)
 		assert.Nil(tt, res)
+	})
+	t.Run("HandleResourceEventForSDEActivity_SuccessWithSnapshot", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		mockClient := resource_events.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{ResourceEvents: mockClient}
+		originalCreateClient := cvp.CreateClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		params := &common.HandleResourceEventParams{
+			State:              coremodels.StateOff,
+			LocationId:         "test-location-id",
+			ProjectNumber:      "test-project-number",
+			XCorrelationID:     "test-correlation-id",
+			ResourceType:       common.ResourceStateV1ResourceTypeSnapshot,
+			ResourceId:         "test-snapshot-id",
+			ParentResourceID:   "test-parent-volume-id",
+			ParentResourceType: "Volume",
+		}
+		originalToken := auth.GetSignedJwtToken
+		defer func() { getSignedToken = originalToken }()
+		getSignedToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+
+		created := &resource_events.V1betaResourceStateUpdateCreated{
+			Payload: &cvpmodels.OperationV1beta{
+				Name: "test-operation-name",
+				Done: nillable.GetBoolPtr(true),
+			},
+		}
+		mockClient.EXPECT().V1betaResourceStateUpdate(mock.Anything).Return(created, nil, nil, nil)
+
+		activity := &ResourceEventsActivity{SE: mockSE}
+		result, err := activity.HandleResourceEventsForSDEActivity(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-operation-name", *result.Name)
+		assert.Equal(tt, true, *result.Done)
 	})
 }
 
@@ -303,7 +345,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		err := activity.PollHandleResourceEventSDEOperationActivity(ctx, params, result)
 		var applicationError *temporal.ApplicationError
 		assert.NotNil(tt, err)
-		assert.True(tt, vsaerrors.As(err, &applicationError))
+		assert.True(tt, errors2.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
 		assert.ErrorContains(tt, err, "Client error during HandleResouceEvent")
@@ -376,9 +418,9 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		assert.ErrorContains(tt, err, "Error describing SDE Operation")
 
 		var applicationError *temporal.ApplicationError
-		assert.True(tt, vsaerrors.As(err, &applicationError))
-		assert.False(tt, applicationError.NonRetryable())
-		assert.Equal(tt, "CustomError", applicationError.Type())
+		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, applicationError.NonRetryable())
+		assert.Equal(tt, "NonRetryableError", applicationError.Type())
 	})
 	t.Run("PollHandleResourceEventSDEOperationActivity_WhenOperationNameIsNil", func(tt *testing.T) {
 		ctx := context.Background()
@@ -409,7 +451,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		assert.ErrorContains(tt, err, "Invalid Operation Name")
 
 		var applicationError *temporal.ApplicationError
-		assert.True(tt, vsaerrors.As(err, &applicationError))
+		assert.True(tt, errors2.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
@@ -492,6 +534,31 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 			State:        coremodels.LifeCycleStateDisabled,
 			StateDetails: coremodels.LifeCycleStateDisabledDetails,
 		}).Return(nil, nil)
+
+		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsOFFForVCPActivity_WhenResourceTypeIsStoragePool", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
+			ResourceId:    "test-storage-pool-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		}
+
+		mockSE.On("GetAccount", ctx, "test-project-number").Return(mockAccount, nil)
+		mockSE.On("GetPool", ctx, "test-storage-pool-id", int64(1)).Return(&datamodel.PoolView{}, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -747,6 +814,31 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 			State:        coremodels.LifeCycleStateREADY,
 			StateDetails: coremodels.LifeCycleStateAvailableDetails,
 		}).Return(nil, nil)
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsStoragePool", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
+			ResourceId:    "test-storage-pool-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		}
+
+		mockSE.On("GetAccount", ctx, "test-project-number").Return(mockAccount, nil)
+		mockSE.On("GetPool", ctx, "test-storage-pool-id", int64(1)).Return(&datamodel.PoolView{}, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -1815,4 +1907,91 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 	})
+}
+
+func Test_HandleResourceEventsForSDEActivity_TooManyRequests(t *testing.T) {
+	ctx := context.Background()
+	mockSE := database.NewMockStorage(t)
+	mockClient := resource_events.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{ResourceEvents: mockClient}
+	originalCreateClient := cvp.CreateClient
+	defer func() { createClient = originalCreateClient }()
+	createClient = func(logger log.Logger, JWT string) cvpapi.Cvp { return *cvpClient }
+
+	originalToken := auth.GetSignedJwtToken
+	defer func() { getSignedToken = originalToken }()
+	getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
+
+	params := &common.HandleResourceEventParams{
+		State:          coremodels.StateOff,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
+		ResourceId:     "test-volume-id",
+	}
+
+	tooMany := &resource_events.V1betaResourceStateUpdateTooManyRequests{}
+	mockClient.EXPECT().V1betaResourceStateUpdate(mock.Anything).Return(nil, nil, nil, tooMany)
+
+	activity := &ResourceEventsActivity{SE: mockSE}
+	_, err := activity.HandleResourceEventsForSDEActivity(ctx, params)
+	assert.NotNil(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, errors2.As(err, &appErr))
+	// Wrapped as CustomError (tracking id for ErrCVPClientHandleResourceEventError)
+	assert.Equal(t, "CustomError", appErr.Type())
+}
+
+func Test_PollHandleResourceEventSDEOperationActivity_TooManyRequests(t *testing.T) {
+	ctx := context.Background()
+	mockSE := database.NewMockStorage(t)
+	mockAsync := &async.MockClientService{} // not used because we short-circuit via stubbed PollCvpOperationForWorkflow
+	mockCVP := &cvpapi.Cvp{Async: mockAsync}
+	originalCreateClient := cvp.CreateClient
+	defer func() { createClient = originalCreateClient }()
+	createClient = func(logger log.Logger, JWT string) cvpapi.Cvp { return *mockCVP }
+
+	originalToken := auth.GetSignedJwtToken
+	defer func() { getSignedToken = originalToken }()
+	getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
+
+	originalPoll := PollCvpOperationForWorkflow
+	defer func() { PollCvpOperationForWorkflow = originalPoll }()
+	PollCvpOperationForWorkflow = func(ctx context.Context, client cvpapi.Cvp, params *async.V1betaDescribeOperationParams) (*cvpmodels.OperationV1beta, error) {
+		return nil, &resource_events.V1betaResourceStateUpdateTooManyRequests{}
+	}
+
+	params := &common.HandleResourceEventParams{
+		State:          coremodels.StateOff,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	result := &common.HandleResourceEventResult{Done: nillable.GetBoolPtr(false), Name: nillable.GetStringPtr("operations/test-op")}
+
+	activity := &ResourceEventsActivity{SE: mockSE}
+	err := activity.PollHandleResourceEventSDEOperationActivity(ctx, params, result)
+	assert.NotNil(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, errors2.As(err, &appErr))
+	assert.Equal(t, "CustomError", appErr.Type())
+}
+
+func Test_handleKmsConfig_UserInputValidationErr(t *testing.T) {
+	ctx := context.Background()
+	mockSE := database.NewMockStorage(t)
+	activity := &ResourceEventsActivity{SE: mockSE}
+
+	params := &common.HandleResourceEventParams{ResourceId: "kms-id", State: coremodels.StateOff}
+
+	mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, coremodels.StateOff).Return(nil, errors.NewUserInputValidationErr("invalid input"))
+
+	ok, err := activity.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
+	assert.False(t, ok)
+	assert.NotNil(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, errors2.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable())
+	assert.Equal(t, ErrTypeResourceNotFound, appErr.Type())
 }

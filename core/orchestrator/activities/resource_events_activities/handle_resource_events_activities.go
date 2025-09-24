@@ -22,6 +22,7 @@ import (
 
 const (
 	ErrTypeResourceNotFound = "NotFoundErr"
+	ErrInvalidRequest       = "InvalidRequestErr"
 )
 
 var (
@@ -157,17 +158,25 @@ func (a *ResourceEventsActivity) HandleResourceEventsONForVCPActivity(ctx contex
 	case common.ResourceStateV1ResourceTypeBackupPolicy:
 		return a.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	default:
-		return false, errors.New("unsupported resource type")
+		unsupportedErr := errors.New("unsupported resource type")
+		return false, temporal.NewNonRetryableApplicationError(unsupportedErr.Error(), ErrInvalidRequest, unsupportedErr)
 	}
 }
 
 func (a *ResourceEventsActivity) HandleResourceEventsForSDEActivity(ctx context.Context, params *common.HandleResourceEventParams) (*common.HandleResourceEventResult, error) {
+	var parentResourceId, parentResourceType *string
+	if params.ResourceType == common.ResourceStateV1ResourceTypeSnapshot {
+		parentResourceType = &params.ParentResourceType
+		parentResourceId = &params.ParentResourceID
+	}
 	body := &models.ResourceStateUpdateV1beta{
 		StateUpdateV1beta: models.StateUpdateV1beta{
 			State: params.State,
 		},
-		ResourceType: params.ResourceType,
-		ResourceID:   params.ResourceId,
+		ResourceType:       params.ResourceType,
+		ResourceID:         params.ResourceId,
+		ParentResourceID:   parentResourceId,
+		ParentResourceType: parentResourceType,
 	}
 
 	reqParams := &resource_events.V1betaResourceStateUpdateParams{
@@ -187,13 +196,14 @@ func (a *ResourceEventsActivity) HandleResourceEventsForSDEActivity(ctx context.
 	created, accepted, _, err := cvpClient.ResourceEvents.V1betaResourceStateUpdate(reqParams)
 	if err != nil {
 		logger.Errorf("Error turning %s Resource: %v", params.State, err)
-
-		// Check if this is a 404 Not Found error and make it non-retryable
-		if _, isNotFound := err.(*resource_events.V1betaResourceStateUpdateNotFound); isNotFound {
-			logger.Infof("SDE HandleResourceEvent returned 404 (resource not found), treating as non-retryable: %v", err)
-			return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		// Check if this is a 429 Too Many Requests (rate limiting) response. We wrap it
+		// as a custom Temporal application error (not marked non-retryable) so the
+		// workflow's retry policy can decide whether to retry.
+		if _, tooManyRequests := err.(*resource_events.V1betaResourceStateUpdateTooManyRequests); tooManyRequests {
+			logger.Warnf("SDE HandleResourceEvent returned 429 Too Many Requests (rate limited): %v", err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
 		}
-		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
+		return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrNotRetryable, err)
 	}
 
 	if created != nil {
@@ -239,8 +249,15 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 	operationParams.LocationID = params.LocationId
 	res, err := PollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 	if err != nil {
+		// Check if this is a 429 Too Many Requests (rate limiting) response. We wrap it
+		// as a custom Temporal application error (not marked non-retryable) so the
+		// workflow's retry policy can decide whether to retry.
+		if _, tooManyRequests := err.(*resource_events.V1betaResourceStateUpdateTooManyRequests); tooManyRequests {
+			logger.Warnf("SDE HandleResourceEvent polling hit 429 Too Many Requests (rate limited): %v", err)
+			return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
+		}
 		logger.Errorf("Error while polling SDE handleResourceEvent operation: %s", operationUUID)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return temporal.NewNonRetryableApplicationError(err.Error(), ErrNotRetryable, err)
 	}
 
 	if res.Done != nil && *res.Done {
@@ -255,7 +272,7 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 func (a *ResourceEventsActivity) handleKmsConfig(ctx context.Context, params *common.HandleResourceEventParams, stateDetails string) (bool, error) {
 	_, err := a.SE.UpdateKmsConfigStateForHandleResource(ctx, params.ResourceId, stateDetails, params.State)
 	if err != nil {
-		if errors.IsNotFoundErr(err) {
+		if errors.IsNotFoundErr(err) || errors.IsUserInputValidationErr(err) {
 			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
 		}
 		return false, err

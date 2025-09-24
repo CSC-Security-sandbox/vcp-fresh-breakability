@@ -121,13 +121,14 @@ func (h Handler) V1betaResourceStateUpdate(ctx context.Context, req *gcpgenserve
 	}
 
 	reqParams := &commonparams.UpdateResourceStateParams{
-		LocationId:       params.LocationId,
-		ProjectNumber:    params.ProjectNumber,
-		XCorrelationID:   params.XCorrelationID.Value,
-		State:            string(req.State),
-		ResourceType:     string(req.ResourceType),
-		ResourceId:       req.ResourceID,
-		ParentResourceID: req.ParentResourceID.Value,
+		LocationId:         params.LocationId,
+		ProjectNumber:      params.ProjectNumber,
+		XCorrelationID:     params.XCorrelationID.Value,
+		State:              string(req.State),
+		ResourceType:       string(req.ResourceType),
+		ResourceId:         req.ResourceID,
+		ParentResourceID:   req.ParentResourceID.Value,
+		ParentResourceType: string(req.ParentResourceType.Value),
 	}
 	job, err := h.Orchestrator.UpdateResourceState(ctx, reqParams)
 	if err != nil {

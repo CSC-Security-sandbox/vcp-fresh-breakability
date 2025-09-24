@@ -77,6 +77,10 @@ func (d *DataStoreRepository) UpdateKmsConfigStateForHandleResource(ctx context.
 	newStateDetails := ""
 	currState := kmsConfig.State
 
+	if err = isStateReady(currState); err != nil {
+		return nil, err
+	}
+
 	switch event {
 	case models.StateOff:
 		newState = models.LifeCycleStateDisabled
@@ -410,4 +414,16 @@ func _isKmsConfigInUse(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error
 		return true, nil
 	}
 	return false, nil
+}
+
+func isStateReady(currState string) error {
+	switch currState {
+	case models.LifeCycleStateDeleting, models.LifeCycleStateDeleted:
+		return errors.NewNotFoundErr("Config does not exist", nil)
+	case models.LifeCycleStateError, models.LifeCycleStateCreating:
+		return errors.NewUserInputValidationErr("Can not update a KmsConfig which is in creating or error state")
+	case models.LifeCycleStateUpdating, models.LifeCycleStateMigrating:
+		return errors.NewUserInputValidationErr("GCP KMS configuration is already transitioning between states")
+	}
+	return nil
 }

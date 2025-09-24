@@ -8,9 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/temporal"
 )
 
 func Test_pollCvpOperationForWorkflow(t *testing.T) {
@@ -182,6 +184,54 @@ func Test_pollCvpOperationForWorkflow(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, expectedOperation.Name, result.Name)
+	})
+
+	t.Run("pollCvpOperationForWorkflow_With404Error", func(tt *testing.T) {
+		ctx := context.Background()
+		mockAsync := async.NewMockClientService(t)
+		mockCVP := &cvpapi.Cvp{Async: mockAsync}
+
+		operationParams := &async.V1betaDescribeOperationParams{
+			OperationID: "test-operation-id",
+		}
+
+		// Create a 404 Not Found error of the specific type
+		notFoundErr := &resource_events.V1betaResourceStateUpdateNotFound{}
+		mockAsync.EXPECT().V1betaDescribeOperation(operationParams).Return(nil, notFoundErr)
+
+		result, err := pollCvpOperationForWorkflow(ctx, *mockCVP, operationParams)
+		assert.NotNil(tt, err)
+		assert.Nil(tt, result)
+
+		// Verify it's a NonRetryableApplicationError with the correct type
+		var appErr *temporal.ApplicationError
+		assert.True(tt, errors.As(err, &appErr))
+		assert.True(tt, appErr.NonRetryable())
+		assert.Equal(tt, ErrTypeResourceNotFound, appErr.Type())
+	})
+
+	t.Run("pollCvpOperationForWorkflow_With400Error", func(tt *testing.T) {
+		ctx := context.Background()
+		mockAsync := async.NewMockClientService(t)
+		mockCVP := &cvpapi.Cvp{Async: mockAsync}
+
+		operationParams := &async.V1betaDescribeOperationParams{
+			OperationID: "test-operation-id",
+		}
+
+		// Create a 400 Bad Request error of the specific type
+		badRequestErr := &resource_events.V1betaResourceStateUpdateBadRequest{}
+		mockAsync.EXPECT().V1betaDescribeOperation(operationParams).Return(nil, badRequestErr)
+
+		result, err := pollCvpOperationForWorkflow(ctx, *mockCVP, operationParams)
+		assert.NotNil(tt, err)
+		assert.Nil(tt, result)
+
+		// Verify it's a NonRetryableApplicationError with the correct type
+		var appErr *temporal.ApplicationError
+		assert.True(tt, errors.As(err, &appErr))
+		assert.True(tt, appErr.NonRetryable())
+		assert.Equal(tt, ErrInvalidRequest, appErr.Type())
 	})
 }
 

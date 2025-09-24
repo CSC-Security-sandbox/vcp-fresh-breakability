@@ -1,15 +1,15 @@
 package common
 
 type HandleResourceEventParams struct {
-	Description      string
-	LocationID       string
-	State            string
-	ProjectNumber    string
-	LocationId       string
-	XCorrelationID   string
-	ResourceType     string
-	ResourceId       string
-	ParentResourceID string
+	Description        string
+	State              string
+	ProjectNumber      string
+	LocationId         string
+	XCorrelationID     string
+	ResourceType       string
+	ResourceId         string
+	ParentResourceID   string
+	ParentResourceType string
 }
 
 const (

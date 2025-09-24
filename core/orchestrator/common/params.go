@@ -189,15 +189,16 @@ type CreateSnapshotParams struct {
 }
 
 type UpdateResourceStateParams struct {
-	Description      string
-	State            string
-	ProjectNumber    string
-	LocationId       string
-	XCorrelationID   string
-	ResourceType     string
-	ResourceId       string
-	IsCommonResource bool
-	ParentResourceID string
+	Description        string
+	State              string
+	ProjectNumber      string
+	LocationId         string
+	XCorrelationID     string
+	ResourceType       string
+	ResourceId         string
+	IsCommonResource   bool
+	ParentResourceID   string
+	ParentResourceType string
 }
 
 type HandleResourceCVPResponse struct {
