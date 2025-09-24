@@ -364,3 +364,15 @@ func (o *Orchestrator) GetMultipleBackupVaults(ctx context.Context, backupVaultU
 
 	return backupVaultModelList, nil
 }
+
+// IsBackupVaultAttachedToVolume checks if a backup vault is attached to any volume in the VCP database
+func (o *Orchestrator) IsBackupVaultAttachedToVolume(ctx context.Context, backupVaultUUID string) (bool, error) {
+	se := o.storage
+
+	volumeCount, err := se.GetVolumeCountByBackupVaultID(ctx, backupVaultUUID)
+	if err != nil {
+		return false, err
+	}
+
+	return volumeCount > 0, nil
+}

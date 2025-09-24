@@ -1366,3 +1366,93 @@ func TestUpdateBackupVaultDeferFunction(t *testing.T) {
 		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed")
 	})
 }
+
+func TestIsBackupVaultAttachedToVolume(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenBackupVaultHasAttachedVolumes_ReturnsTrue", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		backupVaultUUID := "backup-vault-uuid-with-volumes"
+
+		// Mock storage to return a count > 0 indicating attached volumes
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, backupVaultUUID).Return(int64(2), nil)
+
+		result, err := orchestrator.IsBackupVaultAttachedToVolume(ctx, backupVaultUUID)
+
+		assert.NoError(tt, err)
+		assert.True(tt, result, "Expected true when backup vault has attached volumes")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupVaultHasNoAttachedVolumes_ReturnsFalse", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		backupVaultUUID := "backup-vault-uuid-no-volumes"
+
+		// Mock storage to return a count of 0 indicating no attached volumes
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, backupVaultUUID).Return(int64(0), nil)
+
+		result, err := orchestrator.IsBackupVaultAttachedToVolume(ctx, backupVaultUUID)
+
+		assert.NoError(tt, err)
+		assert.False(tt, result, "Expected false when backup vault has no attached volumes")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDatabaseReturnsError_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		backupVaultUUID := "backup-vault-uuid-error"
+		expectedError := errors.New("database connection error")
+
+		// Mock storage to return an error
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, backupVaultUUID).Return(int64(0), expectedError)
+
+		result, err := orchestrator.IsBackupVaultAttachedToVolume(ctx, backupVaultUUID)
+
+		assert.Error(tt, err)
+		assert.False(tt, result, "Expected false when error occurs")
+		assert.Equal(tt, expectedError, err, "Expected the same error that was returned from storage")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupVaultUUIDIsEmpty_CallsDatabaseWithEmptyString", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		backupVaultUUID := ""
+
+		// Mock storage to return 0 for empty UUID
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, backupVaultUUID).Return(int64(0), nil)
+
+		result, err := orchestrator.IsBackupVaultAttachedToVolume(ctx, backupVaultUUID)
+
+		assert.NoError(tt, err)
+		assert.False(tt, result, "Expected false for empty backup vault UUID")
+		mockStorage.AssertExpectations(tt)
+	})
+}

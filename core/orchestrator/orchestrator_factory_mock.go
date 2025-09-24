@@ -3589,6 +3589,63 @@ func (_c *MockOrchestratorFactory_GetVolumeCount_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// IsBackupVaultAttachedToVolume provides a mock function with given fields: ctx, backupVaultUUID
+func (_m *MockOrchestratorFactory) IsBackupVaultAttachedToVolume(ctx context.Context, backupVaultUUID string) (bool, error) {
+	ret := _m.Called(ctx, backupVaultUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsBackupVaultAttachedToVolume")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
+		return rf(ctx, backupVaultUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+		r0 = rf(ctx, backupVaultUUID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, backupVaultUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsBackupVaultAttachedToVolume'
+type MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call struct {
+	*mock.Call
+}
+
+// IsBackupVaultAttachedToVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+func (_e *MockOrchestratorFactory_Expecter) IsBackupVaultAttachedToVolume(ctx interface{}, backupVaultUUID interface{}) *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call {
+	return &MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call{Call: _e.mock.On("IsBackupVaultAttachedToVolume", ctx, backupVaultUUID)}
+}
+
+func (_c *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call) Run(run func(ctx context.Context, backupVaultUUID string)) *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call) Return(_a0 bool, _a1 error) *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAllPools provides a mock function with given fields: ctx
 func (_m *MockOrchestratorFactory) ListAllPools(ctx context.Context) ([]*models.Pool, error) {
 	ret := _m.Called(ctx)

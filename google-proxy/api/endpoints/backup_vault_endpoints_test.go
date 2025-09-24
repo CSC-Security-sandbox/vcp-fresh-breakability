@@ -1014,10 +1014,11 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		mockClient.EXPECT().
 			V1betaCreateBackupVault(mock.Anything).
-			Return(nil, &backup_vault.V1betaCreateBackupVaultBadRequest{Payload: &models.Error{
-				Code:    400,
-				Message: "SDE error: Invalid request",
-			},
+			Return(nil, &backup_vault.V1betaCreateBackupVaultBadRequest{
+				Payload: &models.Error{
+					Code:    400,
+					Message: "SDE error: Invalid request",
+				},
 			})
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 		originalCreateClient := cvpCreateClient
@@ -1061,10 +1062,11 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		mockClient.EXPECT().
 			V1betaCreateBackupVault(mock.Anything).
-			Return(nil, &backup_vault.V1betaCreateBackupVaultUnprocessableEntity{Payload: &models.Error{
-				Code:    422,
-				Message: "SDE error: Unprocessable Entity",
-			},
+			Return(nil, &backup_vault.V1betaCreateBackupVaultUnprocessableEntity{
+				Payload: &models.Error{
+					Code:    422,
+					Message: "SDE error: Unprocessable Entity",
+				},
 			})
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 		originalCreateClient := cvpCreateClient
@@ -1108,10 +1110,11 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		mockClient.EXPECT().
 			V1betaCreateBackupVault(mock.Anything).
-			Return(nil, &backup_vault.V1betaCreateBackupVaultConflict{Payload: &models.Error{
-				Code:    409,
-				Message: "SDE error: Conflict",
-			},
+			Return(nil, &backup_vault.V1betaCreateBackupVaultConflict{
+				Payload: &models.Error{
+					Code:    409,
+					Message: "SDE error: Conflict",
+				},
 			})
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 		originalCreateClient := cvpCreateClient
@@ -1154,10 +1157,11 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		mockClient.EXPECT().
 			V1betaCreateBackupVault(mock.Anything).
-			Return(nil, &backup_vault.V1betaCreateBackupVaultUnauthorized{Payload: &models.Error{
-				Code:    401,
-				Message: "SDE error: UnAuthorized",
-			},
+			Return(nil, &backup_vault.V1betaCreateBackupVaultUnauthorized{
+				Payload: &models.Error{
+					Code:    401,
+					Message: "SDE error: UnAuthorized",
+				},
 			})
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 		originalCreateClient := cvpCreateClient
@@ -1199,10 +1203,11 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
 		mockClient.EXPECT().
 			V1betaCreateBackupVault(mock.Anything).
-			Return(nil, &backup_vault.V1betaCreateBackupVaultForbidden{Payload: &models.Error{
-				Code:    403,
-				Message: "SDE error: Forbidden",
-			},
+			Return(nil, &backup_vault.V1betaCreateBackupVaultForbidden{
+				Payload: &models.Error{
+					Code:    403,
+					Message: "SDE error: Forbidden",
+				},
 			})
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 		originalCreateClient := cvpCreateClient
@@ -1245,10 +1250,11 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		mockClient.EXPECT().
 			V1betaCreateBackupVault(mock.Anything).
-			Return(nil, &backup_vault.V1betaCreateBackupVaultTooManyRequests{Payload: &models.Error{
-				Code:    429,
-				Message: "SDE error: TooManyRequest",
-			},
+			Return(nil, &backup_vault.V1betaCreateBackupVaultTooManyRequests{
+				Payload: &models.Error{
+					Code:    429,
+					Message: "SDE error: TooManyRequest",
+				},
 			})
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 		originalCreateClient := cvpCreateClient
@@ -1291,10 +1297,11 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		mockClient.EXPECT().
 			V1betaCreateBackupVault(mock.Anything).
-			Return(nil, &backup_vault.V1betaCreateBackupVaultDefault{Payload: &models.Error{
-				Code:    500,
-				Message: "SDE error: Default",
-			},
+			Return(nil, &backup_vault.V1betaCreateBackupVaultDefault{
+				Payload: &models.Error{
+					Code:    500,
+					Message: "SDE error: Default",
+				},
 			})
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 		originalCreateClient := cvpCreateClient
@@ -1650,6 +1657,10 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultSuccessful(t *testing
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
 		Return(&bvResp, nil)
 
+	// Mock IsBackupVaultAttachedToVolume since this test has backup retention policy update
+	mockOrchestrator.On("IsBackupVaultAttachedToVolume", ctx, bvName).
+		Return(false, nil)
+
 	mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
 		Return(&mod.BackupVaultV1beta{}, "operation-id", nil)
 
@@ -1699,6 +1710,10 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultSuccessfulWithNoOpera
 	}
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
 		Return(&bvResp, nil)
+
+	// Mock IsBackupVaultAttachedToVolume since this test has backup retention policy update
+	mockOrchestrator.On("IsBackupVaultAttachedToVolume", ctx, bvName).
+		Return(false, nil)
 
 	mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
 		Return(&mod.BackupVaultV1beta{}, "", nil)
@@ -1750,6 +1765,10 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultJsonFails(t *testing.
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
 		Return(&bvResp, nil)
 
+	// Mock IsBackupVaultAttachedToVolume since this test has backup retention policy update
+	mockOrchestrator.On("IsBackupVaultAttachedToVolume", ctx, bvName).
+		Return(false, nil)
+
 	mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
 		Return(&mod.BackupVaultV1beta{}, "operation-id", nil)
 
@@ -1799,6 +1818,10 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultFails(t *testing.T) {
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
 		Return(&bvResp, nil)
 
+	// Mock IsBackupVaultAttachedToVolume since this test has backup retention policy update
+	mockOrchestrator.On("IsBackupVaultAttachedToVolume", ctx, bvName).
+		Return(false, nil)
+
 	mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
 		Return(nil, "", errors2.NewBadRequestErr("Update failed in SDE"))
 
@@ -1843,6 +1866,10 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithBackupVaultFailsWithBadRequest(t
 	}
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
 		Return(&bvResp, nil)
+
+	// Mock IsBackupVaultAttachedToVolume since this test has backup retention policy update
+	mockOrchestrator.On("IsBackupVaultAttachedToVolume", ctx, bvName).
+		Return(false, nil)
 
 	mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
 		Return(nil, "", errors2.NewUserInputValidationErr("Update failed in SDE"))
@@ -2967,4 +2994,227 @@ func TestConvertBackupVaultV1Beta_OnlyTrueFieldsIncluded(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Tests for new validation logic (VSCP-2333)
+func TestV1betaUpdateBackupVault_AttachmentValidation(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	t.Run("WhenBackupRetentionPolicyUpdateAndVaultAttachedToVolumes_ReturnsBadRequest", func(tt *testing.T) {
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			LocationId:    "valid-location",
+			ProjectNumber: "1234567890",
+			BackupVaultId: "vault-with-volumes",
+		}
+
+		// Create request with backup retention policy update
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
+				},
+			),
+		}
+
+		// Mock region validation to pass
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "valid-region", "valid-zone", nil
+		}
+
+		// Mock orchestrator
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		bvName := "vault-with-volumes"
+		ctx := context.Background()
+
+		// Mock GetBackupVaultByUUID to return a valid vault
+		mockBackupVault := &mod.BackupVaultV1beta{
+			BackupVaultID: bvName,
+			OwnerID:       "1234567890",
+		}
+		mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+			Return(mockBackupVault, nil)
+
+		// Mock IsBackupVaultAttachedToVolume to return true (has attached volumes)
+		mockOrchestrator.On("IsBackupVaultAttachedToVolume", ctx, bvName).
+			Return(true, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badRequestResponse, ok := result.(*gcpgenserver.V1betaUpdateBackupVaultBadRequest)
+		assert.True(tt, ok, "Expected BadRequest response type")
+		assert.Equal(tt, 400, int(badRequestResponse.Code))
+		assert.Equal(tt, utils.ImmutableBackupVaultErrMsg, badRequestResponse.Message)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupRetentionPolicyUpdateAndVaultNotAttached_ProceedsNormally", func(tt *testing.T) {
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			LocationId:    "valid-location",
+			ProjectNumber: "1234567890",
+			BackupVaultId: "vault-without-volumes",
+		}
+
+		// Create request with backup retention policy update
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
+				},
+			),
+		}
+
+		// Mock region validation to pass
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "valid-region", "valid-zone", nil
+		}
+
+		// Mock SDE update function to succeed
+		updateBackupVaultInSDE = func(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaUpdateBackupVaultParams, description string) (r gcpgenserver.V1betaUpdateBackupVaultRes, _ error) {
+			return &gcpgenserver.OperationV1beta{
+				Name: gcpgenserver.NewOptString("operation-id"),
+				Done: gcpgenserver.NewOptBool(false),
+			}, nil
+		}
+
+		// Mock orchestrator
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		bvName := "vault-without-volumes"
+		ctx := context.Background()
+
+		// Mock GetBackupVaultByUUID to return a valid vault
+		mockBackupVault := &mod.BackupVaultV1beta{
+			BackupVaultID: bvName,
+			OwnerID:       "1234567890",
+		}
+		mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+			Return(mockBackupVault, nil)
+
+		// Mock IsBackupVaultAttachedToVolume to return false (no attached volumes)
+		mockOrchestrator.On("IsBackupVaultAttachedToVolume", ctx, bvName).
+			Return(false, nil)
+
+		// Mock UpdateBackupVault to return success
+		mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
+			Return(&mod.BackupVaultV1beta{BackupVaultID: bvName}, "operation-id", nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		operationResponse, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "Expected Operation response type")
+		assert.True(tt, operationResponse.Name.IsSet())
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNoBackupRetentionPolicyUpdate_SkipsValidation", func(tt *testing.T) {
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			LocationId:    "valid-location",
+			ProjectNumber: "1234567890",
+			BackupVaultId: "any-vault",
+		}
+
+		// Create request without backup retention policy update
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Updated description only"),
+		}
+
+		// Mock region validation to pass
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "valid-region", "valid-zone", nil
+		}
+
+		// Mock SDE update function to succeed
+		updateBackupVaultInSDE = func(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaUpdateBackupVaultParams, description string) (r gcpgenserver.V1betaUpdateBackupVaultRes, _ error) {
+			return &gcpgenserver.OperationV1beta{
+				Name: gcpgenserver.NewOptString("operation-id"),
+				Done: gcpgenserver.NewOptBool(false),
+			}, nil
+		}
+
+		// Mock orchestrator
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		bvName := "any-vault"
+		ctx := context.Background()
+
+		// Mock GetBackupVaultByUUID to return a valid vault
+		mockBackupVault := &mod.BackupVaultV1beta{
+			BackupVaultID: bvName,
+			OwnerID:       "1234567890",
+		}
+		mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+			Return(mockBackupVault, nil)
+
+		// Note: No IsBackupVaultAttachedToVolume call should be made since no retention policy update
+
+		// Mock UpdateBackupVault to return success
+		mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
+			Return(&mod.BackupVaultV1beta{BackupVaultID: bvName}, "operation-id", nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		operationResponse, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "Expected Operation response type")
+		assert.True(tt, operationResponse.Name.IsSet())
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("WhenIsBackupVaultAttachedToVolumeReturnsError_ReturnsInternalServerError", func(tt *testing.T) {
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			LocationId:    "valid-location",
+			ProjectNumber: "1234567890",
+			BackupVaultId: "vault-with-error",
+		}
+
+		// Create request with backup retention policy update
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
+				},
+			),
+		}
+
+		// Mock region validation to pass
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "valid-region", "valid-zone", nil
+		}
+
+		// Mock orchestrator
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		bvName := "vault-with-error"
+		ctx := context.Background()
+
+		// Mock GetBackupVaultByUUID to return a valid vault
+		mockBackupVault := &mod.BackupVaultV1beta{
+			BackupVaultID: bvName,
+			OwnerID:       "1234567890",
+		}
+		mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+			Return(mockBackupVault, nil)
+
+		// Mock IsBackupVaultAttachedToVolume to return an error
+		mockOrchestrator.On("IsBackupVaultAttachedToVolume", ctx, bvName).
+			Return(false, fmt.Errorf("database connection failed"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		errorResponse, ok := result.(*gcpgenserver.V1betaUpdateBackupVaultInternalServerError)
+		assert.True(tt, ok, "Expected InternalServerError response type")
+		assert.Equal(tt, 500, int(errorResponse.Code))
+		assert.Equal(tt, "Failed to check backup vault attachment status", errorResponse.Message)
+		mockOrchestrator.AssertExpectations(tt)
+	})
 }

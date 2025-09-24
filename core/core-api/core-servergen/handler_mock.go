@@ -189,6 +189,65 @@ func (_c *MockHandler_V1DeletePool_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// V1GetMultipleReplicationsByExternalUUID provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams) (V1GetMultipleReplicationsByExternalUUIDRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1GetMultipleReplicationsByExternalUUID")
+	}
+
+	var r0 V1GetMultipleReplicationsByExternalUUIDRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetMultipleReplicationsByExternalUUIDParams) (V1GetMultipleReplicationsByExternalUUIDRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetMultipleReplicationsByExternalUUIDParams) V1GetMultipleReplicationsByExternalUUIDRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1GetMultipleReplicationsByExternalUUIDRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1GetMultipleReplicationsByExternalUUIDParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1GetMultipleReplicationsByExternalUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1GetMultipleReplicationsByExternalUUID'
+type MockHandler_V1GetMultipleReplicationsByExternalUUID_Call struct {
+	*mock.Call
+}
+
+// V1GetMultipleReplicationsByExternalUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1GetMultipleReplicationsByExternalUUIDParams
+func (_e *MockHandler_Expecter) V1GetMultipleReplicationsByExternalUUID(ctx interface{}, params interface{}) *MockHandler_V1GetMultipleReplicationsByExternalUUID_Call {
+	return &MockHandler_V1GetMultipleReplicationsByExternalUUID_Call{Call: _e.mock.On("V1GetMultipleReplicationsByExternalUUID", ctx, params)}
+}
+
+func (_c *MockHandler_V1GetMultipleReplicationsByExternalUUID_Call) Run(run func(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams)) *MockHandler_V1GetMultipleReplicationsByExternalUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1GetMultipleReplicationsByExternalUUIDParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1GetMultipleReplicationsByExternalUUID_Call) Return(_a0 V1GetMultipleReplicationsByExternalUUIDRes, _a1 error) *MockHandler_V1GetMultipleReplicationsByExternalUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1GetMultipleReplicationsByExternalUUID_Call) RunAndReturn(run func(context.Context, V1GetMultipleReplicationsByExternalUUIDParams) (V1GetMultipleReplicationsByExternalUUIDRes, error)) *MockHandler_V1GetMultipleReplicationsByExternalUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1GetOntapCredentials provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error) {
 	ret := _m.Called(ctx, params)

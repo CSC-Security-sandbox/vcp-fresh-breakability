@@ -631,7 +631,7 @@ func TestGetOptBool(t *testing.T) {
 		want  gcpgenserver.OptBool
 	}{
 		{"NilInput", nil, gcpgenserver.OptBool{}},
-		{"ValidInput", func() *bool { var v = true; return &v }(), gcpgenserver.NewOptBool(true)},
+		{"ValidInput", func() *bool { v := true; return &v }(), gcpgenserver.NewOptBool(true)},
 	}
 
 	for _, tt := range tests {
@@ -1082,8 +1082,10 @@ func TestCFFEURIToMap(t *testing.T) {
 		ccfeUri  string
 		expected map[string]string
 	}{
-		{"ValidURI", "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
-			map[string]string{"projects": "45110233509", "locations": "us-east4", "volumes": "gosrcvolume1", "replications": "replication-name-6"}},
+		{
+			"ValidURI", "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
+			map[string]string{"projects": "45110233509", "locations": "us-east4", "volumes": "gosrcvolume1", "replications": "replication-name-6"},
+		},
 		{"InvalidURI", "invalid://project/region/volume", nil},
 		{"EmptyURI", "", nil},
 	}
@@ -1537,8 +1539,10 @@ func TestGetHgUUIDs(t *testing.T) {
 
 // Unit test for _parsePEMCertificate
 func Test_parsePEMCertificate(t *testing.T) {
-	validCert := []string{"-----BEGIN CERTIFICATE-----\nMIIFEDCCA3igAwIBAgITS/bXdYAv5LyZiy9Wd+osv4/IazANBgkqhkiG9w0BAQsF\nADAkMQ8wDQYDVQQKEwZOZXRhcHAxETAPBgNVBAMTCHNzLWNhLWNuMB4XDTI1MDYw\nMjE0MzQ1MFoXDTI1MDcwMjE0MzQ0OVowLjEPMA0GA1UEChMGbmV0YXBwMRswGQYD\nVQQDExJzaGFzaGktdXNlci1jbGllbnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\nggEKAoIBAQDcagOhNAO68lpqXSkHrxBlF3xLNetZS739eGUneujlMqLWjMA04u9v\nBZGYdbKP5VDB8j2H4qiop7KzXIteKCpP6lmLD7vqpV5a7wIU2esewI4QeaZ+RvdL\np9duqnAv5JpTTAjKFhA4+jZQCqjJaqltYtPYMBxw8TiQcwkQUlQbYlVMYbHurkPE\nCItpDJPEyyddabM6lXri6nsWRyC2J13h8BAJMflC6yPXsb/fwsSjJULNzQr41A74\nwBJ/OTtQwLgrS8qxlxTAUL+dBUKW2/kIUT+pkqCd1nOvOgSzSdDj2qhLI2aNWrQl\noCNvdCWELoq6D0sj+DssrB7KNyrNRCafAgMBAAGjggGvMIIBqzAOBgNVHQ8BAf8E\nBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQC\nMAAwHQYDVR0OBBYEFJbr1PPEc/mieh1yXp+j5Mx80g79MB8GA1UdIwQYMBaAFM8w\nTjkEr4gm0t2b6qptwRlFdAQrMIGNBggrBgEFBQcBAQSBgDB+MHwGCCsGAQUFBzAC\nhnBodHRwOi8vcHJpdmF0ZWNhLWNvbnRlbnQtNjg1YmQ5ZjctMDAwMC0yMWQ2LTlj\nM2ItMTRjMTRlZjQ4NmQ0LnN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vYTNkM2UyNWE0\nZjhkNmJjNzQ5YmUvY2EuY3J0MBcGA1UdEQQQMA6CDCouc2hhc2hpLmNvbTCBggYD\nVR0fBHsweTB3oHWgc4ZxaHR0cDovL3ByaXZhdGVjYS1jb250ZW50LTY4NWJkOWY3\nLTAwMDAtMjFkNi05YzNiLTE0YzE0ZWY0ODZkNC5zdG9yYWdlLmdvb2dsZWFwaXMu\nY29tL2EzZDNlMjVhNGY4ZDZiYzc0OWJlL2NybC5jcmwwDQYJKoZIhvcNAQELBQAD\nggGBAIVgs0Kp142hnA3AxTTF84GqkX5gDuoAn7thK7Mgvjeuc8XPaM/jj+CNApK7\nGoQazkNxz2VJmwYtCaXPzYwMd6H10Y8CsF02mfbRXLbxa0MwVP/LR7rO0sOlv32o\nqzk1rs/UHYffaEz+CrxuPFqdhh5gw188siGIrlpfLNfR6IjdwLE1anH0dYwcxKFc\nDdNMxyX3wXnT4yVe2ufAK0PMvmJHHicoWsVU1CCRzHtySfKpRKYhWI54gbI0fmWK\nTjbf1jg5veC42ShIpFzCi7bU/7tfnhweD1qskqOuw+ipjbqxlxOuSoUw439WTVfb\nDvnEZAN0i/xR8/F0gv5TQwIY03ip1Lq08ak8/tTdJabInGtqquJsaFzgzO8b+0hE\nSWtfJXPFZh6UKLjAaxh4j7kKq2f8QS4uG07THlh0SPOmI+O0SKaw6gfk3gqZXyJ0\nXGw/CqljKg+9HZ1JeN6M/hT0cH7rSSfKmaySY9iD1i1lxjxM+zHuiWYRJbA2Ahhf\nim6RRg==\n-----END CERTIFICATE-----",
-		"-----BEGIN CERTIFICATE-----\nMIIFEDCCA3igAwIBAgITS/bXdYAv5LyZiy9Wd+osv4/IazANBgkqhkiG9w0BAQsF\nADAkMQ8wDQYDVQQKEwZOZXRhcHAxETAPBgNVBAMTCHNzLWNhLWNuMB4XDTI1MDYw\nMjE0MzQ1MFoXDTI1MDcwMjE0MzQ0OVowLjEPMA0GA1UEChMGbmV0YXBwMRswGQYD\nVQQDExJzaGFzaGktdXNlci1jbGllbnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\nggEKAoIBAQDcagOhNAO68lpqXSkHrxBlF3xLNetZS739eGUneujlMqLWjMA04u9v\nBZGYdbKP5VDB8j2H4qiop7KzXIteKCpP6lmLD7vqpV5a7wIU2esewI4QeaZ+RvdL\np9duqnAv5JpTTAjKFhA4+jZQCqjJaqltYtPYMBxw8TiQcwkQUlQbYlVMYbHurkPE\nCItpDJPEyyddabM6lXri6nsWRyC2J13h8BAJMflC6yPXsb/fwsSjJULNzQr41A74\nwBJ/OTtQwLgrS8qxlxTAUL+dBUKW2/kIUT+pkqCd1nOvOgSzSdDj2qhLI2aNWrQl\noCNvdCWELoq6D0sj+DssrB7KNyrNRCafAgMBAAGjggGvMIIBqzAOBgNVHQ8BAf8E\nBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQC\nMAAwHQYDVR0OBBYEFJbr1PPEc/mieh1yXp+j5Mx80g79MB8GA1UdIwQYMBaAFM8w\nTjkEr4gm0t2b6qptwRlFdAQrMIGNBggrBgEFBQcBAQSBgDB+MHwGCCsGAQUFBzAC\nhnBodHRwOi8vcHJpdmF0ZWNhLWNvbnRlbnQtNjg1YmQ5ZjctMDAwMC0yMWQ2LTlj\nM2ItMTRjMTRlZjQ4NmQ0LnN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vYTNkM2UyNWE0\nZjhkNmJjNzQ5YmUvY2EuY3J0MBcGA1UdEQQQMA6CDCouc2hhc2hpLmNvbTCBggYD\nVR0fBHsweTB3oHWgc4ZxaHR0cDovL3ByaXZhdGVjYS1jb250ZW50LTY4NWJkOWY3\nLTAwMDAtMjFkNi05YzNiLTE0YzE0ZWY0ODZkNC5zdG9yYWdlLmdvb2dsZWFwaXMu\nY29tL2EzZDNlMjVhNGY4ZDZiYzc0OWJlL2NybC5jcmwwDQYJKoZIhvcNAQELBQAD\nggGBAIVgs0Kp142hnA3AxTTF84GqkX5gDuoAn7thK7Mgvjeuc8XPaM/jj+CNApK7\nGoQazkNxz2VJmwYtCaXPzYwMd6H10Y8CsF02mfbRXLbxa0MwVP/LR7rO0sOlv32o\nqzk1rs/UHYffaEz+CrxuPFqdhh5gw188siGIrlpfLNfR6IjdwLE1anH0dYwcxKFc\nDdNMxyX3wXnT4yVe2ufAK0PMvmJHHicoWsVU1CCRzHtySfKpRKYhWI54gbI0fmWK\nTjbf1jg5veC42ShIpFzCi7bU/7tfnhweD1qskqOuw+ipjbqxlxOuSoUw439WTVfb\nDvnEZAN0i/xR8/F0gv5TQwIY03ip1Lq08ak8/tTdJabInGtqquJsaFzgzO8b+0hE\nSWtfJXPFZh6UKLjAaxh4j7kKq2f8QS4uG07THlh0SPOmI+O0SKaw6gfk3gqZXyJ0\nXGw/CqljKg+9HZ1JeN6M/hT0cH7rSSfKmaySY9iD1i1lxjxM+zHuiWYRJbA2Ahhf\nim6RRg==\n-----END CERTIFICATE-----"}
+	validCert := []string{
+		"-----BEGIN CERTIFICATE-----\nMIIFEDCCA3igAwIBAgITS/bXdYAv5LyZiy9Wd+osv4/IazANBgkqhkiG9w0BAQsF\nADAkMQ8wDQYDVQQKEwZOZXRhcHAxETAPBgNVBAMTCHNzLWNhLWNuMB4XDTI1MDYw\nMjE0MzQ1MFoXDTI1MDcwMjE0MzQ0OVowLjEPMA0GA1UEChMGbmV0YXBwMRswGQYD\nVQQDExJzaGFzaGktdXNlci1jbGllbnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\nggEKAoIBAQDcagOhNAO68lpqXSkHrxBlF3xLNetZS739eGUneujlMqLWjMA04u9v\nBZGYdbKP5VDB8j2H4qiop7KzXIteKCpP6lmLD7vqpV5a7wIU2esewI4QeaZ+RvdL\np9duqnAv5JpTTAjKFhA4+jZQCqjJaqltYtPYMBxw8TiQcwkQUlQbYlVMYbHurkPE\nCItpDJPEyyddabM6lXri6nsWRyC2J13h8BAJMflC6yPXsb/fwsSjJULNzQr41A74\nwBJ/OTtQwLgrS8qxlxTAUL+dBUKW2/kIUT+pkqCd1nOvOgSzSdDj2qhLI2aNWrQl\noCNvdCWELoq6D0sj+DssrB7KNyrNRCafAgMBAAGjggGvMIIBqzAOBgNVHQ8BAf8E\nBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQC\nMAAwHQYDVR0OBBYEFJbr1PPEc/mieh1yXp+j5Mx80g79MB8GA1UdIwQYMBaAFM8w\nTjkEr4gm0t2b6qptwRlFdAQrMIGNBggrBgEFBQcBAQSBgDB+MHwGCCsGAQUFBzAC\nhnBodHRwOi8vcHJpdmF0ZWNhLWNvbnRlbnQtNjg1YmQ5ZjctMDAwMC0yMWQ2LTlj\nM2ItMTRjMTRlZjQ4NmQ0LnN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vYTNkM2UyNWE0\nZjhkNmJjNzQ5YmUvY2EuY3J0MBcGA1UdEQQQMA6CDCouc2hhc2hpLmNvbTCBggYD\nVR0fBHsweTB3oHWgc4ZxaHR0cDovL3ByaXZhdGVjYS1jb250ZW50LTY4NWJkOWY3\nLTAwMDAtMjFkNi05YzNiLTE0YzE0ZWY0ODZkNC5zdG9yYWdlLmdvb2dsZWFwaXMu\nY29tL2EzZDNlMjVhNGY4ZDZiYzc0OWJlL2NybC5jcmwwDQYJKoZIhvcNAQELBQAD\nggGBAIVgs0Kp142hnA3AxTTF84GqkX5gDuoAn7thK7Mgvjeuc8XPaM/jj+CNApK7\nGoQazkNxz2VJmwYtCaXPzYwMd6H10Y8CsF02mfbRXLbxa0MwVP/LR7rO0sOlv32o\nqzk1rs/UHYffaEz+CrxuPFqdhh5gw188siGIrlpfLNfR6IjdwLE1anH0dYwcxKFc\nDdNMxyX3wXnT4yVe2ufAK0PMvmJHHicoWsVU1CCRzHtySfKpRKYhWI54gbI0fmWK\nTjbf1jg5veC42ShIpFzCi7bU/7tfnhweD1qskqOuw+ipjbqxlxOuSoUw439WTVfb\nDvnEZAN0i/xR8/F0gv5TQwIY03ip1Lq08ak8/tTdJabInGtqquJsaFzgzO8b+0hE\nSWtfJXPFZh6UKLjAaxh4j7kKq2f8QS4uG07THlh0SPOmI+O0SKaw6gfk3gqZXyJ0\nXGw/CqljKg+9HZ1JeN6M/hT0cH7rSSfKmaySY9iD1i1lxjxM+zHuiWYRJbA2Ahhf\nim6RRg==\n-----END CERTIFICATE-----",
+		"-----BEGIN CERTIFICATE-----\nMIIFEDCCA3igAwIBAgITS/bXdYAv5LyZiy9Wd+osv4/IazANBgkqhkiG9w0BAQsF\nADAkMQ8wDQYDVQQKEwZOZXRhcHAxETAPBgNVBAMTCHNzLWNhLWNuMB4XDTI1MDYw\nMjE0MzQ1MFoXDTI1MDcwMjE0MzQ0OVowLjEPMA0GA1UEChMGbmV0YXBwMRswGQYD\nVQQDExJzaGFzaGktdXNlci1jbGllbnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\nggEKAoIBAQDcagOhNAO68lpqXSkHrxBlF3xLNetZS739eGUneujlMqLWjMA04u9v\nBZGYdbKP5VDB8j2H4qiop7KzXIteKCpP6lmLD7vqpV5a7wIU2esewI4QeaZ+RvdL\np9duqnAv5JpTTAjKFhA4+jZQCqjJaqltYtPYMBxw8TiQcwkQUlQbYlVMYbHurkPE\nCItpDJPEyyddabM6lXri6nsWRyC2J13h8BAJMflC6yPXsb/fwsSjJULNzQr41A74\nwBJ/OTtQwLgrS8qxlxTAUL+dBUKW2/kIUT+pkqCd1nOvOgSzSdDj2qhLI2aNWrQl\noCNvdCWELoq6D0sj+DssrB7KNyrNRCafAgMBAAGjggGvMIIBqzAOBgNVHQ8BAf8E\nBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQC\nMAAwHQYDVR0OBBYEFJbr1PPEc/mieh1yXp+j5Mx80g79MB8GA1UdIwQYMBaAFM8w\nTjkEr4gm0t2b6qptwRlFdAQrMIGNBggrBgEFBQcBAQSBgDB+MHwGCCsGAQUFBzAC\nhnBodHRwOi8vcHJpdmF0ZWNhLWNvbnRlbnQtNjg1YmQ5ZjctMDAwMC0yMWQ2LTlj\nM2ItMTRjMTRlZjQ4NmQ0LnN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vYTNkM2UyNWE0\nZjhkNmJjNzQ5YmUvY2EuY3J0MBcGA1UdEQQQMA6CDCouc2hhc2hpLmNvbTCBggYD\nVR0fBHsweTB3oHWgc4ZxaHR0cDovL3ByaXZhdGVjYS1jb250ZW50LTY4NWJkOWY3\nLTAwMDAtMjFkNi05YzNiLTE0YzE0ZWY0ODZkNC5zdG9yYWdlLmdvb2dsZWFwaXMu\nY29tL2EzZDNlMjVhNGY4ZDZiYzc0OWJlL2NybC5jcmwwDQYJKoZIhvcNAQELBQAD\nggGBAIVgs0Kp142hnA3AxTTF84GqkX5gDuoAn7thK7Mgvjeuc8XPaM/jj+CNApK7\nGoQazkNxz2VJmwYtCaXPzYwMd6H10Y8CsF02mfbRXLbxa0MwVP/LR7rO0sOlv32o\nqzk1rs/UHYffaEz+CrxuPFqdhh5gw188siGIrlpfLNfR6IjdwLE1anH0dYwcxKFc\nDdNMxyX3wXnT4yVe2ufAK0PMvmJHHicoWsVU1CCRzHtySfKpRKYhWI54gbI0fmWK\nTjbf1jg5veC42ShIpFzCi7bU/7tfnhweD1qskqOuw+ipjbqxlxOuSoUw439WTVfb\nDvnEZAN0i/xR8/F0gv5TQwIY03ip1Lq08ak8/tTdJabInGtqquJsaFzgzO8b+0hE\nSWtfJXPFZh6UKLjAaxh4j7kKq2f8QS4uG07THlh0SPOmI+O0SKaw6gfk3gqZXyJ0\nXGw/CqljKg+9HZ1JeN6M/hT0cH7rSSfKmaySY9iD1i1lxjxM+zHuiWYRJbA2Ahhf\nim6RRg==\n-----END CERTIFICATE-----",
+	}
 
 	t.Run("Valid PEM certificate", func(t *testing.T) {
 		pool, err := _parsePEMCertificate(validCert, "CERTIFICATE")
@@ -2720,4 +2724,23 @@ func TestGetBackupRegionEdgeCases(t *testing.T) {
 		assert.Equal(t, "", result)
 		assert.Contains(t, err.Error(), "LocationID represents neither a region nor a zone")
 	})
+}
+
+// TestImmutableBackupVaultErrMsg tests the error message constant for immutable backup vault validation
+// This test ensures the constant is properly defined and has the expected value
+func TestImmutableBackupVaultErrMsg(t *testing.T) {
+	expectedMessage := "Immutable backup vaults are not supported for ISCSI volumes"
+
+	assert.Equal(t, expectedMessage, ImmutableBackupVaultErrMsg,
+		"ImmutableBackupVaultErrMsg should have the correct error message")
+
+	// Ensure the message is not empty
+	assert.NotEmpty(t, ImmutableBackupVaultErrMsg,
+		"ImmutableBackupVaultErrMsg should not be empty")
+
+	// Ensure the message contains key terms
+	assert.Contains(t, ImmutableBackupVaultErrMsg, "Immutable backup vaults",
+		"Error message should mention immutable backup vaults")
+	assert.Contains(t, ImmutableBackupVaultErrMsg, "ISCSI volumes",
+		"Error message should mention ISCSI volumes")
 }

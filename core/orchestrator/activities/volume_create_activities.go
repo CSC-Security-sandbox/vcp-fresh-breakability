@@ -33,7 +33,6 @@ const (
 	VolumeTypeDP                 = "dp"
 	SnapshotPolicyNone           = "none"
 	CrossRegionBackupType        = "CROSS_REGION"
-	ImmutableBackupVaultErrMsg   = "Immutable backup vaults are not supported for ISCSI volumes"
 	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
 	RestoreBackupWorkflow        = "RestoreBackupWorkflow"
 	BytesPerGB                   = 1073741824 // 1024^3 bytes = 1 GB
@@ -587,7 +586,7 @@ func validateCRBBackupVault(backupVaultType string) error {
 
 func validateImmutableBackupVault(minRetentionDuration int64) error {
 	if minRetentionDuration > 0 {
-		return errors.NewBadRequestErr(ImmutableBackupVaultErrMsg)
+		return errors.NewBadRequestErr(utils.ImmutableBackupVaultErrMsg)
 	}
 	return nil
 }

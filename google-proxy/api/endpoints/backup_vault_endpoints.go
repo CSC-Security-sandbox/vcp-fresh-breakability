@@ -694,8 +694,27 @@ func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
+	// Check if backup retention policy is being updated and vault is attached to volumes
+	if req.BackupRetentionPolicy.IsSet() {
+		isAttached, err := h.Orchestrator.IsBackupVaultAttachedToVolume(ctx, params.BackupVaultId)
+		if err != nil {
+			logger.Errorf("Failed to check if backup vault %s is attached to vsa volume: %v", params.BackupVaultId, err)
+			return &gcpgenserver.V1betaUpdateBackupVaultInternalServerError{
+				Code:    500,
+				Message: "Failed to check backup vault attachment status",
+			}, nil
+		}
+		if isAttached {
+			return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
+				Code:    400,
+				Message: utils.ImmutableBackupVaultErrMsg,
+			}, nil
+		}
+	}
+
 	var backupMinimumEnforcedRetentionDuration *int64
 	var dailyBackupImmutable, weeklyBackupImmutable, monthlyBackupImmutable, adhocBackupImmutable *bool
+
 	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.IsSet() {
 		val := int64(req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value)
 		backupMinimumEnforcedRetentionDuration = &val

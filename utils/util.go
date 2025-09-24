@@ -84,14 +84,15 @@ var (
 )
 
 const (
-	lowercaseLetters = "abcdefghijklmnopqrstuvwxyz"
-	uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digits           = "0123456789"
-	specialChars     = "!@#$%^&*()-_=+[]{}|;:,.<>?/`~"
-	QosTypeAuto      = "auto"
-	GiBInBytes       = 1073741824
-	TiBInBytes       = 1099511627776
-	PiBInBytes       = 1125899906842624
+	lowercaseLetters           = "abcdefghijklmnopqrstuvwxyz"
+	uppercaseLetters           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits                     = "0123456789"
+	specialChars               = "!@#$%^&*()-_=+[]{}|;:,.<>?/`~"
+	QosTypeAuto                = "auto"
+	GiBInBytes                 = 1073741824
+	TiBInBytes                 = 1099511627776
+	PiBInBytes                 = 1125899906842624
+	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for ISCSI volumes"
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
