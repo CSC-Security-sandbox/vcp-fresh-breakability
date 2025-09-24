@@ -25,6 +25,8 @@ const (
 	CreateVSASVMWorkflowName               = "vlm.CreateVSASVMWorkflow"
 	DeleteVSAClusterDeploymentWorkflowName = "vlm.DeleteVSAClusterDeploymentWorkflow"
 	UpdateVSAClusterDeploymentWorkflowName = "vlm.UpdateVSAClusterDeploymentWorkflow"
+	ValidateClusterHealthWorkflowName      = "vlm.ClusterHealthCheck"
+	ClusterPowerOpWorkflowName             = "vlm.ClusterPowerCycle"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
 	GCP_DISK_HDB                 = "hyperdisk-balanced"
@@ -32,6 +34,10 @@ const (
 
 	ErrorTypeVLMError       string = "VLMError"
 	ErrorTypeVLMClientError string = "VLMClientError"
+
+	// Cluster power operation types
+	ClusterPowerOn  string = "start"
+	ClusterPowerOff string = "stop"
 )
 
 // TODO: Need to revisit these values for Multi HA configurations
@@ -41,6 +47,8 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	CreateVSASVMWorkflowName:               time.Duration(env.GetInt("VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
 	DeleteVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 20)) * time.Minute,
 	UpdateVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 120)) * time.Minute,
+	ValidateClusterHealthWorkflowName:      time.Duration(env.GetInt("VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES", 15)) * time.Minute,
+	ClusterPowerOpWorkflowName:             time.Duration(env.GetInt("VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
 }
 
 type VLMConfig struct {
@@ -332,4 +340,18 @@ type CreateAggregatesForHAPairsWorkflowResponse struct {
 	Deployment DeploymentConfig
 	DataAggr   []DataAggrConfig
 	VsaCluster VsaClusterConfig
+}
+
+// ValidateClusterHealthRequest represents the request for cluster health validation
+type ValidateClusterHealthRequest struct {
+	VLMConfig            VLMConfig        `json:"VLMConfig"`            // VLM configuration for the cluster
+	OntapCredentials     OntapCredentials `json:"OntapCredentials"`     // ONTAP credentials for the VSA cluster
+	TriggerASUPOnFailure bool             `json:"TriggerASUPOnFailure"` // Whether to trigger ASUP on health check failure
+}
+
+// ClusterPowerOpRequest represents the request for cluster power operations
+type ClusterPowerOpRequest struct {
+	VLMConfig        VLMConfig        `json:"VLMConfig"`        // VLM configuration for the cluster
+	OntapCredentials OntapCredentials `json:"OntapCredentials"` // ONTAP credentials for the VSA cluster
+	Operation        string           `json:"Operation"`        // Timeout for the operation in minutes
 }

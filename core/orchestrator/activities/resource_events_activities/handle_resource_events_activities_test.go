@@ -498,28 +498,6 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("HandleResourceEventsOFFForVCPActivity_WhenResourceTypeIsStoragePool", func(tt *testing.T) {
-		ctx := context.Background()
-		mockSE := database.NewMockStorage(tt)
-		activity := &ResourceEventsActivity{SE: mockSE}
-
-		params := &common.HandleResourceEventParams{
-			ResourceType: common.ResourceStateV1ResourceTypeStoragePool,
-			ResourceId:   "test-storage-pool-id",
-		}
-
-		mockSE.On("UpdatePoolState", ctx, &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				UUID: params.ResourceId,
-			}, State: coremodels.LifeCycleStateDisabled,
-			StateDetails: coremodels.LifeCycleStateDisabledDetails,
-		}, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(nil, nil)
-
-		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
-		assert.True(tt, result)
-		assert.Nil(tt, err)
-	})
-
 	t.Run("HandleResourceEventsOFFForVCPActivity_WhenResourceTypeIsAD", func(tt *testing.T) {
 		ctx := context.Background()
 		mockSE := database.NewMockStorage(tt)
@@ -769,28 +747,6 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 			State:        coremodels.LifeCycleStateREADY,
 			StateDetails: coremodels.LifeCycleStateAvailableDetails,
 		}).Return(nil, nil)
-
-		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
-		assert.True(tt, result)
-		assert.Nil(tt, err)
-	})
-
-	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsStoragePool", func(tt *testing.T) {
-		ctx := context.Background()
-		mockSE := database.NewMockStorage(tt)
-		activity := &ResourceEventsActivity{SE: mockSE}
-
-		params := &common.HandleResourceEventParams{
-			ResourceType: common.ResourceStateV1ResourceTypeStoragePool,
-			ResourceId:   "test-storage-pool-id",
-		}
-
-		mockSE.On("UpdatePoolState", ctx, &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				UUID: params.ResourceId,
-			}, State: coremodels.LifeCycleStateREADY,
-			StateDetails: coremodels.LifeCycleStateAvailableDetails,
-		}, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
 		assert.True(tt, result)

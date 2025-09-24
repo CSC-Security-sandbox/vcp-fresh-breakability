@@ -1,15 +1,22 @@
 package workflows
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -18,7 +25,31 @@ import (
 var (
 	CVPJobRetryMaxAttempts           = env.GetInt("CVP_JOB_RETRY_MAX_ATTEMPTS", 10)
 	InitialRetryIntervalForCVPClient = env.GetString("CVP_CLIENT_RETRY_INTERVAL", "60s")
+	VSAOperationTimeout              = func() time.Duration {
+		if timeout := env.GetString("VSA_OPERATION_TIMEOUT", "45m"); timeout != "" {
+			if d, err := time.ParseDuration(timeout); err == nil {
+				return d
+			}
+		}
+		return time.Hour // Default to 1 hour
+	}()
 )
+
+// PoolProcessingResult represents the result of processing a single pool
+type PoolProcessingResult struct {
+	PoolUUID     string
+	PoolName     string
+	Success      bool
+	ErrorMessage string
+}
+
+// ClusterOperationResults represents the results of processing all pools
+type ClusterOperationResults struct {
+	TotalPools      int
+	SuccessfulPools int
+	FailedPools     int
+	Results         []PoolProcessingResult
+}
 
 // StartProjectEventOffStateWorkflow is a workflow that handles the OFF state for StartProjectEvent.
 type startProjectEventOffStateWorkflow struct {
@@ -82,9 +113,25 @@ func (s *startProjectEventOffStateWorkflow) Setup(ctx workflow.Context, input in
 }
 
 func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
-	// add activities to disable account, list pools, turn off clusters, forward call to SDE, poll job
+	logger := util.GetLogger(ctx)
 	startProjectEventParams := args[0].(*common.StartProjectEventParams)
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{}
+
+	var err error
+	// Defer function to handle final account state update
+	defer func() {
+		targetState := models.AccountStateEnabled
+		// Only handle final state if we successfully set the initial state
+		if err != nil {
+			updateErr := workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, targetState).Get(ctx, nil)
+			if updateErr != nil {
+				logger.Errorf("Failed to update account state to %s: %v", targetState, updateErr)
+			} else {
+				logger.Infof("Successfully updated account state to %s", targetState)
+			}
+		}
+	}()
+
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -96,7 +143,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"PanicError"},
+			NonRetryableErrorTypes: []string{"NonRetryableError", "PanicError"},
 		},
 	}
 	ao1 := ao
@@ -107,25 +154,141 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	ctx1 := workflow.WithActivityOptions(ctx, ao1)
+	ao2 := ao1
 
-	if cvp.CVP_HOST == "" {
-		return nil, nil
-	}
-
-	// TODO: add VSA cluster power off activity
-	var result *common.StartProjectEventResult
-	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.StartProjectEventForSDEActivity, startProjectEventParams).Get(ctx, &result)
+	// Set account state to "disabling" before starting VSA operations
+	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateDisabling).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx1, startProjectEventActivity.PollStartProjectEventSDEOperationActivity, startProjectEventParams, &result).Get(ctx, nil)
+	poolActivity := &resource_events_activities.StartProjectEventActivity{}
+	var poolList []*datamodel.PoolView
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, startProjectEventParams.State).Get(ctx, &poolList)
 	if err != nil {
+		logger.Errorf("Failed to list pools for project %s: %v", startProjectEventParams.ProjectNumber, err)
 		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, ConvertToVSAError(err)
+	// Check if there are any pools to process
+	var vsaOperationsChan workflow.ReceiveChannel
+	var vsaResults *ClusterOperationResults
+	vsaStartTime := time.Now() // Always capture start time for timeout calculations
+	if len(poolList) == 0 {
+		logger.Info("No pools found for project, skipping cluster operations")
+		// Create empty results for no pools
+		vsaResults = &ClusterOperationResults{
+			TotalPools:      0,
+			SuccessfulPools: 0,
+			FailedPools:     0,
+			Results:         []PoolProcessingResult{},
+		}
+	} else {
+		// Start VSA cluster operations in background asynchronously
+		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOff, poolList, s.processClusterForOFFState, models.LifeCycleStateDisabled)
+		if err != nil {
+			logger.Errorf("Failed to start VSA cluster operations: %v", err)
+			// Note: This error path should never occur as executeVSAClusterOperations always returns nil error
+		}
+	}
+
+	// Start SDE operations immediately (not in background) if CVP_HOST is configured
+	var sdeError error
+	var sdeResult *common.StartProjectEventResult
+	if cvp.CVP_HOST != "" {
+		logger.Info("Starting SDE operations")
+
+		// Step 1: Start SDE operation
+		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.StartProjectEventForSDEActivity, startProjectEventParams).Get(ctx, &sdeResult)
+		if err != nil {
+			logger.Errorf("Failed to start SDE operation: %v", err)
+			sdeError = err
+		}
+	}
+
+	// Now collect VSA operation results at the end (this may take up to 45 minutes)
+	if len(poolList) > 0 {
+		var timeoutOccurred bool
+		vsaResults, timeoutOccurred = waitForVSAOperationsWithTimeout(ctx, vsaOperationsChan, poolList)
+		// Don't return early on timeout - mark as error but continue to handle SDE
+		if timeoutOccurred {
+			logger.Errorf("VSA cluster operations timed out after %v", VSAOperationTimeout)
+			// Mark VSA as failed but don't return yet - we need to wait for SDE completion
+			if vsaResults == nil {
+				vsaResults = &ClusterOperationResults{
+					TotalPools:      len(poolList),
+					SuccessfulPools: 0,
+					FailedPools:     len(poolList),
+					Results:         []PoolProcessingResult{},
+				}
+			}
+		}
+	}
+
+	// Calculate VSA end time and SDE start time, then determine remaining time for SDE polling
+	if sdeResult != nil && sdeError == nil {
+		remainingTime := VSAOperationTimeout - time.Since(vsaStartTime)
+
+		// Check if SDE is already done
+		if sdeResult.Done != nil && *sdeResult.Done {
+			logger.Info("SDE operation was already completed")
+		} else {
+			ao2.StartToCloseTimeout = remainingTime
+			if remainingTime < ao2.RetryPolicy.InitialInterval {
+				ao2.RetryPolicy.MaximumAttempts = 1
+			}
+			sdeCtx := workflow.WithActivityOptions(ctx, ao2)
+
+			err = workflow.ExecuteActivity(sdeCtx, startProjectEventActivity.PollStartProjectEventSDEOperationActivity, startProjectEventParams, sdeResult).Get(sdeCtx, nil)
+			if err != nil {
+				logger.Errorf("SDE polling failed: %v", err)
+				sdeError = err
+			} else {
+				logger.Info("SDE operation completed successfully via polling")
+			}
+		}
+	}
+
+	// Now evaluate all results and determine final outcome
+	var hasVSAFailure bool
+	var hasSDEFailure bool
+
+	// Check VSA operation results
+	if vsaResults != nil && vsaResults.FailedPools > 0 {
+		hasVSAFailure = true
+		logger.Errorf("VSA operations failed: %d out of %d pools failed", vsaResults.FailedPools, vsaResults.TotalPools)
+	}
+
+	// Check SDE operation results
+	if sdeError != nil {
+		hasSDEFailure = true
+		logger.Errorf("SDE operations failed: %v", sdeError)
+	}
+
+	// Handle failures - revert account state if either operation failed
+	if hasVSAFailure || hasSDEFailure {
+		logger.Error("One or more operations failed, reverting account state to enabled")
+
+		// Return appropriate error based on what failed
+		if hasVSAFailure && hasSDEFailure {
+			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, fmt.Errorf("Both VSA and SDE operations failed. VSA: %d pools failed, SDE: %v", vsaResults.FailedPools, sdeError)))
+		} else if hasVSAFailure {
+			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, errors.New("One or more cluster power off operations failed")))
+		} else {
+			return nil, ConvertToVSAError(sdeError)
+		}
+	}
+
+	// All operations completed successfully - mark for success state update in defer
+	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateHyperscalerDisabled).Get(ctx, nil)
+	if err != nil {
+		logger.Error("Enable account in database failed")
+		return nil, ConvertToVSAError(err)
+	}
+
+	logger.Info("HRE ON state operations completed successfully")
+	return nil, nil
 }
 
 // StartProjectEventOnStateWorkflow is a workflow that handles the ON state for StartProjectEvent.
@@ -188,9 +351,25 @@ func (s *startProjectEventOnStateWorkflow) Setup(ctx workflow.Context, input int
 }
 
 func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
-	// add activities to enable account, list pools, turn on clusters, forward call to SDE, poll job
+	logger := util.GetLogger(ctx)
 	startProjectEventParams := args[0].(*common.StartProjectEventParams)
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{}
+
+	var err error
+	// Defer function to handle final account state update
+	defer func() {
+		targetState := models.AccountStateHyperscalerDisabled
+		// Only handle final state if we successfully set the initial state
+		if err != nil {
+			updateErr := workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, targetState).Get(ctx, nil)
+			if updateErr != nil {
+				logger.Errorf("Failed to update account state to %s: %v", targetState, updateErr)
+			} else {
+				logger.Infof("Successfully updated account state to %s", targetState)
+			}
+		}
+	}()
+
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -202,7 +381,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"PanicError"},
+			NonRetryableErrorTypes: []string{"NonRetryableError", "PanicError"},
 		},
 	}
 
@@ -214,23 +393,398 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	ctx1 := workflow.WithActivityOptions(ctx, ao1)
+	ao2 := ao1
 
-	if cvp.CVP_HOST == "" {
-		return nil, nil
-	}
-
-	// TODO: add VSA cluster power on activity
-	var result *common.StartProjectEventResult
-	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.StartProjectEventForSDEActivity, startProjectEventParams).Get(ctx, &result)
+	// Set account state to "enabling" before starting VSA operations
+	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateEnabling).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx1, startProjectEventActivity.PollStartProjectEventSDEOperationActivity, startProjectEventParams, &result).Get(ctx, nil)
+	// Get list of pools for the project to perform cluster operations
+	poolActivity := &resource_events_activities.StartProjectEventActivity{}
+
+	var poolList []*datamodel.PoolView
+	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, startProjectEventParams.State).Get(ctx, &poolList)
 	if err != nil {
+		logger.Errorf("Failed to list pools for project %s: %v", startProjectEventParams.ProjectNumber, err)
 		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, ConvertToVSAError(err)
+	// Check if there are any pools to process
+	var vsaOperationsChan workflow.ReceiveChannel
+	var vsaResults *ClusterOperationResults
+	vsaStartTime := time.Now() // Always capture start time for timeout calculations
+
+	if len(poolList) == 0 {
+		logger.Info("No pools found for project, skipping cluster operations")
+		// Create empty results for no pools
+		vsaResults = &ClusterOperationResults{
+			TotalPools:      0,
+			SuccessfulPools: 0,
+			FailedPools:     0,
+			Results:         []PoolProcessingResult{},
+		}
+	} else {
+		// Start VSA cluster operations in background asynchronously
+		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOn, poolList, s.processClusterForONState, models.LifeCycleStateREADY)
+		if err != nil {
+			logger.Errorf("Failed to start VSA cluster operations: %v", err)
+			// Note: This error path should never occur as executeVSAClusterOperations always returns nil error
+		}
+	}
+
+	// Start SDE operations immediately (not in background) if CVP_HOST is configured
+	var sdeError error
+	var sdeResult *common.StartProjectEventResult
+	if cvp.CVP_HOST != "" {
+		logger.Info("Starting SDE operations")
+
+		// Start SDE operation
+		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.StartProjectEventForSDEActivity, startProjectEventParams).Get(ctx, &sdeResult)
+		if err != nil {
+			logger.Errorf("Failed to start SDE operation: %v", err)
+			sdeError = err
+		} else {
+			// Check if SDE completed immediately
+			if sdeResult.Done != nil && *sdeResult.Done {
+				logger.Info("SDE operation completed immediately")
+			} else {
+				logger.Info("SDE operation started, will poll after VSA operations complete")
+			}
+		}
+	}
+
+	// Now collect VSA operation results at the end (this may take up to 45 minutes)
+	if len(poolList) > 0 {
+		var timeoutOccurred bool
+		vsaResults, timeoutOccurred = waitForVSAOperationsWithTimeout(ctx, vsaOperationsChan, poolList)
+
+		// Don't return early on timeout - mark as error but continue to handle SDE
+		if timeoutOccurred {
+			logger.Errorf("VSA cluster operations timed out after %v", VSAOperationTimeout)
+			// Mark VSA as failed but don't return yet - we need to wait for SDE completion
+			if vsaResults == nil {
+				vsaResults = &ClusterOperationResults{
+					TotalPools:      len(poolList),
+					SuccessfulPools: 0,
+					FailedPools:     len(poolList),
+					Results:         []PoolProcessingResult{},
+				}
+			}
+		}
+	}
+
+	// Calculate VSA end time and SDE start time, then determine remaining time for SDE polling
+	if sdeResult != nil && sdeError == nil {
+		remainingTime := VSAOperationTimeout - time.Since(vsaStartTime)
+
+		// Check if SDE is already done
+		if sdeResult.Done != nil && *sdeResult.Done {
+			logger.Info("SDE operation was already completed")
+		} else {
+			ao2.StartToCloseTimeout = remainingTime
+			if remainingTime < ao2.RetryPolicy.InitialInterval {
+				ao2.RetryPolicy.MaximumAttempts = 1
+			}
+			sdeCtx := workflow.WithActivityOptions(ctx, ao2)
+			err = workflow.ExecuteActivity(sdeCtx, startProjectEventActivity.PollStartProjectEventSDEOperationActivity, startProjectEventParams, sdeResult).Get(sdeCtx, nil)
+			if err != nil {
+				logger.Errorf("SDE polling failed: %v", err)
+				sdeError = err
+			} else {
+				logger.Info("SDE operation completed successfully via polling")
+			}
+		}
+	} // Now evaluate all results and determine final outcome
+	var hasVSAFailure bool
+	var hasSDEFailure bool
+
+	// Check VSA operation results
+	if vsaResults != nil && vsaResults.FailedPools > 0 {
+		hasVSAFailure = true
+		logger.Errorf("VSA operations failed: %d out of %d pools failed", vsaResults.FailedPools, vsaResults.TotalPools)
+	}
+
+	// Check SDE operation results
+	if sdeError != nil {
+		hasSDEFailure = true
+		logger.Errorf("SDE operations failed: %v", sdeError)
+	}
+
+	// Handle failures - revert account state if either operation failed
+	if hasVSAFailure || hasSDEFailure {
+		logger.Error("One or more operations failed, reverting account state to disabled")
+
+		// Return appropriate error based on what failed
+		if hasVSAFailure && hasSDEFailure {
+			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, fmt.Errorf("Both VSA and SDE operations failed. VSA: %d pools failed, SDE: %v", vsaResults.FailedPools, sdeError)))
+		} else if hasVSAFailure {
+			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, errors.New("One or more cluster power on operations failed")))
+		} else {
+			return nil, ConvertToVSAError(sdeError)
+		}
+	}
+
+	// All operations completed successfully - mark for success state update in defer
+	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateEnabled).Get(ctx, nil)
+	if err != nil {
+		logger.Error("Enable account in database failed")
+		return nil, ConvertToVSAError(err)
+	}
+
+	logger.Info("HRE ON state operations completed successfully")
+	return nil, nil
+}
+
+// executeVSAClusterOperations performs cluster operations for any state (ON/OFF) in parallel and returns a channel for polling
+func executeVSAClusterOperations(ctx workflow.Context, params *common.StartProjectEventParams, operationType string, poolList []*datamodel.PoolView, processorFunc func(workflow.Context, vlm.VlmWorkflowClient, *datamodel.PoolView, *common.StartProjectEventParams) error, targetLifecycleState string) (workflow.ReceiveChannel, error) {
+	logger := util.GetLogger(ctx)
+
+	logger.Infof("Found %d pools for project %s to perform cluster %s operations", len(poolList), params.ProjectNumber, operationType)
+
+	// Create a channel to return results to the workflow
+	resultChannel := workflow.NewChannel(ctx)
+
+	// Start cluster operations in background and return channel immediately
+	workflow.Go(ctx, func(ctx workflow.Context) {
+		// Process all pools in parallel using Temporal's workflow concurrency with channels
+		results := ClusterOperationResults{
+			TotalPools: len(poolList),
+			Results:    make([]PoolProcessingResult, 0, len(poolList)),
+		}
+
+		// Create a channel to collect results from parallel operations
+		internalResultsChan := workflow.NewBufferedChannel(ctx, len(poolList))
+
+		// Process each pool's VSA cluster in parallel using workflow.Go
+		for _, pool := range poolList {
+			currentPool := pool // capture loop variable
+
+			workflow.Go(ctx, func(ctx workflow.Context) {
+				result := PoolProcessingResult{
+					PoolUUID: currentPool.UUID,
+					PoolName: currentPool.Name,
+					Success:  true,
+				}
+
+				// Get VSA client workflow manager for this pool operation
+				vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+
+				// Execute the actual processor function for this pool
+				errOp := processorFunc(ctx, vsaClientWorkflowManager, currentPool, params)
+				if errOp != nil {
+					result.Success = false
+					result.ErrorMessage = errOp.Error()
+					logger.Error("Failed to process cluster operations for currentPool", "poolName", currentPool.Name, "poolUUID", currentPool.UUID, "error", errOp)
+				} else {
+					logger.Info("Successfully processed cluster operations for currentPool", "poolName", currentPool.Name, "poolUUID", currentPool.UUID)
+				}
+
+				internalResultsChan.Send(ctx, result)
+			})
+		}
+
+		// Collect results from all parallel operations
+		for i := 0; i < len(poolList); i++ {
+			var result PoolProcessingResult
+			internalResultsChan.Receive(ctx, &result)
+			results.Results = append(results.Results, result)
+
+			if result.Success {
+				// Update pool lifecycle state to target state on successful operation
+				poolActivity := &activities.PoolActivity{}
+				pool := &datamodel.Pool{}
+				pool.UUID = result.PoolUUID
+				var stateDetails string
+				switch targetLifecycleState {
+				case models.LifeCycleStateDisabled:
+					stateDetails = models.LifeCycleStateDisabledDetails
+				case models.LifeCycleStateREADY:
+					stateDetails = models.LifeCycleStateAvailableDetails
+				}
+
+				err := workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolState, pool, targetLifecycleState, stateDetails).Get(ctx, nil)
+				if err != nil {
+					logger.Warnf("Failed to update pool %s lifecycle state to %s: %v", result.PoolName, targetLifecycleState, err)
+					// Mark as failed since we couldn't update the pool state
+					result.Success = false
+					result.ErrorMessage = fmt.Sprintf("Failed to update pool lifecycle state: %v", err)
+					results.FailedPools++
+				} else {
+					logger.Infof("Successfully updated pool %s lifecycle state to %s", result.PoolName, targetLifecycleState)
+					results.SuccessfulPools++
+				}
+			} else {
+				results.FailedPools++
+			}
+		}
+
+		// Log summary
+		logger.Infof("Cluster %s operations summary: Total=%d, Successful=%d, Failed=%d",
+			operationType, results.TotalPools, results.SuccessfulPools, results.FailedPools)
+
+		// Log failed pools for debugging
+		if results.FailedPools > 0 {
+			logger.Warnf("Failed pools:")
+			for _, result := range results.Results {
+				if !result.Success {
+					logger.Warnf("  - Pool %s (%s): %s", result.PoolName, result.PoolUUID, result.ErrorMessage)
+				}
+			}
+		}
+
+		// Send final results to the workflow through the return channel
+		resultChannel.Send(ctx, &results)
+	})
+
+	return resultChannel, nil
+}
+
+// waitForVSAOperationsWithTimeout waits for VSA operations to complete with a configurable timeout
+// This is a reusable helper function that handles the timeout logic for both ON and OFF state workflows
+func waitForVSAOperationsWithTimeout(ctx workflow.Context, vsaOperationsChan workflow.ReceiveChannel, poolList []*datamodel.PoolView) (*ClusterOperationResults, bool) {
+	logger := util.GetLogger(ctx)
+	logger.Infof("Waiting for VSA cluster operations to complete (timeout: %v)...", VSAOperationTimeout)
+
+	// Create a selector to wait for either VSA completion or timeout
+	selector := workflow.NewSelector(ctx)
+	var vsaResults *ClusterOperationResults
+	var timeoutOccurred bool
+
+	// Add VSA operations channel
+	selector.AddReceive(vsaOperationsChan, func(c workflow.ReceiveChannel, more bool) {
+		c.Receive(ctx, &vsaResults)
+	})
+
+	// Add timeout using the configurable constant
+	selector.AddFuture(workflow.NewTimer(ctx, VSAOperationTimeout), func(f workflow.Future) {
+		timeoutOccurred = true
+		logger.Warnf("VSA cluster operations timed out after %v", VSAOperationTimeout)
+		// Create timeout result for all pools
+		vsaResults = &ClusterOperationResults{
+			TotalPools:      len(poolList),
+			SuccessfulPools: 0,
+			FailedPools:     len(poolList),
+			Results:         make([]PoolProcessingResult, 0, len(poolList)),
+		}
+		// Add timeout results for each pool
+		for _, pool := range poolList {
+			vsaResults.Results = append(vsaResults.Results, PoolProcessingResult{
+				PoolUUID:     pool.UUID,
+				PoolName:     pool.Name,
+				Success:      false,
+				ErrorMessage: fmt.Sprintf("Operation timed out after %v", VSAOperationTimeout),
+			})
+		}
+	})
+
+	// Wait for either completion or timeout
+	selector.Select(ctx)
+
+	if timeoutOccurred {
+		logger.Errorf("VSA cluster operations timed out after %v", VSAOperationTimeout)
+	} else {
+		logger.Info("VSA cluster operations completed",
+			"totalPools", vsaResults.TotalPools,
+			"successfulPools", vsaResults.SuccessfulPools,
+			"failedPools", vsaResults.FailedPools)
+	}
+
+	return vsaResults, timeoutOccurred
+}
+
+// processClusterForONState performs power cycle for a single cluster
+func (s *startProjectEventOnStateWorkflow) processClusterForONState(ctx workflow.Context, vsaClientWorkflowManager vlm.VlmWorkflowClient, pool *datamodel.PoolView, params *common.StartProjectEventParams) error {
+	logger := util.GetLogger(ctx)
+	poolActivity := &activities.PoolActivity{}
+
+	// Prepare VLM config and credentials from pool data
+	ontapCredentials := &vlm.OntapCredentials{}
+	currentVlmConfig := &vlm.VLMConfig{}
+
+	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	err := workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &ontapCredentials)
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	clusterPowerOpRequest := &vlm.ClusterPowerOpRequest{
+		VLMConfig:        *currentVlmConfig,
+		OntapCredentials: *ontapCredentials,
+		Operation:        vlm.ClusterPowerOn,
+	}
+
+	// Power on the cluster
+	logger.Info("Starting cluster power on operation", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
+
+	err = vsaClientWorkflowManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+	if err != nil {
+		logger.Errorf("Cluster power on failed for deployment %s: %v", currentVlmConfig.Deployment.DeploymentID, err)
+		return err
+	}
+
+	logger.Info("Cluster power on operation completed successfully", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
+	return nil
+}
+
+// processClusterForOFFState performs health check and power cycle for a single cluster shutdown
+func (s *startProjectEventOffStateWorkflow) processClusterForOFFState(ctx workflow.Context, vsaClientWorkflowManager vlm.VlmWorkflowClient, pool *datamodel.PoolView, params *common.StartProjectEventParams) error {
+	logger := util.GetLogger(ctx)
+	poolActivity := &activities.PoolActivity{}
+
+	// Prepare VLM config and credentials from pool data
+	ontapCredentials := &vlm.OntapCredentials{}
+	currentVlmConfig := &vlm.VLMConfig{}
+
+	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	err := workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &ontapCredentials)
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	// Step 1: Validate cluster health (non-blocking)
+	logger.Info("Starting cluster health validation before shutdown", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
+
+	validateClusterHealthRequest := &vlm.ValidateClusterHealthRequest{
+		VLMConfig:            *currentVlmConfig,
+		OntapCredentials:     *ontapCredentials,
+		TriggerASUPOnFailure: true,
+	}
+
+	err = vsaClientWorkflowManager.ValidateClusterHealth(ctx, validateClusterHealthRequest)
+	if err != nil {
+		if strings.Contains(err.Error(), "Cloud VM is not running") {
+			logger.Infof("Cluster is already powered off for deployment %s, considering power-off operation successful", currentVlmConfig.Deployment.DeploymentID)
+			return nil
+		}
+		logger.Errorf("Cluster health check encountered an error for deployment %s: %v", currentVlmConfig.Deployment.DeploymentID, err)
+		return err
+	}
+
+	logger.Info("Cluster health check passed", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
+
+	clusterPowerOpRequest := &vlm.ClusterPowerOpRequest{
+		VLMConfig:        *currentVlmConfig,
+		OntapCredentials: *ontapCredentials,
+		Operation:        vlm.ClusterPowerOff,
+	}
+
+	// Step 2: Power off the cluster gracefully
+	logger.Info("Starting graceful cluster power off operation", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
+
+	err = vsaClientWorkflowManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+	if err != nil {
+		logger.Errorf("Cluster power off failed for deployment %s: %v", currentVlmConfig.Deployment.DeploymentID, err)
+		return err
+	}
+
+	logger.Info("Cluster power off operation completed successfully", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
+	return nil
 }

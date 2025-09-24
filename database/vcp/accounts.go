@@ -105,3 +105,13 @@ func getAccounts(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Acco
 	}
 	return accounts, nil
 }
+
+// UpdateAccountStateForHandleResource updates the account state for handleResource flow
+func (d *DataStoreRepository) UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error {
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Model(&datamodel.Account{}).Where("uuid = ?", accountUUID).Update("state", newState).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseUpdateAccountState, err)
+	}
+	return nil
+}

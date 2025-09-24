@@ -46,6 +46,7 @@ data:
   GCP_KMS_KEY_ROTATION_ENABLED: {{$.Values.workerConfig.gcpKmsKeyRotationEnabled | quote }}
   BACKUP_LOGICAL_SIZE_SYNC_ENABLED: {{$.Values.workerConfig.backupLogicalSizeSyncEnabled | quote }}
   ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS: {{$.Values.workerConfig.enableAutoVolOfflineCronForGcpKms | quote }}
+  VSA_OPERATION_TIMEOUT: {{$.Values.workerConfig.vsaOperationTimeout | quote }}
   GCP_AUTH_SERVICE_ACCOUNT: {{$.Values.workerConfig.gcpAuthServiceAccount | quote }}
   GCP_SERVICE_URL: {{$.Values.workerConfig.gcpServiceUrl | quote }}
   LOGGER_LEVEL: {{$.Values.workerConfig.loggerLevel | quote }}
@@ -101,6 +102,8 @@ data:
   VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmCreateVSASVMWorkflowTimeoutMinutes | quote }}
   VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
   VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmValidateClusterHealthWorkflowTimeoutMinutes | quote }}
+  VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmClusterPowerOpWorkflowTimeoutMinutes | quote }}
   VLM_RETRY_ERROR_PATTERNS: {{$.Values.workerConfig.vlmRetryErrorPatterns | quote }}
   GCE_METADATA_HOST: {{$.Values.workerConfig.gceMetadataHost | quote }}
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{$.Values.workerConfig.numberOfHaPairsLargeCapacity | quote }}

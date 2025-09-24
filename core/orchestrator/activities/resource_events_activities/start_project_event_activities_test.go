@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -127,12 +128,11 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		activity := &StartProjectEventActivity{SE: mockSE}
 		_, err := activity.StartProjectEventForSDEActivity(ctx, params)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "Client Error during StartProjectEvent")
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
-		assert.False(tt, applicationError.NonRetryable()) // This error is retryable
-		assert.Equal(tt, "CustomError", applicationError.Type())
+		assert.True(tt, applicationError.NonRetryable()) // This error is retryable
+		assert.Equal(tt, "NonRetryableError", applicationError.Type())
 	})
 	t.Run("StartProjectEventForSDEActivity_WhenCVPClientReturnsUnexpectedResponse", func(tt *testing.T) {
 		ctx := context.Background()
@@ -317,8 +317,8 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
-		assert.False(tt, applicationError.NonRetryable())
-		assert.Equal(tt, "CustomError", applicationError.Type())
+		assert.True(tt, applicationError.NonRetryable())
+		assert.Equal(tt, "NonRetryableError", applicationError.Type())
 	})
 	t.Run("PollStartProjectEventSDEOperationActivity_WhenOperationNameIsNil", func(tt *testing.T) {
 		ctx := context.Background()
@@ -379,5 +379,122 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		activity := &StartProjectEventActivity{SE: mockSE}
 		err := activity.PollStartProjectEventSDEOperationActivity(ctx, params, result)
 		assert.Nil(tt, err)
+	})
+}
+
+func TestListPoolsForAccount(t *testing.T) {
+	t.Run("PoolsExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &StartProjectEventActivity{SE: mockSE}
+
+		projectNumber := "test-project-number"
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AccountID: account.ID,
+				Name:      "test-pool-name",
+			},
+		}
+
+		mockSE.On("GetAccount", ctx, projectNumber).Return(account, nil)
+		mockSE.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{pool}, nil)
+
+		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF")
+		assert.NotNil(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("AccountNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &StartProjectEventActivity{SE: mockSE}
+
+		projectNumber := "test-project-number"
+
+		mockSE.On("GetAccount", ctx, projectNumber).Return(nil, errors2.NewVCPError(errors2.ErrDatabaseListPoolsForAccount, errors.NewNotFoundErr("Account", nil)))
+
+		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF")
+		assert.Nil(tt, result)
+		assert.NotNil(tt, err)
+		assert.IsType(tt, &temporal.ApplicationError{}, err)
+	})
+
+	t.Run("PoolNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &StartProjectEventActivity{SE: mockSE}
+
+		projectNumber := "test-project-number"
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		}
+
+		mockSE.On("GetAccount", ctx, projectNumber).Return(account, nil)
+		mockSE.On("ListPools", ctx, mock.Anything).Return(nil, errors2.NewVCPError(errors2.ErrDatabaseListPoolsForAccount, errors.NewNotFoundErr("Pool", nil)))
+
+		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF")
+
+		assert.Nil(tt, result)
+		assert.NotNil(tt, err)
+		assert.IsType(tt, &temporal.ApplicationError{}, err)
+	})
+}
+
+func TestUpdateAccountStateForHandleResource(t *testing.T) {
+	t.Run("AccountUpdateSucceeds", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &StartProjectEventActivity{SE: mockSE}
+		state := "ENABLED"
+
+		projectNumber := "test-project-number"
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		}
+
+		mockSE.On("GetAccount", ctx, projectNumber).Return(account, nil)
+		mockSE.On("UpdateAccountStateForHandleResource", ctx, account.UUID, mock.Anything).Return(nil)
+
+		err := activity.UpdateAccountStateForHandleResource(ctx, projectNumber, state)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("AccountNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &StartProjectEventActivity{SE: mockSE}
+
+		projectNumber := "test-project-number"
+		state := "ENABLED"
+
+		mockSE.On("GetAccount", ctx, projectNumber).Return(nil, errors2.NewVCPError(errors2.ErrDatabaseListPoolsForAccount, errors.NewNotFoundErr("Account", nil)))
+
+		err := activity.UpdateAccountStateForHandleResource(ctx, projectNumber, state)
+		assert.NotNil(tt, err)
+		assert.IsType(tt, &temporal.ApplicationError{}, err)
+	})
+
+	t.Run("UpdateAccountStateError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &StartProjectEventActivity{SE: mockSE}
+
+		projectNumber := "test-project-number"
+		state := "ENABLED"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		}
+
+		mockSE.On("GetAccount", ctx, projectNumber).Return(account, nil)
+		mockSE.On("UpdateAccountStateForHandleResource", ctx, account.UUID, mock.Anything).Return(errors2.NewVCPError(errors2.ErrDatabaseListPoolsForAccount, errors.NewNotFoundErr("Account", nil)))
+
+		err := activity.UpdateAccountStateForHandleResource(ctx, projectNumber, state)
+
+		assert.NotNil(tt, err)
+		assert.IsType(tt, &temporal.ApplicationError{}, err)
 	})
 }

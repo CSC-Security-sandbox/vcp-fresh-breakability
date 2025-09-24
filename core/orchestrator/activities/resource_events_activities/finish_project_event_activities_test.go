@@ -387,8 +387,8 @@ func Test_PollFinishProjectEventSDEOperationActivity(t *testing.T) {
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
-		assert.False(tt, applicationError.NonRetryable())
-		assert.Equal(tt, "CustomError", applicationError.Type())
+		assert.True(tt, applicationError.NonRetryable())
+		assert.Equal(tt, "NonRetryableError", applicationError.Type())
 	})
 
 	t.Run("PollFinishProjectEventSDEOperationActivity_WhenOperationNameIsNil", func(tt *testing.T) {

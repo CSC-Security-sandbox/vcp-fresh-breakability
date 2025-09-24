@@ -128,7 +128,7 @@ func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx conte
 	case common.ResourceStateV1ResourceTypeKmsConfig:
 		return a.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeStoragePool:
-		return a.handleStoragePool(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		return a.checkStoragePoolExistence(ctx, params)
 	case common.ResourceStateV1ResourceTypeSnapshot:
 		return a.handleSnapshot(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeVolume:
@@ -147,7 +147,7 @@ func (a *ResourceEventsActivity) HandleResourceEventsONForVCPActivity(ctx contex
 	case common.ResourceStateV1ResourceTypeKmsConfig:
 		return a.handleKmsConfig(ctx, params, common.ResourceLifeCycleStateEnabledDetails)
 	case common.ResourceStateV1ResourceTypeStoragePool:
-		return a.handleStoragePool(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		return a.checkStoragePoolExistence(ctx, params)
 	case common.ResourceStateV1ResourceTypeSnapshot:
 		return a.handleSnapshot(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeVolume:
@@ -187,6 +187,12 @@ func (a *ResourceEventsActivity) HandleResourceEventsForSDEActivity(ctx context.
 	created, accepted, _, err := cvpClient.ResourceEvents.V1betaResourceStateUpdate(reqParams)
 	if err != nil {
 		logger.Errorf("Error turning %s Resource: %v", params.State, err)
+
+		// Check if this is a 404 Not Found error and make it non-retryable
+		if _, isNotFound := err.(*resource_events.V1betaResourceStateUpdateNotFound); isNotFound {
+			logger.Infof("SDE HandleResourceEvent returned 404 (resource not found), treating as non-retryable: %v", err)
+			return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
 	}
 
@@ -248,24 +254,6 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 
 func (a *ResourceEventsActivity) handleKmsConfig(ctx context.Context, params *common.HandleResourceEventParams, stateDetails string) (bool, error) {
 	_, err := a.SE.UpdateKmsConfigStateForHandleResource(ctx, params.ResourceId, stateDetails, params.State)
-	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-func (a *ResourceEventsActivity) handleStoragePool(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
-	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{
-			UUID: params.ResourceId,
-		},
-		State:        state,
-		StateDetails: stateDetails,
-	}
-	_, err := a.SE.UpdatePoolState(ctx, pool, state, stateDetails)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)

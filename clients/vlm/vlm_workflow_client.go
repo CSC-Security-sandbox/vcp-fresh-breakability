@@ -70,6 +70,8 @@ type VlmWorkflowClient interface {
 	CreateVSASVM(ctx workflow.Context, createSVMRequest *CreateSVMRequest) (*CreateSVMResponse, error)
 	DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error
 	UpdateVSAClusterDeployment(ctx workflow.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error)
+	ValidateClusterHealth(ctx workflow.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error
+	ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error
 }
 
 type VSAClientWorkflowManager struct {
@@ -442,4 +444,108 @@ func checkRetryError(logger log.Logger, err error) bool {
 	}
 
 	return false
+}
+
+func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error {
+	logger := util.GetLogger(ctx)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+
+	accountId := validateClusterHealthRequest.VLMConfig.Deployment.Labels["account_id"]
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[ValidateClusterHealthWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
+	childWorkflowID := fmt.Sprintf("%s-health-check-%d-%s", validateClusterHealthRequest.VLMConfig.Deployment.DeploymentID, workflow.Now(ctx).UnixNano(), workflow.GetInfo(ctx).WorkflowExecution.ID)
+	logger.Info("Creating ValidateClusterHealth child workflow", "deploymentID", validateClusterHealthRequest.VLMConfig.Deployment.DeploymentID, "childWorkflowID", childWorkflowID, "accountId", accountId)
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		WorkflowID:            childWorkflowID,
+		TaskQueue:             getVLMWorkerQueue(logger, accountId),
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, validateClusterHealthRequest.VLMConfig.Deployment.DeploymentID)
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, ValidateClusterHealthWorkflowName, validateClusterHealthRequest).Get(childWorkflowContxt, nil)
+	if err != nil {
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	return nil
+}
+
+func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error {
+	logger := util.GetLogger(ctx)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+
+	accountId := clusterPowerOpRequest.VLMConfig.Deployment.Labels["account_id"]
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[ClusterPowerOpWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
+	childWorkflowID := fmt.Sprintf("%s-power-op-%d-%s", clusterPowerOpRequest.VLMConfig.Deployment.DeploymentID, workflow.Now(ctx).UnixNano(), workflow.GetInfo(ctx).WorkflowExecution.ID)
+	logger.Info("Creating ClusterPowerOp child workflow", "deploymentID", clusterPowerOpRequest.VLMConfig.Deployment.DeploymentID, "operation", clusterPowerOpRequest.Operation, "childWorkflowID", childWorkflowID, "accountId", accountId)
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		WorkflowID:            childWorkflowID,
+		TaskQueue:             getVLMWorkerQueue(logger, accountId),
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, clusterPowerOpRequest.VLMConfig.Deployment.DeploymentID)
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, ClusterPowerOpWorkflowName, clusterPowerOpRequest).Get(childWorkflowContxt, nil)
+	if err != nil {
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	return nil
 }

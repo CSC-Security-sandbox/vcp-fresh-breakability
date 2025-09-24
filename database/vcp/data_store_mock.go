@@ -9049,6 +9049,54 @@ func (_c *MockDataStore_UnDeleteSnapshot_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// UpdateAccountStateForHandleResource provides a mock function with given fields: ctx, accountUUID, newState
+func (_m *MockDataStore) UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error {
+	ret := _m.Called(ctx, accountUUID, newState)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAccountStateForHandleResource")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, accountUUID, newState)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateAccountStateForHandleResource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAccountStateForHandleResource'
+type MockDataStore_UpdateAccountStateForHandleResource_Call struct {
+	*mock.Call
+}
+
+// UpdateAccountStateForHandleResource is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountUUID string
+//   - newState string
+func (_e *MockDataStore_Expecter) UpdateAccountStateForHandleResource(ctx interface{}, accountUUID interface{}, newState interface{}) *MockDataStore_UpdateAccountStateForHandleResource_Call {
+	return &MockDataStore_UpdateAccountStateForHandleResource_Call{Call: _e.mock.On("UpdateAccountStateForHandleResource", ctx, accountUUID, newState)}
+}
+
+func (_c *MockDataStore_UpdateAccountStateForHandleResource_Call) Run(run func(ctx context.Context, accountUUID string, newState string)) *MockDataStore_UpdateAccountStateForHandleResource_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAccountStateForHandleResource_Call) Return(_a0 error) *MockDataStore_UpdateAccountStateForHandleResource_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAccountStateForHandleResource_Call) RunAndReturn(run func(context.Context, string, string) error) *MockDataStore_UpdateAccountStateForHandleResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateAdminJobSpec provides a mock function with given fields: ctx, jobSpec
 func (_m *MockDataStore) UpdateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) error {
 	ret := _m.Called(ctx, jobSpec)

@@ -109,6 +109,9 @@ func _updateResourceState(ctx context.Context, se database.Storage, temporal cli
 		logger.Error("Failed to get or create account", "error", err)
 		return "", err
 	}
+	if isAdmin(account) {
+		return "", errors.NewBadRequestErr("resource events are not supported for admin account")
+	}
 
 	// check if the resource is of common type (AD, KMS-Config or Backup/policy)
 	params.IsCommonResource = params.ResourceType == commonparams.ResourceStateV1ResourceTypeBackupPolicy ||
@@ -235,4 +238,8 @@ func _createOrGetFinishProjectEventJob(ctx context.Context, se database.Storage,
 		return "", err
 	}
 	return createdJob.UUID, nil
+}
+
+func isAdmin(account *datamodel.Account) bool {
+	return account != nil && account.Name == "admin"
 }

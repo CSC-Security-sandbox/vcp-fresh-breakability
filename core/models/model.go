@@ -58,7 +58,9 @@ const (
 	AccountStateEnabled             = "ENABLED"
 	AccountStateDeleted             = "DELETED"
 	VolumeStateOffline              = "OFFLINE"
-	AccountStateHyperscalerDisabled = "hyperscalerDisabled"
+	AccountStateEnabling            = "ENABLING"
+	AccountStateDisabling           = "DISABLING"
+	AccountStateHyperscalerDisabled = "HYPERSCALERDISABLED"
 
 	ReadWrite                       = "READ_WRITE"
 	ReadOnly                        = "READ_ONLY"

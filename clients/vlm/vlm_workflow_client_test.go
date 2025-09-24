@@ -2183,3 +2183,536 @@ func TestCreateVSAClusterDeployment_TimeoutBoundaryConditions(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateClusterHealth(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *ValidateClusterHealthRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: ValidateClusterHealthWorkflowName},
+	)
+
+	validateClusterHealthRequest := &ValidateClusterHealthRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+		TriggerASUPOnFailure: true,
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ValidateClusterHealth(ctx, validateClusterHealthRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestValidateClusterHealth_Error(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *ValidateClusterHealthRequest) error {
+			return errors.New("cluster health validation failed")
+		},
+		workflow.RegisterOptions{Name: ValidateClusterHealthWorkflowName},
+	)
+
+	validateClusterHealthRequest := &ValidateClusterHealthRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+		TriggerASUPOnFailure: false,
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ValidateClusterHealth(ctx, validateClusterHealthRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "An error occurred during VLM workflow execution")
+}
+
+func TestValidateClusterHealth_CorrelationIDError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	validateClusterHealthRequest := &ValidateClusterHealthRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ValidateClusterHealth(ctx, validateClusterHealthRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "correlation ID not found")
+}
+
+func TestValidateClusterHealth_FileProtocolSupport(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *ValidateClusterHealthRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: ValidateClusterHealthWorkflowName},
+	)
+
+	validateClusterHealthRequest := &ValidateClusterHealthRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "file-protocol-account", // This should trigger file protocol logic
+				},
+			},
+		},
+		TriggerASUPOnFailure: true,
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ValidateClusterHealth(ctx, validateClusterHealthRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestValidateClusterHealth_IntegrationTest(t *testing.T) {
+	// Set the environment variable to true
+	originalEnv := IsIntegrationTest
+	IsIntegrationTest = true
+	defer func() { IsIntegrationTest = originalEnv }()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	validateClusterHealthRequest := &ValidateClusterHealthRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ValidateClusterHealth(ctx, validateClusterHealthRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestValidateClusterHealth_WithCredentials(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *ValidateClusterHealthRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: ValidateClusterHealthWorkflowName},
+	)
+
+	validateClusterHealthRequest := &ValidateClusterHealthRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+		TriggerASUPOnFailure: true,
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ValidateClusterHealth(ctx, validateClusterHealthRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestClusterPowerOp(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+	)
+
+	clusterPowerOpRequest := &ClusterPowerOpRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+		Operation: "power_on",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestClusterPowerOp_Error(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
+			return errors.New("power operation failed")
+		},
+		workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+	)
+
+	clusterPowerOpRequest := &ClusterPowerOpRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+		Operation: "power_off",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "An error occurred during VLM workflow execution")
+}
+
+func TestClusterPowerOp_CorrelationIDError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	clusterPowerOpRequest := &ClusterPowerOpRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+		Operation: "power_on",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "correlation ID not found")
+}
+
+func TestClusterPowerOp_FileProtocolSupport(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+	)
+
+	clusterPowerOpRequest := &ClusterPowerOpRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "file-protocol-account", // This should trigger file protocol logic
+				},
+			},
+		},
+		Operation: "restart",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestClusterPowerOp_IntegrationTest(t *testing.T) {
+	// Set the environment variable to true
+	originalEnv := IsIntegrationTest
+	IsIntegrationTest = true
+	defer func() { IsIntegrationTest = originalEnv }()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	clusterPowerOpRequest := &ClusterPowerOpRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+		Operation: "shutdown",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestClusterPowerOp_DifferentOperations(t *testing.T) {
+	operations := []string{"power_on", "power_off", "restart", "shutdown", "force_restart"}
+
+	for _, operation := range operations {
+		t.Run("Operation_"+operation, func(t *testing.T) {
+			var ts testsuite.WorkflowTestSuite
+			env := ts.NewTestWorkflowEnvironment()
+			env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+			encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+				"requestCorrelationID": "test-correlation-id",
+			})
+			mockHeader := &commonpb.Header{
+				Fields: map[string]*commonpb.Payload{
+					"logParam": encodedValue,
+				},
+			}
+			env.SetHeader(mockHeader)
+
+			env.RegisterWorkflowWithOptions(
+				func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
+					return nil
+				},
+				workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+			)
+
+			clusterPowerOpRequest := &ClusterPowerOpRequest{
+				VLMConfig: VLMConfig{
+					Deployment: DeploymentConfig{
+						DeploymentID: "test-deployment-id",
+						Labels: map[string]string{
+							"account_id": "test-account",
+						},
+					},
+				},
+				Operation: operation,
+			}
+
+			vlmManager := NewVSAClientWorkflowManager()
+
+			env.ExecuteWorkflow(func(ctx workflow.Context) error {
+				return vlmManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+			})
+
+			assert.True(t, env.IsWorkflowCompleted())
+			assert.NoError(t, env.GetWorkflowError())
+		})
+	}
+}
+
+func TestClusterPowerOp_WithCredentials(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+	)
+
+	clusterPowerOpRequest := &ClusterPowerOpRequest{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+				Labels: map[string]string{
+					"account_id": "test-account",
+				},
+			},
+		},
+		Operation: "power_on",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}

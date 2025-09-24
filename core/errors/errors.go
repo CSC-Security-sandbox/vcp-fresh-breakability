@@ -78,6 +78,7 @@ const (
 	ErrVLMServiceAccountAccessDenied           = 9016
 	ErrVLMInvalidMachineImageUpdate            = 9017
 	ErrVLMWorkflowError                        = 9018
+	ErrVLMCloudVMOffline                       = 9019
 
 	ErrVSAClusterCreateError           = 4001
 	ErrCouldNotFetchVSAClusterDetails  = 4002
@@ -245,6 +246,9 @@ const (
 	ErrCreateInternalReplication                                                             = 6208
 	ErrDescribingDestinationVolume                                                           = 6209
 	ErrCleanupVolumeReplicationAfterReverse                                                  = 6210
+	ErrVSAClusterOperationFailed                                                             = 6211
+	ErrDatabaseListPoolsForAccount                                                           = 6212
+	ErrDatabaseUpdateAccountState                                                            = 6213
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

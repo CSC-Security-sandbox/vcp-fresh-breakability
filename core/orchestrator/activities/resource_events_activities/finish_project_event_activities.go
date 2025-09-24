@@ -39,7 +39,12 @@ func (j *FinishProjectEventActivity) FinishProjectEventForSDEActivity(ctx contex
 	created, accepted, _, err := cvpClient.ResourceEvents.V1betaFinishProjectEvent(reqParams)
 	if err != nil {
 		logger.Errorf("Error turning %s SDE data path: %v", params.State, err)
-		return nil, err
+		// Check if this is a 404 Not Found error and make it non-retryable
+		if _, tooManyRequests := err.(*resource_events.V1betaResourceStateUpdateTooManyRequests); tooManyRequests {
+			logger.Infof("SDE HandleResourceEvent returned 404 (resource not found), treating as non-retryable: %v", err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
+		}
+		return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrNotRetryable, err)
 	}
 
 	if created != nil {
@@ -85,8 +90,15 @@ func (j *FinishProjectEventActivity) PollFinishProjectEventSDEOperationActivity(
 	operationParams.LocationID = params.LocationId
 	res, err := pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 	if err != nil {
-		logger.Errorf("Error while polling SDE finishProjectEvent operation: %s", operationUUID)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		if err != nil {
+			// Check if this is a 404 Not Found error and make it non-retryable
+			if _, tooManyRequests := err.(*resource_events.V1betaResourceStateUpdateTooManyRequests); tooManyRequests {
+				logger.Infof("SDE HandleResourceEvent returned 404 (resource not found), treating as non-retryable: %v", err)
+				return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
+			}
+			logger.Errorf("Error while polling SDE handleResourceEvent operation: %s", operationUUID)
+			return temporal.NewNonRetryableApplicationError(err.Error(), ErrNotRetryable, err)
+		}
 	}
 
 	if res.Done != nil && *res.Done {

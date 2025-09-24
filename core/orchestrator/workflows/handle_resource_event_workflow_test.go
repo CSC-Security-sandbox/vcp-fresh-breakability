@@ -185,12 +185,17 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow_SuccessWhenCVPHostIsEmpty() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
 
-	// Register activities
+	// Register activities - now VCP activity is executed even when CVP_HOST is empty
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsONForVCPActivity)
+
+	// Mock VCP activity to return false (resource not found in VCP)
+	s.env.OnActivity(hreActivity.HandleResourceEventsONForVCPActivity, mock.Anything, mock.Anything).Return(false, nil)
 
 	// Execute workflow
 	param := &common.UpdateResourceStateParams{
@@ -476,12 +481,17 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOffWorkfl
 func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOffWorkflow_SuccessWhenCVPHostIsEmpty() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
 
-	// Register activities
+	// Register activities - now VCP activity is executed even when CVP_HOST is empty
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsOFFForVCPActivity)
+
+	// Mock VCP activity to return false (resource not found in VCP)
+	s.env.OnActivity(hreActivity.HandleResourceEventsOFFForVCPActivity, mock.Anything, mock.Anything).Return(false, nil)
 
 	// Execute workflow
 	param := &common.UpdateResourceStateParams{
@@ -768,12 +778,17 @@ func (s *HandleResourceEventCommonResourceOffStateTestSuite) Test_UpdateResource
 func (s *HandleResourceEventCommonResourceOffStateTestSuite) Test_UpdateResourceStateCommonResourceOffWorkflow_SuccessWhenCVPHostIsEmpty() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
 
-	// Register activities
+	// Register activities - now VCP activity is executed even when CVP_HOST is empty
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsOFFForVCPActivity)
+
+	// Mock VCP activity to return false (resource not found in VCP)
+	s.env.OnActivity(hreActivity.HandleResourceEventsOFFForVCPActivity, mock.Anything, mock.Anything).Return(false, nil)
 
 	// Execute workflow
 	param := &common.UpdateResourceStateParams{
@@ -1012,12 +1027,17 @@ func (s *HandleResourceEventCommonResourceOnStateTestSuite) Test_UpdateResourceS
 func (s *HandleResourceEventCommonResourceOnStateTestSuite) Test_UpdateResourceStateCommonResourceOnWorkflow_SuccessWhenCVPHostIsEmpty() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
 
-	// Register activities
+	// Register activities - now VCP activity is executed even when CVP_HOST is empty
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsONForVCPActivity)
+
+	// Mock VCP activity to return false (resource not found in VCP)
+	s.env.OnActivity(hreActivity.HandleResourceEventsONForVCPActivity, mock.Anything, mock.Anything).Return(false, nil)
 
 	// Execute workflow
 	param := &common.UpdateResourceStateParams{

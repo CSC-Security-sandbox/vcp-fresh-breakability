@@ -295,3 +295,151 @@ func TestGetAccounts(t *testing.T) {
 		assert.Len(tt, result, 0)
 	})
 }
+
+func TestUpdateAccountStateForHandleResource(t *testing.T) {
+	t.Run("WhenAccountStateIsUpdatedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name:  "test_account",
+			State: "initial_state",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Update the account state
+		newState := "enabled"
+		err = store.UpdateAccountStateForHandleResource(context.Background(), account.UUID, newState)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify the state was updated
+		updatedAccount, err := store.GetAccountByUUID(context.Background(), account.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated account")
+		assert.Equal(tt, newState, updatedAccount.State, "Expected account state %v, got %v", newState, updatedAccount.State)
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Try to update state for non-existent account
+		err = store.UpdateAccountStateForHandleResource(context.Background(), "non-existent-uuid", "enabled")
+
+		// The function should succeed even if no rows are affected (GORM behavior)
+		// But we can verify no account exists with this UUID
+		assert.NoError(tt, err, "Expected no error for non-existent account update")
+	})
+
+	t.Run("WhenAccountStateIsUpdatedToDisabled", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid-2",
+			},
+			Name:  "test_account_2",
+			State: "enabled",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Update the account state to disabled
+		newState := "disabled"
+		err = store.UpdateAccountStateForHandleResource(context.Background(), account.UUID, newState)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify the state was updated
+		updatedAccount, err := store.GetAccountByUUID(context.Background(), account.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated account")
+		assert.Equal(tt, newState, updatedAccount.State, "Expected account state %v, got %v", newState, updatedAccount.State)
+	})
+
+	t.Run("WhenEmptyStateIsProvided", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid-3",
+			},
+			Name:  "test_account_3",
+			State: "enabled",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Update the account state to empty string
+		newState := ""
+		err = store.UpdateAccountStateForHandleResource(context.Background(), account.UUID, newState)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify the state was updated to empty string
+		updatedAccount, err := store.GetAccountByUUID(context.Background(), account.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated account")
+		assert.Equal(tt, newState, updatedAccount.State, "Expected account state %v, got %v", newState, updatedAccount.State)
+	})
+
+	t.Run("WhenDatabaseError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate a database error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		// Try to update state when database is closed
+		err = store.UpdateAccountStateForHandleResource(context.Background(), "test-uuid", "enabled")
+
+		// Should return a VCP error wrapping the database error
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseUpdateAccountState, customErr.TrackingID, "Expected database update error code")
+			assert.Contains(tt, customErr.OriginalErr.Error(), "sql: database is closed", "Expected database closed error in original error")
+		} else {
+			tt.Fatal("Expected VCP error, got different error type")
+		}
+	})
+}

@@ -1180,6 +1180,25 @@ func (re *retryEngine) GetAccounts(ctx context.Context, includeDelete bool, pagi
 	return var0, err
 }
 
+func (re *retryEngine) UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateAccountStateForHandleResource(ctx, accountUUID, newState)
+		if err != nil {
+			re.logError("UpdateAccountStateForHandleResource", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
 	var var0 *datamodel.Job
 	err := retry.Do(func(attempt int) (bool, error) {

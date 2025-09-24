@@ -611,6 +611,12 @@
     "retriable": true,
     "http_code": 500
   },
+  "9019": {
+    "description": "VLM Cloud VM offline",
+    "message": "Cloud VM is offline. Please check the resource status and try again.",
+    "retriable": false,
+    "http_code": 503
+  },
   "7006": {
     "description": "VolumeRevert failure",
     "message": "Error reverting volume - Cannot revert a Volume Replication Destination Volume",
@@ -1276,6 +1282,24 @@
     "message": "Failed to cleanup volume replication after reverse",
     "retriable": false,
     "http_code": 500
+  },
+  "6211": {
+    "description": "VSA Cluster Operation Error",
+    "message": "VSA cluster operation failed",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6212": {
+    "description": "List Pools for Account Error",
+    "message": "Failed to list Pools for Account",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6213": {
+    "description": "Update Account state Error",
+    "message": "Failed to update state for Account",
+    "retriable": false,
+    "http_code": 400
   },
   "8001": {
     "description": "Kms key rotation failure",

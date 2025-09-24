@@ -551,6 +551,10 @@ func (s *PersistenceStore) GetAccountByUUID(ctx context.Context, uuid string) (*
 	return s.dataStore.GetAccountByUUID(ctx, uuid)
 }
 
+func (s *PersistenceStore) UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error {
+	return s.dataStore.UpdateAccountStateForHandleResource(ctx, accountUUID, newState)
+}
+
 func (s *PersistenceStore) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	return s.dataStore.CreateAccount(ctx, account)
 }

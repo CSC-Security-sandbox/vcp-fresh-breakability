@@ -20,6 +20,53 @@ func (_m *MockVlmWorkflowClient) EXPECT() *MockVlmWorkflowClient_Expecter {
 	return &MockVlmWorkflowClient_Expecter{mock: &_m.Mock}
 }
 
+// ClusterPowerOp provides a mock function with given fields: ctx, clusterPowerOpRequest
+func (_m *MockVlmWorkflowClient) ClusterPowerOp(ctx internal.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error {
+	ret := _m.Called(ctx, clusterPowerOpRequest)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClusterPowerOp")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *ClusterPowerOpRequest) error); ok {
+		r0 = rf(ctx, clusterPowerOpRequest)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockVlmWorkflowClient_ClusterPowerOp_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClusterPowerOp'
+type MockVlmWorkflowClient_ClusterPowerOp_Call struct {
+	*mock.Call
+}
+
+// ClusterPowerOp is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - clusterPowerOpRequest *ClusterPowerOpRequest
+func (_e *MockVlmWorkflowClient_Expecter) ClusterPowerOp(ctx interface{}, clusterPowerOpRequest interface{}) *MockVlmWorkflowClient_ClusterPowerOp_Call {
+	return &MockVlmWorkflowClient_ClusterPowerOp_Call{Call: _e.mock.On("ClusterPowerOp", ctx, clusterPowerOpRequest)}
+}
+
+func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) Run(run func(ctx internal.Context, clusterPowerOpRequest *ClusterPowerOpRequest)) *MockVlmWorkflowClient_ClusterPowerOp_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*ClusterPowerOpRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) Return(_a0 error) *MockVlmWorkflowClient_ClusterPowerOp_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) RunAndReturn(run func(internal.Context, *ClusterPowerOpRequest) error) *MockVlmWorkflowClient_ClusterPowerOp_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateVSAClusterDeployment provides a mock function with given fields: ctx, createVSAClusterDeploymentRequest
 func (_m *MockVlmWorkflowClient) CreateVSAClusterDeployment(ctx internal.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
 	ret := _m.Called(ctx, createVSAClusterDeploymentRequest)
@@ -242,6 +289,53 @@ func (_c *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call) Return(_a0 *Upd
 }
 
 func (_c *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call) RunAndReturn(run func(internal.Context, *UpdateVSAClusterDeploymentRequest, string) (*UpdateVSAClusterDeploymentResponse, error)) *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ValidateClusterHealth provides a mock function with given fields: ctx, validateClusterHealthRequest
+func (_m *MockVlmWorkflowClient) ValidateClusterHealth(ctx internal.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error {
+	ret := _m.Called(ctx, validateClusterHealthRequest)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ValidateClusterHealth")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *ValidateClusterHealthRequest) error); ok {
+		r0 = rf(ctx, validateClusterHealthRequest)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockVlmWorkflowClient_ValidateClusterHealth_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateClusterHealth'
+type MockVlmWorkflowClient_ValidateClusterHealth_Call struct {
+	*mock.Call
+}
+
+// ValidateClusterHealth is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - validateClusterHealthRequest *ValidateClusterHealthRequest
+func (_e *MockVlmWorkflowClient_Expecter) ValidateClusterHealth(ctx interface{}, validateClusterHealthRequest interface{}) *MockVlmWorkflowClient_ValidateClusterHealth_Call {
+	return &MockVlmWorkflowClient_ValidateClusterHealth_Call{Call: _e.mock.On("ValidateClusterHealth", ctx, validateClusterHealthRequest)}
+}
+
+func (_c *MockVlmWorkflowClient_ValidateClusterHealth_Call) Run(run func(ctx internal.Context, validateClusterHealthRequest *ValidateClusterHealthRequest)) *MockVlmWorkflowClient_ValidateClusterHealth_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*ValidateClusterHealthRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_ValidateClusterHealth_Call) Return(_a0 error) *MockVlmWorkflowClient_ValidateClusterHealth_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_ValidateClusterHealth_Call) RunAndReturn(run func(internal.Context, *ValidateClusterHealthRequest) error) *MockVlmWorkflowClient_ValidateClusterHealth_Call {
 	_c.Call.Return(run)
 	return _c
 }

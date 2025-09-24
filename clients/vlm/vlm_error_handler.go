@@ -197,6 +197,8 @@ func (h *VLMErrorHandler) mapVLMErrorToUserFacingError(vlmErr VLMClientError, or
 			return errors.NewVCPError(errors.ErrVLMInvalidMachineImageUpdate, originalErr)
 		case "CLOUD_OPERATION_FAILED":
 			return h.handleCloudOperationFailed(vlmErr, originalErr)
+		case "CLOUD_VM_OFFLINE":
+			return h.handleCloudOperationFailed(vlmErr, originalErr)
 		}
 	}
 
@@ -481,6 +483,11 @@ func (h *VLMErrorHandler) handleCloudOperationFailed(vlmErr VLMClientError, orig
 			}
 			return errors.NewVCPError(errors.ErrVLMResourceNotReady,
 				fmt.Errorf("Storage operation failed: %s", primaryCause))
+		}
+
+		if strings.Contains(primaryCauseLower, "is not running") {
+			return errors.NewVCPError(errors.ErrVLMCloudVMOffline,
+				fmt.Errorf("Cloud VM is not running: %s", primaryCause))
 		}
 
 		// Return a more specific error with the cause information

@@ -44,3 +44,17 @@ func (vlmManager *VSAClientWorkflowManagerMock) UpdateVSAClusterDeployment(ctx w
 
 	return updateVSAClusterDeploymentResponse, nil
 }
+
+func (vlmManager *VSAClientWorkflowManagerMock) ValidateClusterHealth(ctx workflow.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock ValidateClusterHealth")
+
+	return nil
+}
+
+func (vlmManager *VSAClientWorkflowManagerMock) ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock ClusterPowerOp", "operation", clusterPowerOpRequest.Operation)
+
+	return nil
+}

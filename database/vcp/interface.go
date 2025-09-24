@@ -96,6 +96,7 @@ type (
 		DeleteAccount(ctx context.Context, accountID int64) error
 		RollBackDeletedAccount(ctx context.Context, accountID int64) error
 		GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error)
+		UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error
 
 		CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
 		DeleteJob(ctx context.Context, id, errorDetails string) error
