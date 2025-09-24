@@ -67,6 +67,7 @@ func _getMultipleReplicationsInternal(ctx context.Context, se database.Storage, 
 
 	params := &common.ReplicationInternalGetMultipleParams{
 		ReplicationUUIDs: replicationUUIDs,
+		AccountName:      accountName,
 	}
 
 	// Defer statement to mark job as errored if workflow fails to start

@@ -308,6 +308,102 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 			t.Errorf("Expected LastTransferSize %d, got %d", replication.LastTransferSize, result.LastTransferSize.Value)
 		}
 	})
+
+	t.Run("NilReplicationObject", func(t *testing.T) {
+		result := convertToVolumeReplicationInternalV1Beta(nil)
+
+		// Should return empty object
+		if result.VolumeReplicationUuid.Set {
+			t.Errorf("Expected VolumeReplicationUuid to not be set for nil replication")
+		}
+		if result.LifeCycleState.Set {
+			t.Errorf("Expected LifeCycleState to not be set for nil replication")
+		}
+	})
+
+	t.Run("NilReplicationAttributes", func(t *testing.T) {
+		timeNow := time.Now()
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:        123,
+				UUID:      "test-uuid",
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+			Name:                  "Test Replication",
+			State:                 models.LifeCycleStateAvailable,
+			ReplicationAttributes: nil, // This is nil
+			RelationshipStatus:    nillable.GetNilIfEmptyString(models.SnapmirrorRelationshipTransferring),
+			MirrorState:           nillable.GetNilIfEmptyString(models.OntapUninitialized),
+			TotalProgress:         100,
+			Healthy:               true,
+		}
+
+		result := convertToVolumeReplicationInternalV1Beta(replication)
+
+		// Basic fields should still be set
+		if result.VolumeReplicationUuid.Value != replication.UUID {
+			t.Errorf("Expected UUID %s, got %s", replication.UUID, result.VolumeReplicationUuid.Value)
+		}
+		if result.Name.Value != replication.Name {
+			t.Errorf("Expected Name %s, got %s", replication.Name, result.Name.Value)
+		}
+
+		// Fields that depend on ReplicationAttributes should be empty/default
+		if result.SourceHostName != "" {
+			t.Errorf("Expected empty SourceHostName, got %s", result.SourceHostName)
+		}
+		if result.DestinationHostName != "" {
+			t.Errorf("Expected empty DestinationHostName, got %s", result.DestinationHostName)
+		}
+		if result.RemoteRegion != "" {
+			t.Errorf("Expected empty RemoteRegion, got %s", result.RemoteRegion)
+		}
+	})
+
+	t.Run("NilRelationshipStatusAndMirrorState", func(t *testing.T) {
+		timeNow := time.Now()
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:        123,
+				UUID:      "test-uuid",
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+			Name:  "Test Replication",
+			State: models.LifeCycleStateAvailable,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType:               "src",
+				ReplicationSchedule:        "daily",
+				SourceHostName:             "test-source-host",
+				SourceSvmName:              "test-source-svm",
+				SourceVolumeName:           "test-source-vol",
+				DestinationHostName:        "test-dest-host",
+				DestinationSvmName:         "test-dest-svm",
+				DestinationVolumeName:      "test-dest-vol",
+				DestinationVolumeUUID:      "test-dest-uuid",
+				SourceVolumeUUID:           "test-source-uuid",
+				SourcePoolUUID:             "test-source-pool",
+				DestinationPoolUUID:        "test-dest-pool",
+				SourceLocation:             "test-source-loc",
+				DestinationLocation:        "test-dest-loc",
+				SourceReplicationUUID:      "test-source-repl",
+				DestinationReplicationUUID: "test-dest-repl",
+			},
+			RelationshipStatus: nil, // This is nil
+			MirrorState:        nil, // This is nil
+			TotalProgress:      100,
+			Healthy:            true,
+		}
+
+		result := convertToVolumeReplicationInternalV1Beta(replication)
+
+		// Should use default mirror state when both are nil
+		expectedMirrorState := gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
+		if result.MirrorState.Value != expectedMirrorState {
+			t.Errorf("Expected MirrorState %s, got %s", expectedMirrorState, result.MirrorState.Value)
+		}
+	})
 }
 
 func TestConvertToPoolInternalV1Beta(t *testing.T) {

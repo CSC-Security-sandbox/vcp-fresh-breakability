@@ -107,22 +107,11 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		VolumeReplicationUuid: gcpgenserver.NewOptString(replication.UUID),
 		LifeCycleState:        gcpgenserver.NewOptVolumeReplicationInternalV1betaLifeCycleState(mapReplicationStateToInternalLifeCycleState(replication.State)),
 		LifeCycleStateDetails: gcpgenserver.NewOptString(replication.StateDetails),
-		EndpointType:          mapEndpointTypeToInternal(replication.ReplicationAttributes.EndpointType),
-		ReplicationPolicy:     gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationPolicy(gcpgenserver.VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots),
-		ReplicationSchedule:   gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationSchedule(mapReplicationScheduleToInternal(replication.ReplicationAttributes.ReplicationSchedule)),
-		SourceHostName:        replication.ReplicationAttributes.SourceHostName,
-		SourceServerName:      replication.ReplicationAttributes.SourceSvmName,
-		SourceVolumeName:      replication.ReplicationAttributes.SourceVolumeName,
-		SourceVolumeUuid:      gcpgenserver.NewOptString(replication.ReplicationAttributes.SourceVolumeUUID),
-		DestinationHostName:   replication.ReplicationAttributes.DestinationHostName,
-		DestinationServerName: replication.ReplicationAttributes.DestinationSvmName,
-		DestinationVolumeName: replication.ReplicationAttributes.DestinationVolumeName,
-		DestinationVolumeUuid: gcpgenserver.NewOptString(replication.ReplicationAttributes.DestinationVolumeUUID),
 		Name:                  gcpgenserver.NewOptString(replication.Name),
 		MirrorState:           gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(mapMirrorStateToInternal(nillable.GetString(replication.MirrorState, ""))),
 		RelationshipStatus:    gcpgenserver.NewOptVolumeReplicationInternalV1betaRelationshipStatus(mapRelationshipStatusToInternal(nillable.GetString(replication.RelationshipStatus, ""))),
 		TotalProgress:         gcpgenserver.NewOptInt64(replication.TotalProgress),
-		Healthy:               gcpgenserver.NewOptBool(replication.Healthy), // fix this
+		Healthy:               gcpgenserver.NewOptBool(replication.Healthy),
 		TotalTransferBytes:    gcpgenserver.NewOptInt64(replication.TotalTransferBytes),
 		TotalTransferTimeSecs: gcpgenserver.NewOptInt64(replication.TotalTransferTimeSecs),
 		LastTransferSize:      gcpgenserver.NewOptInt64(replication.LastTransferSize),
@@ -134,13 +123,28 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		CreatedAt:             gcpgenserver.NewOptDateTime(replication.CreatedAt),
 		UpdatedAt:             gcpgenserver.NewOptDateTime(replication.UpdatedAt),
 		Description:           gcpgenserver.NewOptString(replication.Description),
-		RemoteRegion:          replication.ReplicationAttributes.DestinationLocation,
 		CcfeUri:               gcpgenserver.NewOptString(replication.Uri),
 		CcfeRemoteUri:         gcpgenserver.NewOptString(replication.RemoteUri),
 	}
 
-	if *replication.RelationshipStatus == models.SnapmirrorRelationshipTransferring {
-		if *replication.MirrorState == models.OntapUninitialized {
+	// Handle ReplicationAttributes fields safely
+	if replication.ReplicationAttributes != nil {
+		retObj.EndpointType = mapEndpointTypeToInternal(replication.ReplicationAttributes.EndpointType)
+		retObj.ReplicationPolicy = gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationPolicy(gcpgenserver.VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots)
+		retObj.ReplicationSchedule = gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationSchedule(mapReplicationScheduleToInternal(replication.ReplicationAttributes.ReplicationSchedule))
+		retObj.SourceHostName = replication.ReplicationAttributes.SourceHostName
+		retObj.SourceServerName = replication.ReplicationAttributes.SourceSvmName
+		retObj.SourceVolumeName = replication.ReplicationAttributes.SourceVolumeName
+		retObj.SourceVolumeUuid = gcpgenserver.NewOptString(replication.ReplicationAttributes.SourceVolumeUUID)
+		retObj.DestinationHostName = replication.ReplicationAttributes.DestinationHostName
+		retObj.DestinationServerName = replication.ReplicationAttributes.DestinationSvmName
+		retObj.DestinationVolumeName = replication.ReplicationAttributes.DestinationVolumeName
+		retObj.DestinationVolumeUuid = gcpgenserver.NewOptString(replication.ReplicationAttributes.DestinationVolumeUUID)
+		retObj.RemoteRegion = replication.ReplicationAttributes.DestinationLocation
+	}
+
+	if nillable.GetString(replication.RelationshipStatus, "") == models.SnapmirrorRelationshipTransferring {
+		if nillable.GetString(replication.MirrorState, "") == models.OntapUninitialized {
 			retObj.MirrorState = gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(gcpgenserver.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING)
 		} else {
 			retObj.MirrorState = gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(gcpgenserver.VolumeReplicationInternalV1betaMirrorStateTRANSFERRING)
