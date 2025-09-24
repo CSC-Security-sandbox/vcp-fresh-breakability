@@ -16,7 +16,7 @@ generator:
       # Enables validation of client requests
       #        - 'client/request/validation'
       # Enables validation of server responses
-      - 'server/response/validation'
+      #        - 'server/response/validation'
       # Enables OpenTelemetry integration
       - 'ogen/otel'
       # Enables stub Handler generation

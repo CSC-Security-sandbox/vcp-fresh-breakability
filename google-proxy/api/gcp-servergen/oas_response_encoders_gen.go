@@ -29,14 +29,6 @@ func encodeGetHealthResponse(response GetHealthRes, w http.ResponseWriter, span 
 		return nil
 
 	case *GetHealthBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -50,14 +42,6 @@ func encodeGetHealthResponse(response GetHealthRes, w http.ResponseWriter, span 
 		return nil
 
 	case *GetHealthUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -71,14 +55,6 @@ func encodeGetHealthResponse(response GetHealthRes, w http.ResponseWriter, span 
 		return nil
 
 	case *GetHealthForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -92,14 +68,6 @@ func encodeGetHealthResponse(response GetHealthRes, w http.ResponseWriter, span 
 		return nil
 
 	case *GetHealthNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -113,14 +81,6 @@ func encodeGetHealthResponse(response GetHealthRes, w http.ResponseWriter, span 
 		return nil
 
 	case *GetHealthTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -134,14 +94,6 @@ func encodeGetHealthResponse(response GetHealthRes, w http.ResponseWriter, span 
 		return nil
 
 	case *GetHealthInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -175,14 +127,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 		return nil
 
 	case *V1betaCheckKmsConfigBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -196,14 +140,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 		return nil
 
 	case *V1betaCheckKmsConfigUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -217,14 +153,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 		return nil
 
 	case *V1betaCheckKmsConfigForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -238,14 +166,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 		return nil
 
 	case *V1betaCheckKmsConfigNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -259,14 +179,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 		return nil
 
 	case *V1betaCheckKmsConfigConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -280,14 +192,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 		return nil
 
 	case *V1betaCheckKmsConfigUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -301,14 +205,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 		return nil
 
 	case *V1betaCheckKmsConfigTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -322,14 +218,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 		return nil
 
 	case *V1betaCheckKmsConfigInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -350,14 +238,6 @@ func encodeV1betaCheckKmsConfigResponse(response V1betaCheckKmsConfigRes, w http
 func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirectoryRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -371,14 +251,6 @@ func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirect
 		return nil
 
 	case *V1betaCreateActiveDirectoryBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -392,14 +264,6 @@ func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirect
 		return nil
 
 	case *V1betaCreateActiveDirectoryUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -413,14 +277,6 @@ func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirect
 		return nil
 
 	case *V1betaCreateActiveDirectoryForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -434,14 +290,6 @@ func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirect
 		return nil
 
 	case *V1betaCreateActiveDirectoryConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -455,14 +303,6 @@ func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirect
 		return nil
 
 	case *V1betaCreateActiveDirectoryUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -476,14 +316,6 @@ func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirect
 		return nil
 
 	case *V1betaCreateActiveDirectoryTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -497,14 +329,6 @@ func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirect
 		return nil
 
 	case *V1betaCreateActiveDirectoryInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -525,14 +349,6 @@ func encodeV1betaCreateActiveDirectoryResponse(response V1betaCreateActiveDirect
 func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *BackupV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(201)
 		span.SetStatus(codes.Ok, http.StatusText(201))
@@ -546,14 +362,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -567,14 +375,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *V1betaCreateBackupBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -588,14 +388,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *V1betaCreateBackupUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -609,14 +401,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *V1betaCreateBackupForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -630,14 +414,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *V1betaCreateBackupConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -651,14 +427,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *V1betaCreateBackupUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -672,14 +440,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *V1betaCreateBackupTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -693,14 +453,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *V1betaCreateBackupInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -714,14 +466,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 		return nil
 
 	case *V1betaCreateBackupNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -742,14 +486,6 @@ func encodeV1betaCreateBackupResponse(response V1betaCreateBackupRes, w http.Res
 func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -763,14 +499,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		return nil
 
 	case *V1betaCreateBackupPolicyBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -784,14 +512,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		return nil
 
 	case *V1betaCreateBackupPolicyUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -805,14 +525,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		return nil
 
 	case *V1betaCreateBackupPolicyForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -826,14 +538,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		return nil
 
 	case *V1betaCreateBackupPolicyConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -847,14 +551,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		return nil
 
 	case *V1betaCreateBackupPolicyUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -868,14 +564,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		return nil
 
 	case *V1betaCreateBackupPolicyTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -889,14 +577,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		return nil
 
 	case *V1betaCreateBackupPolicyInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -910,14 +590,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 		return nil
 
 	case *V1betaCreateBackupPolicyNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -938,14 +610,6 @@ func encodeV1betaCreateBackupPolicyResponse(response V1betaCreateBackupPolicyRes
 func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -959,14 +623,6 @@ func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, 
 		return nil
 
 	case *V1betaCreateBackupVaultBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -980,14 +636,6 @@ func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, 
 		return nil
 
 	case *V1betaCreateBackupVaultUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -1001,14 +649,6 @@ func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, 
 		return nil
 
 	case *V1betaCreateBackupVaultForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -1022,14 +662,6 @@ func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, 
 		return nil
 
 	case *V1betaCreateBackupVaultConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -1043,14 +675,6 @@ func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, 
 		return nil
 
 	case *V1betaCreateBackupVaultUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -1064,14 +688,6 @@ func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, 
 		return nil
 
 	case *V1betaCreateBackupVaultTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -1085,14 +701,6 @@ func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, 
 		return nil
 
 	case *V1betaCreateBackupVaultInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -1113,14 +721,6 @@ func encodeV1betaCreateBackupVaultResponse(response V1betaCreateBackupVaultRes, 
 func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaCreateHostGroupOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -1134,14 +734,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 		return nil
 
 	case *V1betaCreateHostGroupAccepted:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -1155,14 +747,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 		return nil
 
 	case *V1betaCreateHostGroupBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -1176,14 +760,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 		return nil
 
 	case *V1betaCreateHostGroupUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -1197,14 +773,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 		return nil
 
 	case *V1betaCreateHostGroupForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -1218,14 +786,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 		return nil
 
 	case *V1betaCreateHostGroupConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -1239,14 +799,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 		return nil
 
 	case *V1betaCreateHostGroupUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -1260,14 +812,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 		return nil
 
 	case *V1betaCreateHostGroupTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -1281,14 +825,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 		return nil
 
 	case *V1betaCreateHostGroupInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -1309,14 +845,6 @@ func encodeV1betaCreateHostGroupResponse(response V1betaCreateHostGroupRes, w ht
 func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigurationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -1330,14 +858,6 @@ func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigur
 		return nil
 
 	case *V1betaCreateKmsConfigurationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -1351,14 +871,6 @@ func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigur
 		return nil
 
 	case *V1betaCreateKmsConfigurationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -1372,14 +884,6 @@ func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigur
 		return nil
 
 	case *V1betaCreateKmsConfigurationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -1393,14 +897,6 @@ func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigur
 		return nil
 
 	case *V1betaCreateKmsConfigurationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -1414,14 +910,6 @@ func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigur
 		return nil
 
 	case *V1betaCreateKmsConfigurationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -1435,14 +923,6 @@ func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigur
 		return nil
 
 	case *V1betaCreateKmsConfigurationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -1456,14 +936,6 @@ func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigur
 		return nil
 
 	case *V1betaCreateKmsConfigurationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -1484,14 +956,6 @@ func encodeV1betaCreateKmsConfigurationResponse(response V1betaCreateKmsConfigur
 func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -1505,14 +969,6 @@ func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaCreatePoolBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -1526,14 +982,6 @@ func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaCreatePoolUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -1547,14 +995,6 @@ func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaCreatePoolForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -1568,14 +1008,6 @@ func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaCreatePoolConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -1589,14 +1021,6 @@ func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaCreatePoolUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -1610,14 +1034,6 @@ func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaCreatePoolTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -1631,14 +1047,6 @@ func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaCreatePoolInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -1659,14 +1067,6 @@ func encodeV1betaCreatePoolResponse(response V1betaCreatePoolRes, w http.Respons
 func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -1680,14 +1080,6 @@ func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, 
 		return nil
 
 	case *V1betaCreateReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -1701,14 +1093,6 @@ func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, 
 		return nil
 
 	case *V1betaCreateReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -1722,14 +1106,6 @@ func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, 
 		return nil
 
 	case *V1betaCreateReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -1743,14 +1119,6 @@ func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, 
 		return nil
 
 	case *V1betaCreateReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -1764,14 +1132,6 @@ func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, 
 		return nil
 
 	case *V1betaCreateReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -1785,14 +1145,6 @@ func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, 
 		return nil
 
 	case *V1betaCreateReplicationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -1806,14 +1158,6 @@ func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, 
 		return nil
 
 	case *V1betaCreateReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -1834,14 +1178,6 @@ func encodeV1betaCreateReplicationResponse(response V1betaCreateReplicationRes, 
 func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -1855,14 +1191,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 		return nil
 
 	case *V1betaCreateSnapshotBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -1876,14 +1204,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 		return nil
 
 	case *V1betaCreateSnapshotUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -1897,14 +1217,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 		return nil
 
 	case *V1betaCreateSnapshotForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -1918,14 +1230,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 		return nil
 
 	case *V1betaCreateSnapshotNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -1939,14 +1243,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 		return nil
 
 	case *V1betaCreateSnapshotConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -1960,14 +1256,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 		return nil
 
 	case *V1betaCreateSnapshotUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -1981,14 +1269,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 		return nil
 
 	case *V1betaCreateSnapshotTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -2002,14 +1282,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 		return nil
 
 	case *V1betaCreateSnapshotInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -2030,14 +1302,6 @@ func encodeV1betaCreateSnapshotResponse(response V1betaCreateSnapshotRes, w http
 func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -2051,14 +1315,6 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaCreateVolumeBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -2072,14 +1328,6 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaCreateVolumeUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -2093,14 +1341,6 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaCreateVolumeForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -2114,14 +1354,6 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaCreateVolumeConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -2135,14 +1367,6 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaCreateVolumeUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -2156,14 +1380,6 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaCreateVolumeTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -2177,14 +1393,6 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaCreateVolumeInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -2205,14 +1413,6 @@ func encodeV1betaCreateVolumeResponse(response V1betaCreateVolumeRes, w http.Res
 func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirectoryRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -2226,14 +1426,6 @@ func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirect
 		return nil
 
 	case *V1betaDeleteActiveDirectoryBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -2247,14 +1439,6 @@ func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirect
 		return nil
 
 	case *V1betaDeleteActiveDirectoryUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -2268,14 +1452,6 @@ func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirect
 		return nil
 
 	case *V1betaDeleteActiveDirectoryForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -2289,14 +1465,6 @@ func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirect
 		return nil
 
 	case *V1betaDeleteActiveDirectoryConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -2310,14 +1478,6 @@ func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirect
 		return nil
 
 	case *V1betaDeleteActiveDirectoryUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -2331,14 +1491,6 @@ func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirect
 		return nil
 
 	case *V1betaDeleteActiveDirectoryTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -2352,14 +1504,6 @@ func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirect
 		return nil
 
 	case *V1betaDeleteActiveDirectoryInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -2380,14 +1524,6 @@ func encodeV1betaDeleteActiveDirectoryResponse(response V1betaDeleteActiveDirect
 func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -2407,14 +1543,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -2428,14 +1556,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -2449,14 +1569,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -2470,14 +1582,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -2491,14 +1595,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -2512,14 +1608,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -2533,14 +1621,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -2554,14 +1634,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -2575,14 +1647,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 		return nil
 
 	case *V1betaDeleteBackupPolicyNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -2603,14 +1667,6 @@ func encodeV1betaDeleteBackupPolicyResponse(response V1betaDeleteBackupPolicyRes
 func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBackupUnderBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *BackupV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -2624,14 +1680,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -2645,14 +1693,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -2666,14 +1706,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -2687,14 +1719,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -2708,14 +1732,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -2729,14 +1745,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -2750,14 +1758,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -2771,14 +1771,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -2792,14 +1784,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -2813,14 +1797,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 		return nil
 
 	case *V1betaDeleteBackupUnderBackupVaultNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -2841,14 +1817,6 @@ func encodeV1betaDeleteBackupUnderBackupVaultResponse(response V1betaDeleteBacku
 func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -2868,14 +1836,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 		return nil
 
 	case *V1betaDeleteBackupVaultBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -2889,14 +1849,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 		return nil
 
 	case *V1betaDeleteBackupVaultUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -2910,14 +1862,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 		return nil
 
 	case *V1betaDeleteBackupVaultForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -2931,14 +1875,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 		return nil
 
 	case *V1betaDeleteBackupVaultNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -2952,14 +1888,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 		return nil
 
 	case *V1betaDeleteBackupVaultConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -2973,14 +1901,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 		return nil
 
 	case *V1betaDeleteBackupVaultUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -2994,14 +1914,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 		return nil
 
 	case *V1betaDeleteBackupVaultTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -3015,14 +1927,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 		return nil
 
 	case *V1betaDeleteBackupVaultInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -3043,14 +1947,6 @@ func encodeV1betaDeleteBackupVaultResponse(response V1betaDeleteBackupVaultRes, 
 func encodeV1betaDeleteHostGroupResponse(response V1betaDeleteHostGroupRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -3070,14 +1966,6 @@ func encodeV1betaDeleteHostGroupResponse(response V1betaDeleteHostGroupRes, w ht
 		return nil
 
 	case *V1betaDeleteHostGroupBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -3091,14 +1979,6 @@ func encodeV1betaDeleteHostGroupResponse(response V1betaDeleteHostGroupRes, w ht
 		return nil
 
 	case *V1betaDeleteHostGroupUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -3112,14 +1992,6 @@ func encodeV1betaDeleteHostGroupResponse(response V1betaDeleteHostGroupRes, w ht
 		return nil
 
 	case *V1betaDeleteHostGroupForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -3133,14 +2005,6 @@ func encodeV1betaDeleteHostGroupResponse(response V1betaDeleteHostGroupRes, w ht
 		return nil
 
 	case *V1betaDeleteHostGroupNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -3154,14 +2018,6 @@ func encodeV1betaDeleteHostGroupResponse(response V1betaDeleteHostGroupRes, w ht
 		return nil
 
 	case *V1betaDeleteHostGroupTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -3175,14 +2031,6 @@ func encodeV1betaDeleteHostGroupResponse(response V1betaDeleteHostGroupRes, w ht
 		return nil
 
 	case *V1betaDeleteHostGroupInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -3203,14 +2051,6 @@ func encodeV1betaDeleteHostGroupResponse(response V1betaDeleteHostGroupRes, w ht
 func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigurationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -3230,14 +2070,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 		return nil
 
 	case *V1betaDeleteKmsConfigurationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -3251,14 +2083,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 		return nil
 
 	case *V1betaDeleteKmsConfigurationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -3272,14 +2096,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 		return nil
 
 	case *V1betaDeleteKmsConfigurationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -3293,14 +2109,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 		return nil
 
 	case *V1betaDeleteKmsConfigurationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -3314,14 +2122,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 		return nil
 
 	case *V1betaDeleteKmsConfigurationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -3335,14 +2135,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 		return nil
 
 	case *V1betaDeleteKmsConfigurationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -3356,14 +2148,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 		return nil
 
 	case *V1betaDeleteKmsConfigurationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -3377,14 +2161,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 		return nil
 
 	case *V1betaDeleteKmsConfigurationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -3405,14 +2181,6 @@ func encodeV1betaDeleteKmsConfigurationResponse(response V1betaDeleteKmsConfigur
 func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -3432,14 +2200,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 		return nil
 
 	case *V1betaDeletePoolBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -3453,14 +2213,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 		return nil
 
 	case *V1betaDeletePoolUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -3474,14 +2226,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 		return nil
 
 	case *V1betaDeletePoolForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -3495,14 +2239,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 		return nil
 
 	case *V1betaDeletePoolNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -3516,14 +2252,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 		return nil
 
 	case *V1betaDeletePoolConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -3537,14 +2265,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 		return nil
 
 	case *V1betaDeletePoolUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -3558,14 +2278,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 		return nil
 
 	case *V1betaDeletePoolTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -3579,14 +2291,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 		return nil
 
 	case *V1betaDeletePoolInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -3607,14 +2311,6 @@ func encodeV1betaDeletePoolResponse(response V1betaDeletePoolRes, w http.Respons
 func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -3628,14 +2324,6 @@ func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, 
 		return nil
 
 	case *V1betaDeleteReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -3649,14 +2337,6 @@ func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, 
 		return nil
 
 	case *V1betaDeleteReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -3670,14 +2350,6 @@ func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, 
 		return nil
 
 	case *V1betaDeleteReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -3691,14 +2363,6 @@ func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, 
 		return nil
 
 	case *V1betaDeleteReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -3712,14 +2376,6 @@ func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, 
 		return nil
 
 	case *V1betaDeleteReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -3733,14 +2389,6 @@ func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, 
 		return nil
 
 	case *V1betaDeleteReplicationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -3754,14 +2402,6 @@ func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, 
 		return nil
 
 	case *V1betaDeleteReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -3782,14 +2422,6 @@ func encodeV1betaDeleteReplicationResponse(response V1betaDeleteReplicationRes, 
 func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -3809,14 +2441,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -3830,14 +2454,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -3851,14 +2467,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -3872,14 +2480,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -3893,14 +2493,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -3914,14 +2506,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -3935,14 +2519,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -3956,14 +2532,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -3977,14 +2545,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 		return nil
 
 	case *V1betaDeleteSnapshotServiceUnavailable:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(503)
 		span.SetStatus(codes.Error, http.StatusText(503))
@@ -4005,14 +2565,6 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -4032,14 +2584,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 		return nil
 
 	case *V1betaDeleteVolumeBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -4053,14 +2597,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 		return nil
 
 	case *V1betaDeleteVolumeUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -4074,14 +2610,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 		return nil
 
 	case *V1betaDeleteVolumeForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -4095,14 +2623,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 		return nil
 
 	case *V1betaDeleteVolumeNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -4116,14 +2636,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 		return nil
 
 	case *V1betaDeleteVolumeConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -4137,14 +2649,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 		return nil
 
 	case *V1betaDeleteVolumeUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -4158,14 +2662,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 		return nil
 
 	case *V1betaDeleteVolumeTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -4179,14 +2675,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 		return nil
 
 	case *V1betaDeleteVolumeInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -4207,14 +2695,6 @@ func encodeV1betaDeleteVolumeResponse(response V1betaDeleteVolumeRes, w http.Res
 func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDirectoryRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *ActiveDirectoryV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -4228,14 +2708,6 @@ func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDi
 		return nil
 
 	case *V1betaDescribeActiveDirectoryBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -4249,14 +2721,6 @@ func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDi
 		return nil
 
 	case *V1betaDescribeActiveDirectoryUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -4270,14 +2734,6 @@ func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDi
 		return nil
 
 	case *V1betaDescribeActiveDirectoryForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -4291,14 +2747,6 @@ func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDi
 		return nil
 
 	case *V1betaDescribeActiveDirectoryNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -4312,14 +2760,6 @@ func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDi
 		return nil
 
 	case *V1betaDescribeActiveDirectoryUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -4333,14 +2773,6 @@ func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDi
 		return nil
 
 	case *V1betaDescribeActiveDirectoryTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -4354,14 +2786,6 @@ func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDi
 		return nil
 
 	case *V1betaDescribeActiveDirectoryInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -4382,14 +2806,6 @@ func encodeV1betaDescribeActiveDirectoryResponse(response V1betaDescribeActiveDi
 func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaDescribeBackupOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -4403,14 +2819,6 @@ func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http
 		return nil
 
 	case *V1betaDescribeBackupBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -4424,14 +2832,6 @@ func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http
 		return nil
 
 	case *V1betaDescribeBackupUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -4445,14 +2845,6 @@ func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http
 		return nil
 
 	case *V1betaDescribeBackupForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -4466,14 +2858,6 @@ func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http
 		return nil
 
 	case *V1betaDescribeBackupNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -4487,14 +2871,6 @@ func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http
 		return nil
 
 	case *V1betaDescribeBackupTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -4508,14 +2884,6 @@ func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http
 		return nil
 
 	case *V1betaDescribeBackupInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -4529,14 +2897,6 @@ func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http
 		return nil
 
 	case *V1betaDescribeBackupNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -4557,14 +2917,6 @@ func encodeV1betaDescribeBackupResponse(response V1betaDescribeBackupRes, w http
 func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolicyRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *BackupPolicyDetailsV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -4578,14 +2930,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -4599,14 +2943,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -4620,14 +2956,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -4641,14 +2969,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -4662,14 +2982,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -4683,14 +2995,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -4704,14 +3008,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -4725,14 +3021,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -4746,14 +3034,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 		return nil
 
 	case *V1betaDescribeBackupPolicyNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -4774,14 +3054,6 @@ func encodeV1betaDescribeBackupPolicyResponse(response V1betaDescribeBackupPolic
 func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *BackupVaultV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -4795,14 +3067,6 @@ func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultR
 		return nil
 
 	case *V1betaDescribeBackupVaultBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -4816,14 +3080,6 @@ func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultR
 		return nil
 
 	case *V1betaDescribeBackupVaultUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -4837,14 +3093,6 @@ func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultR
 		return nil
 
 	case *V1betaDescribeBackupVaultForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -4858,14 +3106,6 @@ func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultR
 		return nil
 
 	case *V1betaDescribeBackupVaultNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -4879,14 +3119,6 @@ func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultR
 		return nil
 
 	case *V1betaDescribeBackupVaultUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -4900,14 +3132,6 @@ func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultR
 		return nil
 
 	case *V1betaDescribeBackupVaultTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -4921,14 +3145,6 @@ func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultR
 		return nil
 
 	case *V1betaDescribeBackupVaultInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -4949,14 +3165,6 @@ func encodeV1betaDescribeBackupVaultResponse(response V1betaDescribeBackupVaultR
 func encodeV1betaDescribeHostGroupResponse(response V1betaDescribeHostGroupRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *HostGroupV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -4970,14 +3178,6 @@ func encodeV1betaDescribeHostGroupResponse(response V1betaDescribeHostGroupRes, 
 		return nil
 
 	case *V1betaDescribeHostGroupBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -4991,14 +3191,6 @@ func encodeV1betaDescribeHostGroupResponse(response V1betaDescribeHostGroupRes, 
 		return nil
 
 	case *V1betaDescribeHostGroupUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -5012,14 +3204,6 @@ func encodeV1betaDescribeHostGroupResponse(response V1betaDescribeHostGroupRes, 
 		return nil
 
 	case *V1betaDescribeHostGroupForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -5033,14 +3217,6 @@ func encodeV1betaDescribeHostGroupResponse(response V1betaDescribeHostGroupRes, 
 		return nil
 
 	case *V1betaDescribeHostGroupNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -5054,14 +3230,6 @@ func encodeV1betaDescribeHostGroupResponse(response V1betaDescribeHostGroupRes, 
 		return nil
 
 	case *V1betaDescribeHostGroupTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -5075,14 +3243,6 @@ func encodeV1betaDescribeHostGroupResponse(response V1betaDescribeHostGroupRes, 
 		return nil
 
 	case *V1betaDescribeHostGroupInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -5103,14 +3263,6 @@ func encodeV1betaDescribeHostGroupResponse(response V1betaDescribeHostGroupRes, 
 func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConfigurationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *KmsConfigV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -5124,14 +3276,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 		return nil
 
 	case *V1betaDescribeKmsConfigurationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -5145,14 +3289,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 		return nil
 
 	case *V1betaDescribeKmsConfigurationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -5166,14 +3302,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 		return nil
 
 	case *V1betaDescribeKmsConfigurationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -5187,14 +3315,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 		return nil
 
 	case *V1betaDescribeKmsConfigurationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -5208,14 +3328,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 		return nil
 
 	case *V1betaDescribeKmsConfigurationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -5229,14 +3341,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 		return nil
 
 	case *V1betaDescribeKmsConfigurationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -5250,14 +3354,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 		return nil
 
 	case *V1betaDescribeKmsConfigurationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -5271,14 +3367,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 		return nil
 
 	case *V1betaDescribeKmsConfigurationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -5299,14 +3387,6 @@ func encodeV1betaDescribeKmsConfigurationResponse(response V1betaDescribeKmsConf
 func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -5320,14 +3400,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 		return nil
 
 	case *V1betaDescribeOperationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -5341,14 +3413,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 		return nil
 
 	case *V1betaDescribeOperationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -5362,14 +3426,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 		return nil
 
 	case *V1betaDescribeOperationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -5383,14 +3439,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 		return nil
 
 	case *V1betaDescribeOperationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -5404,14 +3452,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 		return nil
 
 	case *V1betaDescribeOperationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -5425,14 +3465,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 		return nil
 
 	case *V1betaDescribeOperationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -5446,14 +3478,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 		return nil
 
 	case *V1betaDescribeOperationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -5467,14 +3491,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 		return nil
 
 	case *V1betaDescribeOperationServiceUnavailable:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(503)
 		span.SetStatus(codes.Error, http.StatusText(503))
@@ -5495,14 +3511,6 @@ func encodeV1betaDescribeOperationResponse(response V1betaDescribeOperationRes, 
 func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *PoolV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -5516,14 +3524,6 @@ func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.Res
 		return nil
 
 	case *V1betaDescribePoolBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -5537,14 +3537,6 @@ func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.Res
 		return nil
 
 	case *V1betaDescribePoolUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -5558,14 +3550,6 @@ func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.Res
 		return nil
 
 	case *V1betaDescribePoolForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -5579,14 +3563,6 @@ func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.Res
 		return nil
 
 	case *V1betaDescribePoolNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -5600,14 +3576,6 @@ func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.Res
 		return nil
 
 	case *V1betaDescribePoolUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -5621,14 +3589,6 @@ func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.Res
 		return nil
 
 	case *V1betaDescribePoolTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -5642,14 +3602,6 @@ func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.Res
 		return nil
 
 	case *V1betaDescribePoolInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -5670,14 +3622,6 @@ func encodeV1betaDescribePoolResponse(response V1betaDescribePoolRes, w http.Res
 func encodeV1betaDescribeSnapshotResponse(response V1betaDescribeSnapshotRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *SnapshotV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -5691,14 +3635,6 @@ func encodeV1betaDescribeSnapshotResponse(response V1betaDescribeSnapshotRes, w 
 		return nil
 
 	case *V1betaDescribeSnapshotBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -5712,14 +3648,6 @@ func encodeV1betaDescribeSnapshotResponse(response V1betaDescribeSnapshotRes, w 
 		return nil
 
 	case *V1betaDescribeSnapshotUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -5733,14 +3661,6 @@ func encodeV1betaDescribeSnapshotResponse(response V1betaDescribeSnapshotRes, w 
 		return nil
 
 	case *V1betaDescribeSnapshotForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -5754,14 +3674,6 @@ func encodeV1betaDescribeSnapshotResponse(response V1betaDescribeSnapshotRes, w 
 		return nil
 
 	case *V1betaDescribeSnapshotNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -5775,14 +3687,6 @@ func encodeV1betaDescribeSnapshotResponse(response V1betaDescribeSnapshotRes, w 
 		return nil
 
 	case *V1betaDescribeSnapshotTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -5796,14 +3700,6 @@ func encodeV1betaDescribeSnapshotResponse(response V1betaDescribeSnapshotRes, w 
 		return nil
 
 	case *V1betaDescribeSnapshotInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -5824,14 +3720,6 @@ func encodeV1betaDescribeSnapshotResponse(response V1betaDescribeSnapshotRes, w 
 func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -5845,14 +3733,6 @@ func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http
 		return nil
 
 	case *V1betaDescribeVolumeBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -5866,14 +3746,6 @@ func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http
 		return nil
 
 	case *V1betaDescribeVolumeUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -5887,14 +3759,6 @@ func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http
 		return nil
 
 	case *V1betaDescribeVolumeForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -5908,14 +3772,6 @@ func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http
 		return nil
 
 	case *V1betaDescribeVolumeNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -5929,14 +3785,6 @@ func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http
 		return nil
 
 	case *V1betaDescribeVolumeTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -5950,14 +3798,6 @@ func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http
 		return nil
 
 	case *V1betaDescribeVolumeInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -5978,14 +3818,6 @@ func encodeV1betaDescribeVolumeResponse(response V1betaDescribeVolumeRes, w http
 func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -5999,14 +3831,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 		return nil
 
 	case *V1betaEncryptVolumesBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -6020,14 +3844,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 		return nil
 
 	case *V1betaEncryptVolumesUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -6041,14 +3857,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 		return nil
 
 	case *V1betaEncryptVolumesForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -6062,14 +3870,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 		return nil
 
 	case *V1betaEncryptVolumesNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -6083,14 +3883,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 		return nil
 
 	case *V1betaEncryptVolumesConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -6104,14 +3896,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 		return nil
 
 	case *V1betaEncryptVolumesUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -6125,14 +3909,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 		return nil
 
 	case *V1betaEncryptVolumesTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -6146,14 +3922,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 		return nil
 
 	case *V1betaEncryptVolumesInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -6174,14 +3942,6 @@ func encodeV1betaEncryptVolumesResponse(response V1betaEncryptVolumesRes, w http
 func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaFinishProjectEventCreated:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(201)
 		span.SetStatus(codes.Ok, http.StatusText(201))
@@ -6195,14 +3955,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventAccepted:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -6222,14 +3974,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -6243,14 +3987,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -6264,14 +4000,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -6285,14 +4013,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -6306,14 +4026,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -6327,14 +4039,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -6348,14 +4052,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -6369,14 +4065,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -6390,14 +4078,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -6411,14 +4091,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 		return nil
 
 	case *V1betaFinishProjectEventServiceUnavailable:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(503)
 		span.SetStatus(codes.Error, http.StatusText(503))
@@ -6439,14 +4111,6 @@ func encodeV1betaFinishProjectEventResponse(response V1betaFinishProjectEventRes
 func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultipleActiveDirectoriesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleActiveDirectoriesOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -6460,14 +4124,6 @@ func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultiple
 		return nil
 
 	case *V1betaGetMultipleActiveDirectoriesBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -6481,14 +4137,6 @@ func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultiple
 		return nil
 
 	case *V1betaGetMultipleActiveDirectoriesUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -6502,14 +4150,6 @@ func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultiple
 		return nil
 
 	case *V1betaGetMultipleActiveDirectoriesForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -6523,14 +4163,6 @@ func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultiple
 		return nil
 
 	case *V1betaGetMultipleActiveDirectoriesNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -6544,14 +4176,6 @@ func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultiple
 		return nil
 
 	case *V1betaGetMultipleActiveDirectoriesTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -6565,14 +4189,6 @@ func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultiple
 		return nil
 
 	case *V1betaGetMultipleActiveDirectoriesInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -6593,14 +4209,6 @@ func encodeV1betaGetMultipleActiveDirectoriesResponse(response V1betaGetMultiple
 func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBackupPoliciesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleBackupPoliciesOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -6614,14 +4222,6 @@ func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBac
 		return nil
 
 	case *V1betaGetMultipleBackupPoliciesBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -6635,14 +4235,6 @@ func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBac
 		return nil
 
 	case *V1betaGetMultipleBackupPoliciesUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -6656,14 +4248,6 @@ func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBac
 		return nil
 
 	case *V1betaGetMultipleBackupPoliciesForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -6677,14 +4261,6 @@ func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBac
 		return nil
 
 	case *V1betaGetMultipleBackupPoliciesNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -6698,14 +4274,6 @@ func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBac
 		return nil
 
 	case *V1betaGetMultipleBackupPoliciesInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -6719,14 +4287,6 @@ func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBac
 		return nil
 
 	case *V1betaGetMultipleBackupPoliciesNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -6747,14 +4307,6 @@ func encodeV1betaGetMultipleBackupPoliciesResponse(response V1betaGetMultipleBac
 func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBackupVaultsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleBackupVaultsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -6768,14 +4320,6 @@ func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBacku
 		return nil
 
 	case *V1betaGetMultipleBackupVaultsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -6789,14 +4333,6 @@ func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBacku
 		return nil
 
 	case *V1betaGetMultipleBackupVaultsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -6810,14 +4346,6 @@ func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBacku
 		return nil
 
 	case *V1betaGetMultipleBackupVaultsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -6831,14 +4359,6 @@ func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBacku
 		return nil
 
 	case *V1betaGetMultipleBackupVaultsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -6852,14 +4372,6 @@ func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBacku
 		return nil
 
 	case *V1betaGetMultipleBackupVaultsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -6873,14 +4385,6 @@ func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBacku
 		return nil
 
 	case *V1betaGetMultipleBackupVaultsNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -6901,14 +4405,6 @@ func encodeV1betaGetMultipleBackupVaultsResponse(response V1betaGetMultipleBacku
 func encodeV1betaGetMultipleBackupsResponse(response V1betaGetMultipleBackupsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleBackupsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -6922,14 +4418,6 @@ func encodeV1betaGetMultipleBackupsResponse(response V1betaGetMultipleBackupsRes
 		return nil
 
 	case *V1betaGetMultipleBackupsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -6943,14 +4431,6 @@ func encodeV1betaGetMultipleBackupsResponse(response V1betaGetMultipleBackupsRes
 		return nil
 
 	case *V1betaGetMultipleBackupsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -6964,14 +4444,6 @@ func encodeV1betaGetMultipleBackupsResponse(response V1betaGetMultipleBackupsRes
 		return nil
 
 	case *V1betaGetMultipleBackupsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -6985,14 +4457,6 @@ func encodeV1betaGetMultipleBackupsResponse(response V1betaGetMultipleBackupsRes
 		return nil
 
 	case *V1betaGetMultipleBackupsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -7006,14 +4470,6 @@ func encodeV1betaGetMultipleBackupsResponse(response V1betaGetMultipleBackupsRes
 		return nil
 
 	case *V1betaGetMultipleBackupsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -7027,14 +4483,6 @@ func encodeV1betaGetMultipleBackupsResponse(response V1betaGetMultipleBackupsRes
 		return nil
 
 	case *V1betaGetMultipleBackupsNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -7055,14 +4503,6 @@ func encodeV1betaGetMultipleBackupsResponse(response V1betaGetMultipleBackupsRes
 func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGroupsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleHostGroupsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -7076,14 +4516,6 @@ func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGro
 		return nil
 
 	case *V1betaGetMultipleHostGroupsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -7097,14 +4529,6 @@ func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGro
 		return nil
 
 	case *V1betaGetMultipleHostGroupsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -7118,14 +4542,6 @@ func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGro
 		return nil
 
 	case *V1betaGetMultipleHostGroupsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -7139,14 +4555,6 @@ func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGro
 		return nil
 
 	case *V1betaGetMultipleHostGroupsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -7160,14 +4568,6 @@ func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGro
 		return nil
 
 	case *V1betaGetMultipleHostGroupsUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -7181,14 +4581,6 @@ func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGro
 		return nil
 
 	case *V1betaGetMultipleHostGroupsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -7202,14 +4594,6 @@ func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGro
 		return nil
 
 	case *V1betaGetMultipleHostGroupsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -7230,14 +4614,6 @@ func encodeV1betaGetMultipleHostGroupsResponse(response V1betaGetMultipleHostGro
 func encodeV1betaGetMultipleKmsConfigsResponse(response V1betaGetMultipleKmsConfigsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleKmsConfigsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -7251,14 +4627,6 @@ func encodeV1betaGetMultipleKmsConfigsResponse(response V1betaGetMultipleKmsConf
 		return nil
 
 	case *V1betaGetMultipleKmsConfigsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -7272,14 +4640,6 @@ func encodeV1betaGetMultipleKmsConfigsResponse(response V1betaGetMultipleKmsConf
 		return nil
 
 	case *V1betaGetMultipleKmsConfigsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -7293,14 +4653,6 @@ func encodeV1betaGetMultipleKmsConfigsResponse(response V1betaGetMultipleKmsConf
 		return nil
 
 	case *V1betaGetMultipleKmsConfigsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -7314,14 +4666,6 @@ func encodeV1betaGetMultipleKmsConfigsResponse(response V1betaGetMultipleKmsConf
 		return nil
 
 	case *V1betaGetMultipleKmsConfigsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -7335,14 +4679,6 @@ func encodeV1betaGetMultipleKmsConfigsResponse(response V1betaGetMultipleKmsConf
 		return nil
 
 	case *V1betaGetMultipleKmsConfigsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -7356,14 +4692,6 @@ func encodeV1betaGetMultipleKmsConfigsResponse(response V1betaGetMultipleKmsConf
 		return nil
 
 	case *V1betaGetMultipleKmsConfigsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -7384,14 +4712,6 @@ func encodeV1betaGetMultipleKmsConfigsResponse(response V1betaGetMultipleKmsConf
 func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultiplePoolsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -7405,14 +4725,6 @@ func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w 
 		return nil
 
 	case *V1betaGetMultiplePoolsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -7426,14 +4738,6 @@ func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w 
 		return nil
 
 	case *V1betaGetMultiplePoolsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -7447,14 +4751,6 @@ func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w 
 		return nil
 
 	case *V1betaGetMultiplePoolsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -7468,14 +4764,6 @@ func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w 
 		return nil
 
 	case *V1betaGetMultiplePoolsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -7489,14 +4777,6 @@ func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w 
 		return nil
 
 	case *V1betaGetMultiplePoolsUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -7510,14 +4790,6 @@ func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w 
 		return nil
 
 	case *V1betaGetMultiplePoolsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -7531,14 +4803,6 @@ func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w 
 		return nil
 
 	case *V1betaGetMultiplePoolsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -7559,14 +4823,6 @@ func encodeV1betaGetMultiplePoolsResponse(response V1betaGetMultiplePoolsRes, w 
 func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleReplicationsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleReplicationsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -7580,14 +4836,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 		return nil
 
 	case *V1betaGetMultipleReplicationsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -7601,14 +4849,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 		return nil
 
 	case *V1betaGetMultipleReplicationsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -7622,14 +4862,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 		return nil
 
 	case *V1betaGetMultipleReplicationsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -7643,14 +4875,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 		return nil
 
 	case *V1betaGetMultipleReplicationsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -7664,14 +4888,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 		return nil
 
 	case *V1betaGetMultipleReplicationsUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -7685,14 +4901,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 		return nil
 
 	case *V1betaGetMultipleReplicationsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -7706,14 +4914,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -7727,14 +4927,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 		return nil
 
 	case *V1betaGetMultipleReplicationsNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -7755,14 +4947,6 @@ func encodeV1betaGetMultipleReplicationsResponse(response V1betaGetMultipleRepli
 func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMultipleReplicationsInternalRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleReplicationsInternalOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -7776,14 +4960,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -7797,14 +4973,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -7818,14 +4986,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -7839,14 +4999,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -7860,14 +5012,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -7881,14 +5025,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -7902,14 +5038,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -7923,14 +5051,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 		return nil
 
 	case *V1betaGetMultipleReplicationsInternalNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -7951,14 +5071,6 @@ func encodeV1betaGetMultipleReplicationsInternalResponse(response V1betaGetMulti
 func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshotsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleSnapshotsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -7972,14 +5084,6 @@ func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshot
 		return nil
 
 	case *V1betaGetMultipleSnapshotsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -7993,14 +5097,6 @@ func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshot
 		return nil
 
 	case *V1betaGetMultipleSnapshotsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -8014,14 +5110,6 @@ func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshot
 		return nil
 
 	case *V1betaGetMultipleSnapshotsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -8035,14 +5123,6 @@ func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshot
 		return nil
 
 	case *V1betaGetMultipleSnapshotsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -8056,14 +5136,6 @@ func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshot
 		return nil
 
 	case *V1betaGetMultipleSnapshotsUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -8077,14 +5149,6 @@ func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshot
 		return nil
 
 	case *V1betaGetMultipleSnapshotsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -8098,14 +5162,6 @@ func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshot
 		return nil
 
 	case *V1betaGetMultipleSnapshotsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -8126,14 +5182,6 @@ func encodeV1betaGetMultipleSnapshotsResponse(response V1betaGetMultipleSnapshot
 func encodeV1betaGetMultipleVolumesResponse(response V1betaGetMultipleVolumesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaGetMultipleVolumesOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -8147,14 +5195,6 @@ func encodeV1betaGetMultipleVolumesResponse(response V1betaGetMultipleVolumesRes
 		return nil
 
 	case *V1betaGetMultipleVolumesBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -8168,14 +5208,6 @@ func encodeV1betaGetMultipleVolumesResponse(response V1betaGetMultipleVolumesRes
 		return nil
 
 	case *V1betaGetMultipleVolumesUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -8189,14 +5221,6 @@ func encodeV1betaGetMultipleVolumesResponse(response V1betaGetMultipleVolumesRes
 		return nil
 
 	case *V1betaGetMultipleVolumesForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -8210,14 +5234,6 @@ func encodeV1betaGetMultipleVolumesResponse(response V1betaGetMultipleVolumesRes
 		return nil
 
 	case *V1betaGetMultipleVolumesNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -8231,14 +5247,6 @@ func encodeV1betaGetMultipleVolumesResponse(response V1betaGetMultipleVolumesRes
 		return nil
 
 	case *V1betaGetMultipleVolumesUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -8252,14 +5260,6 @@ func encodeV1betaGetMultipleVolumesResponse(response V1betaGetMultipleVolumesRes
 		return nil
 
 	case *V1betaGetMultipleVolumesTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -8273,14 +5273,6 @@ func encodeV1betaGetMultipleVolumesResponse(response V1betaGetMultipleVolumesRes
 		return nil
 
 	case *V1betaGetMultipleVolumesInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -8314,14 +5306,6 @@ func encodeV1betaGetReplicationCountResponse(response V1betaGetReplicationCountR
 		return nil
 
 	case *V1betaGetReplicationCountBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -8335,14 +5319,6 @@ func encodeV1betaGetReplicationCountResponse(response V1betaGetReplicationCountR
 		return nil
 
 	case *V1betaGetReplicationCountUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -8356,14 +5332,6 @@ func encodeV1betaGetReplicationCountResponse(response V1betaGetReplicationCountR
 		return nil
 
 	case *V1betaGetReplicationCountForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -8377,14 +5345,6 @@ func encodeV1betaGetReplicationCountResponse(response V1betaGetReplicationCountR
 		return nil
 
 	case *V1betaGetReplicationCountNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -8398,14 +5358,6 @@ func encodeV1betaGetReplicationCountResponse(response V1betaGetReplicationCountR
 		return nil
 
 	case *V1betaGetReplicationCountTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -8419,14 +5371,6 @@ func encodeV1betaGetReplicationCountResponse(response V1betaGetReplicationCountR
 		return nil
 
 	case *V1betaGetReplicationCountInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -8460,14 +5404,6 @@ func encodeV1betaGetVolumeCountResponse(response V1betaGetVolumeCountRes, w http
 		return nil
 
 	case *V1betaGetVolumeCountBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -8481,14 +5417,6 @@ func encodeV1betaGetVolumeCountResponse(response V1betaGetVolumeCountRes, w http
 		return nil
 
 	case *V1betaGetVolumeCountUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -8502,14 +5430,6 @@ func encodeV1betaGetVolumeCountResponse(response V1betaGetVolumeCountRes, w http
 		return nil
 
 	case *V1betaGetVolumeCountForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -8523,14 +5443,6 @@ func encodeV1betaGetVolumeCountResponse(response V1betaGetVolumeCountRes, w http
 		return nil
 
 	case *V1betaGetVolumeCountNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -8544,14 +5456,6 @@ func encodeV1betaGetVolumeCountResponse(response V1betaGetVolumeCountRes, w http
 		return nil
 
 	case *V1betaGetVolumeCountTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -8565,14 +5469,6 @@ func encodeV1betaGetVolumeCountResponse(response V1betaGetVolumeCountRes, w http
 		return nil
 
 	case *V1betaGetVolumeCountInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -8593,14 +5489,6 @@ func encodeV1betaGetVolumeCountResponse(response V1betaGetVolumeCountRes, w http
 func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAcceptClusterPeerRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *ClusterPeerV1:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(201)
 		span.SetStatus(codes.Ok, http.StatusText(201))
@@ -8614,14 +5502,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 		return nil
 
 	case *V1betaInternalAcceptClusterPeerBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -8635,14 +5515,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 		return nil
 
 	case *V1betaInternalAcceptClusterPeerUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -8656,14 +5528,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 		return nil
 
 	case *V1betaInternalAcceptClusterPeerForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -8677,14 +5541,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 		return nil
 
 	case *V1betaInternalAcceptClusterPeerNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -8698,14 +5554,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 		return nil
 
 	case *V1betaInternalAcceptClusterPeerMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -8719,14 +5567,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 		return nil
 
 	case *V1betaInternalAcceptClusterPeerConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -8740,14 +5580,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 		return nil
 
 	case *V1betaInternalAcceptClusterPeerUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -8761,14 +5593,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 		return nil
 
 	case *V1betaInternalAcceptClusterPeerInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -8789,14 +5613,6 @@ func encodeV1betaInternalAcceptClusterPeerResponse(response V1betaInternalAccept
 func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInternalAuthorizeVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeReplicationInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -8810,14 +5626,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 		return nil
 
 	case *V1betaInternalAuthorizeVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -8831,14 +5639,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 		return nil
 
 	case *V1betaInternalAuthorizeVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -8852,14 +5652,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 		return nil
 
 	case *V1betaInternalAuthorizeVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -8873,14 +5665,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 		return nil
 
 	case *V1betaInternalAuthorizeVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -8894,14 +5678,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 		return nil
 
 	case *V1betaInternalAuthorizeVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -8915,14 +5691,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 		return nil
 
 	case *V1betaInternalAuthorizeVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -8936,14 +5704,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 		return nil
 
 	case *V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -8957,14 +5717,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 		return nil
 
 	case *V1betaInternalAuthorizeVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -8985,14 +5737,6 @@ func encodeV1betaInternalAuthorizeVolumeReplicationResponse(response V1betaInter
 func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternalCreateVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeReplicationInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -9006,14 +5750,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalCreateVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -9027,14 +5763,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalCreateVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -9048,14 +5776,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalCreateVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -9069,14 +5789,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalCreateVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -9090,14 +5802,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalCreateVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -9111,14 +5815,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalCreateVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -9132,14 +5828,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalCreateVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -9153,14 +5841,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalCreateVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -9181,14 +5861,6 @@ func encodeV1betaInternalCreateVolumeReplicationResponse(response V1betaInternal
 func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternalDeleteVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeReplicationInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -9208,14 +5880,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalDeleteVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -9229,14 +5893,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalDeleteVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -9250,14 +5906,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalDeleteVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -9271,14 +5919,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalDeleteVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -9292,14 +5932,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalDeleteVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -9313,14 +5945,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalDeleteVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -9334,14 +5958,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalDeleteVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -9355,14 +5971,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalDeleteVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -9383,14 +5991,6 @@ func encodeV1betaInternalDeleteVolumeReplicationResponse(response V1betaInternal
 func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -9404,14 +6004,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 		return nil
 
 	case *V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -9425,14 +6017,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 		return nil
 
 	case *V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -9446,14 +6030,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 		return nil
 
 	case *V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -9467,14 +6043,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 		return nil
 
 	case *V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -9488,14 +6056,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 		return nil
 
 	case *V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -9509,14 +6069,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 		return nil
 
 	case *V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -9530,14 +6082,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 		return nil
 
 	case *V1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -9551,14 +6095,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 		return nil
 
 	case *V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -9579,14 +6115,6 @@ func encodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(response V1betaI
 func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoolRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *PoolInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -9600,14 +6128,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 		return nil
 
 	case *V1betaInternalDescribePoolBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -9621,14 +6141,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 		return nil
 
 	case *V1betaInternalDescribePoolUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -9642,14 +6154,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 		return nil
 
 	case *V1betaInternalDescribePoolForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -9663,14 +6167,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 		return nil
 
 	case *V1betaInternalDescribePoolNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -9684,14 +6180,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 		return nil
 
 	case *V1betaInternalDescribePoolMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -9705,14 +6193,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 		return nil
 
 	case *V1betaInternalDescribePoolConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -9726,14 +6206,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 		return nil
 
 	case *V1betaInternalDescribePoolUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -9747,14 +6219,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 		return nil
 
 	case *V1betaInternalDescribePoolInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -9775,14 +6239,6 @@ func encodeV1betaInternalDescribePoolResponse(response V1betaInternalDescribePoo
 func encodeV1betaInternalDescribeVolumeResponse(response V1betaInternalDescribeVolumeRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *InternalVolumeV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -9796,14 +6252,6 @@ func encodeV1betaInternalDescribeVolumeResponse(response V1betaInternalDescribeV
 		return nil
 
 	case *V1betaInternalDescribeVolumeBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -9817,14 +6265,6 @@ func encodeV1betaInternalDescribeVolumeResponse(response V1betaInternalDescribeV
 		return nil
 
 	case *V1betaInternalDescribeVolumeUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -9838,14 +6278,6 @@ func encodeV1betaInternalDescribeVolumeResponse(response V1betaInternalDescribeV
 		return nil
 
 	case *V1betaInternalDescribeVolumeForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -9859,14 +6291,6 @@ func encodeV1betaInternalDescribeVolumeResponse(response V1betaInternalDescribeV
 		return nil
 
 	case *V1betaInternalDescribeVolumeNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -9880,14 +6304,6 @@ func encodeV1betaInternalDescribeVolumeResponse(response V1betaInternalDescribeV
 		return nil
 
 	case *V1betaInternalDescribeVolumeTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -9901,14 +6317,6 @@ func encodeV1betaInternalDescribeVolumeResponse(response V1betaInternalDescribeV
 		return nil
 
 	case *V1betaInternalDescribeVolumeInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -9929,14 +6337,6 @@ func encodeV1betaInternalDescribeVolumeResponse(response V1betaInternalDescribeV
 func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaInternalDescribeVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeReplicationInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -9950,14 +6350,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 		return nil
 
 	case *V1betaInternalDescribeVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -9971,14 +6363,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 		return nil
 
 	case *V1betaInternalDescribeVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -9992,14 +6376,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 		return nil
 
 	case *V1betaInternalDescribeVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -10013,14 +6389,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 		return nil
 
 	case *V1betaInternalDescribeVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -10034,14 +6402,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 		return nil
 
 	case *V1betaInternalDescribeVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -10055,14 +6415,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 		return nil
 
 	case *V1betaInternalDescribeVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -10076,14 +6428,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 		return nil
 
 	case *V1betaInternalDescribeVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -10097,14 +6441,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 		return nil
 
 	case *V1betaInternalDescribeVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -10125,14 +6461,6 @@ func encodeV1betaInternalDescribeVolumeReplicationResponse(response V1betaIntern
 func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetReplicationJobsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaInternalGetReplicationJobsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -10146,14 +6474,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 		return nil
 
 	case *V1betaInternalGetReplicationJobsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -10167,14 +6487,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 		return nil
 
 	case *V1betaInternalGetReplicationJobsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -10188,14 +6500,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 		return nil
 
 	case *V1betaInternalGetReplicationJobsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -10209,14 +6513,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 		return nil
 
 	case *V1betaInternalGetReplicationJobsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -10230,14 +6526,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 		return nil
 
 	case *V1betaInternalGetReplicationJobsMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -10251,14 +6539,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 		return nil
 
 	case *V1betaInternalGetReplicationJobsConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -10272,14 +6552,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 		return nil
 
 	case *V1betaInternalGetReplicationJobsUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -10293,14 +6565,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 		return nil
 
 	case *V1betaInternalGetReplicationJobsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -10321,14 +6585,6 @@ func encodeV1betaInternalGetReplicationJobsResponse(response V1betaInternalGetRe
 func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalMountVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *InternalJobV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -10342,14 +6598,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 		return nil
 
 	case *V1betaInternalMountVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -10363,14 +6611,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 		return nil
 
 	case *V1betaInternalMountVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -10384,14 +6624,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 		return nil
 
 	case *V1betaInternalMountVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -10405,14 +6637,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 		return nil
 
 	case *V1betaInternalMountVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -10426,14 +6650,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 		return nil
 
 	case *V1betaInternalMountVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -10447,14 +6663,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 		return nil
 
 	case *V1betaInternalMountVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -10468,14 +6676,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 		return nil
 
 	case *V1betaInternalMountVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -10489,14 +6689,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 		return nil
 
 	case *V1betaInternalMountVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -10517,14 +6709,6 @@ func encodeV1betaInternalMountVolumeReplicationResponse(response V1betaInternalM
 func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInternalReleaseVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -10544,14 +6728,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReleaseVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -10565,14 +6741,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReleaseVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -10586,14 +6754,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReleaseVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -10607,14 +6767,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReleaseVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -10628,14 +6780,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReleaseVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -10649,14 +6793,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReleaseVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -10670,14 +6806,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReleaseVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -10691,14 +6819,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReleaseVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -10719,14 +6839,6 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternalResumeVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeReplicationInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -10740,14 +6852,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalResumeVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -10761,14 +6865,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalResumeVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -10782,14 +6878,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalResumeVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -10803,14 +6891,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalResumeVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -10824,14 +6904,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalResumeVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -10845,14 +6917,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalResumeVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -10866,14 +6930,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalResumeVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -10887,14 +6943,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalResumeVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -10915,14 +6963,6 @@ func encodeV1betaInternalResumeVolumeReplicationResponse(response V1betaInternal
 func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInternalReverseVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeReplicationInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -10936,14 +6976,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReverseVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -10957,14 +6989,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReverseVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -10978,14 +7002,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReverseVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -10999,14 +7015,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReverseVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -11020,14 +7028,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReverseVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -11041,14 +7041,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReverseVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -11062,14 +7054,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReverseVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -11083,14 +7067,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 		return nil
 
 	case *V1betaInternalReverseVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -11111,14 +7087,6 @@ func encodeV1betaInternalReverseVolumeReplicationResponse(response V1betaInterna
 func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalStopVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeReplicationInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -11132,14 +7100,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 		return nil
 
 	case *V1betaInternalStopVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -11153,14 +7113,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 		return nil
 
 	case *V1betaInternalStopVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -11174,14 +7126,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 		return nil
 
 	case *V1betaInternalStopVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -11195,14 +7139,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 		return nil
 
 	case *V1betaInternalStopVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -11216,14 +7152,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 		return nil
 
 	case *V1betaInternalStopVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -11237,14 +7165,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 		return nil
 
 	case *V1betaInternalStopVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -11258,14 +7178,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 		return nil
 
 	case *V1betaInternalStopVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -11279,14 +7191,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 		return nil
 
 	case *V1betaInternalStopVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -11307,14 +7211,6 @@ func encodeV1betaInternalStopVolumeReplicationResponse(response V1betaInternalSt
 func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolumeRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -11334,14 +7230,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 		return nil
 
 	case *V1betaInternalUpdateVolumeBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -11355,14 +7243,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 		return nil
 
 	case *V1betaInternalUpdateVolumeUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -11376,14 +7256,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 		return nil
 
 	case *V1betaInternalUpdateVolumeForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -11397,14 +7269,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 		return nil
 
 	case *V1betaInternalUpdateVolumeNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -11418,14 +7282,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 		return nil
 
 	case *V1betaInternalUpdateVolumeConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -11439,14 +7295,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 		return nil
 
 	case *V1betaInternalUpdateVolumeUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -11460,14 +7308,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 		return nil
 
 	case *V1betaInternalUpdateVolumeTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -11481,14 +7321,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 		return nil
 
 	case *V1betaInternalUpdateVolumeInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -11509,14 +7341,6 @@ func encodeV1betaInternalUpdateVolumeResponse(response V1betaInternalUpdateVolum
 func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternalUpdateVolumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *VolumeReplicationInternalV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -11536,14 +7360,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -11557,14 +7373,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -11578,14 +7386,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -11599,14 +7399,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -11620,14 +7412,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -11641,14 +7425,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -11662,14 +7438,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -11683,14 +7451,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -11711,14 +7471,6 @@ func encodeV1betaInternalUpdateVolumeReplicationResponse(response V1betaInternal
 func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1betaInternalUpdateVolumeReplicationAttributesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -11732,14 +7484,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationAttributesBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -11753,14 +7497,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationAttributesUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -11774,14 +7510,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationAttributesForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -11795,14 +7523,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationAttributesNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -11816,14 +7536,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationAttributesMethodNotAllowed:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(405)
 		span.SetStatus(codes.Error, http.StatusText(405))
@@ -11837,14 +7549,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationAttributesConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -11858,14 +7562,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationAttributesUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -11879,14 +7575,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 		return nil
 
 	case *V1betaInternalUpdateVolumeReplicationAttributesInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -11907,14 +7595,6 @@ func encodeV1betaInternalUpdateVolumeReplicationAttributesResponse(response V1be
 func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirectoriesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListActiveDirectoriesOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -11928,14 +7608,6 @@ func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirector
 		return nil
 
 	case *V1betaListActiveDirectoriesBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -11949,14 +7621,6 @@ func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirector
 		return nil
 
 	case *V1betaListActiveDirectoriesUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -11970,14 +7634,6 @@ func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirector
 		return nil
 
 	case *V1betaListActiveDirectoriesForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -11991,14 +7647,6 @@ func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirector
 		return nil
 
 	case *V1betaListActiveDirectoriesNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -12012,14 +7660,6 @@ func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirector
 		return nil
 
 	case *V1betaListActiveDirectoriesTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -12033,14 +7673,6 @@ func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirector
 		return nil
 
 	case *V1betaListActiveDirectoriesInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -12061,14 +7693,6 @@ func encodeV1betaListActiveDirectoriesResponse(response V1betaListActiveDirector
 func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListBackupPoliciesOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -12082,14 +7706,6 @@ func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes
 		return nil
 
 	case *V1betaListBackupPoliciesBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -12103,14 +7719,6 @@ func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes
 		return nil
 
 	case *V1betaListBackupPoliciesUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -12124,14 +7732,6 @@ func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes
 		return nil
 
 	case *V1betaListBackupPoliciesForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -12145,14 +7745,6 @@ func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes
 		return nil
 
 	case *V1betaListBackupPoliciesNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -12166,14 +7758,6 @@ func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes
 		return nil
 
 	case *V1betaListBackupPoliciesInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -12187,14 +7771,6 @@ func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes
 		return nil
 
 	case *V1betaListBackupPoliciesNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -12215,14 +7791,6 @@ func encodeV1betaListBackupPoliciesResponse(response V1betaListBackupPoliciesRes
 func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListBackupVaultsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -12236,14 +7804,6 @@ func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w 
 		return nil
 
 	case *V1betaListBackupVaultsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -12257,14 +7817,6 @@ func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w 
 		return nil
 
 	case *V1betaListBackupVaultsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -12278,14 +7830,6 @@ func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w 
 		return nil
 
 	case *V1betaListBackupVaultsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -12299,14 +7843,6 @@ func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w 
 		return nil
 
 	case *V1betaListBackupVaultsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -12320,14 +7856,6 @@ func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w 
 		return nil
 
 	case *V1betaListBackupVaultsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -12341,14 +7869,6 @@ func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w 
 		return nil
 
 	case *V1betaListBackupVaultsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -12362,14 +7882,6 @@ func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w 
 		return nil
 
 	case *V1betaListBackupVaultsNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -12390,14 +7902,6 @@ func encodeV1betaListBackupVaultsResponse(response V1betaListBackupVaultsRes, w 
 func encodeV1betaListBackupsResponse(response V1betaListBackupsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListBackupsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -12411,14 +7915,6 @@ func encodeV1betaListBackupsResponse(response V1betaListBackupsRes, w http.Respo
 		return nil
 
 	case *V1betaListBackupsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -12432,14 +7928,6 @@ func encodeV1betaListBackupsResponse(response V1betaListBackupsRes, w http.Respo
 		return nil
 
 	case *V1betaListBackupsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -12453,14 +7941,6 @@ func encodeV1betaListBackupsResponse(response V1betaListBackupsRes, w http.Respo
 		return nil
 
 	case *V1betaListBackupsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -12474,14 +7954,6 @@ func encodeV1betaListBackupsResponse(response V1betaListBackupsRes, w http.Respo
 		return nil
 
 	case *V1betaListBackupsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -12495,14 +7967,6 @@ func encodeV1betaListBackupsResponse(response V1betaListBackupsRes, w http.Respo
 		return nil
 
 	case *V1betaListBackupsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -12516,14 +7980,6 @@ func encodeV1betaListBackupsResponse(response V1betaListBackupsRes, w http.Respo
 		return nil
 
 	case *V1betaListBackupsNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -12544,14 +8000,6 @@ func encodeV1betaListBackupsResponse(response V1betaListBackupsRes, w http.Respo
 func encodeV1betaListHostGroupsResponse(response V1betaListHostGroupsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListHostGroupsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -12565,14 +8013,6 @@ func encodeV1betaListHostGroupsResponse(response V1betaListHostGroupsRes, w http
 		return nil
 
 	case *V1betaListHostGroupsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -12586,14 +8026,6 @@ func encodeV1betaListHostGroupsResponse(response V1betaListHostGroupsRes, w http
 		return nil
 
 	case *V1betaListHostGroupsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -12607,14 +8039,6 @@ func encodeV1betaListHostGroupsResponse(response V1betaListHostGroupsRes, w http
 		return nil
 
 	case *V1betaListHostGroupsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -12628,14 +8052,6 @@ func encodeV1betaListHostGroupsResponse(response V1betaListHostGroupsRes, w http
 		return nil
 
 	case *V1betaListHostGroupsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -12649,14 +8065,6 @@ func encodeV1betaListHostGroupsResponse(response V1betaListHostGroupsRes, w http
 		return nil
 
 	case *V1betaListHostGroupsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -12677,14 +8085,6 @@ func encodeV1betaListHostGroupsResponse(response V1betaListHostGroupsRes, w http
 func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurationsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListKmsConfigurationsOKApplicationJSON:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -12698,14 +8098,6 @@ func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurati
 		return nil
 
 	case *V1betaListKmsConfigurationsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -12719,14 +8111,6 @@ func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurati
 		return nil
 
 	case *V1betaListKmsConfigurationsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -12740,14 +8124,6 @@ func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurati
 		return nil
 
 	case *V1betaListKmsConfigurationsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -12761,14 +8137,6 @@ func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurati
 		return nil
 
 	case *V1betaListKmsConfigurationsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -12782,14 +8150,6 @@ func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurati
 		return nil
 
 	case *V1betaListKmsConfigurationsConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -12803,14 +8163,6 @@ func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurati
 		return nil
 
 	case *V1betaListKmsConfigurationsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -12824,14 +8176,6 @@ func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurati
 		return nil
 
 	case *V1betaListKmsConfigurationsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -12852,14 +8196,6 @@ func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurati
 func encodeV1betaListPoolsResponse(response V1betaListPoolsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListPoolsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -12873,14 +8209,6 @@ func encodeV1betaListPoolsResponse(response V1betaListPoolsRes, w http.ResponseW
 		return nil
 
 	case *V1betaListPoolsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -12894,14 +8222,6 @@ func encodeV1betaListPoolsResponse(response V1betaListPoolsRes, w http.ResponseW
 		return nil
 
 	case *V1betaListPoolsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -12915,14 +8235,6 @@ func encodeV1betaListPoolsResponse(response V1betaListPoolsRes, w http.ResponseW
 		return nil
 
 	case *V1betaListPoolsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -12936,14 +8248,6 @@ func encodeV1betaListPoolsResponse(response V1betaListPoolsRes, w http.ResponseW
 		return nil
 
 	case *V1betaListPoolsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -12957,14 +8261,6 @@ func encodeV1betaListPoolsResponse(response V1betaListPoolsRes, w http.ResponseW
 		return nil
 
 	case *V1betaListPoolsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -12978,14 +8274,6 @@ func encodeV1betaListPoolsResponse(response V1betaListPoolsRes, w http.ResponseW
 		return nil
 
 	case *V1betaListPoolsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -13006,14 +8294,6 @@ func encodeV1betaListPoolsResponse(response V1betaListPoolsRes, w http.ResponseW
 func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListReplicationsOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -13027,14 +8307,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 		return nil
 
 	case *V1betaListReplicationsBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -13048,14 +8320,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 		return nil
 
 	case *V1betaListReplicationsUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -13069,14 +8333,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 		return nil
 
 	case *V1betaListReplicationsForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -13090,14 +8346,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 		return nil
 
 	case *V1betaListReplicationsNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -13111,14 +8359,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 		return nil
 
 	case *V1betaListReplicationsUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -13132,14 +8372,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 		return nil
 
 	case *V1betaListReplicationsTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -13153,14 +8385,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 		return nil
 
 	case *V1betaListReplicationsInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -13174,14 +8398,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 		return nil
 
 	case *V1betaListReplicationsNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -13202,14 +8418,6 @@ func encodeV1betaListReplicationsResponse(response V1betaListReplicationsRes, w 
 func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListSnapshotOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -13223,14 +8431,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 		return nil
 
 	case *V1betaListSnapshotBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -13244,14 +8444,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 		return nil
 
 	case *V1betaListSnapshotUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -13265,14 +8457,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 		return nil
 
 	case *V1betaListSnapshotForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -13286,14 +8470,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 		return nil
 
 	case *V1betaListSnapshotNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -13307,14 +8483,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 		return nil
 
 	case *V1betaListSnapshotConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -13328,14 +8496,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 		return nil
 
 	case *V1betaListSnapshotUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -13349,14 +8509,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 		return nil
 
 	case *V1betaListSnapshotTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -13370,14 +8522,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 		return nil
 
 	case *V1betaListSnapshotInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -13398,14 +8542,6 @@ func encodeV1betaListSnapshotResponse(response V1betaListSnapshotRes, w http.Res
 func encodeV1betaListVolumesResponse(response V1betaListVolumesRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaListVolumesOK:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -13419,14 +8555,6 @@ func encodeV1betaListVolumesResponse(response V1betaListVolumesRes, w http.Respo
 		return nil
 
 	case *V1betaListVolumesBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -13440,14 +8568,6 @@ func encodeV1betaListVolumesResponse(response V1betaListVolumesRes, w http.Respo
 		return nil
 
 	case *V1betaListVolumesUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -13461,14 +8581,6 @@ func encodeV1betaListVolumesResponse(response V1betaListVolumesRes, w http.Respo
 		return nil
 
 	case *V1betaListVolumesForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -13482,14 +8594,6 @@ func encodeV1betaListVolumesResponse(response V1betaListVolumesRes, w http.Respo
 		return nil
 
 	case *V1betaListVolumesNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -13503,14 +8607,6 @@ func encodeV1betaListVolumesResponse(response V1betaListVolumesRes, w http.Respo
 		return nil
 
 	case *V1betaListVolumesTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -13524,14 +8620,6 @@ func encodeV1betaListVolumesResponse(response V1betaListVolumesRes, w http.Respo
 		return nil
 
 	case *V1betaListVolumesInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -13552,14 +8640,6 @@ func encodeV1betaListVolumesResponse(response V1betaListVolumesRes, w http.Respo
 func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaResourceStateUpdateCreated:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(201)
 		span.SetStatus(codes.Ok, http.StatusText(201))
@@ -13573,14 +8653,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateAccepted:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -13600,14 +8672,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -13621,14 +8685,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -13642,14 +8698,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -13663,14 +8711,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -13684,14 +8724,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -13705,14 +8737,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -13726,14 +8750,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -13747,14 +8763,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -13768,14 +8776,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -13789,14 +8789,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 		return nil
 
 	case *V1betaResourceStateUpdateServiceUnavailable:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(503)
 		span.SetStatus(codes.Error, http.StatusText(503))
@@ -13817,14 +8809,6 @@ func encodeV1betaResourceStateUpdateResponse(response V1betaResourceStateUpdateR
 func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -13838,14 +8822,6 @@ func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, 
 		return nil
 
 	case *V1betaResumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -13859,14 +8835,6 @@ func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, 
 		return nil
 
 	case *V1betaResumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -13880,14 +8848,6 @@ func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, 
 		return nil
 
 	case *V1betaResumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -13901,14 +8861,6 @@ func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, 
 		return nil
 
 	case *V1betaResumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -13922,14 +8874,6 @@ func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, 
 		return nil
 
 	case *V1betaResumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -13943,14 +8887,6 @@ func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, 
 		return nil
 
 	case *V1betaResumeReplicationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -13964,14 +8900,6 @@ func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, 
 		return nil
 
 	case *V1betaResumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -13992,14 +8920,6 @@ func encodeV1betaResumeReplicationResponse(response V1betaResumeReplicationRes, 
 func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndResumeReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -14013,14 +8933,6 @@ func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndRe
 		return nil
 
 	case *V1betaReverseAndResumeReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -14034,14 +8946,6 @@ func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndRe
 		return nil
 
 	case *V1betaReverseAndResumeReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -14055,14 +8959,6 @@ func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndRe
 		return nil
 
 	case *V1betaReverseAndResumeReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -14076,14 +8972,6 @@ func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndRe
 		return nil
 
 	case *V1betaReverseAndResumeReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -14097,14 +8985,6 @@ func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndRe
 		return nil
 
 	case *V1betaReverseAndResumeReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -14118,14 +8998,6 @@ func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndRe
 		return nil
 
 	case *V1betaReverseAndResumeReplicationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -14139,14 +9011,6 @@ func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndRe
 		return nil
 
 	case *V1betaReverseAndResumeReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -14167,14 +9031,6 @@ func encodeV1betaReverseAndResumeReplicationResponse(response V1betaReverseAndRe
 func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -14194,14 +9050,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 		return nil
 
 	case *V1betaRevertVolumeBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -14215,14 +9063,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 		return nil
 
 	case *V1betaRevertVolumeUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -14236,14 +9076,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 		return nil
 
 	case *V1betaRevertVolumeForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -14257,14 +9089,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 		return nil
 
 	case *V1betaRevertVolumeNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -14278,14 +9102,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 		return nil
 
 	case *V1betaRevertVolumeConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -14299,14 +9115,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 		return nil
 
 	case *V1betaRevertVolumeUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -14320,14 +9128,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 		return nil
 
 	case *V1betaRevertVolumeTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -14341,14 +9141,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 		return nil
 
 	case *V1betaRevertVolumeInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -14369,14 +9161,6 @@ func encodeV1betaRevertVolumeResponse(response V1betaRevertVolumeRes, w http.Res
 func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *V1betaStartProjectEventCreated:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(201)
 		span.SetStatus(codes.Ok, http.StatusText(201))
@@ -14390,14 +9174,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventAccepted:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -14417,14 +9193,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -14438,14 +9206,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -14459,14 +9219,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -14480,14 +9232,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -14501,14 +9245,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -14522,14 +9258,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -14543,14 +9271,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -14564,14 +9284,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -14585,14 +9297,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -14606,14 +9310,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 		return nil
 
 	case *V1betaStartProjectEventServiceUnavailable:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(503)
 		span.SetStatus(codes.Error, http.StatusText(503))
@@ -14634,14 +9330,6 @@ func encodeV1betaStartProjectEventResponse(response V1betaStartProjectEventRes, 
 func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -14655,14 +9343,6 @@ func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w ht
 		return nil
 
 	case *V1betaStopReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -14676,14 +9356,6 @@ func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w ht
 		return nil
 
 	case *V1betaStopReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -14697,14 +9369,6 @@ func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w ht
 		return nil
 
 	case *V1betaStopReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -14718,14 +9382,6 @@ func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w ht
 		return nil
 
 	case *V1betaStopReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -14739,14 +9395,6 @@ func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w ht
 		return nil
 
 	case *V1betaStopReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -14760,14 +9408,6 @@ func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w ht
 		return nil
 
 	case *V1betaStopReplicationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -14781,14 +9421,6 @@ func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w ht
 		return nil
 
 	case *V1betaStopReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -14809,14 +9441,6 @@ func encodeV1betaStopReplicationResponse(response V1betaStopReplicationRes, w ht
 func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -14830,14 +9454,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 		return nil
 
 	case *V1betaSyncReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -14851,14 +9467,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 		return nil
 
 	case *V1betaSyncReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -14872,14 +9480,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 		return nil
 
 	case *V1betaSyncReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -14893,14 +9493,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 		return nil
 
 	case *V1betaSyncReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -14914,14 +9506,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 		return nil
 
 	case *V1betaSyncReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -14935,14 +9519,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 		return nil
 
 	case *V1betaSyncReplicationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -14956,14 +9532,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 		return nil
 
 	case *V1betaSyncReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -14977,14 +9545,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 		return nil
 
 	case *V1betaSyncReplicationNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -15005,14 +9565,6 @@ func encodeV1betaSyncReplicationResponse(response V1betaSyncReplicationRes, w ht
 func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirectoryRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -15026,14 +9578,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 		return nil
 
 	case *V1betaUpdateActiveDirectoryBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -15047,14 +9591,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 		return nil
 
 	case *V1betaUpdateActiveDirectoryUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -15068,14 +9604,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 		return nil
 
 	case *V1betaUpdateActiveDirectoryForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -15089,14 +9617,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 		return nil
 
 	case *V1betaUpdateActiveDirectoryNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -15110,14 +9630,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 		return nil
 
 	case *V1betaUpdateActiveDirectoryConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -15131,14 +9643,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 		return nil
 
 	case *V1betaUpdateActiveDirectoryUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -15152,14 +9656,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 		return nil
 
 	case *V1betaUpdateActiveDirectoryTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -15173,14 +9669,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 		return nil
 
 	case *V1betaUpdateActiveDirectoryInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -15201,14 +9689,6 @@ func encodeV1betaUpdateActiveDirectoryResponse(response V1betaUpdateActiveDirect
 func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *BackupV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -15222,14 +9702,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -15249,14 +9721,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *V1betaUpdateBackupBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -15270,14 +9734,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *V1betaUpdateBackupUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -15291,14 +9747,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *V1betaUpdateBackupForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -15312,14 +9760,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *V1betaUpdateBackupNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -15333,14 +9773,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *V1betaUpdateBackupUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -15354,14 +9786,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *V1betaUpdateBackupTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -15375,14 +9799,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *V1betaUpdateBackupInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -15396,14 +9812,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 		return nil
 
 	case *V1betaUpdateBackupNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -15424,14 +9832,6 @@ func encodeV1betaUpdateBackupResponse(response V1betaUpdateBackupRes, w http.Res
 func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -15451,14 +9851,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -15472,14 +9864,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -15493,14 +9877,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -15514,14 +9890,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -15535,14 +9903,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -15556,14 +9916,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -15577,14 +9929,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -15598,14 +9942,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -15619,14 +9955,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 		return nil
 
 	case *V1betaUpdateBackupPolicyNotImplemented:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(501)
 		span.SetStatus(codes.Error, http.StatusText(501))
@@ -15647,14 +9975,6 @@ func encodeV1betaUpdateBackupPolicyResponse(response V1betaUpdateBackupPolicyRes
 func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -15668,14 +9988,6 @@ func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, 
 		return nil
 
 	case *V1betaUpdateBackupVaultBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -15689,14 +10001,6 @@ func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, 
 		return nil
 
 	case *V1betaUpdateBackupVaultUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -15710,14 +10014,6 @@ func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, 
 		return nil
 
 	case *V1betaUpdateBackupVaultForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -15731,14 +10027,6 @@ func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, 
 		return nil
 
 	case *V1betaUpdateBackupVaultConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -15752,14 +10040,6 @@ func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, 
 		return nil
 
 	case *V1betaUpdateBackupVaultUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -15773,14 +10053,6 @@ func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, 
 		return nil
 
 	case *V1betaUpdateBackupVaultTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -15794,14 +10066,6 @@ func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, 
 		return nil
 
 	case *V1betaUpdateBackupVaultInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -15822,14 +10086,6 @@ func encodeV1betaUpdateBackupVaultResponse(response V1betaUpdateBackupVaultRes, 
 func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -15843,14 +10099,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 		return nil
 
 	case *V1betaUpdateHostGroupBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -15864,14 +10112,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 		return nil
 
 	case *V1betaUpdateHostGroupUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -15885,14 +10125,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 		return nil
 
 	case *V1betaUpdateHostGroupForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -15906,14 +10138,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 		return nil
 
 	case *V1betaUpdateHostGroupNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -15927,14 +10151,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 		return nil
 
 	case *V1betaUpdateHostGroupConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -15948,14 +10164,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 		return nil
 
 	case *V1betaUpdateHostGroupUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -15969,14 +10177,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 		return nil
 
 	case *V1betaUpdateHostGroupTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -15990,14 +10190,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 		return nil
 
 	case *V1betaUpdateHostGroupInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -16018,14 +10210,6 @@ func encodeV1betaUpdateHostGroupResponse(response V1betaUpdateHostGroupRes, w ht
 func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigurationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *KmsConfigV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -16039,14 +10223,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -16060,14 +10236,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *V1betaUpdateKmsConfigurationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -16081,14 +10249,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *V1betaUpdateKmsConfigurationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -16102,14 +10262,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *V1betaUpdateKmsConfigurationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -16123,14 +10275,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *V1betaUpdateKmsConfigurationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -16144,14 +10288,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *V1betaUpdateKmsConfigurationConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -16165,14 +10301,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *V1betaUpdateKmsConfigurationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -16186,14 +10314,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *V1betaUpdateKmsConfigurationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -16207,14 +10327,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 		return nil
 
 	case *V1betaUpdateKmsConfigurationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -16235,14 +10347,6 @@ func encodeV1betaUpdateKmsConfigurationResponse(response V1betaUpdateKmsConfigur
 func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -16262,14 +10366,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaUpdatePoolBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -16283,14 +10379,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaUpdatePoolUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -16304,14 +10392,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaUpdatePoolForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -16325,14 +10405,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaUpdatePoolNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -16346,14 +10418,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaUpdatePoolConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -16367,14 +10431,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaUpdatePoolUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -16388,14 +10444,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaUpdatePoolTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -16409,14 +10457,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 		return nil
 
 	case *V1betaUpdatePoolInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -16437,14 +10477,6 @@ func encodeV1betaUpdatePoolResponse(response V1betaUpdatePoolRes, w http.Respons
 func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -16458,14 +10490,6 @@ func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, 
 		return nil
 
 	case *V1betaUpdateReplicationBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -16479,14 +10503,6 @@ func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, 
 		return nil
 
 	case *V1betaUpdateReplicationUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -16500,14 +10516,6 @@ func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, 
 		return nil
 
 	case *V1betaUpdateReplicationForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -16521,14 +10529,6 @@ func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, 
 		return nil
 
 	case *V1betaUpdateReplicationNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -16542,14 +10542,6 @@ func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, 
 		return nil
 
 	case *V1betaUpdateReplicationUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -16563,14 +10555,6 @@ func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, 
 		return nil
 
 	case *V1betaUpdateReplicationTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -16584,14 +10568,6 @@ func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, 
 		return nil
 
 	case *V1betaUpdateReplicationInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -16612,14 +10588,6 @@ func encodeV1betaUpdateReplicationResponse(response V1betaUpdateReplicationRes, 
 func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -16633,14 +10601,6 @@ func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http
 		return nil
 
 	case *V1betaUpdateSnapshotBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -16654,14 +10614,6 @@ func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http
 		return nil
 
 	case *V1betaUpdateSnapshotUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -16675,14 +10627,6 @@ func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http
 		return nil
 
 	case *V1betaUpdateSnapshotForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -16696,14 +10640,6 @@ func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http
 		return nil
 
 	case *V1betaUpdateSnapshotNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -16717,14 +10653,6 @@ func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http
 		return nil
 
 	case *V1betaUpdateSnapshotConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -16738,14 +10666,6 @@ func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http
 		return nil
 
 	case *V1betaUpdateSnapshotTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -16759,14 +10679,6 @@ func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http
 		return nil
 
 	case *V1betaUpdateSnapshotInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -16787,14 +10699,6 @@ func encodeV1betaUpdateSnapshotResponse(response V1betaUpdateSnapshotRes, w http
 func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(202)
 		span.SetStatus(codes.Ok, http.StatusText(202))
@@ -16814,14 +10718,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaUpdateVolumeBadRequest:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -16835,14 +10731,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaUpdateVolumeUnauthorized:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -16856,14 +10744,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaUpdateVolumeForbidden:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -16877,14 +10757,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaUpdateVolumeNotFound:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -16898,14 +10770,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaUpdateVolumeConflict:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -16919,14 +10783,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaUpdateVolumeUnprocessableEntity:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -16940,14 +10796,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaUpdateVolumeTooManyRequests:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -16961,14 +10809,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 		return nil
 
 	case *V1betaUpdateVolumeInternalServerError:
-		if err := func() error {
-			if err := response.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrap(err, "validate")
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))
@@ -16987,14 +10827,6 @@ func encodeV1betaUpdateVolumeResponse(response V1betaUpdateVolumeRes, w http.Res
 }
 
 func encodeErrorResponse(response *ErrorStatusCode, w http.ResponseWriter, span trace.Span) error {
-	if err := func() error {
-		if err := response.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "validate")
-	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	code := response.StatusCode
 	if code == 0 {
