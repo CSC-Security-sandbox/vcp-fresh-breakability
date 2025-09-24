@@ -1,3 +1,4 @@
+#!/bin/bash
 # Read environment variables from the environment or prompt if not set
 if [[ -z "$GCE_METADATA_HOST" ]]; then
   read -rp "Enter GCE_METADATA_HOST: " GCE_METADATA_HOST

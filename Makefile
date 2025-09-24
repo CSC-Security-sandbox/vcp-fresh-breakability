@@ -99,6 +99,24 @@ build-all-binaries-dev:
 		go build -gcflags="all=-N -l" -o /src/app/telemetry ./telemetry/ && \
 		go build -gcflags="all=-N -l" -o /src/app/ontap-proxy ./ontap-proxy/'
 
+.PHONY: build-all-binaries-test
+build-all-binaries-test:
+	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all.dev -t vsa-binaries-builder builder
+	mkdir -p app
+	docker run --rm \
+		-e GHVSA_PAT=$(GHVSA_PAT) \
+		-v $(PWD):/src \
+		-v $(GOCACHE):/go-build-cache \
+		-v $(GOMODCACHE):/go/pkg/mod \
+		-e GOCACHE=/go-build-cache \
+		-e GOMODCACHE=/go/pkg/mod \
+		vsa-binaries-builder sh -c '\
+		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/vcp-worker ./worker/ && \
+		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/google-proxy ./google-proxy/ && \
+		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/core ./core && \
+		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/telemetry ./telemetry/ && \
+		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/ontap-proxy ./ontap-proxy/'
+
 .PHONY: skaffold-dev
 skaffold-dev:
 	export $(cat skaffold.env | xargs)
