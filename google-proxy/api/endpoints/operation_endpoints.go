@@ -89,6 +89,13 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 				Done: gcpgenserver.NewOptBool(jobFinished),
 				Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
 			}, nil
+
+		case models.JobsStateWaitForTemporal:
+			return &gcpgenserver.OperationV1beta{
+				Done:     gcpgenserver.NewOptBool(jobNotFinished),
+				Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
+				Response: encodeOperationV1Beta(jobNewStateDetails),
+			}, nil
 		default:
 			return &gcpgenserver.V1betaDescribeOperationInternalServerError{
 				Code:    500,
