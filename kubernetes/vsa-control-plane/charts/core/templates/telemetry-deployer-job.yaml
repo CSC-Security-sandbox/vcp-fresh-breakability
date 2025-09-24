@@ -31,10 +31,10 @@ spec:
         {{- include "vcp-telemetry-deployer.kubernetes.labels" . | nindent 8 }}
         {{- include "vcp-telemetry-deployer.helmchart.labels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccountName }}
+      serviceAccountName: {{ .Values.deployerServiceAccountName }}
       containers:
         - name: vcp-telemetry-deployer
-          command: ["/telemetry-deployer"]
+          command: ["/vcp-cloudrun-deployer"]
           args:
             - "--service={{ .Values.telemetryDeployer.serviceName | default "vsa-harvest-otel" }}"
             {{- if .Values.images.telemetry.secondary }}
@@ -44,6 +44,10 @@ spec:
             {{- end }}
             - "--project={{ .Values.telemetryDeployer.projectID | default "netapp-au-se1-autopush-sde-tst" }}"
             - "--region={{ .Values.telemetryDeployer.region | default "australia-southeast1" }}"
+            - "--network={{ .Values.telemetryDeployer.network | default "default" }}"
+            - "--subnet={{ .Values.telemetryDeployer.subnet | default "default" }}"
+            - "--service-account-name={{ .Values.telemetryDeployer.serviceAccount | default "svc-sde-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com" }}"
+            - "--max-instances={{ .Values.telemetryDeployer.maxInstances | default "5" }}"
             - "--min-instances={{ .Values.telemetryDeployer.minInstances | default 0 }}"
           {{- if .Values.images.telemetryDeployer.secondary }}
           image: "{{ include "containerImage" (list . (dict "name" "telemetryDeployer" "secondary" true)) | trim }}"

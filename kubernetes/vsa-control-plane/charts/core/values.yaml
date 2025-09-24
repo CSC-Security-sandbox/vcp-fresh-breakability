@@ -6,6 +6,7 @@ ttlSecondsAfterFinished: 3600
 msiEnabled: false
 msiUser: db-msi-user
 serviceAccountName: vcp-core
+deployerServiceAccountName: vcp-core
 metricsEnabled: false
 replicaCount: 1
 
@@ -23,7 +24,7 @@ images:
     secondary: true
     pullPolicy: IfNotPresent
   telemetryDeployer:
-    name: telemetry-deployer
+    name: vcp-cloudrun-deployer
     tag: 0.0.0
     digest: ""
     secondary: true
@@ -72,6 +73,9 @@ telemetryDeployer:
   serviceName: telemetry-service
   image: us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:0.0.0-DEV.15
   projectID: netapp-au-se1-autopush-sde-tst
+  network: "cv-tst-au-se1-k8s-vpc"
+  subnet: "cloud-run"
+  serviceAccount: "svc-sde-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com"
   region: australia-southeast1
   minInstances: 1
   maxInstances: 3
