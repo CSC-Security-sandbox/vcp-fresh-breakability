@@ -1,3 +1,10 @@
+{{/*
+Helper function to generate the pod selector labels for the gcnv-harvest app.
+*/}}
+{{- define "gcnv-harvest.podSelectorLabels" -}}
+app: {{ .Chart.Name | quote }}
+{{- end -}}
+
 {{- define "harvest.name" -}}
 {{ .Chart.Name }}
 {{- end }}

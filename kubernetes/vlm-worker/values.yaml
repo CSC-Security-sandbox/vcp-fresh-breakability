@@ -60,3 +60,7 @@ workerConfig:
 
 #Enabling or Disabling Secret Manager for Microservice Secrets
 secretManagerEnabled: false
+
+# Pod affinity configuration  
+podAffinity:  
+  enabled: true

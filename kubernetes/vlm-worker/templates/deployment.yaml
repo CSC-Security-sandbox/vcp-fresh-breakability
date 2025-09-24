@@ -24,6 +24,15 @@ spec:
       initContainers:
         {{- toYaml .| nindent 8 }}
       {{- end }}
+      {{- if and .Values.podAffinity.enabled (eq .Values.global.environment "gcp") }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "vlm-worker.podSelectorLabels" . | nindent 14 }}
+      {{- end }}
       containers:
         - name: {{ .Values.app.name }}
           {{- if .Values.images.vlmWorker.secondary }}

@@ -38,6 +38,10 @@ app:
 serviceAccount:
   name: "vcp-worker-ksa"
 
+# Pod affinity configuration
+podAffinity:
+  enabled: true
+
 # Image configuration
 images:
   vcpWorker:

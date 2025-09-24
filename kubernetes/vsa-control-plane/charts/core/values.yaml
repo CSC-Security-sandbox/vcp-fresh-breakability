@@ -1,3 +1,5 @@
+# Global configuration
+environment: gcp
 enabled: true
 enableDbMigration: true
 ttlSecondsAfterFinished: 3600
@@ -117,3 +119,7 @@ externalSecrets:
   dbAdminPassword:
     secretName: "vcp-worker-autopush-sqa-us-e4-db-adminPassword-key"
     secretKey: "dbAdminPassword"
+
+# Pod affinity configuration
+podAffinity:
+  enabled: true

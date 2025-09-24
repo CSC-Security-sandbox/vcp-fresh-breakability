@@ -1,3 +1,10 @@
+# Global configuration
+environment: gcp
+
+# Pod affinity configuration
+podAffinity:
+  enabled: true
+
 enabled: true
 serviceAccountName: google-proxy
 replicaCount: 1

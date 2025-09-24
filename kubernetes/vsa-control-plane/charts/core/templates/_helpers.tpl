@@ -4,6 +4,12 @@
 {{- else }}
 {{ .Values.global.chartPrimaryImageRegistry | default .Values.global.primaryImageRegistry }}/{{ .Values.global.primaryImageRegistryPath }}
 {{- end -}}
+
+{{/*
+Helper function to generate the pod selector labels for the core app.
+*/}}
+{{- define "core.podSelectorLabels" -}}
+app: {{ .Chart.Name | quote }}
 {{- end -}}
 
 {{- define "secondImageRegistryFullPath" -}}

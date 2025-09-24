@@ -37,6 +37,13 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- end -}}
 {{- end -}}
 
+{{/*
+Helper function to generate the pod selector labels for the vcp-worker app.
+*/}}
+{{- define "vcp-worker.podSelectorLabels" -}}
+app: {{ .Values.app.name | quote}}
+{{- end -}}
+
 
 {{/*
 Helper function to generate the secret name by appending "-secret" to the app name.

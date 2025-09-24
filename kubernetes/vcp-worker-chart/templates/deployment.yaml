@@ -25,7 +25,16 @@ spec:
       labels:
         app: {{ $name }}-{{ $version }}
     spec:
-      serviceAccountName: {{ $.Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if and .Values.podAffinity.enabled (eq .Values.global.environment "gcp") }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "vcp-worker.podSelectorLabels" . | nindent 12 }}
+      {{- end }}
       containers:
         - name: {{ $name }}
           {{- if $.Values.images.vcpWorker.secondary }}

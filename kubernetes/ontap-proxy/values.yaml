@@ -1,3 +1,6 @@
+global:
+  environment: gcp
+
 enabled: true
 replicaCount: 1
 
@@ -18,6 +21,10 @@ ontap:
   apiAddress: ""
   username: ""
   password: ""
+
+# Pod affinity configuration
+podAffinity:
+  enabled: true
 
 # Environment configuration
 config:

@@ -252,7 +252,14 @@ server:
     affinity: {}
     additionalEnv: []
     containerSecurityContext: {}
-    topologySpreadConstraints: []
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: frontend
     podDisruptionBudget: {}
   internalFrontend:
     # Enable this to create internal-frontend
@@ -281,7 +288,14 @@ server:
     affinity: {}
     additionalEnv: []
     containerSecurityContext: {}
-    topologySpreadConstraints: []
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: internal-frontend
     podDisruptionBudget: {}
   history:
     service:
@@ -306,7 +320,14 @@ server:
     additionalEnv: []
     additionalEnvSecretName: ""
     containerSecurityContext: {}
-    topologySpreadConstraints: []
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: history
     podDisruptionBudget: {}
   matching:
     service:
@@ -330,7 +351,14 @@ server:
     affinity: {}
     additionalEnv: []
     containerSecurityContext: {}
-    topologySpreadConstraints: []
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: matching
     podDisruptionBudget: {}
   worker:
     service:
@@ -354,7 +382,14 @@ server:
     affinity: {}
     additionalEnv: []
     containerSecurityContext: {}
-    topologySpreadConstraints: []
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: worker
     podDisruptionBudget: {}
 admintools:
   enabled: true
@@ -442,7 +477,14 @@ web:
   additionalEnvSecretName: ""
   containerSecurityContext: {}
   securityContext: {}
-  topologySpreadConstraints: []
+  topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: web
   podDisruptionBudget: {}
 schema:
   createDatabase:

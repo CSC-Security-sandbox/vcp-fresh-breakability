@@ -25,6 +25,15 @@ spec:
           key: utils
           operator: Equal
           value: "true"
+      {{- if and .Values.podAffinity.enabled (eq .Values.global.environment "gcp") }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "gcnv-harvest.podSelectorLabels" . | nindent 16 }}
+      {{- end }}
       containers:
         - name: {{ $.Values.containers.harvest }}
           {{- if .Values.images.pm2.secondary }}

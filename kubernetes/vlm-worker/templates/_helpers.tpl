@@ -57,3 +57,12 @@ Helper function to generate the secret name by appending "-secret" to the app na
 {{- define "vlm-worker.secretName" -}}
 {{- printf "%s-secret" .Values.app.name -}}
 {{- end -}}
+
+Helper function to generate pod selector labels for vlm-worker.
+*/}}
+{{/*
+Helper function to generate pod selector labels for vlm-worker.
+*/}}
+{{- define "vlm-worker.podSelectorLabels" -}}
+app: {{ .Values.app.name | quote }}
+{{- end -}}

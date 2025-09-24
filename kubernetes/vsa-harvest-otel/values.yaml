@@ -1,3 +1,7 @@
+# Pod affinity configuration
+podAffinity:
+  enabled: true
+
 global:
   primaryImageRegistry: us-docker.pkg.dev
   primaryImageRegistryPath: gcnv-artifact-registry-nonprod
@@ -9,6 +13,7 @@ global:
   secondaryImagePullSecretName: ""
   imageDigestTags: false
   namespace: "vcp"
+  environment: gcp
 configMap:
   create: true
 

@@ -1,3 +1,10 @@
+{{/*
+Helper function to generate the pod selector labels for the google-proxy app.
+*/}}
+{{- define "google-proxy.podSelectorLabels" -}}
+app: {{ .Chart.Name | quote }}
+{{- end -}}
+
 {{- define "imageRegistryFullPath" -}}
 {{- if eq .Values.global.primaryImageRegistryPath "" }}
 {{ .Values.global.chartPrimaryImageRegistry | default .Values.global.primaryImageRegistry }}
