@@ -1,15 +1,17 @@
 package temporalmanager
 
 import (
+	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	workflowEngine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 )
 
 type TemporalManager struct {
-	Config workflowEngine.ClientConfig
-	Client client.Client
-	DBConn database.Storage
+	Config          workflowEngine.ClientConfig
+	Client          client.Client
+	DBConn          database.Storage
+	TelemetryDBConn metricsdb.Storage
 }
 
 // returns the initialised temporal client

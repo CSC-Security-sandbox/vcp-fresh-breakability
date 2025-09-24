@@ -113,6 +113,17 @@ data:
   DISABLE_VSA_CLEANUP_ON_VLM_FAILURE: "false"
   VLM_RETRY_ERROR_PATTERNS: "Aggregates are degraded or unmirrored"
   GCE_METADATA_HOST: "34.116.66.254:9090"
+  METRICS_DB_TYPE: "postgres"
+  METRICS_DB_HOST: "postgres.default.svc.cluster.local"
+  METRICS_DB_PORT: "5432"
+  METRICS_DB_USER: "postgres"
+  METRICS_DB_PASSWORD: "testpass"
+  METRICS_DB_NAME: "metrics"
+  METRICS_DB_SSL_MODE: "disable"
+  METRICS_DB_TIMEZONE: "UTC"
+  METRICS_DB_MAX_OPEN_CONNS: "25"
+  METRICS_DB_MAX_IDLE_CONNS: "25"
+  METRICS_DB_CONN_MAX_LIFETIME: "1h"
 ---
 apiVersion: apps/v1
 kind: Deployment

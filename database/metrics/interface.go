@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -67,6 +68,11 @@ func (r *DataStoreRepository) DeleteHydratedMetrics(ctx context.Context, id stri
 	return r.db.GORM().WithContext(ctx).Where("id = ?", id).Delete(&datamodel.HydratedMetrics{}).Error
 }
 
+func (r *DataStoreRepository) DeleteHydratedMetricsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	result := r.db.GORM().WithContext(ctx).Where("metric_timestamp < ?", olderThan).Delete(&datamodel.HydratedMetrics{})
+	return result.RowsAffected, result.Error
+}
+
 // AggregatedUsage CRUD
 func (r *DataStoreRepository) CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error {
 	return r.db.GORM().WithContext(ctx).Create(a).Error
@@ -88,6 +94,11 @@ func (r *DataStoreRepository) UpdateAggregatedUsage(ctx context.Context, id int6
 
 func (r *DataStoreRepository) DeleteAggregatedUsage(ctx context.Context, id int64) error {
 	return r.db.GORM().WithContext(ctx).Where("id = ?", id).Delete(&datamodel.AggregatedUsage{}).Error
+}
+
+func (r *DataStoreRepository) DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	result := r.db.GORM().WithContext(ctx).Where("aggregation_end < ?", olderThan).Delete(&datamodel.AggregatedUsage{})
+	return result.RowsAffected, result.Error
 }
 
 type (
@@ -114,14 +125,14 @@ type (
 		GetHydratedMetrics(ctx context.Context, filter map[string]interface{}) ([]datamodel.HydratedMetrics, error)
 		UpdateHydratedMetrics(ctx context.Context, id string, updates map[string]interface{}) error
 		DeleteHydratedMetrics(ctx context.Context, id string) error
+		DeleteHydratedMetricsOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
 
 		// AggregatedUsage CRUD
 		CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error
 		GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error)
 		UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error
 		DeleteAggregatedUsage(ctx context.Context, id int64) error
-
-		// BizOps
+		DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
 		AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error
 	}
 )

@@ -245,7 +245,8 @@ package database
 
 import (
 	"context"
-
+	{{if eq .Package "telemetry"}}
+	"time"{{end}}
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/{{ printf "%s" .Package }}/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"

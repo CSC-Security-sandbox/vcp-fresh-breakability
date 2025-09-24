@@ -378,6 +378,10 @@ func (s *PersistenceStore) DeleteHydratedMetrics(ctx context.Context, id string)
 	return s.dataStore.dataStore.DeleteHydratedMetrics(ctx, id)
 }
 
+func (s *PersistenceStore) DeleteHydratedMetricsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	return s.dataStore.dataStore.DeleteHydratedMetricsOlderThan(ctx, olderThan)
+}
+
 // AggregatedUsage CRUD
 func (s *PersistenceStore) CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error {
 	return s.dataStore.dataStore.CreateAggregatedUsage(ctx, a)
@@ -393,6 +397,10 @@ func (s *PersistenceStore) UpdateAggregatedUsage(ctx context.Context, id int64, 
 
 func (s *PersistenceStore) DeleteAggregatedUsage(ctx context.Context, id int64) error {
 	return s.dataStore.dataStore.DeleteAggregatedUsage(ctx, id)
+}
+
+func (s *PersistenceStore) DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	return s.dataStore.dataStore.DeleteAggregatedUsageOlderThan(ctx, olderThan)
 }
 
 func (s *PersistenceStore) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {

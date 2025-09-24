@@ -153,3 +153,10 @@ func CloseDatabase(dbCon vcpdb.Storage, logger log.Logger) {
 		logger.Error("Failed to close database connection", "error", err.Error())
 	}
 }
+
+// CloseTelemetryDatabase closes the database telemetry connection and logs any errors encountered.
+func CloseTelemetryDatabase(dbCon metricsdb.Storage, logger log.Logger) {
+	if err := dbCon.Close(); err != nil {
+		logger.Error("Failed to close telemetry database connection", "error", err.Error())
+	}
+}

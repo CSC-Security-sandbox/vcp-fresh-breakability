@@ -3,13 +3,14 @@ package aggregator
 import (
 	"context"
 	"database/sql"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 // MockMetricsStorage is a mock implementation of the database2.Storage interface
@@ -57,6 +58,9 @@ func (m *MockMetricsStorage) UpdateHydratedMetrics(ctx context.Context, id strin
 	return nil
 }
 func (m *MockMetricsStorage) DeleteHydratedMetrics(ctx context.Context, id string) error { return nil }
+func (m *MockMetricsStorage) DeleteHydratedMetricsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	return 0, nil
+}
 
 // AggregatedUsage CRUD
 func (m *MockMetricsStorage) CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error {
@@ -69,6 +73,9 @@ func (m *MockMetricsStorage) UpdateAggregatedUsage(ctx context.Context, id int64
 	return nil
 }
 func (m *MockMetricsStorage) DeleteAggregatedUsage(ctx context.Context, id int64) error { return nil }
+func (m *MockMetricsStorage) DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	return 0, nil
+}
 
 func (m *MockMetricsStorage) UpdateBillingGcpUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
 	return nil

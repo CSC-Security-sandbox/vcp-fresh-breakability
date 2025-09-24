@@ -12,6 +12,8 @@ import (
 
 	sql "database/sql"
 
+	time "time"
+
 	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 )
 
@@ -402,6 +404,63 @@ func (_c *MockStorage_DeleteAggregatedUsage_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// DeleteAggregatedUsageOlderThan provides a mock function with given fields: ctx, olderThan
+func (_m *MockStorage) DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	ret := _m.Called(ctx, olderThan)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAggregatedUsageOlderThan")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) (int64, error)); ok {
+		return rf(ctx, olderThan)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) int64); ok {
+		r0 = rf(ctx, olderThan)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = rf(ctx, olderThan)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_DeleteAggregatedUsageOlderThan_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAggregatedUsageOlderThan'
+type MockStorage_DeleteAggregatedUsageOlderThan_Call struct {
+	*mock.Call
+}
+
+// DeleteAggregatedUsageOlderThan is a helper method to define mock.On call
+//   - ctx context.Context
+//   - olderThan time.Time
+func (_e *MockStorage_Expecter) DeleteAggregatedUsageOlderThan(ctx interface{}, olderThan interface{}) *MockStorage_DeleteAggregatedUsageOlderThan_Call {
+	return &MockStorage_DeleteAggregatedUsageOlderThan_Call{Call: _e.mock.On("DeleteAggregatedUsageOlderThan", ctx, olderThan)}
+}
+
+func (_c *MockStorage_DeleteAggregatedUsageOlderThan_Call) Run(run func(ctx context.Context, olderThan time.Time)) *MockStorage_DeleteAggregatedUsageOlderThan_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteAggregatedUsageOlderThan_Call) Return(_a0 int64, _a1 error) *MockStorage_DeleteAggregatedUsageOlderThan_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_DeleteAggregatedUsageOlderThan_Call) RunAndReturn(run func(context.Context, time.Time) (int64, error)) *MockStorage_DeleteAggregatedUsageOlderThan_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteHydratedMetrics provides a mock function with given fields: ctx, id
 func (_m *MockStorage) DeleteHydratedMetrics(ctx context.Context, id string) error {
 	ret := _m.Called(ctx, id)
@@ -445,6 +504,63 @@ func (_c *MockStorage_DeleteHydratedMetrics_Call) Return(_a0 error) *MockStorage
 }
 
 func (_c *MockStorage_DeleteHydratedMetrics_Call) RunAndReturn(run func(context.Context, string) error) *MockStorage_DeleteHydratedMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteHydratedMetricsOlderThan provides a mock function with given fields: ctx, olderThan
+func (_m *MockStorage) DeleteHydratedMetricsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	ret := _m.Called(ctx, olderThan)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteHydratedMetricsOlderThan")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) (int64, error)); ok {
+		return rf(ctx, olderThan)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) int64); ok {
+		r0 = rf(ctx, olderThan)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = rf(ctx, olderThan)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_DeleteHydratedMetricsOlderThan_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteHydratedMetricsOlderThan'
+type MockStorage_DeleteHydratedMetricsOlderThan_Call struct {
+	*mock.Call
+}
+
+// DeleteHydratedMetricsOlderThan is a helper method to define mock.On call
+//   - ctx context.Context
+//   - olderThan time.Time
+func (_e *MockStorage_Expecter) DeleteHydratedMetricsOlderThan(ctx interface{}, olderThan interface{}) *MockStorage_DeleteHydratedMetricsOlderThan_Call {
+	return &MockStorage_DeleteHydratedMetricsOlderThan_Call{Call: _e.mock.On("DeleteHydratedMetricsOlderThan", ctx, olderThan)}
+}
+
+func (_c *MockStorage_DeleteHydratedMetricsOlderThan_Call) Run(run func(ctx context.Context, olderThan time.Time)) *MockStorage_DeleteHydratedMetricsOlderThan_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteHydratedMetricsOlderThan_Call) Return(_a0 int64, _a1 error) *MockStorage_DeleteHydratedMetricsOlderThan_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_DeleteHydratedMetricsOlderThan_Call) RunAndReturn(run func(context.Context, time.Time) (int64, error)) *MockStorage_DeleteHydratedMetricsOlderThan_Call {
 	_c.Call.Return(run)
 	return _c
 }

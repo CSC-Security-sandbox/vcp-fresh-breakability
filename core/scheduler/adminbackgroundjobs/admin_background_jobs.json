@@ -24,10 +24,19 @@
     "cronExpression": "*/5 * * * *",
     "state": "CREATING"
   },
+  "CLEANUP_HYDRATED_METRICS_TABLE": {
+    "jobType": "CLEANUP_HYDRATED_METRICS_TABLE",
+    "cronExpression": "0 0 * * *",
+    "state": "CREATING"
+  },
+  "CLEANUP_AGGREGATED_USAGE_TABLE": {
+    "jobType": "CLEANUP_AGGREGATED_USAGE_TABLE",
+    "cronExpression": "0 3 * * *",
+    "state": "CREATING"
+  },
   "SYNC_VSA_AUTO_TIERING": {
     "jobType": "SYNC_VSA_AUTO_TIERING",
     "cronExpression": "*/5 * * * *",
     "state": "CREATING"
   }
-  
 }

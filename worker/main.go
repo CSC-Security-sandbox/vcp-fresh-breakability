@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	"net/http"
 	"os"
 	"time"
@@ -105,11 +106,21 @@ func main() {
 	defer database2.CloseDatabase(dbConn, logger)
 	logger.Info("Database connection established", "connection", dbConn)
 
+	// create database connection
+	telemetryDBConn, err := database2.GetTelemetryDbConnection(ctx, logger)
+	if err != nil {
+		logger.Error("Failed to get telemetry database connection", "error", err.Error())
+		os.Exit(1)
+	}
+	defer database2.CloseTelemetryDatabase(telemetryDBConn, logger)
+	logger.Info("Telemetry Database connection established", "connection", telemetryDBConn)
+
 	// Initialize the temporal server client
 	temporalManager := tManagerPkg.TemporalManager{
-		Client: workflowClient.GetTemporalClient(),
-		Config: workflowClient.LoadConfig(),
-		DBConn: dbConn,
+		Client:          workflowClient.GetTemporalClient(),
+		Config:          workflowClient.LoadConfig(),
+		DBConn:          dbConn,
+		TelemetryDBConn: telemetryDBConn,
 	}
 
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
@@ -143,7 +154,7 @@ func main() {
 		worker = tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.BackgroundTaskQueue)
 
 		logger.Info("registering background workflows and activities")
-		RegisterBackgroundWorkflowsAndActivities(*worker, workflowClient.GetTemporalClient(), dbConn)
+		RegisterBackgroundWorkflowsAndActivities(*worker, workflowClient.GetTemporalClient(), dbConn, telemetryDBConn)
 
 	default:
 		logger.Error("Unknown worker type", "type", workerType)
@@ -300,7 +311,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.UpdateVolumeInReplicationActivity{SE: dbcon})
 }
 
-func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage) {
+func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
 	worker.RegisterWorkflow(jobmanagerworkflows.JobManagerWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncVSASnapshotsWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncSnapshotsForPoolWorkflow)
@@ -318,6 +329,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(workflows.PostFileVolumeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncForHardDeleteWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.HardDeleteResourcesAndAccountWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.CleanupHydratedMetricsTableWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.CleanupAggregatedUsageTableWorkflow)
   worker.RegisterWorkflow(backgroundworkflows.SyncVSAAutoTieringWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringPauseResumeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringHotTierAutoResizeWorkflow)
@@ -338,6 +351,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundworkflows.HardDeleteResourcesAndAccountworkflow{})
 	worker.RegisterActivity(&resource_events_activities.FinishProjectEventActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.VolumeBackupSyncActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.MetricsCleanupActivity{SE: conn, MetricsDB: telemetryDBConn})
 	worker.RegisterActivity(&backgroundactivities.AutoTierSyncActivity{SE: conn})
 	worker.RegisterActivity(&activities.WFLastExecutionActivity{TemporalClient: temporal})
 	worker.RegisterActivity(&activities.PoolActivity{SE: conn})

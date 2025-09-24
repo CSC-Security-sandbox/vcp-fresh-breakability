@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
@@ -20,6 +20,8 @@ const (
 	OrphanJobScheduler            = "ORPHANED_JOB_SCHEDULER"
 	SyncLatestBackupLogicalSize   = "SYNC_LATEST_BACKUP_LOGICAL_SIZE"
 	HardDeleteResourcesAndAccount = "HARD_DELETE_RESOURCES_AND_ACCOUNT"
+	CleanupHydratedMetricsTable   = "CLEANUP_HYDRATED_METRICS_TABLE"
+	CleanupAggregatedUsageTable   = "CLEANUP_AGGREGATED_USAGE_TABLE"
 	SyncVsaAutoTiering            = "SYNC_VSA_AUTO_TIERING"
 )
 
@@ -30,6 +32,8 @@ var JobTypeToWorkflow = map[string]interface{}{
 	OrphanJobScheduler:            backgroundworkflows.OrphanJobSchedulerWorkflow,
 	SyncLatestBackupLogicalSize:   backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,
 	HardDeleteResourcesAndAccount: backgroundworkflows.HardDeleteResourcesAndAccountWorkflow,
+	CleanupHydratedMetricsTable:   backgroundworkflows.CleanupHydratedMetricsTableWorkflow,
+	CleanupAggregatedUsageTable:   backgroundworkflows.CleanupAggregatedUsageTableWorkflow,
 	SyncVsaAutoTiering:            backgroundworkflows.SyncVSAAutoTieringWorkflow,
 }
 

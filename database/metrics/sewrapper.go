@@ -6,7 +6,8 @@ package database
 
 import (
 	"context"
-
+	
+	"time"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -109,6 +110,26 @@ func (re *retryEngine) DeleteHydratedMetrics(ctx context.Context, id string) err
 	return err
 }
 
+func (re *retryEngine) DeleteHydratedMetricsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteHydratedMetricsOlderThan(ctx, olderThan)
+		if err != nil {
+			re.logError("DeleteHydratedMetricsOlderThan", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
@@ -184,6 +205,26 @@ func (re *retryEngine) DeleteAggregatedUsage(ctx context.Context, id int64) erro
 	}
 
 	return err
+}
+
+func (re *retryEngine) DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteAggregatedUsageOlderThan(ctx, olderThan)
+		if err != nil {
+			re.logError("DeleteAggregatedUsageOlderThan", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
 }
 
 func (re *retryEngine) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {
