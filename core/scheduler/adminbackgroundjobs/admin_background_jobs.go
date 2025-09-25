@@ -45,6 +45,12 @@ func LoadJobSpecs() error {
 		delete(adminJobSpecs, "SYNC_VSA_AUTO_TIERING")
 	}
 
+	// Remove metrics database cleanup job specs if metrics DB cleanup is not enabled.
+	if !env.GetBool("METRICS_DB_CLEANUP_ENABLED", false) {
+		delete(adminJobSpecs, "CLEANUP_HYDRATED_METRICS_TABLE")
+		delete(adminJobSpecs, "CLEANUP_AGGREGATED_USAGE_TABLE")
+	}
+
 	return nil
 }
 

@@ -33,6 +33,17 @@ data:
   DB_MAX_OPEN_CONNS: {{$.Values.workerConfig.database.maxConns | quote }}
   DB_MAX_IDLE_CONNS: {{$.Values.workerConfig.database.maxIdleConns | quote }}
   DB_CONN_MAX_LIFETIME: {{$.Values.workerConfig.database.maxConnLifetime | quote }}
+  METRICS_DB_TYPE: {{$.Values.workerConfig.database.metricsDbType | quote }}
+  METRICS_DB_HOST: {{$.Values.workerConfig.database.metricsDbHost | quote }}
+  METRICS_DB_PORT: {{$.Values.workerConfig.database.metricsDbPort | quote }}
+  METRICS_DB_USER: {{$.Values.workerConfig.database.metricsDbUser | quote }}
+  METRICS_DB_PASSWORD: {{$.Values.workerConfig.database.metricsDbPassword | quote }}
+  METRICS_DB_NAME: {{$.Values.workerConfig.database.metricsDbName | quote }}
+  METRICS_DB_SSL_MODE: {{$.Values.workerConfig.database.metricsDbSslMode | quote }}
+  METRICS_DB_TIMEZONE: {{$.Values.workerConfig.database.metricsDbTimezone | quote }}
+  METRICS_DB_MAX_OPEN_CONNS: {{$.Values.workerConfig.database.metricsDbMaxConns | quote }}
+  METRICS_DB_MAX_IDLE_CONNS: {{$.Values.workerConfig.database.metricsDbMaxIdleConns | quote }}
+  METRICS_DB_CONN_MAX_LIFETIME: {{$.Values.workerConfig.database.metricsDbMaxConnLifetime | quote }}
   VLMWORKFLOW_RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.vlmWorkflowRetryMaxAttempts | quote }}
   RUN_MIGRATION_ON_START: {{$.Values.workerConfig.database.runMigrationOnStart | quote }}
   GCP_CONSUMER_MGMT_ENDPOINT_URL: {{$.Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}

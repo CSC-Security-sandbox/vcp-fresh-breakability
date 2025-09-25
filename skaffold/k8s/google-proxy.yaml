@@ -80,3 +80,5 @@ spec:
               value: <vsa_node_username_here>
             - name: ERROR_FILE_PATH
               value: "/app/errors.json"
+            - name: METRICS_DB_CLEANUP_ENABLED
+              value: "false"

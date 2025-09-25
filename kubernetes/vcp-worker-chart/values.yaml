@@ -229,7 +229,17 @@ workerConfig:
     maxConns: 20
     maxIdleConns: 20
     maxConnLifetime: "1h"
-
+    metricsDbType: "postgres"
+    metricsDbHost: postgres.default.svc.cluster.local
+    metricsDbPort: 5432
+    metricsDbUser: postgres
+    metricsDbPassword: testpass
+    metricsDbName: metrics
+    metricsDbSslMode: "disable"
+    metricsDbTimezone: "UTC"
+    metricsDbMaxConns: 20
+    metricsDbMaxIdleConns: 20
+    metricsDbMaxConnLifetime: "1h"
   adc:
     image: "" # path of ADC image in gcp cloud image registry
     project: "" # project in which ADC cloud run to be deployed

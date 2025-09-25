@@ -80,6 +80,7 @@ data:
   SCHEDULED_HARD_DELETE: "{{ index .Values "scheduleHardDelete" }}"
   WAIT_FOR_TEMPORAL_ENABLED: "{{ index .Values "waitForTemporalEnabled" }}"
   TASK_QUEUE_VERSION: "{{ index .Chart.Version | lower | replace "." "-" }}"
+  METRICS_DB_CLEANUP_ENABLED: "{{ index .Values "metricsDbCleanupEnabled" }}"
   VOLUME_REFRESH_INTERVAL_MINUTES: "{{ index .Values "volumeRefreshIntervalMinutes" }}"
 
   config.yaml: |

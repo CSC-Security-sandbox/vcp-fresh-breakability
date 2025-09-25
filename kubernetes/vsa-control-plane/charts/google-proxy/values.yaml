@@ -60,6 +60,7 @@ maxCustomIops: "160000"
 maxCustomThroughput: "5120"
 iopsPerMibps: "16"
 waitForTemporalEnabled: true
+metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
 
 # Mock gcp access token for testing purposes
