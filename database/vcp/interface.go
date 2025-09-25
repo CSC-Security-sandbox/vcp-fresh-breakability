@@ -66,6 +66,7 @@ type (
 		UpdateVolume(ctx context.Context, volume *datamodel.Volume) error
 		RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) ([]*datamodel.Snapshot, error)
 		UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error
+		BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error
 		DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 		DeleteVolumeAndChildResources(ctx context.Context, volumeUUID string) (*datamodel.Volume, error)
 		UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error)

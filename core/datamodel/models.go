@@ -850,3 +850,9 @@ type VolumeLatestBackup struct {
 	Volume       *Volume
 	LatestBackup *Backup
 }
+
+// VolumeFieldUpdate represents a targeted update for specific volume fields
+type VolumeFieldUpdate struct {
+	UUID   string                 `json:"uuid"`
+	Fields map[string]interface{} `json:"fields"`
+}

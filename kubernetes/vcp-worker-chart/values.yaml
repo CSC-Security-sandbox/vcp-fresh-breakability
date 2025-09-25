@@ -202,6 +202,10 @@ workerConfig:
   saRetryMaximumInterval: "60s"
   saRetryBackoffCoefficient: "2.0"
 
+  # Volume Refresh Configuration
+  volumeRefreshWorkflowStartToCloseTimeout: "10m"
+  volumeSyncChunkSize: "200"
+
   # Mock gcp access token for testing purposes
   mockAccessToken: ""
   integrationTest: "false"

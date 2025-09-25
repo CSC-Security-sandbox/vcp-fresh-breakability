@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/sdk/converter"
@@ -40,6 +40,13 @@ func (s *VolumeGetWorkflowTestSuite) SetupTest() {
 
 	// Register workflow
 	s.env.RegisterWorkflow(VolumeRefreshWorkflow)
+
+	// Register the new activities used in VolumeRefreshWorkflow
+	volumeRefreshActivity := &activities.VolumeRefreshActivity{}
+	s.env.RegisterActivity(volumeRefreshActivity.ProcessVolumePoolMapping)
+	s.env.RegisterActivity(volumeRefreshActivity.GetOntapVolumes)
+	s.env.RegisterActivity(volumeRefreshActivity.ProcessOntapVolumeMatching)
+	s.env.RegisterActivity(volumeRefreshActivity.SyncUpdatedVolumesToDatabase)
 }
 
 func (s *VolumeGetWorkflowTestSuite) AfterTest() {
@@ -47,8 +54,7 @@ func (s *VolumeGetWorkflowTestSuite) AfterTest() {
 }
 
 func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_Success() {
-	// Test successful volume get workflow execution
-	mockStorage := database.NewMockStorage(s.T())
+	// Test successful volume refresh workflow execution
 
 	// Create test volume
 	volume := &datamodel.Volume{
@@ -57,66 +63,195 @@ func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_Success() {
 		},
 		Name: "test-volume",
 		Account: &datamodel.Account{
-			Name: "test-account",
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		},
 		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
 			},
+			Name: "test-pool",
 		},
-		Svm: &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
 	}
 
-	// Mock activities
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeUpdateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	// Mock ProcessVolumePoolMapping activity
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{
+			"pool-uuid": volume.Pool,
+		},
+		PoolUUIDs: []string{"pool-uuid"},
+	}
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
 
-	// Register activities
-	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(volumeUpdateActivity.GetVolumeFromONTAP)
-	s.env.RegisterActivity(volumeUpdateActivity.RefreshVolumeFieldsInDB)
-
-	// Mock expectations
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	// Mock GetNode activity
-	dbNodes := []*datamodel.Node{
-		{
-			BaseModel:       datamodel.BaseModel{ID: int64(1)},
-			EndpointAddress: "192.168.1.1",
+	// Mock GetOntapVolumes activity
+	ontapResult := &activities.GetOntapVolumesReturnValue{
+		OntapVolumeMap: map[string]*vsa.Volume{
+			"external-uuid": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(2048)),
+						},
+					},
+				},
+			},
 		},
 	}
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(dbNodes, nil)
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, mock.Anything).Return(ontapResult, nil)
 
-	// Mock GetVolumeFromONTAPAgain activity
-	volumeResponse := &vsa.VolumeResponse{
-		ProviderResponse: vsa.ProviderResponse{
-			ExternalUUID: "external-uuid",
+	// Mock ProcessOntapVolumeMatching activity
+	matchingResult := &activities.ProcessOntapVolumeMatchingResult{
+		UpdatedVolumeByUUID: map[string]*datamodel.Volume{
+			"test-volume-uuid": {
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-volume-uuid",
+					ID:   volume.ID,
+				},
+				UsedBytes: 2048,
+			},
 		},
-		UsedBytes: 1024,
+		OntapVolResponse: map[string]*vsa.VolumeResponse{
+			"test-volume-uuid": {
+				UsedBytes: 2048,
+			},
+		},
+		VolumesNotFoundInONTAP: []*datamodel.Volume{},
+		MatchedCount:           1,
+		NotFoundCount:          0,
 	}
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
+	s.env.OnActivity("ProcessOntapVolumeMatching", mock.Anything, mock.Anything).Return(matchingResult, nil)
 
-	// Mock RefreshVolumeFieldsInDB activity
-	s.env.OnActivity(volumeUpdateActivity.RefreshVolumeFieldsInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock SyncUpdatedVolumesToDatabase activity
+	s.env.OnActivity("SyncUpdatedVolumesToDatabase", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, volume)
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_StatusQuery() {
+	// Test status query handler functionality during workflow execution
+
+	// Create test volume
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-volume-uuid",
+		},
+		Name: "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
+			},
+			Name: "test-pool",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	// Mock ProcessVolumePoolMapping activity with a delay to allow querying
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{
+			"pool-uuid": volume.Pool,
+		},
+		PoolUUIDs: []string{"pool-uuid"},
+	}
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
+
+	// Mock remaining activities
+	ontapResult := &activities.GetOntapVolumesReturnValue{
+		OntapVolumeMap: map[string]*vsa.Volume{
+			"external-uuid": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(2048)),
+						},
+					},
+				},
+			},
+		},
+	}
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, mock.Anything).Return(ontapResult, nil)
+
+	matchingResult := &activities.ProcessOntapVolumeMatchingResult{
+		UpdatedVolumeByUUID: map[string]*datamodel.Volume{
+			"test-volume-uuid": {
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-volume-uuid",
+					ID:   volume.ID,
+				},
+				UsedBytes: 2048,
+			},
+		},
+		OntapVolResponse: map[string]*vsa.VolumeResponse{
+			"test-volume-uuid": {
+				UsedBytes: 2048,
+			},
+		},
+		VolumesNotFoundInONTAP: []*datamodel.Volume{},
+		MatchedCount:           1,
+		NotFoundCount:          0,
+	}
+	s.env.OnActivity("ProcessOntapVolumeMatching", mock.Anything, mock.Anything).Return(matchingResult, nil)
+	s.env.OnActivity("SyncUpdatedVolumesToDatabase", mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
+
+	// Query workflow status to test the status query handler
+	var statusResult *VolumeRefreshWorkflowStatus
+	value, err := s.env.QueryWorkflow("status")
+	assert.NoError(s.T(), err)
+	err = value.Get(&statusResult)
+	assert.NoError(s.T(), err)
+
+	// Assert status query returns expected structure
+	assert.NotNil(s.T(), statusResult)
+	assert.NotNil(s.T(), statusResult.WorkflowStatus)
+	assert.Equal(s.T(), "test-account", statusResult.WorkflowStatus.CustomerID)
+	assert.NotNil(s.T(), statusResult.CompletionTime)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_NilVolumes() {
+	// Test VolumeRefreshWorkflow with nil volumes slice
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, nil)
+
+	// Assert workflow failed with appropriate error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "no volumes provided")
+}
+
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_EmptyVolumes() {
+	// Test VolumeRefreshWorkflow with empty volumes slice
+	emptyVolumes := []*datamodel.Volume{}
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, emptyVolumes)
+
+	// Assert workflow failed with appropriate error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "no volumes provided")
+}
+
 func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_SetupError() {
-	// Test workflow setup error
+	// Test workflow setup error - volume with no account
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-volume-uuid",
@@ -126,403 +261,619 @@ func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_SetupError() {
 	}
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, volume)
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_UpdateJobStatusProcessingError() {
-	// Test error during job status update to PROCESSING
-	mockStorage := database.NewMockStorage(s.T())
-
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_NoValidPools() {
+	// Test when ProcessVolumePoolMapping returns no valid pools
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-volume-uuid",
 		},
 		Name: "test-volume",
 		Account: &datamodel.Account{
-			Name: "test-account",
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		},
 		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
 			},
+			Name: "test-pool",
 		},
-		Svm: &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
 	}
 
-	// Mock activities
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-	// Mock UpdateJobStatus to return error for PROCESSING state
-	expectedError := errors.New("failed to update job status to PROCESSING")
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
-	})).Return(expectedError)
+	// Mock ProcessVolumePoolMapping to return empty pool mapping
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{}, // Empty map
+		PoolUUIDs:  []string{},                   // Empty slice
+	}
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, volume)
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
 
-	// Assert workflow failed
+	// Assert workflow completed successfully (returns early with nil)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), expectedError.Error())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_GetNodeError() {
-	// Test error during GetNode activity
-	mockStorage := database.NewMockStorage(s.T())
-
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_ProcessPoolMappingError() {
+	// Test ProcessVolumePoolMapping activity failure
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-volume-uuid",
 		},
 		Name: "test-volume",
 		Account: &datamodel.Account{
-			Name: "test-account",
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		},
 		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
 			},
+			Name: "test-pool",
 		},
-		Svm: &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
 	}
 
-	// Mock activities
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-	s.env.RegisterActivity(commonActivity.GetNode)
-
-	// Mock UpdateJobStatus to succeed for PROCESSING state
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
-	})).Return(nil)
-
-	// Mock UpdateJobStatus to succeed for DONE state with error
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails != ""
-	})).Return(nil)
-
-	// Mock GetNode to return error
-	expectedError := errors.New("failed to get node")
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(nil, expectedError)
+	// Mock ProcessVolumePoolMapping to fail
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(nil, errors.New("failed to process pool mapping"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, volume)
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), expectedError.Error())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to process pool mapping")
 }
 
-func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_GetVolumeFromONTAPAgainError() {
-	// Test error during GetVolumeFromONTAPAgain activity
-	mockStorage := database.NewMockStorage(s.T())
-
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_GetOntapVolumesError() {
+	// Test GetOntapVolumes activity failure - workflow should continue processing but skip the failed pool
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-volume-uuid",
 		},
 		Name: "test-volume",
 		Account: &datamodel.Account{
-			Name: "test-account",
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		},
 		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
 			},
+			Name: "test-pool",
 		},
-		Svm: &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
 	}
 
-	// Mock activities
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeUpdateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(volumeUpdateActivity.GetVolumeFromONTAP)
-
-	// Mock UpdateJobStatus to succeed for PROCESSING state
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
-	})).Return(nil)
-
-	// Mock UpdateJobStatus to succeed for DONE state with error
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails != ""
-	})).Return(nil)
-
-	// Mock GetNode to succeed
-	dbNodes := []*datamodel.Node{
-		{
-			BaseModel:       datamodel.BaseModel{ID: int64(1)},
-			EndpointAddress: "192.168.1.1",
+	// Mock ProcessVolumePoolMapping to succeed
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{
+			"pool-uuid": volume.Pool,
 		},
+		PoolUUIDs: []string{"pool-uuid"},
 	}
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(dbNodes, nil)
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
 
-	// Mock GetVolumeFromONTAPAgain to return error
-	expectedError := errors.New("failed to get volume from ONTAP")
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
+	// Mock GetOntapVolumes to fail
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get ONTAP volumes"))
+
+	// Mock ProcessOntapVolumeMatching to handle empty ONTAP results
+	// Since GetOntapVolumes failed, the volume will be marked as not found in ONTAP
+	matchingResult := &activities.ProcessOntapVolumeMatchingResult{
+		UpdatedVolumeByUUID:    map[string]*datamodel.Volume{},
+		OntapVolResponse:       map[string]*vsa.VolumeResponse{},
+		VolumesNotFoundInONTAP: []*datamodel.Volume{volume}, // Volume will be marked as not found
+		MatchedCount:           0,
+		NotFoundCount:          1,
+	}
+	s.env.OnActivity("ProcessOntapVolumeMatching", mock.Anything, mock.Anything).Return(matchingResult, nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, volume)
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
 
-	// Assert workflow failed
+	// Assert workflow completed successfully (resilient behavior - continues despite GetOntapVolumes failure)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), expectedError.Error())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_UpdateVolumeUsedBytesError() {
-	// Test error during RefreshVolumeFieldsInDB activity
-	mockStorage := database.NewMockStorage(s.T())
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_PartialGetOntapVolumesFailure() {
+	// Test mixed success/failure scenario - some pools succeed, one fails
+	// This verifies the resilience behavior where workflow continues despite partial failures
 
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			UUID: "test-volume-uuid",
-		},
-		Name: "test-volume",
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-		},
-		Svm: &datamodel.Svm{Name: "test-svm"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-uuid",
-		},
+	// Create pools
+	poolA := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool-a-uuid"},
+		Name:      "pool-a",
+	}
+	poolB := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool-b-uuid"},
+		Name:      "pool-b",
+	}
+	poolC := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: int64(3), UUID: "pool-c-uuid"},
+		Name:      "pool-c",
 	}
 
-	// Mock activities
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeUpdateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(volumeUpdateActivity.GetVolumeFromONTAP)
-	s.env.RegisterActivity(volumeUpdateActivity.RefreshVolumeFieldsInDB)
-
-	// Mock UpdateJobStatus to succeed for PROCESSING state
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
-	})).Return(nil)
-
-	// Mock UpdateJobStatus to succeed for DONE state with error
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails != ""
-	})).Return(nil)
-
-	// Mock GetNode to succeed
-	dbNodes := []*datamodel.Node{
-		{
-			BaseModel:       datamodel.BaseModel{ID: int64(1)},
-			EndpointAddress: "192.168.1.1",
-		},
-	}
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(dbNodes, nil)
-
-	// Mock GetVolumeFromONTAPAgain to succeed
-	volumeResponse := &vsa.VolumeResponse{
-		ProviderResponse: vsa.ProviderResponse{
-			ExternalUUID: "external-uuid",
-		},
+	// Create volumes - 2 per pool (6 total)
+	volumeA1 := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-a1-uuid"},
+		Name:      "volume-a1",
 		UsedBytes: 1024,
-	}
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
-
-	// Mock RefreshVolumeFieldsInDB to return error
-	expectedError := errors.New("failed to update volume used bytes")
-	s.env.OnActivity(volumeUpdateActivity.RefreshVolumeFieldsInDB, mock.Anything, mock.Anything, mock.Anything).Return(expectedError)
-
-	// Execute workflow
-	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, volume)
-
-	// Assert workflow failed
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), expectedError.Error())
-}
-
-func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_UpdateJobStatusDoneError() {
-	// Test error during final job status update to DONE
-	mockStorage := database.NewMockStorage(s.T())
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			UUID: "test-volume-uuid",
-		},
-		Name: "test-volume",
 		Account: &datamodel.Account{
-			Name: "test-account",
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-		},
-		Svm: &datamodel.Svm{Name: "test-svm"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-uuid",
-		},
+		Pool:             poolA,
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "external-a1"},
 	}
-
-	// Mock activities
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeUpdateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(volumeUpdateActivity.GetVolumeFromONTAP)
-	s.env.RegisterActivity(volumeUpdateActivity.RefreshVolumeFieldsInDB)
-
-	// Mock UpdateJobStatus to succeed for PROCESSING state
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
-	})).Return(nil)
-
-	// Mock UpdateJobStatus to fail for DONE state (successful completion)
-	expectedError := errors.New("failed to update job status to DONE")
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails == ""
-	})).Return(expectedError)
-
-	// Mock GetNode to succeed
-	dbNodes := []*datamodel.Node{
-		{
-			BaseModel:       datamodel.BaseModel{ID: int64(1)},
-			EndpointAddress: "192.168.1.1",
-		},
-	}
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(dbNodes, nil)
-
-	// Mock GetVolumeFromONTAPAgain to succeed
-	volumeResponse := &vsa.VolumeResponse{
-		ProviderResponse: vsa.ProviderResponse{
-			ExternalUUID: "external-uuid",
-		},
+	volumeA2 := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-a2-uuid"},
+		Name:      "volume-a2",
 		UsedBytes: 1024,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool:             poolA,
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "external-a2"},
 	}
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
+	volumeB1 := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-b1-uuid"},
+		Name:      "volume-b1",
+		UsedBytes: 1024,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool:             poolB,
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "external-b1"},
+	}
+	volumeB2 := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-b2-uuid"},
+		Name:      "volume-b2",
+		UsedBytes: 1024,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool:             poolB,
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "external-b2"},
+	}
+	volumeC1 := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-c1-uuid"},
+		Name:      "volume-c1",
+		UsedBytes: 1024,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool:             poolC,
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "external-c1"},
+	}
+	volumeC2 := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-c2-uuid"},
+		Name:      "volume-c2",
+		UsedBytes: 1024,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool:             poolC,
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "external-c2"},
+	}
 
-	// Mock RefreshVolumeFieldsInDB to succeed
-	s.env.OnActivity(volumeUpdateActivity.RefreshVolumeFieldsInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	allVolumes := []*datamodel.Volume{volumeA1, volumeA2, volumeB1, volumeB2, volumeC1, volumeC2}
+
+	// Mock ProcessVolumePoolMapping to return all 3 pools
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{
+			"pool-a-uuid": poolA,
+			"pool-b-uuid": poolB,
+			"pool-c-uuid": poolC,
+		},
+		PoolUUIDs: []string{"pool-a-uuid", "pool-b-uuid", "pool-c-uuid"},
+	}
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
+
+	// Mock GetOntapVolumes - Pool A succeeds, Pool B fails, Pool C succeeds
+	// Pool A success
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, poolA).Return(&activities.GetOntapVolumesReturnValue{
+		OntapVolumeMap: map[string]*vsa.Volume{
+			"external-a1": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(2048)), // Different from DB (1024)
+						},
+					},
+				},
+			},
+			"external-a2": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(1024)), // Same as DB (no change)
+						},
+					},
+				},
+			},
+		},
+	}, nil)
+
+	// Pool B failure
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, poolB).Return(nil, errors.New("failed to get ONTAP volumes for pool B"))
+
+	// Pool C success
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, poolC).Return(&activities.GetOntapVolumesReturnValue{
+		OntapVolumeMap: map[string]*vsa.Volume{
+			"external-c1": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(4096)), // Different from DB (1024)
+						},
+					},
+				},
+			},
+			"external-c2": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(1024)), // Same as DB (no change)
+						},
+					},
+				},
+			},
+		},
+	}, nil)
+
+	// Mock ProcessOntapVolumeMatching with expected results
+	matchingResult := &activities.ProcessOntapVolumeMatchingResult{
+		UpdatedVolumeByUUID: map[string]*datamodel.Volume{
+			// Only volumes with changes should be updated (A1 and C1)
+			"vol-a1-uuid": {
+				BaseModel: datamodel.BaseModel{UUID: "vol-a1-uuid", ID: volumeA1.ID},
+				UsedBytes: uint64(2048),
+			},
+			"vol-c1-uuid": {
+				BaseModel: datamodel.BaseModel{UUID: "vol-c1-uuid", ID: volumeC1.ID},
+				UsedBytes: uint64(4096),
+			},
+		},
+		OntapVolResponse: map[string]*vsa.VolumeResponse{
+			"vol-a1-uuid": {UsedBytes: 2048},
+			"vol-c1-uuid": {UsedBytes: 4096},
+		},
+		VolumesNotFoundInONTAP: []*datamodel.Volume{volumeB1, volumeB2}, // Pool B volumes not found
+		MatchedCount:           2,                                       // A1 and C1 had changes
+		NotFoundCount:          2,                                       // B1 and B2 not found due to pool failure
+	}
+	s.env.OnActivity("ProcessOntapVolumeMatching", mock.Anything, mock.Anything).Return(matchingResult, nil)
+
+	// Mock SyncUpdatedVolumesToDatabase for the 2 volumes that need updating
+	s.env.OnActivity("SyncUpdatedVolumesToDatabase", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, volume)
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, allVolumes)
 
-	// Assert workflow failed
+	// Assert workflow completed successfully despite Pool B failure
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), expectedError.Error())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_UpdateJobStatusErrorDetailsError() {
-	// Test error during job status update with error details
-	mockStorage := database.NewMockStorage(s.T())
-
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_ProcessOntapVolumeMatchingError() {
+	// Test ProcessOntapVolumeMatching activity failure
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-volume-uuid",
 		},
 		Name: "test-volume",
 		Account: &datamodel.Account{
-			Name: "test-account",
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		},
 		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
 			},
+			Name: "test-pool",
 		},
-		Svm: &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
 	}
 
-	// Mock activities
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeUpdateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	// Mock ProcessVolumePoolMapping to succeed
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{
+			"pool-uuid": volume.Pool,
+		},
+		PoolUUIDs: []string{"pool-uuid"},
+	}
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
 
-	// Register activities
-	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(volumeUpdateActivity.GetVolumeFromONTAP)
-
-	// Mock UpdateJobStatus to succeed for PROCESSING state
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
-	})).Return(nil)
-
-	// Mock UpdateJobStatus to fail for DONE state with error details
-	errorDetailsUpdateError := errors.New("failed to update job status with error details")
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateERROR) && job.ErrorDetails != ""
-	})).Return(errorDetailsUpdateError)
-
-	// Mock GetNode to succeed
-	dbNodes := []*datamodel.Node{
-		{
-			BaseModel:       datamodel.BaseModel{ID: int64(1)},
-			EndpointAddress: "192.168.1.1",
+	// Mock GetOntapVolumes to succeed
+	ontapResult := &activities.GetOntapVolumesReturnValue{
+		OntapVolumeMap: map[string]*vsa.Volume{
+			"external-uuid": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(2048)),
+						},
+					},
+				},
+			},
 		},
 	}
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(dbNodes, nil)
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, mock.Anything).Return(ontapResult, nil)
 
-	// Mock GetVolumeFromONTAPAgain to return error
-	ontapError := errors.New("failed to get volume from ONTAP")
-	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, ontapError)
+	// Mock ProcessOntapVolumeMatching to fail
+	s.env.OnActivity("ProcessOntapVolumeMatching", mock.Anything, mock.Anything).Return(nil, errors.New("failed to process ONTAP volume matching"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, volume)
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
 
-	// Assert workflow failed with the error details update error
+	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), errorDetailsUpdateError.Error())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to process ONTAP volume matching")
+}
+
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_SyncDatabaseError() {
+	// Test SyncUpdatedVolumesToDatabase activity failure
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-volume-uuid",
+		},
+		Name: "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
+			},
+			Name: "test-pool",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	// Mock ProcessVolumePoolMapping to succeed
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{
+			"pool-uuid": volume.Pool,
+		},
+		PoolUUIDs: []string{"pool-uuid"},
+	}
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
+
+	// Mock GetOntapVolumes to succeed
+	ontapResult := &activities.GetOntapVolumesReturnValue{
+		OntapVolumeMap: map[string]*vsa.Volume{
+			"external-uuid": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(2048)),
+						},
+					},
+				},
+			},
+		},
+	}
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, mock.Anything).Return(ontapResult, nil)
+
+	// Mock ProcessOntapVolumeMatching to succeed
+	matchingResult := &activities.ProcessOntapVolumeMatchingResult{
+		UpdatedVolumeByUUID: map[string]*datamodel.Volume{
+			"test-volume-uuid": {
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-volume-uuid",
+					ID:   volume.ID,
+				},
+				UsedBytes: 2048,
+			},
+		},
+		OntapVolResponse: map[string]*vsa.VolumeResponse{
+			"test-volume-uuid": {
+				UsedBytes: 2048,
+			},
+		},
+		VolumesNotFoundInONTAP: []*datamodel.Volume{},
+		MatchedCount:           1,
+		NotFoundCount:          0,
+	}
+	s.env.OnActivity("ProcessOntapVolumeMatching", mock.Anything, mock.Anything).Return(matchingResult, nil)
+
+	// Mock SyncUpdatedVolumesToDatabase to fail
+	s.env.OnActivity("SyncUpdatedVolumesToDatabase", mock.Anything, mock.Anything).Return(errors.New("failed to sync database"))
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to sync database")
+}
+
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_VolumesNotFoundInONTAP() {
+	// Test case where some volumes are not found in ONTAP
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-volume-uuid",
+		},
+		Name: "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
+			},
+			Name: "test-pool",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	// Mock ProcessVolumePoolMapping to succeed
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{
+			"pool-uuid": volume.Pool,
+		},
+		PoolUUIDs: []string{"pool-uuid"},
+	}
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
+
+	// Mock GetOntapVolumes to succeed
+	ontapResult := &activities.GetOntapVolumesReturnValue{
+		OntapVolumeMap: map[string]*vsa.Volume{
+			"external-uuid": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(2048)),
+						},
+					},
+				},
+			},
+		},
+	}
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, mock.Anything).Return(ontapResult, nil)
+
+	// Mock ProcessOntapVolumeMatching with some volumes not found
+	matchingResult := &activities.ProcessOntapVolumeMatchingResult{
+		UpdatedVolumeByUUID: map[string]*datamodel.Volume{
+			"test-volume-uuid": {
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-volume-uuid",
+					ID:   volume.ID,
+				},
+				UsedBytes: 2048,
+			},
+		},
+		OntapVolResponse: map[string]*vsa.VolumeResponse{
+			"test-volume-uuid": {
+				UsedBytes: 2048,
+			},
+		},
+		VolumesNotFoundInONTAP: []*datamodel.Volume{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "not-found-volume-uuid"},
+				Name:      "not-found-volume",
+			},
+		},
+		MatchedCount:  1,
+		NotFoundCount: 1, // This triggers the warning log on line 157
+	}
+	s.env.OnActivity("ProcessOntapVolumeMatching", mock.Anything, mock.Anything).Return(matchingResult, nil)
+
+	// Mock SyncUpdatedVolumesToDatabase to succeed
+	s.env.OnActivity("SyncUpdatedVolumesToDatabase", mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_NoVolumesToUpdate() {
+	// Test case where no volumes need updating in database
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-volume-uuid",
+		},
+		Name: "test-volume",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "pool-uuid",
+			},
+			Name: "test-pool",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	// Mock ProcessVolumePoolMapping to succeed
+	poolMappingResult := &activities.ProcessVolumePoolMappingResult{
+		PoolByUUID: map[string]*datamodel.Pool{
+			"pool-uuid": volume.Pool,
+		},
+		PoolUUIDs: []string{"pool-uuid"},
+	}
+	s.env.OnActivity("ProcessVolumePoolMapping", mock.Anything, mock.Anything).Return(poolMappingResult, nil)
+
+	// Mock GetOntapVolumes to succeed
+	ontapResult := &activities.GetOntapVolumesReturnValue{
+		OntapVolumeMap: map[string]*vsa.Volume{
+			"external-uuid": {
+				Volume: models.Volume{
+					Space: &models.VolumeInlineSpace{
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(2048)),
+						},
+					},
+				},
+			},
+		},
+	}
+	s.env.OnActivity("GetOntapVolumes", mock.Anything, mock.Anything).Return(ontapResult, nil)
+
+	// Mock ProcessOntapVolumeMatching with empty UpdatedVolumeByUUID
+	matchingResult := &activities.ProcessOntapVolumeMatchingResult{
+		UpdatedVolumeByUUID:    map[string]*datamodel.Volume{}, // Empty map - no volumes to update
+		OntapVolResponse:       map[string]*vsa.VolumeResponse{},
+		VolumesNotFoundInONTAP: []*datamodel.Volume{},
+		MatchedCount:           0,
+		NotFoundCount:          0,
+	}
+	s.env.OnActivity("ProcessOntapVolumeMatching", mock.Anything, mock.Anything).Return(matchingResult, nil)
+
+	// SyncUpdatedVolumesToDatabase should NOT be called since there are no volumes to update
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(VolumeRefreshWorkflow, []*datamodel.Volume{volume})
+
+	// Assert workflow completed successfully (and triggers the log on line 172)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
 func TestVolumeGetWorkflowTestSuite(t *testing.T) {

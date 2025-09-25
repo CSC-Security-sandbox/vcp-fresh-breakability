@@ -473,6 +473,53 @@ func (_c *MockStorage_BatchUpdateSnapshots_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// BatchUpdateVolumeFields provides a mock function with given fields: ctx, updates
+func (_m *MockStorage) BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error {
+	ret := _m.Called(ctx, updates)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchUpdateVolumeFields")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []datamodel.VolumeFieldUpdate) error); ok {
+		r0 = rf(ctx, updates)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_BatchUpdateVolumeFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchUpdateVolumeFields'
+type MockStorage_BatchUpdateVolumeFields_Call struct {
+	*mock.Call
+}
+
+// BatchUpdateVolumeFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - updates []datamodel.VolumeFieldUpdate
+func (_e *MockStorage_Expecter) BatchUpdateVolumeFields(ctx interface{}, updates interface{}) *MockStorage_BatchUpdateVolumeFields_Call {
+	return &MockStorage_BatchUpdateVolumeFields_Call{Call: _e.mock.On("BatchUpdateVolumeFields", ctx, updates)}
+}
+
+func (_c *MockStorage_BatchUpdateVolumeFields_Call) Run(run func(ctx context.Context, updates []datamodel.VolumeFieldUpdate)) *MockStorage_BatchUpdateVolumeFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]datamodel.VolumeFieldUpdate))
+	})
+	return _c
+}
+
+func (_c *MockStorage_BatchUpdateVolumeFields_Call) Return(_a0 error) *MockStorage_BatchUpdateVolumeFields_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_BatchUpdateVolumeFields_Call) RunAndReturn(run func(context.Context, []datamodel.VolumeFieldUpdate) error) *MockStorage_BatchUpdateVolumeFields_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Close provides a mock function with no fields
 func (_m *MockStorage) Close() error {
 	ret := _m.Called()

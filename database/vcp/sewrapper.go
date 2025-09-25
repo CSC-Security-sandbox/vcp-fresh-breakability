@@ -626,6 +626,25 @@ func (re *retryEngine) UpdateVolumeFields(ctx context.Context, volumeUUID string
 	return err
 }
 
+func (re *retryEngine) BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.BatchUpdateVolumeFields(ctx, updates)
+		if err != nil {
+			re.logError("BatchUpdateVolumeFields", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {

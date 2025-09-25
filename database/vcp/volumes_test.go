@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1320,6 +1321,388 @@ func TestGetAllVolumesForHG_ErrorHandling(t *testing.T) {
 	})
 }
 
+func TestBatchUpdateVolumeFields(t *testing.T) {
+	// Note: We can't test the actual SQL execution with SQLite since it uses PostgreSQL-specific syntax,
+	// but we can test error scenarios, validation, and business logic
+
+	t.Run("WhenUpdatesSliceIsEmpty", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Test with empty slice - should return immediately without database operations
+		err = store.BatchUpdateVolumeFields(context.Background(), []datamodel.VolumeFieldUpdate{})
+		assert.NoError(tt, err, "Expected no error for empty updates slice")
+	})
+
+	t.Run("WhenNilUpdatesSlice", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Test with nil slice - should return immediately
+		err = store.BatchUpdateVolumeFields(context.Background(), nil)
+		assert.NoError(tt, err, "Expected no error for nil updates slice")
+	})
+
+	t.Run("WhenDatabaseConnectionFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		// Close the database to simulate connection failure
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		assert.NoError(tt, err)
+
+		// Prepare valid updates
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "test-uuid-1",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(1000),
+				},
+			},
+		}
+
+		// Should fail due to closed database
+		err = store.BatchUpdateVolumeFields(context.Background(), updates)
+		assert.Error(tt, err, "Expected error when database connection is closed")
+	})
+
+	t.Run("WhenSQLExecutionFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Prepare updates that will cause SQL execution to fail
+		// (SQLite doesn't support PostgreSQL VALUES syntax)
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "test-uuid-1",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(1000),
+				},
+			},
+		}
+
+		// Should fail due to SQL syntax error in SQLite
+		err = store.BatchUpdateVolumeFields(context.Background(), updates)
+		assert.Error(tt, err, "Expected error due to PostgreSQL-specific SQL in SQLite")
+
+		// Verify it returns the proper VCP error type
+		assert.Contains(tt, err.Error(), "An internal error occurred", "Expected VCP database error")
+	})
+
+	t.Run("WhenBuildVolumeUpdateQueryIsCalledCorrectly", func(tt *testing.T) {
+		// Test that buildVolumeUpdateQuery is called with correct parameters
+		// This tests the integration without requiring actual SQL execution
+		store := &DataStoreRepository{}
+
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "test-uuid-1",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(1000),
+				},
+			},
+			{
+				UUID: "test-uuid-2",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(2000),
+				},
+			},
+		}
+
+		// Call buildVolumeUpdateQuery directly to verify it works correctly
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		// Verify the query and args are generated correctly
+		assert.NotEmpty(tt, sql, "SQL should not be empty")
+		assert.Len(tt, args, 4, "Should have 4 arguments for 2 updates")
+		assert.Equal(tt, "test-uuid-1", args[0], "First UUID should match")
+		assert.Equal(tt, int64(1000), args[1], "First used_bytes should match")
+		assert.Equal(tt, "test-uuid-2", args[2], "Second UUID should match")
+		assert.Equal(tt, int64(2000), args[3], "Second used_bytes should match")
+	})
+
+	t.Run("WhenUpdatingSingleVolume", func(tt *testing.T) {
+		tt.Skip("Skipped because this function uses PostgreSQL-specific VALUES clause syntax not supported in SQLite")
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Setup test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			UsedBytes: 1000, // Initial value
+		}
+
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Prepare update
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: volume.UUID,
+				Fields: map[string]interface{}{
+					"used_bytes": int64(2000),
+				},
+			},
+		}
+
+		// Execute batch update
+		err = store.BatchUpdateVolumeFields(context.Background(), updates)
+		assert.NoError(tt, err, "Expected no error during batch update")
+
+		// Verify the update
+		updatedVolume, err := store.GetVolume(context.Background(), volume.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated volume")
+		assert.Equal(tt, int64(2000), updatedVolume.UsedBytes, "Expected used_bytes to be updated to 2000")
+	})
+
+	t.Run("WhenUpdatingMultipleVolumes", func(tt *testing.T) {
+		tt.Skip("Skipped because this function uses PostgreSQL-specific VALUES clause syntax not supported in SQLite")
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Setup test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		volume1 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-1-uuid"},
+			Name:      "test_volume_1",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			UsedBytes: 1000,
+		}
+
+		volume2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-2-uuid"},
+			Name:      "test_volume_2",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			UsedBytes: 1500,
+		}
+
+		volume3 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-3-uuid"},
+			Name:      "test_volume_3",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			UsedBytes: 2000,
+		}
+
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+		err = store.db.Create(volume1).Error()
+		assert.NoError(tt, err, "Failed to create volume1")
+		err = store.db.Create(volume2).Error()
+		assert.NoError(tt, err, "Failed to create volume2")
+		err = store.db.Create(volume3).Error()
+		assert.NoError(tt, err, "Failed to create volume3")
+
+		// Prepare batch updates
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: volume1.UUID,
+				Fields: map[string]interface{}{
+					"used_bytes": int64(3000),
+				},
+			},
+			{
+				UUID: volume2.UUID,
+				Fields: map[string]interface{}{
+					"used_bytes": int64(4000),
+				},
+			},
+			{
+				UUID: volume3.UUID,
+				Fields: map[string]interface{}{
+					"used_bytes": int64(5000),
+				},
+			},
+		}
+
+		// Execute batch update
+		err = store.BatchUpdateVolumeFields(context.Background(), updates)
+		assert.NoError(tt, err, "Expected no error during batch update")
+
+		// Verify all updates
+		updatedVolume1, err := store.GetVolume(context.Background(), volume1.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated volume1")
+		assert.Equal(tt, int64(3000), updatedVolume1.UsedBytes, "Expected volume1 used_bytes to be updated to 3000")
+
+		updatedVolume2, err := store.GetVolume(context.Background(), volume2.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated volume2")
+		assert.Equal(tt, int64(4000), updatedVolume2.UsedBytes, "Expected volume2 used_bytes to be updated to 4000")
+
+		updatedVolume3, err := store.GetVolume(context.Background(), volume3.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated volume3")
+		assert.Equal(tt, int64(5000), updatedVolume3.UsedBytes, "Expected volume3 used_bytes to be updated to 5000")
+	})
+
+	t.Run("WhenVolumeDoesNotExist", func(tt *testing.T) {
+		tt.Skip("Skipped because this function uses PostgreSQL-specific VALUES clause syntax not supported in SQLite")
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Prepare update for non-existent volume
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "non-existent-volume-uuid",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(2000),
+				},
+			},
+		}
+
+		// Execute batch update - this should not error as it's a bulk operation
+		// The UPDATE will simply affect 0 rows
+		err = store.BatchUpdateVolumeFields(context.Background(), updates)
+		assert.NoError(tt, err, "Expected no error even when volume doesn't exist in bulk update")
+	})
+
+	t.Run("WhenMixedExistentAndNonExistentVolumes", func(tt *testing.T) {
+		tt.Skip("Skipped because this function uses PostgreSQL-specific VALUES clause syntax not supported in SQLite")
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Setup test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			UsedBytes: 1000,
+		}
+
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Prepare mixed updates (existing + non-existing volume)
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: volume.UUID, // This exists
+				Fields: map[string]interface{}{
+					"used_bytes": int64(2000),
+				},
+			},
+			{
+				UUID: "non-existent-volume-uuid", // This doesn't exist
+				Fields: map[string]interface{}{
+					"used_bytes": int64(3000),
+				},
+			},
+		}
+
+		// Execute batch update
+		err = store.BatchUpdateVolumeFields(context.Background(), updates)
+		assert.NoError(tt, err, "Expected no error during mixed batch update")
+
+		// Verify the existing volume was updated
+		updatedVolume, err := store.GetVolume(context.Background(), volume.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated volume")
+		assert.Equal(tt, int64(2000), updatedVolume.UsedBytes, "Expected existing volume used_bytes to be updated to 2000")
+	})
+}
+
 func TestGetVolumeByName(t *testing.T) {
 	t.Run("WhenVolumeExistsWithName", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -1856,5 +2239,208 @@ func TestListVolumesWithAccounts(t *testing.T) {
 		results, err := store.ListVolumesWithAccounts(context.Background())
 		assert.Error(tt, err)
 		assert.Nil(tt, results)
+	})
+}
+
+func TestBuildVolumeUpdateQuery(t *testing.T) {
+	// Create a DataStoreRepository instance for testing
+	// Note: We don't need a real database connection since buildVolumeUpdateQuery is a pure function
+	store := &DataStoreRepository{}
+
+	t.Run("WhenUpdatesSliceIsEmpty", func(tt *testing.T) {
+		updates := []datamodel.VolumeFieldUpdate{}
+
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		expectedSQL := "UPDATE volumes SET used_bytes = tmp.used_bytes, updated_at = NOW() FROM (VALUES ) AS tmp(uuid, used_bytes) WHERE volumes.uuid::text = tmp.uuid::text"
+		assert.Equal(tt, expectedSQL, sql, "Expected SQL for empty updates")
+		assert.Empty(tt, args, "Expected empty args array for empty updates")
+	})
+
+	t.Run("WhenUpdatingSingleVolume", func(tt *testing.T) {
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "test-uuid-1",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(1000),
+				},
+			},
+		}
+
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		expectedSQL := "UPDATE volumes SET used_bytes = tmp.used_bytes, updated_at = NOW() FROM (VALUES ($1::uuid, $2::bigint)) AS tmp(uuid, used_bytes) WHERE volumes.uuid::text = tmp.uuid::text"
+		assert.Equal(tt, expectedSQL, sql, "Expected SQL for single volume update")
+
+		expectedArgs := []interface{}{"test-uuid-1", int64(1000)}
+		assert.Equal(tt, expectedArgs, args, "Expected args for single volume update")
+		assert.Len(tt, args, 2, "Expected exactly 2 arguments for single volume")
+	})
+
+	t.Run("WhenUpdatingMultipleVolumes", func(tt *testing.T) {
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "test-uuid-1",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(1000),
+				},
+			},
+			{
+				UUID: "test-uuid-2",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(2000),
+				},
+			},
+			{
+				UUID: "test-uuid-3",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(3000),
+				},
+			},
+		}
+
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		expectedSQL := "UPDATE volumes SET used_bytes = tmp.used_bytes, updated_at = NOW() FROM (VALUES ($1::uuid, $2::bigint), ($3::uuid, $4::bigint), ($5::uuid, $6::bigint)) AS tmp(uuid, used_bytes) WHERE volumes.uuid::text = tmp.uuid::text"
+		assert.Equal(tt, expectedSQL, sql, "Expected SQL for multiple volume updates")
+
+		expectedArgs := []interface{}{
+			"test-uuid-1", int64(1000),
+			"test-uuid-2", int64(2000),
+			"test-uuid-3", int64(3000),
+		}
+		assert.Equal(tt, expectedArgs, args, "Expected args for multiple volume updates")
+		assert.Len(tt, args, 6, "Expected exactly 6 arguments for 3 volumes")
+	})
+
+	t.Run("WhenUsedBytesFieldIsMissing", func(tt *testing.T) {
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "test-uuid-1",
+				Fields: map[string]interface{}{
+					// Missing used_bytes field
+					"some_other_field": "value",
+				},
+			},
+		}
+
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		expectedSQL := "UPDATE volumes SET used_bytes = tmp.used_bytes, updated_at = NOW() FROM (VALUES ($1::uuid, $2::bigint)) AS tmp(uuid, used_bytes) WHERE volumes.uuid::text = tmp.uuid::text"
+		assert.Equal(tt, expectedSQL, sql, "Expected SQL structure even with missing used_bytes")
+
+		expectedArgs := []interface{}{"test-uuid-1", 0} // Default value for missing field
+		assert.Equal(tt, expectedArgs, args, "Expected default value 0 for missing used_bytes")
+	})
+
+	t.Run("WhenFieldsMapIsNil", func(tt *testing.T) {
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID:   "test-uuid-1",
+				Fields: nil, // Nil fields map
+			},
+		}
+
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		expectedSQL := "UPDATE volumes SET used_bytes = tmp.used_bytes, updated_at = NOW() FROM (VALUES ($1::uuid, $2::bigint)) AS tmp(uuid, used_bytes) WHERE volumes.uuid::text = tmp.uuid::text"
+		assert.Equal(tt, expectedSQL, sql, "Expected SQL structure even with nil fields")
+
+		expectedArgs := []interface{}{"test-uuid-1", 0} // Default value for nil fields
+		assert.Equal(tt, expectedArgs, args, "Expected default value 0 for nil fields")
+	})
+
+	t.Run("WhenParameterCountingIsCorrect", func(tt *testing.T) {
+		// Test with many updates to verify parameter counting
+		updates := make([]datamodel.VolumeFieldUpdate, 10)
+		for i := 0; i < 10; i++ {
+			updates[i] = datamodel.VolumeFieldUpdate{
+				UUID: fmt.Sprintf("test-uuid-%d", i+1),
+				Fields: map[string]interface{}{
+					"used_bytes": int64((i + 1) * 1000),
+				},
+			}
+		}
+
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		// Verify SQL contains correct placeholders for 10 volumes (20 parameters total)
+		assert.Contains(tt, sql, "$1::uuid, $2::bigint", "Expected first parameter pair")
+		assert.Contains(tt, sql, "$19::uuid, $20::bigint", "Expected last parameter pair")
+		assert.NotContains(tt, sql, "$21", "Should not contain parameters beyond $20")
+
+		// Verify args array has correct length and values
+		assert.Len(tt, args, 20, "Expected 20 arguments for 10 volumes")
+
+		// Verify parameter ordering
+		assert.Equal(tt, "test-uuid-1", args[0], "First UUID should be at index 0")
+		assert.Equal(tt, int64(1000), args[1], "First used_bytes should be at index 1")
+		assert.Equal(tt, "test-uuid-10", args[18], "Last UUID should be at index 18")
+		assert.Equal(tt, int64(10000), args[19], "Last used_bytes should be at index 19")
+	})
+
+	t.Run("WhenSQLStructureIsValid", func(tt *testing.T) {
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "test-uuid-1",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(1000),
+				},
+			},
+		}
+
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		// Verify SQL structure components
+		assert.Contains(tt, sql, "UPDATE volumes", "Should contain UPDATE volumes clause")
+		assert.Contains(tt, sql, "SET used_bytes = tmp.used_bytes, updated_at = NOW()", "Should contain SET clause")
+		assert.Contains(tt, sql, "FROM (VALUES", "Should contain VALUES clause")
+		assert.Contains(tt, sql, "AS tmp(uuid, used_bytes)", "Should contain temp table alias")
+		assert.Contains(tt, sql, "WHERE volumes.uuid::text = tmp.uuid::text", "Should contain WHERE clause")
+
+		// Verify PostgreSQL-specific syntax
+		assert.Contains(tt, sql, "::uuid", "Should contain PostgreSQL UUID casting")
+		assert.Contains(tt, sql, "::bigint", "Should contain PostgreSQL bigint casting")
+		assert.Contains(tt, sql, "NOW()", "Should contain NOW() function")
+
+		// Verify args are populated
+		assert.NotEmpty(tt, args, "Args should not be empty")
+	})
+
+	t.Run("WhenUsedBytesHasDifferentTypes", func(tt *testing.T) {
+		updates := []datamodel.VolumeFieldUpdate{
+			{
+				UUID: "test-uuid-1",
+				Fields: map[string]interface{}{
+					"used_bytes": 1000, // int instead of int64
+				},
+			},
+			{
+				UUID: "test-uuid-2",
+				Fields: map[string]interface{}{
+					"used_bytes": int64(2000), // correct int64
+				},
+			},
+			{
+				UUID: "test-uuid-3",
+				Fields: map[string]interface{}{
+					"used_bytes": "3000", // string instead of int64
+				},
+			},
+		}
+
+		sql, args := store.buildVolumeUpdateQuery(context.Background(), updates)
+
+		// Should handle different types by accepting interface{}
+		assert.Contains(tt, sql, "($1::uuid, $2::bigint), ($3::uuid, $4::bigint), ($5::uuid, $6::bigint)", "Should generate correct placeholders")
+		assert.Len(tt, args, 6, "Should have 6 arguments")
+
+		// Verify the values are passed as-is (type conversion happens in database layer)
+		assert.Equal(tt, "test-uuid-1", args[0])
+		assert.Equal(tt, 1000, args[1]) // int value
+		assert.Equal(tt, "test-uuid-2", args[2])
+		assert.Equal(tt, int64(2000), args[3]) // int64 value
+		assert.Equal(tt, "test-uuid-3", args[4])
+		assert.Equal(tt, "3000", args[5]) // string value
 	})
 }

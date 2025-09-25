@@ -340,6 +340,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&activities.CommonActivities{SE: conn})
 	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: conn})
+	worker.RegisterActivity(&activities.VolumeRefreshActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
 	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})

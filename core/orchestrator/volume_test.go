@@ -22,6 +22,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 	"golang.org/x/net/context"
@@ -198,120 +199,6 @@ func TestGetVolume(t *testing.T) {
 			t.Fatalf("Expected CustomError, got %v", err)
 		}
 	})
-
-	t.Run("WhenRefreshVolumeFieldsIsTrue", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		volumeId := "test-volume-uuid"
-		accountId := int64(1)
-
-		// Create test data
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: accountId},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
-			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone: "us-west1-a",
-			},
-		}
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool: %v", err)
-		}
-
-		node := &datamodel.Node{
-			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
-			Name:            "test_node",
-			AccountID:       account.ID,
-			EndpointAddress: "12.12.12.12",
-			PoolID:          pool.ID,
-		}
-		err = store.DB().Create(node).Error
-		if err != nil {
-			tt.Fatalf("Failed to create node: %v", err)
-		}
-
-		lif := &datamodel.Lif{
-			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
-			Name:      "test_lif",
-			AccountID: account.ID,
-			IPAddress: "1.1.1.1",
-			NodeID:    node.ID,
-		}
-		err = store.DB().Create(lif).Error
-		if err != nil {
-			tt.Fatalf("Failed to create lif: %v", err)
-		}
-
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: volumeId},
-			Name:      "test_volume",
-			AccountID: account.ID,
-			Account:   account,
-			Pool:      pool,
-			PoolID:    pool.ID,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				CreationToken: "volume-token",
-				Protocols:     []string{"iscsi"},
-			},
-			State: "READY",
-		}
-		err = store.DB().Create(volume).Error
-		if err != nil {
-			tt.Fatalf("Failed to create volume: %v", err)
-		}
-
-		// Mock ExecuteWorkflow to succeed
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
-		orch := &Orchestrator{
-			storage:  store,
-			temporal: mockTemporal,
-		}
-
-		// Call GetVolume with refreshVolumeFields = true
-		result, err := orch.GetVolume(ctx, volumeId, true)
-
-		// Verify expectations
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		assert.Equal(tt, volumeId, result.UUID)
-		assert.Equal(tt, "test_volume", result.DisplayName)
-		assert.Equal(tt, "test_account", result.AccountName)
-
-		job, err := store.GetJobByResourceUUID(ctx, volumeId, "")
-		if err != nil {
-			tt.Fatalf("Failed to get job: %v", err)
-			return
-		}
-		assert.NotNil(tt, job, "Expected job to be created")
-		assert.Equal(tt, "NEW", job.State)
-	})
-
 	t.Run("WhenRefreshVolumeFieldsIsTrueAndVolumeStateIsCreating", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -390,303 +277,6 @@ func TestGetVolume(t *testing.T) {
 		assert.NoError(tt, err, "Failed to get volume")
 		assert.Equal(tt, volume.Name, result.DisplayName)
 		assert.Equal(tt, account.Name, result.AccountName)
-	})
-
-	t.Run("WhenRefreshVolumeFieldsIsTrueButCreateJobFails", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockStorage := &database.MockStorage{}
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		volumeId := "test-volume-uuid"
-
-		// Create mock volume with proper account data
-		mockAccount := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
-			Name:      "test_account",
-		}
-
-		mockPool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone: "us-west1-a",
-			},
-		}
-
-		mockVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: volumeId},
-			Name:      "test_volume",
-			Account:   mockAccount,
-			AccountID: mockAccount.ID,
-			Pool:      mockPool,
-			PoolID:    mockPool.ID,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				CreationToken: "volume-token",
-				Protocols:     []string{"iscsi"},
-			},
-			State: "READY",
-		}
-
-		mockNode := &datamodel.Node{
-			BaseModel: datamodel.BaseModel{UUID: "node-uuid", ID: 1},
-		}
-
-		mockLif := &datamodel.Lif{
-			BaseModel: datamodel.BaseModel{UUID: "lif-uuid"},
-			IPAddress: "1.1.1.1",
-		}
-
-		// Mock storage calls
-		mockStorage.On("DescribeVolume", ctx, volumeId).Return(mockVolume, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, mockPool.ID).Return([]*datamodel.Node{mockNode}, nil)
-		mockStorage.On("GetLifForNode", ctx, mockNode.ID, mockAccount.ID).Return(mockLif, nil)
-
-		// Mock GetJobsWithCondition to return empty slice (no existing jobs)
-		mockStorage.On("GetJobsWithCondition", ctx, mock.AnythingOfType("utils.Filter")).Return([]*datamodel.Job{}, nil)
-
-		createJobErr := errors.New("failed to create job")
-		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, createJobErr)
-
-		orch := &Orchestrator{
-			storage:  mockStorage,
-			temporal: mockTemporal,
-		}
-
-		// Call GetVolume with refreshVolumeFields = true
-		result, err := orch.GetVolume(ctx, volumeId, true)
-
-		// Verify expectations
-		assert.Error(tt, err)
-		assert.Equal(tt, createJobErr, err)
-		assert.Nil(tt, result)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("WhenRefreshVolumeFieldsIsTrueButWorkflowExecutionFails", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockStorage := &database.MockStorage{}
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		volumeId := "test-volume-uuid"
-
-		// Create mock volume with proper account data
-		mockAccount := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
-			Name:      "test_account",
-		}
-
-		mockPool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone: "us-west1-a",
-			},
-		}
-
-		mockVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: volumeId},
-			Name:      "test_volume",
-			Account:   mockAccount,
-			AccountID: mockAccount.ID,
-			Pool:      mockPool,
-			PoolID:    mockPool.ID,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				CreationToken: "volume-token",
-				Protocols:     []string{"iscsi"},
-			},
-			State: "READY",
-		}
-
-		mockNode := &datamodel.Node{
-			BaseModel: datamodel.BaseModel{UUID: "node-uuid", ID: 1},
-		}
-
-		mockLif := &datamodel.Lif{
-			BaseModel: datamodel.BaseModel{UUID: "lif-uuid"},
-			IPAddress: "1.1.1.1",
-		}
-
-		mockJob := &datamodel.Job{
-			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
-			WorkflowID: "test-workflow-id",
-		}
-
-		// Mock storage calls
-		mockStorage.On("DescribeVolume", ctx, volumeId).Return(mockVolume, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, mockPool.ID).Return([]*datamodel.Node{mockNode}, nil)
-		mockStorage.On("GetLifForNode", ctx, mockNode.ID, mockAccount.ID).Return(mockLif, nil)
-
-		// Mock GetJobsWithCondition to return empty slice (no existing jobs)
-		mockStorage.On("GetJobsWithCondition", ctx, mock.AnythingOfType("utils.Filter")).Return([]*datamodel.Job{}, nil)
-
-		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(mockJob, nil)
-
-		workflowErr := errors.New("workflow execution failed")
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mockVolume).Return(nil, workflowErr)
-
-		// Mock UpdateJob call to mark job as error when workflow fails
-		mockStorage.On("UpdateJob", ctx, mockJob.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
-
-		orch := &Orchestrator{
-			storage:  mockStorage,
-			temporal: mockTemporal,
-		}
-
-		// Call GetVolume with refreshVolumeFields = true
-		result, err := orch.GetVolume(ctx, volumeId, true)
-
-		// Verify expectations
-		assert.Error(tt, err)
-		assert.Equal(tt, workflowErr, err)
-		assert.Nil(tt, result)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("WhenRefreshVolumeFieldsIsTrueButGetJobsWithConditionFails", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockStorage := &database.MockStorage{}
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		volumeId := "test-volume-uuid"
-
-		// Create mock volume with proper account data
-		mockAccount := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
-			Name:      "test_account",
-		}
-
-		mockPool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone: "us-west1-a",
-			},
-		}
-
-		mockVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: volumeId},
-			Name:      "test_volume",
-			Account:   mockAccount,
-			AccountID: mockAccount.ID,
-			Pool:      mockPool,
-			PoolID:    mockPool.ID,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				CreationToken: "volume-token",
-				Protocols:     []string{"iscsi"},
-			},
-			State: "READY",
-		}
-
-		mockNode := &datamodel.Node{
-			BaseModel: datamodel.BaseModel{UUID: "node-uuid", ID: 1},
-		}
-
-		mockLif := &datamodel.Lif{
-			BaseModel: datamodel.BaseModel{UUID: "lif-uuid"},
-			IPAddress: "1.1.1.1",
-		}
-
-		// Mock storage calls
-		mockStorage.On("DescribeVolume", ctx, volumeId).Return(mockVolume, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, mockPool.ID).Return([]*datamodel.Node{mockNode}, nil)
-		mockStorage.On("GetLifForNode", ctx, mockNode.ID, mockAccount.ID).Return(mockLif, nil)
-
-		// Mock GetJobsWithCondition to return error
-		getJobsErr := errors.New("failed to get jobs")
-		mockStorage.On("GetJobsWithCondition", ctx, mock.AnythingOfType("utils.Filter")).Return(nil, getJobsErr)
-
-		orch := &Orchestrator{
-			storage:  mockStorage,
-			temporal: mockTemporal,
-		}
-
-		// Call GetVolume with refreshVolumeFields = true
-		result, err := orch.GetVolume(ctx, volumeId, true)
-
-		// Verify expectations
-		assert.Error(tt, err)
-		assert.Equal(tt, getJobsErr, err)
-		assert.Nil(tt, result)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("WhenRefreshVolumeFieldsIsTrueAndJobAlreadyExists", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockStorage := &database.MockStorage{}
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		volumeId := "test-volume-uuid"
-
-		// Create mock volume with proper account data
-		mockAccount := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
-			Name:      "test_account",
-		}
-
-		mockPool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone: "us-west1-a",
-			},
-		}
-
-		mockVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: volumeId},
-			Name:      "test_volume",
-			Account:   mockAccount,
-			AccountID: mockAccount.ID,
-			Pool:      mockPool,
-			PoolID:    mockPool.ID,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				CreationToken: "volume-token",
-				Protocols:     []string{"iscsi"},
-			},
-			State: "READY",
-		}
-
-		mockNode := &datamodel.Node{
-			BaseModel: datamodel.BaseModel{UUID: "node-uuid", ID: 1},
-		}
-
-		mockLif := &datamodel.Lif{
-			BaseModel: datamodel.BaseModel{UUID: "lif-uuid"},
-			IPAddress: "1.1.1.1",
-		}
-
-		// Create existing job
-		existingJob := &datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
-			Type:      string(models.JobTypeRefreshVolumeFields),
-			State:     string(models.JobsStateNEW),
-		}
-
-		// Mock storage calls
-		mockStorage.On("DescribeVolume", ctx, volumeId).Return(mockVolume, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, mockPool.ID).Return([]*datamodel.Node{mockNode}, nil)
-		mockStorage.On("GetLifForNode", ctx, mockNode.ID, mockAccount.ID).Return(mockLif, nil)
-
-		// Mock GetJobsWithCondition to return existing job
-		mockStorage.On("GetJobsWithCondition", ctx, mock.AnythingOfType("utils.Filter")).Return([]*datamodel.Job{existingJob}, nil)
-
-		orch := &Orchestrator{
-			storage:  mockStorage,
-			temporal: mockTemporal,
-		}
-
-		// Call GetVolume with refreshVolumeFields = true
-		result, err := orch.GetVolume(ctx, volumeId, true)
-
-		// Verify expectations - should return successfully without creating new job
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		assert.Equal(tt, volumeId, result.UUID)
-		assert.Equal(tt, []string{"1.1.1.1"}, result.IPAddresses)
-		mockStorage.AssertExpectations(tt)
 	})
 }
 
@@ -5352,8 +4942,15 @@ func TestGetMultipleVolumes(t *testing.T) {
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
 
+		// Create mock temporal client to handle TriggerRefreshWorkflow
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		// Mock the QueryWorkflow and ExecuteWorkflow calls
+		mockTemporal.EXPECT().QueryWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &serviceerror.NotFound{}).Maybe()
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
 		orch := Orchestrator{
-			storage: store,
+			storage:  store,
+			temporal: mockTemporal,
 		}
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -5508,7 +5105,7 @@ func TestGetMultipleVolumes(t *testing.T) {
 	t.Run("WhenSingleVolumeAndErrorOtherThanNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
-		// Create a mock storage that will return a ConflictErr for DescribeVolume
+		// Create a mock storage that will return an error for GetMultipleVolumes
 		mockStorage := &database.MockStorage{}
 
 		// Mock account lookup to succeed
@@ -5517,11 +5114,15 @@ func TestGetMultipleVolumes(t *testing.T) {
 			Name:      "test_account",
 		}
 
-		// Mock DescribeVolume to return a ConflictErr (not a NotFoundErr)
-		mockStorage.On("DescribeVolume", mock.AnythingOfType("*context.valueCtx"), "test-volume").Return(nil, errors.NewUserInputValidationErr("dummy error")).Once()
+		// Mock GetMultipleVolumes to return an error
+		mockStorage.On("GetMultipleVolumes", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("[][]interface {}")).Return(nil, errors.NewUserInputValidationErr("dummy error")).Once()
+
+		// Create mock temporal client to handle TriggerRefreshWorkflow
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
 		orch := Orchestrator{
-			storage: mockStorage,
+			storage:  mockStorage,
+			temporal: mockTemporal,
 		}
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5531,11 +5132,11 @@ func TestGetMultipleVolumes(t *testing.T) {
 			getOrCreateAccount = _getOrCreateAccount
 		}()
 
-		// Call GetMultipleVolumes with single volume (triggers GetVolume path)
+		// Call GetMultipleVolumes with single volume
 		volumeResp, err := orch.GetMultipleVolumes(ctx, []string{"test-volume"}, account.Name)
 
 		// Should return the error (not nil) and nil result
-		assert.Error(tt, err, "Expected error when GetVolume fails with non-NotFound error")
+		assert.Error(tt, err, "Expected error when GetMultipleVolumes fails")
 		assert.Contains(tt, err.Error(), "dummy error")
 		assert.Nil(tt, volumeResp, "Expected nil response when error occurs")
 
@@ -5557,8 +5158,12 @@ func TestGetMultipleVolumes(t *testing.T) {
 
 		mockStorage.On("GetMultipleVolumes", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("[][]interface {}")).Return(nil, errors2.New("database error")).Once()
 
+		// Create mock temporal client to handle TriggerRefreshWorkflow
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
 		orch := Orchestrator{
-			storage: mockStorage,
+			storage:  mockStorage,
+			temporal: mockTemporal,
 		}
 
 		volumeResp, err := orch.GetMultipleVolumes(ctx, []string{"volume1", "volume2"}, "test_account")
@@ -13758,4 +13363,91 @@ func TestValidateUpdateFileProperties_NilVolumeAttributes(t *testing.T) {
 	err := validateUpdateFileProperties(params, volume)
 	expectedError := errors.NewUserInputValidationErr("File properties is mandatory to update file properties on the volume")
 	assert.EqualError(t, err, expectedError.Error())
+}
+
+func TestTriggerRefreshWorkflow(t *testing.T) {
+	t.Run("WhenNoVolumesProvided", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		orch := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		err := orch.TriggerRefreshWorkflow(ctx, []*datamodel.Volume{})
+
+		assert.NoError(tt, err)
+		// No temporal calls should be made for empty volumes
+	})
+
+	t.Run("WhenWorkflowQueryReturnsNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		orch := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   account,
+		}
+
+		// Mock QueryWorkflow to return NotFound error
+		notFoundError := &serviceerror.NotFound{Message: "workflow not found"}
+		mockTemporal.EXPECT().QueryWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, notFoundError)
+
+		// Mock ExecuteWorkflow to succeed
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		err := orch.TriggerRefreshWorkflow(ctx, []*datamodel.Volume{volume})
+
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		orch := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   account,
+		}
+
+		// Mock QueryWorkflow to return NotFound error
+		notFoundError := &serviceerror.NotFound{Message: "workflow not found"}
+		mockTemporal.EXPECT().QueryWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, notFoundError)
+
+		// Mock ExecuteWorkflow to fail
+		executeError := errors2.New("failed to execute workflow")
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, executeError)
+
+		err := orch.TriggerRefreshWorkflow(ctx, []*datamodel.Volume{volume})
+
+		assert.Error(tt, err)
+		assert.Equal(tt, executeError, err)
+	})
 }

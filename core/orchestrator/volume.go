@@ -3,11 +3,13 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -15,7 +17,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
-	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -24,6 +25,7 @@ import (
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 )
@@ -31,17 +33,18 @@ import (
 const maxConstituentVolumesPerAggregate = 200
 
 var (
-	numOfLvHAPairs             = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
-	minQuotaInBytesVolume      = utils.MinQuotaInBytesVolumeForVolume
-	maxQuotaInBytesVolume      = utils.MaxQuotaInBytesVolumeForVolume
-	createVolume               = _createVolume
-	revertVolume               = _revertVolume
-	validateCreateVolumeParams = _validateCreateVolumeParams
-	getIPAddressForVolume      = _getIPAddressForVolume
-	updateVolume               = _updateVolume
-	deleteVolume               = _deleteVolume
-	validateDeleteVolumeParams = _validateDeleteVolumeParams
-	updateVolumeStatus         = _updateVolumeStatus
+	numOfLvHAPairs               = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
+	volumeRefreshIntervalMinutes = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
+	minQuotaInBytesVolume        = utils.MinQuotaInBytesVolumeForVolume
+	maxQuotaInBytesVolume        = utils.MaxQuotaInBytesVolumeForVolume
+	createVolume                 = _createVolume
+	revertVolume                 = _revertVolume
+	validateCreateVolumeParams   = _validateCreateVolumeParams
+	getIPAddressForVolume        = _getIPAddressForVolume
+	updateVolume                 = _updateVolume
+	deleteVolume                 = _deleteVolume
+	validateDeleteVolumeParams   = _validateDeleteVolumeParams
+	updateVolumeStatus           = _updateVolumeStatus
 
 	envIsLocalEnv = env.IsLocalEnv
 )
@@ -500,7 +503,6 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 // GetVolume gets the specified volume
 func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string, refreshVolumeFields bool) (*models.Volume, error) {
-	log := util.GetLogger(ctx)
 	se := o.storage
 
 	volume, err := se.DescribeVolume(ctx, volumeId)
@@ -513,81 +515,7 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string, refreshVo
 		return nil, err
 	}
 
-	// return early if we don't need to update volume metrics or if the volume is not in ready state
-	if !refreshVolumeFields || volume.State != models.LifeCycleStateREADY {
-		return convertDatastoreVolumeToModel(volume, &ipAddresses), nil
-	}
-
-	dbJobs, err := getExistingRefreshVolumeFieldsJob(ctx, volume, se)
-	if err != nil {
-		log.Error("Failed to get existing JobTypeRefreshVolumeFields for this volume", "error", err)
-		return nil, err
-	}
-
-	if len(dbJobs) > 0 {
-		log.Info("JobTypeRefreshVolumeFields already exists for this volume, skipping creation")
-		return convertDatastoreVolumeToModel(volume, &ipAddresses), nil
-	}
-
-	job := &datamodel.Job{
-		Type:         string(models.JobTypeRefreshVolumeFields),
-		State:        string(models.JobsStateNEW),
-		ResourceName: volume.Name,
-		AccountID:    sql.NullInt64{Int64: volume.Account.ID, Valid: true},
-		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: volume.UUID,
-			PoolUUID:     volume.Pool.UUID,
-		},
-	}
-
-	createdJob, err := se.CreateJob(ctx, job)
-	if err != nil {
-		log.Error("Failed to create JobTypeRefreshVolumeFields in database", "error", err)
-		return nil, err
-	}
-
-	// Defer to mark job as error if workflow execution fails
-	defer func() {
-		if err != nil {
-			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
-			if updateErr != nil {
-				log.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
-			}
-		}
-	}()
-
-	_, err = o.temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.BackgroundTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		},
-		workflows.VolumeRefreshWorkflow,
-		volume,
-	)
-
-	if err != nil {
-		log.Error("Failed to execute VolumeRefreshWorkflow", "error", err)
-		return nil, err
-	}
-
 	return convertDatastoreVolumeToModel(volume, &ipAddresses), nil
-}
-
-func getExistingRefreshVolumeFieldsJob(ctx context.Context, volume *datamodel.Volume, se database.Storage) ([]*datamodel.Job, error) {
-	filter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("account_id", "=", volume.Account.ID),
-		dbutils.NewFilterCondition("type", "=", models.JobTypeRefreshVolumeFields),
-		dbutils.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
-		dbutils.NewFilterCondition("job_attributes->>'resource_uuid'", "=", volume.UUID),
-		dbutils.NewFilterCondition("job_attributes->>'pool_uuid'", "=", volume.Pool.UUID),
-	)
-
-	dbJobs, err := se.GetJobsWithCondition(ctx, *filter)
-	if err != nil {
-		return nil, err
-	}
-	return dbJobs, nil
 }
 
 func (o *Orchestrator) GetVolumeCount(ctx context.Context, projectNumber string) (int64, error) {
@@ -1227,6 +1155,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 }
 
 func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error) {
+	log := util.GetLogger(ctx)
 	se := o.storage
 
 	account, err := getOrCreateAccount(ctx, se, accountName)
@@ -1235,33 +1164,24 @@ func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []strin
 	}
 
 	var result []*models.Volume
-	if len(volumeIds) == 1 {
-		// CCFE does GetMultipleVolumes call with single volumeId instead of calling GetVolume API
-		// So, to update volume metrics, we call GetVolume here
-		volume, getVolErr := o.GetVolume(ctx, volumeIds[0], true)
-		if getVolErr != nil {
-			if customerrors.IsNotFoundErr(getVolErr) {
-				return result, nil
-			}
-			return nil, getVolErr
+	conditions := [][]interface{}{{"account_id = ?", account.ID}}
+	conditions = append(conditions, []interface{}{"uuid in ?", volumeIds})
+	volumes, err2 := se.GetMultipleVolumes(ctx, conditions)
+	if err2 != nil {
+		return nil, err2
+	}
+	for _, volume := range volumes {
+		ipAddresses, ipErr := getIPAddressForVolume(ctx, se, volume)
+		if ipErr != nil {
+			return nil, ipErr
 		}
-		result = append(result, volume)
-	} else {
-		conditions := [][]interface{}{{"account_id = ?", account.ID}}
-		conditions = append(conditions, []interface{}{"uuid in ?", volumeIds})
-		volumes, err2 := se.GetMultipleVolumes(ctx, conditions)
-		if err2 != nil {
-			return nil, err2
-		}
-		for _, volume := range volumes {
-			ipAddresses, ipErr := getIPAddressForVolume(ctx, se, volume)
-			if ipErr != nil {
-				return nil, ipErr
-			}
-			result = append(result, convertDatastoreVolumeToModel(volume, &ipAddresses))
-		}
+		result = append(result, convertDatastoreVolumeToModel(volume, &ipAddresses))
 	}
 
+	wfErr := o.TriggerRefreshWorkflow(ctx, volumes)
+	if wfErr != nil {
+		log.Error("Error occurred in TriggerRefreshWorkflow", "error", wfErr.Error())
+	}
 	return result, nil
 }
 
@@ -1290,6 +1210,55 @@ func (o *Orchestrator) UpdateVolumeV2(ctx context.Context, param *common.UpdateV
 // UpdateVolume updates the specified volume with the new parameters
 func (o *Orchestrator) UpdateVolume(ctx context.Context, param *common.UpdateVolumeParams) (*models.Volume, string, error) {
 	return updateVolume(ctx, o.storage, o.temporal, param, false)
+}
+
+func (o *Orchestrator) TriggerRefreshWorkflow(ctx context.Context, volumes []*datamodel.Volume) error {
+	log := util.GetLogger(ctx)
+	if len(volumes) == 0 {
+		log.Info("No volumes provided for refresh workflow")
+		return nil
+	}
+
+	workflowId := fmt.Sprintf("VolumeRefreshWorkflow_AccountId_%s", volumes[0].Account.UUID)
+	queryResult, wfErr := o.temporal.QueryWorkflow(ctx, workflowId, "", "status")
+	if wfErr != nil {
+		var notFound *serviceerror.NotFound
+		if !errors.As(wfErr, &notFound) {
+			log.Error("Failed to query VolumeRefreshWorkflow with the ID: "+workflowId, "error", wfErr)
+		}
+	} else {
+		// Workflow exists get its last completion time
+		var wfStatus workflows.VolumeRefreshWorkflowStatus
+		if err := queryResult.Get(&wfStatus); err != nil {
+			log.Error("Failed to get VolumeRefreshWorkflow status", "error", err)
+		} else {
+			lastCompletionTime := wfStatus.CompletionTime
+
+			if lastCompletionTime != nil {
+				if time.Now().Sub(*lastCompletionTime) <= time.Duration(volumeRefreshIntervalMinutes)*time.Minute {
+					log.Debugf("Skipping VolumeRefreshWorkflow execution (ID: %s) due to recent completion at %v (within last %d minutes)",
+						workflowId, lastCompletionTime, volumeRefreshIntervalMinutes)
+					return nil
+				}
+			}
+		}
+	}
+
+	_, err := o.temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    workflowId,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
+		},
+		workflows.VolumeRefreshWorkflow,
+		volumes,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func _updateVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateVolumeParams, isReplication bool) (*models.Volume, string, error) {

@@ -172,6 +172,8 @@ data:
 
   ORPHAN_JOB_PROCESSING_ENABLED: {{$.Values.workerConfig.orphanJobProcessingEnabled | quote }}
 
+  VOLUME_REFRESH_WORKFLOW_START_TO_CLOSE_TIMEOUT: {{$.Values.workerConfig.volumeRefreshWorkflowStartToCloseTimeout | quote }}
+  VOLUME_SYNC_CHUNK_SIZE: {{$.Values.workerConfig.volumeSyncChunkSize | quote }}
 ---
   {{- end }}
 {{- end }}

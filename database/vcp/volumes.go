@@ -2,11 +2,12 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -215,6 +216,86 @@ func (d *DataStoreRepository) UpdateVolumeFields(ctx context.Context, volumeUUID
 	return nil
 }
 
+// BatchUpdateVolumeFields efficiently updates specific fields for multiple volumes using PostgreSQL bulk operations
+// Currently supports updating: used_bytes
+//
+// To add new fields in the future:
+// 1. Add the field to the buildVolumeUpdateQuery method (placeholders, args, and SET clause)
+// 2. Update the paramCounter increment (currently +=2, will be +=3 for 3 fields, etc.)
+// 3. Ensure the field exists in VolumeFieldUpdate.Fields map before calling
+func (d *DataStoreRepository) BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	// Build parameterized query to prevent SQL injection
+	sql, args := d.buildVolumeUpdateQuery(ctx, updates)
+
+	err = tx.Exec(sql, args...).Error
+	if err != nil {
+		logger.Errorf("Bulk volume field update failed: %v", err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	logger.Infof("Successfully bulk updated %d volumes", len(updates))
+	return nil
+}
+
+// buildVolumeUpdateQuery creates a parameterized SQL query for bulk volume updates
+// Returns the SQL string and arguments slice to prevent SQL injection
+func (d *DataStoreRepository) buildVolumeUpdateQuery(ctx context.Context, updates []datamodel.VolumeFieldUpdate) (string, []interface{}) {
+	// Build parameterized query with placeholders
+	placeholders := make([]string, len(updates))
+	args := make([]interface{}, len(updates)*2) // 2 params per update: UUID + used_bytes
+
+	paramCounter := 1 // PostgreSQL params start at $1
+	argIndex := 0
+
+	for i, update := range updates {
+		uuidParam := paramCounter
+		usedBytesParam := paramCounter + 1
+
+		placeholders[i] = fmt.Sprintf("($%d::uuid, $%d::bigint)", uuidParam, usedBytesParam)
+
+		args[argIndex] = update.UUID
+
+		// Simple existence check to prevent panic
+		if usedBytes, exists := update.Fields["used_bytes"]; exists {
+			args[argIndex+1] = usedBytes
+		} else {
+			args[argIndex+1] = 0 // Default value if missing
+		}
+
+		paramCounter += 2 // Next update needs next 2 parameter slots (UUID + used_bytes)
+		argIndex += 2     // Next 2 positions in args array
+
+		// TO ADD NEW FIELDS:
+		// - Add new parameter: newFieldParam := paramCounter + 2
+		// - Update placeholder: fmt.Sprintf("($%d::uuid, $%d::bigint, $%d::type)", uuidParam, usedBytesParam, newFieldParam)
+		// - Add to args: args[argIndex+2] = update.Fields["new_field"]
+		// - Update counters: paramCounter += 3, argIndex += 3
+		// - Update args slice size above: len(updates)*3
+		// - Update SET clause below to include: new_field = tmp.new_field
+	}
+
+	// Use parameterized query to prevent SQL injection
+	sql := fmt.Sprintf("UPDATE volumes "+
+		"SET used_bytes = tmp.used_bytes, updated_at = NOW() "+
+		"FROM (VALUES %s) AS tmp(uuid, used_bytes) "+
+		"WHERE volumes.uuid::text = tmp.uuid::text",
+		strings.Join(placeholders, ", "))
+
+	return sql, args
+}
+
 func (d *DataStoreRepository) DeleteVolume(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
@@ -313,7 +394,7 @@ func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
 	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").Find(&volumes).Error
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return volumes, nil
 }

@@ -499,6 +499,10 @@ func (s *PersistenceStore) UpdateVolumeFields(ctx context.Context, volumeUUID st
 	return s.dataStore.UpdateVolumeFields(ctx, volumeUUID, updates)
 }
 
+func (s *PersistenceStore) BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error {
+	return s.dataStore.BatchUpdateVolumeFields(ctx, updates)
+}
+
 func (s *PersistenceStore) UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error {
 	return s.dataStore.UpdateKmsConfig(ctx, kmsUUID, updates)
 }
