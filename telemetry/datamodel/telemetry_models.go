@@ -43,10 +43,10 @@ type AggregatedUsage struct {
 	IsBillable             bool                  `gorm:"column:is_billable;default:false" json:"is_billable"`
 	CreatedAt              time.Time             `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt              time.Time             `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
-	ResourceUUID           string                `gorm:"column:resource_uuid;size:255;not null;index" json:"resource_uuid"`
-	AccountUUID            string                `gorm:"column:account_uuid;size:255;not null;index" json:"account_uuid"`
-	VolumeStyle            string                `gorm:"column:volume_style;size:255;not null" json:"volume_style"`
-	ReplicationType        string                `gorm:"column:replication_type;size:255;not null" json:"replication_type"`
+	ResourceUUID           string                `gorm:"column:resource_uuid;size:255" json:"resource_uuid"`
+	AccountUUID            string                `gorm:"column:account_uuid;size:255" json:"account_uuid"`
+	VolumeStyle            string                `gorm:"column:volume_style;size:255" json:"volume_style"`
+	ReplicationType        string                `gorm:"column:replication_type;size:255" json:"replication_type"`
 	ServiceLevel           string                `gorm:"column:service_level;size:255" json:"service_level"`
 	IsUnified              bool                  `gorm:"column:is_unified;default:true" json:"is_unified"`
 }
