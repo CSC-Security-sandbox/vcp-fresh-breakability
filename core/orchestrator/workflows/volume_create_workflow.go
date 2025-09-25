@@ -91,7 +91,7 @@ func PreBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 }
 
 // PostBlockVolumeWorkflow handles post-provisioning for block volumes
-func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, postSplitLunSpace int64) (*datamodel.Volume, error) {
+func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, restoreVolCreateResponse *vsa.VolumeResponse) (*datamodel.Volume, error) {
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var err error
 
@@ -116,12 +116,12 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	var lun *vsa.LunResponse
 
 	if isRestoreSnapshot {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, postSplitLunSpace).Get(ctx, &lun)
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, restoreVolCreateResponse).Get(ctx, &lun)
 		if err != nil {
 			return nil, err
 		}
 	} else if isRestoreFromBackup {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse).Get(ctx, &lun)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +188,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 }
 
 // PostFileVolumeWorkflow handles post-provisioning for file volumes
-func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, availableSpace int64) (*datamodel.Volume, error) {
+func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, restoreVolCreateResponse *vsa.VolumeResponse) (*datamodel.Volume, error) {
 	// Configure activity options for child workflow
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -360,16 +360,16 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Calculate the available LUN space by subtracting the reserved space for snapshots
-	lunSpace := dbVolume.SizeInBytes * (100 - int64(dbVolume.VolumeAttributes.SnapReserve)) / 100
+	var restoreVolCreateResponse *vsa.VolumeResponse
 	if isRestoreSnapshot {
 		if utils.IsSanProtocols(dbVolume.VolumeAttributes.Protocols) {
-			err = workflow.ExecuteActivity(ctx, volumeActivity.LunSizeUpdateValidation, &dbVolume, &node, lunSpace, &snapshot).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, volumeActivity.LunSizeUpdateValidation, &dbVolume, &node).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
 		}
-		// TODO: [VSCP-1435] To remove 'Split' keywords as split operation is removed from create volume workflow
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateClonedVolumeBeforeSplit, &dbVolume, &node, &snapshot).Get(ctx, nil)
+    // TODO: [VSCP-1435] To remove 'Split' keywords as split operation is removed from create volume workflow
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateClonedVolumeBeforeSplit, &dbVolume, &node).Get(ctx, &restoreVolCreateResponse)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -410,7 +410,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		var updatedVolume *datamodel.Volume
-		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, lunSpace).Get(ctx, &updatedVolume)
+		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolCreateResponse).Get(ctx, &updatedVolume)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}

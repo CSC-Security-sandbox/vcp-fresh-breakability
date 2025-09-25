@@ -180,7 +180,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	return res, nil
 }
 
-func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, lunSpace int64) (*vsa.LunResponse, error) {
+func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, restoreVolCreateResponse *vsa.VolumeResponse) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -196,16 +196,21 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 	response := lun.ProviderResponse
 	uuid := response.ExternalUUID
 	logger.Debugf("\n\nLun Name : %s\n\n", lun.Name)
-
-	err = provider.LunUpdate(vsa.LunUpdateParams{
+	lunSpace := restoreVolCreateResponse.AFSSize - restoreVolCreateResponse.MetadataSize
+	lunUpdateParams := vsa.LunUpdateParams{
 		UUID:       uuid,
 		LunName:    lunName,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
-		Size:       lunSpace,
-	})
+	}
+	if lunSpace < lun.Size {
+		lunUpdateParams.Size = lun.Size
+	} else {
+		lunUpdateParams.Size = lunSpace
+	}
+	err = provider.LunUpdate(lunUpdateParams)
 	if err != nil {
-		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrRestoreVolumeValidation, err))
 	}
 	logger.Debug("lun updated successfully")
 	lun, err = LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
@@ -784,8 +789,9 @@ func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, v
 }
 
 // LunSizeUpdateValidation Validates if the LUN size can be updated based on the available space and SnapReserve constraints.
-func (a VolumeCreateActivity) LunSizeUpdateValidation(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) error {
+func (a VolumeCreateActivity) LunSizeUpdateValidation(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	requiredLunSpace := volume.SizeInBytes * (100 - int64(volume.VolumeAttributes.SnapReserve)) / 100
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -796,39 +802,58 @@ func (a VolumeCreateActivity) LunSizeUpdateValidation(ctx context.Context, volum
 		return err
 	}
 	// Check if the available space is less than the current LUN size
-	if availableSpace < lun.Size {
-		logger.Errorf("Lun size %d cannot be reduced to %d", lun.Size, availableSpace)
-		err = vsaerrors.NewVCPError(vsaerrors.ErrLunUpdate, fmt.Errorf("Cannot create a volume with this given size and snapReserve percentage. Please consider increasing the volume size to at least of size %.2f GB along with this snapReserve", float64(lun.Size)/float64(BytesPerGB)*(100.0/float64(100-volume.VolumeAttributes.SnapReserve))))
+	if requiredLunSpace < lun.Size {
+		logger.Errorf("Lun size %d cannot be reduced to %d", lun.Size, requiredLunSpace)
+		err = vsaerrors.NewVCPError(vsaerrors.ErrRestoreVolumeValidation, fmt.Errorf("Cannot create a volume with this given size and snapReserve percentage. Please consider increasing the volume size to at least of size %.2f GB along with this snapReserve", float64(lun.Size)/float64(BytesPerGB)*(utils.PercentageBase/float64(utils.PercentageBase-volume.VolumeAttributes.SnapReserve))))
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
 	return nil
 }
 
 // UpdateClonedVolumeBeforeSplit updates the size, snapReserve of the cloned volume before split in ONTAP.
-func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) error {
+func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	preSplitUpdateParams := &vsa.UpdateVolumeParams{
+	// Update snapReserve before updating the size. If size is updated first, the volume will retain the parent volume's snapReserve,
+	// which can cause a failure with the error: "Selected volume size is too small to hold the current volume data."
+	// This ensures the new snapReserve is applied before size validation.
+	err = updateVolume(ctx, provider, vsa.UpdateVolumeParams{
+		UUID:        volume.VolumeAttributes.ExternalUUID,
+		SnapReserve: &volume.VolumeAttributes.SnapReserve,
+	})
+	if err != nil {
+		logger.Errorf("Failed to update snapReserve of cloned volume %s in ontap before split: %v", volume.Name, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	preSplitUpdateParams := vsa.UpdateVolumeParams{
 		UUID:               volume.VolumeAttributes.ExternalUUID,
 		Size:               volume.SizeInBytes,
 		SnapshotPolicyName: volume.SnapshotPolicy.Name,
-		SnapReserve:        &volume.VolumeAttributes.SnapReserve,
 	}
 	if volume.VolumeAttributes != nil && utils.IsNasProtocols(volume.VolumeAttributes.Protocols) && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
 		preSplitUpdateParams.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
 		preSplitUpdateParams.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
 	}
-	err = updateVolume(ctx, provider, *preSplitUpdateParams)
+	err = updateVolume(ctx, provider, preSplitUpdateParams)
 	if err != nil {
 		logger.Errorf("Failed to update cloned volume %s in ontap before split: %v", volume.Name, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	logger.Debugf("Cloned volume %s updated successfully in ontap", volume.Name)
-	return nil
+	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
+		UUID:       volume.VolumeAttributes.ExternalUUID,
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+	})
+	if err != nil {
+		logger.Errorf("Failed to get volume %s from ontap after pre-split update: %v", volume.Name, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return volumeRes, nil
 }
 
 // InitiateSplitForVolume initiates a split for the given volume in ONTAP.

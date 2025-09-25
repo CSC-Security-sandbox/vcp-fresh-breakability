@@ -230,6 +230,12 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 	if vol.Space.SizeAvailableForSnapshots != nil {
 		res.SnapReserve = *vol.Space.SizeAvailableForSnapshots
 	}
+	if vol.Space.Metadata != nil {
+		res.MetadataSize = *vol.Space.Metadata
+	}
+	if vol.Space.AfsTotal != nil {
+		res.AFSSize = *vol.Space.AfsTotal
+	}
 	return res, nil
 }
 

@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -104,7 +105,7 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 }
 
 // UpdateLun updates the LUN associated with the volume in the VSA cluster
-func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.Volume, quotaInBytes int64, node *models.Node) (*vsa.LunResponse, error) {
+func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.Volume, volResponse *vsa.VolumeResponse, node *models.Node) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -120,25 +121,35 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 		lunUUID = volume.VolumeAttributes.BlockProperties.LunUUID
 		lunName = volume.VolumeAttributes.BlockProperties.LunName
 	}
-	err = provider.LunUpdate(vsa.LunUpdateParams{
-		// Set the necessary parameters for updating the volume
+	lun, err := LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
+	if err != nil {
+		logger.Debug("lun not found !")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	// Determine the size to update based on snap reserve logic
+	sizeToUpdate := volResponse.AFSSize - volResponse.MetadataSize
+	lunUpdateParams := vsa.LunUpdateParams{
 		UUID:       lunUUID,
 		LunName:    lunName,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
-		Size:       quotaInBytes,
-	})
+	}
+	if sizeToUpdate < lun.Size {
+		lunUpdateParams.Size = lun.Size
+	} else {
+		lunUpdateParams.Size = sizeToUpdate
+	}
+	// Update the LUN with the calculated size
+	err = provider.LunUpdate(lunUpdateParams)
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			logger.Debugf("Lun %s size is same as existing size", volume.Name)
 			return nil, nil
 		}
 		logger.Errorf("Failed to update lun %s in vsa cluster: %v", volume.Name, err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrLunUpdate, err))
 	}
-
 	logger.Debugf("Lun %s updated successfully in vsa cluster", volume.Name)
-
 	return LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
 }
 

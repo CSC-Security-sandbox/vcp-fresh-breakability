@@ -2348,6 +2348,9 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *
 		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:        "test-volume",
 		SizeInBytes: 1073741824, // 1GB
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
 			Name:      "test-account", // This should be a file protocol account
@@ -2375,14 +2378,22 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *
 		State:           "online",
 	}
 
-	snapshot := &datamodel.Snapshot{
-		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
-		Name:      "test-snapshot",
-	}
-
 	// Mock the provider
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock GetVolume call that happens after UpdateVolume
+	expectedVolumeResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+		},
+		State: "online",
+	}
+	mockProvider.On("GetVolume", mock.MatchedBy(func(params vsa.GetVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.VolumeName == volume.Name &&
+			params.SvmName == volume.Svm.Name
+	})).Return(expectedVolumeResponse, nil)
 
 	// Mock hyperscaler2.GetProviderByNode (note: use hyperscaler2, not hyperscaler)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -2394,17 +2405,23 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *
 	}
 
 	// Act
-	err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node, snapshot)
+	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
 
-	// Verify that UpdateVolume was called with the correct parameters
+	// Verify that UpdateVolume was called twice - once for SnapReserve and once for other parameters
+	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.Size == 0 &&
+			params.SnapshotPolicyName == ""
+	}))
+
 	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
 		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
 			params.Size == volume.SizeInBytes &&
 			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
-			*params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
 			params.ExportPolicy != nil && *params.ExportPolicy == exportPolicyName &&
 			params.JunctionPath != nil && *params.JunctionPath == junctionPath
 	}))
@@ -2425,6 +2442,9 @@ func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
 		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:        "test-volume",
 		SizeInBytes: 1073741824, // 1GB
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
 			Name:      "block-account", // This should be a block protocol account
@@ -2446,14 +2466,22 @@ func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
 		State:           "online",
 	}
 
-	snapshot := &datamodel.Snapshot{
-		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
-		Name:      "test-snapshot",
-	}
-
 	// Mock the provider
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock GetVolume call that happens after UpdateVolume
+	expectedVolumeResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+		},
+		State: "online",
+	}
+	mockProvider.On("GetVolume", mock.MatchedBy(func(params vsa.GetVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.VolumeName == volume.Name &&
+			params.SvmName == volume.Svm.Name
+	})).Return(expectedVolumeResponse, nil)
 
 	// Mock hyperscaler2.GetProviderByNode
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -2465,17 +2493,23 @@ func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
 	}
 
 	// Act
-	err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node, snapshot)
+	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
 
-	// Verify that UpdateVolume was called with the correct parameters (without ExportPolicy and JunctionPath)
+	// Verify that UpdateVolume was called twice - once for SnapReserve and once for other parameters (without ExportPolicy and JunctionPath)
+	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.Size == 0 &&
+			params.SnapshotPolicyName == ""
+	}))
+
 	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
 		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
 			params.Size == volume.SizeInBytes &&
 			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
-			*params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
 			params.ExportPolicy == nil &&
 			params.JunctionPath == nil
 	}))
@@ -2496,6 +2530,9 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t
 		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:        "test-volume",
 		SizeInBytes: 1073741824, // 1GB
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
 			Name:      "test-account", // This should be a file protocol account
@@ -2519,15 +2556,22 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t
 		EndpointAddress: "test-endpoint",
 		State:           "online",
 	}
-
-	snapshot := &datamodel.Snapshot{
-		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
-		Name:      "test-snapshot",
-	}
-
 	// Mock the provider
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock GetVolume call that happens after UpdateVolume
+	expectedVolumeResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+		},
+		State: "online",
+	}
+	mockProvider.On("GetVolume", mock.MatchedBy(func(params vsa.GetVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.VolumeName == volume.Name &&
+			params.SvmName == volume.Svm.Name
+	})).Return(expectedVolumeResponse, nil)
 
 	// Mock hyperscaler2.GetProviderByNode
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -2539,21 +2583,174 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t
 	}
 
 	// Act
-	err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node, snapshot)
+	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
 
-	// Verify that UpdateVolume was called with the correct parameters (without ExportPolicy and JunctionPath)
+	// Verify that UpdateVolume was called twice - once for SnapReserve and once for other parameters (without ExportPolicy and JunctionPath)
+	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.Size == 0 &&
+			params.SnapshotPolicyName == ""
+	}))
+
 	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
 		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
 			params.Size == volume.SizeInBytes &&
 			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
-			*params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
 			params.ExportPolicy == nil &&
 			params.JunctionPath == nil
 	}))
 
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateClonedVolumeBeforeSplit_ProviderError(t *testing.T) {
+	// This test covers the case where GetProviderByNode returns an error (line 822)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduler := &scheduler.TemporalScheduler{}
+	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Create test data
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:        "test-volume",
+		SizeInBytes: 1073741824, // 1GB
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			SnapReserve:  10,
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "test-snapshot-policy",
+		},
+	}
+
+	node := &models.Node{}
+
+	// Mock hyperscaler2.GetProviderByNode to return an error
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider error")
+	}
+
+	// Act
+	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "provider error")
+}
+
+func TestUpdateClonedVolumeBeforeSplit_UpdateVolumeError(t *testing.T) {
+	// This test covers the case where updateVolume returns an error (line 837)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduler := &scheduler.TemporalScheduler{}
+	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Create test data
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:        "test-volume",
+		SizeInBytes: 1073741824, // 1GB
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			SnapReserve:  10,
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "test-snapshot-policy",
+		},
+	}
+
+	node := &models.Node{}
+
+	// Mock the provider
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(errors.New("update volume failed"))
+
+	// Mock hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Act
+	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "update volume failed")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateClonedVolumeBeforeSplit_GetVolumeError(t *testing.T) {
+	// This test covers the case where GetVolume returns an error (lines 847-848)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockScheduler := &scheduler.TemporalScheduler{}
+	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Create test data
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:        "test-volume",
+		SizeInBytes: 1073741824, // 1GB
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			SnapReserve:  10,
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "test-snapshot-policy",
+		},
+	}
+
+	node := &models.Node{}
+
+	// Mock the provider
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+	mockProvider.On("GetVolume", vsa.GetVolumeParams{
+		UUID:       "test-external-uuid",
+		VolumeName: "test-volume",
+		SvmName:    "test-svm",
+	}).Return(nil, errors.New("get volume failed"))
+
+	// Mock hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Act
+	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "get volume failed")
 	mockProvider.AssertExpectations(t)
 }
 
@@ -2584,8 +2781,12 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
-
-		lun, err := activity.UpdateLunName(ctx, volume, node, 1024)
+		ontapRes := &vsa.VolumeResponse{
+			Size:         1073741824,
+			AFSSize:      1073741824,
+			MetadataSize: 12345,
+		}
+		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, lun)
@@ -2611,8 +2812,12 @@ func TestUpdateLunName(t *testing.T) {
 		}
 
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
-
-		lun, err := activity.UpdateLunName(ctx, volume, node, 1024)
+		ontapRes := &vsa.VolumeResponse{
+			Size:         1073741824,
+			AFSSize:      1073741824,
+			MetadataSize: 12345,
+		}
+		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
@@ -2641,11 +2846,15 @@ func TestUpdateLunName(t *testing.T) {
 			},
 			SerialNumber: "lun_test-volume",
 		}
-
+		ontapRes := &vsa.VolumeResponse{
+			Size:         1073741824,
+			AFSSize:      1073741824,
+			MetadataSize: 12345,
+		}
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 		mockProvider.On("LunUpdate", mock.Anything).Return(errors.New("failed to update lun"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, 1024)
+		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
@@ -2674,16 +2883,74 @@ func TestUpdateLunName(t *testing.T) {
 			},
 			SerialNumber: "lun_test-volume",
 		}
+		ontapRes := &vsa.VolumeResponse{
+			Size:         1073741824,
+			AFSSize:      1073741824,
+			MetadataSize: 12345,
+		}
 
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil).Once()
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, 1024)
+		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
 		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestUpdateLunNameWhenLunSpaceLessThanLunSize", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		ctx := context.Background()
+		activity := activities.VolumeCreateActivity{}
+		node := &models.Node{}
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			Svm:  &datamodel.Svm{Name: "test-svm"},
+		}
+		lunResponse := &vsa.LunResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "lun-uuid-123",
+			},
+			Size: 2048,
+		}
+		ontapRes := &vsa.VolumeResponse{
+			Size:         10737418240, // 10GB
+			AFSSize:      10737418240,
+			MetadataSize: 12345,
+		}
+		// Calculate expected size based on actual implementation: AFSSize - MetadataSize
+		expectedLunSize := ontapRes.AFSSize - ontapRes.MetadataSize
+
+		// Mock the first LunGet call
+		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil).Once()
+		// Mock LunUpdate with expectedLunSize
+		mockProvider.On("LunUpdate", vsa.LunUpdateParams{
+			UUID:       "lun-uuid-123",
+			LunName:    "lun_test-volume",
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			Size:       expectedLunSize,
+		}).Return(nil)
+		// Mock the second LunGet call
+		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
+
+		// Act
+		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, lun)
+		assert.Equal(tt, lunResponse, lun)
+		mockProvider.AssertExpectations(tt)
 	})
 }
 
@@ -3492,10 +3759,13 @@ func TestLunSizeUpdateValidation_Success(t *testing.T) {
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 0,
+		},
+		SizeInBytes: int64(1024),
 	}
 	node := &models.Node{}
-	availableSpace := int64(2048) // 2GB
-	lunSize := int64(1024)        // 1GB (smaller than available space)
+	lunSize := int64(1024) // 1GB (smaller than available space)
 
 	// Mock LunGet to return a lun with smaller size
 	mockProvider.On("LunGet", vsa.LunGetParams{
@@ -3507,7 +3777,7 @@ func TestLunSizeUpdateValidation_Success(t *testing.T) {
 	}, nil)
 
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+	err := activity.LunSizeUpdateValidation(ctx, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -3530,12 +3800,13 @@ func TestLunSizeUpdateValidation_ProviderError(t *testing.T) {
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 0,
+		},
 	}
 	node := &models.Node{}
-	availableSpace := int64(1024)
-
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+	err := activity.LunSizeUpdateValidation(ctx, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -3559,9 +3830,11 @@ func TestLunSizeUpdateValidation_LunNotFound(t *testing.T) {
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 0,
+		},
 	}
 	node := &models.Node{}
-	availableSpace := int64(1024)
 
 	// Mock LunGet to return error (lun not found)
 	mockProvider.On("LunGet", vsa.LunGetParams{
@@ -3571,7 +3844,7 @@ func TestLunSizeUpdateValidation_LunNotFound(t *testing.T) {
 	}).Return(nil, errors.New("lun not found"))
 
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+	err := activity.LunSizeUpdateValidation(ctx, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -3601,8 +3874,7 @@ func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveZero(t *testing.T) 
 		},
 	}
 	node := &models.Node{}
-	availableSpace := int64(1024) // 1GB
-	lunSize := int64(2048)        // 2GB (larger than available space)
+	lunSize := int64(2048) // 2GB (larger than available space)
 
 	// Mock LunGet to return a lun with larger size
 	mockProvider.On("LunGet", vsa.LunGetParams{
@@ -3614,12 +3886,11 @@ func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveZero(t *testing.T) 
 	}, nil)
 
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+	err := activity.LunSizeUpdateValidation(ctx, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Error restoring volume - Cannot restore a Volume with the given size")
-	assert.Contains(t, err.Error(), "Please consider increasing the volume size")
+	assert.Contains(t, err.Error(), "Error restoring volume - Cannot restore the Volume with the specified size. Please increase the volume size")
 	mockProvider.AssertExpectations(t)
 }
 
@@ -3645,8 +3916,7 @@ func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveGreaterThanZero(t *
 		},
 	}
 	node := &models.Node{}
-	availableSpace := int64(1024) // 1GB
-	lunSize := int64(2048)        // 2GB (larger than available space)
+	lunSize := int64(2048) // 2GB (larger than available space)
 
 	// Mock LunGet to return a lun with larger size
 	mockProvider.On("LunGet", vsa.LunGetParams{
@@ -3658,12 +3928,11 @@ func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveGreaterThanZero(t *
 	}, nil)
 
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+	err := activity.LunSizeUpdateValidation(ctx, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Error restoring volume - Cannot restore a Volume with the given size")
-	assert.Contains(t, err.Error(), "Please consider increasing the volume size")
+	assert.Contains(t, err.Error(), "Error restoring volume - Cannot restore the Volume with the specified size. Please increase the volume size")
 	mockProvider.AssertExpectations(t)
 }
 
@@ -3684,10 +3953,13 @@ func TestLunSizeUpdateValidation_ExactSizeMatch(t *testing.T) {
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 0,
+		},
+		SizeInBytes: int64(1024),
 	}
 	node := &models.Node{}
-	availableSpace := int64(1024) // 1GB
-	lunSize := int64(1024)        // 1GB (exact match)
+	lunSize := int64(1024) // 1GB (exact match)
 
 	// Mock LunGet to return a lun with same size
 	mockProvider.On("LunGet", vsa.LunGetParams{
@@ -3699,7 +3971,7 @@ func TestLunSizeUpdateValidation_ExactSizeMatch(t *testing.T) {
 	}, nil)
 
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node, availableSpace)
+	err := activity.LunSizeUpdateValidation(ctx, volume, node)
 
 	// Assert
 	assert.NoError(t, err)

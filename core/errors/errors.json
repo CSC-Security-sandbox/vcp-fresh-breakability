@@ -624,8 +624,14 @@
     "http_code": 409
   },
   "7007": {
+    "description": "LunUpdate Failure",
+    "message": "Error updating volume - Cannot update the volume with the specified size. Please increase the volume size.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "7008": {
     "description": "VolumeRestore Failure",
-    "message": "Error restoring volume - Cannot restore a Volume with the given size. Please consider increasing the volume size",
+    "message": "Error restoring volume - Cannot restore the Volume with the specified size. Please increase the volume size",
     "retriable": false,
     "http_code": 400
   },

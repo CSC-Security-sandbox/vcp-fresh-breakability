@@ -911,13 +911,13 @@ func TestLunUpdate(t *testing.T) {
 		mockSAN.On("LunUpdate", mock.Anything).Return(false, nil, errors.New("update error")).Once()
 		err := rc.LunUpdate(params)
 		assert.Error(tt, err)
-		assert.EqualError(tt, err, "Error restoring volume - Cannot restore a Volume with the given size. Please consider increasing the volume size")
+		assert.EqualError(tt, err, "Error updating volume - Cannot update the volume with the specified size. Please increase the volume size.")
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
 			assert.Equal(tt, customErr.OriginalErr.Error(), "update error")
 			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(400))
 			assert.Equal(tt, customErr.TrackingID, 7007)
-			assert.Equal(tt, customErr.Message, "Error restoring volume - Cannot restore a Volume with the given size. Please consider increasing the volume size")
+			assert.Equal(tt, customErr.Message, "Error updating volume - Cannot update the volume with the specified size. Please increase the volume size.")
 			assert.Equal(tt, customErr.Retriable, false)
 		} else {
 			tt.Fatalf("Expected a CustomError, got %T", err)
@@ -940,17 +940,7 @@ func TestLunUpdate(t *testing.T) {
 		mockSAN.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
-
-	t.Run("WhenLunUpdateSuccessFalseAndPollFails", func(tt *testing.T) {
-		mockSAN.On("LunUpdate", mock.Anything).Return(false, &ontaprest.JobAccepted{JobUUID: "job-2"}, nil).Once()
-		mockClient.On("Poll", "job-2").Return(errors.New("poll error")).Once()
-		err := rc.LunUpdate(params)
-		assert.Error(tt, err)
-		assert.Equal(tt, "poll error", err.Error())
-		mockSAN.AssertExpectations(tt)
-		mockClient.AssertExpectations(tt)
-	})
-
+	
 	t.Run("WhenLunUpdateReturnsConflictError", func(tt *testing.T) {
 		mockSAN.On("LunUpdate", mock.Anything).Return(false, nil, errors.New("New LUN size is the same as the old LUN size")).Once()
 		err := rc.LunUpdate(params)

@@ -120,6 +120,7 @@ const (
 	ErrDeleteVolumeWhenInSplitState       = 7005
 	ErrRevertReplicationDestinationVolume = 7006
 	ErrLunUpdate                          = 7007
+	ErrRestoreVolumeValidation            = 7008
 
 	// CMEK Error Codes
 	ErrDescribingSDEJob                  = 6057

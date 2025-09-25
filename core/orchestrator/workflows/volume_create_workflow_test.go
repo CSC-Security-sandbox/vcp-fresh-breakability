@@ -1405,7 +1405,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
 	}()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1438,7 +1438,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 	}()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
 
 	// Assert workflow completed successfully (should handle disabled protocols gracefully)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1623,6 +1623,10 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_PopulateRetryPolicyError() 
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	isRestoreFromBackup := false
 	isRestoreSnapshot := false
 
@@ -1632,7 +1636,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_PopulateRetryPolicyError() 
 	defer func() { StartToCloseTimeout = originalStartToCloseTimeout }()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1656,6 +1660,10 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunNameError() {
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := true
 	isRestoreSnapshot := false
@@ -1671,7 +1679,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunNameError() {
 	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("update lun name error"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1696,6 +1704,10 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunError() {
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	isRestoreFromBackup := false
 	isRestoreSnapshot := false
 
@@ -1709,7 +1721,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunError() {
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1734,6 +1746,10 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunMapError() {
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	isRestoreFromBackup := false
 	isRestoreSnapshot := false
 
@@ -1755,7 +1771,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunMapError() {
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create lun map error"))
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -2863,12 +2879,16 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockDevices_Success() 
 	node := &models.Node{
 		EndpointAddress: "127.0.0.1",
 	}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	volCreateResponse := &vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name: "test_volume",
 		},
 	}
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, nil, volCreateResponse, false, false, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, nil, volCreateResponse, false, false, restoreVolumeCreateResponse)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -2949,12 +2969,16 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockProperties_Success
 	node := &models.Node{
 		EndpointAddress: "127.0.0.1",
 	}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	volCreateResponse := &vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name: "test_volume",
 		},
 	}
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, nil, volCreateResponse, false, false, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, nil, volCreateResponse, false, false, restoreVolumeCreateResponse)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3275,6 +3299,10 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunName_WhenRestoreSn
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
 	isRestoreSnapshot := true
@@ -3302,7 +3330,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunName_WhenRestoreSn
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Act
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
 	// Assert
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3351,7 +3379,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UsesUpdateLunN
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
 	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -3381,6 +3409,10 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBError(
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
 	isRestoreSnapshot := false
@@ -3400,7 +3432,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBError(
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update volume state in DB to error"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3425,6 +3457,10 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBErrorI
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	restoreVolumeCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+		Size:             int64(0),
+	}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
 	isRestoreSnapshot := false
@@ -3442,7 +3478,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBErrorI
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update volume state in DB to error"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, int64(0))
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())

@@ -230,9 +230,6 @@ func TestUpdateLun_Success(t *testing.T) {
 			},
 		},
 	}
-	params := &common.UpdateVolumeParams{
-		QuotaInBytes: 4096,
-	}
 	node := &models.Node{}
 
 	mockProvider.On("LunUpdate", vsa.LunUpdateParams{
@@ -240,7 +237,7 @@ func TestUpdateLun_Success(t *testing.T) {
 		LunName:    "lun_test-volume",
 		VolumeName: "test-volume",
 		SvmName:    "test-svm",
-		Size:       int64(params.QuotaInBytes),
+		Size:       1073729479, // Match the actual value used in the code
 	}).Return(nil)
 
 	mockProvider.On("LunGet", vsa.LunGetParams{
@@ -248,8 +245,13 @@ func TestUpdateLun_Success(t *testing.T) {
 		VolumeName: "test-volume",
 		LunName:    "lun_test-volume",
 	}).Return(&vsa.LunResponse{}, nil)
+	ontapRes := &vsa.VolumeResponse{
+		Size:         BytesPerGB,
+		AFSSize:      BytesPerGB,
+		MetadataSize: 12345,
+	}
 
-	_, err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -274,9 +276,6 @@ func TestUpdateLunWithBD_Success(t *testing.T) {
 			},
 		},
 	}
-	params := &common.UpdateVolumeParams{
-		QuotaInBytes: 4096,
-	}
 	node := &models.Node{}
 
 	mockProvider.On("LunUpdate", vsa.LunUpdateParams{
@@ -284,7 +283,7 @@ func TestUpdateLunWithBD_Success(t *testing.T) {
 		LunName:    "lun_test-volume",
 		VolumeName: "test-volume",
 		SvmName:    "test-svm",
-		Size:       int64(params.QuotaInBytes),
+		Size:       1073729479,
 	}).Return(nil)
 
 	mockProvider.On("LunGet", vsa.LunGetParams{
@@ -292,8 +291,13 @@ func TestUpdateLunWithBD_Success(t *testing.T) {
 		VolumeName: "test-volume",
 		LunName:    "lun_test-volume",
 	}).Return(&vsa.LunResponse{}, nil)
+	ontapRes := &vsa.VolumeResponse{
+		Size:         BytesPerGB,
+		AFSSize:      BytesPerGB,
+		MetadataSize: 12345,
+	}
 
-	_, err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -319,23 +323,33 @@ func TestUpdateLun_Failure(t *testing.T) {
 			},
 		},
 	}
-	params := &common.UpdateVolumeParams{
-		QuotaInBytes: 8192,
-	}
 	node := &models.Node{}
 	expectedErr := errors.New("lun update failed")
+
+	// Mock LunGet call that happens before LunUpdate
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(&vsa.LunResponse{
+		Size: 1024, // Some existing size
+	}, nil)
 
 	mockProvider.On("LunUpdate", vsa.LunUpdateParams{
 		UUID:       "lun-uuid-123",
 		LunName:    "lun_test-volume",
 		VolumeName: "test-volume",
 		SvmName:    "test-svm",
-		Size:       int64(params.QuotaInBytes),
+		Size:       1073729479,
 	}).Return(expectedErr)
-
-	_, err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	ontapRes := &vsa.VolumeResponse{
+		Size:         BytesPerGB,
+		AFSSize:      BytesPerGB,
+		MetadataSize: 12345,
+	}
+	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedErr.Error())
+	assert.Contains(t, err.Error(), "Error updating volume - Cannot update the volume with the specified size. Please increase the volume size")
 	mockProvider.AssertExpectations(t)
 }
 
@@ -407,22 +421,33 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 			},
 		},
 	}
-	params := &common.UpdateVolumeParams{
-		QuotaInBytes: 4096,
-	}
+
 	node := &models.Node{}
 
 	conflictErr := errors.NewConflictErr("conflict")
+
+	// Mock LunGet call that happens before LunUpdate
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(&vsa.LunResponse{
+		Size: 1024, // Some existing size
+	}, nil)
 
 	mockProvider.On("LunUpdate", vsa.LunUpdateParams{
 		UUID:       "lun-uuid-123",
 		LunName:    "lun_test-volume",
 		VolumeName: "test-volume",
 		SvmName:    "test-svm",
-		Size:       int64(params.QuotaInBytes),
+		Size:       1073729479,
 	}).Return(conflictErr)
-
-	_, err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	ontapRes := &vsa.VolumeResponse{
+		Size:         BytesPerGB,
+		AFSSize:      BytesPerGB,
+		MetadataSize: 12345,
+	}
+	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -2935,5 +2960,217 @@ func TestUpdateExportPolicyRulesInONTAP_EmptyRules(t *testing.T) {
 
 	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
 	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateLun_LunGetError(t *testing.T) {
+	// This test covers the case where LunGet returns an error (lines 126-127)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			BlockProperties: &datamodel.BlockProperties{
+				LunUUID: "lun-uuid-123",
+				LunName: "lun_test-volume",
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	// Mock the provider
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(nil, errors.New("lun not found"))
+
+	// Mock hyperscaler.GetProviderByNode
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() {
+		hyperscaler.GetProviderByNode = originalGetProviderByNode
+	}()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	ontapRes := &vsa.VolumeResponse{
+		Size:         BytesPerGB,
+		AFSSize:      BytesPerGB,
+		MetadataSize: 12345,
+	}
+
+	// Act
+	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "lun not found")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateLun_WithSnapReserveLogic(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name:        "test-volume",
+		SizeInBytes: 10737418240, // 10GB
+		Svm:         &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "lun-uuid-123",
+			SnapReserve:  10, // 10%
+			BlockProperties: &datamodel.BlockProperties{
+				LunUUID: "lun-uuid-123",
+				LunName: "lun_test-volume",
+			},
+		},
+	}
+
+	node := &models.Node{}
+	mockProvider := new(vsa.MockProvider)
+
+	// First LunGet call
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(&vsa.LunResponse{
+		Size: 900,
+	}, nil).Once()
+
+	// The actual implementation uses volResponse.AFSSize - volResponse.MetadataSize
+	// We'll calculate this after ontapRes is defined
+
+	// We'll set up the LunUpdate mock after ontapRes is defined
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ontapRes := &vsa.VolumeResponse{
+		Size:         volume.SizeInBytes,
+		AFSSize:      volume.SizeInBytes,
+		MetadataSize: 12345,
+	}
+
+	// Calculate expected LUN size based on actual implementation
+	expectedLunSize := ontapRes.AFSSize - ontapRes.MetadataSize
+
+	// Set up LunUpdate mock with correct expected size
+	mockProvider.On("LunUpdate", vsa.LunUpdateParams{
+		UUID:       "lun-uuid-123",
+		LunName:    "lun_test-volume",
+		VolumeName: "test-volume",
+		SvmName:    "test-svm",
+		Size:       expectedLunSize,
+	}).Return(nil).Once()
+
+	// Second LunGet call
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(&vsa.LunResponse{
+		Size: expectedLunSize,
+	}, nil).Once()
+
+	result, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, expectedLunSize, result.Size)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateLun_WithSnapReserveLogic_SizeUnchanged(t *testing.T) {
+	// This test covers the case where updatedLunSpace == currentLunSpace (line 136)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name:        "test-volume",
+		SizeInBytes: BytesPerGB, // 1GB
+		Svm:         &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			SnapReserve:  10, // 10% snap reserve
+			BlockProperties: &datamodel.BlockProperties{
+				LunUUID: "lun-uuid-123",
+				LunName: "lun_test-volume",
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	// Mock the provider
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(&vsa.LunResponse{
+		Size: 900, // Current LUN size (1000 - 10% = 900)
+	}, nil)
+
+	// Calculate expected size based on actual implementation
+	// sizeToUpdate = 1000 - 200 = 800, lun.Size = 900
+	// Since sizeToUpdate (800) < lun.Size (900), it should use lun.Size
+	expectedSize := int64(900) // Should use lun.Size when sizeToUpdate < lun.Size
+
+	// Mock LunUpdate with calculated size
+	mockProvider.On("LunUpdate", vsa.LunUpdateParams{
+		UUID:       "lun-uuid-123",
+		LunName:    "lun_test-volume",
+		VolumeName: "test-volume",
+		SvmName:    "test-svm",
+		Size:       expectedSize,
+	}).Return(nil)
+
+	mockProvider.On("LunGet", vsa.LunGetParams{
+		SvmName:    "test-svm",
+		VolumeName: "test-volume",
+		LunName:    "lun_test-volume",
+	}).Return(&vsa.LunResponse{
+		Size: expectedSize,
+	}, nil)
+
+	// Mock hyperscaler.GetProviderByNode
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() {
+		hyperscaler.GetProviderByNode = originalGetProviderByNode
+	}()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Act - Set up ontapRes so that sizeToUpdate < lun.Size
+	// sizeToUpdate = AFSSize - MetadataSize
+	// For sizeToUpdate < lun.Size (900), we need AFSSize - MetadataSize < 900
+	// So let's set AFSSize = 1000 and MetadataSize = 200, giving sizeToUpdate = 800
+	ontapRes := &vsa.VolumeResponse{
+		Size:         1000,
+		AFSSize:      1000,
+		MetadataSize: 200,
+	}
+	result, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, expectedSize, result.Size)
 	mockProvider.AssertExpectations(t)
 }

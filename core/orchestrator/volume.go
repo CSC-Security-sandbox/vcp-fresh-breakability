@@ -57,7 +57,6 @@ const (
 	BackupNameIndex           = 7          // The index of the backup name in the components
 	BackupVaultNameIndex      = 5          // The index of the backup vault name in the components
 	bytesPerGB                = 1073741824 // 1024^3 bytes = 1 GB
-	percentageBase            = 100.0
 	ErrMsgSnapReserveIncrease = "Cannot increase SnapReserve to %.0f%% as we cannot decrease the available space (%.2f GB). " +
 		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
 )
@@ -1564,17 +1563,17 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		if *params.SnapReserve > volume.VolumeAttributes.SnapReserve {
 			var requiredQuotaInBytes int64
 			// Calculate current available LUN space
-			currentLunSpace := volume.SizeInBytes - int64(float64(volume.SizeInBytes)*float64(volume.VolumeAttributes.SnapReserve)/percentageBase)
+			currentLunSpace := volume.SizeInBytes - int64(float64(volume.SizeInBytes)*float64(volume.VolumeAttributes.SnapReserve)/utils.PercentageBase)
 			if params.QuotaInBytes == 0 {
 				// Calculate required size with the given snapReserve to ensure sufficient LUN space
-				requiredQuotaInBytes = int64(float64(currentLunSpace) / (1 - float64(*params.SnapReserve)/percentageBase))
+				requiredQuotaInBytes = int64(float64(currentLunSpace) / (1 - float64(*params.SnapReserve)/utils.PercentageBase))
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf(ErrMsgSnapReserveIncrease, float64(*params.SnapReserve), float64(currentLunSpace)/float64(bytesPerGB), math.Ceil(float64(requiredQuotaInBytes)/float64(bytesPerGB))))
 			} else {
 				// Calculate updated LUN space with the new given size
-				updatedLunSpace := params.QuotaInBytes - int64(float64(params.QuotaInBytes)*float64(*params.SnapReserve)/percentageBase)
+				updatedLunSpace := params.QuotaInBytes - int64(float64(params.QuotaInBytes)*float64(*params.SnapReserve)/utils.PercentageBase)
 				if updatedLunSpace < currentLunSpace {
 					// Calculate required size to ensure sufficient LUN space
-					requiredQuotaInBytes = int64(float64(currentLunSpace) / (1 - float64(*params.SnapReserve)/percentageBase))
+					requiredQuotaInBytes = int64(float64(currentLunSpace) / (1 - float64(*params.SnapReserve)/utils.PercentageBase))
 					return customerrors.NewUserInputValidationErr(fmt.Sprintf(ErrMsgSnapReserveIncrease, float64(*params.SnapReserve), float64(currentLunSpace)/float64(bytesPerGB), math.Ceil(float64(requiredQuotaInBytes)/float64(bytesPerGB))))
 				}
 			}

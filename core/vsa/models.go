@@ -69,6 +69,8 @@ type VolumeResponse struct {
 	SnapReserve        int64
 	UsedBytes          int64
 	Type               string
+	AFSSize            int64
+	MetadataSize       int64
 	Encryption
 }
 

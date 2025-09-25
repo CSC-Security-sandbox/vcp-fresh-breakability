@@ -92,6 +92,7 @@ const (
 	GiBInBytes                 = 1073741824
 	TiBInBytes                 = 1099511627776
 	PiBInBytes                 = 1125899906842624
+	PercentageBase             = 100.0
 	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for ISCSI volumes"
 )
 

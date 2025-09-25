@@ -178,15 +178,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		var updateLunSize int64
-		if volResponse != nil {
-			if params.SnapReserve != nil {
-				updateLunSize = volResponse.Size - (volResponse.Size * *params.SnapReserve / 100)
-			} else {
-				updateLunSize = volResponse.Size - (volResponse.Size * volume.VolumeAttributes.SnapReserve / 100)
-			}
-		}
-		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateLun, volume, updateLunSize, node).Get(ctx, &updatedLun)
+		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateLun, volume, volResponse, node, params).Get(ctx, &updatedLun)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
