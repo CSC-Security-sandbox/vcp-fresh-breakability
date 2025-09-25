@@ -4,6 +4,7 @@
 {{- else }}
 {{ .Values.global.chartPrimaryImageRegistry | default .Values.global.primaryImageRegistry }}/{{ .Values.global.primaryImageRegistryPath }}
 {{- end -}}
+{{- end -}}
 
 {{/*
 Helper function to generate the pod selector labels for the core app.

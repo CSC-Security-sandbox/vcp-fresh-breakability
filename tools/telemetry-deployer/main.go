@@ -20,6 +20,7 @@ type DeploymentConfig struct {
 	ProjectID          string
 	Region             string
 	MinInstances       int64
+	MaxInstances       int64
 	EnvVars            map[string]string
 	EnableScheduler    bool
 	SchedulerCron      string
@@ -39,6 +40,7 @@ func main() {
 		network            = flag.String("network", "cv-tst-au-se1-k8s-vpc", "Network name")
 		subnet             = flag.String("subnet", "cloud-run", "Subnetwork name")
 		minInstances       = flag.Int64("min-instances", 0, "Minimum number of instances")
+		maxInstances       = flag.Int64("max-instances", 5, "Maximum number of instances (0 for no limit)")
 		envVarsFlag        = flag.String("env-vars", "", "Environment variables in format KEY1=VALUE1,KEY2=VALUE2")
 		enableScheduler    = flag.Bool("enable-scheduler", true, "Enable Cloud Scheduler to invoke the service")
 		serviceAccountName = flag.String("service-account-name", "svc-sde-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com", "Cloud Run service account name")
@@ -67,6 +69,7 @@ func main() {
 		ProjectID:          *projectID,
 		Region:             *region,
 		MinInstances:       *minInstances,
+		MaxInstances:       *maxInstances,
 		EnvVars:            envVars,
 		EnableScheduler:    *enableScheduler,
 		SchedulerCron:      "*/5 * * * *",
@@ -149,6 +152,7 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 		Containers: []*cloudrun.GoogleCloudRunV2Container{container},
 		Scaling: &cloudrun.GoogleCloudRunV2RevisionScaling{
 			MinInstanceCount: config.MinInstances,
+			MaxInstanceCount: config.MaxInstances,
 		},
 		VpcAccess: &cloudrun.GoogleCloudRunV2VpcAccess{
 			NetworkInterfaces: []*cloudrun.GoogleCloudRunV2NetworkInterface{
