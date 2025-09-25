@@ -98,7 +98,7 @@ func (wf *AdcWF) Setup(ctx workflow.Context, input interface{}) error {
 	})
 }
 
-func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, error *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 
 	// Extract arguments
@@ -136,7 +136,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
-		if err != nil {
+		if error != nil {
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}

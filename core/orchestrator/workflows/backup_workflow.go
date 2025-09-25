@@ -462,24 +462,15 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if isVolumeDeleted || isSnapmirrorDeleted {
 		cloudDeletionIntiated := false
 		// Create a new context for ADCWorkflow with extended timeout to accommodate 6-day maximum sleep duration
-		adcWorkflowCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-			StartToCloseTimeout: adcWorkflowTimeout, // Extended timeout to accommodate 6-day max sleep + buffer
-			RetryPolicy: &temporal.RetryPolicy{
-				InitialInterval:        5 * time.Second,
-				BackoffCoefficient:     2.0,
-				MaximumInterval:        5 * time.Minute,
-				MaximumAttempts:        3,
-				NonRetryableErrorTypes: []string{"PanicError"},
-			},
+		adcWorkflowCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			WorkflowExecutionTimeout: adcWorkflowTimeout, // 7 days timeout
 		})
 
 		// if volume is deleted then we need to delete the backup with adc
 		err = workflow.ExecuteChildWorkflow(adcWorkflowCtx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(adcWorkflowCtx, &cloudDeletionIntiated)
 		if err != nil {
 			wf.Logger.Errorf("Backup deletion failed with ADC, backupUUID: %s, error: %v", dbBackup.UUID, err)
-			if cloudDeletionIntiated {
-				wf.deleteInitiated = true
-			}
+			wf.deleteInitiated = true
 			return nil, ConvertToVSAError(err)
 		}
 	} else {
