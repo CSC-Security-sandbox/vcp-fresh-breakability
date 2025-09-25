@@ -11850,6 +11850,11 @@ func (s *VolumeV1beta) SetFake() {
 	}
 	{
 		{
+			s.ThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
 			s.ColdTierSizeGib.SetFake()
 		}
 	}

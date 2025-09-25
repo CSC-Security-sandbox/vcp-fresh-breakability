@@ -52391,6 +52391,12 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ThroughputMibps.Set {
+			e.FieldStart("throughputMibps")
+			s.ThroughputMibps.Encode(e)
+		}
+	}
+	{
 		if s.ColdTierSizeGib.Set {
 			e.FieldStart("coldTierSizeGib")
 			s.ColdTierSizeGib.Encode(e)
@@ -52600,7 +52606,7 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeV1beta = [49]string{
+var jsonFieldsNameOfVolumeV1beta = [50]string{
 	0:  "resourceId",
 	1:  "volumeId",
 	2:  "created",
@@ -52617,39 +52623,40 @@ var jsonFieldsNameOfVolumeV1beta = [49]string{
 	13: "securityStyle",
 	14: "usedBytes",
 	15: "quotaInBytes",
-	16: "coldTierSizeGib",
-	17: "snapReserve",
-	18: "snapshotDirectory",
-	19: "volumeState",
-	20: "volumeStateDetails",
-	21: "isDataProtection",
-	22: "isOnPremMigration",
-	23: "inReplication",
-	24: "snapshotPolicy",
-	25: "storageClass",
-	26: "exportPolicy",
-	27: "backupConfig",
-	28: "tieringPolicy",
-	29: "blockProperties",
-	30: "blockDevices",
-	31: "protocols",
-	32: "restrictedActions",
-	33: "smbSettings",
-	34: "mountPoints",
-	35: "labels",
-	36: "kerberosEnabled",
-	37: "ldapEnabled",
-	38: "unixPermissions",
-	39: "encryptionType",
-	40: "description",
-	41: "zone",
-	42: "multipleEndpoints",
-	43: "largeCapacity",
-	44: "secondaryZone",
-	45: "dedicatedCapacity",
-	46: "largeVolumeConstituentCount",
-	47: "cacheParameters",
-	48: "hotTierSizeGib",
+	16: "throughputMibps",
+	17: "coldTierSizeGib",
+	18: "snapReserve",
+	19: "snapshotDirectory",
+	20: "volumeState",
+	21: "volumeStateDetails",
+	22: "isDataProtection",
+	23: "isOnPremMigration",
+	24: "inReplication",
+	25: "snapshotPolicy",
+	26: "storageClass",
+	27: "exportPolicy",
+	28: "backupConfig",
+	29: "tieringPolicy",
+	30: "blockProperties",
+	31: "blockDevices",
+	32: "protocols",
+	33: "restrictedActions",
+	34: "smbSettings",
+	35: "mountPoints",
+	36: "labels",
+	37: "kerberosEnabled",
+	38: "ldapEnabled",
+	39: "unixPermissions",
+	40: "encryptionType",
+	41: "description",
+	42: "zone",
+	43: "multipleEndpoints",
+	44: "largeCapacity",
+	45: "secondaryZone",
+	46: "dedicatedCapacity",
+	47: "largeVolumeConstituentCount",
+	48: "cacheParameters",
+	49: "hotTierSizeGib",
 }
 
 // Decode decodes VolumeV1beta from json.
@@ -52824,6 +52831,16 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quotaInBytes\"")
 			}
+		case "throughputMibps":
+			if err := func() error {
+				s.ThroughputMibps.Reset()
+				if err := s.ThroughputMibps.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"throughputMibps\"")
+			}
 		case "coldTierSizeGib":
 			if err := func() error {
 				s.ColdTierSizeGib.Reset()
@@ -52982,7 +52999,7 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"blockDevices\"")
 			}
 		case "protocols":
-			requiredBitSet[3] |= 1 << 7
+			requiredBitSet[4] |= 1 << 0
 			if err := func() error {
 				s.Protocols = make([]ProtocolsV1beta, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -53187,8 +53204,8 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 		0b00100001,
 		0b00000000,
 		0b00000000,
-		0b10000000,
 		0b00000000,
+		0b00000001,
 		0b00000000,
 		0b00000000,
 	} {

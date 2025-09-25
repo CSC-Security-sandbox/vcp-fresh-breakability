@@ -1405,6 +1405,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		MultipleEndpoints:       utils.SafeBool(in.MultipleEndpoints),
 		LargeCapacity:           utils.SafeBool(in.LargeCapacity),
 		QuotaInBytes:            utils.SafeOptFloat64(in.QuotaInBytes),
+		ThroughputMibps:         utils.SafeOptNilFloat64(in.ThroughputMibps),
 		SnapReserve:             utils.SafeOptFloat64(in.SnapReserve),
 		PoolResourceId:          utils.SafeString(in.PoolResourceID),
 		ActiveDirectoryConfigId: utils.SafeString(in.ActiveDirectoryConfigID),

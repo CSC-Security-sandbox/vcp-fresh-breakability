@@ -21498,6 +21498,8 @@ type VolumeV1beta struct {
 	UsedBytes OptNilFloat64 `json:"usedBytes"`
 	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
 	QuotaInBytes OptFloat64 `json:"quotaInBytes"`
+	// Throughput of the volume in Mibps.
+	ThroughputMibps OptNilFloat64 `json:"throughputMibps"`
 	// Volume footprint in cold storage.
 	ColdTierSizeGib OptNilFloat64 `json:"coldTierSizeGib"`
 	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
@@ -21644,6 +21646,11 @@ func (s *VolumeV1beta) GetUsedBytes() OptNilFloat64 {
 // GetQuotaInBytes returns the value of QuotaInBytes.
 func (s *VolumeV1beta) GetQuotaInBytes() OptFloat64 {
 	return s.QuotaInBytes
+}
+
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *VolumeV1beta) GetThroughputMibps() OptNilFloat64 {
+	return s.ThroughputMibps
 }
 
 // GetColdTierSizeGib returns the value of ColdTierSizeGib.
@@ -21889,6 +21896,11 @@ func (s *VolumeV1beta) SetUsedBytes(val OptNilFloat64) {
 // SetQuotaInBytes sets the value of QuotaInBytes.
 func (s *VolumeV1beta) SetQuotaInBytes(val OptFloat64) {
 	s.QuotaInBytes = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *VolumeV1beta) SetThroughputMibps(val OptNilFloat64) {
+	s.ThroughputMibps = val
 }
 
 // SetColdTierSizeGib sets the value of ColdTierSizeGib.

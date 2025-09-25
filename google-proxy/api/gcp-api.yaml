@@ -7326,6 +7326,14 @@ components:
             a soft quota used for alerting only.
           format: double
           example: 4000000000000
+        throughputMibps:
+          title: throughputMibps
+          type: number
+          format: double
+          readOnly: false
+          description: Throughput of the volume in Mibps.
+          example: 100.0
+          nullable: true
         coldTierSizeGib:
           title: coldTierSizeGib
           type: number
