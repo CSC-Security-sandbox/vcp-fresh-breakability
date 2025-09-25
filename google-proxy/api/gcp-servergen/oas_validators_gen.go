@@ -6880,6 +6880,8 @@ func (s ResourceStateUpdateV1betaResourceType) Validate() error {
 		return nil
 	case "BackupPolicy":
 		return nil
+	case "HostGroup":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

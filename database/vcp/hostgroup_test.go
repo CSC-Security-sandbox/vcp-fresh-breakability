@@ -452,6 +452,85 @@ func TestDeleteHostGroup(t *testing.T) {
 	})
 }
 
+func TestUpdateHostGroupsStateForHandleResource(t *testing.T) {
+	t.Run("WhenHostGroupDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		getHostGroupWithDetails = func(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+			return nil, customerrors.NewNotFoundErr("host group", nil)
+		}
+
+		defer func() { getHostGroupWithDetails = _getHostGroupWithDetails }()
+
+		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		assert.EqualError(tt, err, "host group not found")
+	})
+	t.Run("WhenStartTransactionFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+		startTransaction = func(db1 *gorm.DB) (*gorm.DB, error) {
+			return nil, errors.New("failed to start transaction")
+		}
+		defer func() {
+			startTransaction = _startTransaction
+		}()
+
+		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		assert.Error(tt, err, "Failed to get host group")
+	})
+	t.Run("WhenHostGroupsExistsAndUpdateSucceeds", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:      "test_hg",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		startTransaction = func(db1 *gorm.DB) (*gorm.DB, error) {
+			return db, nil
+		}
+		commitOrRollbackOnError = func(log slogger.Logger, tx *gorm.DB, err *error) {}
+		defer func() {
+			startTransaction = _startTransaction
+			commitOrRollbackOnError = _commitOrRollbackOnError
+			getHostGroupWithDetails = _getHostGroupWithDetails
+		}()
+
+		getHostGroupWithDetails = func(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+			return hg1, nil
+		}
+
+		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		assert.NoError(tt, err, "Failed to get host group")
+	})
+}
+
 func TestUpdateHostGroupsState(t *testing.T) {
 	t.Run("WhenHostGroupNotExists", func(tt *testing.T) {
 		db, err := SetupTestDB()

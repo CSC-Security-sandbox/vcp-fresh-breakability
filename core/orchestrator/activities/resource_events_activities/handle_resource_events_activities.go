@@ -138,6 +138,8 @@ func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx conte
 		return false, nil
 	case common.ResourceStateV1ResourceTypeBackupPolicy:
 		return a.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+	case common.ResourceStateV1ResourceTypeHostGroup:
+		return a.handleHostGroup(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 	default:
 		return false, errors.New("unsupported resource type")
 	}
@@ -157,6 +159,8 @@ func (a *ResourceEventsActivity) HandleResourceEventsONForVCPActivity(ctx contex
 		return false, nil
 	case common.ResourceStateV1ResourceTypeBackupPolicy:
 		return a.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+	case common.ResourceStateV1ResourceTypeHostGroup:
+		return a.handleHostGroup(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	default:
 		unsupportedErr := errors.New("unsupported resource type")
 		return false, temporal.NewNonRetryableApplicationError(unsupportedErr.Error(), ErrInvalidRequest, unsupportedErr)
@@ -408,4 +412,24 @@ func (a *ResourceEventsActivity) DeleteReplicationsForVolume(ctx context.Context
 	}
 
 	return nil
+}
+
+func (a *ResourceEventsActivity) handleHostGroup(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := a.SE.GetAccount(ctx, params.ProjectNumber)
+	if err != nil {
+		logger.Errorf("Failed to get account for project number %s: %v", params.ProjectNumber, err)
+		return false, err
+	}
+
+	err = a.SE.UpdateHostGroupsStateForHandleResource(ctx, params.ResourceId, account.ID, state, stateDetails)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
+		return false, err
+	}
+
+	return true, nil
 }

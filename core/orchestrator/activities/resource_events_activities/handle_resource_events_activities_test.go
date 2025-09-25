@@ -540,6 +540,27 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
+	t.Run("HandleResourceEventsOFFForVCPActivity_WhenResourceTypeIsHostGroup", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeHostGroup,
+			ResourceId:   "test-snapshot-id",
+		}
+
+		account := datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(&account, nil)
+
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, account.ID,
+			coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(nil)
+
+		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
 	t.Run("HandleResourceEventsOFFForVCPActivity_WhenResourceTypeIsStoragePool", func(tt *testing.T) {
 		ctx := context.Background()
 		mockSE := database.NewMockStorage(tt)
@@ -820,6 +841,27 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
+	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsHostGroup", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeHostGroup,
+			ResourceId:   "test-snapshot-id",
+		}
+
+		account := datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(&account, nil)
+
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, account.ID,
+			coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails).Return(nil)
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
 	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsStoragePool", func(tt *testing.T) {
 		ctx := context.Background()
 		mockSE := database.NewMockStorage(tt)
@@ -1048,6 +1090,141 @@ func TestCheckStoragePoolExistence(t *testing.T) {
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "unexpected error")
+	})
+}
+
+func TestHandleHostGroups(t *testing.T) {
+	t.Run("HandleHostGroup_Success", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-hostgroup-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails).Return(nil)
+
+		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleHostGroup_GetAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-hostgroup-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(nil, errors.New("account not found"))
+
+		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "account not found")
+	})
+
+	t.Run("HandleHostGroup_UpdateHostGroupsStateForHandleResourceFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-hostgroup-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(errors.New("update failed"))
+
+		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "update failed")
+	})
+
+	t.Run("HandleHostGroup_UpdateHostGroupsStateNotFoundErr", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceId:    "test-hostgroup-id",
+			ProjectNumber: "test-project-number",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 123},
+		}
+
+		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(errors.NewNotFoundErr("HostGroup", nil))
+
+		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+
+		var applicationError *temporal.ApplicationError
+		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, applicationError.NonRetryable())
+		assert.Equal(tt, ErrTypeResourceNotFound, applicationError.Type())
+	})
+
+	t.Run("HandleHostGroup_SuccessWithDifferentStates", func(tt *testing.T) {
+		testCases := []struct {
+			name         string
+			state        string
+			stateDetails string
+		}{
+			{
+				name:         "EnabledState",
+				state:        coremodels.LifeCycleStateREADY,
+				stateDetails: coremodels.LifeCycleStateAvailableDetails,
+			},
+			{
+				name:         "DisabledState",
+				state:        coremodels.LifeCycleStateDisabled,
+				stateDetails: coremodels.LifeCycleStateDisabledDetails,
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(ttt *testing.T) {
+				ctx := context.Background()
+				mockSE := database.NewMockStorage(ttt)
+				activity := &ResourceEventsActivity{SE: mockSE}
+
+				params := &common.HandleResourceEventParams{
+					ResourceId:    "test-hostgroup-id",
+					ProjectNumber: "test-project-number",
+				}
+
+				mockAccount := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: 123},
+				}
+
+				mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
+				mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, tc.state, tc.stateDetails).Return(nil)
+
+				result, err := activity.handleHostGroup(ctx, params, tc.state, tc.stateDetails)
+				assert.True(ttt, result)
+				assert.Nil(ttt, err)
+			})
+		}
 	})
 }
 

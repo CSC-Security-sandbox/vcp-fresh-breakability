@@ -14416,6 +14416,7 @@ const (
 	ResourceStateUpdateV1betaResourceTypeStoragePool     ResourceStateUpdateV1betaResourceType = "StoragePool"
 	ResourceStateUpdateV1betaResourceTypeKmsConfig       ResourceStateUpdateV1betaResourceType = "KmsConfig"
 	ResourceStateUpdateV1betaResourceTypeBackupPolicy    ResourceStateUpdateV1betaResourceType = "BackupPolicy"
+	ResourceStateUpdateV1betaResourceTypeHostGroup       ResourceStateUpdateV1betaResourceType = "HostGroup"
 )
 
 // AllValues returns all ResourceStateUpdateV1betaResourceType values.
@@ -14427,6 +14428,7 @@ func (ResourceStateUpdateV1betaResourceType) AllValues() []ResourceStateUpdateV1
 		ResourceStateUpdateV1betaResourceTypeStoragePool,
 		ResourceStateUpdateV1betaResourceTypeKmsConfig,
 		ResourceStateUpdateV1betaResourceTypeBackupPolicy,
+		ResourceStateUpdateV1betaResourceTypeHostGroup,
 	}
 }
 
@@ -14444,6 +14446,8 @@ func (s ResourceStateUpdateV1betaResourceType) MarshalText() ([]byte, error) {
 	case ResourceStateUpdateV1betaResourceTypeKmsConfig:
 		return []byte(s), nil
 	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeHostGroup:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -14470,6 +14474,9 @@ func (s *ResourceStateUpdateV1betaResourceType) UnmarshalText(data []byte) error
 		return nil
 	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
 		*s = ResourceStateUpdateV1betaResourceTypeBackupPolicy
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeHostGroup:
+		*s = ResourceStateUpdateV1betaResourceTypeHostGroup
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

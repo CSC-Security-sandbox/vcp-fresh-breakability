@@ -19,6 +19,7 @@ const (
 	ResourceStateV1ResourceTypeKmsConfig    string = "KmsConfig"
 	ResourceStateV1ResourceTypeBackupPolicy string = "BackupPolicy"
 	ResourceStateV1ResourceTypeAD           string = "ActiveDirectory"
+	ResourceStateV1ResourceTypeHostGroup    string = "HostGroup"
 	ResourceStateEnabled                    string = "ENABLED"
 	ResourceLifeCycleStateEnabledDetails    string = "Enabled"
 )

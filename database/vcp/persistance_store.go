@@ -999,6 +999,10 @@ func (s *PersistenceStore) ListHostGroupsByAccountID(ctx context.Context, accoun
 	return s.dataStore.ListHostGroupsByAccountID(ctx, accountID)
 }
 
+func (s *PersistenceStore) UpdateHostGroupsStateForHandleResource(ctx context.Context, hostGroupUUID string, accountID int64, state, stateDetails string) error {
+	return s.dataStore.UpdateHostGroupsStateForHandleResource(ctx, hostGroupUUID, accountID, state, stateDetails)
+}
+
 func (s *PersistenceStore) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
 	return s.dataStore.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
 }

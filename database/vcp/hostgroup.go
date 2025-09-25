@@ -153,6 +153,31 @@ func _updateHostGroupsState(ctx context.Context, db *gorm.DB, hostGroupUUIDs []s
 	return nil
 }
 
+func (d *DataStoreRepository) UpdateHostGroupsStateForHandleResource(ctx context.Context, hostGroupUUID string, accountID int64, state, stateDetails string) error {
+	tx, err := startTransaction(d.db.GORM())
+	if err != nil {
+		return err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	dbHostGroup, err := getHostGroupWithDetails(tx, &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: hostGroupUUID}, AccountID: accountID})
+	if err != nil {
+		return err
+	}
+
+	err = tx.Model(&dbHostGroup).Updates(datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{
+			UpdatedAt: time.Now(),
+		},
+		State:        state,
+		StateDetails: stateDetails,
+	}).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func _isHostGroupInUse(db *gorm.DB, hostGroupUUID string, accountID int64) (bool, error) {
 	volumes, err := volumesWithHG(db, hostGroupUUID, accountID)
 	if err != nil {

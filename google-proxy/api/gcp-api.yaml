@@ -5962,6 +5962,7 @@ components:
                 - StoragePool
                 - KmsConfig
                 - BackupPolicy
+                - HostGroup
             resourceID:
               title: resourceID
               type: string

@@ -19206,6 +19206,8 @@ func (s *ResourceStateUpdateV1betaResourceType) Decode(d *jx.Decoder) error {
 		*s = ResourceStateUpdateV1betaResourceTypeKmsConfig
 	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
 		*s = ResourceStateUpdateV1betaResourceTypeBackupPolicy
+	case ResourceStateUpdateV1betaResourceTypeHostGroup:
+		*s = ResourceStateUpdateV1betaResourceTypeHostGroup
 	default:
 		*s = ResourceStateUpdateV1betaResourceType(v)
 	}

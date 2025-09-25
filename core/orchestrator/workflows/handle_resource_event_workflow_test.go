@@ -360,6 +360,126 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + DONE
 }
 
+func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow_HostGroupNotFoundInVCP_ReturnsNonRetryableError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "ERROR", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsONForVCPActivity)
+
+	// Mock activities - HostGroup resource not found in VCP (NotFoundErr)
+	s.env.OnActivity(hreActivity.HandleResourceEventsONForVCPActivity, mock.Anything, mock.Anything).Return(false, temporal.NewNonRetryableApplicationError("HostGroup not found", resource_events_activities.ErrTypeResourceNotFound, errors.NewNotFoundErr("HostGroup", nil)))
+
+	// Execute workflow
+	param := &common.UpdateResourceStateParams{
+		ProjectNumber:  "123456789",
+		XCorrelationID: "test-correlation-id",
+		LocationId:     "us-central1",
+		State:          models.StateOn,
+		ResourceId:     "hostgroup-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateONWorkflow, param)
+
+	// Assert workflow completed with error (HostGroup should not fallback to SDE)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	// Verify the error contains the expected message
+	workflowError := s.env.GetWorkflowError()
+	assert.Contains(s.T(), workflowError.Error(), "HostGroup resource not found in VCP")
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + ERROR
+}
+
+func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow_HostGroupOtherErrorInVCP_FallbackToSDE() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "ERROR", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsONForVCPActivity)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsForSDEActivity)
+	s.env.RegisterActivity(hreActivity.PollHandleResourceEventSDEOperationActivity)
+
+	// Mock activities - HostGroup resource encounters non-NotFoundErr error (should fallback to SDE)
+	s.env.OnActivity(hreActivity.HandleResourceEventsONForVCPActivity, mock.Anything, mock.Anything).Return(false, errors.New("temporary network error"))
+	
+	result := &common.HandleResourceEventResult{
+		Done: nillable.GetBoolPtr(false),
+		Name: nillable.GetStringPtr("operationID"),
+	}
+	s.env.OnActivity(hreActivity.HandleResourceEventsForSDEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(hreActivity.PollHandleResourceEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	param := &common.UpdateResourceStateParams{
+		ProjectNumber:  "123456789",
+		XCorrelationID: "test-correlation-id",
+		LocationId:     "us-central1",
+		State:          models.StateOn,
+		ResourceId:     "hostgroup-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateONWorkflow, param)
+
+	// Assert workflow completed with error (retryable errors should fail after retries)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	// Note: Non-NotFoundErr errors are retryable and should eventually fail after max retries
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + ERROR
+}
+
+func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow_HostGroupFoundInVCP_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsONForVCPActivity)
+
+	// Mock activities - HostGroup resource found in VCP
+	s.env.OnActivity(hreActivity.HandleResourceEventsONForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+
+	// Execute workflow
+	param := &common.UpdateResourceStateParams{
+		ProjectNumber:  "123456789",
+		XCorrelationID: "test-correlation-id",
+		LocationId:     "us-central1",
+		State:          models.StateOn,
+		ResourceId:     "hostgroup-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateONWorkflow, param)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + DONE
+}
+
 func TestHandleResourceEventOnStateWorkflow(t *testing.T) {
 	suite.Run(t, new(HandleResourceEventOnStateTestSuite))
 }
@@ -694,6 +814,126 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOffWorkfl
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	// Note: Due to Temporal test framework defer block behavior, we may get a panic error even for successful workflows
 	// The important thing is that the workflow logic completes and the required UpdateJob calls are made
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + DONE
+}
+
+func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkflow_HostGroupNotFoundInVCP_ReturnsNonRetryableError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "ERROR", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsOFFForVCPActivity)
+
+	// Mock activities - HostGroup resource not found in VCP (NotFoundErr)
+	s.env.OnActivity(hreActivity.HandleResourceEventsOFFForVCPActivity, mock.Anything, mock.Anything).Return(false, temporal.NewNonRetryableApplicationError("HostGroup not found", resource_events_activities.ErrTypeResourceNotFound, errors.NewNotFoundErr("HostGroup", nil)))
+
+	// Execute workflow
+	param := &common.UpdateResourceStateParams{
+		ProjectNumber:  "123456789",
+		XCorrelationID: "test-correlation-id",
+		LocationId:     "us-central1",
+		State:          models.StateOff,
+		ResourceId:     "hostgroup-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateOFFWorkflow, param)
+
+	// Assert workflow completed with error (HostGroup should not fallback to SDE)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	// Verify the error contains the expected message
+	workflowError := s.env.GetWorkflowError()
+	assert.Contains(s.T(), workflowError.Error(), "HostGroup resource not found in VCP")
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + ERROR
+}
+
+func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkflow_HostGroupOtherErrorInVCP_FallbackToSDE() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "ERROR", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsOFFForVCPActivity)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsForSDEActivity)
+	s.env.RegisterActivity(hreActivity.PollHandleResourceEventSDEOperationActivity)
+
+	// Mock activities - HostGroup resource encounters non-NotFoundErr error (should fallback to SDE)
+	s.env.OnActivity(hreActivity.HandleResourceEventsOFFForVCPActivity, mock.Anything, mock.Anything).Return(false, errors.New("temporary network error"))
+	
+	result := &common.HandleResourceEventResult{
+		Done: nillable.GetBoolPtr(false),
+		Name: nillable.GetStringPtr("operationID"),
+	}
+	s.env.OnActivity(hreActivity.HandleResourceEventsForSDEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(hreActivity.PollHandleResourceEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	param := &common.UpdateResourceStateParams{
+		ProjectNumber:  "123456789",
+		XCorrelationID: "test-correlation-id",
+		LocationId:     "us-central1",
+		State:          models.StateOff,
+		ResourceId:     "hostgroup-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateOFFWorkflow, param)
+
+	// Assert workflow completed with error (retryable errors should fail after retries)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	// Note: Non-NotFoundErr errors are retryable and should eventually fail after max retries
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + ERROR
+}
+
+func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkflow_HostGroupFoundInVCP_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsOFFForVCPActivity)
+
+	// Mock activities - HostGroup resource found in VCP
+	s.env.OnActivity(hreActivity.HandleResourceEventsOFFForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+
+	// Execute workflow
+	param := &common.UpdateResourceStateParams{
+		ProjectNumber:  "123456789",
+		XCorrelationID: "test-correlation-id",
+		LocationId:     "us-central1",
+		State:          models.StateOff,
+		ResourceId:     "hostgroup-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateOFFWorkflow, param)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + DONE
 }
 

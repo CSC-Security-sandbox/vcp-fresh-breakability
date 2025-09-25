@@ -119,6 +119,10 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 			// For NotFoundErr, we should continue to SDE path instead of failing
 			if applicationErr.Type() == resource_events_activities.ErrTypeResourceNotFound {
 				isVCPResource = false
+				if handleResourceEventParams.ResourceType == common.ResourceStateV1ResourceTypeHostGroup {
+					// For HostGroup resource, if not found in VCP, it is an error
+					return nil, ConvertToVSAError(temporal.NewNonRetryableApplicationError("HostGroup resource not found in VCP", resource_events_activities.ErrTypeResourceNotFound, nil))
+				}
 			} else {
 				return nil, ConvertToVSAError(err)
 			}
@@ -260,6 +264,10 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 			// For NotFoundErr, we should continue to SDE path instead of failing
 			if applicationErr.Type() == resource_events_activities.ErrTypeResourceNotFound {
 				isVCPResource = false
+				if handleResourceEventParams.ResourceType == common.ResourceStateV1ResourceTypeHostGroup {
+					// For HostGroup resource, if not found in VCP, it is an error
+					return nil, ConvertToVSAError(temporal.NewNonRetryableApplicationError("HostGroup resource not found in VCP", resource_events_activities.ErrTypeResourceNotFound, nil))
+				}
 			} else {
 				return nil, ConvertToVSAError(err)
 			}

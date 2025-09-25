@@ -10068,6 +10068,56 @@ func (_c *MockStorage_UpdateHostGroupsState_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// UpdateHostGroupsStateForHandleResource provides a mock function with given fields: ctx, hostGroupUUID, accountID, state, stateDetails
+func (_m *MockStorage) UpdateHostGroupsStateForHandleResource(ctx context.Context, hostGroupUUID string, accountID int64, state string, stateDetails string) error {
+	ret := _m.Called(ctx, hostGroupUUID, accountID, state, stateDetails)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateHostGroupsStateForHandleResource")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string, string) error); ok {
+		r0 = rf(ctx, hostGroupUUID, accountID, state, stateDetails)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdateHostGroupsStateForHandleResource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateHostGroupsStateForHandleResource'
+type MockStorage_UpdateHostGroupsStateForHandleResource_Call struct {
+	*mock.Call
+}
+
+// UpdateHostGroupsStateForHandleResource is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostGroupUUID string
+//   - accountID int64
+//   - state string
+//   - stateDetails string
+func (_e *MockStorage_Expecter) UpdateHostGroupsStateForHandleResource(ctx interface{}, hostGroupUUID interface{}, accountID interface{}, state interface{}, stateDetails interface{}) *MockStorage_UpdateHostGroupsStateForHandleResource_Call {
+	return &MockStorage_UpdateHostGroupsStateForHandleResource_Call{Call: _e.mock.On("UpdateHostGroupsStateForHandleResource", ctx, hostGroupUUID, accountID, state, stateDetails)}
+}
+
+func (_c *MockStorage_UpdateHostGroupsStateForHandleResource_Call) Run(run func(ctx context.Context, hostGroupUUID string, accountID int64, state string, stateDetails string)) *MockStorage_UpdateHostGroupsStateForHandleResource_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateHostGroupsStateForHandleResource_Call) Return(_a0 error) *MockStorage_UpdateHostGroupsStateForHandleResource_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdateHostGroupsStateForHandleResource_Call) RunAndReturn(run func(context.Context, string, int64, string, string) error) *MockStorage_UpdateHostGroupsStateForHandleResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateJob provides a mock function with given fields: ctx, jobID, status, trackingID, errorDetails
 func (_m *MockStorage) UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails string) error {
 	ret := _m.Called(ctx, jobID, status, trackingID, errorDetails)
