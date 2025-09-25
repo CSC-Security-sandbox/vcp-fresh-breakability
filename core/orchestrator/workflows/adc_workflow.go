@@ -26,9 +26,29 @@ var (
 	adcCertSecret  = env.GetString("ADC_CERT_SECRET_NAME", "adc-cert")
 
 	// Polling configuration
-	adcRedirectURLTriggerInterval = 10 * time.Second
-	adcMaxPollingAttempts         = 60
-	adcMaxCloudRunAttempts        = 20
+	adcMaxPollingAttempts  = 60
+	adcMaxCloudRunAttempts = 20
+)
+
+// Progressive sleep phase constants
+const (
+	// First phase: 5 seconds sleep for first 5 minutes
+	firstPhaseThreshold     = 5 * time.Minute
+	firstPhaseSleepDuration = 5 * time.Second
+
+	// Second phase: 10 seconds sleep for next 10 minutes (5-15 minutes total)
+	secondPhaseThreshold     = 15 * time.Minute
+	secondPhaseSleepDuration = 10 * time.Second
+
+	// Third phase: 5 minutes sleep for next 1 hour (15 minutes - 1 hour 15 minutes total)
+	thirdPhaseThreshold     = 75 * time.Minute
+	thirdPhaseSleepDuration = 5 * time.Minute
+
+	// Fourth phase: 10 minutes sleep for remaining time (up to 6 days max)
+	fourthPhaseSleepDuration = 10 * time.Minute
+
+	// Maximum time limit for polling operations
+	maxPollingTimeLimit = 6 * 24 * time.Hour
 )
 
 type AdcWF struct {
@@ -305,6 +325,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 		currentRedirectURL := adcResponse.RedirectURL
 		pollingAttempts := 0
 		pollingCompleted := false
+		startTime := workflow.Now(ctx)
 
 		for pollingAttempts < adcMaxPollingAttempts && !pollingCompleted {
 			var statusResponse common.ADCResponse
@@ -336,8 +357,18 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 				return nil, ConvertToVSAError(fmt.Errorf("ADC delete operation failed with unexpected status code: %d", statusResponse.StatusCode))
 			}
 			if !pollingCompleted {
-				// Sleep for a period before checking the status again.
-				err = workflow.Sleep(ctx, adcRedirectURLTriggerInterval)
+				// Calculate progressive sleep duration based on elapsed time
+				elapsed := workflow.Now(ctx).Sub(startTime)
+				sleepDuration := calculateProgressiveSleepDuration(elapsed)
+
+				// Check if we've exceeded the maximum time limit
+				if elapsed > maxPollingTimeLimit {
+					wf.Logger.Warn("Polling exceeded maximum time limit", "elapsed", elapsed, "maxLimit", maxPollingTimeLimit)
+					return nil, ConvertToVSAError(fmt.Errorf("ADC delete operation exceeded maximum time limit of %v", maxPollingTimeLimit))
+				}
+
+				wf.Logger.Debug("Sleeping before next polling attempt", "sleepDuration", sleepDuration, "elapsed", elapsed)
+				err = workflow.Sleep(ctx, sleepDuration)
 				if err != nil {
 					wf.Logger.Error("Sleep failed", "error", err)
 					return nil, ConvertToVSAError(err)
@@ -425,4 +456,26 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *v
 
 	log.Infof("ADC workflow completed successfully for %s", backup.Name)
 	return nil, nil
+}
+
+// calculateProgressiveSleepDuration calculates sleep duration based on elapsed time
+// 5 sec for first 5 min, 10 sec for next 10 min, 5 min for 1 hr, then 10 min for 6 days max
+func calculateProgressiveSleepDuration(elapsed time.Duration) time.Duration {
+	// First phase: sleep for 5 seconds
+	if elapsed < firstPhaseThreshold {
+		return firstPhaseSleepDuration
+	}
+
+	// Second phase: sleep for 10 seconds
+	if elapsed < secondPhaseThreshold {
+		return secondPhaseSleepDuration
+	}
+
+	// Third phase: sleep for 5 minutes
+	if elapsed < thirdPhaseThreshold {
+		return thirdPhaseSleepDuration
+	}
+
+	// Fourth phase: sleep for 10 minutes (up to 6 days max)
+	return fourthPhaseSleepDuration
 }

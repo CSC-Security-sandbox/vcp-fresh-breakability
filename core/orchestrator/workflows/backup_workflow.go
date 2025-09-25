@@ -45,7 +45,8 @@ var (
 
 const (
 	BackupComment        = "VCP-Backup"
-	BackupMaxWaitTimeCap = 15 * time.Minute // Maximum wait time cap
+	BackupMaxWaitTimeCap = 15 * time.Minute   // Maximum wait time cap
+	adcWorkflowTimeout   = 7 * 24 * time.Hour // 7 days timeout to accommodate 6-day max sleep + buffer
 
 )
 
@@ -460,8 +461,20 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	if isVolumeDeleted || isSnapmirrorDeleted {
 		cloudDeletionIntiated := false
+		// Create a new context for ADCWorkflow with extended timeout to accommodate 6-day maximum sleep duration
+		adcWorkflowCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: adcWorkflowTimeout, // Extended timeout to accommodate 6-day max sleep + buffer
+			RetryPolicy: &temporal.RetryPolicy{
+				InitialInterval:        5 * time.Second,
+				BackoffCoefficient:     2.0,
+				MaximumInterval:        5 * time.Minute,
+				MaximumAttempts:        3,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		})
+
 		// if volume is deleted then we need to delete the backup with adc
-		err = workflow.ExecuteChildWorkflow(ctx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(ctx, &cloudDeletionIntiated)
+		err = workflow.ExecuteChildWorkflow(adcWorkflowCtx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(adcWorkflowCtx, &cloudDeletionIntiated)
 		if err != nil {
 			wf.Logger.Errorf("Backup deletion failed with ADC, backupUUID: %s, error: %v", dbBackup.UUID, err)
 			if cloudDeletionIntiated {
@@ -503,10 +516,6 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
-			err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
-			if err != nil {
-				return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
-			}
 
 			err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotForBackup, node, dbBackup.Attributes.SnapshotID, volume.VolumeAttributes.ExternalUUID, dbBackup.Attributes.UseExistingSnapshot).Get(ctx, nil)
 			if err != nil {
@@ -526,7 +535,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 					if err != nil {
 						return nil, ConvertToVSAError(err)
 					}
-					err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+					err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*120)
 					if err != nil {
 						return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
 					}

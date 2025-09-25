@@ -602,7 +602,7 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 				return nil, workflows.ConvertToVSAError(err)
 			}
 
-			err = workflows.WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+			err = workflows.WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*120)
 			if err != nil {
 				return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
 			}
