@@ -47,9 +47,10 @@ type PoolCredentials struct {
 
 type PoolView struct {
 	Pool
-	Throughput   float64 `json:"throughput"`
-	QuotaInBytes uint64  `json:"quotaInBytes"`
-	VolumeCount  int64   `json:"volumeCount"`
+	Throughput       float64 `json:"throughput"`
+	QuotaInBytes     uint64  `json:"quotaInBytes"`
+	VolumeCount      int64   `json:"volumeCount"`
+	CloneVolumeCount int64   `json:"cloneCount"`
 }
 
 type ClusterDetails struct {
@@ -167,7 +168,7 @@ type Volume struct {
 	AutoTieringPolicy     *AutoTieringPolicy     `gorm:"column:auto_tiering_policy;type:jsonb"`
 	CacheParameters       *CacheParameters       `gorm:"column:cache_parameters;type:jsonb"`
 	LargeVolumeAttributes *LargeVolumeAttributes `gorm:"column:large_volume_attributes;type:jsonb"`
-
+	ClonesSharedBytes     uint64                 `gorm:"column:clones_shared_bytes"`
 	// Used to track what volumes are in a peering relationship
 	ClusterPeerUUID *string `gorm:"column:cluster_peer_uuid"`
 	SvmPeerUUID     *string `gorm:"column:svm_peer_uuid"`

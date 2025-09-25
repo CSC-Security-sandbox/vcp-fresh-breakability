@@ -35,6 +35,7 @@ const maxConstituentVolumesPerAggregate = 200
 var (
 	numOfLvHAPairs               = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
 	volumeRefreshIntervalMinutes = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
+	maxThinClonesPerPool         = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
 	minQuotaInBytesVolume        = utils.MinQuotaInBytesVolumeForVolume
 	maxQuotaInBytesVolume        = utils.MaxQuotaInBytesVolumeForVolume
 	createVolume                 = _createVolume
@@ -118,6 +119,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	clonesSharedBytes := uint64(0)
 	if params.SnapshotID != "" {
 		dbSnapshot, err := se.GetSnapshotByPoolID(ctx, params.SnapshotID, account.ID, pool.ID, true)
 		if err != nil {
@@ -138,6 +140,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			params.LargeVolumeConstituentCount = *dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount
 		}
 		params.Snapshot = dbSnapshot
+		clonesSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
 	}
 	dbPool := database.ConvertPoolViewToPool(pool)
 	volumeObj := &datamodel.Volume{
@@ -157,6 +160,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			SnapReserve:      params.SnapReserve,
 			Labels:           params.Labels,
 		},
+		ClonesSharedBytes: clonesSharedBytes,
 	}
 
 	// Check BlockDevices first, then fallback to BlockProperties
@@ -694,7 +698,28 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
-	if pool.QuotaInBytes+params.QuotaInBytes > uint64(pool.SizeInBytes) {
+	cloneSharedBytes := uint64(0)
+	if params.SnapshotID != "" {
+		if pool.CloneVolumeCount+1 > maxThinClonesPerPool {
+			return customerrors.NewUserInputValidationErr("pool has reached maximum clone volume limit")
+		}
+
+		account, err := getOrCreateAccount(ctx, se, params.AccountName)
+		if err != nil {
+			return err
+		}
+
+		dbSnapshot, err := se.GetSnapshotByPoolID(ctx, params.SnapshotID, account.ID, pool.ID, true)
+		if err != nil {
+			if customerrors.IsNotFoundErr(err) {
+				return customerrors.NewUserInputValidationErr("snapshot not found")
+			}
+			return err
+		}
+		cloneSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
+	}
+
+	if pool.QuotaInBytes+params.QuotaInBytes-cloneSharedBytes > uint64(pool.SizeInBytes) {
 		return customerrors.NewUserInputValidationErr("volume size cannot be greater than pool size")
 	}
 
@@ -1421,7 +1446,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		sizeIncrease := params.QuotaInBytes - volume.SizeInBytes
 
 		// Check if adding the increase to current pool usage exceeds pool size
-		if sizeIncrease > 0 && pool.QuotaInBytes+uint64(sizeIncrease) > uint64(pool.SizeInBytes) {
+		if sizeIncrease > 0 && pool.QuotaInBytes+uint64(sizeIncrease)-volume.ClonesSharedBytes > uint64(pool.SizeInBytes) {
 			return customerrors.NewUserInputValidationErr("Total size of volumes in a pool cannot exceed the pool capacity.")
 		}
 	}

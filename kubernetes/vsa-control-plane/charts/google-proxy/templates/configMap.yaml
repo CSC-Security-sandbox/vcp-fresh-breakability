@@ -82,6 +82,7 @@ data:
   TASK_QUEUE_VERSION: "{{ index .Chart.Version | lower | replace "." "-" }}"
   METRICS_DB_CLEANUP_ENABLED: "{{ index .Values "metricsDbCleanupEnabled" }}"
   VOLUME_REFRESH_INTERVAL_MINUTES: "{{ index .Values "volumeRefreshIntervalMinutes" }}"
+  MAX_THIN_CLONES_PER_POOL: "{{ index .Values "maxThinClonesPerPool" }}"
 
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}

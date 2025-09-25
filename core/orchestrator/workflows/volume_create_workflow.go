@@ -368,6 +368,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 		}
+		// TODO: [VSCP-1435] To remove 'Split' keywords as split operation is removed from create volume workflow
 		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateClonedVolumeBeforeSplit, &dbVolume, &node, &snapshot).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
@@ -417,13 +418,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// Update the dbVolume with the changes from the child workflow
 		if updatedVolume != nil {
 			dbVolume = updatedVolume
-		}
-	}
-
-	if isRestoreSnapshot {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
 		}
 	}
 

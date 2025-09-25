@@ -238,10 +238,6 @@ func (m *Migrator) CreateOrUpdateViews(db *gormwrapper.Wrapper) error {
 	if err := CreateOrUpdatePoolView(db); err != nil {
 		return err
 	}
-	// Add more view creation functions here as needed, e.g.:
-	// if err := CreateOrUpdateVolumeView(db); err != nil {
-	//     return err
-	// }
 	return nil
 }
 
@@ -251,7 +247,8 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 	SELECT
 		p.*,
 		coalesce(sum(v.throughput), 0.0) as throughput,
-		coalesce(sum(v.size_in_bytes), 0) as quota_in_bytes,
+		coalesce(sum(v.size_in_bytes - v.clones_shared_bytes), 0) as quota_in_bytes,
+		coalesce(count(v.id) filter (where v.clones_shared_bytes > 0), 0) as clone_volume_count,
 		count(v.id) as volume_count
 	FROM pools p
 		LEFT JOIN volumes v on v.pool_id = p.id

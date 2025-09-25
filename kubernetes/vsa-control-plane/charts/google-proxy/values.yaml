@@ -62,6 +62,7 @@ iopsPerMibps: "16"
 waitForTemporalEnabled: true
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
+maxThinClonesPerPool: 100
 
 # Mock gcp access token for testing purposes
 mockAccessToken: ""

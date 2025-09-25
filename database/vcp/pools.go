@@ -377,10 +377,11 @@ func ConvertPoolToPoolView(pool *datamodel.Pool) *datamodel.PoolView {
 		return nil
 	}
 	return &datamodel.PoolView{
-		Pool:         *pool,
-		Throughput:   0, // Set to 0 or fill in with actual value if available
-		QuotaInBytes: 0, // Set to 0 or fill in with actual value if available
-		VolumeCount:  0, // Set to 0 or fill in with actual value if available
+		Pool:             *pool,
+		Throughput:       0, // Set to 0 or fill in with actual value if available
+		QuotaInBytes:     0, // Set to 0 or fill in with actual value if available
+		VolumeCount:      0, // Set to 0 or fill in with actual value if available
+		CloneVolumeCount: 0, // Set to 0 or fill in with actual value if available
 	}
 }
 

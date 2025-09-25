@@ -1028,6 +1028,681 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			assert.NotContains(tt, err.Error(), "Invalid volume capacity")
 		}
 	})
+
+	t.Run("CloneSharedBytes_SnapshotNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "non-existent-snapshot-uuid", // This snapshot doesn't exist
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "snapshot not found")
+	})
+
+	t.Run("CloneSharedBytes_SnapshotFound_WithinPoolSize", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create a parent volume first
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		// Create a snapshot with LogicalSizeUsedInBytes
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 30 * 1024 * 1024 * 1024, // 30GB shared bytes
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "test-snapshot-uuid",
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 10 * 1024 * 1024 * 1024, // 10GB already used
+		}
+
+		// Test calculation: pool.QuotaInBytes + params.QuotaInBytes - cloneSharedBytes <= pool.SizeInBytes
+		// 10GB + 50GB - 30GB = 30GB <= 100GB (should pass)
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// This should not return an error about pool size since we have enough space after accounting for shared bytes
+		if err != nil {
+			// The error might be from other validations, but it should NOT be about pool size
+			assert.NotContains(tt, err.Error(), "volume size cannot be greater than pool size")
+		}
+	})
+
+	t.Run("CloneSharedBytes_SnapshotFound_ExceedsPoolSize", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create a parent volume first
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		// Create a snapshot with small LogicalSizeUsedInBytes
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 5 * 1024 * 1024 * 1024, // Only 5GB shared bytes
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 80 * 1024 * 1024 * 1024, // 80GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "test-snapshot-uuid",
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 30 * 1024 * 1024 * 1024, // 30GB already used
+		}
+
+		// Test calculation: pool.QuotaInBytes + params.QuotaInBytes - cloneSharedBytes > pool.SizeInBytes
+		// 30GB + 80GB - 5GB = 105GB > 100GB (should fail)
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "volume size cannot be greater than pool size")
+	})
+
+	t.Run("CloneSharedBytes_SnapshotFound_ZeroSharedBytes", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create a parent volume first
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		// Create a snapshot with zero LogicalSizeUsedInBytes
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 0, // Zero shared bytes
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 80 * 1024 * 1024 * 1024, // 80GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "test-snapshot-uuid",
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 30 * 1024 * 1024 * 1024, // 30GB already used
+		}
+
+		// Test calculation: pool.QuotaInBytes + params.QuotaInBytes - cloneSharedBytes > pool.SizeInBytes
+		// 30GB + 80GB - 0GB = 110GB > 100GB (should fail)
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "volume size cannot be greater than pool size")
+	})
+
+	t.Run("NoSnapshotID_RegularPoolSizeValidation", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 80 * 1024 * 1024 * 1024, // 80GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "", // No snapshot ID
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 30 * 1024 * 1024 * 1024, // 30GB already used
+		}
+
+		// Test calculation: pool.QuotaInBytes + params.QuotaInBytes - cloneSharedBytes > pool.SizeInBytes
+		// 30GB + 80GB - 0GB = 110GB > 100GB (should fail)
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "volume size cannot be greater than pool size")
+	})
+
+	t.Run("CloneVolumeLimit_MaximumThinClonesReached", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(1000 * 1024 * 1024 * 1024), // 1000GB (large enough to not trigger size limit)
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create a parent volume
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		// Create a snapshot
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 10 * 1024 * 1024 * 1024, // 10GB shared
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "test-snapshot-uuid", // This makes it a clone volume
+		}
+
+		// Set up pool view with maximum clone volume count reached (100 clones already exist)
+		// Logic: CloneVolumeCount+1 > maxThinClonesPerPool triggers the error
+		// If CloneVolumeCount = 100, then 100+1 = 101 > 100 (maxThinClonesPerPool), so error
+		poolView := &datamodel.PoolView{
+			Pool:             *pool,
+			QuotaInBytes:     100 * 1024 * 1024 * 1024, // 100GB used (plenty of space)
+			CloneVolumeCount: 100,                      // At the maximum limit - adding 1 more will exceed
+		}
+
+		// This should fail because CloneVolumeCount+1 (100+1=101) > maxThinClonesPerPool (100)
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "pool has reached maximum clone volume limit")
+	})
+
+	t.Run("CloneVolumeLimit_WithinThinClonesLimit", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(1000 * 1024 * 1024 * 1024), // 1000GB
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create a parent volume
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		// Create a snapshot
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 10 * 1024 * 1024 * 1024, // 10GB shared
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "test-snapshot-uuid", // This makes it a clone volume
+		}
+
+		// Set up pool view with clone volume count well below the limit
+		poolView := &datamodel.PoolView{
+			Pool:             *pool,
+			QuotaInBytes:     100 * 1024 * 1024 * 1024, // 100GB used
+			CloneVolumeCount: 50,                       // Well below the limit of 100
+		}
+
+		// This should pass because CloneVolumeCount+1 (50+1=51) > maxThinClonesPerPool (100) is false
+		// so it won't trigger the error condition
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// Should not get the clone limit error, but may get other validation errors
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "pool has reached maximum clone volume limit",
+				"Should not fail due to clone volume limit when well within limits")
+		}
+	})
+
+	t.Run("CloneVolumeLimit_ExactlyAtLimit", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(1000 * 1024 * 1024 * 1024), // 1000GB
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create a parent volume
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		// Create a snapshot
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 10 * 1024 * 1024 * 1024, // 10GB shared
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "test-snapshot-uuid", // This makes it a clone volume
+		}
+
+		// Set up pool view with exactly 99 clone volumes (at the boundary)
+		poolView := &datamodel.PoolView{
+			Pool:             *pool,
+			QuotaInBytes:     100 * 1024 * 1024 * 1024, // 100GB used
+			CloneVolumeCount: 99,                       // Exactly at the boundary - adding 1 more will equal the limit
+		}
+
+		// This should pass because CloneVolumeCount+1 (99+1=100) > maxThinClonesPerPool (100) is false (100 > 100 is false)
+		// so it won't trigger the error condition - the limit allows exactly maxThinClonesPerPool clones
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// Should not get the clone limit error, but may get other validation errors
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "pool has reached maximum clone volume limit",
+				"Should not fail due to clone volume limit when exactly at the limit")
+		}
+	})
 }
 
 func TestCreateVolume(t *testing.T) {
@@ -9797,6 +10472,182 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Cannot increase SnapReserve to 50% as we cannot decrease the available space")
 		assert.Contains(tt, err.Error(), "Please increase the volume size to at least")
 	})
+
+	// Clone shared bytes validation test cases for volume update
+	t.Run("UpdateValidation_ClonesSharedBytes_WithinPoolSizeLimits", func(tt *testing.T) {
+		// Test case: Volume update with ClonesSharedBytes that keeps total within pool size limits
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       50 * 1024 * 1024 * 1024, // 50 GB current size
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024, // 20 GB shared with clones (significant optimization)
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: 0,
+				Protocols:   []string{utils.ProtocolNFS},
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: 80 * 1024 * 1024 * 1024, // Increase to 80 GB
+		}
+
+		// Create a pool with specific size and current usage
+		poolTotalSize := int64(100 * 1024 * 1024 * 1024)    // 100 GB total
+		poolCurrentUsage := uint64(90 * 1024 * 1024 * 1024) // 90 GB already used
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Size increase: 80 - 50 = 30 GB
+		// After adjustment: 90 + 30 - 20 = 100 GB = pool size (exactly at limit)
+		// With ClonesSharedBytes optimization, this should pass
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.NoError(tt, err, "Should allow update when ClonesSharedBytes keeps total within pool limits")
+	})
+
+	t.Run("UpdateValidation_ClonesSharedBytes_ExceedsPoolSizeLimits", func(tt *testing.T) {
+		// Test case: Volume update with ClonesSharedBytes that still exceeds pool size limits
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       50 * 1024 * 1024 * 1024, // 50 GB current size
+			ClonesSharedBytes: 5 * 1024 * 1024 * 1024,  // 5 GB shared (not enough to help)
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: 0,
+				Protocols:   []string{utils.ProtocolNFS},
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: 100 * 1024 * 1024 * 1024, // Increase to 100 GB
+		}
+
+		// Create a pool with specific size and current usage
+		poolTotalSize := int64(100 * 1024 * 1024 * 1024)    // 100 GB total
+		poolCurrentUsage := uint64(90 * 1024 * 1024 * 1024) // 90 GB already used
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Size increase: 100 - 50 = 50 GB
+		// After adjustment: 90 + 50 - 5 = 135 GB > 100 GB pool size
+		// This should fail as even with shared bytes, it exceeds pool capacity
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.Error(tt, err, "Should reject update when even with ClonesSharedBytes it exceeds pool limits")
+		assert.Contains(tt, err.Error(), "cannot exceed the pool capacity")
+	})
+
+	t.Run("UpdateValidation_ClonesSharedBytes_ZeroSharedBytes", func(tt *testing.T) {
+		// Test case: Volume update with zero ClonesSharedBytes (no shared storage optimization)
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       50 * 1024 * 1024 * 1024, // 50 GB current size
+			ClonesSharedBytes: 0,                       // No shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: 0,
+				Protocols:   []string{utils.ProtocolNFS},
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: 60 * 1024 * 1024 * 1024, // Increase to 60 GB
+		}
+
+		// Create a pool with specific size and current usage
+		poolTotalSize := int64(100 * 1024 * 1024 * 1024)    // 100 GB total
+		poolCurrentUsage := uint64(90 * 1024 * 1024 * 1024) // 90 GB already used
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Size increase: 60 - 50 = 10 GB
+		// After adjustment: 90 + 10 - 0 = 100 GB = pool size
+		// This should be at the exact limit and should pass
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.NoError(tt, err, "Should allow update with zero shared bytes when at exact pool limit")
+	})
+
+	t.Run("UpdateValidation_ClonesSharedBytes_LargeSharedBytes", func(tt *testing.T) {
+		// Test case: Volume update with large ClonesSharedBytes providing significant optimization
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       30 * 1024 * 1024 * 1024, // 30 GB current size
+			ClonesSharedBytes: 40 * 1024 * 1024 * 1024, // 40 GB shared (large optimization)
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: 0,
+				Protocols:   []string{utils.ProtocolNFS},
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: 80 * 1024 * 1024 * 1024, // Increase to 80 GB
+		}
+
+		// Create a pool with specific size and current usage
+		poolTotalSize := int64(100 * 1024 * 1024 * 1024)    // 100 GB total
+		poolCurrentUsage := uint64(90 * 1024 * 1024 * 1024) // 90 GB already used
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Size increase: 80 - 30 = 50 GB
+		// After adjustment: 90 + 50 - 40 = 100 GB = pool size
+		// This should pass due to large shared bytes optimization
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.NoError(tt, err, "Should allow update when large ClonesSharedBytes provides significant optimization")
+	})
+
+	t.Run("UpdateValidation_ClonesSharedBytes_NoSizeIncrease", func(tt *testing.T) {
+		// Test case: Volume update with ClonesSharedBytes but no size increase (other parameter updates)
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       50 * 1024 * 1024 * 1024, // 50 GB current size
+			ClonesSharedBytes: 10 * 1024 * 1024 * 1024, // 10 GB shared
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: 0,
+				Protocols:   []string{utils.ProtocolNFS},
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // Same size (no increase)
+		}
+
+		// Create a pool with specific size and current usage
+		poolTotalSize := int64(100 * 1024 * 1024 * 1024)    // 100 GB total
+		poolCurrentUsage := uint64(90 * 1024 * 1024 * 1024) // 90 GB already used
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Size increase: 50 - 50 = 0 GB
+		// sizeIncrease <= 0, so validation should pass without checking pool capacity
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.NoError(tt, err, "Should allow update with no size increase regardless of ClonesSharedBytes")
+	})
 }
 
 func TestBlockVolumeValidator_Validate(t *testing.T) {
@@ -13220,6 +14071,9 @@ func TestValidateUpdateFileProperties_NonNFSProtocol(t *testing.T) {
 			Protocols:      []string{"CIFS"},
 			FileProperties: &datamodel.FileProperties{}, // Add this so it passes the first check but fails on protocol check
 		},
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
 	}
 
 	params := &common.UpdateVolumeParams{
@@ -13248,6 +14102,9 @@ func TestValidateUpdateFileProperties_ISCSIProtocol(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols:      []string{"ISCSI"},
 			FileProperties: &datamodel.FileProperties{}, // Add this so it passes the first check but fails on protocol check
+		},
+		Account: &datamodel.Account{
+			Name: "test-account",
 		},
 	}
 
