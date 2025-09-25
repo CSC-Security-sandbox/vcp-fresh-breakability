@@ -12,7 +12,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	env2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -65,17 +64,12 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, temporal.NewNonRetryableApplicationError("Migrate SDE KMS Config Error", "error", nil))
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("error"))
@@ -97,17 +91,12 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Polling error", "error", nil))
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -129,17 +118,12 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(temporal.NewNonRetryableApplicationError("operation failed:", "error", nil))
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -160,12 +144,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -173,6 +151,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.PoolActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get Pools by account name failed", "error", nil))
@@ -195,12 +174,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -211,6 +184,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -234,12 +208,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -249,6 +217,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -273,12 +242,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -288,6 +251,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -314,12 +278,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -329,6 +287,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -356,12 +315,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -371,6 +324,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -399,12 +353,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -414,6 +362,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -444,12 +393,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -461,6 +404,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool2, &pool3)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -486,12 +430,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
-		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -504,6 +442,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool1, &pool2)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -529,14 +468,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
@@ -558,6 +493,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		dbNodes = append(dbNodes, &node1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -586,14 +522,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -614,6 +546,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM without ID"}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -642,14 +575,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -670,6 +599,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -698,14 +628,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -727,6 +653,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -758,14 +685,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -786,6 +709,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -818,14 +742,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -846,6 +766,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -879,14 +800,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -907,6 +824,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -941,11 +859,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
+			env2.AuthType = origAuthType
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -966,6 +883,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -1000,14 +918,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -1029,6 +943,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -1063,14 +978,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -1092,6 +1003,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -1126,14 +1038,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -1157,6 +1065,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		volumesForMigration = append(volumesForMigration, volume)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
@@ -1192,14 +1101,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		}
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
 		env.SetHeader(mockHeader)
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
 			env2.AuthType = origAuthType
-			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -1223,6 +1128,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		volumesForMigration = append(volumesForMigration, volume)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)

@@ -10,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -28,7 +27,6 @@ var _ workflows.WorkflowInterface = &createKmsConfigWorkflow{}
 var (
 	cvpMaxPollTimeout = env.GetUint64("CVP_JOB_POLL_TIMEOUT_MIN", 20)
 	cvpPollInterval   = env.GetUint64("CVP_JOB_POLL_INTERVAL_SEC", 30)
-	getSignedJwtToken = auth.GetSignedJwtToken
 )
 
 // CreateKmsConfigWorkflow KMS config Workflow process pool related requests from a customer.

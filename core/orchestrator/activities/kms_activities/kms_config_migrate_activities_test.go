@@ -612,4 +612,37 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		assert.Error(tt, errMigrate)
 		assert.EqualError(tt, errMigrate, "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
 	})
+	t.Run("WhenUpdateVolumeToReadyReturnsError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(tt)
+		activity := &KmsConfigActivity{SE: mockSE}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		encrypting := "encrypting"
+		encrypted := "encrypted"
+
+		getEncryptionStatus := vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{},
+			Encryption:       vsa.Encryption{State: &encrypting},
+		}
+		getEncryptionStatusEncrypted := vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{},
+			Encryption:       vsa.Encryption{State: &encrypted},
+		}
+		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatus, nil).Once()
+		mockSE.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockSE.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update volume state in DB"))
+		mockProvider.On("UpdateVolumeEnableEncryption", mock.Anything).Return(nil)
+		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatusEncrypted, nil)
+
+		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+
+		assert.NoError(tt, errMigrate)
+		assert.Nil(tt, errMigrate)
+	})
 }

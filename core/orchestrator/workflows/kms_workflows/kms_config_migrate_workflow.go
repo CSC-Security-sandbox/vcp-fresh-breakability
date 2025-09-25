@@ -119,7 +119,8 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, activityOptions)
-	jwtToken, err := getSignedJwtToken(params.ProjectNumber)
+	jwtToken := ""
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetSignedTokenActivity, params.ProjectNumber).Get(ctx, &jwtToken)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

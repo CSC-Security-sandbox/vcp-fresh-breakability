@@ -195,7 +195,7 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 			"state_details": models.LifeCycleStateAvailableDetails,
 		})
 		if errUpdateVol != nil {
-			logger.Errorf("Unable to reset state and state-details of volume %s to ready after encryption", volume.UUID)
+			logger.Errorf("Unable to reset state and state-details of volume %s to ready after encryption: %s", volume.UUID, errUpdateVol.Error())
 		}
 	}
 

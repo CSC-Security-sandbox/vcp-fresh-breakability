@@ -21,6 +21,8 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+var getSignedJwtToken = auth.GetSignedJwtToken
+
 func TestCreateKmsConfig(t *testing.T) {
 	t.Run("WhenGetSignedTokenActivityFails", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
@@ -36,11 +38,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		originalFunc := getSignedJwtToken
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
 		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
+			getSignedJwtToken = originalFunc
 		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
@@ -78,11 +81,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		originalFunc := getSignedJwtToken
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
 		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
+			getSignedJwtToken = originalFunc
 		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
@@ -121,11 +125,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		originalFunc := getSignedJwtToken
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
 		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
+			getSignedJwtToken = originalFunc
 		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
@@ -165,11 +170,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		originalFunc := getSignedJwtToken
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
 		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
+			getSignedJwtToken = originalFunc
 		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
@@ -213,11 +219,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		originalFunc := getSignedJwtToken
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
 		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
+			getSignedJwtToken = originalFunc
 		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
@@ -261,11 +268,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		originalFunc := getSignedJwtToken
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
 		defer func() {
-			getSignedJwtToken = auth.GetSignedJwtToken
+			getSignedJwtToken = originalFunc
 		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
