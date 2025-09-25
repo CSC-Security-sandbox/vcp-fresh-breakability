@@ -46,7 +46,7 @@ func (UnimplementedHandler) V1GetMultipleReplicationsByExternalUUID(ctx context.
 //
 // Returns the credentials of the specified account name.
 //
-// GET /v1/pools/{poolId}/ontap/credentials
+// GET /v1/pools/{poolName}/ontap/credentials
 func (UnimplementedHandler) V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (r V1GetOntapCredentialsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

@@ -3512,7 +3512,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		err = store.DB().Create(node2).Error
 		assert.NoError(t, err)
 
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "test-user")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, credentials)
@@ -3567,7 +3567,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, credentials)
-		assert.Contains(t, err.Error(), "Pool not found")
+		assert.Contains(t, err.Error(), "pool not found")
 	})
 	t.Run("WhenPoolHasNoCredentials", func(t *testing.T) {
 		ctx, store, orch, _ := setup(t)
@@ -3590,7 +3590,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "test-user")
 
 		// Assert
 		assert.NoError(t, err)
@@ -3622,7 +3622,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "test-user")
 
 		// Assert
 		assert.NoError(t, err)
@@ -3675,7 +3675,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute with empty userName
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "")
 
 		// Assert - should still work even with empty userName
 		assert.NoError(t, err)
@@ -3718,7 +3718,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "test-user")
 
 		// Assert
 		assert.NoError(t, err)

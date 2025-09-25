@@ -235,7 +235,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		actionFound := false
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if ctx := r.Context().Value("ruleContext"); ctx != nil {
-				if _, ok := ctx.(actions.IAction); ok {
+				if _, ok := ctx.(actions.RequestProcessor); ok {
 					actionFound = true
 				}
 			}

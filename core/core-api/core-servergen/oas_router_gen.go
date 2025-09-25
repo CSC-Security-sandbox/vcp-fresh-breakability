@@ -470,7 +470,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								r.name = V1GetOntapCredentialsOperation
 								r.summary = "Get ONTAP credentials"
 								r.operationID = "v1_getOntapCredentials"
-								r.pathPattern = "/v1/pools/{poolId}/ontap/credentials"
+								r.pathPattern = "/v1/pools/{poolName}/ontap/credentials"
 								r.args = args
 								r.count = 1
 								return r, true

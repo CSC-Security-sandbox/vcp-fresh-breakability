@@ -7,26 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockAction struct {
-	shouldAllow bool
-	processErr  error
-}
-
-func (m *mockAction) ShouldAllow(r *http.Request) bool {
-	return m.shouldAllow
-}
-
-func (m *mockAction) ProcessRequest(r *http.Request, w http.ResponseWriter) error {
-	return m.processErr
-}
-
-func (m *mockAction) ProcessResponse(resp *http.Response) error {
-	return nil
-}
-
 func TestRule_GetAction(t *testing.T) {
 	t.Run("WhenGETMethod_ShouldReturnGETAction", func(t *testing.T) {
-		getAction := &mockAction{shouldAllow: true}
+		getAction := new(MockRequestProcessor)
 		rule := Rule{
 			GET: getAction,
 		}
@@ -39,7 +22,7 @@ func TestRule_GetAction(t *testing.T) {
 	})
 
 	t.Run("WhenPOSTMethod_ShouldReturnPOSTAction", func(t *testing.T) {
-		postAction := &mockAction{shouldAllow: false}
+		postAction := new(MockRequestProcessor)
 		rule := Rule{
 			POST: postAction,
 		}
@@ -52,7 +35,7 @@ func TestRule_GetAction(t *testing.T) {
 	})
 
 	t.Run("WhenPATCHMethod_ShouldReturnPATCHAction", func(t *testing.T) {
-		patchAction := &mockAction{shouldAllow: true}
+		patchAction := new(MockRequestProcessor)
 		rule := Rule{
 			PATCH: patchAction,
 		}
@@ -65,7 +48,7 @@ func TestRule_GetAction(t *testing.T) {
 	})
 
 	t.Run("WhenDELETEMethod_ShouldReturnDELETEAction", func(t *testing.T) {
-		deleteAction := &mockAction{shouldAllow: false}
+		deleteAction := new(MockRequestProcessor)
 		rule := Rule{
 			DELETE: deleteAction,
 		}
@@ -79,10 +62,10 @@ func TestRule_GetAction(t *testing.T) {
 
 	t.Run("WhenUnsupportedMethod_ShouldReturnNil", func(t *testing.T) {
 		rule := Rule{
-			GET:    &mockAction{shouldAllow: true},
-			POST:   &mockAction{shouldAllow: true},
-			PATCH:  &mockAction{shouldAllow: true},
-			DELETE: &mockAction{shouldAllow: true},
+			GET:    new(MockRequestProcessor),
+			POST:   new(MockRequestProcessor),
+			PATCH:  new(MockRequestProcessor),
+			DELETE: new(MockRequestProcessor),
 		}
 
 		req, err := http.NewRequest(http.MethodPut, "/test", nil)
@@ -103,10 +86,10 @@ func TestRule_GetAction(t *testing.T) {
 	})
 
 	t.Run("WhenAllMethodsSet_ShouldReturnCorrectActions", func(t *testing.T) {
-		getAction := &mockAction{shouldAllow: true}
-		postAction := &mockAction{shouldAllow: false}
-		patchAction := &mockAction{shouldAllow: true}
-		deleteAction := &mockAction{shouldAllow: false}
+		getAction := new(MockRequestProcessor)
+		postAction := new(MockRequestProcessor)
+		patchAction := new(MockRequestProcessor)
+		deleteAction := new(MockRequestProcessor)
 
 		rule := Rule{
 			GET:    getAction,
@@ -138,7 +121,7 @@ func TestRule_GetAction(t *testing.T) {
 
 	t.Run("WhenMethodIsOptions_ShouldReturnNil", func(t *testing.T) {
 		rule := Rule{
-			GET: &mockAction{shouldAllow: true},
+			GET: new(MockRequestProcessor),
 		}
 
 		req, err := http.NewRequest(http.MethodOptions, "/test", nil)
@@ -150,7 +133,7 @@ func TestRule_GetAction(t *testing.T) {
 
 	t.Run("WhenMethodIsHead_ShouldReturnNil", func(t *testing.T) {
 		rule := Rule{
-			GET: &mockAction{shouldAllow: true},
+			GET: new(MockRequestProcessor),
 		}
 
 		req, err := http.NewRequest(http.MethodHead, "/test", nil)

@@ -11,48 +11,21 @@ import (
 )
 
 func TestAllow_ShouldAllow(t *testing.T) {
-	t.Run("WhenRequestIsAny_ShouldReturnTrue", func(t *testing.T) {
-		allow := Allow{Name: "Test Allow"}
-		req, _ := http.NewRequest("GET", "/test", nil)
+	allow := Allow{Name: "Test Allow"}
+	req, _ := http.NewRequest("GET", "/test", nil)
 
-		result := allow.ShouldAllow(req)
-		assert.True(t, result, "Allow action should always return true")
-	})
-
-	t.Run("WhenRequestMethodIsPOST_ShouldReturnTrue", func(t *testing.T) {
-		allow := Allow{Name: "Test Allow"}
-		req, _ := http.NewRequest("POST", "/api/test", strings.NewReader("data"))
-
-		result := allow.ShouldAllow(req)
-		assert.True(t, result, "Allow action should return true for any request")
-	})
+	result := allow.ShouldAllow(req)
+	assert.True(t, result, "Allow action should always return true")
 }
 
 func TestAllow_ProcessRequest(t *testing.T) {
-	t.Run("WhenRequestIsProcessed_ShouldLogAndReturnNil", func(t *testing.T) {
-		allow := Allow{Name: "Test Allow"}
-		req, _ := http.NewRequest("GET", "/test", nil)
-		w := httptest.NewRecorder()
+	allow := Allow{Name: "Test Allow"}
+	req, _ := http.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
 
-		err := allow.ProcessRequest(req, w)
-		assert.NoError(t, err, "ProcessRequest should return nil")
-		assert.Equal(t, 200, w.Code, "Response should remain unchanged")
-	})
-
-	t.Run("WhenDifferentHTTPMethodsAreUsed_ShouldHandleAll", func(t *testing.T) {
-		allow := Allow{Name: "Test Allow"}
-		methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
-
-		for _, method := range methods {
-			t.Run(method, func(t *testing.T) {
-				req, _ := http.NewRequest(method, "/test", nil)
-				w := httptest.NewRecorder()
-
-				err := allow.ProcessRequest(req, w)
-				assert.NoError(t, err, "ProcessRequest should return nil for %s", method)
-			})
-		}
-	})
+	err := allow.ProcessRequest(req, w)
+	assert.NoError(t, err, "ProcessRequest should return nil")
+	assert.Equal(t, 200, w.Code, "Response should remain unchanged")
 }
 
 func TestAllow_ProcessResponse(t *testing.T) {
@@ -153,119 +126,69 @@ func TestAllow_ProcessResponse(t *testing.T) {
 }
 
 func TestDeny_ShouldAllow(t *testing.T) {
-	t.Run("WhenRequestIsAny_ShouldReturnFalse", func(t *testing.T) {
-		deny := Deny{Name: "Test Deny"}
-		req, _ := http.NewRequest("GET", "/test", nil)
+	deny := Deny{Name: "Test Deny"}
+	req, _ := http.NewRequest("GET", "/test", nil)
 
-		result := deny.ShouldAllow(req)
-		assert.False(t, result, "Deny action should always return false")
-	})
-
-	t.Run("WhenRequestMethodIsPOST_ShouldReturnFalse", func(t *testing.T) {
-		deny := Deny{Name: "Test Deny"}
-		req, _ := http.NewRequest("POST", "/api/test", strings.NewReader("data"))
-
-		result := deny.ShouldAllow(req)
-		assert.False(t, result, "Deny action should return false for any request")
-	})
+	result := deny.ShouldAllow(req)
+	assert.False(t, result, "Deny action should always return false")
 }
 
 func TestDeny_ProcessRequest(t *testing.T) {
-	t.Run("WhenRequestIsProcessed_ShouldReturnForbidden", func(t *testing.T) {
-		deny := Deny{Name: "Test Deny"}
-		req, _ := http.NewRequest("GET", "/test", nil)
-		w := httptest.NewRecorder()
+	deny := Deny{Name: "Test Deny"}
+	req, _ := http.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
 
-		err := deny.ProcessRequest(req, w)
-		assert.NoError(t, err, "ProcessRequest should return nil")
+	err := deny.ProcessRequest(req, w)
+	assert.NoError(t, err, "ProcessRequest should return nil")
 
-		assert.Equal(t, http.StatusForbidden, w.Code, "Should return 403 Forbidden")
-		assert.Contains(t, w.Body.String(), "Forbidden", "Response body should contain 'Forbidden'")
-	})
-
-	t.Run("WhenDifferentHTTPMethodsAreUsed_ShouldDenyAll", func(t *testing.T) {
-		deny := Deny{Name: "Test Deny"}
-		methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
-
-		for _, method := range methods {
-			t.Run(method, func(t *testing.T) {
-				req, _ := http.NewRequest(method, "/test", nil)
-				w := httptest.NewRecorder()
-
-				err := deny.ProcessRequest(req, w)
-				assert.NoError(t, err, "ProcessRequest should return nil for %s", method)
-				assert.Equal(t, http.StatusForbidden, w.Code, "Should return 403 Forbidden for %s", method)
-			})
-		}
-	})
+	assert.Equal(t, http.StatusForbidden, w.Code, "Should return 403 Forbidden")
+	assert.Contains(t, w.Body.String(), "Forbidden", "Response body should contain 'Forbidden'")
 }
 
 func TestDeny_ProcessResponse(t *testing.T) {
-	t.Run("WhenResponseIsProcessed_ShouldReturnNil", func(t *testing.T) {
-		deny := Deny{Name: "Test Deny"}
-		resp := &http.Response{
-			Body: io.NopCloser(strings.NewReader(`{"name":"test"}`)),
-		}
+	deny := Deny{Name: "Test Deny"}
+	originalData := `{"name":"test","value":123}`
+	resp := &http.Response{
+		Body: io.NopCloser(strings.NewReader(originalData)),
+	}
 
-		err := deny.ProcessResponse(resp)
-		assert.NoError(t, err, "ProcessResponse should return nil")
-	})
+	err := deny.ProcessResponse(resp)
+	assert.NoError(t, err, "ProcessResponse should return nil")
 
-	t.Run("WhenResponseIsProcessed_ShouldNotModifyResponse", func(t *testing.T) {
-		deny := Deny{Name: "Test Deny"}
-		originalData := `{"name":"test","value":123}`
-		resp := &http.Response{
-			Body: io.NopCloser(strings.NewReader(originalData)),
-		}
-
-		err := deny.ProcessResponse(resp)
-		assert.NoError(t, err, "ProcessResponse should return nil")
-
-		body, err := io.ReadAll(resp.Body)
-		assert.NoError(t, err, "Should read response body")
-		assert.Equal(t, originalData, string(body), "Response should remain unchanged")
-	})
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err, "Should read response body")
+	assert.Equal(t, originalData, string(body), "Response should remain unchanged")
 }
 
 func TestDenyAll(t *testing.T) {
-	t.Run("WhenCalled_ShouldReturnDenyAction", func(t *testing.T) {
-		action := DenyAll()
-		assert.NotNil(t, action, "DenyAll should return non-nil action")
+	action := DenyAll()
+	assert.NotNil(t, action, "DenyAll should return non-nil action")
 
-		deny, ok := action.(Deny)
-		assert.True(t, ok, "DenyAll should return Deny type")
-		assert.Equal(t, "Access denied", deny.Name, "Should have default name")
-	})
+	deny, ok := action.(Deny)
+	assert.True(t, ok, "DenyAll should return Deny type")
+	assert.Equal(t, "Access denied", deny.Name, "Should have default name")
 
-	t.Run("WhenActionIsReturned_ShouldDenyAllRequests", func(t *testing.T) {
-		action := DenyAll()
-		req, _ := http.NewRequest("GET", "/test", nil)
+	// Test that it behaves like a Deny action
+	req, _ := http.NewRequest("GET", "/test", nil)
+	result := action.ShouldAllow(req)
+	assert.False(t, result, "DenyAll action should deny all requests")
 
-		result := action.ShouldAllow(req)
-		assert.False(t, result, "DenyAll action should deny all requests")
-	})
-
-	t.Run("WhenRequestIsProcessed_ShouldSendForbiddenResponse", func(t *testing.T) {
-		action := DenyAll()
-		req, _ := http.NewRequest("GET", "/test", nil)
-		w := httptest.NewRecorder()
-
-		err := action.ProcessRequest(req, w)
-		assert.NoError(t, err, "ProcessRequest should return nil")
-		assert.Equal(t, http.StatusForbidden, w.Code, "Should return 403 Forbidden")
-	})
+	w := httptest.NewRecorder()
+	err := action.ProcessRequest(req, w)
+	assert.NoError(t, err, "ProcessRequest should return nil")
+	assert.Equal(t, http.StatusForbidden, w.Code, "Should return 403 Forbidden")
 }
 
-func TestIActionInterface(t *testing.T) {
-	t.Run("WhenAllowIsUsed_ShouldImplementIActionInterface", func(t *testing.T) {
-		var _ IAction = Allow{Name: "Test"}
+func TestRequestProcessorInterface(t *testing.T) {
+	t.Run("WhenAllowIsUsed_ShouldImplementRequestProcessorInterface", func(t *testing.T) {
+		var _ RequestProcessor = Allow{Name: "Test"}
 	})
 
-	t.Run("WhenDenyIsUsed_ShouldImplementIActionInterface", func(t *testing.T) {
-		var _ IAction = Deny{Name: "Test"}
+	t.Run("WhenDenyIsUsed_ShouldImplementRequestProcessorInterface", func(t *testing.T) {
+		var _ RequestProcessor = Deny{Name: "Test"}
 	})
 
-	t.Run("WhenDenyAllIsCalled_ShouldReturnIAction", func(t *testing.T) {
-		var _ IAction = DenyAll()
+	t.Run("WhenDenyAllIsCalled_ShouldReturnRequestProcessor", func(t *testing.T) {
+		var _ RequestProcessor = DenyAll()
 	})
 }

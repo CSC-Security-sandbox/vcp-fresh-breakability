@@ -526,14 +526,14 @@ func (s *Server) handleV1GetMultipleReplicationsByExternalUUIDRequest(args [0]st
 //
 // Returns the credentials of the specified account name.
 //
-// GET /v1/pools/{poolId}/ontap/credentials
+// GET /v1/pools/{poolName}/ontap/credentials
 func (s *Server) handleV1GetOntapCredentialsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1_getOntapCredentials"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v1/pools/{poolId}/ontap/credentials"),
+		semconv.HTTPRouteKey.String("/v1/pools/{poolName}/ontap/credentials"),
 	}
 
 	// Start a span for this request.
@@ -617,9 +617,9 @@ func (s *Server) handleV1GetOntapCredentialsRequest(args [1]string, argsEscaped 
 			Body:             nil,
 			Params: middleware.Parameters{
 				{
-					Name: "poolId",
+					Name: "poolName",
 					In:   "path",
-				}: params.PoolId,
+				}: params.PoolName,
 				{
 					Name: "userName",
 					In:   "query",

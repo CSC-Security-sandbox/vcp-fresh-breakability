@@ -2,21 +2,137 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
+
+type AuthTransport struct{}
+
+func NewAuthTransport() *AuthTransport {
+	return &AuthTransport{}
+}
+
+func (at *AuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	cacheKey := cache.GetAuthDataKeyFromContext(req.Context())
+	if cacheKey == "" {
+		return nil, fmt.Errorf("no cache key found in request context")
+	}
+
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return nil, fmt.Errorf("no authentication data found in cache for key: %s", cacheKey)
+	}
+
+	transport, err := buildTransportForAuthType(authData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build transport: %w", err)
+	}
+
+	return transport.RoundTrip(req)
+}
+
+func configureRequestAuthentication(req *http.Request, authData *models.AuthData) error {
+	if authData.AuthType == models.USER_CERTIFICATE {
+		return nil
+	}
+	if authData.Username == "" || authData.Password == "" {
+		return fmt.Errorf("missing username or password for basic authentication")
+	}
+	req.SetBasicAuth(authData.Username, authData.Password)
+	return nil
+}
+
+func buildTransportForAuthType(authData *models.AuthData) (*http.Transport, error) {
+	switch authData.AuthType {
+	case models.USER_CERTIFICATE:
+		return buildCertificateTransport(authData)
+	case models.USERNAME_PWD, models.USERNAME_PWD_SEC_MGR:
+		return buildBasicAuthTransport()
+	default:
+		return buildBasicAuthTransport()
+	}
+}
+
+func buildCertificateTransport(authData *models.AuthData) (*http.Transport, error) {
+	if authData.Certificate == nil {
+		return nil, fmt.Errorf("certificate not found for certificate authentication")
+	}
+
+	cert := &models.Certificate{
+		SignedCertificate:        authData.Certificate.SignedCertificate,
+		PrivateKey:               authData.Certificate.PrivateKey,
+		InterMediateCertificates: authData.Certificate.InterMediateCertificates,
+		CommonName:               authData.Certificate.CommonName,
+		RootCaCertificate:        authData.Certificate.RootCaCertificate,
+	}
+
+	rootCA, clientCert, err := _getAPICallCertificate(cert)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare certificate: %w", err)
+	}
+
+	return &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: false,
+			RootCAs:            rootCA,
+			Certificates:       []tls.Certificate{clientCert},
+		},
+	}, nil
+}
+
+func buildBasicAuthTransport() (*http.Transport, error) {
+	return &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true,
+		},
+	}, nil
+}
+
+func setCommonHeaders(req *http.Request) {
+	req.Header.Set("X-Forwarded-For", req.RemoteAddr)
+	req.Header.Set("X-Proxy-By", "ontap-proxy")
+	req.Header.Set("Accept", "application/json")
+}
 
 func BuildOntapRESTProxy() *httputil.ReverseProxy {
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			logger := log.NewLogger()
+
+			cacheKey := cache.GetAuthDataKeyFromContext(req.Context())
+			if cacheKey == "" {
+				logger.Error("No cache key found in context")
+				return
+			}
+
+			authData, exists := cache.GetFromAuthDataCache(cacheKey)
+			if !exists || authData == nil {
+				logger.Error("No authentication data found in cache", "cacheKey", cacheKey)
+				return
+			}
 
 			ontapPath := extractOntapPath(req.URL.Path)
 			if ontapPath == "" {
@@ -24,22 +140,15 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 				return
 			}
 
-			ontapAddress := getOntapAddress(req)
-			if ontapAddress == "" {
-				logger.Error("No ONTAP API address configured")
-				return
-			}
-
-			username := env.GetString("ONTAP_API_USERNAME", "")
-			password := env.GetString("ONTAP_API_PASSWORD", "")
-
-			if username == "" || password == "" {
-				logger.Error("Missing ONTAP credentials")
+			var ontapAddress string
+			if len(authData.OntapEndpoints) > 0 {
+				ontapAddress = authData.OntapEndpoints[0].DNS
+			} else {
+				logger.Error("No ONTAP endpoints found in authData")
 				return
 			}
 
 			targetURL := buildTargetURL(ontapAddress, ontapPath, req.URL.RawQuery)
-
 			target, err := url.Parse(targetURL)
 			if err != nil {
 				logger.Error("Error parsing target URL", "error", err)
@@ -48,31 +157,23 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 
 			req.URL = target
 			req.Host = target.Host
-			req.SetBasicAuth(username, password)
 
-			req.Header.Set("X-Forwarded-For", req.RemoteAddr)
-			req.Header.Set("X-Proxy-By", "ONTAP Expert Mode")
-			req.Header.Set("Accept", "application/json")
+			err = configureRequestAuthentication(req, authData)
+			if err != nil {
+				logger.Error("Failed to configure request authentication", "error", err)
+				return
+			}
 
-			logger.Info("Forwarding request", "targetURL", targetURL)
+			setCommonHeaders(req)
+
+			logger.Info("Forwarding request",
+				"targetURL", targetURL,
+				"poolID", authData.PoolID,
+				"authType", authData.AuthType)
 			logCurlCommand(req, targetURL)
 		},
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-		ModifyResponse: func(resp *http.Response) error {
-			logger := log.NewLogger()
-
-			if ctx := resp.Request.Context().Value("ruleContext"); ctx != nil {
-				if action, ok := ctx.(actions.IAction); ok {
-					if err := action.ProcessResponse(resp); err != nil {
-						logger.Error("Error applying modifications", "error", err)
-						return err
-					}
-				}
-			}
-			return nil
-		},
+		Transport:      NewAuthTransport(),
+		ModifyResponse: actions.ProcessResponseModification,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			logger := log.NewLogger()
 			logger.Error("Error handling request", "error", err)
@@ -92,10 +193,6 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 	}
 
 	return proxy
-}
-
-func getOntapAddress(req *http.Request) string {
-	return env.GetString("ONTAP_API_ADDRESS", "")
 }
 
 func extractOntapPath(fullPath string) string {
@@ -118,7 +215,7 @@ func extractOntapPath(fullPath string) string {
 }
 
 func buildTargetURL(ontapAddress, ontapPath, rawQuery string) string {
-	if !strings.HasPrefix(ontapAddress, "http://") && !strings.HasPrefix(ontapAddress, "https://") {
+	if !strings.HasPrefix(ontapAddress, "https://") && !strings.HasPrefix(ontapAddress, "http://") {
 		ontapAddress = "https://" + ontapAddress
 	}
 
@@ -151,4 +248,24 @@ func logCurlCommand(req *http.Request, targetURL string) {
 	curlCmd += fmt.Sprintf(" \"%s\"", targetURL)
 
 	logger.Info("Equivalent curl command", "command", curlCmd)
+}
+
+func _getAPICallCertificate(cert *models.Certificate) (*x509.CertPool, tls.Certificate, error) {
+	if len(cert.InterMediateCertificates) > 0 && cert.SignedCertificate != "" && cert.PrivateKey != "" {
+		rootCA, err := utils.ParsePEMCertificate(cert.InterMediateCertificates, "CERTIFICATE")
+		if err != nil {
+			return nil, tls.Certificate{}, fmt.Errorf("error parsing root CA certificate: %v", err)
+		}
+
+		signedCertPem := []byte(cert.SignedCertificate)
+		privateKeyPem := []byte(cert.PrivateKey)
+
+		clientCert, err := tls.X509KeyPair(signedCertPem, privateKeyPem)
+		if err != nil {
+			return nil, tls.Certificate{}, fmt.Errorf("error loading client certificate and key: %v", err)
+		}
+
+		return rootCA, clientCert, nil
+	}
+	return nil, tls.Certificate{}, fmt.Errorf("invalid certificate parameters: ensure SignedCertificate, PrivateKey, and InterMediateCertificates are set correctly")
 }

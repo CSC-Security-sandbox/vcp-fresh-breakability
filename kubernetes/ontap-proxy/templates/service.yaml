@@ -11,4 +11,4 @@ spec:
       targetPort: {{ .Values.service.appPort }}
       name: http
   selector:
-    app: {{ .Chart.Name }} 
+    app: {{ .Chart.Name }}

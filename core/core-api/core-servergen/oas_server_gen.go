@@ -32,7 +32,7 @@ type Handler interface {
 	//
 	// Returns the credentials of the specified account name.
 	//
-	// GET /v1/pools/{poolId}/ontap/credentials
+	// GET /v1/pools/{poolName}/ontap/credentials
 	V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error)
 	// V1GetPool implements v1_getPool operation.
 	//

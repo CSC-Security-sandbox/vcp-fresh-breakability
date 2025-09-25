@@ -39,7 +39,9 @@ func setupHTTPServer() http.Handler {
 	ontapProxy := BuildOntapRESTProxy()
 
 	mux.Route("/v1beta/projects/{projectId}/locations/{locationId}/pools/{poolId}/ontap-api", func(r chi.Router) {
+		r.Use(middleware.CredentialMiddleware())
 		r.Use(middleware.RuleEngineMiddleware())
+		r.Use(middleware.CertificateMiddleware())
 		r.Handle("/*", ontapProxy)
 	})
 

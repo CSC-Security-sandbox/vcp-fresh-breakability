@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
-type IAction interface {
+type RequestProcessor interface {
 	ShouldAllow(r *http.Request) bool
 	ProcessRequest(r *http.Request, w http.ResponseWriter) error
 	ProcessResponse(resp *http.Response) error
@@ -123,6 +123,6 @@ func (d Deny) ProcessResponse(resp *http.Response) error {
 	return nil
 }
 
-func DenyAll() IAction {
+func DenyAll() RequestProcessor {
 	return Deny{Name: "Access denied"}
 }

@@ -696,7 +696,7 @@ func convertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
 	return result
 }
 
-func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolId string, accountName string, userName string) (*models.UserCredentials, error) {
+func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolName string, accountName string, userName string) (*models.UserCredentials, error) {
 	se := o.storage
 
 	account, err := getAccountWithName(ctx, se, accountName)
@@ -704,7 +704,9 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolId string
 		return nil, err
 	}
 
-	pool, err := se.DescribePool(ctx, poolId, account.ID)
+	conditions := [][]interface{}{{"name = ?", poolName}}
+	conditions = append(conditions, []interface{}{"account_id = ?", account.ID})
+	pool, err := se.GetPoolByName(ctx, conditions)
 	if err != nil {
 		return nil, err
 	}

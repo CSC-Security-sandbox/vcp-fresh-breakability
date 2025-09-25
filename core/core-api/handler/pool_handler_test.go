@@ -35,7 +35,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		}
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
-			PoolId:      poolID,
+			PoolName:    poolID,
 			AccountName: oasgenserver.NewOptString(accountName),
 			UserName:    oasgenserver.NewOptString(userName),
 		}
@@ -76,7 +76,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		handler := NewHandler(mockOrch)
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
-			PoolId:      "test-pool-uuid",
+			PoolName:    "test-pool-uuid",
 			AccountName: oasgenserver.OptString{}, // Not set
 			UserName:    oasgenserver.NewOptString("test-user"),
 		}
@@ -107,7 +107,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		poolNotFoundError := vsaerrors.NewVCPError(vsaerrors.ErrPoolNotFound, stderrors.New("pool not found"))
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
-			PoolId:      poolID,
+			PoolName:    poolID,
 			AccountName: oasgenserver.NewOptString(accountName),
 			UserName:    oasgenserver.NewOptString(userName),
 		}
@@ -141,7 +141,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		otherError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, stderrors.New("database connection failed"))
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
-			PoolId:      poolID,
+			PoolName:    poolID,
 			AccountName: oasgenserver.NewOptString(accountName),
 			UserName:    oasgenserver.NewOptString(userName),
 		}
@@ -175,7 +175,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		standardError := stderrors.New("standard go error")
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
-			PoolId:      poolID,
+			PoolName:    poolID,
 			AccountName: oasgenserver.NewOptString(accountName),
 			UserName:    oasgenserver.NewOptString(userName),
 		}
@@ -216,7 +216,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		}
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
-			PoolId:      poolID,
+			PoolName:    poolID,
 			AccountName: oasgenserver.NewOptString(accountName),
 			UserName:    oasgenserver.NewOptString(userName),
 		}
