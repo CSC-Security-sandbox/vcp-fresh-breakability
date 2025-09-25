@@ -44,6 +44,7 @@ data:
   METRICS_DB_MAX_OPEN_CONNS: {{$.Values.workerConfig.database.metricsDbMaxConns | quote }}
   METRICS_DB_MAX_IDLE_CONNS: {{$.Values.workerConfig.database.metricsDbMaxIdleConns | quote }}
   METRICS_DB_CONN_MAX_LIFETIME: {{$.Values.workerConfig.database.metricsDbMaxConnLifetime | quote }}
+  METRICS_DB_CLEANUP_ENABLED: {{$.Values.workerConfig.database.metricsDbCleanupEnabled | quote }}
   VLMWORKFLOW_RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.vlmWorkflowRetryMaxAttempts | quote }}
   RUN_MIGRATION_ON_START: {{$.Values.workerConfig.database.runMigrationOnStart | quote }}
   GCP_CONSUMER_MGMT_ENDPOINT_URL: {{$.Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}

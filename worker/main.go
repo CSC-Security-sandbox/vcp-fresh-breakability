@@ -106,14 +106,18 @@ func main() {
 	defer database2.CloseDatabase(dbConn, logger)
 	logger.Info("Database connection established", "connection", dbConn)
 
-	// create database connection
-	telemetryDBConn, err := database2.GetTelemetryDbConnection(ctx, logger)
-	if err != nil {
-		logger.Error("Failed to get telemetry database connection", "error", err.Error())
-		os.Exit(1)
+	var telemetryDBConn metricsdb.Storage
+	metricsDbCleanupEnabled := env.GetBool("METRICS_DB_CLEANUP_ENABLED", false)
+	if metricsDbCleanupEnabled {
+		// create database connection
+		telemetryDBConn, err = database2.GetTelemetryDbConnection(ctx, logger)
+		if err != nil {
+			logger.Error("Failed to get telemetry database connection", "error", err.Error())
+			os.Exit(1)
+		}
+		defer database2.CloseTelemetryDatabase(telemetryDBConn, logger)
+		logger.Info("Telemetry Database connection established", "connection", telemetryDBConn)
 	}
-	defer database2.CloseTelemetryDatabase(telemetryDBConn, logger)
-	logger.Info("Telemetry Database connection established", "connection", telemetryDBConn)
 
 	// Initialize the temporal server client
 	temporalManager := tManagerPkg.TemporalManager{
@@ -331,7 +335,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.HardDeleteResourcesAndAccountWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CleanupHydratedMetricsTableWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CleanupAggregatedUsageTableWorkflow)
-  worker.RegisterWorkflow(backgroundworkflows.SyncVSAAutoTieringWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncVSAAutoTieringWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringPauseResumeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringHotTierAutoResizeWorkflow)
 	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)
