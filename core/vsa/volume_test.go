@@ -29,11 +29,12 @@ func TestCreateVolume_Success(t *testing.T) {
 		volumeName := "testVolume"
 		volSpace := int64(1024)
 		params := CreateVolumeParams{
-			VolumeName: volumeName,
-			SvmName:    "testSVM",
-			Aggregates: []string{"testAggregate"},
-			Size:       volSpace,
-			VolumeType: "rw",
+			VolumeName:        volumeName,
+			SvmName:           "testSVM",
+			Aggregates:        []string{"testAggregate"},
+			Size:              volSpace,
+			VolumeType:        "rw",
+			SnapshotDirectory: true,
 		}
 
 		mockJob := &ontaprest.JobAccepted{
@@ -632,6 +633,7 @@ func TestGetVolume_WhenVolumeIsFound_ThenReturnVolumeResponse(t *testing.T) {
 			SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{
 				Name: nillable.GetStringPtr("none"), // Example snapshot policy
 			},
+			SnapshotDirectoryAccessEnabled: nillable.GetBoolPtr(false), // Add this field
 		},
 	}
 	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
@@ -815,9 +817,10 @@ func TestUpdateVolume(t *testing.T) {
 	rc := &OntapRestProvider{}
 
 	params := UpdateVolumeParams{
-		UUID:               "testUUID",
-		Size:               2048,
-		SnapshotPolicyName: "testSnapshot",
+		UUID:                    "testUUID",
+		Size:                    2048,
+		SnapshotPolicyName:      "testSnapshot",
+		SnapshotDirectoryAccess: nillable.GetBoolPtr(true),
 		TieringPolicy: &TieringPolicy{
 			CoolnessPeriod:            7,
 			CoolAccessRetrievalPolicy: "default",

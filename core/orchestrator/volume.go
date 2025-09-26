@@ -152,14 +152,19 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		SvmID:       svm.ID,
 		Pool:        dbPool,
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			CreationToken:    params.CreationToken,
-			Protocols:        params.Protocols,
-			VendorSubnetID:   params.Network,
-			IsDataProtection: params.IsDataProtection,
-			SnapReserve:      params.SnapReserve,
-			Labels:           params.Labels,
+			CreationToken:     params.CreationToken,
+			Protocols:         params.Protocols,
+			VendorSubnetID:    params.Network,
+			IsDataProtection:  params.IsDataProtection,
+			SnapReserve:       params.SnapReserve,
+			SnapshotDirectory: params.SnapshotDirectory,
+			Labels:            params.Labels,
 		},
 		ClonesSharedBytes: clonesSharedBytes,
+	}
+
+	if utils.IsSanProtocols(params.Protocols) {
+		volumeObj.VolumeAttributes.SnapshotDirectory = false
 	}
 
 	// Check BlockDevices first, then fallback to BlockProperties
@@ -870,6 +875,7 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]string
 		Zone:                  volume.Pool.PoolAttributes.PrimaryZone,
 		UsedBytes:             volume.UsedBytes,
 		SnapReserve:           volume.VolumeAttributes.SnapReserve,
+		SnapshotDirectory:     volume.VolumeAttributes.SnapshotDirectory,
 	}
 	attributes := volume.VolumeAttributes
 	res.VendorSubnetID = attributes.VendorSubnetID
@@ -1328,6 +1334,10 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if params.Labels != nil && dbVolume.VolumeAttributes != nil {
 		dbVolume.VolumeAttributes.Labels = params.Labels
+	}
+
+	if params.SnapshotDirectoryAccess != nil {
+		dbVolume.VolumeAttributes.SnapshotDirectory = *params.SnapshotDirectoryAccess
 	}
 
 	pool, err := se.GetPool(ctx, params.PoolID, dbVolume.AccountID)

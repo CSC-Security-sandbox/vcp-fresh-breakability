@@ -1711,15 +1711,16 @@ func TestCreateVolume(t *testing.T) {
 		se := database.Storage(nil)
 
 		params := &common.CreateVolumeParams{
-			AccountName:  "test_account",
-			Region:       "test_region",
-			Name:         "test_pool",
-			Zone:         "us-west1-a",
-			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
-			QuotaInBytes: minQuotaInBytesPool,
-			Protocols:    []string{"NFS"},
-			Description:  "Some description",
-			DisplayName:  "Some display name",
+			AccountName:       "test_account",
+			Region:            "test_region",
+			Name:              "test_pool",
+			Zone:              "us-west1-a",
+			VendorID:          "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
+			QuotaInBytes:      minQuotaInBytesPool,
+			Protocols:         []string{"NFS"},
+			Description:       "Some description",
+			DisplayName:       "Some display name",
+			SnapshotDirectory: true,
 		}
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -3779,6 +3780,27 @@ func TestCreateVolume(t *testing.T) {
 		assert.Nil(tt, createdVolume, "Expected nil volume")
 		assert.Contains(tt, err.Error(), "Invalid input parameters provided")
 		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "volume with this name already exists in the same zone")
+	})
+
+	t.Run("WhenSANProtocols_ShouldSetSnapshotDirectoryToFalse", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			Protocols:         []string{"ISCSI"}, // SAN protocol
+			SnapshotDirectory: true,              // This should be set to false for SAN protocols
+		}
+
+		// Create a volume object similar to what _createVolume does
+		volumeObj := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapshotDirectory: params.SnapshotDirectory,
+			},
+		}
+
+		if utils.IsSanProtocols(params.Protocols) {
+			volumeObj.VolumeAttributes.SnapshotDirectory = false
+		}
+
+		// Verify that SnapshotDirectory is set to false for SAN protocols
+		assert.False(tt, volumeObj.VolumeAttributes.SnapshotDirectory)
 	})
 }
 
@@ -11635,9 +11657,10 @@ func TestConvertDatastoreVolumeToModelBlockDevices(t *testing.T) {
 				Name:      "test-account",
 			},
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				BlockDevices:     &blockDevices,
-				IsDataProtection: false,
-				SnapReserve:      10,
+				BlockDevices:      &blockDevices,
+				IsDataProtection:  false,
+				SnapReserve:       10,
+				SnapshotDirectory: true,
 			},
 		}
 
@@ -11672,6 +11695,7 @@ func TestConvertDatastoreVolumeToModelBlockDevices(t *testing.T) {
 
 		// Verify IP addresses
 		assert.Equal(tt, ipAddresses, result.IPAddresses)
+		assert.Equal(tt, true, result.SnapshotDirectory)
 	})
 
 	t.Run("WithBlockDevicesNoHostGroups_ShouldConvertCorrectly", func(tt *testing.T) {

@@ -30,6 +30,7 @@ type Volume struct {
 	UsedBytes                   uint64
 	EncryptionType              string
 	SnapReserve                 int64
+	SnapshotDirectory           bool
 	AutoTieringPolicy           *AutoTieringPolicy
 	Labels                      map[string]string
 	FileProperties              *FileProperties

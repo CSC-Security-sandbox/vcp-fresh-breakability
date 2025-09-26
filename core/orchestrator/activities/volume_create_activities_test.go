@@ -92,7 +92,8 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 			Svm:     &datamodel.Svm{Name: "test-svm"},
 			Account: &datamodel.Account{Name: "test-account"},
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				IsDataProtection: false,
+				IsDataProtection:  false,
+				SnapshotDirectory: true,
 			},
 		}
 		node := &models.Node{}
@@ -132,6 +133,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 			AutoTieringEnabled: false,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
+				SnapshotDirectory: false,
 			},
 		}
 
@@ -2356,9 +2358,10 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *
 			Name:      "test-account", // This should be a file protocol account
 		},
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "test-external-uuid",
-			SnapReserve:  10,
-			Protocols:    []string{"NFS"}, // Add this line - NAS protocol for file volume
+			ExternalUUID:      "test-external-uuid",
+			SnapReserve:       10,
+			Protocols:         []string{"NFS"}, // Add this line - NAS protocol for file volume
+			SnapshotDirectory: true,
 			FileProperties: &datamodel.FileProperties{
 				ExportPolicy: &datamodel.ExportPolicy{
 					ExportPolicyName: exportPolicyName,

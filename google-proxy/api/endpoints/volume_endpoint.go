@@ -292,6 +292,10 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		BackupSchedule: backupSchedule,
 	}
 
+	if req.Volume.SnapshotDirectory.IsSet() {
+		param.SnapshotDirectory = req.Volume.SnapshotDirectory.Value
+	}
+
 	if req.VolumeType.IsSet() {
 		if req.VolumeType.Value == volumeTypeSecondary {
 			param.IsDataProtection = true
@@ -768,6 +772,10 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			param.FileProperties.ExportPolicy.ExportRules = append(param.FileProperties.ExportPolicy.ExportRules, exportRule)
 		}
 	}
+	if req.SnapshotDirectory.IsSet() {
+		param.SnapshotDirectoryAccess = &req.SnapshotDirectory.Value
+	}
+
 	return param, nil
 }
 
@@ -904,7 +912,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		ServiceLevel:       gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX),
 		IsDataProtection:   gcpgenserver.NewOptBool(volume.IsDataProtection),
 		EncryptionType:     gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(volume.EncryptionType)),
-		SnapshotDirectory:  gcpgenserver.NewOptBool(false),
+		SnapshotDirectory:  gcpgenserver.NewOptBool(volume.SnapshotDirectory),
 		SnapReserve:        gcpgenserver.NewOptFloat64(float64(volume.SnapReserve)),
 		Zone:               gcpgenserver.NewOptString(volume.Zone),
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now

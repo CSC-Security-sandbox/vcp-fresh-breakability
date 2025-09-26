@@ -138,6 +138,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		SnapshotPolicyName:  snapshotPolicyName,
 		RestoreFromSnapshot: &restoreFromSnapshotParam,
 		SnapReserve:         volume.VolumeAttributes.SnapReserve,
+		SnapshotDirectory:   volume.VolumeAttributes.SnapshotDirectory,
 		TieringPolicy: &vsa.TieringPolicy{
 			CoolAccessTieringPolicy: ontapModels.VolumeInlineTieringPolicyNone,
 		},
@@ -836,6 +837,7 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 	if volume.VolumeAttributes != nil && utils.IsNasProtocols(volume.VolumeAttributes.Protocols) && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
 		preSplitUpdateParams.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
 		preSplitUpdateParams.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
+		preSplitUpdateParams.SnapshotDirectoryAccess = &volume.VolumeAttributes.SnapshotDirectory
 	}
 	err = updateVolume(ctx, provider, preSplitUpdateParams)
 	if err != nil {

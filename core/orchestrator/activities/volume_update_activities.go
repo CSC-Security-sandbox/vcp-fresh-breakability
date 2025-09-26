@@ -50,6 +50,10 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 		}
 	}
 
+	if params.SnapshotDirectoryAccess != nil {
+		updateVolumeParams.SnapshotDirectoryAccess = params.SnapshotDirectoryAccess
+	}
+
 	if params.AutoTieringPolicy != nil {
 		updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
 		if params.AutoTieringPolicy.AutoTieringEnabled {
@@ -91,10 +95,11 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 		isRestore = true
 	}
 	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
-		UUID:       volume.VolumeAttributes.ExternalUUID,
-		VolumeName: volume.Name,
-		SvmName:    volume.Svm.Name,
-		IsRestore:  isRestore,
+		UUID:              volume.VolumeAttributes.ExternalUUID,
+		VolumeName:        volume.Name,
+		SvmName:           volume.Svm.Name,
+		IsRestore:         isRestore,
+		SnapshotDirectory: volume.VolumeAttributes.SnapshotDirectory,
 	})
 
 	if err != nil {

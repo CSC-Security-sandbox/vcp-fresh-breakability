@@ -6828,3 +6828,186 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 		assert.Equal(tt, "READ_WRITE", rule.AccessType)
 	})
 }
+
+func TestPrepareCreateVolumeParams_SnapshotDirectory(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	// Setup file protocol support for NFS tests
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	t.Run("SnapshotDirectory_WhenSetToTrue_ShouldSetParamToTrue", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+				SnapshotDirectory: gcpgenserver.NewOptBool(true), // Set to true
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:       "test-project",
+			Region:            "test-region",
+			Zone:              "test-zone",
+			Name:              "testvolume",
+			VendorID:          "test-vendor-id",
+			CreationToken:     "test-token",
+			PoolID:            "test-pool",
+			QuotaInBytes:      1024,
+			SnapshotDirectory: true, // Should be set to true
+			// ... other expected fields
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected.SnapshotDirectory, result.SnapshotDirectory)
+	})
+
+	t.Run("SnapshotDirectory_WhenSetToFalse_ShouldSetParamToFalse", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+				SnapshotDirectory: gcpgenserver.NewOptBool(false), // Set to false
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:       "test-project",
+			Region:            "test-region",
+			Zone:              "test-zone",
+			Name:              "testvolume",
+			VendorID:          "test-vendor-id",
+			CreationToken:     "test-token",
+			PoolID:            "test-pool",
+			QuotaInBytes:      1024,
+			SnapshotDirectory: false, // Should be set to false
+			// ... other expected fields
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected.SnapshotDirectory, result.SnapshotDirectory)
+	})
+
+	t.Run("SnapshotDirectory_WhenNotSet_ShouldDefaultToFalse", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+				// SnapshotDirectory not set - should default to false
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:       "test-project",
+			Region:            "test-region",
+			Zone:              "test-zone",
+			Name:              "testvolume",
+			VendorID:          "test-vendor-id",
+			CreationToken:     "test-token",
+			PoolID:            "test-pool",
+			QuotaInBytes:      1024,
+			SnapshotDirectory: false, // Should default to false
+			// ... other expected fields
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected.SnapshotDirectory, result.SnapshotDirectory)
+	})
+}
+
+func TestPrepareUpdateVolumeParams_SnapshotDirectory(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-central1",
+		VolumeId:      "test-volume",
+	}
+	region := "us-central1"
+
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	t.Run("SnapshotDirectory_WhenSetToTrue_ShouldSetSnapshotDirectoryAccessToTrue", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			SnapshotDirectory: gcpgenserver.NewOptNilBool(true), // Set to true
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.SnapshotDirectoryAccess)
+		assert.True(tt, *result.SnapshotDirectoryAccess)
+	})
+
+	t.Run("SnapshotDirectory_WhenSetToFalse_ShouldSetSnapshotDirectoryAccessToFalse", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			SnapshotDirectory: gcpgenserver.NewOptNilBool(false), // Set to false
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.SnapshotDirectoryAccess)
+		assert.False(tt, *result.SnapshotDirectoryAccess)
+	})
+
+	t.Run("SnapshotDirectory_WhenNotSet_ShouldNotSetSnapshotDirectoryAccess", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			// SnapshotDirectory not set - should not set SnapshotDirectoryAccess
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Nil(tt, result.SnapshotDirectoryAccess)
+	})
+
+	t.Run("SnapshotDirectory_WhenSetToNil_ShouldNotSetSnapshotDirectoryAccess", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			SnapshotDirectory: gcpgenserver.OptNilBool{}, // Empty OptNilBool (not set)
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Nil(tt, result.SnapshotDirectoryAccess)
+	})
+}

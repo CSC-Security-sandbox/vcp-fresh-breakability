@@ -17,18 +17,19 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		return nil, err
 	}
 	volumeCreateParams := &ontapRest.VolumeCreateParams{
-		Name:                     params.VolumeName,
-		Type:                     params.VolumeType,
-		Size:                     params.Size,
-		Svm:                      params.SvmName,
-		Aggregates:               params.Aggregates,
-		ConstituentsPerAggregate: params.ConstituentsPerAggregate,
-		Style:                    params.Style,
-		SnapshotPolicy:           params.SnapshotPolicyName,
-		SnapshotReservePercent:   params.SnapReserve,
-		ExportPolicy:             params.ExportPolicy,
-		JunctionPath:             params.JunctionPath,
-		TieringSupported:         params.TieringSupported,
+		Name:                           params.VolumeName,
+		Type:                           params.VolumeType,
+		Size:                           params.Size,
+		Svm:                            params.SvmName,
+		Aggregates:                     params.Aggregates,
+		ConstituentsPerAggregate:       params.ConstituentsPerAggregate,
+		Style:                          params.Style,
+		SnapshotPolicy:                 params.SnapshotPolicyName,
+		SnapshotReservePercent:         params.SnapReserve,
+		SnapshotDirectoryAccessEnabled: params.SnapshotDirectory,
+		ExportPolicy:                   params.ExportPolicy,
+		JunctionPath:                   params.JunctionPath,
+		TieringSupported:               params.TieringSupported,
 	}
 	if params.RestoreFromSnapshot != nil && params.RestoreFromSnapshot.SnapshotUUID != "" {
 		volumeCreateParams.RestoreFromSnapshot = &ontapRest.RestoreFromSnapshotParams{
@@ -190,11 +191,12 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		return nil, err
 	}
 	vol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
-		UUID:    params.UUID,
-		Name:    params.VolumeName,
-		SvmName: &params.SvmName,
+		UUID:                           params.UUID,
+		Name:                           params.VolumeName,
+		SvmName:                        &params.SvmName,
+		SnapshotDirectoryAccessEnabled: &params.SnapshotDirectory,
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"uuid", "name", "space.*", "state", "snapshot_policy.name", "type"},
+			Fields: []string{"uuid", "name", "space.*", "state", "snapshot_policy.name", "type", "snapshot_directory_access_enabled"},
 		},
 	})
 	if err != nil {
@@ -224,8 +226,9 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		State:          *vol.State,
 		UsedBytes:      usedBytes,
 		// by default, volume will always have none as the snapshot policy
-		SnapshotPolicyName: *vol.SnapshotPolicy.Name,
-		Type:               volType,
+		SnapshotPolicyName:             *vol.SnapshotPolicy.Name,
+		Type:                           volType,
+		SnapshotDirectoryAccessEnabled: *vol.SnapshotDirectoryAccessEnabled,
 	}
 	if vol.Space.SizeAvailableForSnapshots != nil {
 		res.SnapReserve = *vol.Space.SizeAvailableForSnapshots
@@ -309,6 +312,9 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 	}
 	if params.JunctionPath != nil {
 		volumeModifyParams.Path = params.JunctionPath
+	}
+	if params.SnapshotDirectoryAccess != nil {
+		volumeModifyParams.SnapshotDirectoryAccessEnabled = params.SnapshotDirectoryAccess
 	}
 	success, job, err := client.Storage().VolumeModify(volumeModifyParams)
 	if err != nil {

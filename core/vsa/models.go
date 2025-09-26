@@ -62,15 +62,16 @@ type ProviderResponse struct {
 
 type VolumeResponse struct {
 	ProviderResponse
-	AvailableSpace     int64
-	Size               int64
-	State              string
-	SnapshotPolicyName string
-	SnapReserve        int64
-	UsedBytes          int64
-	Type               string
-	AFSSize            int64
-	MetadataSize       int64
+	AvailableSpace                 int64
+	Size                           int64
+	State                          string
+	SnapshotPolicyName             string
+	SnapReserve                    int64
+	UsedBytes                      int64
+	Type                           string
+	AFSSize                        int64
+	MetadataSize                   int64
+	SnapshotDirectoryAccessEnabled bool
 	Encryption
 }
 
@@ -148,6 +149,7 @@ type CreateVolumeParams struct {
 	// Reference to a snapshot for restore/clone
 	RestoreFromSnapshot *RestoreFromSnapshotParams // Optional: parameters for restoring from a snapshot
 	SnapReserve         int64
+	SnapshotDirectory   bool
 	TieringPolicy       *TieringPolicy
 	ExportPolicy        *string
 	Protocol            string
@@ -200,18 +202,19 @@ type TieringPolicy struct {
 }
 
 type UpdateVolumeParams struct {
-	UUID               string
-	VolumeName         string
-	SvmName            string
-	AggregateName      string
-	Size               int64
-	SnapshotPolicyName string
-	InitiateSplit      bool // Indicates whether to initiate a split for volume restore or clone
-	TieringPolicy      *TieringPolicy
-	SnapReserve        *int64
-	EncryptionEnable   bool
-	JunctionPath       *string
-	ExportPolicy       *string
+	UUID                    string
+	VolumeName              string
+	SvmName                 string
+	AggregateName           string
+	Size                    int64
+	SnapshotPolicyName      string
+	InitiateSplit           bool // Indicates whether to initiate a split for volume restore or clone
+	TieringPolicy           *TieringPolicy
+	SnapReserve             *int64
+	EncryptionEnable        bool
+	JunctionPath            *string
+	ExportPolicy            *string
+	SnapshotDirectoryAccess *bool
 }
 
 // RevertVolumeParams describes parameters supplied to Provider.RevertVolume
@@ -224,10 +227,11 @@ type RevertVolumeParams struct {
 }
 
 type GetVolumeParams struct {
-	UUID       string
-	VolumeName string
-	SvmName    string
-	IsRestore  bool
+	UUID              string
+	VolumeName        string
+	SvmName           string
+	IsRestore         bool
+	SnapshotDirectory bool
 }
 
 type IgroupCreateParams struct {

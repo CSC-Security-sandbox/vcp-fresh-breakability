@@ -206,6 +206,7 @@ type VolumeAttributes struct {
 	IsDataProtection   bool             `json:"is_data_protection"`
 	Mounted            bool             `json:"mounted"`
 	SnapReserve        int64            `json:"snap_reserve"`
+	SnapshotDirectory  bool             `json:"snapshot_directory"`
 	Labels             *JSONB           `json:"labels"`
 	RestoredBackupID   string           `json:"restored_backup_id"`
 	RestoredBackupPath string           `json:"restored_backup_path"`

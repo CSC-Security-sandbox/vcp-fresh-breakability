@@ -1516,10 +1516,11 @@ type Flexcache struct {
 // VolumeGetParams is the input param struct for storageClient.VolumeGet
 type VolumeGetParams struct {
 	BaseParams
-	UUID        string
-	Name        string
-	SvmName     *string
-	SnapReserve *int64
+	UUID                           string
+	Name                           string
+	SvmName                        *string
+	SnapReserve                    *int64
+	SnapshotDirectoryAccessEnabled *bool
 }
 
 func volumeGetParamsToONTAP(params *VolumeGetParams) *storage.VolumeGetParams {
@@ -2280,6 +2281,8 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		},
 		ConstituentsPerAggregate: params.ConstituentsPerAggregate,
 	})
+
+	otParams.Info.SnapshotDirectoryAccessEnabled = &params.SnapshotDirectoryAccessEnabled
 
 	for _, aggregate := range params.Aggregates {
 		otParams.Info.VolumeInlineAggregates = append(otParams.Info.VolumeInlineAggregates,

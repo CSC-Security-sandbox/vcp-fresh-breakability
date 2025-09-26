@@ -3174,3 +3174,52 @@ func TestUpdateLun_WithSnapReserveLogic_SizeUnchanged(t *testing.T) {
 	assert.Equal(t, expectedSize, result.Size)
 	mockProvider.AssertExpectations(t)
 }
+
+func TestUpdateVolumeInONTAP_WithSnapshotDirectoryAccess_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Create test volume
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name: "default-snapshot-policy",
+		},
+	}
+
+	// Create test params with SnapshotDirectoryAccess set
+	snapshotDirectoryAccess := true
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes:            1024,
+		SnapshotDirectoryAccess: &snapshotDirectoryAccess,
+		// Add SnapshotPolicy to params - this is what the code actually checks
+		SnapshotPolicy: &models.SnapshotPolicy{
+			Name: "default-snapshot-policy",
+		},
+	}
+
+	node := &models.Node{}
+
+	// Mock the UpdateVolume call with the correct parameters
+	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
+		UUID:                    volume.VolumeAttributes.ExternalUUID,
+		Size:                    params.QuotaInBytes,
+		SnapshotPolicyName:      params.SnapshotPolicy.Name, // Use params.SnapshotPolicy.Name
+		SnapshotDirectoryAccess: params.SnapshotDirectoryAccess,
+	}).Return(nil)
+
+	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}

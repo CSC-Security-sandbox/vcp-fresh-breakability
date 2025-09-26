@@ -105,6 +105,7 @@ type CreateVolumeParams struct {
 	Labels                      *datamodel.JSONB
 	CacheParameters             *models.CacheParameters
 	LargeVolumeConstituentCount int32
+	SnapshotDirectory           bool
 }
 
 type SnapmirrorRelationshipParams struct {
@@ -141,27 +142,28 @@ type BlockDevice struct {
 
 // UpdateVolumeParams describes parameters supplied to UpdateVolume
 type UpdateVolumeParams struct {
-	AccountName       string
-	Region            string
-	Name              string
-	Description       string
-	Network           string
-	PoolID            string
-	VolumeId          string
-	VendorID          string
-	QuotaInBytes      int64
-	Protocols         []string
-	Labels            *datamodel.JSONB
-	SnapReserve       *int64
-	BlockProperties   *BlockPropertiesRequest
-	BlockDevices      []*BlockDevice
-	SnapshotPolicy    *models.SnapshotPolicy
-	DataProtection    *models.UpdateDataProtection
-	InitiateSplit     bool
-	AutoTieringPolicy *AutoTieringPolicy
-	FileProperties    *models.FileProperties
-	BackupSchedule    string
-	CorrelationID     string
+	AccountName             string
+	Region                  string
+	Name                    string
+	Description             string
+	Network                 string
+	PoolID                  string
+	VolumeId                string
+	VendorID                string
+	QuotaInBytes            int64
+	Protocols               []string
+	Labels                  *datamodel.JSONB
+	SnapReserve             *int64
+	BlockProperties         *BlockPropertiesRequest
+	BlockDevices            []*BlockDevice
+	SnapshotPolicy          *models.SnapshotPolicy
+	DataProtection          *models.UpdateDataProtection
+	InitiateSplit           bool
+	AutoTieringPolicy       *AutoTieringPolicy
+	FileProperties          *models.FileProperties
+	BackupSchedule          string
+	CorrelationID           string
+	SnapshotDirectoryAccess *bool
 }
 
 type CreateLunMapParams struct {
