@@ -1619,7 +1619,7 @@ func TestCreatingSnapshotActivity_Success(t *testing.T) {
 		Volume:             volume,
 		Account:            volume.Account,
 		IsAppConsistent:    false,
-		Type:               "backup-adhoc",
+		Type:               "backup",
 		SnapshotAttributes: &datamodel.SnapshotAttributes{},
 	}
 
@@ -1629,7 +1629,7 @@ func TestCreatingSnapshotActivity_Success(t *testing.T) {
 			s.AccountID == volume.AccountID &&
 			s.Description == "VCP-Backup" &&
 			s.IsAppConsistent == false &&
-			s.Type == "backup-adhoc"
+			s.Type == "backup"
 	})).Return(expectedDbSnapshot, nil)
 
 	// Act
@@ -3637,23 +3637,23 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_MultipleSnapshots(t *tes
 	snapshots := []*datamodel.Snapshot{
 		{
 			BaseModel: datamodel.BaseModel{ID: 3, UUID: "snapshot-uuid-3"},
-			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-3"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
-			Name:      "backup-adhoc-older1", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older1", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
-			Name:      "backup-adhoc-older2", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older2", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
 		},
 	}
 
 	// Mock database call to get snapshots
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Mock successful deletion from database for older snapshots
@@ -3700,12 +3700,12 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_SingleSnapshot(t *testin
 	snapshots := []*datamodel.Snapshot{
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
-			Name:      "backup-adhoc-only", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-only", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
 		},
 	}
 
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Execute the activity
@@ -3731,7 +3731,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_NoSnapshots(t *testing.T
 	node := &models.Node{EndpointAddress: "test-node-address"}
 
 	// Return empty snapshot list
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return([]*datamodel.Snapshot{}, nil)
 
 	// Execute the activity
@@ -3759,17 +3759,17 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_OntapError_ContinueProcessing(t 
 	snapshots := []*datamodel.Snapshot{
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
-			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
-			Name:      "backup-adhoc-older", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
 		},
 	}
 
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Mock hyperscaler provider
@@ -3817,17 +3817,17 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_SnapshotAttributesNil(t *testing
 	snapshots := []*datamodel.Snapshot{
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
-			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
-			Name:      "backup-adhoc-older", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: nil, // Nil attributes
 		},
 	}
 
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Mock database deletion (should skip ONTAP deletion due to nil attributes)
@@ -3859,17 +3859,17 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_EmptyExternalUUID(t *testing.T) 
 	snapshots := []*datamodel.Snapshot{
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
-			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
-			Name:      "backup-adhoc-older", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: ""}, // Empty external UUID
 		},
 	}
 
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Mock database deletion (should skip ONTAP deletion due to empty ExternalUUID)
@@ -3901,17 +3901,17 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_MarkSnapshotAsErrorFails(t *test
 	snapshots := []*datamodel.Snapshot{
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
-			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
-			Name:      "backup-adhoc-older", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
 		},
 	}
 
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Mock hyperscaler provider
@@ -3956,33 +3956,33 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Integration_FullWorkflow(t *test
 	snapshots := []*datamodel.Snapshot{
 		{
 			BaseModel: datamodel.BaseModel{ID: 5, UUID: "snapshot-uuid-5"},
-			Name:      "backup-adhoc-latest", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-5"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 4, UUID: "snapshot-uuid-4"},
-			Name:      "backup-adhoc-older1", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older1", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-4"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 3, UUID: "snapshot-uuid-3"},
-			Name:      "backup-adhoc-older2", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older2", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-3"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
-			Name:      "backup-adhoc-older3", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older3", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
 		},
 		// Snapshot with nil attributes
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
-			Name:      "backup-adhoc-older4", Type: "backup-adhoc", VolumeID: 1, State: models.LifeCycleStateREADY,
+			Name:      "backup-adhoc-older4", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: nil,
 		},
 	}
 
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Mock hyperscaler provider
@@ -4054,7 +4054,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError(t *testing
 		},
 	}
 
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Mock hyperscaler provider
@@ -4123,7 +4123,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError_MarkAsErro
 		},
 	}
 
-	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup-adhoc", int64(1)).
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
 		Return(snapshots, nil)
 
 	// Mock hyperscaler provider
@@ -4153,7 +4153,6 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError_MarkAsErro
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
-
 
 func TestDeleteBackupSnapshotFromDB(t *testing.T) {
 	t.Run("WhenUseExistingSnapshotIsFalse_ThenDeleteSnapshot", func(t *testing.T) {

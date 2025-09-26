@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	SnapshotTypeScheduled       = "scheduled"
-	SnapshotTypeAdHoc           = "ad-hoc"
-	SnapshotTypeBackupScheduled = "backup-scheduled"
+	SnapshotTypeScheduled = "scheduled"
+	SnapshotTypeAdHoc     = "ad-hoc"
+	SnapshotTypeBackup    = "backup"
 
 	FlexGroupConstituent = "flexgroup_constituent"
 )

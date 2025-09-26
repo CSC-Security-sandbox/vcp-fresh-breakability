@@ -1631,7 +1631,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			Type:      "backup-adhoc", // Set snapshot type to backup-adhoc
+			Type:      "backup", // Set snapshot type to backup
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {

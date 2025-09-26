@@ -204,7 +204,7 @@ func (b *BackupActivity) CreatingSnapshotActivity(ctx context.Context, backupAct
 		Volume:             backupActivitiesContext.BackupWorkflowInit.Volume,
 		Account:            backupActivitiesContext.BackupWorkflowInit.Volume.Account,
 		IsAppConsistent:    false,
-		Type:               SnapshotTypeBackupAdhoc,
+		Type:               SnapshotTypeBackup,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{},
 	}
 	var dbSnapshot *datamodel.Snapshot
@@ -893,7 +893,7 @@ func (a BackupActivity) CleanupOldAdhocBackupSnapshotsActivity(ctx context.Conte
 	logger := util.GetLogger(ctx)
 
 	// Get all adhoc-backup snapshots for this volume, ordered by creation time (newest first)
-	snapshots, err := a.SE.GetSnapshotsByTypeAndVolumeID(ctx, SnapshotTypeBackupAdhoc, volume.ID)
+	snapshots, err := a.SE.GetSnapshotsByTypeAndVolumeID(ctx, SnapshotTypeBackup, volume.ID)
 	if err != nil {
 		logger.Errorf("Failed to get adhoc-backup snapshots for volume %s: %v", volume.Name, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)

@@ -494,7 +494,7 @@ func TestCreateBackupSnapshotInDB(t *testing.T) {
 		assert.Equal(t, volume, passedSnapshot.Volume)
 		assert.Equal(t, volume.Account, passedSnapshot.Account)
 		assert.False(t, passedSnapshot.IsAppConsistent)
-		assert.Equal(t, SnapshotTypeBackupScheduled, passedSnapshot.Type)
+		assert.Equal(t, SnapshotTypeBackup, passedSnapshot.Type)
 		assert.NotNil(t, passedSnapshot.SnapshotAttributes)
 
 		mockStorage.AssertExpectations(t)

@@ -602,7 +602,7 @@ func TestProcessSnapshotSync(t *testing.T) {
 		{
 			ExternalUUID:       "test-snapshot-uuid-2",
 			ExternalVolumeUUID: "test-volume-uuid-1",
-			Type:               SnapshotTypeBackupScheduled,
+			Type:               SnapshotTypeBackup,
 		},
 		// Adds entry into newSSMap
 		{
@@ -643,7 +643,7 @@ func TestProcessSnapshotSync(t *testing.T) {
 		// Adds an entry into deletedIDs
 		{
 			BaseModel: datamodel.BaseModel{ID: 3},
-			Type:      SnapshotTypeBackupScheduled,
+			Type:      SnapshotTypeBackup,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "test-snapshot-uuid-3",
 			},
@@ -657,7 +657,7 @@ func TestProcessSnapshotSync(t *testing.T) {
 		// Does not add entry into deletedIDs (volume doesn't exist on ONTAP)
 		{
 			BaseModel: datamodel.BaseModel{ID: 6, UUID: "test-snapshot-uuid-6"},
-			Type:      SnapshotTypeBackupScheduled,
+			Type:      SnapshotTypeBackup,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "test-snapshot-uuid-6",
 			},

@@ -405,7 +405,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	if snapshot.Type == activities.SnapshotTypeBackupAdhoc {
+	if snapshot.Type == activities.SnapshotTypeBackup {
 		return nil, "", customerrors.NewConflictErr("Cannot delete a snapshot that was generated for backups. This snapshot will be automatically deleted when the next backup is created.")
 	}
 

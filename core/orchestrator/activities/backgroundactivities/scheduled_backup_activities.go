@@ -149,7 +149,7 @@ func (j *ScheduledBackupActivity) CreateBackupSnapshotInDB(ctx context.Context, 
 		Volume:             volume,
 		Account:            volume.Account,
 		IsAppConsistent:    false,
-		Type:               SnapshotTypeBackupScheduled,
+		Type:               SnapshotTypeBackup,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{},
 	}
 	dbSnapshot, err := se.CreatingSnapshot(ctx, snapshot)
