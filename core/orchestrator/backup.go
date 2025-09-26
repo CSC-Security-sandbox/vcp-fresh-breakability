@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -361,6 +362,20 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 			return nil, "", err
 		}
 		return nil, "", nil
+	}
+
+	if backup.State == models.LifeCycleStateDeleting {
+		filter := utils2.CreateFilterWithConditions(
+			utils2.NewFilterCondition("resource_name", "=", backup.UUID),
+			utils2.NewFilterCondition("state", "in", []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}),
+		)
+		jobs, err := se.GetJobsWithCondition(ctx, *filter)
+		if err != nil {
+			return nil, "", err
+		}
+		if len(jobs) != 0 {
+			return nil, jobs[0].UUID, nil
+		}
 	}
 
 	err = validateBackupDeleteParams(ctx, se, params)

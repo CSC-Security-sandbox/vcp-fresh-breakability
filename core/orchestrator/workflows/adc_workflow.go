@@ -157,6 +157,10 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 		return nil, ConvertToVSAError(err)
 	}
 
+	if backup.Attributes.EndpointUUID == "" || bucketDetails.BucketName == "" {
+		return nil, ConvertToVSAError(fmt.Errorf("endpoint UUID or bucket name is not available"))
+	}
+
 	// Step 1: Create service account for ADC operations
 	// Generate a short service account ID to comply with Google's 30-character limit
 	serviceAccountID := fmt.Sprintf("adc-sa-%s", saTimestamp)

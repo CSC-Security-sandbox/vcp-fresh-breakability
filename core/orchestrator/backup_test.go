@@ -462,6 +462,104 @@ func TestDeleteBackup(t *testing.T) {
 		_, _, err := deleteBackup(ctx, store, temporal, params)
 		assert.EqualError(t, err, "backup not found")
 	})
+	t.Run("onBackupStateDeletingWithJobs", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: params.BackupUUID},
+			State:     models.LifeCycleStateDeleting,
+		}
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+
+		// Mock GetJobsWithCondition to return jobs
+		mockJobs := []*datamodel.Job{
+			{BaseModel: datamodel.BaseModel{UUID: "job-uuid-1"}, State: string(models.JobsStateNEW)},
+			{BaseModel: datamodel.BaseModel{UUID: "job-uuid-2"}, State: string(models.JobsStatePROCESSING)},
+		}
+		store.On("GetJobsWithCondition", ctx, mock.Anything).Return(mockJobs, nil)
+
+		_, jobUUID, err := deleteBackup(ctx, store, temporal, params)
+		assert.NoError(t, err)
+		assert.Equal(t, "job-uuid-1", jobUUID) // Should return first job
+	})
+	t.Run("onBackupStateDeletingWithNoJobs", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: params.BackupUUID},
+			State:     models.LifeCycleStateDeleting,
+		}
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+
+		// Mock GetJobsWithCondition to return empty jobs
+		store.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{}, nil)
+
+		// Should continue to normal flow since no jobs found
+		validateBackupDeleteParams = func(ctx context.Context, se database.Storage, params *common.DeleteBackupParams) error {
+			return nil
+		}
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", "RESTORING"}}
+		store.On("ListVolumes", ctx, conditions).Return(nil, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		store.On("UpdateBackupState", ctx, mock.Anything).Return(backup, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		defer func() { validateBackupDeleteParams = _validateBackupDeleteParams }()
+
+		_, jobUUID, err := deleteBackup(ctx, store, temporal, params)
+		assert.NoError(t, err)
+		assert.Equal(t, "job-uuid", jobUUID)
+	})
+	t.Run("onBackupStateDeletingWithGetJobsError", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: params.BackupUUID},
+			State:     models.LifeCycleStateDeleting,
+		}
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+
+		// Mock GetJobsWithCondition to return error
+		store.On("GetJobsWithCondition", ctx, mock.Anything).Return(nil, errors.New("database error"))
+
+		_, _, err := deleteBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "database error")
+	})
 	t.Run("onJobCreationError", func(t *testing.T) {
 		ctx := context.Background()
 		store := database.NewMockStorage(t)

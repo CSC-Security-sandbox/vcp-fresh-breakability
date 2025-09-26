@@ -257,6 +257,9 @@ func (a *ADCActivity) InitialDeleteRequestWithCloudRun(ctx context.Context, adcP
 
 	// Check for error status codes
 	if resp.StatusCode >= 400 {
+		if resp.StatusCode == 404 {
+			return &common.ADCResponse{StatusCode: resp.StatusCode}, nil
+		}
 		logger.Errorf("ADC delete request failed with status code: %d", resp.StatusCode)
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("ADC delete request failed with status code: %d", resp.StatusCode))
 	}

@@ -897,6 +897,36 @@ func TestInitialDeleteRequestWithCloudRun(t *testing.T) {
 		assert.NotNil(t, err)
 		assert.Nil(t, response)
 	})
+	t.Run("On404_NotFound", func(t *testing.T) {
+		// Create a test server that returns 404 Not Found
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "DELETE", r.Method)
+			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+			assert.Equal(t, "application/hal+json", r.Header.Get("Accept"))
+			assert.Contains(t, r.Header.Get("Authorization"), "Bearer ")
+
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		ctx := setupTestContext()
+		adcParams := createTestADCParams()
+		serviceURL := server.URL
+
+		// Mock the identity token generation
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		activity := activities.ADCActivity{}
+		response, err := activity.InitialDeleteRequestWithCloudRun(ctx, adcParams, serviceURL)
+		assert.Nil(t, err)
+		assert.NotNil(t, response)
+		assert.Equal(t, http.StatusNotFound, response.StatusCode)
+		assert.Equal(t, "", response.RedirectURL) // Should be empty for 404
+	})
 }
 
 func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
