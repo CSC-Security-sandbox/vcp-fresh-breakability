@@ -25,7 +25,7 @@ spec:
       labels:
         app: {{ $name }}-{{ $version }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ $.Values.serviceAccount.name }}
       {{- if and .Values.podAffinity.enabled (eq .Values.global.environment "gcp") }}
       topologySpreadConstraints:
         - maxSkew: 1
