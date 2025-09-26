@@ -2380,7 +2380,24 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *
 
 	// Mock the provider
 	mockProvider := new(vsa.MockProvider)
-	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock first UpdateVolume call (SnapReserve = 0)
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.SnapReserve != nil && *params.SnapReserve == 0 &&
+			params.Size == 0 &&
+			params.SnapshotPolicyName == ""
+	})).Return(nil)
+
+	// Mock second UpdateVolume call (with size, snapshot policy, export policy, junction path)
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.Size == volume.SizeInBytes &&
+			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
+			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.ExportPolicy != nil && *params.ExportPolicy == exportPolicyName &&
+			params.JunctionPath != nil && *params.JunctionPath == junctionPath
+	})).Return(nil)
 
 	// Mock GetVolume call that happens after UpdateVolume
 	expectedVolumeResponse := &vsa.VolumeResponse{
@@ -2411,20 +2428,7 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *
 	assert.NoError(t, err)
 
 	// Verify that UpdateVolume was called twice - once for SnapReserve and once for other parameters
-	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
-			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
-			params.Size == 0 &&
-			params.SnapshotPolicyName == ""
-	}))
-
-	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
-			params.Size == volume.SizeInBytes &&
-			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
-			params.ExportPolicy != nil && *params.ExportPolicy == exportPolicyName &&
-			params.JunctionPath != nil && *params.JunctionPath == junctionPath
-	}))
+	// The mock setup above already handles the expectations
 
 	mockProvider.AssertExpectations(t)
 }
@@ -2468,7 +2472,24 @@ func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
 
 	// Mock the provider
 	mockProvider := new(vsa.MockProvider)
-	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock first UpdateVolume call (SnapReserve = 0)
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.SnapReserve != nil && *params.SnapReserve == 0 &&
+			params.Size == 0 &&
+			params.SnapshotPolicyName == ""
+	})).Return(nil)
+
+	// Mock second UpdateVolume call (with size, snapshot policy, no export policy or junction path for block volume)
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.Size == volume.SizeInBytes &&
+			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
+			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.ExportPolicy == nil &&
+			params.JunctionPath == nil
+	})).Return(nil)
 
 	// Mock GetVolume call that happens after UpdateVolume
 	expectedVolumeResponse := &vsa.VolumeResponse{
@@ -2499,20 +2520,7 @@ func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify that UpdateVolume was called twice - once for SnapReserve and once for other parameters (without ExportPolicy and JunctionPath)
-	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
-			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
-			params.Size == 0 &&
-			params.SnapshotPolicyName == ""
-	}))
-
-	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
-			params.Size == volume.SizeInBytes &&
-			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
-			params.ExportPolicy == nil &&
-			params.JunctionPath == nil
-	}))
+	// The mock setup above already handles the expectations
 
 	mockProvider.AssertExpectations(t)
 }
@@ -2558,7 +2566,24 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t
 	}
 	// Mock the provider
 	mockProvider := new(vsa.MockProvider)
-	mockProvider.On("UpdateVolume", mock.AnythingOfType("vsa.UpdateVolumeParams")).Return(nil)
+
+	// Mock first UpdateVolume call (SnapReserve = 0)
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.SnapReserve != nil && *params.SnapReserve == 0 &&
+			params.Size == 0 &&
+			params.SnapshotPolicyName == ""
+	})).Return(nil)
+
+	// Mock second UpdateVolume call (with size, snapshot policy, no export policy or junction path for file volume without export policy)
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.Size == volume.SizeInBytes &&
+			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
+			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
+			params.ExportPolicy == nil &&
+			params.JunctionPath == nil
+	})).Return(nil)
 
 	// Mock GetVolume call that happens after UpdateVolume
 	expectedVolumeResponse := &vsa.VolumeResponse{
@@ -2589,20 +2614,7 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t
 	assert.NoError(t, err)
 
 	// Verify that UpdateVolume was called twice - once for SnapReserve and once for other parameters (without ExportPolicy and JunctionPath)
-	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
-			params.SnapReserve != nil && *params.SnapReserve == volume.VolumeAttributes.SnapReserve &&
-			params.Size == 0 &&
-			params.SnapshotPolicyName == ""
-	}))
-
-	mockProvider.AssertCalled(t, "UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
-		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
-			params.Size == volume.SizeInBytes &&
-			params.SnapshotPolicyName == volume.SnapshotPolicy.Name &&
-			params.ExportPolicy == nil &&
-			params.JunctionPath == nil
-	}))
+	// The mock setup above already handles the expectations
 
 	mockProvider.AssertExpectations(t)
 }

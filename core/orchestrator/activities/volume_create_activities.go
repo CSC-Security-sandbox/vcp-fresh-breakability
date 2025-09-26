@@ -817,12 +817,11 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	// Update snapReserve before updating the size. If size is updated first, the volume will retain the parent volume's snapReserve,
-	// which can cause a failure with the error: "Selected volume size is too small to hold the current volume data."
-	// This ensures the new snapReserve is applied before size validation.
+	// By initializing snapReserve to 0, we avoid inheriting the parent's snapReserve and can safely update it to the customer-specified value after cloning.
+	// Reason: ONTAP restricts increasing snapReserve beyond the parent's availableSpace if the parent volume's available space is fully consumed.
 	err = updateVolume(ctx, provider, vsa.UpdateVolumeParams{
 		UUID:        volume.VolumeAttributes.ExternalUUID,
-		SnapReserve: &volume.VolumeAttributes.SnapReserve,
+		SnapReserve: nillable.GetInt64Ptr(0),
 	})
 	if err != nil {
 		logger.Errorf("Failed to update snapReserve of cloned volume %s in ontap before split: %v", volume.Name, err)
@@ -832,6 +831,7 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 		UUID:               volume.VolumeAttributes.ExternalUUID,
 		Size:               volume.SizeInBytes,
 		SnapshotPolicyName: volume.SnapshotPolicy.Name,
+		SnapReserve:        &volume.VolumeAttributes.SnapReserve,
 	}
 	if volume.VolumeAttributes != nil && utils.IsNasProtocols(volume.VolumeAttributes.Protocols) && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
 		preSplitUpdateParams.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
