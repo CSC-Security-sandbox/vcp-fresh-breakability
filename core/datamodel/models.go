@@ -705,6 +705,7 @@ type HarvestConfig struct {
 	SECRET_PROJECT      string
 	TENANT_PROJECT      string
 	DEPLOYMENT_NAME     string
+	POOL_NAME           string
 }
 
 // NodeNodeGroupMap represents the mapping between a node and a node group
@@ -745,6 +746,7 @@ type NodeGroupAssignmentParams struct {
 	CustomerProject  string
 	TenantProject    string // Adding this for future extensibility
 	DeploymentName   string
+	PoolName         string
 }
 
 type AutoTieringConfig struct {

@@ -464,6 +464,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			PoolUUID:          dbPool.UUID,
 			AccountID:         dbPool.AccountID,
 			DeploymentName:    dbPool.DeploymentName,
+			PoolName:          dbPool.Name,
 		}
 
 		ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
