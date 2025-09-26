@@ -1089,7 +1089,8 @@ func TestCalculateLogicalBytesAndOptimizedBytes(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "GET", r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-			assert.Equal(t, "application/json", r.Header.Get("Accept"))
+			assert.Equal(t, "application/hal+json", r.Header.Get("Accept"))
+			assert.Contains(t, r.Header.Get("Authorization"), "Bearer ")
 			assert.Equal(t, "test-access-key", r.Header.Get("access_key"))
 			assert.Equal(t, "test-secret-key", r.Header.Get("secret_password"))
 			assert.Equal(t, "443", r.Header.Get("port"))
@@ -1113,6 +1114,13 @@ func TestCalculateLogicalBytesAndOptimizedBytes(t *testing.T) {
 		ctx := setupTestContext()
 		adcParams := createTestADCParams()
 		serviceURL := server.URL
+
+		// Mock the identity token generation
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
 
 		activity := activities.ADCActivity{}
 		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
@@ -1139,11 +1147,36 @@ func TestCalculateLogicalBytesAndOptimizedBytes(t *testing.T) {
 		adcParams := createTestADCParams()
 		serviceURL := server.URL
 
+		// Mock the identity token generation
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
 		activity := activities.ADCActivity{}
 		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
 		assert.NotNil(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "An internal error occurred.")
+	})
+
+	t.Run("OnIdentityTokenFailure", func(t *testing.T) {
+		ctx := setupTestContext()
+		adcParams := createTestADCParams()
+		serviceURL := "http://test.com"
+
+		// Mock the identity token generation to fail
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "", fmt.Errorf("failed to get token")
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		activity := activities.ADCActivity{}
+		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
+		assert.NotNil(t, err)
+		assert.Nil(t, result)
 	})
 
 	t.Run("OnInvalidADCParams", func(t *testing.T) {
@@ -1166,6 +1199,13 @@ func TestCalculateLogicalBytesAndOptimizedBytes(t *testing.T) {
 		adcParams := createTestADCParams()
 		serviceURL := "http://invalid-url-that-does-not-exist"
 
+		// Mock the identity token generation
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
 		activity := activities.ADCActivity{}
 		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
 		assert.NotNil(t, err)
@@ -1186,6 +1226,13 @@ func TestCalculateLogicalBytesAndOptimizedBytes(t *testing.T) {
 		adcParams := createTestADCParams()
 		serviceURL := server.URL
 
+		// Mock the identity token generation
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
 		activity := activities.ADCActivity{}
 		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
 		assert.NotNil(t, err)
@@ -1205,6 +1252,13 @@ func TestCalculateLogicalBytesAndOptimizedBytes(t *testing.T) {
 		ctx := setupTestContext()
 		adcParams := createTestADCParams()
 		serviceURL := server.URL
+
+		// Mock the identity token generation
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
 
 		activity := activities.ADCActivity{}
 		result, err := activity.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
@@ -1329,6 +1383,13 @@ func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Mock the identity token generation
+	originalGetStandardAuthToken := activities.GetStandardAuthToken
+	activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+		return "test-token", nil
+	}
+	defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
 	activity := activities.ADCActivity{SE: mockStorage}
 
 	// Execute the function
@@ -1402,6 +1463,13 @@ func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Mock the identity token generation
+	originalGetStandardAuthToken := activities.GetStandardAuthToken
+	activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+		return "test-token", nil
+	}
+	defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
 	activity := activities.ADCActivity{SE: mockStorage}
 
 	// Execute the function
@@ -1434,6 +1502,13 @@ func TestFetchLogicalSizeAndUpdateActivity_HTTPError(t *testing.T) {
 	// Create mock storage
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.ADCActivity{SE: mockStorage}
+
+	// Mock the identity token generation
+	originalGetStandardAuthToken := activities.GetStandardAuthToken
+	activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+		return "test-token", nil
+	}
+	defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
 
 	// Use an invalid URL to trigger HTTP error
 	invalidURL := "https://invalid-url-that-will-fail.com"

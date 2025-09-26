@@ -417,6 +417,18 @@ func (a *ADCActivity) CalculateLogicalBytesAndOptimizedBytes(ctx context.Context
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to create ADC request: %w", err))
 	}
 
+	// Generate identity token for the Cloud Run service
+	identityToken, err := GetStandardAuthToken(ctx, serviceURL)
+	if err != nil {
+		logger.Errorf("Failed to get identity token: %v", err)
+		return nil, err
+	}
+
+	// Add proper headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/hal+json")
+	req.Header.Set("Authorization", "Bearer "+identityToken)
+
 	// Make HTTP request to ADC service
 	resp, err := restHTTPClient.Do(req)
 	if err != nil {
