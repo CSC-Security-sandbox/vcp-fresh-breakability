@@ -181,6 +181,7 @@ data:
   GIN_METRICS_PORT: {{$.Values.workerConfig.gitMetrics1pPort | quote }}
   GIN_METRICS_PROTOCOL: {{$.Values.workerConfig.ginMetrics1pProtocol | quote }}
   GIN_LOGGING_FEATURE: {{$.Values.workerConfig.ginLoggingFeature | quote }}
+  INFRA_SUBNET_IP_RANGE: {{ .Values.workerConfig.infraSubnetIpRange | quote }}
 
   ORPHAN_JOB_PROCESSING_ENABLED: {{$.Values.workerConfig.orphanJobProcessingEnabled | quote }}
 

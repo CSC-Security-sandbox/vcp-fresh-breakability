@@ -110,6 +110,7 @@ data:
   GIN_METRICS_PORT: "5140"
   GIN_SERVICE_ATTACHMENT: "projects/netapp-au-se1-autopush-sde-tst/regions/australia-southeast1/serviceAttachments/fluent-bit-psc"
   GIN_LOGGING_FEATURE: "false"
+  INFRA_SUBNET_IP_RANGE: "198.18.240.0/28"
   DISABLE_VSA_CLEANUP_ON_VLM_FAILURE: "false"
   VLM_RETRY_ERROR_PATTERNS: "Aggregates are degraded or unmirrored"
   GCE_METADATA_HOST: "34.116.66.254:9090"

@@ -138,6 +138,7 @@ workerConfig:
   gitMetrics1pPort: "5140"
   ginMetrics1pProtocol: "tcp-unencrypted"
   ginLoggingFeature: "false"
+  infraSubnetIpRange: "198.18.240.0/28"
 
   # Harvest Configuration
   serviceControlUrl: "https://servicecontrol.googleapis.com"
