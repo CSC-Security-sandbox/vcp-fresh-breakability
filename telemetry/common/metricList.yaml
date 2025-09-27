@@ -3,3 +3,5 @@ metrics:
     resourceType: custom.googleapis.com
   - metric: volume_capacity
     resourceType: custom.googleapis.com
+  - metric: snapmirror_total_transfer_bytes
+    resourceType: custom.googleapis.com

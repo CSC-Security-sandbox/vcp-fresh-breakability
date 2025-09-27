@@ -1,14 +1,14 @@
 package collector
 
 import (
-	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	"context"
 	"errors"
 	"fmt"
-	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 
+	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/iterator"
@@ -104,7 +104,7 @@ func collectVolumeMetrics(ctx context.Context, logger log.Logger, provider Volum
 }
 
 func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resp *monitoringpb.TimeSeries) datamodel.HydratedMetrics {
-	return datamodel.HydratedMetrics{
+	hydrateMetrics := datamodel.HydratedMetrics{
 		MetricTimestamp: resp.Points[0].Interval.EndTime.AsTime(),
 		MeasuredType:    measuredType,
 		ConsumerID:      resp.Metric.Labels["project"],
@@ -114,6 +114,11 @@ func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metad
 		Quantity:        extractValue(resp.Points[0].Value),
 		DeploymentName:  resp.Metric.Labels["deployment_name"],
 	}
+	if resourceType == metadata.VolumeReplicationRelationship {
+		// TODO: need to update this to replication name
+		hydrateMetrics.ResourceName = resp.Metric.Labels["relationship_id"]
+	}
+	return hydrateMetrics
 }
 
 func extractValue(Value *monitoringpb.TypedValue) float64 {

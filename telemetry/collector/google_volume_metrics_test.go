@@ -263,6 +263,95 @@ func TestCollectVolumeMetrics(t *testing.T) {
 		mockProvider.AssertExpectations(t)
 	})
 
+	t.Run("returns metrics from provider including volume replication", func(t *testing.T) {
+		mockProvider := new(MockVolumeMetricsProvider)
+		mockResp := &monitoringpb.TimeSeries{
+			Resource: &monitoredres.MonitoredResource{
+				Labels: map[string]string{
+					"name":     "test-volume",
+					"location": "us-west1",
+				},
+			},
+			Metric: &metric.Metric{
+				Labels: map[string]string{
+					"relationship_id": "relationship-1",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Interval: &monitoringpb.TimeInterval{
+						EndTime: timestamppb.New(time.Now()),
+					},
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_BoolValue{BoolValue: true},
+					},
+				},
+			},
+		}
+
+		mockResp2 := &monitoringpb.TimeSeries{
+			Resource: &monitoredres.MonitoredResource{
+				Labels: map[string]string{
+					"name":     "test-volume-3",
+					"location": "us-west1",
+				},
+			},
+			Metric: &metric.Metric{
+				Labels: map[string]string{
+					"volume": "test-volume-1",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Interval: &monitoringpb.TimeInterval{
+						EndTime: timestamppb.New(time.Now()),
+					},
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_StringValue{StringValue: "unsupported"},
+					},
+				},
+			},
+		}
+
+		mockResp3 := &monitoringpb.TimeSeries{
+			Resource: &monitoredres.MonitoredResource{
+				Labels: map[string]string{
+					"name":     "test-volume-3",
+					"location": "us-west1",
+				},
+			},
+			Metric: &metric.Metric{
+				Labels: map[string]string{
+					"volume": "test-volume-1",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Interval: &monitoringpb.TimeInterval{
+						EndTime: timestamppb.New(time.Now()),
+					},
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		expectedMetric1 := setupHydratedMetrics(metadata.AllocatedSize, metadata.VolumeReplicationRelationship, "consumer1", mockResp)
+		expectedMetric2 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp2)
+		expectedMetric3 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp3)
+		expected := []datamodel.HydratedMetrics{expectedMetric1, expectedMetric2, expectedMetric3}
+		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything).Return(expected, nil)
+
+		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1")
+		assert.NoError(t, err)
+		assert.Equal(t, expected, results)
+		assert.Equal(t, 1.0, results[0].Quantity)
+		assert.Equal(t, 0.0, results[1].Quantity)
+		assert.Equal(t, 1024.0, results[2].Quantity)
+		mockProvider.AssertExpectations(t)
+	})
+
 	t.Run("returns error from provider", func(t *testing.T) {
 		mockProvider := new(MockVolumeMetricsProvider)
 		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything).Return([]datamodel.HydratedMetrics(nil), fmt.Errorf("fail"))
