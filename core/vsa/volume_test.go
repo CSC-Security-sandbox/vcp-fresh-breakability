@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -817,10 +818,9 @@ func TestUpdateVolume(t *testing.T) {
 	rc := &OntapRestProvider{}
 
 	params := UpdateVolumeParams{
-		UUID:                    "testUUID",
-		Size:                    2048,
-		SnapshotPolicyName:      "testSnapshot",
-		SnapshotDirectoryAccess: nillable.GetBoolPtr(true),
+		UUID:               "testUUID",
+		Size:               2048,
+		SnapshotPolicyName: "testSnapshot",
 		TieringPolicy: &TieringPolicy{
 			CoolnessPeriod:            7,
 			CoolAccessRetrievalPolicy: "default",
@@ -861,6 +861,84 @@ func TestUpdateVolume(t *testing.T) {
 	err = rc.UpdateVolume(params)
 	assert.Error(t, err)
 	assert.Equal(t, "getOntapClientFunc error", err.Error())
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateVolume_WithMaxSizeError(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateVolumeParams{
+		UUID:               "testUUID",
+		Size:               999999999999999, // Set to a very large size that exceeds the maximum
+		SnapshotPolicyName: "testSnapshot",
+	}
+
+	// Test with a typical ONTAP error message for exceeding maximum volume size
+	ontapErrorMsg := "Request to grow volume \"volug13\" in SVM \"gcnv-3eb33bf58bfdd5c-svm-01\" failed because the resulting volume size is greater than the maximum size. The maximum possible size is 900TB (989560464998400B)"
+	mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New(ontapErrorMsg)).Once()
+
+	err := rc.UpdateVolume(params)
+
+	// Check that it's the right error type and contains the right message
+	assert.Error(t, err)
+
+	// Check if it's a CustomError with the expected code
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok, "Error should be of type *vsaerrors.CustomError")
+	assert.Equal(t, vsaerrors.ErrVolumeExceedsMaximumSize, customErr.TrackingID)
+
+	// Check that the error message is sanitized (doesn't contain SVM name)
+	assert.NotContains(t, err.Error(), "gcnv-3eb33bf58bfdd5c-svm-01")
+	assert.Contains(t, err.Error(), "The volume size exceeds the maximum allowed size for this storage pool.")
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateVolume_WithMaxSizeErrorButNoMaxSizeInfo(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateVolumeParams{
+		UUID:               "testUUID",
+		Size:               999999999999999, // Set to a very large size that exceeds the maximum
+		SnapshotPolicyName: "testSnapshot",
+	}
+
+	// Test with an ONTAP error message that mentions maximum size but doesn't include the specific size info
+	// This tests the case where maxSizeStart > 0 check fails
+	mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New(ErrMsgVolumeMaxSizeExceeded)).Once()
+
+	err := rc.UpdateVolume(params)
+
+	// Should fall back to the default error handling
+	assert.Error(t, err)
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok, "Error should be of type *vsaerrors.CustomError")
+	assert.Equal(t, vsaerrors.ErrOntapRestAPIError, customErr.TrackingID)
+	// For the general API error, we should get the generic error message
+	assert.Contains(t, err.Error(), "An internal error occurred.")
 
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
@@ -1399,7 +1477,7 @@ func TestRevertVolume(t *testing.T) {
 		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJob, nil).Once()
 
 		// Mock Poll returns not found error
-		mockClient.On("Poll", mockJob.JobUUID).Return(errors.NewNotFoundErr("snapshot", nil)).Once()
+		mockClient.On("Poll", mockJob.JobUUID).Return(errors.New("snapshot not found")).Once()
 
 		err := rc.RevertVolume(params)
 

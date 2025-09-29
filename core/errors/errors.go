@@ -100,6 +100,7 @@ const (
 	ErrOntapInconsistentResourceError  = 5007
 	ErrONTAPClientCreationError        = 5008
 	ErrConstituentVolumesLimitExceeded = 5009
+	ErrVolumeExceedsMaximumSize        = 5010
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021

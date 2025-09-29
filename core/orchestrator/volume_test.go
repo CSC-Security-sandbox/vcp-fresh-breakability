@@ -8575,8 +8575,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenValidateUpdateVolumeParamsFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 10}
-		dbVolume := &datamodel.Volume{SizeInBytes: 100, State: "READY"}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(1024 * 1024 * 1024)}
+		dbVolume := &datamodel.Volume{SizeInBytes: int64(2 * 1024 * 1024 * 1024), State: "READY"}
 
 		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -8589,9 +8589,9 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenCreateJobFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
 		dbVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY",
+			BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: int64(1024 * 1024 * 1024), Name: "vol", State: "READY",
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 10,
 			},
@@ -8609,8 +8609,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY"}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
+		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: int64(1024 * 1024 * 1024), Name: "vol", State: "READY"}
 		jobUUID := "wid"
 		job := &datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}
 
@@ -8630,8 +8630,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY"}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
+		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: int64(1024 * 1024 * 1024), Name: "vol", State: "READY"}
 		jobUUID := "wid"
 		job := &datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}
 
@@ -8652,7 +8652,7 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{},
@@ -8660,7 +8660,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8693,7 +8693,7 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"hg1"},
@@ -8701,7 +8701,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8728,7 +8728,7 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"hg1", "hg2"},
@@ -8736,7 +8736,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8765,7 +8765,7 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"hg1", "hg2"},
@@ -8773,7 +8773,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8802,7 +8802,7 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"hg1", "hg2"},
@@ -8810,7 +8810,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8838,10 +8838,10 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", SnapshotPolicy: nil}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", SnapshotPolicy: nil}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8873,10 +8873,10 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeSuccessWithReplication", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", SnapshotPolicy: nil}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", SnapshotPolicy: nil}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8908,10 +8908,10 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeSuccessWithNoBackupVaultIDInDB", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol"}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol"}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8943,12 +8943,12 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		backupVaultId := ""
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -8984,7 +8984,7 @@ func TestUpdateVolume(t *testing.T) {
 		param := &common.UpdateVolumeParams{
 			AccountName:  "acc",
 			VolumeId:     "vid",
-			QuotaInBytes: 200,
+			QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 			Name:         "vol",
 			DataProtection: &models.UpdateDataProtection{
 				BackupVaultID: &backupVaultdId, // Detaching backup vault
@@ -8992,7 +8992,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9032,12 +9032,12 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		backupVaultId := ""
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
 			Account: &datamodel.Account{
@@ -9064,12 +9064,12 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		backupVaultId := ""
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
 			Account: &datamodel.Account{
@@ -9107,12 +9107,12 @@ func TestUpdateVolume(t *testing.T) {
 		poolView.Account = &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}, Name: "acc"}
 		defer func() { poolView.Account = oldPoolAccount }()
 
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9147,13 +9147,13 @@ func TestUpdateVolume(t *testing.T) {
 		se := &database.MockStorage{}
 		backupVaultId := ""
 		backupPolicyId := "backup-policy-1"
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupVaultID:  &backupVaultId,
 			BackupPolicyId: &backupPolicyId,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9178,12 +9178,12 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		backupPolicyId := "backup-policy-1"
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupPolicyId: &backupPolicyId,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9210,12 +9210,12 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		backupVaultId := ""
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9248,13 +9248,13 @@ func TestUpdateVolume(t *testing.T) {
 
 		backupPolicyId := "backup-policy-1"
 		backupPolicyEnabled := false
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupPolicyId:         &backupPolicyId,
 			ScheduledBackupEnabled: &backupPolicyEnabled,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9288,14 +9288,14 @@ func TestUpdateVolume(t *testing.T) {
 		backupPolicyId := "backup-policy-1"
 		backupVaultId := "backup-vault-1"
 		policyEnabled := true
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupVaultID:          &backupVaultId,
 			BackupPolicyId:         &backupPolicyId,
 			ScheduledBackupEnabled: &policyEnabled,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9327,13 +9327,13 @@ func TestUpdateVolume(t *testing.T) {
 
 		backupPolicyId := "backup-policy-1"
 		backupPolicyEnabled := true
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			BackupPolicyId:         &backupPolicyId,
 			ScheduledBackupEnabled: &backupPolicyEnabled,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9370,12 +9370,12 @@ func TestUpdateVolume(t *testing.T) {
 
 		backupPolicyId := "backup-policy-1"
 		backupPolicyEnabled := false
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.UpdateDataProtection{
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
 			ScheduledBackupEnabled: &backupPolicyEnabled,
 		}}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9408,8 +9408,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeFailsIfVolumeInTransitioningState", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: models.LifeCycleStateUpdating}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
+		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: int64(1024 * 1024 * 1024), Name: "vol", State: models.LifeCycleStateUpdating}
 
 		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -9425,7 +9425,7 @@ func TestUpdateVolume(t *testing.T) {
 		param := &common.UpdateVolumeParams{
 			AccountName:  "acc",
 			VolumeId:     "vid",
-			QuotaInBytes: 200,
+			QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 			Name:         "vol",
 			SnapshotPolicy: &models.SnapshotPolicy{
 				IsEnabled: true,
@@ -9434,7 +9434,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
 			Account:     &datamodel.Account{Name: "acc"},
@@ -9460,7 +9460,7 @@ func TestUpdateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		poolViewNoTiering := &datamodel.PoolView{Pool: datamodel.Pool{AllowAutoTiering: false, SizeInBytes: 2199023255552}}
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200,
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 10},
 		}
 		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
@@ -9476,7 +9476,7 @@ func TestUpdateVolume(t *testing.T) {
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200,
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 1},
 		}
 		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
@@ -9492,7 +9492,7 @@ func TestUpdateVolume(t *testing.T) {
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200,
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 200},
 		}
 		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
@@ -9508,12 +9508,12 @@ func TestUpdateVolume(t *testing.T) {
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol",
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: false},
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
@@ -9544,12 +9544,12 @@ func TestUpdateVolume(t *testing.T) {
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		param := &common.UpdateVolumeParams{
-			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol",
 			// TieringPolicy is nil
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: 100,
+			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account:     &datamodel.Account{Name: "acc"},
@@ -9834,28 +9834,28 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 	}
 
 	t.Run("FailsIfVolumeInTransitionalState", func(tt *testing.T) {
-		volume := &datamodel.Volume{State: "UPDATING"}
-		params := &common.UpdateVolumeParams{QuotaInBytes: 200}
+		volume := &datamodel.Volume{State: "UPDATING", SizeInBytes: int64(1024 * 1024 * 1024)}
+		params := &common.UpdateVolumeParams{QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "An update operation is already in progress for this volume")
 	})
 
 	t.Run("FailsIfQuotaReduced", func(tt *testing.T) {
-		volume := &datamodel.Volume{State: "READY", SizeInBytes: 1000}
-		params := &common.UpdateVolumeParams{QuotaInBytes: 500}
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: int64(2 * 1024 * 1024 * 1024)}
+		params := &common.UpdateVolumeParams{QuotaInBytes: int64(1024 * 1024 * 1024)}
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume size cannot be reduced")
 	})
 
 	t.Run("FailsIfSnapReserveUpdatedForDPVol", func(tt *testing.T) {
-		volume := &datamodel.Volume{State: "READY", SizeInBytes: 1000, VolumeAttributes: &datamodel.VolumeAttributes{
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: int64(2 * 1024 * 1024 * 1024), VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: true,
 			SnapReserve:      40,
 		}}
 		newSnapReserve := int64(50)
-		params := &common.UpdateVolumeParams{QuotaInBytes: 1000, SnapReserve: &newSnapReserve}
+		params := &common.UpdateVolumeParams{QuotaInBytes: int64(3 * 1024 * 1024 * 1024), SnapReserve: &newSnapReserve}
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Cannot update snapshotReserve on a Data Protection Volume")
@@ -9863,12 +9863,12 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 
 	t.Run("FailsIfSnapshotPolicyUpdatedForDPVol", func(tt *testing.T) {
 		volume := &datamodel.Volume{
-			State: "READY", SizeInBytes: 1000, VolumeAttributes: &datamodel.VolumeAttributes{
+			State: "READY", SizeInBytes: int64(2 * 1024 * 1024 * 1024), VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: true,
 			},
 		}
 		params := &common.UpdateVolumeParams{
-			QuotaInBytes: 1000,
+			QuotaInBytes: int64(3 * 1024 * 1024 * 1024),
 			SnapshotPolicy: &models.SnapshotPolicy{
 				IsEnabled: true,
 				Schedules: []*models.SnapshotPolicySchedule{
@@ -10380,12 +10380,12 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:        "test_volume",
-			SizeInBytes: 1000,
+			SizeInBytes: int64(1024 * 1024 * 1024),     // 1 GiB
 			State:       models.LifeCycleStateCreating, // Transitional state
 		}
 
 		params := &common.UpdateVolumeParams{
-			QuotaInBytes: 2000,
+			QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 		}
 
 		// Should fail because volume is in transitional state
@@ -10866,6 +10866,277 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		// sizeIncrease <= 0, so validation should pass without checking pool capacity
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
 		assert.NoError(tt, err, "Should allow update with no size increase regardless of ClonesSharedBytes")
+	})
+}
+
+func Test_validateUpdateVolumeRequest_LargeCapacity(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := &database.MockStorage{}
+
+	t.Run("LargeCapacityQuotaTooSmall", func(tt *testing.T) {
+		largeCapacityPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: true,
+				SizeInBytes:   int64(20 * 1125899906842624), // 20 PiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(11 * 1099511627776), // 11 TiB (less than minimum 12 TiB for large capacity)
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(11 * 1099511627776), // 11 TiB - too small for large capacity
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, largeCapacityPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid volume capacity")
+		assert.Contains(tt, err.Error(), "Must be between")
+		assert.Contains(tt, err.Error(), "TiB and")
+		assert.Contains(tt, err.Error(), "PiB")
+	})
+
+	t.Run("LargeCapacityQuotaTooLarge", func(tt *testing.T) {
+		largeCapacityPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: true,
+				SizeInBytes:   int64(25 * 1125899906842624), // 25 PiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(15 * 1125899906842624), // 15 PiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(21 * 1125899906842624), // 21 PiB - too large for large capacity (max is 20 PiB)
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, largeCapacityPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid volume capacity")
+		assert.Contains(tt, err.Error(), "Must be between")
+		assert.Contains(tt, err.Error(), "TiB and")
+		assert.Contains(tt, err.Error(), "PiB")
+	})
+
+	t.Run("LargeCapacityValidQuota", func(tt *testing.T) {
+		largeCapacityPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: true,
+				SizeInBytes:   int64(20 * 1125899906842624), // 20 PiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(13 * 1099511627776), // 13 TiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(15 * 1099511627776), // 15 TiB - valid for large capacity
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, largeCapacityPool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("LargeCapacityBlockDevicesNotSupported", func(tt *testing.T) {
+		largeCapacityPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: true,
+				SizeInBytes:   int64(20 * 1125899906842624), // 20 PiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(15 * 1099511627776), // 15 TiB
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices: &[]datamodel.BlockDevice{
+					{Name: "test-lun"},
+				},
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(16 * 1099511627776), // 16 TiB
+			BlockDevices: []*common.BlockDevice{
+				{Name: "test-lun", HostGroups: []string{"hg1"}},
+			},
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, largeCapacityPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "BlockDevices are not supported for large capacity volumes")
+	})
+
+	t.Run("LargeCapacityBlockPropertiesNotSupported", func(tt *testing.T) {
+		largeCapacityPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: true,
+				SizeInBytes:   int64(20 * 1125899906842624), // 20 PiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(15 * 1099511627776), // 15 TiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(16 * 1099511627776), // 16 TiB
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "LINUX",
+				HostGroupUUIDs: []string{"hg1", "hg2"},
+			},
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, largeCapacityPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "BlockProperties are not supported for large capacity volumes")
+	})
+
+	t.Run("LargeCapacityWithoutBlockPropertiesOrDevices_Success", func(tt *testing.T) {
+		largeCapacityPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: true,
+				SizeInBytes:   int64(20 * 1125899906842624), // 20 PiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(15 * 1099511627776), // 15 TiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(16 * 1099511627776), // 16 TiB
+			// No BlockProperties or BlockDevices - should succeed
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, largeCapacityPool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NonLargeCapacityQuotaTooSmall", func(tt *testing.T) {
+		regularPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: false,
+				SizeInBytes:   int64(200 * 1024 * 1024 * 1024 * 1024), // 200 TiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(500 * 1024 * 1024), // 500 MiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(800 * 1024 * 1024), // 800 MiB - increased from current but still too small for regular volumes (min is 1 GiB)
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, regularPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid volume capacity")
+		assert.Contains(tt, err.Error(), "Must be between")
+		assert.Contains(tt, err.Error(), "GiB and")
+		assert.Contains(tt, err.Error(), "TiB")
+	})
+
+	t.Run("NonLargeCapacityValidQuota", func(tt *testing.T) {
+		regularPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: false,
+				SizeInBytes:   int64(200 * 1024 * 1024 * 1024 * 1024), // 200 TiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100 GiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(200 * 1024 * 1024 * 1024), // 200 GiB - valid for regular volumes
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, regularPool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NonLargeCapacityBlockPropertiesSupported", func(tt *testing.T) {
+		regularPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: false,
+				SizeInBytes:   int64(200 * 1024 * 1024 * 1024 * 1024), // 200 TiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100 GiB
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(200 * 1024 * 1024 * 1024), // 200 GiB
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "LINUX",
+				HostGroupUUIDs: []string{"hg1", "hg2"},
+			},
+		}
+
+		// Mock the GetMultipleHostGroups call
+		mockStorage.On("GetMultipleHostGroups", ctx, []string{"hg1", "hg2"}, int64(1)).Return([]*datamodel.HostGroup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "hg1"},
+				Name:      "HostGroup1",
+				State:     models.LifeCycleStateREADY,
+				Hosts:     datamodel.Hosts{Hosts: []string{"host1"}},
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "hg2"},
+				Name:      "HostGroup2",
+				State:     models.LifeCycleStateREADY,
+				Hosts:     datamodel.Hosts{Hosts: []string{"host2"}},
+			},
+		}, nil)
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, regularPool)
+		assert.NoError(tt, err)
 	})
 }
 

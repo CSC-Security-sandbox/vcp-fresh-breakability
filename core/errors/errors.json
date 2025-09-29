@@ -329,6 +329,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "5010": {
+    "description": "Volume Exceeds Maximum Size",
+    "message": "The volume size exceeds the maximum allowed size for this storage pool.",
+    "retriable": false,
+    "http_code": 400
+  },
   "6020": {
     "description": "IAM client Not Found",
     "message": "IAM client Not Found",

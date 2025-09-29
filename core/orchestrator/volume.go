@@ -1688,6 +1688,32 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		if sizeIncrease > 0 && pool.QuotaInBytes+uint64(sizeIncrease)-volume.ClonesSharedBytes > uint64(pool.SizeInBytes) {
 			return customerrors.NewUserInputValidationErr("Total size of volumes in a pool cannot exceed the pool capacity.")
 		}
+
+		// Large capacity quota validation
+		if pool.LargeCapacity {
+			if uint64(params.QuotaInBytes) < utils.MinQuotaInBytesLargeVolume || uint64(params.QuotaInBytes) > utils.MaxQuotaInBytesLargeVolume {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
+					utils.FmtUint64Bytes(uint64(params.QuotaInBytes)), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
+					utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
+			}
+		} else {
+			if uint64(params.QuotaInBytes) < minQuotaInBytesVolume || uint64(params.QuotaInBytes) > maxQuotaInBytesVolume {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
+					utils.FmtUint64Bytes(uint64(params.QuotaInBytes)), utils.FmtUint64Bytes(minQuotaInBytesVolume),
+					utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
+			}
+		}
+	}
+
+	// Large capacity validations
+	if pool.LargeCapacity {
+		// BlockDevices are not supported for large capacity volumes
+		if params.BlockProperties != nil {
+			return customerrors.NewUserInputValidationErr("BlockProperties are not supported for large capacity volumes")
+		}
+		if len(params.BlockDevices) > 0 {
+			return customerrors.NewUserInputValidationErr("BlockDevices are not supported for large capacity volumes")
+		}
 	}
 
 	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && (params.AutoTieringPolicy.AutoTieringEnabled || params.AutoTieringPolicy.HotTierBypassModeEnabled) {

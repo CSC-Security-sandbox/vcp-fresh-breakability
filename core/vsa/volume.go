@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -8,6 +9,12 @@ import (
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+)
+
+// Error message constants
+const (
+	// ErrMsgVolumeMaxSizeExceeded is the error message pattern returned by ONTAP when volume size exceeds maximum
+	ErrMsgVolumeMaxSizeExceeded = "failed because the resulting volume size is greater than the maximum size"
 )
 
 // CreateVolume creates a volume by calling the ONTAP REST Client
@@ -318,6 +325,18 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 	}
 	success, job, err := client.Storage().VolumeModify(volumeModifyParams)
 	if err != nil {
+		// Check for maximum volume size error
+		if strings.Contains(err.Error(), ErrMsgVolumeMaxSizeExceeded) {
+			// Extract the maximum size from the error message
+			maxSizeStart := strings.Index(err.Error(), "The maximum possible size is ")
+			if maxSizeStart > 0 {
+				maxSizeStr := err.Error()[maxSizeStart:]
+				// Create a sanitized error message without exposing SVM name
+				sanitizedError := fmt.Sprintf("Volume size exceeds the maximum allowed size. %s", maxSizeStr)
+				return vsaerrors.NewVCPError(vsaerrors.ErrVolumeExceedsMaximumSize,
+					errors.NewUserInputValidationErr(sanitizedError))
+			}
+		}
 		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	if success || params.InitiateSplit { // Split operation can run in background without polling
