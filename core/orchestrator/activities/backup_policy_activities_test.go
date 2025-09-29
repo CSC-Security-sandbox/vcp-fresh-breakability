@@ -556,15 +556,15 @@ func TestUpdateBackupPolicyInVCP(t *testing.T) {
 
 		backupPolicy := &datamodel.BackupPolicy{
 			BaseModel: datamodel.BaseModel{
-				ID:   int64(1),			UUID: "test-backup-policy-uuid",
-		},
-	}
+				ID: int64(1), UUID: "test-backup-policy-uuid",
+			},
+		}
 
-	backupPolicyActivity := BackupPolicyActivity{SE: mockStorage}
-	updated, err := backupPolicyActivity.UpdateBackupPolicyInVCP(context.Background(), params, backupPolicy)
-	assert.Error(t, err)
-	assert.Nil(t, updated)
-	assert.Equal(t, "could not update backup policy in VCP", err.Error())
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage}
+		updated, err := backupPolicyActivity.UpdateBackupPolicyInVCP(context.Background(), params, backupPolicy)
+		assert.Error(t, err)
+		assert.Nil(t, updated)
+		assert.Equal(t, "could not update backup policy in VCP", err.Error())
 	})
 }
 
@@ -802,7 +802,7 @@ func TestUpdateBackupPolicyStateInCaseOfError(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-backup-policy-uuid",
 			},
-			Name: "test-backup-policy",
+			Name:           "test-backup-policy",
 			LifeCycleState: models.LifeCycleStateDeleting,
 		}
 		state := models.LifeCycleStateError
@@ -938,13 +938,13 @@ func TestUpdateBackupPolicyStateInCaseOfError_Integration(t *testing.T) {
 
 	t.Run("Integration_MultipleStateTransitions", func(tt *testing.T) {
 		testCases := []struct {
-			name                  string
-			initialState          string
-			initialStateDetails   string
-			targetState           string
-			targetStateDetails    string
-			shouldSucceed         bool
-			expectedError         string
+			name                string
+			initialState        string
+			initialStateDetails string
+			targetState         string
+			targetStateDetails  string
+			shouldSucceed       bool
+			expectedError       string
 		}{
 			{
 				name:                "DeletingToReady",
@@ -1024,5 +1024,275 @@ func TestUpdateBackupPolicyStateInCaseOfError_Integration(t *testing.T) {
 				mockStorage.AssertExpectations(t)
 			})
 		}
+	})
+}
+
+func TestCleanupBackupPoliciesForAccount(t *testing.T) {
+	t.Run("CleanupBackupPoliciesForAccount_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		// Mock account lookup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "test-project-123",
+		}
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(account, nil)
+
+		// Mock backup policies list
+		backupPolicies := []*datamodel.BackupPolicy{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"},
+				Name:      "policy-1",
+				AccountID: 1,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "policy-uuid-2"},
+				Name:      "policy-2",
+				AccountID: 1,
+			},
+		}
+		conditions := [][]interface{}{
+			{"account_id = ?", account.ID},
+		}
+		mockStorage.On("ListBackupPolicies", mock.Anything, conditions).Return(backupPolicies, nil)
+
+		// Mock scheduler delete calls
+		mockScheduler.On("Delete", mock.Anything, scheduler.DeleteScheduleParams{
+			ScheduleParams: scheduler.ScheduleParams{ScheduleID: "policy-uuid-1"},
+		}).Return(&scheduler.ScheduleResponse{}, nil)
+		mockScheduler.On("Delete", mock.Anything, scheduler.DeleteScheduleParams{
+			ScheduleParams: scheduler.ScheduleParams{ScheduleID: "policy-uuid-2"},
+		}).Return(&scheduler.ScheduleResponse{}, nil)
+
+		// Mock database delete calls
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "policy-uuid-1").Return(&datamodel.BackupPolicy{}, nil)
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "policy-uuid-2").Return(&datamodel.BackupPolicy{}, nil)
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.CleanupBackupPoliciesForAccount(context.Background(), "test-project-123")
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupPoliciesForAccount_NoPolicies", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		// Mock account lookup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "test-project-123",
+		}
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(account, nil)
+
+		// Mock empty backup policies list
+		conditions := [][]interface{}{
+			{"account_id = ?", account.ID},
+		}
+		mockStorage.On("ListBackupPolicies", mock.Anything, conditions).Return([]*datamodel.BackupPolicy{}, nil)
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.CleanupBackupPoliciesForAccount(context.Background(), "test-project-123")
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupPoliciesForAccount_GetAccountFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(nil, errors.New("account not found"))
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.CleanupBackupPoliciesForAccount(context.Background(), "test-project-123")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "account not found")
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupPoliciesForAccount_ListBackupPoliciesFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		// Mock account lookup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "test-project-123",
+		}
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(account, nil)
+
+		// Mock backup policies list failure
+		conditions := [][]interface{}{
+			{"account_id = ?", account.ID},
+		}
+		mockStorage.On("ListBackupPolicies", mock.Anything, conditions).Return(nil, errors.New("database error"))
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.CleanupBackupPoliciesForAccount(context.Background(), "test-project-123")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database error")
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupPoliciesForAccount_CleanupPolicyFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		// Mock account lookup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "test-project-123",
+		}
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(account, nil)
+
+		// Mock backup policies list
+		backupPolicies := []*datamodel.BackupPolicy{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"},
+				Name:      "policy-1",
+				AccountID: 1,
+			},
+		}
+		conditions := [][]interface{}{
+			{"account_id = ?", account.ID},
+		}
+		mockStorage.On("ListBackupPolicies", mock.Anything, conditions).Return(backupPolicies, nil)
+
+		// Mock scheduler delete failure
+		mockScheduler.On("Delete", mock.Anything, scheduler.DeleteScheduleParams{
+			ScheduleParams: scheduler.ScheduleParams{ScheduleID: "policy-uuid-1"},
+		}).Return(nil, errors.New("scheduler error"))
+
+		// Mock database delete failure
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "policy-uuid-1").Return(nil, errors.New("database delete error"))
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.CleanupBackupPoliciesForAccount(context.Background(), "test-project-123")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database delete error")
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+}
+
+func TestCleanupBackupPolicy(t *testing.T) {
+	t.Run("CleanupBackupPolicy_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		policy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"},
+			Name:      "policy-1",
+		}
+
+		// Mock scheduler delete
+		mockScheduler.On("Delete", mock.Anything, scheduler.DeleteScheduleParams{
+			ScheduleParams: scheduler.ScheduleParams{ScheduleID: "policy-uuid-1"},
+		}).Return(&scheduler.ScheduleResponse{}, nil)
+
+		// Mock database delete
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "policy-uuid-1").Return(&datamodel.BackupPolicy{}, nil)
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.cleanupBackupPolicy(context.Background(), policy)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupPolicy_SchedulerDeleteFails_Continues", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		policy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"},
+			Name:      "policy-1",
+		}
+
+		// Mock scheduler delete failure - should continue with database deletion
+		mockScheduler.On("Delete", mock.Anything, scheduler.DeleteScheduleParams{
+			ScheduleParams: scheduler.ScheduleParams{ScheduleID: "policy-uuid-1"},
+		}).Return(nil, errors.New("scheduler error"))
+
+		// Mock database delete success
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "policy-uuid-1").Return(&datamodel.BackupPolicy{}, nil)
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.cleanupBackupPolicy(context.Background(), policy)
+
+		assert.NoError(tt, err) // Should succeed despite scheduler failure
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupPolicy_DatabaseDeleteFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		policy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"},
+			Name:      "policy-1",
+		}
+
+		// Mock scheduler delete success
+		mockScheduler.On("Delete", mock.Anything, scheduler.DeleteScheduleParams{
+			ScheduleParams: scheduler.ScheduleParams{ScheduleID: "policy-uuid-1"},
+		}).Return(&scheduler.ScheduleResponse{}, nil)
+
+		// Mock database delete failure
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "policy-uuid-1").Return(nil, errors.New("database error"))
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.cleanupBackupPolicy(context.Background(), policy)
+
+		assert.Error(tt, err)
+		// Should return a non-retryable application error
+		appErr, ok := err.(*temporal.ApplicationError)
+		assert.True(tt, ok)
+		assert.Contains(tt, appErr.Error(), "Failed to soft delete backup policy")
+		assert.Equal(tt, "DeleteBackupPolicyError", appErr.Type())
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupPolicy_BothSchedulerAndDatabaseFail", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		policy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"},
+			Name:      "policy-1",
+		}
+
+		// Mock scheduler delete failure
+		mockScheduler.On("Delete", mock.Anything, scheduler.DeleteScheduleParams{
+			ScheduleParams: scheduler.ScheduleParams{ScheduleID: "policy-uuid-1"},
+		}).Return(nil, errors.New("scheduler error"))
+
+		// Mock database delete failure
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "policy-uuid-1").Return(nil, errors.New("database error"))
+
+		activity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := activity.cleanupBackupPolicy(context.Background(), policy)
+
+		assert.Error(tt, err)
+		// Should return a non-retryable application error for database failure
+		appErr, ok := err.(*temporal.ApplicationError)
+		assert.True(tt, ok)
+		assert.Contains(tt, appErr.Error(), "Failed to soft delete backup policy")
+		assert.Equal(tt, "DeleteBackupPolicyError", appErr.Type())
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
 	})
 }

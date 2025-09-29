@@ -1341,6 +1341,53 @@ func (_c *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call) RunAndRe
 	return _c
 }
 
+// EmptyBucket provides a mock function with given fields: ctx, bucketName
+func (_m *MockGoogleServices) EmptyBucket(ctx context.Context, bucketName string) error {
+	ret := _m.Called(ctx, bucketName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EmptyBucket")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, bucketName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_EmptyBucket_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EmptyBucket'
+type MockGoogleServices_EmptyBucket_Call struct {
+	*mock.Call
+}
+
+// EmptyBucket is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bucketName string
+func (_e *MockGoogleServices_Expecter) EmptyBucket(ctx interface{}, bucketName interface{}) *MockGoogleServices_EmptyBucket_Call {
+	return &MockGoogleServices_EmptyBucket_Call{Call: _e.mock.On("EmptyBucket", ctx, bucketName)}
+}
+
+func (_c *MockGoogleServices_EmptyBucket_Call) Run(run func(ctx context.Context, bucketName string)) *MockGoogleServices_EmptyBucket_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_EmptyBucket_Call) Return(_a0 error) *MockGoogleServices_EmptyBucket_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_EmptyBucket_Call) RunAndReturn(run func(context.Context, string) error) *MockGoogleServices_EmptyBucket_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAddress provides a mock function with given fields: projectName, region, address
 func (_m *MockGoogleServices) GetAddress(projectName string, region string, address string) (*models.Address, error) {
 	ret := _m.Called(projectName, region, address)

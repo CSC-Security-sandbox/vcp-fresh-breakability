@@ -23,6 +23,7 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/impersonate"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
 	cloudrun "google.golang.org/api/run/v2"
@@ -640,6 +641,100 @@ func (gcpService *GcpServices) GetBucket(ctx context.Context, bucketName string)
 
 	logger.Infof("Bucket %s - PZI: %t, PZS: %t", bucketName, satisfiesPzi, satisfiesPzs)
 	return bucketDetails, nil
+}
+
+func (gcpService *GcpServices) EmptyBucket(ctx context.Context, bucketName string) error {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Emptying bucket: %s", bucketName)
+
+	bucket := gcpService.AdminGCPService.storageService.Bucket(bucketName)
+
+	// List all objects in the bucket
+	it := bucket.Objects(ctx, nil)
+	objectCount := 0
+	batchSize := 100 // Process objects in batches
+	objectNames := make([]string, 0, batchSize)
+	maxObjects := 10000 // Safety limit to prevent infinite loops
+	iterationCount := 0
+
+	for {
+		iterationCount++
+
+		// Safety check to prevent infinite loops
+		if iterationCount > maxObjects {
+			return fmt.Errorf("safety limit reached: processed %d objects, stopping to prevent infinite loop", maxObjects)
+		}
+
+		obj, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to list objects in bucket %s: %v", bucketName, err)
+		}
+
+		objectNames = append(objectNames, obj.Name)
+
+		// Process batch when it reaches batchSize or when we're done
+		if len(objectNames) >= batchSize {
+			err = gcpService.deleteObjectBatch(ctx, bucket, objectNames, bucketName)
+			if err != nil {
+				return err
+			}
+			objectCount += len(objectNames)
+			objectNames = objectNames[:0] // Reset slice but keep capacity
+		}
+	}
+
+	// Process remaining objects in the final batch
+	if len(objectNames) > 0 {
+		err := gcpService.deleteObjectBatch(ctx, bucket, objectNames, bucketName)
+		if err != nil {
+			return err
+		}
+		objectCount += len(objectNames)
+	}
+
+	logger.Infof("Successfully emptied bucket: %s (deleted %d objects)", bucketName, objectCount)
+	return nil
+}
+
+// deleteObjectBatch deletes a batch of objects from the bucket
+func (gcpService *GcpServices) deleteObjectBatch(ctx context.Context, bucket *storage.BucketHandle, objectNames []string, bucketName string) error {
+	logger := util.GetLogger(ctx)
+
+	// Delete objects in parallel using goroutines
+	type deleteResult struct {
+		objectName string
+		err        error
+	}
+
+	resultChan := make(chan deleteResult, len(objectNames))
+
+	// Launch goroutines to delete objects in parallel
+	for _, objectName := range objectNames {
+		go func(name string) {
+			logger.Debugf("Deleting object: %s", name)
+			err := bucket.Object(name).Delete(ctx)
+			resultChan <- deleteResult{objectName: name, err: err}
+		}(objectName)
+	}
+
+	// Collect results
+	var errors []error
+	for i := 0; i < len(objectNames); i++ {
+		result := <-resultChan
+		if result.err != nil {
+			errors = append(errors, fmt.Errorf("failed to delete object %s: %v", result.objectName, result.err))
+		}
+	}
+
+	// Return error if any deletions failed
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to delete %d objects from bucket %s: %v", len(errors), bucketName, errors)
+	}
+
+	return nil
 }
 
 // GetServiceNetworkingEndpoint returns the service consumer management endpoint

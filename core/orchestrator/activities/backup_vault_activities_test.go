@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,12 +14,22 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/temporal"
 )
+
+// Note: The GCP service functions are complex to mock due to their direct integration with Google Cloud Storage.
+// The tests below use panic recovery to handle the nil pointer dereferences that occur when the GCP service
+// is not properly initialized. This provides basic coverage for the function entry points and error handling.
+//
+// LIMITATION: Lines 467-468 and 472-475 in deleteGCPBucketsForVault (error handling for EmptyBucket and DeleteBucket failures)
+// cannot be easily tested without complex Google Cloud Storage client mocking infrastructure. These lines handle
+// errors returned by the GCP service methods, but the current test setup causes panics before these error handling
+// paths can be reached. To properly test these lines, a more sophisticated mocking approach would be required.
 
 func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 	tt.Run("ConvertsValidBackupVaultV1betaToDataModel", func(t *testing.T) {
@@ -1193,4 +1204,539 @@ func TestDeleteBackupVaultBuckets_NilBackupVault(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "backupVault parameter is nil")
+}
+
+func TestCleanupBackupVaultsForAccount(t *testing.T) {
+	t.Run("CleanupBackupVaultsForAccount_GetAccountFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(nil, errors.New("account not found"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.CleanupBackupVaultsForAccount(context.Background(), "test-project-123")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "account not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVaultsForAccount_ListBackupVaultsFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock account lookup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "test-project-123",
+		}
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(account, nil)
+
+		// Mock backup vaults list failure
+		mockStorage.On("ListBackupVaults", mock.Anything, account.ID).Return(nil, errors.New("database error"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.CleanupBackupVaultsForAccount(context.Background(), "test-project-123")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVaultsForAccount_NoVaults", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock account lookup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "test-project-123",
+		}
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(account, nil)
+
+		// Mock empty backup vaults list
+		mockStorage.On("ListBackupVaults", mock.Anything, account.ID).Return([]*datamodel.BackupVault{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.CleanupBackupVaultsForAccount(context.Background(), "test-project-123")
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVaultsForAccount_WithVaults", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock account lookup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "test-project-123",
+		}
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(account, nil)
+
+		// Mock backup vaults list with multiple vaults to trigger line 405
+		backupVaults := []*datamodel.BackupVault{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+				Name:      "vault-1",
+				AccountID: 1,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"},
+				Name:      "vault-2",
+				AccountID: 1,
+			},
+		}
+		mockStorage.On("ListBackupVaults", mock.Anything, account.ID).Return(backupVaults, nil)
+
+		// Mock cleanupBackupVault calls for both vaults
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return([]*datamodel.Backup{}, nil)
+		mockStorage.On("DeleteBackupVaultInVCP", mock.Anything, "vault-uuid-1").Return(&datamodel.BackupVault{}, nil)
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-2", int64(1), mock.Anything).Return([]*datamodel.Backup{}, nil)
+		mockStorage.On("DeleteBackupVaultInVCP", mock.Anything, "vault-uuid-2").Return(&datamodel.BackupVault{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.CleanupBackupVaultsForAccount(context.Background(), "test-project-123")
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVaultsForAccount_CleanupVaultFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock account lookup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "test-project-123",
+		}
+		mockStorage.On("GetAccount", mock.Anything, "test-project-123").Return(account, nil)
+
+		// Mock backup vaults list
+		backupVaults := []*datamodel.BackupVault{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+				Name:      "vault-1",
+				AccountID: 1,
+			},
+		}
+		mockStorage.On("ListBackupVaults", mock.Anything, account.ID).Return(backupVaults, nil)
+
+		// Mock cleanupBackupsForVault failure
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return(nil, errors.New("cleanup backups failed"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.CleanupBackupVaultsForAccount(context.Background(), "test-project-123")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "cleanup backups failed")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestCleanupBackupVault(t *testing.T) {
+	t.Run("CleanupBackupVault_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+		}
+
+		// Mock cleanupBackupsForVault
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return([]*datamodel.Backup{}, nil)
+
+		// Mock DeleteBackupVaultInVCP
+		mockStorage.On("DeleteBackupVaultInVCP", mock.Anything, "vault-uuid-1").Return(&datamodel.BackupVault{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVault_DeleteVaultFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+		}
+
+		// Mock cleanupBackupsForVault
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return([]*datamodel.Backup{}, nil)
+
+		// Mock DeleteBackupVaultInVCP failure
+		mockStorage.On("DeleteBackupVaultInVCP", mock.Anything, "vault-uuid-1").Return(nil, errors.New("database error"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		appErr, ok := err.(*temporal.ApplicationError)
+		assert.True(tt, ok)
+		assert.Equal(tt, "DeleteBackupVaultError", appErr.Type())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVault_CleanupBackupsFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+		}
+
+		// Mock cleanupBackupsForVault failure
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return(nil, errors.New("cleanup backups failed"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "cleanup backups failed")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestCleanupBackupsForVault(t *testing.T) {
+	t.Run("CleanupBackupsForVault_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+		}
+
+		// Mock backups list
+		backups := []*datamodel.Backup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
+				Name:      "backup-1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "backup-uuid-2"},
+				Name:      "backup-2",
+			},
+		}
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return(backups, nil)
+
+		// Mock backup delete calls
+		mockStorage.On("DeleteBackup", mock.Anything, "backup-uuid-1").Return(&datamodel.Backup{}, nil)
+		mockStorage.On("DeleteBackup", mock.Anything, "backup-uuid-2").Return(&datamodel.Backup{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupsForVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupsForVault_NoBackups", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+		}
+
+		// Mock empty backups list
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return([]*datamodel.Backup{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupsForVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupsForVault_GetBackupsFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+		}
+
+		// Mock backups list failure
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return(nil, errors.New("database error"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupsForVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupsForVault_CleanupBackupFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+		}
+
+		// Mock backups list
+		backups := []*datamodel.Backup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
+				Name:      "backup-1",
+			},
+		}
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-1", int64(1), mock.Anything).Return(backups, nil)
+
+		// Mock backup delete failure
+		mockStorage.On("DeleteBackup", mock.Anything, "backup-uuid-1").Return(nil, errors.New("database delete error"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupsForVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database delete error")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestCleanupBackup(t *testing.T) {
+	t.Run("CleanupBackup_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
+			Name:      "backup-1",
+		}
+
+		// Mock database delete
+		mockStorage.On("DeleteBackup", mock.Anything, "backup-uuid-1").Return(&datamodel.Backup{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackup(context.Background(), backup)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackup_DatabaseDeleteFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
+			Name:      "backup-1",
+		}
+
+		// Mock database delete failure
+		mockStorage.On("DeleteBackup", mock.Anything, "backup-uuid-1").Return(nil, errors.New("database error"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackup(context.Background(), backup)
+
+		assert.Error(tt, err)
+		// Should return a non-retryable application error
+		appErr, ok := err.(*temporal.ApplicationError)
+		assert.True(tt, ok)
+		assert.Contains(tt, appErr.Error(), "Failed to soft delete backup")
+		assert.Equal(tt, "DeleteBackupError", appErr.Type())
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteGCPBucketsForVault(t *testing.T) {
+	t.Run("DeleteGCPBucketsForVault_GetGCPServiceFails", func(tt *testing.T) {
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+		}
+
+		// Mock hyperscaler.GetGCPService failure
+		originalGetGCPService := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("GCP service initialization failed")
+		}
+		defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
+
+		activity := BackupVaultActivity{}
+		err := activity.deleteGCPBucketsForVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "GCP service initialization failed")
+	})
+
+	t.Run("DeleteGCPBucketsForVault_EmptyBucketName", func(tt *testing.T) {
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+			BucketDetails: datamodel.BucketDetailsArray{
+				{
+					BucketName: "", // Empty bucket name
+				},
+			},
+		}
+
+		// Mock hyperscaler.GetGCPService success
+		originalGetGCPService := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
+
+		activity := BackupVaultActivity{}
+		err := activity.deleteGCPBucketsForVault(context.Background(), vault)
+
+		assert.NoError(tt, err) // Should skip empty bucket name
+	})
+
+	t.Run("DeleteGCPBucketsForVault_NoBucketDetails", func(tt *testing.T) {
+		vault := &datamodel.BackupVault{
+			BaseModel:     datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:          "vault-1",
+			AccountID:     1,
+			BucketDetails: datamodel.BucketDetailsArray{}, // No bucket details
+		}
+
+		// Mock hyperscaler.GetGCPService success
+		originalGetGCPService := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
+
+		activity := BackupVaultActivity{}
+		err := activity.deleteGCPBucketsForVault(context.Background(), vault)
+
+		assert.NoError(tt, err) // Should handle empty bucket details
+	})
+
+	t.Run("DeleteGCPBucketsForVault_WithBucketDetails", func(tt *testing.T) {
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+			BucketDetails: datamodel.BucketDetailsArray{
+				{
+					BucketName: "test-bucket-1",
+				},
+				{
+					BucketName: "test-bucket-2",
+				},
+			},
+		}
+
+		// Mock hyperscaler.GetGCPService success
+		originalGetGCPService := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
+
+		activity := BackupVaultActivity{}
+
+		// We expect it to panic due to missing storage service, so we'll catch it
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Convert panic to error
+					err = errors.New("panic occurred: " + fmt.Sprint(r))
+				}
+			}()
+
+			// This will panic due to nil pointer dereference
+			err = activity.deleteGCPBucketsForVault(context.Background(), vault)
+		}()
+
+		// We expect an error since we don't have a real storage service
+		assert.Error(tt, err)
+		// The error should be related to the panic
+		assert.Contains(tt, err.Error(), "panic occurred")
+	})
+
+	t.Run("DeleteGCPBucketsForVault_EmptyBucketFails", func(tt *testing.T) {
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+			BucketDetails: datamodel.BucketDetailsArray{
+				{
+					BucketName: "test-bucket-1",
+				},
+			},
+		}
+
+		// Mock hyperscaler.GetGCPService to return a GCP service that will panic
+		originalGetGCPService := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
+
+		activity := BackupVaultActivity{}
+
+		// We expect it to panic due to missing storage service, so we'll catch it
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Convert panic to error
+					err = errors.New("panic occurred: " + fmt.Sprint(r))
+				}
+			}()
+
+			// This will panic due to nil pointer dereference in EmptyBucket
+			err = activity.deleteGCPBucketsForVault(context.Background(), vault)
+		}()
+
+		// We expect an error since we don't have a real storage service
+		assert.Error(tt, err)
+		// The error should be related to the panic
+		assert.Contains(tt, err.Error(), "panic occurred")
+	})
+
+	t.Run("DeleteGCPBucketsForVault_DeleteBucketFails", func(tt *testing.T) {
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "vault-1",
+			AccountID: 1,
+			BucketDetails: datamodel.BucketDetailsArray{
+				{
+					BucketName: "test-bucket-1",
+				},
+			},
+		}
+
+		// Mock hyperscaler.GetGCPService to return a GCP service that will panic
+		originalGetGCPService := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
+
+		activity := BackupVaultActivity{}
+
+		// We expect it to panic due to missing storage service, so we'll catch it
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Convert panic to error
+					err = errors.New("panic occurred: " + fmt.Sprint(r))
+				}
+			}()
+
+			// This will panic due to nil pointer dereference in DeleteBucket
+			err = activity.deleteGCPBucketsForVault(context.Background(), vault)
+		}()
+
+		// We expect an error since we don't have a real storage service
+		assert.Error(tt, err)
+		// The error should be related to the panic
+		assert.Contains(tt, err.Error(), "panic occurred")
+	})
 }

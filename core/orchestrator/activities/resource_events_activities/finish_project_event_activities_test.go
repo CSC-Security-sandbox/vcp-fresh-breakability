@@ -452,7 +452,6 @@ func Test_VerifySoftDeletedResourcesForAccount(t *testing.T) {
 			Name: projectNumber,
 		}
 
-		// All resources should be "soft deleted", so the lists must be empty.
 		volumes := []*datamodel.Volume{}
 		pools := []*datamodel.PoolView{}
 		svms := []*datamodel.Svm{}
@@ -592,7 +591,6 @@ func Test_VerifySoftDeletedResourcesForAccount(t *testing.T) {
 			Name: projectNumber,
 		}
 
-		// All empty lists
 		volumes := []*datamodel.Volume{}
 		pools := []*datamodel.PoolView{}
 		svms := []*datamodel.Svm{}
@@ -668,7 +666,6 @@ func Test_RollbackAccountStateActivity(t *testing.T) {
 		mockSE.EXPECT().RollBackDeletedAccount(ctx, accountID).Return(errors.New("rollback failed"))
 
 		activity := &FinishProjectEventActivity{SE: mockSE}
-		// Implementation logs rollback error but returns nil; assert that behavior.
 		err := activity.RollbackAccountStateActivity(ctx, projectNumber)
 		assert.Nil(tt, err)
 		mockSE.AssertExpectations(tt)

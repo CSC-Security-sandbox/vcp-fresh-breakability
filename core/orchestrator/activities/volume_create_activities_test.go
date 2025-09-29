@@ -2000,16 +2000,16 @@ func TestServiceAccountAlreadyExists(t *testing.T) {
 	tenantProjectRegion := "region"
 	locationType := "region"
 
-	mockGcpService.On("GetServiceAccount", projectNumber, email).Return(&hyperscaler.ServiceAccount{}, nil)
-	mockGcpService.On("AttachOrUpdateRolesForServiceAccounts", mock.Anything, email, projectNumber).Return(nil)
+	// Only expect CreateBucketIfNotExists since service accounts are no longer created
 	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion).Return(nil)
 
 	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, account)
+	assert.Nil(t, account) // No service account is created anymore
 	assert.NotNil(t, bucketDetails)
 	assert.Equal(t, bucketName, bucketDetails[0].BucketName)
+	assert.Equal(t, "", bucketDetails[0].ServiceAccountName) // Service account name is empty
 }
 
 func TestServiceAccountCreationFails(t *testing.T) {
@@ -2021,20 +2021,16 @@ func TestServiceAccountCreationFails(t *testing.T) {
 	tenantProjectRegion := "region"
 	locationType := "region"
 
-	mockGcpService.On("GetServiceAccount", projectNumber, email).Return(nil, errors.New("service account not found"))
-	mockGcpService.On("CreateServiceAccount", &hyperscaler.CreateServiceAccountRequest{
-		AccountId: serviceAccountId,
-		ServiceAccount: &hyperscaler.ServiceAccount{
-			DisplayName: bucketName,
-		},
-	}, projectNumber, email).Return(nil, errors.New("failed to create service account"))
+	// Only expect CreateBucketIfNotExists since service accounts are no longer created
+	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion).Return(nil)
 
 	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)
 
-	assert.Error(t, err)
-	assert.Nil(t, account)
-	assert.Nil(t, bucketDetails)
-	assert.EqualError(t, err, "failed to create service account")
+	assert.NoError(t, err)
+	assert.Nil(t, account) // No service account is created anymore
+	assert.NotNil(t, bucketDetails)
+	assert.Equal(t, bucketName, bucketDetails[0].BucketName)
+	assert.Equal(t, "", bucketDetails[0].ServiceAccountName) // Service account name is empty
 }
 
 func TestBucketCreationFails(t *testing.T) {
@@ -2046,8 +2042,7 @@ func TestBucketCreationFails(t *testing.T) {
 	tenantProjectRegion := "region"
 	locationType := "region"
 
-	mockGcpService.On("GetServiceAccount", projectNumber, email).Return(&hyperscaler.ServiceAccount{}, nil)
-	mockGcpService.On("AttachOrUpdateRolesForServiceAccounts", mock.Anything, email, projectNumber).Return(nil)
+	// Only expect CreateBucketIfNotExists since service accounts are no longer created
 	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion).Return(errors.New("failed to create bucket"))
 
 	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)

@@ -4,9 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/activity"
-	"go.temporal.io/sdk/client"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
@@ -26,6 +23,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
 )
 
 const (
@@ -683,11 +683,11 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 	if err != nil {
 		return err
 	}
-	saName := bucketDetails.ServiceAccountName + "@" + bucketDetails.TenantProjectNumber + ".iam.gserviceaccount.com"
+
 	convertCommonToDatamodel := func(bucketDetails *common.BucketDetails) *datamodel.BucketDetails {
 		return &datamodel.BucketDetails{
 			BucketName:          bucketDetails.BucketName,
-			ServiceAccountName:  saName,
+			ServiceAccountName:  "", // No service accounts created
 			TenantProjectNumber: bucketDetails.TenantProjectNumber,
 			VendorSubnetID:      volume.VolumeAttributes.VendorSubnetID,
 		}
@@ -713,52 +713,25 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 }
 
 func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*hyperscalermodels.ServiceAccount, []*common.BucketDetails, error) {
-	var account *hyperscalermodels.ServiceAccount
 	var bucketDetailsArr []*common.BucketDetails
 	var err error
 
-	account, err = gcpServices.GetServiceAccount(projectNumber, email)
-	if err != nil {
-		request := &hyperscalermodels.CreateServiceAccountRequest{
-			AccountId: serviceAccountId,
-			ServiceAccount: &hyperscalermodels.ServiceAccount{
-				DisplayName: bucketName,
-			},
-		}
-		_, err = gcpServices.CreateServiceAccount(request, projectNumber, email)
-		if err != nil {
-			return nil, bucketDetailsArr, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-
-		// Just to ensure that after service account is created we proceed further
-		// inside isKmsServiceAccountCreated we have wait logic for some time as create SA has some latency
-		account, _, err = gcpServices.IsServiceAccountCreated(email)
-		if err != nil {
-			gcpServices.GetLogger().Error("createServiceAccount failed getOrCreateAndGCSResources")
-			return nil, nil, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-	}
-	roles := []string{
-		"roles/storage.hmacKeyAdmin",
-		"roles/storage.objectAdmin",
-		"roles/storage.admin",
-		"roles/iam.serviceAccountAdmin",
-	}
-	// Attach roles to created SA
-	err = gcpServices.AttachOrUpdateRolesForServiceAccounts(roles, email, projectNumber)
-	if err != nil {
-		gcpServices.GetLogger().Error("AttachOrUpdateRolesForServiceAccounts() failed in getOrCreateAndGCSResources")
-		return nil, bucketDetailsArr, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
+	// Only create the bucket - no service account creation
 	err = gcpServices.CreateBucketIfNotExists(context.Background(), projectNumber, bucketName, tenantProjectRegion)
 	if err != nil {
 		return nil, nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	bucketDetails := &common.BucketDetails{BucketName: bucketName, ServiceAccountName: serviceAccountId, TenantProjectNumber: projectNumber, Location: locationType}
+
+	// Use empty service account name since we're not creating service accounts
+	bucketDetails := &common.BucketDetails{
+		BucketName:          bucketName,
+		ServiceAccountName:  "", // No service account created
+		TenantProjectNumber: projectNumber,
+		Location:            locationType,
+	}
 	bucketDetailsArr = append(bucketDetailsArr, bucketDetails)
 
-	return account, bucketDetailsArr, nil
+	return nil, bucketDetailsArr, nil
 }
 
 func (a VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {

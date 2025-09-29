@@ -82,7 +82,6 @@ func (j *FinishProjectEventActivity) PollFinishProjectEventSDEOperationActivity(
 	logger := util.GetLogger(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
-	// Extract the operation UUID
 	operationUUID := utils.GetOperationUUID(*result.Name)
 	operationParams := async.NewV1betaDescribeOperationParams()
 	operationParams.OperationID = operationUUID
@@ -120,7 +119,6 @@ func (j *FinishProjectEventActivity) DeleteAccountActivity(ctx context.Context, 
 }
 
 func (j *FinishProjectEventActivity) VerifySoftDeletedResourcesForAccount(ctx context.Context, projectNumber string) (bool, error) {
-	// TODO: Add check for Backup
 	var (
 		softDelVolume = true
 		softDelPool   = true

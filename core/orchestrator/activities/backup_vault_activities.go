@@ -384,3 +384,137 @@ func (j *BackupVaultActivity) DeleteBackupVaultBuckets(ctx context.Context, back
 	}
 	return nil
 }
+
+// CleanupBackupVaultsForAccount fetches all backup vaults for an account and cleans them up
+func (a *BackupVaultActivity) CleanupBackupVaultsForAccount(ctx context.Context, projectNumber string) error {
+	logger := util.GetLogger(ctx)
+
+	// Get account ID from project number
+	account, err := a.SE.GetAccount(ctx, projectNumber)
+	if err != nil {
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Fetch all backup vaults for the account
+	backupVaults, err := a.SE.ListBackupVaults(ctx, account.ID)
+	if err != nil {
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	if len(backupVaults) > 0 {
+		logger.Infof("Cleaning up %d backup vaults for project %s", len(backupVaults), projectNumber)
+	}
+
+	// Cleanup each backup vault
+	for _, vault := range backupVaults {
+		err = a.cleanupBackupVault(ctx, vault)
+		if err != nil {
+			logger.Errorf("Failed to cleanup backup vault %s: %v", vault.UUID, err)
+			return errors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	return nil
+}
+
+// cleanupBackupVault handles the cleanup of a single backup vault
+func (a *BackupVaultActivity) cleanupBackupVault(ctx context.Context, vault *datamodel.BackupVault) error {
+	logger := util.GetLogger(ctx)
+
+	// 1. Delete GCP buckets associated with this vault
+	err := a.deleteGCPBucketsForVault(ctx, vault)
+	if err != nil {
+		logger.Errorf("Failed to delete GCP buckets for vault %s: %v", vault.UUID, err)
+		// Continue with database deletion even if bucket deletion fails
+	}
+
+	// 2. Fetch and cleanup all backups for this vault
+	err = a.cleanupBackupsForVault(ctx, vault)
+	if err != nil {
+		logger.Errorf("Failed to cleanup backups for vault %s: %v", vault.UUID, err)
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	// 3. Soft delete the backup vault in database
+	_, err = a.SE.DeleteBackupVaultInVCP(ctx, vault.UUID)
+	if err != nil {
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to soft delete backup vault %s: %v", vault.UUID, err),
+			"DeleteBackupVaultError",
+			err,
+		)
+	}
+
+	return nil
+}
+
+// deleteGCPBucketsForVault deletes all GCP buckets associated with a backup vault
+func (a *BackupVaultActivity) deleteGCPBucketsForVault(ctx context.Context, vault *datamodel.BackupVault) error {
+	logger := util.GetLogger(ctx)
+
+	// Initialize GCP service
+	gcpService, err := hyperscaler.GetGCPService(ctx)
+	if err != nil {
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Delete each bucket associated with the backup vault
+	for _, bucketDetail := range vault.BucketDetails {
+		if bucketDetail.BucketName != "" {
+			// First empty the bucket (delete all objects)
+			err := gcpService.EmptyBucket(ctx, bucketDetail.BucketName)
+			if err != nil {
+				logger.Errorf("Failed to empty bucket %s: %v", bucketDetail.BucketName, err)
+				return errors.NewVCPError(errors.ErrGCPResourceDeprovisionError, err)
+			}
+
+			// Then delete the empty bucket
+			err = gcpService.DeleteBucket(ctx, bucketDetail.BucketName)
+			if err != nil {
+				logger.Errorf("Failed to delete bucket %s: %v", bucketDetail.BucketName, err)
+				return errors.NewVCPError(errors.ErrGCPResourceDeprovisionError, err)
+			}
+		}
+	}
+	return nil
+}
+
+// cleanupBackupsForVault fetches and soft deletes all backups for a vault
+func (a *BackupVaultActivity) cleanupBackupsForVault(ctx context.Context, vault *datamodel.BackupVault) error {
+	logger := util.GetLogger(ctx)
+
+	// Fetch all backups for this vault
+	backups, err := a.SE.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, vault.UUID, vault.AccountID, [][]interface{}{})
+	if err != nil {
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Soft delete each backup
+	for _, backup := range backups {
+		err = a.cleanupBackup(ctx, backup)
+		if err != nil {
+			logger.Errorf("Failed to cleanup backup %s: %v", backup.UUID, err)
+			return errors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	return nil
+}
+
+// cleanupBackup handles the soft deletion of a single backup
+func (a *BackupVaultActivity) cleanupBackup(ctx context.Context, backup *datamodel.Backup) error {
+	logger := util.GetLogger(ctx)
+
+	// Soft delete the backup in database
+	_, err := a.SE.DeleteBackup(ctx, backup.UUID)
+	if err != nil {
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to soft delete backup %s: %v", backup.UUID, err),
+			"DeleteBackupError",
+			err,
+		)
+	}
+
+	logger.Debugf("Successfully soft deleted backup %s", backup.UUID)
+	return nil
+}

@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
@@ -327,4 +328,67 @@ func _convertToBackupPolicyDataModel(backupPolicy *cvpmodels.BackupPolicyDetails
 		LifeCycleState:        backupPolicy.State,
 		LifeCycleStateDetails: lifeCycleStateDetails,
 	}
+}
+
+// CleanupBackupPoliciesForAccount fetches all backup policies for an account and cleans them up
+func (a *BackupPolicyActivity) CleanupBackupPoliciesForAccount(ctx context.Context, projectNumber string) error {
+	logger := util.GetLogger(ctx)
+
+	// Get account ID from project number
+	account, err := a.SE.GetAccount(ctx, projectNumber)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Fetch all backup policies for the account
+	conditions := [][]interface{}{
+		{"account_id = ?", account.ID},
+	}
+	backupPolicies, err := a.SE.ListBackupPolicies(ctx, conditions)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if len(backupPolicies) > 0 {
+		logger.Infof("Cleaning up %d backup policies for project %s", len(backupPolicies), projectNumber)
+	}
+
+	// Cleanup each backup policy
+	for _, policy := range backupPolicies {
+		err = a.cleanupBackupPolicy(ctx, policy)
+		if err != nil {
+			logger.Errorf("Failed to cleanup backup policy %s: %v", policy.UUID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	return nil
+}
+
+// cleanupBackupPolicy handles the cleanup of a single backup policy
+func (a *BackupPolicyActivity) cleanupBackupPolicy(ctx context.Context, policy *datamodel.BackupPolicy) error {
+	logger := util.GetLogger(ctx)
+
+	// 1. Delete temporal scheduler for this policy
+	_, err := a.Scheduler.Delete(ctx, scheduler.DeleteScheduleParams{
+		ScheduleParams: scheduler.ScheduleParams{
+			ScheduleID: policy.UUID,
+		},
+	})
+	if err != nil {
+		logger.Errorf("Failed to delete temporal scheduler for policy %s: %v", policy.UUID, err)
+		// Continue with database deletion even if scheduler deletion fails
+	}
+
+	// 2. Soft delete the backup policy in database
+	_, err = a.SE.DeleteBackupPolicy(ctx, policy.UUID)
+	if err != nil {
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to soft delete backup policy %s: %v", policy.UUID, err),
+			"DeleteBackupPolicyError",
+			err,
+		)
+	}
+
+	return nil
 }
