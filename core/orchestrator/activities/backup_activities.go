@@ -179,6 +179,8 @@ func (b *BackupActivity) CreateSnapmirrorRelationshipActivity(ctx context.Contex
 	backupActivitiesContext.SnapmirrorRelationship = snapmirrorRelationship
 	if snapmirrorRelationship != nil && snapmirrorRelationship.DestinationUUID != nil {
 		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.EndpointUUID = *snapmirrorRelationship.DestinationUUID
+	} else {
+		return backupActivitiesContext, vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("DestinationUUID not found in snapmirror relationship"))
 	}
 
 	return backupActivitiesContext, nil

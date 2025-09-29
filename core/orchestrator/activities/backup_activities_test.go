@@ -2592,11 +2592,9 @@ func TestCreateSnapmirrorRelationshipActivity_WithNilDestinationUUID(t *testing.
 	result, err := activity.CreateSnapmirrorRelationshipActivity(ctx, state)
 
 	// Assert
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, "sm-uuid", result.SnapmirrorRelationship.UUID)
-	assert.Nil(t, result.SnapmirrorRelationship.DestinationUUID)
-	assert.Empty(t, result.BackupWorkflowInit.Backup.Attributes.EndpointUUID)
+	assert.Contains(t, err.Error(), "An internal error occurred.")
 	mockProvider.AssertExpectations(t)
 }
 
