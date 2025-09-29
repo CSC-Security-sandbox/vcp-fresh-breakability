@@ -4377,8 +4377,10 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 		PoolID:      pool.ID,
 		SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GiB
 		State:       models.LifeCycleStateREADY,
-		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{LargeVolumeConstituentCount: &lvcc,
-			LargeCapacity: true},
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+			LargeVolumeConstituentCount: &lvcc,
+			LargeCapacity:               true,
+		},
 	}
 	err = store.DB().Create(parentVolume).Error
 	if err != nil {
@@ -4849,7 +4851,6 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 		temporal.On("SignalWithStartWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		_, _, err = createVolume(ctx, store, temporal, params)
-
 		// Should not fail due to protocol validation (may fail for other reasons like workflow execution)
 		// The key is that it should not fail with protocol mismatch error
 		if err != nil {
@@ -8360,6 +8361,191 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err)
 	})
+	tt.Run("WhenBackupPolicySetWithImmutableBackupValidation", func(tt *testing.T) {
+		// Set up immutable backup feature flag for this test case
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		// Create backup vault with immutable attributes
+		var retentionDays int64 = 30
+		bv := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: "test-vault-immutable"},
+			Name:           "test_bv_immutable",
+			AccountID:      account.ID,
+			LifeCycleState: models.LifeCycleStateREADY,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &retentionDays,
+				IsDailyBackupImmutable:                 true,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+			},
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create backup vault with immutable attributes")
+
+		// Create backup policy with sufficient retention for immutable backup
+		bp := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: "test-policy-immutable"},
+			Name:                 "test_policy_immutable",
+			AccountID:            account.ID,
+			DailyBackupsToKeep:   35, // More than minimum retention
+			WeeklyBackupsToKeep:  5,
+			MonthlyBackupsToKeep: 3,
+			PolicyEnabled:        true,
+			LifeCycleState:       models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(bp).Error
+		assert.NoError(tt, err, "Failed to create backup policy")
+
+		scheduledBackupEnable := true
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name-immutable",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			DataProtection: &models.DataProtection{
+				BackupPolicyId:         "test-policy-immutable",
+				BackupVaultID:          "test-vault-immutable",
+				ScheduledBackupEnabled: &scheduledBackupEnable,
+			},
+			BlockProperties: &common.BlockPropertiesRequest{
+				HostGroupUUIDs: []string{},
+			},
+			Protocols: []string{utils.ProtocolISCSI},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesVolume,
+		}
+
+		// This should pass because backup policy has sufficient retention
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.Nil(tt, err)
+	})
+
+	tt.Run("WhenBackupPolicySetWithInsufficientRetentionForImmutableBackup", func(tt *testing.T) {
+		// Set up immutable backup feature flag for this test case
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		// Create backup vault with immutable attributes
+		var retentionDays int64 = 60
+		bv := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: "test-vault-immutable-strict"},
+			Name:           "test_bv_immutable_strict",
+			AccountID:      account.ID,
+			LifeCycleState: models.LifeCycleStateREADY,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &retentionDays,
+				IsDailyBackupImmutable:                 true,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+			},
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create backup vault with strict immutable attributes")
+
+		// Create backup policy with insufficient retention for immutable backup
+		bp := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: "test-policy-insufficient"},
+			Name:                 "test_policy_insufficient",
+			AccountID:            account.ID,
+			DailyBackupsToKeep:   30, // Less than minimum retention of 60 days
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+			PolicyEnabled:        true,
+			LifeCycleState:       models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(bp).Error
+		assert.NoError(tt, err, "Failed to create backup policy with insufficient retention")
+
+		scheduledBackupEnable := true
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name-insufficient",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			DataProtection: &models.DataProtection{
+				BackupPolicyId:         "test-policy-insufficient",
+				BackupVaultID:          "test-vault-immutable-strict",
+				ScheduledBackupEnabled: &scheduledBackupEnable,
+			},
+			BlockProperties: &common.BlockPropertiesRequest{
+				HostGroupUUIDs: []string{},
+			},
+			Protocols: []string{utils.ProtocolISCSI},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesVolume,
+		}
+
+		// This should fail because backup policy has insufficient retention
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "Backup policy is not compliant with immutable backup vault settings")
+	})
+
+	tt.Run("WhenImmutableBackupDisabled", func(tt *testing.T) {
+		// Explicitly disable immutable backup feature flag for this test case
+		utils.SetImmutableBackupEnabledForTest(false)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		// Create backup vault with immutable attributes (this should be ignored when feature is disabled)
+		var retentionDays int64 = 60
+		bv := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: "test-vault-disabled-feature"},
+			Name:           "test_bv_disabled_feature",
+			AccountID:      account.ID,
+			LifeCycleState: models.LifeCycleStateREADY,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &retentionDays,
+				IsDailyBackupImmutable:                 true,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+			},
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create backup vault")
+
+		// Create backup policy with insufficient retention (but should pass when feature is disabled)
+		bp := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: "test-policy-disabled-feature"},
+			Name:                 "test_policy_disabled_feature",
+			AccountID:            account.ID,
+			DailyBackupsToKeep:   10, // Less than minimum retention, but feature is disabled
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+			PolicyEnabled:        true,
+			LifeCycleState:       models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(bp).Error
+		assert.NoError(tt, err, "Failed to create backup policy")
+
+		scheduledBackupEnable := true
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name-disabled-feature",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			DataProtection: &models.DataProtection{
+				BackupPolicyId:         "test-policy-disabled-feature",
+				BackupVaultID:          "test-vault-disabled-feature",
+				ScheduledBackupEnabled: &scheduledBackupEnable,
+			},
+			BlockProperties: &common.BlockPropertiesRequest{
+				HostGroupUUIDs: []string{},
+			},
+			Protocols: []string{utils.ProtocolISCSI},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesVolume,
+		}
+
+		// This should pass because immutable backup validation is disabled
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.Nil(tt, err)
+	})
 }
 
 func TestUpdateVolume(t *testing.T) {
@@ -8404,7 +8590,8 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY",
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY",
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 10,
 			},
@@ -8464,7 +8651,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeSuccessWithBlockPropertiesNoHGUUIDs", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+		param := &common.UpdateVolumeParams{
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{},
@@ -8504,7 +8692,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeFailsWithBlockPropertiesWithUnavailableHgs", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+		param := &common.UpdateVolumeParams{
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"hg1"},
@@ -8538,7 +8727,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeFailsWithBlockPropertiesWhereSomeHgsUnavailable", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+		param := &common.UpdateVolumeParams{
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"hg1", "hg2"},
@@ -8574,7 +8764,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeFailsWithBlockPropertiesWhereHGStateNotReady", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+		param := &common.UpdateVolumeParams{
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"hg1", "hg2"},
@@ -8610,7 +8801,8 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeFailsWithBlockPropertiesWhereHGStateNotUnique", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+		param := &common.UpdateVolumeParams{
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"hg1", "hg2"},
@@ -9315,7 +9507,8 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+		param := &common.UpdateVolumeParams{
+			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: false},
 		}
 		dbVolume := &datamodel.Volume{
@@ -9468,6 +9661,7 @@ func TestOrchestrator_UpdateVolume(t *testing.T) {
 	assert.Equal(t, "vol", vol.DisplayName)
 	assert.Equal(t, "job-id", jobID)
 }
+
 func TestGetVolumeCount(t *testing.T) {
 	t.Run("WhenStorageReturnsCount", func(tt *testing.T) {
 		ctx := context.Background()
@@ -9668,10 +9862,13 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 	})
 
 	t.Run("FailsIfSnapshotPolicyUpdatedForDPVol", func(tt *testing.T) {
-		volume := &datamodel.Volume{State: "READY", SizeInBytes: 1000, VolumeAttributes: &datamodel.VolumeAttributes{
-			IsDataProtection: true},
+		volume := &datamodel.Volume{
+			State: "READY", SizeInBytes: 1000, VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: true,
+			},
 		}
-		params := &common.UpdateVolumeParams{QuotaInBytes: 1000,
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: 1000,
 			SnapshotPolicy: &models.SnapshotPolicy{
 				IsEnabled: true,
 				Schedules: []*models.SnapshotPolicySchedule{
@@ -14330,5 +14527,875 @@ func TestTriggerRefreshWorkflow(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Equal(tt, executeError, err)
+	})
+}
+
+// TestCheckIsValidImmutableBackupPolicyWithRetry tests the retry mechanism for volume immutable backup policy validation
+func TestCheckIsValidImmutableBackupPolicyWithRetry(t *testing.T) {
+	// Enable immutable backup feature flag for this test
+	utils.SetImmutableBackupEnabledForTest(true)
+	defer utils.SetImmutableBackupEnabledForTest(false)
+
+	ctx := context.Background()
+
+	// Setup test data
+	backupPolicyUUID := "backup-policy-uuid"
+	backupVaultUUID := "backup-vault-uuid"
+	accountID := int64(123)
+	region := "us-central1"
+	accountName := "test-account"
+
+	// Mock backup policy and backup vault
+	mockBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
+		LifeCycleState:       models.LifeCycleStateREADY,
+		DailyBackupsToKeep:   30,
+		WeeklyBackupsToKeep:  0,
+		MonthlyBackupsToKeep: 0,
+	}
+
+	var retentionDays int64 = 30
+	mockBackupVault := &datamodel.BackupVault{
+		BaseModel:      datamodel.BaseModel{UUID: backupVaultUUID},
+		LifeCycleState: models.LifeCycleStateREADY,
+		ImmutableAttributes: &datamodel.ImmutableAttributes{
+			BackupMinimumEnforcedRetentionDuration: &retentionDays,
+			IsDailyBackupImmutable:                 true,
+		},
+	}
+
+	t.Run("Retries on retryable error and succeeds on second attempt", func(t *testing.T) {
+		// Store original values
+		origMaxRetries := common.MaxRetries
+		origRetryDelay := common.RetryDelay
+		origSleepFn := common.SleepFn
+
+		// Setup test values
+		common.MaxRetries = 3
+		common.RetryDelay = 1 * time.Millisecond
+		sleepCalled := 0
+		common.SleepFn = func(d time.Duration) { sleepCalled++ }
+
+		// Restore original values
+		defer func() {
+			common.MaxRetries = origMaxRetries
+			common.RetryDelay = origRetryDelay
+			common.SleepFn = origSleepFn
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+
+		// First call returns backup policy in updating state (retryable error)
+		updatingBackupPolicy := *mockBackupPolicy
+		updatingBackupPolicy.LifeCycleState = models.LifeCycleStateUpdating
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(&updatingBackupPolicy, nil).Once()
+
+		// Second call returns backup policy in ready state
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil).Once()
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(mockBackupVault, nil).Once()
+
+		err := checkIsValidImmutableBackupPolicyWithRetry(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, sleepCalled, "Should sleep once for one retry")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Stops after max retries on persistent retryable error", func(t *testing.T) {
+		// Store original values
+		origMaxRetries := common.MaxRetries
+		origRetryDelay := common.RetryDelay
+		origSleepFn := common.SleepFn
+
+		// Setup test values
+		common.MaxRetries = 3
+		common.RetryDelay = 1 * time.Millisecond
+		sleepCalled := 0
+		common.SleepFn = func(d time.Duration) { sleepCalled++ }
+
+		// Restore original values
+		defer func() {
+			common.MaxRetries = origMaxRetries
+			common.RetryDelay = origRetryDelay
+			common.SleepFn = origSleepFn
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+
+		// All calls return backup policy in updating state (persistent retryable error)
+		updatingBackupPolicy := *mockBackupPolicy
+		updatingBackupPolicy.LifeCycleState = models.LifeCycleStateUpdating
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(&updatingBackupPolicy, nil).Times(3)
+
+		err := checkIsValidImmutableBackupPolicyWithRetry(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Error while creating immutable backup when backup policy is in updating state")
+		assert.Equal(t, 2, sleepCalled, "Should sleep between retry attempts (2 sleeps for 3 attempts)")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Does not retry on non-retryable error", func(t *testing.T) {
+		// Store original values
+		origMaxRetries := common.MaxRetries
+		origRetryDelay := common.RetryDelay
+		origSleepFn := common.SleepFn
+
+		// Setup test values
+		common.MaxRetries = 3
+		common.RetryDelay = 1 * time.Millisecond
+		sleepCalled := 0
+		common.SleepFn = func(d time.Duration) { sleepCalled++ }
+
+		// Restore original values
+		defer func() {
+			common.MaxRetries = origMaxRetries
+			common.RetryDelay = origRetryDelay
+			common.SleepFn = origSleepFn
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+
+		// Return a non-retryable error (backup policy not found)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(nil, errors.New("backup policy not found")).Once()
+
+		err := checkIsValidImmutableBackupPolicyWithRetry(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get backup policy")
+		assert.Equal(t, 0, sleepCalled, "Should not sleep for non-retryable errors")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("First attempt succeeds, no retries", func(t *testing.T) {
+		// Store original values
+		origMaxRetries := common.MaxRetries
+		origRetryDelay := common.RetryDelay
+		origSleepFn := common.SleepFn
+
+		// Setup test values
+		common.MaxRetries = 3
+		common.RetryDelay = 1 * time.Millisecond
+		sleepCalled := 0
+		common.SleepFn = func(d time.Duration) { sleepCalled++ }
+
+		// Restore original values
+		defer func() {
+			common.MaxRetries = origMaxRetries
+			common.RetryDelay = origRetryDelay
+			common.SleepFn = origSleepFn
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+
+		// First call succeeds
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil).Once()
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(mockBackupVault, nil).Once()
+
+		err := checkIsValidImmutableBackupPolicyWithRetry(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, sleepCalled, "Should not sleep when first attempt succeeds")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Retryable error then non-retryable error (should stop on non-retryable)", func(t *testing.T) {
+		// Store original values
+		origMaxRetries := common.MaxRetries
+		origRetryDelay := common.RetryDelay
+		origSleepFn := common.SleepFn
+
+		// Setup test values
+		common.MaxRetries = 3
+		common.RetryDelay = 1 * time.Millisecond
+		sleepCalled := 0
+		common.SleepFn = func(d time.Duration) { sleepCalled++ }
+
+		// Restore original values
+		defer func() {
+			common.MaxRetries = origMaxRetries
+			common.RetryDelay = origRetryDelay
+			common.SleepFn = origSleepFn
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+
+		// First call returns backup policy in updating state (retryable error)
+		updatingBackupPolicy := *mockBackupPolicy
+		updatingBackupPolicy.LifeCycleState = models.LifeCycleStateUpdating
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(&updatingBackupPolicy, nil).Once()
+
+		// Second call returns backup policy not found error (non-retryable)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(nil, errors.New("backup policy not found")).Once()
+
+		err := checkIsValidImmutableBackupPolicyWithRetry(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get backup policy")
+		assert.Equal(t, 1, sleepCalled, "Should sleep once before encountering non-retryable error")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("All attempts return non-retryable errors (should not retry at all)", func(t *testing.T) {
+		// Store original values
+		origMaxRetries := common.MaxRetries
+		origRetryDelay := common.RetryDelay
+		origSleepFn := common.SleepFn
+
+		// Setup test values
+		common.MaxRetries = 3
+		common.RetryDelay = 1 * time.Millisecond
+		sleepCalled := 0
+		common.SleepFn = func(d time.Duration) { sleepCalled++ }
+
+		// Restore original values
+		defer func() {
+			common.MaxRetries = origMaxRetries
+			common.RetryDelay = origRetryDelay
+			common.SleepFn = origSleepFn
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+
+		// Return validation error on first call (non-retryable)
+		invalidBackupPolicy := *mockBackupPolicy
+		invalidBackupPolicy.DailyBackupsToKeep = 10 // Too low for 30-day retention
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(&invalidBackupPolicy, nil).Once()
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(mockBackupVault, nil).Once()
+
+		err := checkIsValidImmutableBackupPolicyWithRetry(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "daily backup retention")
+		assert.Equal(t, 0, sleepCalled, "Should not sleep for validation errors")
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+// TestIsImmutableBackupPolicyRetryableError tests the retry error detection logic
+func TestIsImmutableBackupPolicyRetryableError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "Nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "Backup policy updating error",
+			err:      vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, fmt.Errorf("Cannot validate immutable backup policy: backup policy 'policy-123' is currently being updated. Please wait for the policy update to complete.")),
+			expected: true,
+		},
+		{
+			name:     "Backup vault updating error",
+			err:      vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, fmt.Errorf("Cannot validate immutable backup policy: backup vault 'vault-123' is currently being updated. Please wait for the vault update to complete.")),
+			expected: true,
+		},
+		{
+			name:     "Backup vault in transition state error",
+			err:      vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, fmt.Errorf("backup vault is in transition state")),
+			expected: true,
+		},
+		{
+			name:     "Generic backup policy updating error",
+			err:      vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, fmt.Errorf("backup policy xyz is updating")),
+			expected: true,
+		},
+		{
+			name:     "Generic backup vault updating error",
+			err:      vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, fmt.Errorf("backup vault abc is updating")),
+			expected: true,
+		},
+		{
+			name:     "Non-retryable validation error",
+			err:      errors.NewUserInputValidationErr("daily backup retention (10 days) is less than backup vault immutable period (30 days)"),
+			expected: false,
+		},
+		{
+			name:     "Non-retryable not found error",
+			err:      errors.New("backup policy not found"),
+			expected: false,
+		},
+		{
+			name:     "Non-retryable general error",
+			err:      errors.New("some general error"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isImmutableBackupPolicyRetryableError(tt.err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestCheckIsValidImmutableBackupPolicyWithStateCheck tests the state check logic
+func TestCheckIsValidImmutableBackupPolicyWithStateCheck(t *testing.T) {
+	// Enable immutable backup feature flag for this test
+	utils.SetImmutableBackupEnabledForTest(true)
+	defer utils.SetImmutableBackupEnabledForTest(false)
+
+	ctx := context.Background()
+	backupPolicyUUID := "backup-policy-uuid"
+	backupVaultUUID := "backup-vault-uuid"
+	accountID := int64(123)
+	region := "us-central1"
+	accountName := "test-account"
+
+	t.Run("Success when both backup policy and vault are ready", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock backup policy in ready state
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState:       models.LifeCycleStateREADY,
+			DailyBackupsToKeep:   30,
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+		}
+
+		// Mock backup vault in ready state with no immutable attributes
+		mockBackupVault := &datamodel.BackupVault{
+			BaseModel:           datamodel.BaseModel{UUID: backupVaultUUID},
+			LifeCycleState:      models.LifeCycleStateREADY,
+			ImmutableAttributes: nil, // No immutable constraints
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(mockBackupVault, nil)
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when backup policy is updating", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock backup policy in updating state
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState: models.LifeCycleStateUpdating,
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Error while creating immutable backup when backup policy is in updating state")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when backup vault is updating", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock backup policy in ready state
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+
+		// Mock backup vault in updating state
+		mockBackupVault := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: backupVaultUUID},
+			LifeCycleState: models.LifeCycleStateUpdating,
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(mockBackupVault, nil)
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Immutable backup vault is being updated")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error with invalid input parameters", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Test empty backup policy UUID
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, "", backupVaultUUID, accountID, region, accountName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "backup policy UUID cannot be empty")
+
+		// Test empty backup vault UUID
+		err = _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, "", accountID, region, accountName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "backup vault UUID cannot be empty")
+
+		// Test invalid account ID
+		err = _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, 0, region, accountName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "account ID must be positive")
+
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+// TestGetBackupVaultFromCVP tests the CVP backup vault fetching logic
+func TestGetBackupVaultFromCVP(t *testing.T) {
+	t.Run("Successfully fetches backup vault from CVP", func(t *testing.T) {
+		// This test would require mocking the CVP client, which isn't readily available
+		// in the current test setup. For now, we'll test the error paths which are
+		// the main coverage gaps.
+		t.Skip("CVP client mocking requires additional setup")
+	})
+
+	t.Run("Returns not found error when backup vault doesn't exist", func(t *testing.T) {
+		// This would test the backup vault not found case
+		// For now, we'll skip this as it requires CVP client mocking
+		t.Skip("CVP client mocking requires additional setup")
+	})
+
+	t.Run("Returns error when CVP client fails", func(t *testing.T) {
+		// This would test CVP client errors
+		t.Skip("CVP client mocking requires additional setup")
+	})
+}
+
+// TestGetBackupPolicyFromCVP tests the CVP backup policy fetching logic
+func TestGetBackupPolicyFromCVP(t *testing.T) {
+	t.Run("Successfully fetches backup policy from CVP", func(t *testing.T) {
+		// This test would require mocking the CVP client
+		t.Skip("CVP client mocking requires additional setup")
+	})
+
+	t.Run("Returns not found error when backup policy doesn't exist", func(t *testing.T) {
+		// This would test the backup policy not found case
+		t.Skip("CVP client mocking requires additional setup")
+	})
+
+	t.Run("Returns error when CVP client fails", func(t *testing.T) {
+		// This would test CVP client errors
+		t.Skip("CVP client mocking requires additional setup")
+	})
+}
+
+// TestCheckIsValidImmutableBackupPolicyWithStateCheck_AdditionalCoverage tests additional error paths
+func TestCheckIsValidImmutableBackupPolicyWithStateCheck_AdditionalCoverage(t *testing.T) {
+	// Enable immutable backup feature flag for this test
+	utils.SetImmutableBackupEnabledForTest(true)
+	defer utils.SetImmutableBackupEnabledForTest(false)
+
+	ctx := context.Background()
+	backupPolicyUUID := "test-policy-uuid"
+	backupVaultUUID := "test-vault-uuid"
+	accountID := int64(123)
+	region := "us-central1"
+	accountName := "test-account"
+
+	t.Run("Error when backup policy fetch fails with non-NotFound error", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock database error (not NotFound)
+		dbError := fmt.Errorf("database connection failed")
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(nil, dbError)
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get backup policy")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when backup vault fetch fails with non-NotFound error", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock backup policy in ready state
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState:       models.LifeCycleStateREADY,
+			DailyBackupsToKeep:   30,
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+		}
+
+		// Mock database error (not NotFound) for backup vault
+		dbError := fmt.Errorf("database connection failed")
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(nil, dbError)
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get backup vault")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success when backup vault has no immutable attributes", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock backup policy in ready state
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState:       models.LifeCycleStateREADY,
+			DailyBackupsToKeep:   30,
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+		}
+
+		// Mock backup vault without immutable attributes
+		mockBackupVault := &datamodel.BackupVault{
+			BaseModel:           datamodel.BaseModel{UUID: backupVaultUUID},
+			LifeCycleState:      models.LifeCycleStateREADY,
+			ImmutableAttributes: nil, // No immutable attributes
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(mockBackupVault, nil)
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.NoError(t, err) // Should succeed without validation when no immutable attributes
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when backup policy validation fails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock backup policy with incompatible retention
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState:       models.LifeCycleStateREADY,
+			DailyBackupsToKeep:   5, // Too low for immutable retention
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+		}
+
+		// Mock backup vault with strict immutable requirements
+		var retentionDays int64 = 365 // 1 year retention required
+		mockBackupVault := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: backupVaultUUID},
+			LifeCycleState: models.LifeCycleStateREADY,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &retentionDays,
+				IsDailyBackupImmutable:                 true,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(mockBackupVault, nil)
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "immutable backup policy validation failed")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when backup policy not found locally and CVP fetch fails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock backup policy not found locally (this will trigger CVP fallback)
+		notFoundErr := errors.NewNotFoundErr("Backup policy", nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(nil, notFoundErr)
+
+		// Note: This would require mocking CVP client to fully test the CVP fallback path
+		// For now, we'll test the scenario where the fallback logic is triggered
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		// The actual error will vary depending on CVP client setup, but we expect an error
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when backup vault not found locally and CVP fetch fails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock backup policy exists locally
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState:       models.LifeCycleStateREADY,
+			DailyBackupsToKeep:   30,
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+		}
+
+		// Mock backup vault not found locally (this will trigger CVP fallback)
+		notFoundErr := errors.NewNotFoundErr("Backup vault", nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(nil, notFoundErr)
+
+		// Note: This would require mocking CVP client to fully test the CVP fallback path
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		// The actual error will vary depending on CVP client setup, but we expect an error
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+// TestCheckIsValidImmutableBackupPolicyWithRetry_ErrorPaths tests specific retry error paths
+func TestCheckIsValidImmutableBackupPolicyWithRetry_ErrorPaths(t *testing.T) {
+	// Enable immutable backup feature flag for this test
+	utils.SetImmutableBackupEnabledForTest(true)
+	defer utils.SetImmutableBackupEnabledForTest(false)
+
+	ctx := context.Background()
+	backupPolicyUUID := "test-policy-uuid"
+	backupVaultUUID := "test-vault-uuid"
+	accountID := int64(123)
+	region := "us-central1"
+	accountName := "test-account"
+
+	t.Run("Returns error after exceeding max retry attempts", func(t *testing.T) {
+		// Store original values
+		origMaxRetries := common.MaxRetries
+		origRetryDelay := common.RetryDelay
+		origSleepFn := common.SleepFn
+
+		// Setup test values
+		common.MaxRetries = 2 // Small number for faster test
+		common.RetryDelay = 1 * time.Millisecond
+		sleepCalled := 0
+		common.SleepFn = func(d time.Duration) { sleepCalled++ }
+
+		// Restore original values
+		defer func() {
+			common.MaxRetries = origMaxRetries
+			common.RetryDelay = origRetryDelay
+			common.SleepFn = origSleepFn
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+
+		// All attempts return a retryable error
+		updatingBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState: models.LifeCycleStateUpdating,
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(updatingBackupPolicy, nil).Times(2)
+
+		err := checkIsValidImmutableBackupPolicyWithRetry(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Error while creating immutable backup when backup policy is in updating state")
+		assert.Equal(t, 1, sleepCalled, "Should sleep once for one retry") // MaxRetries-1
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+// TestValidateUpdateVolumeRequest_ImmutableBackupValidation tests immutable backup validation in update volume
+func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
+	// Enable immutable backup feature flag for this test
+	utils.SetImmutableBackupEnabledForTest(true)
+	defer utils.SetImmutableBackupEnabledForTest(false)
+
+	ctx := context.Background()
+
+	t.Run("Success when immutable backup validation passes", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Setup test data
+		accountID := int64(123)
+		region := "us-central1"
+		accountName := "test-account"
+		backupPolicyID := "test-policy-id"
+		backupVaultID := "test-vault-id"
+
+		// Mock volume with account
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: accountID},
+			},
+		}
+
+		// Mock pool view
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: accountID},
+				},
+			},
+		}
+
+		// Mock update params with backup settings
+		params := &common.UpdateVolumeParams{
+			Region:      region,
+			AccountName: accountName,
+			DataProtection: &models.UpdateDataProtection{
+				BackupPolicyId: &backupPolicyID,
+				BackupVaultID:  &backupVaultID,
+			},
+		}
+
+		// Mock successful backup policy and vault
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: backupPolicyID},
+			LifeCycleState:       models.LifeCycleStateREADY,
+			DailyBackupsToKeep:   30,
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+		}
+
+		var retentionDays int64 = 30
+		mockBackupVault := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
+			LifeCycleState: models.LifeCycleStateREADY,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &retentionDays,
+				IsDailyBackupImmutable:                 true,
+			},
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).Return(mockBackupPolicy, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(mockBackupVault, nil)
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when immutable backup validation fails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Setup test data
+		accountID := int64(123)
+		region := "us-central1"
+		accountName := "test-account"
+		backupPolicyID := "test-policy-id"
+		backupVaultID := "test-vault-id"
+
+		// Mock volume with account
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: accountID},
+			},
+		}
+
+		// Mock pool view
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: accountID},
+				},
+			},
+		}
+
+		// Mock update params with backup settings
+		params := &common.UpdateVolumeParams{
+			Region:      region,
+			AccountName: accountName,
+			DataProtection: &models.UpdateDataProtection{
+				BackupPolicyId: &backupPolicyID,
+				BackupVaultID:  &backupVaultID,
+			},
+		}
+
+		// Mock backup policy in updating state (will cause validation to fail)
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
+			LifeCycleState: models.LifeCycleStateUpdating,
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).Return(mockBackupPolicy, nil)
+
+		// The validation will also try to get the backup vault
+		mockBackupVault := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(mockBackupVault, nil)
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "backup policy is not in ready state, please check the backup policy and try again")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success when DataProtection is nil", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Mock volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		}
+
+		// Mock pool view
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: int64(123)},
+				},
+			},
+		}
+
+		// Mock update params without backup settings
+		params := &common.UpdateVolumeParams{
+			Region:         "us-central1",
+			AccountName:    "test-account",
+			DataProtection: nil, // No backup configuration
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		assert.NoError(t, err) // Should pass without backup validation
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success when only BackupPolicyId is set (no BackupVaultID)", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Setup test data
+		backupPolicyID := "test-policy-id"
+		accountID := int64(123)
+
+		// Mock volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		}
+
+		// Mock pool view
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: accountID},
+				},
+			},
+		}
+
+		// Mock update params with only backup policy (no vault)
+		params := &common.UpdateVolumeParams{
+			Region:      "us-central1",
+			AccountName: "test-account",
+			DataProtection: &models.UpdateDataProtection{
+				BackupPolicyId: &backupPolicyID,
+				BackupVaultID:  nil, // No vault specified
+			},
+		}
+
+		// Mock backup policy lookup (will be called but won't trigger immutable validation since no vault)
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).Return(mockBackupPolicy, nil)
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		assert.NoError(t, err) // Should pass without immutable backup validation
+		mockStorage.AssertExpectations(t)
 	})
 }

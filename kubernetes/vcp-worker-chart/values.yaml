@@ -95,6 +95,7 @@ workerConfig:
   caPoolName: "vsa-pool-ca"
   caPoolDeployedProjectId: "266893635349"
   secretManagerProjectId: "266893635349"
+  immutableBackupEnabled: "false"
   vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"
   vsaSecretCacheCleanupIntervalHours: 24

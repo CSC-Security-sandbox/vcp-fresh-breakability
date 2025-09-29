@@ -519,7 +519,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 		}
 	}
 	if backupVault != nil {
-		if backupVault.ImmutableAttributes != nil {
+		if backupVault.ImmutableAttributes != nil && !utils.IsImmutableBackupEnabled() {
 			err := validateImmutableBackupVault(*backupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration)
 			if err != nil {
 				return err
@@ -554,7 +554,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 
 	for _, bv := range bvs {
 		if bv.BackupVaultID == bvId {
-			if bv.BackupRetentionPolicy != nil {
+			if bv.BackupRetentionPolicy != nil && !utils.IsImmutableBackupEnabled() {
 				err := validateImmutableBackupVault(*bv.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDays)
 				if err != nil {
 					return err
@@ -565,7 +565,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 				return err
 			}
 
-			bvModel, err := convertToBackupVaultDataModel(bv, region)
+			bvModel, err := ConvertToBackupVaultDataModel(bv, region)
 			if err != nil {
 				return err
 			}
@@ -916,7 +916,7 @@ func _createBackupPolicyFetchedFromSDE(ctx context.Context, se database.Storage,
 		return nil, errors.NewNotFoundErr("Backup policy", &backupPolicyUUID)
 	}
 
-	backupPolicy := convertToBackupPolicyDataModel(cvpBackupPolicy.Payload)
+	backupPolicy := ConvertToBackupPolicyDataModel(cvpBackupPolicy.Payload)
 	backupPolicy.AccountID = volume.AccountID
 
 	dbBackupPolicy, err := se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)

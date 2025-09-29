@@ -24,9 +24,6 @@ import (
 
 const (
 	scheduledBackupTimestampFormat = "2006-01-02-150405"
-	scheduleTagDaily               = "daily"
-	scheduleTagWeekly              = "weekly"
-	scheduleTagMonthly             = "monthly"
 )
 
 var (
@@ -253,7 +250,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	timestamp := workflow.Now(ctx).Format(scheduledBackupTimestampFormat)
 	if backupPolicy.DailyBackupsToKeep >= 2 {
 		var backup *datamodel.Backup
-		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, scheduleTagDaily).Get(ctx, &backup)
+		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagDaily).Get(ctx, &backup)
 		if preTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(preTransferErr)
 		}
@@ -264,7 +261,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	today := workflow.Now(ctx).Weekday()
 	if backupPolicy.WeeklyBackupsToKeep > 0 && today == time.Weekday(scheduledWeeklyBackupDay) {
 		var backup *datamodel.Backup
-		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, scheduleTagWeekly).Get(ctx, &backup)
+		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagWeekly).Get(ctx, &backup)
 		if preTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(preTransferErr)
 		}
@@ -275,7 +272,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	_, _, day := workflow.Now(ctx).Date()
 	if backupPolicy.MonthlyBackupsToKeep > 0 && day == scheduledMonthlyBackupDay {
 		var backup *datamodel.Backup
-		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, scheduleTagMonthly).Get(ctx, &backup)
+		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagMonthly).Get(ctx, &backup)
 		if preTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(preTransferErr)
 		}

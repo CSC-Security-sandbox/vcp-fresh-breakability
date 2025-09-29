@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
@@ -19,14 +20,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-)
-
-const (
-
-	// BackupTypeMANUAL captures enum value "MANUAL"
-	BackupTypeMANUAL string = "MANUAL"
-	// BackupTypeSCHEDULED captures enum value "SCHEDULED"
-	BackupTypeSCHEDULED string = "SCHEDULED"
 )
 
 var (
@@ -681,7 +674,7 @@ func convertToBackupsV1beta(backup *models.BackupV1beta) gcpgenserver.BackupV1be
 
 func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.BackupV1beta {
 	sourceSnapshot := utils.RenameSnapshotName(backup.SnapshotName)
-	return &gcpgenserver.BackupV1beta{
+	backupV1 := &gcpgenserver.BackupV1beta{
 		ResourceId:            utils.GetOptString(&backup.Name),
 		VolumeId:              utils.GetOptString(&backup.VolumeID),
 		State:                 gcpgenserver.NewOptBackupV1betaState(gcpgenserver.BackupV1betaState(backup.LifeCycleState)),
@@ -693,6 +686,16 @@ func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.
 		BackupType:            gcpgenserver.NewOptBackupV1betaBackupType(gcpgenserver.BackupV1betaBackupType(backup.Type)),
 		AssetLocationMetadata: gcpgenserver.OptAssetLocationMetadataV2{},
 	}
+	if backup.MinimumEnforcedRetentionDuration != nil && *backup.MinimumEnforcedRetentionDuration > 0 && backup.IsBackupImmutable {
+		expirationDate := backup.CreationTime.AddDate(0, 0, int(*backup.MinimumEnforcedRetentionDuration))
+		if !time.Now().After(expirationDate) {
+			backupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
+				Value: expirationDate,
+				Set:   true,
+			}
+		}
+	}
+	return backupV1
 }
 
 func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserver.BackupV1beta {
@@ -732,7 +735,7 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		}
 	}
 
-	return gcpgenserver.BackupV1beta{
+	backupV1 := gcpgenserver.BackupV1beta{
 		ResourceId: gcpgenserver.OptString{
 			Value: backup.Name,
 			Set:   true,
@@ -748,9 +751,6 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		Created: gcpgenserver.OptDateTime{
 			Value: backup.CreatedAt,
 			Set:   true,
-		},
-		EnforcedRetentionEndTime: gcpgenserver.OptDateTime{
-			Value: backup.Attributes.EnforcedRetentionDuration,
 		},
 		BackupId: gcpgenserver.OptString{
 			Value: backup.UUID,
@@ -804,6 +804,16 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Set: false,
 		},
 	}
+	if backup.BackupVault.ImmutableAttributes != nil && *backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration > 0 && common.CheckIfBackupIsImmutable(backup) {
+		expirationDate := backup.CreatedAt.AddDate(0, 0, int(*backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration))
+		if !time.Now().After(expirationDate) {
+			backupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
+				Value: expirationDate,
+				Set:   true,
+			}
+		}
+	}
+	return backupV1
 }
 
 func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams) *common.CreateBackupParams {
@@ -812,7 +822,7 @@ func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserve
 		BackupVaultID:       params.BackupVaultId,
 		VolumeUUID:          req.VolumeId,
 		BackupName:          req.ResourceId,
-		BackupType:          BackupTypeMANUAL, // Default to MANUAL, later can be changed based on the request
+		BackupType:          utils.BackupTypeMANUAL, // Default to MANUAL, later can be changed based on the request
 		LocationID:          params.LocationId,
 		UseExistingSnapshot: false, // Default to false, can be changed based on the request
 		SnapshotID:          "",    // Default to empty, can be changed based on the request

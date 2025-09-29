@@ -2104,7 +2104,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Weekly-backup1",
-			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			BackupVault: &datamodel.BackupVault{
 				RegionName: "us-central1",
 			},
@@ -2114,7 +2114,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 					SnapshotID: "test-snapshot-id-2",
 				},
 				Name:        "Monthly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagMonthly),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -2124,7 +2124,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 					SnapshotID: "test-snapshot-id-3",
 				},
 				Name:        "Daily-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagDaily),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -2227,7 +2227,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Weekly-backup1",
-			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			BackupVault: &datamodel.BackupVault{
 				RegionName: "us-central1",
 			},
@@ -2237,7 +2237,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 					SnapshotID: "test-snapshot-id-2",
 				},
 				Name:        "Monthly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagMonthly),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -2247,7 +2247,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 					SnapshotID: "test-snapshot-id-3",
 				},
 				Name:        "Daily-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagDaily),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -2601,7 +2601,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetNodeFai
 					SnapshotID: "test-snapshot-id-1",
 				},
 				Name:        "Weekly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			},
 		}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
@@ -2680,7 +2680,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetObjectS
 					SnapshotID: "test-snapshot-id-1",
 				},
 				Name:        "Weekly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			},
 		}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
@@ -2765,7 +2765,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Weekly-backup1",
-			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			BackupVault: &datamodel.BackupVault{
 				RegionName: "us-central1",
 			},
@@ -2775,7 +2775,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 					SnapshotID: "test-snapshot-id-2",
 				},
 				Name:        "Monthly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagMonthly),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -2785,7 +2785,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 					SnapshotID: "test-snapshot-id-3",
 				},
 				Name:        "Daily-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagDaily),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -2876,7 +2876,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Weekly-backup1",
-			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			BackupVault: &datamodel.BackupVault{
 				RegionName: "us-central1",
 			},
@@ -2886,7 +2886,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 					SnapshotID: "test-snapshot-id-2",
 				},
 				Name:        "Monthly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagMonthly),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -2896,7 +2896,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 					SnapshotID: "test-snapshot-id-3",
 				},
 				Name:        "Daily-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagDaily),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -2990,7 +2990,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Weekly-backup1",
-			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			BackupVault: &datamodel.BackupVault{
 				RegionName: "us-central1",
 			},
@@ -3000,7 +3000,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 					SnapshotID: "test-snapshot-id-2",
 				},
 				Name:        "Monthly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagMonthly),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -3010,7 +3010,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 					SnapshotID: "test-snapshot-id-3",
 				},
 				Name:        "Daily-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagDaily),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -3108,7 +3108,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Weekly-backup1",
-			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			BackupVault: &datamodel.BackupVault{
 				RegionName: "us-central1",
 			},
@@ -3118,7 +3118,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 					SnapshotID: "test-snapshot-id-2",
 				},
 				Name:        "Monthly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagMonthly),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -3128,7 +3128,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 					SnapshotID: "test-snapshot-id-3",
 				},
 				Name:        "Daily-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagDaily),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -3239,7 +3239,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Weekly-backup1",
-			ScheduleTag: nillable.ToPointer(scheduleTagWeekly),
+			ScheduleTag: nillable.ToPointer(common.ScheduleTagWeekly),
 			BackupVault: &datamodel.BackupVault{
 				RegionName: "us-central1",
 			},
@@ -3249,7 +3249,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 					SnapshotID: "test-snapshot-id-2",
 				},
 				Name:        "Monthly-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagMonthly),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagMonthly),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},
@@ -3259,7 +3259,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 					SnapshotID: "test-snapshot-id-3",
 				},
 				Name:        "Daily-backup1",
-				ScheduleTag: nillable.ToPointer(scheduleTagDaily),
+				ScheduleTag: nillable.ToPointer(common.ScheduleTagDaily),
 				BackupVault: &datamodel.BackupVault{
 					RegionName: "us-central1",
 				},

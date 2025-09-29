@@ -54,6 +54,24 @@ func (d *DataStoreRepository) GetVolumeCountByBackupPolicyID(ctx context.Context
 	return volumeCount, nil
 }
 
+func (d *DataStoreRepository) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx context.Context, backupVaultUUID string, accountID int64) ([]string, error) {
+	var backupPolicyUUIDs []string
+
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Model(&datamodel.Volume{}).
+		Distinct("data_protection->>'backup_policy_id'").
+		Where("data_protection->>'backup_vault_id' = ?", backupVaultUUID).
+		Where("data_protection->>'backup_policy_id' != ''").
+		Where("data_protection->>'backup_policy_id' IS NOT NULL").
+		Pluck("data_protection->>'backup_policy_id'", &backupPolicyUUIDs).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return backupPolicyUUIDs, nil
+}
+
 func (d *DataStoreRepository) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
 	var backupPolicies []struct {
 		BackupPolicyID string `json:"backup_policy_id"`

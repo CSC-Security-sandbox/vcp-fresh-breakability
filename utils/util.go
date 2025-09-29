@@ -81,6 +81,7 @@ var (
 	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
 	AutoTieringEnabled              = env.GetBool("AUTO_TIERING_ENABLED", false)
+	immutableBackupEnabled          = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
 )
 
 const (
@@ -94,6 +95,8 @@ const (
 	PiBInBytes                 = 1125899906842624
 	PercentageBase             = 100.0
 	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for ISCSI volumes"
+	BackupTypeMANUAL           = "MANUAL"
+	BackupTypeSCHEDULED        = "SCHEDULED"
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -1019,4 +1022,15 @@ func GetCorrelationIDFromWorkflowContextLoggerFields(ctx workflow.Context) (stri
 	} else {
 		return "", fmt.Errorf("correlation ID not found in workflow context logger")
 	}
+}
+
+// IsImmutableBackupEnabled returns whether immutable backup validation is enabled
+func IsImmutableBackupEnabled() bool {
+	return immutableBackupEnabled
+}
+
+// SetImmutableBackupEnabledForTest allows tests to override the immutable backup feature flag
+// This should only be used in tests
+func SetImmutableBackupEnabledForTest(enabled bool) {
+	immutableBackupEnabled = enabled
 }

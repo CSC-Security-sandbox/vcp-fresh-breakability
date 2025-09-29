@@ -268,6 +268,10 @@ const (
 	// Cluster peering specific errors (11000-11999 range)
 	ErrClusterPeerError   = 11000
 	ErrClusterPeerTimeout = 11001
+
+	// Backup specific errors (12000-12999 range)
+	ErrImmutableValidationWithUpdatingBackupPolicy = 12001
+	ErrImmutableValidationWithUpdatingBackupVault  = 12002
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.

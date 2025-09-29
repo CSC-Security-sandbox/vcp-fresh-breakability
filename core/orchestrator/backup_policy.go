@@ -41,6 +41,21 @@ func (o *Orchestrator) GetBackupPolicyByNameAndOwnerID(ctx context.Context, back
 	return convertDatastoreBackupPolicyToModel(backupPolicyDetails), nil
 }
 
+// GetBackupPolicyByUUIDAndOwnerID retrieves a backup policy by its UUID and owner ID
+func (o *Orchestrator) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, ownerId string) (*models.BackupPolicy, error) {
+	se := o.storage
+	account, err := getAccountWithName(ctx, se, ownerId)
+	if err != nil {
+		return nil, err
+	}
+	backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, account.ID)
+	if err != nil {
+		return nil, err
+	}
+	// Convert datamodel.BackupPolicy to models.BackupPolicy
+	return convertDatastoreBackupPolicyToModel(backupPolicy), nil
+}
+
 func (o *Orchestrator) ListBackupPoliciesAndVolumeCount(ctx context.Context, ownerID string, backupPolicyUUIDs []string) (map[string]int64, map[string]*models.BackupPolicy, error) {
 	se := o.storage
 	account, err := getOrCreateAccount(ctx, se, ownerID)
@@ -63,19 +78,6 @@ func (o *Orchestrator) ListBackupPoliciesAndVolumeCount(ctx context.Context, own
 		backupPolicyMap[backupPolicy.UUID] = convertDatastoreBackupPolicyToModel(backupPolicy)
 	}
 	return backupPolicyVolumeCount, backupPolicyMap, nil
-}
-
-func (o *Orchestrator) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, uuid string, ownerID string) (*models.BackupPolicy, error) {
-	se := o.storage
-	account, err := se.GetAccount(ctx, ownerID)
-	if err != nil {
-		return nil, err
-	}
-	backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, uuid, account.ID)
-	if err != nil {
-		return nil, err
-	}
-	return convertDatastoreBackupPolicyToModel(backupPolicy), nil
 }
 
 func (o *Orchestrator) UpdateBackupPolicy(ctx context.Context, params *commonparams.UpdateBackupPolicyParams) (*models.BackupPolicy, string, error) {
@@ -302,6 +304,20 @@ func (o *Orchestrator) DeleteBackupPolicy(ctx context.Context, params *commonpar
 		return nil, "", err
 	}
 	return convertDatastoreBackupPolicyToModel(updatedBackupPolicy), createdJob.UUID, nil
+}
+
+// GetBackupPolicyUUIDsFromBackupVaultUUID retrieves all backup policy UUIDs associated with volumes that have the given backup vault ID
+func (o *Orchestrator) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx context.Context, backupVaultUUID string, ownerId string) ([]string, error) {
+	se := o.storage
+	account, err := getAccountWithName(ctx, se, ownerId)
+	if err != nil {
+		return nil, err
+	}
+	backupPolicyUUIDs, err := se.GetBackupPolicyUUIDsFromBackupVaultUUID(ctx, backupVaultUUID, account.ID)
+	if err != nil {
+		return nil, err
+	}
+	return backupPolicyUUIDs, nil
 }
 
 func _getBackupPolicyByNameAndOwnerID(ctx context.Context, se database.Storage, backupPolicyName, ownerID string) (*datamodel.BackupPolicy, error) {

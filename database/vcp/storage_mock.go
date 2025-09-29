@@ -4210,6 +4210,66 @@ func (_c *MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call) RunAndReturn(run fun
 	return _c
 }
 
+// GetBackupPolicyUUIDsFromBackupVaultUUID provides a mock function with given fields: ctx, backupVaultUUID, accountID
+func (_m *MockStorage) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx context.Context, backupVaultUUID string, accountID int64) ([]string, error) {
+	ret := _m.Called(ctx, backupVaultUUID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupPolicyUUIDsFromBackupVaultUUID")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) ([]string, error)); ok {
+		return rf(ctx, backupVaultUUID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) []string); ok {
+		r0 = rf(ctx, backupVaultUUID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, backupVaultUUID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupPolicyUUIDsFromBackupVaultUUID'
+type MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupPolicyUUIDsFromBackupVaultUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx interface{}, backupVaultUUID interface{}, accountID interface{}) *MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	return &MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call{Call: _e.mock.On("GetBackupPolicyUUIDsFromBackupVaultUUID", ctx, backupVaultUUID, accountID)}
+}
+
+func (_c *MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) Run(run func(ctx context.Context, backupVaultUUID string, accountID int64)) *MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) Return(_a0 []string, _a1 error) *MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) RunAndReturn(run func(context.Context, string, int64) ([]string, error)) *MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupVault provides a mock function with given fields: ctx, backupVaultId
 func (_m *MockStorage) GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error) {
 	ret := _m.Called(ctx, backupVaultId)
@@ -4385,6 +4445,66 @@ func (_c *MockStorage_GetBackupVaultByUUIDndOwnerID_Call) Return(_a0 *datamodel.
 }
 
 func (_c *MockStorage_GetBackupVaultByUUIDndOwnerID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.BackupVault, error)) *MockStorage_GetBackupVaultByUUIDndOwnerID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupVaultUUIDsFromBackupPolicyUUID provides a mock function with given fields: ctx, backupPolicyUUID, accountID
+func (_m *MockStorage) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountID int64) ([]string, error) {
+	ret := _m.Called(ctx, backupPolicyUUID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupVaultUUIDsFromBackupPolicyUUID")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) ([]string, error)); ok {
+		return rf(ctx, backupPolicyUUID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) []string); ok {
+		r0 = rf(ctx, backupPolicyUUID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, backupPolicyUUID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultUUIDsFromBackupPolicyUUID'
+type MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupVaultUUIDsFromBackupPolicyUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupPolicyUUID string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx interface{}, backupPolicyUUID interface{}, accountID interface{}) *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
+	return &MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call{Call: _e.mock.On("GetBackupVaultUUIDsFromBackupPolicyUUID", ctx, backupPolicyUUID, accountID)}
+}
+
+func (_c *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) Run(run func(ctx context.Context, backupPolicyUUID string, accountID int64)) *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) Return(_a0 []string, _a1 error) *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) RunAndReturn(run func(context.Context, string, int64) ([]string, error)) *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }

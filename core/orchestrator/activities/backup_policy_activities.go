@@ -25,7 +25,7 @@ import (
 
 var (
 	CvpCreateClient                = cvp.CreateClient
-	convertToBackupPolicyDataModel = _convertToBackupPolicyDataModel
+	ConvertToBackupPolicyDataModel = _convertToBackupPolicyDataModel
 )
 
 type BackupPolicyActivity struct {

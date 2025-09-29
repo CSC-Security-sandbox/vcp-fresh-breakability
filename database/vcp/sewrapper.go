@@ -3080,6 +3080,46 @@ func (re *retryEngine) GetVolumeCountByBackupPolicyID(ctx context.Context, backu
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx context.Context, backupVaultUUID string, accountID int64) ([]string, error) {
+	var var0 []string
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupPolicyUUIDsFromBackupVaultUUID(ctx, backupVaultUUID, accountID)
+		if err != nil {
+			re.logError("GetBackupPolicyUUIDsFromBackupVaultUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountID int64) ([]string, error) {
+	var var0 []string
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupVaultUUIDsFromBackupPolicyUUID(ctx, backupPolicyUUID, accountID)
+		if err != nil {
+			re.logError("GetBackupVaultUUIDsFromBackupPolicyUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
 	var var0 map[string]int64
 	err := retry.Do(func(attempt int) (bool, error) {

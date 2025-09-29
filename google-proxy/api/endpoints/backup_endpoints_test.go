@@ -3825,4 +3825,164 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			})
 		}
 	})
+	t.Run("WhenBackupIsNotImmutable", func(t *testing.T) {
+		backup := &coremodels.Backup{
+			BackupID:       "test-backup-id",
+			Name:           "test-backup",
+			VolumeID:       "test-volume-id",
+			LifeCycleState: "AVAILABLE",
+			VolumeName:     "test-volume",
+			BackupVaultID:  "test-vault-id",
+			Description:    stringPtr("test description"),
+			SnapshotName:   "test-snapshot",
+			Type:           "MANUAL",
+		}
+
+		result := convertBackupModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-id", result.VolumeId.Value)
+		assert.Equal(t, "test-backup-id", result.BackupId.Value)
+		assert.Equal(t, "test-volume", result.SourceVolume.Value)
+		assert.Equal(t, "test-vault-id", result.BackupVaultId.Value)
+		assert.Equal(t, "test description", result.Description.Value)
+		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
+		assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+		assert.False(t, result.EnforcedRetentionEndTime.Set)
+	})
+
+	t.Run("WhenBackupIsImmutableAndRetentionNotExpired", func(t *testing.T) {
+		// Set creation time to 15 days ago
+		creationTime := time.Now().AddDate(0, 0, -15)
+		minRetentionDuration := int64(30)
+		backup := &coremodels.Backup{
+			BackupID:                         "test-backup-id",
+			Name:                             "test-backup",
+			VolumeID:                         "test-volume-id",
+			LifeCycleState:                   "AVAILABLE",
+			VolumeName:                       "test-volume",
+			BackupVaultID:                    "test-vault-id",
+			Description:                      stringPtr("test description"),
+			SnapshotName:                     "test-snapshot",
+			Type:                             "MANUAL",
+			CreationTime:                     creationTime,
+			MinimumEnforcedRetentionDuration: &minRetentionDuration,
+			IsBackupImmutable:                true,
+		}
+
+		result := convertBackupModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-id", result.VolumeId.Value)
+		assert.Equal(t, "test-backup-id", result.BackupId.Value)
+		assert.Equal(t, "test-volume", result.SourceVolume.Value)
+		assert.Equal(t, "test-vault-id", result.BackupVaultId.Value)
+		assert.Equal(t, "test description", result.Description.Value)
+		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
+		assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+		assert.True(t, result.EnforcedRetentionEndTime.Set)
+
+		// Calculate expected expiration date (creation time + 30 days)
+		expectedExpiration := creationTime.AddDate(0, 0, 30)
+		assert.Equal(t, expectedExpiration.Year(), result.EnforcedRetentionEndTime.Value.Year())
+		assert.Equal(t, expectedExpiration.Month(), result.EnforcedRetentionEndTime.Value.Month())
+		assert.Equal(t, expectedExpiration.Day(), result.EnforcedRetentionEndTime.Value.Day())
+	})
+
+	t.Run("WhenBackupIsImmutableAndRetentionExpired", func(t *testing.T) {
+		// Set creation time to 40 days ago (beyond retention period)
+		creationTime := time.Now().AddDate(0, 0, -40)
+		minRetentionDuration := int64(30)
+		backup := &coremodels.Backup{
+			BackupID:                         "test-backup-id",
+			Name:                             "test-backup",
+			VolumeID:                         "test-volume-id",
+			LifeCycleState:                   "AVAILABLE",
+			VolumeName:                       "test-volume",
+			BackupVaultID:                    "test-vault-id",
+			Description:                      stringPtr("test description"),
+			SnapshotName:                     "test-snapshot",
+			Type:                             "MANUAL",
+			CreationTime:                     creationTime,
+			MinimumEnforcedRetentionDuration: &minRetentionDuration,
+			IsBackupImmutable:                true,
+		}
+
+		result := convertBackupModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-id", result.VolumeId.Value)
+		assert.Equal(t, "test-backup-id", result.BackupId.Value)
+		assert.Equal(t, "test-volume", result.SourceVolume.Value)
+		assert.Equal(t, "test-vault-id", result.BackupVaultId.Value)
+		assert.Equal(t, "test description", result.Description.Value)
+		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
+		assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+		assert.False(t, result.EnforcedRetentionEndTime.Set) // Should not set when expired
+	})
+
+	t.Run("WhenBackupIsImmutableButNoRetentionDuration", func(t *testing.T) {
+		creationTime := time.Now().AddDate(0, 0, -15)
+		backup := &coremodels.Backup{
+			BackupID:                         "test-backup-id",
+			Name:                             "test-backup",
+			VolumeID:                         "test-volume-id",
+			LifeCycleState:                   "AVAILABLE",
+			VolumeName:                       "test-volume",
+			BackupVaultID:                    "test-vault-id",
+			Description:                      stringPtr("test description"),
+			SnapshotName:                     "test-snapshot",
+			Type:                             "MANUAL",
+			CreationTime:                     creationTime,
+			MinimumEnforcedRetentionDuration: nil,
+			IsBackupImmutable:                true,
+		}
+
+		result := convertBackupModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-id", result.VolumeId.Value)
+		assert.Equal(t, "test-backup-id", result.BackupId.Value)
+		assert.Equal(t, "test-volume", result.SourceVolume.Value)
+		assert.Equal(t, "test-vault-id", result.BackupVaultId.Value)
+		assert.Equal(t, "test description", result.Description.Value)
+		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
+		assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+		assert.False(t, result.EnforcedRetentionEndTime.Set)
+	})
+
+	t.Run("WhenBackupIsImmutableButZeroRetentionDuration", func(t *testing.T) {
+		creationTime := time.Now().AddDate(0, 0, -15)
+		minRetentionDuration := int64(0)
+		backup := &coremodels.Backup{
+			BackupID:                         "test-backup-id",
+			Name:                             "test-backup",
+			VolumeID:                         "test-volume-id",
+			LifeCycleState:                   "AVAILABLE",
+			VolumeName:                       "test-volume",
+			BackupVaultID:                    "test-vault-id",
+			Description:                      stringPtr("test description"),
+			SnapshotName:                     "test-snapshot",
+			Type:                             "MANUAL",
+			CreationTime:                     creationTime,
+			MinimumEnforcedRetentionDuration: &minRetentionDuration,
+			IsBackupImmutable:                true,
+		}
+
+		result := convertBackupModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-id", result.VolumeId.Value)
+		assert.Equal(t, "test-backup-id", result.BackupId.Value)
+		assert.Equal(t, "test-volume", result.SourceVolume.Value)
+		assert.Equal(t, "test-vault-id", result.BackupVaultId.Value)
+		assert.Equal(t, "test description", result.Description.Value)
+		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
+		assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+		assert.False(t, result.EnforcedRetentionEndTime.Set)
+	})
+}
+// Helper function to create string pointers
+func stringPtr(s string) *string {
+	return &s
 }

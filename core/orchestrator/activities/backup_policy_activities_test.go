@@ -277,7 +277,7 @@ func TestConvertsValidBackupPolicyV1betaToDataModel(tt *testing.T) {
 			LifeCycleState:        "READY",
 			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
 		}
-		res := convertToBackupPolicyDataModel(backupPolicy)
+		res := ConvertToBackupPolicyDataModel(backupPolicy)
 		assert.Equal(t, res, expected)
 	})
 	tt.Run("ConvertBackupPolicyWithNilFieldsToDataModel", func(t *testing.T) {
@@ -298,7 +298,7 @@ func TestConvertsValidBackupPolicyV1betaToDataModel(tt *testing.T) {
 			LifeCycleState:        "",
 			LifeCycleStateDetails: "",
 		}
-		res := convertToBackupPolicyDataModel(backupPolicy)
+		res := ConvertToBackupPolicyDataModel(backupPolicy)
 		assert.Equal(t, res, expected)
 	})
 }

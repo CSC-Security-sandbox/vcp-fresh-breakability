@@ -684,6 +684,11 @@ func TestGetBackupPolicyByUUIDAndOwnerID(t *testing.T) {
 		account, err := se.CreateAccount(ctx, account)
 		assert.NoError(tt, err)
 
+		oldGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = oldGetAccountWithName }()
 		dbBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,

@@ -83,7 +83,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 			CrossRegionBackupVaultName: &dstBVname,
 		}
 
-		result, err := convertToBackupVaultDataModel(bv, locationId)
+		result, err := ConvertToBackupVaultDataModel(bv, locationId)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, result)
@@ -242,7 +242,7 @@ func TestUpdateBackupVault(tt *testing.T) {
 				Payload: &models.OperationV1beta{},
 			}, nil).Once()
 
-		convertToBackupVaultDataModel = func(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+		ConvertToBackupVaultDataModel = func(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
 			return nil, errors.New("conversion error")
 		}
 
@@ -250,7 +250,7 @@ func TestUpdateBackupVault(tt *testing.T) {
 		originalCreateClient := cvpCreateClient
 		defer func() {
 			cvpCreateClient = originalCreateClient
-			convertToBackupVaultDataModel = _convertToBackupVaultDataModel
+			ConvertToBackupVaultDataModel = _convertToBackupVaultDataModel
 		}()
 		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -1120,11 +1120,11 @@ func TestUpdateBackupVaultInSDE_ModelConversionError(t *testing.T) {
 
 	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 	originalCreateClient := cvpCreateClient
-	originalConvertToBackupVaultDataModel := convertToBackupVaultDataModel
+	originalConvertToBackupVaultDataModel := ConvertToBackupVaultDataModel
 
 	defer func() {
 		cvpCreateClient = originalCreateClient
-		convertToBackupVaultDataModel = originalConvertToBackupVaultDataModel
+		ConvertToBackupVaultDataModel = originalConvertToBackupVaultDataModel
 	}()
 
 	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
@@ -1132,7 +1132,7 @@ func TestUpdateBackupVaultInSDE_ModelConversionError(t *testing.T) {
 	}
 
 	// Mock conversion error
-	convertToBackupVaultDataModel = func(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+	ConvertToBackupVaultDataModel = func(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
 		return nil, errors.New("conversion error")
 	}
 
@@ -1168,11 +1168,11 @@ func TestDeleteBackupVaultInSDE_ModelConversionError(t *testing.T) {
 
 	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
 	originalCreateClient := cvpCreateClient
-	originalConvertToBackupVaultDataModel := convertToBackupVaultDataModel
+	originalConvertToBackupVaultDataModel := ConvertToBackupVaultDataModel
 
 	defer func() {
 		cvpCreateClient = originalCreateClient
-		convertToBackupVaultDataModel = originalConvertToBackupVaultDataModel
+		ConvertToBackupVaultDataModel = originalConvertToBackupVaultDataModel
 	}()
 
 	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
@@ -1180,7 +1180,7 @@ func TestDeleteBackupVaultInSDE_ModelConversionError(t *testing.T) {
 	}
 
 	// Mock conversion error
-	convertToBackupVaultDataModel = func(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+	ConvertToBackupVaultDataModel = func(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
 		return nil, errors.New("conversion error")
 	}
 

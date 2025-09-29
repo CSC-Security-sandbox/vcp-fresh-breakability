@@ -1981,6 +1981,66 @@ func (_c *MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call) RunAndRe
 	return _c
 }
 
+// GetBackupPolicyUUIDsFromBackupVaultUUID provides a mock function with given fields: ctx, backupVaultUUID, ownerId
+func (_m *MockOrchestratorFactory) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx context.Context, backupVaultUUID string, ownerId string) ([]string, error) {
+	ret := _m.Called(ctx, backupVaultUUID, ownerId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupPolicyUUIDsFromBackupVaultUUID")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]string, error)); ok {
+		return rf(ctx, backupVaultUUID, ownerId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []string); ok {
+		r0 = rf(ctx, backupVaultUUID, ownerId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, backupVaultUUID, ownerId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupPolicyUUIDsFromBackupVaultUUID'
+type MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupPolicyUUIDsFromBackupVaultUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+//   - ownerId string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx interface{}, backupVaultUUID interface{}, ownerId interface{}) *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	return &MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call{Call: _e.mock.On("GetBackupPolicyUUIDsFromBackupVaultUUID", ctx, backupVaultUUID, ownerId)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) Run(run func(ctx context.Context, backupVaultUUID string, ownerId string)) *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) Return(_a0 []string, _a1 error) *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) RunAndReturn(run func(context.Context, string, string) ([]string, error)) *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupVaultByNameAndOwnerID provides a mock function with given fields: ctx, bvName, ownerID
 func (_m *MockOrchestratorFactory) GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName string, ownerID string) (*models.BackupVaultV1beta, error) {
 	ret := _m.Called(ctx, bvName, ownerID)
@@ -2097,6 +2157,66 @@ func (_c *MockOrchestratorFactory_GetBackupVaultByUUID_Call) Return(_a0 *models.
 }
 
 func (_c *MockOrchestratorFactory_GetBackupVaultByUUID_Call) RunAndReturn(run func(context.Context, string, string) (*models.BackupVaultV1beta, error)) *MockOrchestratorFactory_GetBackupVaultByUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupVaultUUIDsFromBackupPolicyUUID provides a mock function with given fields: ctx, backupPolicyUUID, accountName
+func (_m *MockOrchestratorFactory) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountName string) ([]string, error) {
+	ret := _m.Called(ctx, backupPolicyUUID, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupVaultUUIDsFromBackupPolicyUUID")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]string, error)); ok {
+		return rf(ctx, backupPolicyUUID, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []string); ok {
+		r0 = rf(ctx, backupPolicyUUID, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, backupPolicyUUID, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultUUIDsFromBackupPolicyUUID'
+type MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupVaultUUIDsFromBackupPolicyUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupPolicyUUID string
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx interface{}, backupPolicyUUID interface{}, accountName interface{}) *MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
+	return &MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call{Call: _e.mock.On("GetBackupVaultUUIDsFromBackupPolicyUUID", ctx, backupPolicyUUID, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) Run(run func(ctx context.Context, backupPolicyUUID string, accountName string)) *MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) Return(_a0 []string, _a1 error) *MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) RunAndReturn(run func(context.Context, string, string) ([]string, error)) *MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }

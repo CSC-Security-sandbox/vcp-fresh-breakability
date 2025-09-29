@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -655,6 +656,11 @@ func TestDeleteBackup(t *testing.T) {
 
 func TestValidateBackupDeleteParams(t *testing.T) {
 	t.Run("OnSuccess", func(t *testing.T) {
+		// Ensure immutable backup feature is disabled for this test
+		originalValue := utils.IsImmutableBackupEnabled()
+		defer utils.SetImmutableBackupEnabledForTest(originalValue)
+		utils.SetImmutableBackupEnabledForTest(false)
+
 		ctx := context.Background()
 		store := database.NewMockStorage(t)
 		backup := &datamodel.Backup{
@@ -665,6 +671,33 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
 		store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
 		store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			BackupVaultUUID: "testVaultID",
+			AccountName:     "testAccount",
+		})
+		assert.Nil(t, err)
+	})
+
+	t.Run("OnSuccessWithImmutableBackupEnabled", func(t *testing.T) {
+		// Enable immutable backup feature for this test
+		originalValue := utils.IsImmutableBackupEnabled()
+		defer utils.SetImmutableBackupEnabledForTest(originalValue)
+		utils.SetImmutableBackupEnabledForTest(true)
+
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+			VolumeUUID: "volumeUUID1",
+		}
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+		store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+		store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+		store.On("GetBackupVault", ctx, "testVaultID").Return(&datamodel.BackupVault{
+			ImmutableAttributes: nil, // No immutable attributes for this test
+		}, nil)
 		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
 			BackupUUID:      "testBackupUUID",
 			BackupVaultUUID: "testVaultID",
@@ -786,23 +819,310 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		assert.NotNil(t, err)
 		assert.EqualError(t, err, "transition state check error")
 	})
+
+	// Immutable backup test cases
+	t.Run("ImmutableBackupTests", func(t *testing.T) {
+		t.Run("OnSuccessWithNonImmutableBackupVault", func(t *testing.T) {
+			// Enable immutable backup feature for this test
+			originalValue := utils.IsImmutableBackupEnabled()
+			defer utils.SetImmutableBackupEnabledForTest(originalValue)
+			utils.SetImmutableBackupEnabledForTest(true)
+
+			ctx := context.Background()
+			store := database.NewMockStorage(t)
+			backup := &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+				VolumeUUID: "volumeUUID1",
+			}
+			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+			store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+			store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+			store.On("GetBackupVault", ctx, "testVaultID").Return(&datamodel.BackupVault{
+				ImmutableAttributes: nil, // No immutable attributes
+			}, nil)
+			err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+				BackupUUID:      "testBackupUUID",
+				BackupVaultUUID: "testVaultID",
+				AccountName:     "testAccount",
+			})
+			assert.Nil(t, err)
+		})
+
+		t.Run("OnSuccessWithImmutableBackupVaultButNoRetentionPeriod", func(t *testing.T) {
+			// Enable immutable backup feature for this test
+			originalValue := utils.IsImmutableBackupEnabled()
+			defer utils.SetImmutableBackupEnabledForTest(originalValue)
+			utils.SetImmutableBackupEnabledForTest(true)
+
+			ctx := context.Background()
+			store := database.NewMockStorage(t)
+			backup := &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+				VolumeUUID: "volumeUUID1",
+			}
+			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+			store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+			store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+			minRetDuration := int64(0)
+			store.On("GetBackupVault", ctx, "testVaultID").Return(&datamodel.BackupVault{
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minRetDuration,
+					IsDailyBackupImmutable:                 false,
+					IsWeeklyBackupImmutable:                false,
+					IsMonthlyBackupImmutable:               false,
+					IsAdhocBackupImmutable:                 false,
+				},
+			}, nil)
+			err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+				BackupUUID:      "testBackupUUID",
+				BackupVaultUUID: "testVaultID",
+				AccountName:     "testAccount",
+			})
+			assert.Nil(t, err)
+		})
+
+		t.Run("OnFailureWithImmutableDailyBackupNotExpired", func(t *testing.T) {
+			// Enable immutable backup feature for this test
+			originalValue := utils.IsImmutableBackupEnabled()
+			defer utils.SetImmutableBackupEnabledForTest(originalValue)
+			utils.SetImmutableBackupEnabledForTest(true)
+
+			ctx := context.Background()
+			store := database.NewMockStorage(t)
+			backupCreatedTime := time.Now().AddDate(0, 0, -5) // Created 5 days ago
+			minRetDuration := int64(10)                       // 10 days retention (not expired)
+			scheduleTag := common.ScheduleTagDaily
+			backup := &datamodel.Backup{
+				BaseModel:   datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
+				VolumeUUID:  "volumeUUID1",
+				Type:        utils.BackupTypeSCHEDULED,
+				ScheduleTag: &scheduleTag,
+			}
+			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+			store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+			store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+			store.On("GetBackupVault", ctx, "testVaultID").Return(&datamodel.BackupVault{
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minRetDuration,
+					IsDailyBackupImmutable:                 true,
+					IsWeeklyBackupImmutable:                false,
+					IsMonthlyBackupImmutable:               false,
+					IsAdhocBackupImmutable:                 false,
+				},
+			}, nil)
+			err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+				BackupUUID:      "testBackupUUID",
+				BackupVaultUUID: "testVaultID",
+				AccountName:     "testAccount",
+			})
+			assert.NotNil(t, err)
+			assert.Contains(t, err.Error(), "Cannot delete backup before minimum retention period")
+		})
+
+		t.Run("OnSuccessWithImmutableDailyBackupExpired", func(t *testing.T) {
+			// Enable immutable backup feature for this test
+			originalValue := utils.IsImmutableBackupEnabled()
+			defer utils.SetImmutableBackupEnabledForTest(originalValue)
+			utils.SetImmutableBackupEnabledForTest(true)
+
+			ctx := context.Background()
+			store := database.NewMockStorage(t)
+			backupCreatedTime := time.Now().AddDate(0, 0, -15) // Created 15 days ago
+			minRetDuration := int64(10)                        // 10 days retention (expired)
+			scheduleTag := common.ScheduleTagDaily
+			backup := &datamodel.Backup{
+				BaseModel:   datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
+				VolumeUUID:  "volumeUUID1",
+				Type:        utils.BackupTypeSCHEDULED,
+				ScheduleTag: &scheduleTag,
+			}
+			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+			store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+			store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+			store.On("GetBackupVault", ctx, "testVaultID").Return(&datamodel.BackupVault{
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minRetDuration,
+					IsDailyBackupImmutable:                 true,
+					IsWeeklyBackupImmutable:                false,
+					IsMonthlyBackupImmutable:               false,
+					IsAdhocBackupImmutable:                 false,
+				},
+			}, nil)
+			err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+				BackupUUID:      "testBackupUUID",
+				BackupVaultUUID: "testVaultID",
+				AccountName:     "testAccount",
+			})
+			assert.Nil(t, err)
+		})
+
+		t.Run("OnSuccessWithNonImmutableBackupType", func(t *testing.T) {
+			// Enable immutable backup feature for this test
+			originalValue := utils.IsImmutableBackupEnabled()
+			defer utils.SetImmutableBackupEnabledForTest(originalValue)
+			utils.SetImmutableBackupEnabledForTest(true)
+
+			ctx := context.Background()
+			store := database.NewMockStorage(t)
+			backupCreatedTime := time.Now().AddDate(0, 0, -5) // Created 5 days ago
+			minRetDuration := int64(10)                       // 10 days retention
+			scheduleTag := common.ScheduleTagWeekly           // Weekly backup but weekly immutable is disabled
+			backup := &datamodel.Backup{
+				BaseModel:   datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
+				VolumeUUID:  "volumeUUID1",
+				Type:        utils.BackupTypeSCHEDULED,
+				ScheduleTag: &scheduleTag,
+			}
+			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+			store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+			store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+			store.On("GetBackupVault", ctx, "testVaultID").Return(&datamodel.BackupVault{
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minRetDuration,
+					IsDailyBackupImmutable:                 true,  // Daily is immutable
+					IsWeeklyBackupImmutable:                false, // Weekly is not immutable
+					IsMonthlyBackupImmutable:               false,
+					IsAdhocBackupImmutable:                 false,
+				},
+			}, nil)
+			err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+				BackupUUID:      "testBackupUUID",
+				BackupVaultUUID: "testVaultID",
+				AccountName:     "testAccount",
+			})
+			assert.Nil(t, err) // Should succeed because weekly backup is not immutable
+		})
+
+		t.Run("OnFailureWithImmutableManualBackupNotExpired", func(t *testing.T) {
+			// Enable immutable backup feature for this test
+			originalValue := utils.IsImmutableBackupEnabled()
+			defer utils.SetImmutableBackupEnabledForTest(originalValue)
+			utils.SetImmutableBackupEnabledForTest(true)
+
+			ctx := context.Background()
+			store := database.NewMockStorage(t)
+			backupCreatedTime := time.Now().AddDate(0, 0, -5) // Created 5 days ago
+			minRetDuration := int64(10)                       // 10 days retention (not expired)
+			backup := &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
+				VolumeUUID: "volumeUUID1",
+				Type:       utils.BackupTypeMANUAL,
+			}
+			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+			store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+			store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+			store.On("GetBackupVault", ctx, "testVaultID").Return(&datamodel.BackupVault{
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minRetDuration,
+					IsDailyBackupImmutable:                 false,
+					IsWeeklyBackupImmutable:                false,
+					IsMonthlyBackupImmutable:               false,
+					IsAdhocBackupImmutable:                 true, // Manual backup is immutable
+				},
+			}, nil)
+			err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+				BackupUUID:      "testBackupUUID",
+				BackupVaultUUID: "testVaultID",
+				AccountName:     "testAccount",
+			})
+			assert.NotNil(t, err)
+			assert.Contains(t, err.Error(), "Cannot delete backup before minimum retention period")
+		})
+
+		t.Run("OnBackupVaultNotFound", func(t *testing.T) {
+			// Enable immutable backup feature for this test
+			originalValue := utils.IsImmutableBackupEnabled()
+			defer utils.SetImmutableBackupEnabledForTest(originalValue)
+			utils.SetImmutableBackupEnabledForTest(true)
+
+			ctx := context.Background()
+			store := database.NewMockStorage(t)
+			backup := &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+				VolumeUUID: "volumeUUID1",
+			}
+			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+			store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+			store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+			store.On("GetBackupVault", ctx, "testVaultID").Return(nil, vsaerror.NewNotFoundErr("backup vault", nil))
+			err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+				BackupUUID:      "testBackupUUID",
+				BackupVaultUUID: "testVaultID",
+				AccountName:     "testAccount",
+			})
+			assert.NotNil(t, err)
+			assert.EqualError(t, err, "Backup vault not found")
+		})
+
+		t.Run("OnGetBackupVaultError", func(t *testing.T) {
+			// Enable immutable backup feature for this test
+			originalValue := utils.IsImmutableBackupEnabled()
+			defer utils.SetImmutableBackupEnabledForTest(originalValue)
+			utils.SetImmutableBackupEnabledForTest(true)
+
+			ctx := context.Background()
+			store := database.NewMockStorage(t)
+			backup := &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+				VolumeUUID: "volumeUUID1",
+			}
+			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+			store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+			store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+			store.On("GetBackupVault", ctx, "testVaultID").Return(nil, errors.New("database error"))
+			err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+				BackupUUID:      "testBackupUUID",
+				BackupVaultUUID: "testVaultID",
+				AccountName:     "testAccount",
+			})
+			assert.NotNil(t, err)
+			assert.EqualError(t, err, "database error")
+		})
+	})
 }
 
-func TestOrchestrator_GetBackupsUnderBackupVault(t *testing.T) {
-	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
+func TestValidateBackupDeleteParams_ImmutabilityChecks(t *testing.T) {
+	t.Run("OnSuccessWithNonImmutableBackupVault", func(t *testing.T) {
+		// Enable immutable backup feature for this test
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
 		ctx := context.Background()
-		mockStorage := &database.MockStorage{}
-		orch := &Orchestrator{storage: mockStorage}
-
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, ownerID string) (*datamodel.Account, error) {
-			return nil, errors.New("failed to get or create account")
+		store := database.NewMockStorage(t)
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+			VolumeUUID: "volumeUUID1",
+			Type:       utils.BackupTypeSCHEDULED,
+			Name:       "daily-backup-20230101",
 		}
-		defer func() { getOrCreateAccount = _getOrCreateAccount }()
-		backups, err := orch.GetBackupsUnderBackupVault(ctx, "backupVaultID", "ownerID", []string{"backupUUID"})
-		assert.Nil(tt, backups)
-		assert.EqualError(tt, err, "failed to get or create account")
-	})
+		backupVault := &datamodel.BackupVault{
+			ImmutableAttributes: nil, // No immutable attributes
+		}
 
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+		store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
+		store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
+		store.On("GetBackupVault", ctx, "testVaultID").Return(backupVault, nil)
+
+		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			BackupVaultUUID: "testVaultID",
+			AccountName:     "testAccount",
+		})
+		assert.Nil(t, err)
+	})
+}
+
+func TestGetBackupsUnderBackupVault(t *testing.T) {
 	t.Run("WhenGetBackupsFails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
@@ -2710,4 +3030,208 @@ func TestDeleteBackup_ListVolumesFailure(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Equal(t, "", jobID)
 	store.AssertExpectations(t)
+}
+
+func TestConvertDatastoreBackupToModel(t *testing.T) {
+	t.Run("WhenBackupVaultIsNil", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name:         "test-backup",
+			VolumeUUID:   "test-volume-uuid",
+			State:        "AVAILABLE",
+			StateDetails: "Backup is available",
+			Description:  "Test backup description",
+			Type:         "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "test-volume",
+			},
+		}
+
+		result := convertDatastoreBackupToModel(backup)
+
+		assert.Equal(t, "test-backup-uuid", result.BackupID)
+		assert.Equal(t, "test-backup", result.Name)
+		assert.Equal(t, "test-volume-uuid", result.VolumeID)
+		assert.Equal(t, "AVAILABLE", result.LifeCycleState)
+		assert.Equal(t, "Backup is available", result.LifeCycleStateDetails)
+		assert.Equal(t, "Test backup description", *result.Description)
+		assert.Equal(t, "MANUAL", result.Type)
+		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, int64(0), *result.MinimumEnforcedRetentionDuration)
+		assert.False(t, result.IsBackupImmutable)
+	})
+
+	t.Run("WhenBackupVaultImmutableAttributesIsNil", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name:         "test-backup",
+			VolumeUUID:   "test-volume-uuid",
+			State:        "AVAILABLE",
+			StateDetails: "Backup is available",
+			Description:  "Test backup description",
+			Type:         "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "test-volume",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-vault-uuid",
+				},
+				SourceRegionName: stringPtr("us-east1"),
+			},
+		}
+
+		result := convertDatastoreBackupToModel(backup)
+
+		assert.Equal(t, "test-backup-uuid", result.BackupID)
+		assert.Equal(t, "test-backup", result.Name)
+		assert.Equal(t, "test-volume-uuid", result.VolumeID)
+		assert.Equal(t, "AVAILABLE", result.LifeCycleState)
+		assert.Equal(t, "Backup is available", result.LifeCycleStateDetails)
+		assert.Equal(t, "Test backup description", *result.Description)
+		assert.Equal(t, "MANUAL", result.Type)
+		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, "test-vault-uuid", result.BackupVaultID)
+		assert.Equal(t, "us-east1", result.Region)
+		assert.Equal(t, int64(0), *result.MinimumEnforcedRetentionDuration)
+		assert.False(t, result.IsBackupImmutable)
+	})
+
+	t.Run("WhenBackupVaultHasImmutableAttributes", func(t *testing.T) {
+		minRetentionDuration := int64(30)
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name:         "test-backup",
+			VolumeUUID:   "test-volume-uuid",
+			State:        "AVAILABLE",
+			StateDetails: "Backup is available",
+			Description:  "Test backup description",
+			Type:         "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "test-volume",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-vault-uuid",
+				},
+				SourceRegionName: stringPtr("us-east1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minRetentionDuration,
+					IsAdhocBackupImmutable:                 true,
+				},
+			},
+		}
+
+		result := convertDatastoreBackupToModel(backup)
+
+		assert.Equal(t, "test-backup-uuid", result.BackupID)
+		assert.Equal(t, "test-backup", result.Name)
+		assert.Equal(t, "test-volume-uuid", result.VolumeID)
+		assert.Equal(t, "AVAILABLE", result.LifeCycleState)
+		assert.Equal(t, "Backup is available", result.LifeCycleStateDetails)
+		assert.Equal(t, "Test backup description", *result.Description)
+		assert.Equal(t, "MANUAL", result.Type)
+		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, "test-vault-uuid", result.BackupVaultID)
+		assert.Equal(t, "us-east1", result.Region)
+		assert.Equal(t, int64(30), *result.MinimumEnforcedRetentionDuration)
+		assert.True(t, result.IsBackupImmutable)
+	})
+
+	t.Run("WhenBackupVaultHasImmutableAttributesButBackupIsNotImmutable", func(t *testing.T) {
+		minRetentionDuration := int64(30)
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name:         "test-backup",
+			VolumeUUID:   "test-volume-uuid",
+			State:        "AVAILABLE",
+			StateDetails: "Backup is available",
+			Description:  "Test backup description",
+			Type:         "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "test-volume",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-vault-uuid",
+				},
+				SourceRegionName: stringPtr("us-east1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minRetentionDuration,
+					IsAdhocBackupImmutable:                 false,
+				},
+			},
+		}
+
+		result := convertDatastoreBackupToModel(backup)
+
+		assert.Equal(t, "test-backup-uuid", result.BackupID)
+		assert.Equal(t, "test-backup", result.Name)
+		assert.Equal(t, "test-volume-uuid", result.VolumeID)
+		assert.Equal(t, "AVAILABLE", result.LifeCycleState)
+		assert.Equal(t, "Backup is available", result.LifeCycleStateDetails)
+		assert.Equal(t, "Test backup description", *result.Description)
+		assert.Equal(t, "MANUAL", result.Type)
+		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, "test-vault-uuid", result.BackupVaultID)
+		assert.Equal(t, "us-east1", result.Region)
+		assert.Equal(t, int64(30), *result.MinimumEnforcedRetentionDuration)
+		assert.False(t, result.IsBackupImmutable)
+	})
+
+	t.Run("WhenBackupVaultHasImmutableAttributesWithZeroRetention", func(t *testing.T) {
+		minRetentionDuration := int64(0)
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name:         "test-backup",
+			VolumeUUID:   "test-volume-uuid",
+			State:        "AVAILABLE",
+			StateDetails: "Backup is available",
+			Description:  "Test backup description",
+			Type:         "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "test-volume",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-vault-uuid",
+				},
+				SourceRegionName: stringPtr("us-east1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &minRetentionDuration,
+					IsAdhocBackupImmutable:                 true,
+				},
+			},
+		}
+
+		result := convertDatastoreBackupToModel(backup)
+
+		assert.Equal(t, "test-backup-uuid", result.BackupID)
+		assert.Equal(t, "test-backup", result.Name)
+		assert.Equal(t, "test-volume-uuid", result.VolumeID)
+		assert.Equal(t, "AVAILABLE", result.LifeCycleState)
+		assert.Equal(t, "Backup is available", result.LifeCycleStateDetails)
+		assert.Equal(t, "Test backup description", *result.Description)
+		assert.Equal(t, "MANUAL", result.Type)
+		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, "test-vault-uuid", result.BackupVaultID)
+		assert.Equal(t, "us-east1", result.Region)
+		assert.Equal(t, int64(0), *result.MinimumEnforcedRetentionDuration)
+		assert.True(t, result.IsBackupImmutable)
+	})
+}
+
+// Helper function to create string pointers
+func stringPtr(s string) *string {
+	return &s
 }

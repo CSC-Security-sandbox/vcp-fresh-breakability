@@ -48,6 +48,7 @@ The error system organizes errors into logical categories using numeric ranges:
 - **5000-5999**: ONTAP errors
 - **6000-6999**: Replication/Validation errors
 - **7000-7999**: Snapshot/Volume errors
+- **12000-12999**: Backup errors
 
 ## CustomError Structure
 

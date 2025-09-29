@@ -376,3 +376,20 @@ func (o *Orchestrator) IsBackupVaultAttachedToVolume(ctx context.Context, backup
 
 	return volumeCount > 0, nil
 }
+
+// GetBackupVaultUUIDsFromBackupPolicyUUID retrieves all backup vault UUIDs associated with a backup policy
+func (o *Orchestrator) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountName string) ([]string, error) {
+	se := o.storage
+	account, err := se.GetAccount(ctx, accountName)
+	if err != nil {
+		return nil, err
+	}
+	backupVaultUUIDs, err := se.GetBackupVaultUUIDsFromBackupPolicyUUID(ctx, backupPolicyUUID, account.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("backup vaults for backup policy", &backupPolicyUUID)
+		}
+		return nil, err
+	}
+	return backupVaultUUIDs, nil
+}

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -10,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -323,18 +325,37 @@ func _getBackup(ctx context.Context, se database.Storage, params *common.GetBack
 }
 
 func convertDatastoreBackupToModel(backup *datamodel.Backup) *models.Backup {
+	minimumEnforcedRetentionDuration := int64(0)
+	isBackupImmutable := false
+	var region string
+	var backupVaultID string
+
+	if backup.BackupVault != nil && backup.BackupVault.ImmutableAttributes != nil {
+		minimumEnforcedRetentionDuration = *backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration
+		isBackupImmutable = common.CheckIfBackupIsImmutable(backup)
+	}
+
+	if backup.BackupVault != nil {
+		if backup.BackupVault.SourceRegionName != nil {
+			region = *backup.BackupVault.SourceRegionName
+		}
+		backupVaultID = backup.BackupVault.UUID
+	}
+
 	return &models.Backup{
-		BackupID:              backup.UUID,
-		Name:                  backup.Name,
-		VolumeID:              backup.VolumeUUID,
-		Region:                *backup.BackupVault.SourceRegionName,
-		VolumeName:            backup.Attributes.VolumeName,
-		BackupVaultID:         backup.BackupVault.UUID,
-		LifeCycleState:        backup.State,
-		LifeCycleStateDetails: backup.StateDetails,
-		Description:           &backup.Description,
-		Type:                  backup.Type,
-		SnapshotName:          backup.Attributes.SnapshotName,
+		BackupID:                         backup.UUID,
+		Name:                             backup.Name,
+		VolumeID:                         backup.VolumeUUID,
+		Region:                           region,
+		VolumeName:                       backup.Attributes.VolumeName,
+		BackupVaultID:                    backupVaultID,
+		LifeCycleState:                   backup.State,
+		LifeCycleStateDetails:            backup.StateDetails,
+		Description:                      &backup.Description,
+		Type:                             backup.Type,
+		SnapshotName:                     backup.Attributes.SnapshotName,
+		MinimumEnforcedRetentionDuration: &minimumEnforcedRetentionDuration,
+		IsBackupImmutable:                isBackupImmutable,
 	}
 }
 
@@ -489,6 +510,49 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 	if isLatest && count != 1 {
 		return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
 	}
+
+	// Immutability check
+	if utils.IsImmutableBackupEnabled() {
+		backupVault, err := se.GetBackupVault(ctx, params.BackupVaultUUID)
+		if err != nil {
+			if customerrors.IsNotFoundErr(err) {
+				return customerrors.NewUserInputValidationErr("Backup vault not found")
+			}
+			return err
+		}
+
+		if backupVault.ImmutableAttributes != nil {
+			minRet := int64(0)
+			if backupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration != nil {
+				minRet = *backupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration
+			}
+			if minRet > 0 {
+				isDailyRetEnabled := backupVault.ImmutableAttributes.IsDailyBackupImmutable
+				isWeeklyRetEnabled := backupVault.ImmutableAttributes.IsWeeklyBackupImmutable
+				isMonthlyRetEnabled := backupVault.ImmutableAttributes.IsMonthlyBackupImmutable
+				isAdhocRetEnabled := backupVault.ImmutableAttributes.IsAdhocBackupImmutable
+				backupCreationDate := backup.CreatedAt
+				retExpiryDate := backupCreationDate.AddDate(0, 0, int(minRet))
+
+				if backup.Type == utils.BackupTypeSCHEDULED {
+					if backup.ScheduleTag != nil && ((isDailyRetEnabled && *backup.ScheduleTag == common.ScheduleTagDaily) ||
+						(isWeeklyRetEnabled && *backup.ScheduleTag == common.ScheduleTagWeekly) ||
+						(isMonthlyRetEnabled && *backup.ScheduleTag == common.ScheduleTagMonthly)) {
+						if time.Now().Before(retExpiryDate) {
+							return customerrors.NewUserInputValidationErr("Cannot delete backup before minimum retention period")
+						}
+					}
+				} else if backup.Type == utils.BackupTypeMANUAL {
+					if isAdhocRetEnabled {
+						if time.Now().Before(retExpiryDate) {
+							return customerrors.NewUserInputValidationErr("Cannot delete backup before minimum retention period")
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

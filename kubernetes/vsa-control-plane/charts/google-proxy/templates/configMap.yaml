@@ -40,6 +40,7 @@ data:
   VSA_AUTH_TYPE: "{{ index .Values "vsaAuthType" }}" #0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
   BACKUP_ENABLED: "{{ index .Values "backupEnabled" }}"
   QA_ENABLED: "{{ index .Values "qaEnabled" }}"
+  IMMUTABLE_BACKUP_ENABLED: "{{ index .Values "immutableBackupEnabled" }}"
   CRR_ENABLED: "{{ index .Values "crrEnabled" }}"
   CPCRR_ENABLED: "{{ index .Values "cpcrrEnabled" }}"
   CZCRR_ENABLED: "{{ index .Values "czcrrEnabled" }}"

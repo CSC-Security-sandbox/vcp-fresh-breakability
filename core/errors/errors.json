@@ -1384,5 +1384,17 @@
     "message": "Cluster peering expired",
     "retriable": false,
     "http_code": 400
+  },
+  "12001": {
+    "description": "Immutable backup validation failed due to backup policy update",
+    "message": "Error while creating immutable backup when backup policy is in updating state",
+    "retriable": true,
+    "http_code": 400
+  },
+  "12002": {
+    "description": "Immutable backup validation failed due to backup vault update",
+    "message": "Immutable backup vault is being updated",
+    "retriable": true,
+    "http_code": 400
   }
 }

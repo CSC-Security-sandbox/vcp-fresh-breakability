@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -272,4 +273,22 @@ func getMultipleBackupVaults(db *gorm.DB) ([]*datamodel.BackupVault, error) {
 		return nil, err
 	}
 	return backupVaults, nil
+}
+
+// GetBackupVaultUUIDsFromBackupPolicyUUID retrieves all backup vault UUIDs associated with a backup policy
+func (d *DataStoreRepository) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountID int64) ([]string, error) {
+	var backupVaultUUIDs []string
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Model(&datamodel.Volume{}).
+		Distinct("data_protection->>'backup_vault_id'").
+		Where("data_protection->>'backup_policy_id' = ?", backupPolicyUUID).
+		Where("data_protection->>'backup_vault_id' IS NOT NULL").
+		Where("data_protection->>'backup_vault_id' != ''").
+		Pluck("data_protection->>'backup_vault_id'", &backupVaultUUIDs).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get backup vault UUIDs from backup policy: %v", err)
+	}
+
+	return backupVaultUUIDs, nil
 }

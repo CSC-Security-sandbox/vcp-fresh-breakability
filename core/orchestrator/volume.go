@@ -11,9 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
@@ -47,7 +51,9 @@ var (
 	validateDeleteVolumeParams   = _validateDeleteVolumeParams
 	updateVolumeStatus           = _updateVolumeStatus
 
-	envIsLocalEnv = env.IsLocalEnv
+	envIsLocalEnv         = env.IsLocalEnv
+	cvpCreateClient       = cvp.CreateClient
+	GetBackupVaultFromCVP = getBackupVaultFromCVP
 )
 
 const (
@@ -601,8 +607,10 @@ type VolumeTypeProcessor interface {
 	Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error
 }
 
-type BlockVolumeProcessor struct{}
-type FileVolumeProcessor struct{}
+type (
+	BlockVolumeProcessor struct{}
+	FileVolumeProcessor  struct{}
+)
 
 func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
 	// Block-specific validation: host group checks, block properties, etc.
@@ -663,6 +671,215 @@ func GetVolumeTypeValidator(protocols []string, accountName string) (VolumeTypeP
 		return &FileVolumeProcessor{}, nil
 	}
 	return nil, customerrors.NewUserInputValidationErr("unsupported or unspecified protocol")
+}
+
+// checkIsValidImmutableBackupPolicyWithRetry validates immutable backup policy compliance with retry logic
+// to handle concurrent backup policy or backup vault update operations.
+// It performs the following validations:
+// 1. Fetches the backup policy and backup vault
+// 2. Validates daily backup retention against immutable period
+// 3. Validates weekly backup retention against immutable period
+// 4. Validates monthly backup retention against immutable period
+// Returns error if any validation fails, nil otherwise.
+func checkIsValidImmutableBackupPolicyWithRetry(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
+	logger := util.GetLogger(ctx)
+
+	for attempt := 1; attempt <= common.MaxRetries; attempt++ {
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, se, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+		if err == nil {
+			return nil // Success
+		}
+
+		// Check if this is a retryable error (backup policy or backup vault in updating state)
+		if isImmutableBackupPolicyRetryableError(err) {
+			if attempt < common.MaxRetries {
+				logger.Warn("Immutable backup policy validation failed due to concurrent update, retrying",
+					"attempt", attempt,
+					"maxRetries", common.MaxRetries,
+					"retryAfter", common.RetryDelay,
+					"error", err)
+				common.SleepFn(common.RetryDelay)
+				continue
+			} else {
+				logger.Error("Immutable backup policy validation failed after all retry attempts",
+					"attempt", attempt,
+					"maxRetries", common.MaxRetries,
+					"error", err)
+				return err
+			}
+		}
+
+		// Non-retryable error, return immediately
+		return err
+	}
+
+	return fmt.Errorf("immutable backup policy validation failed after %d attempts", common.MaxRetries)
+}
+
+// isImmutableBackupPolicyRetryableError checks if the error is related to backup policy or backup vault
+// being in updating state, which is a retryable condition.
+func isImmutableBackupPolicyRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var customError *vsaerrors.CustomError
+	if vsaerrors.As(err, &customError) {
+		if customError.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy || customError.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupVault {
+			return true
+		}
+	}
+	return false
+}
+
+// getBackupVaultFromCVP fetches a specific backup vault from CVP by its ID
+func getBackupVaultFromCVP(ctx context.Context, backupVaultID string, region string, accountName string) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get authentication token and create CVP client
+	getSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, getSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	// List all backup vaults from CVP
+	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(&backup_vault.V1betaListBackupVaultsParams{
+		LocationID:     region,
+		ProjectNumber:  accountName,
+		XCorrelationID: &xCorrelationID,
+	})
+
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil, customerrors.NewNotFoundErr("Backup vault", nil)
+		}
+		logger.Errorf("Error fetching backup vaults from CVP: %v", err)
+		return nil, err
+	}
+
+	// Search for the specific backup vault
+	for _, bv := range vaults.Payload.BackupVaults {
+		if bv.BackupVaultID == backupVaultID {
+			// Convert to data model
+			bvModel, err := activities.ConvertToBackupVaultDataModel(bv, region)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert backup vault to data model: %w", err)
+			}
+
+			return bvModel, nil
+		}
+	}
+
+	// Backup vault not found
+	return nil, customerrors.NewNotFoundErr("Backup vault", &backupVaultID)
+}
+
+// GetBackupPolicyFromCVP fetches backup policy from CVP and converts it to the internal data model
+func GetBackupPolicyFromCVP(ctx context.Context, backupPolicyUUID, region, accountName string) (*datamodel.BackupPolicy, error) {
+	logger := util.GetLogger(ctx)
+	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	// Fetch backup policy from CVP
+	cvpBackupPolicy, err := cvpClient.BackupPolicy.V1betaDescribeBackupPolicy(&backup_policy.V1betaDescribeBackupPolicyParams{
+		BackupPolicyID: backupPolicyUUID,
+		LocationID:     region,
+		ProjectNumber:  accountName,
+		XCorrelationID: &xCorrelationID,
+	})
+	if err != nil {
+		logger.Errorf("Error fetching backup policy from CVP: %v", err)
+		return nil, err
+	}
+
+	if cvpBackupPolicy == nil || cvpBackupPolicy.Payload == nil {
+		logger.Error("No backup policy found in CVP")
+		return nil, customerrors.NewNotFoundErr("Backup policy", &backupPolicyUUID)
+	}
+
+	// Convert CVP response to internal data model
+	backupPolicy := activities.ConvertToBackupPolicyDataModel(cvpBackupPolicy.Payload)
+
+	return backupPolicy, nil
+}
+
+// _checkIsValidImmutableBackupPolicyWithStateCheck validates immutable backup policy compliance
+// and checks for backup policy/vault updating states before performing validation.
+func _checkIsValidImmutableBackupPolicyWithStateCheck(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
+	// Add input validation
+	if backupPolicyUUID == "" {
+		return fmt.Errorf("backup policy UUID cannot be empty")
+	}
+	if backupVaultUUID == "" {
+		return fmt.Errorf("backup vault UUID cannot be empty")
+	}
+	if accountID <= 0 {
+		return fmt.Errorf("account ID must be positive")
+	}
+
+	// Get backup policy details
+	backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger := util.GetLogger(ctx)
+			logger.Warnf("Backup policy '%v' not found in local DB, attempting to fetch from CVP", backupPolicyUUID)
+			// If not found in local DB, try fetching from CVP
+			backupPolicy, err = GetBackupPolicyFromCVP(ctx, backupPolicyUUID, region, accountName)
+			if err != nil {
+				return fmt.Errorf("failed to get backup policy from CVP: %v", err)
+			}
+		} else {
+			return fmt.Errorf("failed to get backup policy: %v", err)
+		}
+	}
+
+	// Check if backup policy is in updating state
+	if backupPolicy.LifeCycleState == models.LifeCycleStateUpdating {
+		return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, fmt.Errorf("Cannot validate immutable backup policy: backup policy '%v' is currently being updated. Please wait for the policy update to complete.", backupPolicyUUID))
+	}
+
+	// Get backup vault details
+	backupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger := util.GetLogger(ctx)
+			logger.Warnf("Backup vault '%v' not found in local DB, attempting to fetch from CVP", backupVaultUUID)
+			// If not found in local DB, try fetching from CVP
+			backupVault, err = GetBackupVaultFromCVP(ctx, backupVaultUUID, region, accountName)
+			if err != nil {
+				return fmt.Errorf("failed to get backup vault from CVP: %v", err)
+			}
+		} else {
+			return fmt.Errorf("failed to get backup vault: %v", err)
+		}
+	}
+
+	// Check if backup vault is in updating state
+	if backupVault.LifeCycleState == models.LifeCycleStateUpdating {
+		return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, fmt.Errorf("Cannot validate immutable backup policy: backup vault '%s' is currently being updated. Please wait for the vault update to complete.", backupVaultUUID))
+	}
+
+	// Skip validation if backup vault doesn't have immutable attributes configured
+	if backupVault.ImmutableAttributes == nil {
+		return nil
+	}
+	immutableAttrs := backupVault.ImmutableAttributes
+	backupPolicyParams := &common.BackupPolicyParams{
+		DailyBackupsToKeep:   backupPolicy.DailyBackupsToKeep,
+		WeeklyBackupsToKeep:  backupPolicy.WeeklyBackupsToKeep,
+		MonthlyBackupsToKeep: backupPolicy.MonthlyBackupsToKeep,
+	}
+	retentionPolicyParams := &common.BackupRetentionPolicyParams{
+		BackupMinimumEnforcedRetentionDuration: immutableAttrs.BackupMinimumEnforcedRetentionDuration,
+		IsDailyBackupImmutable:                 &immutableAttrs.IsDailyBackupImmutable,
+		IsWeeklyBackupImmutable:                &immutableAttrs.IsWeeklyBackupImmutable,
+		IsMonthlyBackupImmutable:               &immutableAttrs.IsMonthlyBackupImmutable,
+		IsAdhocBackupImmutable:                 &immutableAttrs.IsAdhocBackupImmutable,
+	}
+	err = common.ValidateBackupPolicyRetentionLimits(backupPolicyParams, retentionPolicyParams)
+	if err != nil {
+		return fmt.Errorf("immutable backup policy validation failed: %w", err)
+	}
+	return nil
 }
 
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
@@ -794,6 +1011,20 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		if params.DataProtection.BackupVaultID == "" {
 			return customerrors.NewUserInputValidationErr("backup vault id is required to assign a backup policy to a volume")
 		}
+		if utils.IsImmutableBackupEnabled() {
+			logger := util.GetLogger(ctx)
+			logger.Debug("Validating immutable backup policy compliance",
+				"backupPolicyId", params.DataProtection.BackupPolicyId,
+				"backupVaultId", params.DataProtection.BackupVaultID)
+
+			// Validate immutable backup policy compliance
+			err = checkIsValidImmutableBackupPolicyWithRetry(ctx, se, params.DataProtection.BackupPolicyId, params.DataProtection.BackupVaultID, pool.Account.ID, params.Region, params.AccountName)
+			if err != nil {
+				logger.Errorf("Immutable backup policy validation failed %v", err)
+				return customerrors.NewUserInputValidationErr("Backup policy is not compliant with immutable backup vault settings")
+			}
+		}
+
 		if params.DataProtection.ScheduledBackupEnabled == nil {
 			return customerrors.NewUserInputValidationErr("scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
 		}
@@ -1418,7 +1649,6 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		params,
 		dbVolume,
 	)
-
 	if err != nil {
 		logger.Error("Failed to start update volume workflow: ", "error", err)
 		return nil, "", err
@@ -1565,6 +1795,19 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 		if params.SnapshotPolicy != nil && len(params.SnapshotPolicy.Schedules) > 0 {
 			return customerrors.NewUserInputValidationErr("Cannot update snapshot policy on a Data Protection Volume.")
+		}
+	}
+	if utils.IsImmutableBackupEnabled() {
+		logger := util.GetLogger(ctx)
+		if params.DataProtection != nil {
+			// Validate immutable backup policy compliance when both BackupPolicyId and BackupVaultID are set
+			if params.DataProtection.BackupPolicyId != nil && params.DataProtection.BackupVaultID != nil {
+				err := checkIsValidImmutableBackupPolicyWithRetry(ctx, se, *params.DataProtection.BackupPolicyId, *params.DataProtection.BackupVaultID, volume.Account.ID, params.Region, params.AccountName)
+				if err != nil {
+					logger.Errorf("Immutable backup policy validation failed %v", err)
+					return customerrors.NewUserInputValidationErr("Backup policy is not compliant with immutable backup vault settings")
+				}
+			}
 		}
 	}
 

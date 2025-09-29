@@ -97,6 +97,7 @@ data:
   HARVEST_SECRET_MANAGER_AUTH_ENABLED: {{ $.Values.workerConfig.harvestSecretManagerAuthEnabled | quote }}
   HARVEST_REST_PROTOCOL: {{ $.Values.workerConfig.harvestRestProtocol | quote }}
   CVP_HOST: {{$.Values.workerConfig.cvpHost | quote }}
+  IMMUTABLE_BACKUP_ENABLED: {{.Values.workerConfig.immutableBackupEnabled | quote}}
   PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}

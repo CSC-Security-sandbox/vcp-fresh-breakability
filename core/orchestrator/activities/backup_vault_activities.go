@@ -21,7 +21,7 @@ import (
 
 var (
 	utilsConvertJsonToModel       = utils.ConvertJsonToModel
-	convertToBackupVaultDataModel = _convertToBackupVaultDataModel
+	ConvertToBackupVaultDataModel = _convertToBackupVaultDataModel
 	cvpCreateClient               = cvp.CreateClient
 	updateBackupVaultInSDE        = _updateBackupVaultInSDE
 	deleteBackupVaultInSDE        = _deleteBackupVaultInSDE
@@ -128,7 +128,7 @@ func _deleteBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultPara
 		return nil, err
 	}
 
-	model, err := convertToBackupVaultDataModel(&data, paramz.Region)
+	model, err := ConvertToBackupVaultDataModel(&data, paramz.Region)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func _updateBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultPara
 		return nil, err
 	}
 
-	model, err := convertToBackupVaultDataModel(&data, paramz.Region)
+	model, err := ConvertToBackupVaultDataModel(&data, paramz.Region)
 	if err != nil {
 		return nil, err
 	}

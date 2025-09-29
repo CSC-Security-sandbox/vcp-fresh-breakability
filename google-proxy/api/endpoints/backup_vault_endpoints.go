@@ -11,7 +11,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -30,6 +32,136 @@ var (
 	deleteBackupVaultInSDE  = _deleteBackupVaultInSDE
 )
 
+// _validateRetentionParameters validates retention policy updates against current backup vault settings
+func _validateRetentionParameters(currentBackupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams) error {
+	// Constants
+	maxImmutablePeriodWhenDailyImmutability := int64(commonparams.ImmutablePeriodInDaysMaxDailyEnabled)
+	maxImmutablePeriod := int64(commonparams.ImmutablePeriodInDaysMax)
+
+	// Get current immutable attributes
+	currentAttrs := &currentBackupVault.BackupRetentionPolicy
+
+	// Validate retention duration - no decrease allowed
+	if newRetentionParams.BackupMinimumEnforcedRetentionDuration != nil {
+		newRetentionDays := *newRetentionParams.BackupMinimumEnforcedRetentionDuration
+
+		if currentAttrs.BackupMinimumEnforcedRetentionDuration != nil {
+			currentRetentionDays := *currentAttrs.BackupMinimumEnforcedRetentionDuration
+			if currentRetentionDays > 0 && newRetentionDays < currentRetentionDays {
+				return fmt.Errorf("cannot decrease backup minimum enforced retention duration from %d to %d days",
+					currentRetentionDays, newRetentionDays)
+			}
+		}
+	}
+
+	// Validate immutability cannot be disabled once enabled
+	if newRetentionParams.IsDailyBackupImmutable != nil {
+		if currentAttrs.IsDailyBackupImmutable && !*newRetentionParams.IsDailyBackupImmutable {
+			return fmt.Errorf("cannot disable daily backup immutability once enabled")
+		}
+	}
+
+	if newRetentionParams.IsWeeklyBackupImmutable != nil {
+		if currentAttrs.IsWeeklyBackupImmutable && !*newRetentionParams.IsWeeklyBackupImmutable {
+			return fmt.Errorf("cannot disable weekly backup immutability once enabled")
+		}
+	}
+
+	if newRetentionParams.IsMonthlyBackupImmutable != nil {
+		if currentAttrs.IsMonthlyBackupImmutable && !*newRetentionParams.IsMonthlyBackupImmutable {
+			return fmt.Errorf("cannot disable monthly backup immutability once enabled")
+		}
+	}
+
+	if newRetentionParams.IsAdhocBackupImmutable != nil {
+		if currentAttrs.IsAdhocBackupImmutable && !*newRetentionParams.IsAdhocBackupImmutable {
+			return fmt.Errorf("cannot disable manual/adhoc backup immutability once enabled")
+		}
+	}
+
+	// Determine final immutability states (merge current + new)
+	finalDailyImmutable := determineImmutableState(currentAttrs.IsDailyBackupImmutable, newRetentionParams.IsDailyBackupImmutable)
+	finalWeeklyImmutable := determineImmutableState(currentAttrs.IsWeeklyBackupImmutable, newRetentionParams.IsWeeklyBackupImmutable)
+	finalMonthlyImmutable := determineImmutableState(currentAttrs.IsMonthlyBackupImmutable, newRetentionParams.IsMonthlyBackupImmutable)
+	finalAdhocImmutable := determineImmutableState(currentAttrs.IsAdhocBackupImmutable, newRetentionParams.IsAdhocBackupImmutable)
+
+	// Ensure at least one backup type remains immutable
+	if !finalDailyImmutable && !finalWeeklyImmutable && !finalMonthlyImmutable && !finalAdhocImmutable {
+		return fmt.Errorf("at least one backup type must remain immutable")
+	}
+
+	// Validate retention duration range based on daily and non daily immutability
+	finalRetentionDays := getFinalRetentionDays(currentAttrs, newRetentionParams)
+	if finalRetentionDays > 0 {
+		if finalDailyImmutable {
+			if finalRetentionDays > maxImmutablePeriodWhenDailyImmutability {
+				return fmt.Errorf("retention period in days should be ≤ %d when daily backups are immutable", maxImmutablePeriodWhenDailyImmutability)
+			}
+		} else {
+			if finalRetentionDays > maxImmutablePeriod {
+				return fmt.Errorf("retention period in days should be ≤ %d when daily backups are not immutable", maxImmutablePeriod)
+			}
+		}
+	}
+
+	return nil // validation passed
+}
+
+// determineImmutableState determines the final immutable state by preferring new state over current
+func determineImmutableState(currentState bool, newState *bool) bool {
+	if newState != nil {
+		return *newState
+	}
+	return currentState
+}
+
+// getFinalRetentionDays gets the final retention days by preferring new value over current
+func getFinalRetentionDays(currentAttrs *coremodels.BackupRetentionPolicyparams, newParams *commonparams.BackupRetentionPolicyParams) int64 {
+	if newParams.BackupMinimumEnforcedRetentionDuration != nil {
+		return *newParams.BackupMinimumEnforcedRetentionDuration
+	}
+
+	if currentAttrs.BackupMinimumEnforcedRetentionDuration != nil {
+		return *currentAttrs.BackupMinimumEnforcedRetentionDuration
+	}
+
+	return 0
+}
+
+// extractRetentionPolicyParams extracts retention policy parameters from the request
+func extractRetentionPolicyParams(req *gcpgenserver.BackupVaultUpdateV1beta) *commonparams.BackupRetentionPolicyParams {
+	var backupMinimumEnforcedRetentionDuration *int64
+	var dailyBackupImmutable, weeklyBackupImmutable, monthlyBackupImmutable, adhocBackupImmutable *bool
+
+	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.IsSet() {
+		val := int64(req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value)
+		backupMinimumEnforcedRetentionDuration = &val
+	}
+	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.DailyBackupImmutable.IsSet() {
+		val := req.BackupRetentionPolicy.Value.DailyBackupImmutable.Value
+		dailyBackupImmutable = &val
+	}
+	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.WeeklyBackupImmutable.IsSet() {
+		val := req.BackupRetentionPolicy.Value.WeeklyBackupImmutable.Value
+		weeklyBackupImmutable = &val
+	}
+	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.MonthlyBackupImmutable.IsSet() {
+		val := req.BackupRetentionPolicy.Value.MonthlyBackupImmutable.Value
+		monthlyBackupImmutable = &val
+	}
+	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.ManualBackupImmutable.IsSet() {
+		val := req.BackupRetentionPolicy.Value.ManualBackupImmutable.Value
+		adhocBackupImmutable = &val
+	}
+
+	return &commonparams.BackupRetentionPolicyParams{
+		BackupMinimumEnforcedRetentionDuration: backupMinimumEnforcedRetentionDuration,
+		IsDailyBackupImmutable:                 dailyBackupImmutable,
+		IsWeeklyBackupImmutable:                weeklyBackupImmutable,
+		IsMonthlyBackupImmutable:               monthlyBackupImmutable,
+		IsAdhocBackupImmutable:                 adhocBackupImmutable}
+}
+
 func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultCreateV1beta, reqPayloadparams gcpgenserver.V1betaCreateBackupVaultParams) (gcpgenserver.V1betaCreateBackupVaultRes, error) {
 	if !backupEnabled {
 		return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
@@ -46,6 +178,43 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 			Message: parsingErr.Message,
 		}, nil
 	}
+
+	// Validate immutability settings if backup retention policy is provided
+	if req.BackupRetentionPolicy.IsSet() {
+		policy := req.BackupRetentionPolicy.Value
+
+		// Extract retention days and daily backup immutable flag
+		var retentionDays int = 0
+		var isDailyBackupImmutable bool = false
+
+		if policy.BackupMinimumEnforcedRetentionDays.IsSet() {
+			retentionDays = policy.BackupMinimumEnforcedRetentionDays.Value
+		}
+
+		if policy.DailyBackupImmutable.IsSet() {
+			isDailyBackupImmutable = policy.DailyBackupImmutable.Value
+		}
+
+		// Validate retention period based on daily backup immutability
+		if retentionDays > 0 {
+			if isDailyBackupImmutable {
+				if retentionDays > commonparams.ImmutablePeriodInDaysMaxDailyEnabled {
+					return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+						Code:    400,
+						Message: fmt.Sprintf("Retention period in days should be ≤ %d when considering daily backups for retention.", commonparams.ImmutablePeriodInDaysMaxDailyEnabled),
+					}, nil
+				}
+			} else {
+				if retentionDays > commonparams.ImmutablePeriodInDaysMax {
+					return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+						Code:    400,
+						Message: fmt.Sprintf("Retention period in days should be ≤ %d when considering no daily backups for retention.", commonparams.ImmutablePeriodInDaysMax),
+					}, nil
+				}
+			}
+		}
+	}
+
 	var resourceID string
 	if req.ResourceId.IsSet() {
 		resourceID = req.ResourceId.Value
@@ -659,6 +828,139 @@ func _updateBackupVaultInSDE(ctx context.Context, req *gcpgenserver.BackupVaultU
 	return convertOperationToOperationV1Beta(vault.Payload), nil
 }
 
+func _validateBackupPoliciesForBackupVault(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o orchestrator.OrchestratorFactory) error {
+	return _validateBackupPoliciesForBackupVaultWithRetry(ctx, backupVault, newRetentionParams, o, commonparams.MaxRetries, commonparams.RetryDelay)
+}
+
+func _validateBackupPoliciesForBackupVaultWithRetry(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o orchestrator.OrchestratorFactory, maxRetries int, retryInterval time.Duration) error {
+	logger := util.GetLogger(ctx)
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := _performBackupPolicyValidation(ctx, backupVault, newRetentionParams, o)
+		if err == nil {
+			return nil // Success
+		}
+
+		// Check if this is a retryable error (backup policy in updating state)
+		if isBackupPolicyRetryableError(err) {
+			if attempt < maxRetries {
+				logger.Warn("Backup policy validation failed due to concurrent update, retrying",
+					"attempt", attempt,
+					"maxRetries", maxRetries,
+					"retryAfter", retryInterval,
+					"error", err)
+				commonparams.SleepFn(retryInterval)
+				continue
+			} else {
+				logger.Error("Backup policy validation failed after all retry attempts",
+					"attempt", attempt,
+					"maxRetries", maxRetries,
+					"error", err)
+				return err
+			}
+		}
+
+		// Non-retryable error, return immediately
+		return err
+	}
+
+	return fmt.Errorf("backup policy validation failed after %d attempts", maxRetries)
+}
+
+func isBackupPolicyRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Check if the error is related to backup policy being in updating state
+	var customError *vsaerrors.CustomError
+	if vsaerrors.As(err, &customError) {
+		if customError.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy {
+			return true
+		}
+	}
+	return false
+}
+
+func _performBackupPolicyValidation(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o orchestrator.OrchestratorFactory) error {
+	logger := util.GetLogger(ctx)
+	// Get all backup policy UUIDs associated with this backup vault
+	backupPolicyUUIDs, err := o.GetBackupPolicyUUIDsFromBackupVaultUUID(ctx, backupVault.BackupVaultID, backupVault.AccountName)
+	if err != nil {
+		return fmt.Errorf("failed to get backup policy UUIDs from backup vault: %w", err)
+	}
+
+	// If no backup policies are associated, no validation needed
+	if len(backupPolicyUUIDs) == 0 {
+		logger.Info("No backup policies associated with backup vault", "backupVaultID", backupVault.BackupVaultID)
+		return nil
+	}
+
+	// Fetch all backup policies for the given UUIDs (only non-deleted ones)
+	_, backupPolicies, err := o.ListBackupPoliciesAndVolumeCount(ctx, backupVault.AccountName, backupPolicyUUIDs)
+	if err != nil {
+		return fmt.Errorf("failed to list backup policies for validation: %v", err)
+	}
+
+	logger.Info("Found backup policies for validation", "count", len(backupPolicies), "backupVaultID", backupVault.BackupVaultID)
+
+	// Validate each backup policy
+	for _, backupPolicy := range backupPolicies {
+		if backupPolicy.State != coremodels.LifeCycleStateDeleted {
+			// Check if backup policy is in updating state
+			if backupPolicy.State == coremodels.LifeCycleStateUpdating {
+				return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, fmt.Errorf("Cannot update backup vault: backup policy '%s' is currently being updated. Please wait for the policy update to complete.", backupPolicy.BackupPolicyUUID))
+			}
+			// Validate the backup policy against new immutability settings
+			if err := validateBackupPolicyAgainstNewSettings(backupVault, backupPolicy, newRetentionParams); err != nil {
+				return fmt.Errorf("backup policy '%s' validation failed: %w", backupPolicy.BackupPolicyUUID, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func validateBackupPolicyAgainstNewSettings(backupVault *coremodels.BackupVaultV1beta, backupPolicy *coremodels.BackupPolicy, newRetentionParams *commonparams.BackupRetentionPolicyParams) error {
+	// Get current immutable attributes from BackupRetentionPolicy
+	currentAttrs := &backupVault.BackupRetentionPolicy
+
+	// Determine final retention days
+	var finalRetentionDays int64 = 0
+	if newRetentionParams.BackupMinimumEnforcedRetentionDuration != nil {
+		finalRetentionDays = *newRetentionParams.BackupMinimumEnforcedRetentionDuration
+	} else if currentAttrs.BackupMinimumEnforcedRetentionDuration != nil {
+		finalRetentionDays = *currentAttrs.BackupMinimumEnforcedRetentionDuration
+	}
+
+	if finalRetentionDays <= 0 {
+		return nil // No immutable period specified
+	}
+
+	// Determine final immutability states
+	finalDailyImmutable := determineImmutableState(currentAttrs.IsDailyBackupImmutable, newRetentionParams.IsDailyBackupImmutable)
+	finalWeeklyImmutable := determineImmutableState(currentAttrs.IsWeeklyBackupImmutable, newRetentionParams.IsWeeklyBackupImmutable)
+	finalMonthlyImmutable := determineImmutableState(currentAttrs.IsMonthlyBackupImmutable, newRetentionParams.IsMonthlyBackupImmutable)
+
+	backupPolicyParams := &commonparams.BackupPolicyParams{
+		DailyBackupsToKeep:   backupPolicy.DailyBackupLimit,
+		WeeklyBackupsToKeep:  backupPolicy.WeeklyBackupLimit,
+		MonthlyBackupsToKeep: backupPolicy.MonthlyBackupLimit,
+	}
+	retentionPolicyParams := &commonparams.BackupRetentionPolicyParams{
+		BackupMinimumEnforcedRetentionDuration: &finalRetentionDays,
+		IsDailyBackupImmutable:                 &finalDailyImmutable,
+		IsWeeklyBackupImmutable:                &finalWeeklyImmutable,
+		IsMonthlyBackupImmutable:               &finalMonthlyImmutable,
+	}
+
+	err := commonparams.ValidateBackupPolicyRetentionLimits(backupPolicyParams, retentionPolicyParams)
+	if err != nil {
+		return fmt.Errorf("backup policy '%s' has retention limits that conflict with the new backup vault settings", backupPolicy.BackupPolicyUUID)
+	}
+
+	return nil
+}
+
 func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaUpdateBackupVaultParams) (r gcpgenserver.V1betaUpdateBackupVaultRes, _ error) {
 	if !backupEnabled {
 		return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
@@ -694,56 +996,56 @@ func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
-	// Check if backup retention policy is being updated and vault is attached to volumes
+	// Extract retention policy parameters from request
+	retentionParams := extractRetentionPolicyParams(req)
+	if retentionParams == nil {
+		retentionParams = &commonparams.BackupRetentionPolicyParams{}
+	}
 	if req.BackupRetentionPolicy.IsSet() {
-		isAttached, err := h.Orchestrator.IsBackupVaultAttachedToVolume(ctx, params.BackupVaultId)
-		if err != nil {
-			logger.Errorf("Failed to check if backup vault %s is attached to vsa volume: %v", params.BackupVaultId, err)
-			return &gcpgenserver.V1betaUpdateBackupVaultInternalServerError{
-				Code:    500,
-				Message: "Failed to check backup vault attachment status",
-			}, nil
+		if !utils.IsImmutableBackupEnabled() {
+			// Check if backup retention policy is being updated and vault is attached to volumes
+			isAttached, err := h.Orchestrator.IsBackupVaultAttachedToVolume(ctx, params.BackupVaultId)
+			if err != nil {
+				logger.Errorf("Failed to check if backup vault %s is attached to vsa volume: %v", params.BackupVaultId, err)
+				return &gcpgenserver.V1betaUpdateBackupVaultInternalServerError{
+					Code:    500,
+					Message: "Failed to check backup vault attachment status",
+				}, nil
+			}
+			if isAttached {
+				return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
+					Code:    400,
+					Message: utils.ImmutableBackupVaultErrMsg,
+				}, nil
+			}
+		} else {
+			// Validate retention parameters against current backup vault
+			if validationErr := _validateRetentionParameters(backupVault, retentionParams); validationErr != nil {
+				return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
+					Code:    400,
+					Message: validationErr.Error(),
+				}, nil
+			}
+			// Validate all associated backup policies
+			logger.Info("Validating backup policies associated with backup vault", "backupVaultID", params.BackupVaultId)
+			if policyValidationErr := _validateBackupPoliciesForBackupVault(ctx, backupVault, retentionParams, h.Orchestrator); policyValidationErr != nil {
+				logger.Error("Backup policy validation failed", "error", policyValidationErr)
+				return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
+					Code:    400,
+					Message: policyValidationErr.Error(),
+				}, nil
+			}
 		}
-		if isAttached {
-			return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
-				Code:    400,
-				Message: utils.ImmutableBackupVaultErrMsg,
-			}, nil
-		}
 	}
 
-	var backupMinimumEnforcedRetentionDuration *int64
-	var dailyBackupImmutable, weeklyBackupImmutable, monthlyBackupImmutable, adhocBackupImmutable *bool
-
-	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.IsSet() {
-		val := int64(req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value)
-		backupMinimumEnforcedRetentionDuration = &val
-	}
-	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.DailyBackupImmutable.IsSet() {
-		val := req.BackupRetentionPolicy.Value.DailyBackupImmutable.Value
-		dailyBackupImmutable = &val
-	}
-	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.WeeklyBackupImmutable.IsSet() {
-		val := req.BackupRetentionPolicy.Value.WeeklyBackupImmutable.Value
-		weeklyBackupImmutable = &val
-	}
-	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.MonthlyBackupImmutable.IsSet() {
-		val := req.BackupRetentionPolicy.Value.MonthlyBackupImmutable.Value
-		monthlyBackupImmutable = &val
-	}
-	if req.BackupRetentionPolicy.IsSet() && req.BackupRetentionPolicy.Value.ManualBackupImmutable.IsSet() {
-		val := req.BackupRetentionPolicy.Value.ManualBackupImmutable.Value
-		adhocBackupImmutable = &val
-	}
-
-	param := &commonparams.BackupVaultParams{BackupVaultID: params.BackupVaultId, Description: &description, OwnerID: params.ProjectNumber, Region: params.LocationId, BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
-		BackupMinimumEnforcedRetentionDuration: backupMinimumEnforcedRetentionDuration,
-		IsDailyBackupImmutable:                 dailyBackupImmutable,
-		IsWeeklyBackupImmutable:                weeklyBackupImmutable,
-		IsMonthlyBackupImmutable:               monthlyBackupImmutable,
-		IsAdhocBackupImmutable:                 adhocBackupImmutable},
-		Name:        backupVault.Name,
-		AccountName: params.ProjectNumber,
+	param := &commonparams.BackupVaultParams{
+		BackupVaultID:         params.BackupVaultId,
+		Description:           &description,
+		OwnerID:               params.ProjectNumber,
+		Region:                params.LocationId,
+		BackupRetentionPolicy: *retentionParams,
+		Name:                  backupVault.Name,
+		AccountName:           params.ProjectNumber,
 	}
 	updated, operationID, err := h.Orchestrator.UpdateBackupVault(ctx, param)
 	if err != nil {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	mod "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -867,6 +869,959 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError).Message)
+	})
+}
+
+func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
+	ctx := context.Background()
+	backupVault := &mod.BackupVaultV1beta{
+		BackupVaultID: "vault-123",
+		AccountName:   "test-project",
+		OwnerID:       "test-project",
+		BackupRetentionPolicy: mod.BackupRetentionPolicyparams{
+			BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
+			IsDailyBackupImmutable:                 true,
+			IsWeeklyBackupImmutable:                false,
+			IsMonthlyBackupImmutable:               false,
+			IsAdhocBackupImmutable:                 false,
+		},
+	}
+	newRetentionParams := &commonparams.BackupRetentionPolicyParams{
+		BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
+		IsDailyBackupImmutable:                 nillable.GetBoolPtr(true),
+	}
+
+	t.Run("Retries on retryable error and succeeds on second attempt", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupPolicyUUIDsFromBackupVaultUUID to return policy IDs
+		mockOrchestrator.On("GetBackupPolicyUUIDsFromBackupVaultUUID", ctx, "vault-123", "test-project").Return([]string{"policy-1"}, nil)
+
+		// First call returns backup policies with updating state, second call returns ready state
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "test-project", []string{"policy-1"}).Return(
+			map[string]int64{"policy-1": 1},
+			map[string]*mod.BackupPolicy{
+				"policy-1": {
+					BackupPolicyUUID: "policy-1",
+					State:            mod.LifeCycleStateUpdating,
+					DailyBackupLimit: 60,
+				},
+			}, nil).Once()
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "test-project", []string{"policy-1"}).Return(
+			map[string]int64{"policy-1": 1},
+			map[string]*mod.BackupPolicy{
+				"policy-1": {
+					BackupPolicyUUID: "policy-1",
+					State:            mod.LifeCycleStateREADY,
+					DailyBackupLimit: 60,
+				},
+			}, nil).Once()
+
+		// Patch time.Sleep to avoid real delay
+		origSleep := commonparams.SleepFn
+		sleepCalled := 0
+		commonparams.SleepFn = func(d time.Duration) { sleepCalled++ }
+		defer func() { commonparams.SleepFn = origSleep }()
+
+		err := _validateBackupPoliciesForBackupVaultWithRetry(ctx, backupVault, newRetentionParams, mockOrchestrator, 3, 1*time.Millisecond)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, sleepCalled, "Should sleep once for one retry")
+	})
+
+	t.Run("Stops after max retries on persistent retryable error", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupPolicyUUIDsFromBackupVaultUUID to return policy IDs
+		mockOrchestrator.On("GetBackupPolicyUUIDsFromBackupVaultUUID", ctx, "vault-123", "test-project").Return([]string{"policy-1"}, nil)
+
+		// Always return backup policy with updating state (retryable error)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "test-project", []string{"policy-1"}).Return(
+			map[string]int64{"policy-1": 1},
+			map[string]*mod.BackupPolicy{
+				"policy-1": {
+					BackupPolicyUUID: "policy-1",
+					State:            mod.LifeCycleStateUpdating,
+					DailyBackupLimit: 60,
+				},
+			}, nil)
+
+		origSleep := commonparams.SleepFn
+		sleepCalled := 0
+		commonparams.SleepFn = func(d time.Duration) { sleepCalled++ }
+		defer func() { commonparams.SleepFn = origSleep }()
+
+		err := _validateBackupPoliciesForBackupVaultWithRetry(ctx, backupVault, newRetentionParams, mockOrchestrator, 3, 1*time.Millisecond)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Error while creating immutable backup when backup policy is in updating state")
+		assert.Equal(t, 2, sleepCalled, "Should sleep between retry attempts (2 sleeps for 3 attempts)")
+	})
+
+	t.Run("Does not retry on non-retryable error", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupPolicyUUIDsFromBackupVaultUUID to return policy IDs
+		mockOrchestrator.On("GetBackupPolicyUUIDsFromBackupVaultUUID", ctx, "vault-123", "test-project").Return([]string{"policy-1"}, nil)
+
+		// Return an error from ListBackupPoliciesAndVolumeCount (non-retryable error)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "test-project", []string{"policy-1"}).Return(
+			map[string]int64{}, map[string]*mod.BackupPolicy{}, errors.New("some non-retryable error"))
+
+		origSleep := commonparams.SleepFn
+		sleepCalled := 0
+		commonparams.SleepFn = func(d time.Duration) { sleepCalled++ }
+		defer func() { commonparams.SleepFn = origSleep }()
+
+		err := _validateBackupPoliciesForBackupVaultWithRetry(ctx, backupVault, newRetentionParams, mockOrchestrator, 3, 1*time.Millisecond)
+		assert.Error(t, err) // Should error because ListBackupPoliciesAndVolumeCount failed
+		assert.Equal(t, 0, sleepCalled, "Should not sleep for non-retryable errors")
+	})
+
+	t.Run("First attempt succeeds, no retries", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupPolicyUUIDsFromBackupVaultUUID to return policy IDs
+		mockOrchestrator.On("GetBackupPolicyUUIDsFromBackupVaultUUID", ctx, "vault-123", "test-project").Return([]string{"policy-1"}, nil)
+
+		// Return backup policy in ready state (should succeed immediately)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "test-project", []string{"policy-1"}).Return(
+			map[string]int64{"policy-1": 1},
+			map[string]*mod.BackupPolicy{
+				"policy-1": {
+					BackupPolicyUUID: "policy-1",
+					State:            mod.LifeCycleStateREADY,
+					DailyBackupLimit: 60,
+				},
+			}, nil)
+
+		origSleep := commonparams.SleepFn
+		sleepCalled := 0
+		commonparams.SleepFn = func(d time.Duration) { sleepCalled++ }
+		defer func() { commonparams.SleepFn = origSleep }()
+
+		err := _validateBackupPoliciesForBackupVaultWithRetry(ctx, backupVault, newRetentionParams, mockOrchestrator, 3, 1*time.Millisecond)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, sleepCalled, "Should not sleep if no retry needed")
+	})
+
+	t.Run("Retryable error then non-retryable error (should stop on non-retryable)", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupPolicyUUIDsFromBackupVaultUUID to return policy IDs
+		mockOrchestrator.On("GetBackupPolicyUUIDsFromBackupVaultUUID", ctx, "vault-123", "test-project").Return([]string{"policy-1"}, nil)
+
+		// First call returns updating state (retryable), second call returns ready state but with validation error
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "test-project", []string{"policy-1"}).Return(
+			map[string]int64{"policy-1": 1},
+			map[string]*mod.BackupPolicy{
+				"policy-1": {
+					BackupPolicyUUID: "policy-1",
+					State:            mod.LifeCycleStateUpdating,
+					DailyBackupLimit: 60,
+				},
+			}, nil).Once()
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "test-project", []string{"policy-1"}).Return(
+			map[string]int64{"policy-1": 1},
+			map[string]*mod.BackupPolicy{
+				"policy-1": {
+					BackupPolicyUUID: "policy-1",
+					State:            mod.LifeCycleStateREADY,
+					DailyBackupLimit: 5, // Too low for immutable period, will cause validation error
+				},
+			}, nil).Once()
+
+		origSleep := commonparams.SleepFn
+		sleepCalled := 0
+		commonparams.SleepFn = func(d time.Duration) { sleepCalled++ }
+		defer func() { commonparams.SleepFn = origSleep }()
+
+		err := _validateBackupPoliciesForBackupVaultWithRetry(ctx, backupVault, newRetentionParams, mockOrchestrator, 3, 1*time.Millisecond)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "validation failed")
+		assert.Equal(t, 1, sleepCalled, "Should sleep only once before non-retryable error")
+	})
+
+	t.Run("All attempts return non-retryable errors (should not retry at all)", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyUUIDsFromBackupVaultUUID", ctx, "vault-123", "test-project").Return([]string{"policy-1"}, nil)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "test-project", []string{"policy-1"}).Return(map[string]int64(nil), map[string]*mod.BackupPolicy(nil), errors.New("always non-retryable error"))
+
+		origSleep := commonparams.SleepFn
+		sleepCalled := 0
+		commonparams.SleepFn = func(d time.Duration) { sleepCalled++ }
+		defer func() { commonparams.SleepFn = origSleep }()
+
+		err := _validateBackupPoliciesForBackupVaultWithRetry(ctx, backupVault, newRetentionParams, mockOrchestrator, 3, 1*time.Millisecond)
+		assert.Error(t, err) // Should return error because ListBackupPoliciesAndVolumeCount failed
+		assert.Equal(t, 0, sleepCalled, "Should not sleep for non-retryable errors")
+	})
+}
+
+// TestV1betaCreateBackupVaultWithImmutableBackups tests backup vault creation with various immutable backup scenarios
+func TestV1betaCreateBackupVaultWithImmutableBackups2(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	originalValue := utils.IsImmutableBackupEnabled()
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.SetImmutableBackupEnabledForTest(originalValue)
+	}()
+	backupEnabled = true
+	utils.SetImmutableBackupEnabledForTest(true)
+
+	t.Run("SuccessfulCreateWithImmutableDailyBackups", func(t *testing.T) {
+		// Test successful creation with valid immutable daily backup settings
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:   gcpgenserver.NewOptString("test-backup-vault"),
+			Description:  gcpgenserver.NewOptString("Test backup vault for immutable backups"),
+			BackupRegion: gcpgenserver.NewOptString("us-central1-backup"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(false),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(false),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(false),
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		// Mock successful CVP response
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:    nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID: "bv-uuid-123",
+					Description:   nillable.GetStringPtr("Test backup vault for immutable backups"),
+					BackupRegion:  nillable.GetStringPtr("us-central1-backup"),
+					State:         "CREATING",
+					StateDetails:  "Creation in progress",
+					BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
+						BackupMinimumEnforcedRetentionDays: nillable.GetInt64Ptr(30),
+						DailyBackupImmutable:               true,
+						WeeklyBackupImmutable:              false,
+						MonthlyBackupImmutable:             false,
+						ManualBackupImmutable:              false,
+					},
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault"
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.True(t, operationResult.Done.Value)
+	})
+
+	t.Run("FailureCreateWithInvalidRetentionPeriodForDailyImmutable", func(t *testing.T) {
+		// Test validation failure when retention period exceeds limit for daily immutable backups
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-invalid"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:   gcpgenserver.NewOptString("test-invalid-retention"),
+			Description:  gcpgenserver.NewOptString("Invalid retention period"),
+			BackupRegion: gcpgenserver.NewOptString("us-central1-backup"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(1500), // Exceeds daily limit
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(false),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(false),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(false),
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err) // Handler returns error responses, not Go errors
+		assert.NotNil(t, result)
+
+		// Should return BadRequest due to validation failure
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "Retention period")
+	})
+
+	t.Run("SuccessCreateWhenBackupVaultAlreadyExists", func(t *testing.T) {
+		// Test successful response when backup vault with same name already exists
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-exists"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("existing-backup-vault"),
+			Description: gcpgenserver.NewOptString("Already exists"),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		existingVault := &mod.BackupVaultV1beta{
+			BackupVaultID: "existing-uuid",
+			Name:          "existing-backup-vault",
+		}
+
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "existing-backup-vault", "test-project-123").Return(existingVault, nil)
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Should return OperationV1beta when backup vault already exists (idempotent behavior)
+		operationResult, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok, "Expected OperationV1beta response type when backup vault already exists")
+		assert.True(t, operationResult.Done.Value, "Expected operation to be done")
+	})
+
+	t.Run("SuccessfulCreateWithBoundaryRetentionValues", func(t *testing.T) {
+		// Test creation with boundary retention values (exactly at limits)
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-boundary"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:   gcpgenserver.NewOptString("test-boundary-values"),
+			Description:  gcpgenserver.NewOptString("Boundary retention values"),
+			BackupRegion: gcpgenserver.NewOptString("us-central1-backup"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(1000), // Exactly at daily limit
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(false),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(false),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(false),
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		vaultName := "test-boundary-values"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-boundary-values", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Name: "operations/backup-vault-create-boundary",
+				Response: &models.BackupVaultV1beta{
+					ResourceID:    nillable.GetStringPtr("test-boundary-values"),
+					BackupVaultID: "bv-uuid-boundary",
+					BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
+						BackupMinimumEnforcedRetentionDays: nillable.GetInt64Ptr(1000),
+						DailyBackupImmutable:               true,
+					},
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaCreateBackupVault(mock.Anything).Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.Equal(t, "operations/backup-vault-create-boundary", operationResult.Name.Value)
+	})
+
+	t.Run("CreateBackupVaultBackupDisabled", func(t *testing.T) {
+		// Test creation when backup feature is disabled globally
+		origBackupEnabledLocal := backupEnabled
+		backupEnabled = false
+		defer func() { backupEnabled = origBackupEnabledLocal }()
+
+		handler := Handler{}
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-disabled"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("disabled-feature-vault"),
+			Description: gcpgenserver.NewOptString("Backup feature disabled"),
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Should return BadRequest when feature is disabled
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok)
+		assert.Contains(t, badRequestResult.Message, "not enabled")
+	})
+}
+
+// TestV1betaUpdateBackupVaultWithImmutableBackups tests backup vault updates with immutable backup scenarios
+func TestV1betaUpdateBackupVaultWithImmutableBackups2(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	originalValue := utils.IsImmutableBackupEnabled()
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.SetImmutableBackupEnabledForTest(originalValue)
+	}()
+	backupEnabled = true
+	utils.SetImmutableBackupEnabledForTest(true)
+
+	t.Run("SuccessfulUpdateEnableImmutableBackups", func(t *testing.T) {
+		// Test enabling immutable backups on existing vault
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			BackupVaultId:  "bv-uuid-123",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-update-enable"),
+		}
+
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Updated with immutable backups"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(45),
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(false),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(true),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(false),
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock existing backup vault without immutable backups
+		existingVault := &mod.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-123",
+			Name:          "test-vault",
+			OwnerID:       "test-project-123",
+			AccountName:   "test-project-123",
+			BackupRetentionPolicy: mod.BackupRetentionPolicyparams{
+				BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
+				IsDailyBackupImmutable:                 false,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-uuid-123", "test-project-123").Return(existingVault, nil)
+		mockOrchestrator.On("GetBackupPolicyUUIDsFromBackupVaultUUID", mock.Anything, "bv-uuid-123", "test-project-123").Return([]string{}, nil)
+
+		updatedVault := &mod.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-123",
+			Name:          "test-vault",
+			OwnerID:       "test-project-123",
+			AccountName:   "test-project-123",
+			Description:   nillable.GetStringPtr("Updated with immutable backups"),
+			BackupRetentionPolicy: mod.BackupRetentionPolicyparams{
+				BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(45),
+				IsDailyBackupImmutable:                 true,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               true,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		mockOrchestrator.On("UpdateBackupVault", mock.Anything, mock.MatchedBy(func(params *commonparams.BackupVaultParams) bool {
+			return params.BackupVaultID == "bv-uuid-123" &&
+				*params.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration == 45 &&
+				*params.BackupRetentionPolicy.IsDailyBackupImmutable == true &&
+				*params.BackupRetentionPolicy.IsMonthlyBackupImmutable == true
+		})).Return(updatedVault, "operation-123", nil)
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.NotEmpty(t, operationResult.Name.Value)
+	})
+
+	t.Run("FailureUpdateAttemptToDisableImmutableBackups", func(t *testing.T) {
+		// Test that attempting to disable immutable backups fails
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			BackupVaultId:  "bv-uuid-immutable",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-disable-fail"),
+		}
+
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Attempt to disable immutable"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(20),     // Attempting to reduce
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(false), // Attempting to disable
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(false),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(false),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(false),
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock existing vault with immutable backups enabled
+		existingVault := &mod.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-immutable",
+			Name:          "immutable-vault",
+			OwnerID:       "test-project-123",
+			BackupRetentionPolicy: mod.BackupRetentionPolicyparams{
+				BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(60),
+				IsDailyBackupImmutable:                 true, // Currently enabled
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               true, // Currently enabled
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-uuid-immutable", "test-project-123").Return(existingVault, nil)
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Should return BadRequest due to validation failure
+		badRequestResult, ok := result.(*gcpgenserver.V1betaUpdateBackupVaultBadRequest)
+		assert.True(t, ok)
+		assert.Contains(t, badRequestResult.Message, "cannot")
+	})
+
+	t.Run("FailureUpdateWithInvalidInputValidation", func(t *testing.T) {
+		// Test update failure when validation fails due to invalid input
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			BackupVaultId:  "bv-uuid-validation-fail",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-validation-fail"),
+		}
+
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Invalid retention update"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(5),      // Too low for immutable vault
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(false), // Trying to disable
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock existing vault with immutable backups that can't be reduced
+		existingVault := &mod.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-validation-fail",
+			Name:          "validation-fail-vault",
+			OwnerID:       "test-project-123",
+			BackupRetentionPolicy: mod.BackupRetentionPolicyparams{
+				BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
+				IsDailyBackupImmutable:                 true, // Currently enabled
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-uuid-validation-fail", "test-project-123").Return(existingVault, nil)
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaUpdateBackupVaultBadRequest)
+		assert.True(t, ok)
+		assert.Contains(t, badRequestResult.Message, "cannot")
+	})
+
+	t.Run("UpdateBackupVaultBackupDisabled", func(t *testing.T) {
+		// Test update when backup feature is disabled globally
+		origBackupEnabledLocal := backupEnabled
+		backupEnabled = false
+		defer func() { backupEnabled = origBackupEnabledLocal }()
+
+		handler := Handler{}
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			BackupVaultId:  "bv-uuid-disabled",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-disabled-update"),
+		}
+
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Update with feature disabled"),
+		}
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaUpdateBackupVaultBadRequest)
+		assert.True(t, ok)
+		assert.Contains(t, badRequestResult.Message, "not enabled")
+	})
+}
+
+// TestV1betaImmutableBackupEdgeCases tests various edge cases and error conditions
+func TestV1betaImmutableBackupEdgeCases2(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	originalValue := utils.IsImmutableBackupEnabled()
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.SetImmutableBackupEnabledForTest(originalValue)
+	}()
+	backupEnabled = true
+	utils.SetImmutableBackupEnabledForTest(true)
+
+	t.Run("CreateWithAllImmutableTypesEnabled", func(t *testing.T) {
+		// Test creation with all backup types as immutable
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-all-immutable"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:   gcpgenserver.NewOptString("all-immutable-vault"),
+			Description:  gcpgenserver.NewOptString("All backup types immutable"),
+			BackupRegion: gcpgenserver.NewOptString("us-central1-backup"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(60),
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(true),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(true),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(true),
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		vaultName := "all-immutable-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "all-immutable-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Name: "operations/backup-vault-create-all-immutable",
+				Response: &models.BackupVaultV1beta{
+					ResourceID:    nillable.GetStringPtr("all-immutable-vault"),
+					BackupVaultID: "bv-uuid-all-immutable",
+					BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
+						BackupMinimumEnforcedRetentionDays: nillable.GetInt64Ptr(60),
+						DailyBackupImmutable:               true,
+						WeeklyBackupImmutable:              true,
+						MonthlyBackupImmutable:             true,
+						ManualBackupImmutable:              true,
+					},
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaCreateBackupVault(mock.Anything).Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.Equal(t, "operations/backup-vault-create-all-immutable", operationResult.Name.Value)
+	})
+
+	t.Run("CreateWithMaximumRetentionPeriod", func(t *testing.T) {
+		// Test creation with maximum allowed retention period
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-max-retention"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:   gcpgenserver.NewOptString("max-retention-vault"),
+			Description:  gcpgenserver.NewOptString("Maximum retention period"),
+			BackupRegion: gcpgenserver.NewOptString("us-central1-backup"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(5475),   // Maximum allowed
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(false), // Not daily so can use max
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(true),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(true),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(false),
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		vaultName := "max-retention-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "max-retention-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Name: "operations/backup-vault-create-max-retention",
+				Response: &models.BackupVaultV1beta{
+					ResourceID:    nillable.GetStringPtr("max-retention-vault"),
+					BackupVaultID: "bv-uuid-max-retention",
+					BackupRetentionPolicy: &models.BackupRetentionPolicyV1beta{
+						BackupMinimumEnforcedRetentionDays: nillable.GetInt64Ptr(5475),
+						WeeklyBackupImmutable:              true,
+						MonthlyBackupImmutable:             true,
+					},
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaCreateBackupVault(mock.Anything).Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.Equal(t, "operations/backup-vault-create-max-retention", operationResult.Name.Value)
+	})
+
+	t.Run("FailureCreateWithExcessiveRetentionPeriod", func(t *testing.T) {
+		// Test failure when retention period exceeds absolute maximum
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-excessive"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:   gcpgenserver.NewOptString("excessive-retention-vault"),
+			Description:  gcpgenserver.NewOptString("Excessive retention period"),
+			BackupRegion: gcpgenserver.NewOptString("us-central1-backup"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(6000), // Exceeds maximum
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(false),
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(true),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(false),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(false),
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Should return BadRequest due to validation failure
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "Retention period")
+	})
+
+	t.Run("UpdateWithPartialImmutableChanges", func(t *testing.T) {
+		// Test updating some but not all immutable backup types
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			BackupVaultId:  "bv-uuid-partial",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-partial"),
+		}
+
+		req := &gcpgenserver.BackupVaultUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Partial immutable update"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+				WeeklyBackupImmutable:  gcpgenserver.NewOptBool(true), // Enabling weekly
+				MonthlyBackupImmutable: gcpgenserver.NewOptBool(true), // Enabling monthly
+				// Not changing daily or manual
+			}),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		existingVault := &mod.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-partial",
+			Name:          "partial-vault",
+			OwnerID:       "test-project-123",
+			AccountName:   "test-project-123",
+			BackupRetentionPolicy: mod.BackupRetentionPolicyparams{
+				BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
+				IsDailyBackupImmutable:                 true,  // Already enabled
+				IsWeeklyBackupImmutable:                false, // Will be enabled
+				IsMonthlyBackupImmutable:               false, // Will be enabled
+				IsAdhocBackupImmutable:                 false, // Unchanged
+			},
+		}
+
+		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-uuid-partial", "test-project-123").Return(existingVault, nil)
+		mockOrchestrator.On("GetBackupPolicyUUIDsFromBackupVaultUUID", mock.Anything, "bv-uuid-partial", "test-project-123").Return([]string{}, nil)
+
+		updatedVault := &mod.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-partial",
+			Name:          "partial-vault",
+			OwnerID:       "test-project-123",
+			AccountName:   "test-project-123",
+			Description:   nillable.GetStringPtr("Partial immutable update"),
+			BackupRetentionPolicy: mod.BackupRetentionPolicyparams{
+				BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
+				IsDailyBackupImmutable:                 true,  // Unchanged
+				IsWeeklyBackupImmutable:                true,  // Now enabled
+				IsMonthlyBackupImmutable:               true,  // Now enabled
+				IsAdhocBackupImmutable:                 false, // Unchanged
+			},
+		}
+
+		mockOrchestrator.On("UpdateBackupVault", mock.Anything, mock.MatchedBy(func(params *commonparams.BackupVaultParams) bool {
+			return params.BackupVaultID == "bv-uuid-partial" &&
+				*params.BackupRetentionPolicy.IsWeeklyBackupImmutable == true &&
+				*params.BackupRetentionPolicy.IsMonthlyBackupImmutable == true
+		})).Return(updatedVault, "operation-partial", nil)
+
+		result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operationResult := result.(*gcpgenserver.OperationV1beta)
+		assert.NotEmpty(t, operationResult.Name.Value)
 	})
 }
 

@@ -1011,6 +1011,14 @@ func (s *PersistenceStore) GetBackupPolicyByNameAndOwnerID(ctx context.Context, 
 	return s.dataStore.GetBackupPolicyByNameAndOwnerID(ctx, backupPolicyName, accountID)
 }
 
+func (s *PersistenceStore) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx context.Context, backupVaultUUID string, accountID int64) ([]string, error) {
+	return s.dataStore.GetBackupPolicyUUIDsFromBackupVaultUUID(ctx, backupVaultUUID, accountID)
+}
+
+func (s *PersistenceStore) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountID int64) ([]string, error) {
+	return s.dataStore.GetBackupVaultUUIDsFromBackupPolicyUUID(ctx, backupPolicyUUID, accountID)
+}
+
 func (s *PersistenceStore) GetVolumeCountByBackupPolicyID(ctx context.Context, backupPolicyUUID string) (int64, error) {
 	return s.dataStore.GetVolumeCountByBackupPolicyID(ctx, backupPolicyUUID)
 }

@@ -8,6 +8,9 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -531,6 +534,18 @@ func (h Handler) V1betaUpdateBackupPolicy(ctx context.Context, req *gcpgenserver
 		WeeklyBackupLimit:  weeklyBackupLimit,
 		MonthlyBackupLimit: monthlyBackupLimit,
 	}
+	if utils.IsImmutableBackupEnabled() {
+		// Validate backup policy updates against backup vault immutable settings
+		logger.Info("Validating backup vaults associated with backup policy", "backupPolicyID", params.BackupPolicyId)
+		if validationErr := _validateBackupVaultsForBackupPolicy(ctx, backupPolicy, param, h.Orchestrator); validationErr != nil {
+			logger.Error("Backup vault validation failed", "error", validationErr)
+			return &gcpgenserver.V1betaUpdateBackupPolicyBadRequest{
+				Code:    400,
+				Message: validationErr.Error(),
+			}, nil
+		}
+	}
+
 	updated, operationID, err := h.Orchestrator.UpdateBackupPolicy(ctx, param)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) {
@@ -578,7 +593,6 @@ func _updateBackupPolicyInSDE(ctx context.Context, req *gcpgenserver.BackupPolic
 		BackupPolicyID: params.BackupPolicyId,
 		Body:           body,
 	})
-
 	if err != nil {
 		switch e := err.(type) {
 		case *backup_policy.V1betaUpdateBackupPolicyBadRequest:
@@ -808,4 +822,148 @@ func convertToBackupPolicyV1beta(bp *models.BackupPolicyV1beta) gcpgenserver.Bac
 		backupPolicy.MonthlyBackupLimit = gcpgenserver.NewOptInt(int(*bp.MonthlyBackupLimit))
 	}
 	return backupPolicy
+}
+
+// _validateBackupVaultsForBackupPolicy validates backup vaults associated with a backup policy
+func _validateBackupVaultsForBackupPolicy(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o orchestrator.OrchestratorFactory) error {
+	return _validateBackupVaultsForBackupPolicyWithRetry(ctx, backupPolicy, newBackupPolicyParams, o, commonparams.MaxRetries, commonparams.RetryDelay)
+}
+
+// _validateBackupVaultsForBackupPolicyWithRetry validates backup vaults with retry mechanism
+func _validateBackupVaultsForBackupPolicyWithRetry(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o orchestrator.OrchestratorFactory, maxRetries int, retryInterval time.Duration) error {
+	logger := util.GetLogger(ctx)
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := _performBackupVaultValidation(ctx, backupPolicy, newBackupPolicyParams, o)
+		if err == nil {
+			return nil // Success
+		}
+
+		// Check if this is a retryable error (backup vault in updating state)
+		if isBackupVaultRetryableError(err) {
+			if attempt < maxRetries {
+				logger.Warn("Backup vault validation failed due to concurrent update, retrying",
+					"attempt", attempt,
+					"maxRetries", maxRetries,
+					"retryAfter", retryInterval,
+					"error", err)
+				commonparams.SleepFn(retryInterval)
+				continue
+			} else {
+				logger.Error("Backup vault validation failed after all retry attempts",
+					"attempt", attempt,
+					"maxRetries", maxRetries,
+					"error", err)
+				return err
+			}
+		}
+
+		// Non-retryable error, return immediately
+		return err
+	}
+
+	return fmt.Errorf("backup vault validation failed after %d attempts", maxRetries)
+}
+
+// isBackupVaultRetryableError checks if the error is retryable
+func isBackupVaultRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var customError *vsaerrors.CustomError
+	if vsaerrors.As(err, &customError) {
+		if customError.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupVault {
+			return true
+		}
+	}
+	return false
+}
+
+// _performBackupVaultValidation performs the core validation logic
+func _performBackupVaultValidation(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o orchestrator.OrchestratorFactory) error {
+	logger := util.GetLogger(ctx)
+
+	if backupPolicy == nil {
+		return fmt.Errorf("backup policy is nil")
+	}
+	if newBackupPolicyParams == nil {
+		return fmt.Errorf("new backup policy parameters are nil")
+	}
+
+	// Get all backup vault UUIDs associated with this backup policy
+	backupVaultUUIDs, err := o.GetBackupVaultUUIDsFromBackupPolicyUUID(ctx, backupPolicy.BackupPolicyUUID, newBackupPolicyParams.AccountName)
+	if err != nil {
+		return fmt.Errorf("failed to get backup vault UUIDs from backup policy: %v", err)
+	}
+
+	// If no backup vaults are associated, no validation needed
+	if len(backupVaultUUIDs) == 0 {
+		logger.Info("No backup vaults associated with backup policy", "backupPolicyID", backupPolicy.BackupPolicyUUID)
+		return nil
+	}
+
+	// Fetch all backup vaults for the given UUIDs
+	backupVaults, err := o.GetMultipleBackupVaults(ctx, backupVaultUUIDs)
+	if err != nil {
+		return fmt.Errorf("failed to get multiple backup vaults for validation: %v", err)
+	}
+
+	logger.Info("Found backup vaults for validation", "count", len(backupVaults), "backupPolicyID", backupPolicy.BackupPolicyUUID)
+
+	// Validate each backup vault
+	for _, backupVault := range backupVaults {
+		// Check if backup vault is in updating state
+		if backupVault.LifeCycleState == coremodels.LifeCycleStateUpdating {
+			return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, fmt.Errorf("Cannot validate immutable backup policy: backup vault '%s' is currently being updated. Please wait for the vault update to complete.", backupVault.BackupVaultID))
+		}
+
+		// Skip validation if backup vault doesn't have immutable attributes configured
+		if backupVault.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration == nil ||
+			*backupVault.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration <= 0 {
+			continue
+		}
+
+		// Validate the backup policy against backup vault immutable settings
+		if err := validateBackupPolicyAgainstBackupVaultSettings(backupPolicy, backupVault, newBackupPolicyParams); err != nil {
+			return errors.Errorf("backup vault '%s' validation failed: %v", backupVault.BackupVaultID, err)
+		}
+	}
+
+	return nil
+}
+
+// validateBackupPolicyAgainstBackupVaultSettings validates backup policy limits against backup vault immutable settings
+func validateBackupPolicyAgainstBackupVaultSettings(backupPolicy *coremodels.BackupPolicy, backupVault *coremodels.BackupVaultV1beta, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams) error {
+	// Get current immutable attributes from BackupRetentionPolicy
+	currentAttrs := &backupVault.BackupRetentionPolicy
+
+	finalDailyBackupLimit := determineBackupKeepCount(backupPolicy.DailyBackupLimit, newBackupPolicyParams.DailyBackupLimit)
+	finalWeeklyBackupLimit := determineBackupKeepCount(backupPolicy.WeeklyBackupLimit, newBackupPolicyParams.WeeklyBackupLimit)
+	finalMonthlyBackupLimit := determineBackupKeepCount(backupPolicy.MonthlyBackupLimit, newBackupPolicyParams.MonthlyBackupLimit)
+
+	backupPolicyParams := &commonparams.BackupPolicyParams{
+		DailyBackupsToKeep:   finalDailyBackupLimit,
+		WeeklyBackupsToKeep:  finalWeeklyBackupLimit,
+		MonthlyBackupsToKeep: finalMonthlyBackupLimit,
+	}
+	retentionPolicyParams := &commonparams.BackupRetentionPolicyParams{
+		BackupMinimumEnforcedRetentionDuration: currentAttrs.BackupMinimumEnforcedRetentionDuration,
+		IsDailyBackupImmutable:                 &currentAttrs.IsDailyBackupImmutable,
+		IsWeeklyBackupImmutable:                &currentAttrs.IsWeeklyBackupImmutable,
+		IsMonthlyBackupImmutable:               &currentAttrs.IsMonthlyBackupImmutable,
+	}
+
+	err := commonparams.ValidateBackupPolicyRetentionLimits(backupPolicyParams, retentionPolicyParams)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func determineBackupKeepCount(currentCount int64, newCount *int64) int64 {
+	if newCount != nil {
+		return *newCount
+	}
+	return currentCount
 }
