@@ -23,6 +23,7 @@ const (
 	CleanupHydratedMetricsTable   = "CLEANUP_HYDRATED_METRICS_TABLE"
 	CleanupAggregatedUsageTable   = "CLEANUP_AGGREGATED_USAGE_TABLE"
 	SyncVsaAutoTiering            = "SYNC_VSA_AUTO_TIERING"
+	SyncBackupZiZsMetadata        = "SYNC_BACKUP_ZIZS_METADATA"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
@@ -35,6 +36,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	CleanupHydratedMetricsTable:   backgroundworkflows.CleanupHydratedMetricsTableWorkflow,
 	CleanupAggregatedUsageTable:   backgroundworkflows.CleanupAggregatedUsageTableWorkflow,
 	SyncVsaAutoTiering:            backgroundworkflows.SyncVSAAutoTieringWorkflow,
+	SyncBackupZiZsMetadata:        backgroundworkflows.SyncBackupZiZsWorkflow,
 }
 
 type JobManagerActivity struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backups"
@@ -722,6 +723,15 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		backup.Attributes.VolumeName,
 		utils.RenameSnapshotName(backup.Attributes.SnapshotName))
 
+	var satisfiesPzi, satisfiesPzs bool
+	for _, bucket := range backup.BackupVault.BucketDetails {
+		if bucket.BucketName == backup.Attributes.BucketName {
+			satisfiesPzi = bucket.SatisfiesPzi
+			satisfiesPzs = bucket.SatisfiesPzs
+			break
+		}
+	}
+
 	return gcpgenserver.BackupV1beta{
 		ResourceId: gcpgenserver.OptString{
 			Value: backup.Name,
@@ -778,12 +788,13 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Value: *backup.BackupVault.SourceRegionName,
 			Set:   true,
 		},
-		// These values are not supported as of now
-		SatisfiesPzs: gcpgenserver.OptBool{
-			Value: false,
-		},
 		SatisfiesPzi: gcpgenserver.OptBool{
-			Value: false,
+			Value: satisfiesPzi,
+			Set:   true,
+		},
+		SatisfiesPzs: gcpgenserver.OptBool{
+			Value: satisfiesPzs,
+			Set:   true,
 		},
 		BackupChainBytes: gcpgenserver.OptInt64{
 			Value: backup.LatestLogicalBackupSize,

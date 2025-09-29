@@ -3421,6 +3421,7 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 		Type:        "MANUAL",
 		Attributes: &datamodel.BackupAttributes{
 			AccountIdentifier:   "test-account",
+			BucketName:          "test-bucket",
 			VolumeName:          "test-volume",
 			SnapshotName:        "test-snapshot",
 			UseExistingSnapshot: true,
@@ -3428,6 +3429,13 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 		BackupVault: &datamodel.BackupVault{
 			SourceRegionName: func() *string { s := "us-central1"; return &s }(),
 			BackupRegionName: func() *string { s := "us-east1"; return &s }(),
+			BucketDetails: datamodel.BucketDetailsArray{
+				{
+					BucketName:   "test-bucket",
+					SatisfiesPzi: false,
+					SatisfiesPzs: false,
+				},
+			},
 		},
 	}
 	backup.UUID = "backup-uuid"
@@ -3455,9 +3463,9 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 	assert.Equal(t, "us-central1", result.BackupRegion.Value)
 	assert.True(t, result.VolumeRegion.IsSet())
 	assert.Equal(t, "us-central1", result.VolumeRegion.Value)
-	assert.False(t, result.SatisfiesPzs.IsSet())
+	assert.True(t, result.SatisfiesPzs.IsSet())
 	assert.False(t, result.SatisfiesPzs.Value)
-	assert.False(t, result.SatisfiesPzi.IsSet())
+	assert.True(t, result.SatisfiesPzi.IsSet())
 	assert.False(t, result.SatisfiesPzi.Value)
 	assert.False(t, result.BackupChainBytes.IsSet())
 	assert.Equal(t, int64(0), result.BackupChainBytes.Value)
@@ -3473,6 +3481,7 @@ func TestConvertBackupDataModelToBackupsV1beta_NoSnapshot(t *testing.T) {
 		Description: "Test backup description",
 		Type:        "MANUAL",
 		Attributes: &datamodel.BackupAttributes{
+			BucketName:          "test-bucket",
 			AccountIdentifier:   "test-account",
 			VolumeName:          "test-volume",
 			UseExistingSnapshot: false,
@@ -3480,6 +3489,13 @@ func TestConvertBackupDataModelToBackupsV1beta_NoSnapshot(t *testing.T) {
 		BackupVault: &datamodel.BackupVault{
 			SourceRegionName: func() *string { s := "us-central1"; return &s }(),
 			BackupRegionName: func() *string { s := "us-central1"; return &s }(),
+			BucketDetails: datamodel.BucketDetailsArray{
+				{
+					BucketName:   "test-bucket",
+					SatisfiesPzi: true,
+					SatisfiesPzs: true,
+				},
+			},
 		},
 	}
 	backup.UUID = "backup-uuid"
@@ -3505,10 +3521,10 @@ func TestConvertBackupDataModelToBackupsV1beta_NoSnapshot(t *testing.T) {
 	assert.True(t, result.BackupRegion.IsSet())
 	assert.True(t, result.VolumeRegion.IsSet())
 	assert.Equal(t, "us-central1", result.VolumeRegion.Value)
-	assert.False(t, result.SatisfiesPzs.IsSet())
-	assert.False(t, result.SatisfiesPzs.Value)
-	assert.False(t, result.SatisfiesPzi.IsSet())
-	assert.False(t, result.SatisfiesPzi.Value)
+	assert.True(t, result.SatisfiesPzs.IsSet())
+	assert.True(t, result.SatisfiesPzs.Value)
+	assert.True(t, result.SatisfiesPzi.IsSet())
+	assert.True(t, result.SatisfiesPzi.Value)
 	assert.False(t, result.BackupChainBytes.IsSet())
 	assert.Equal(t, int64(0), result.BackupChainBytes.Value)
 	assert.False(t, result.AssetLocationMetadata.IsSet())

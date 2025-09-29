@@ -548,6 +548,8 @@ type BucketDetails struct {
 	ServiceAccountName  string `json:"service_account_name"`
 	VendorSubnetID      string `json:"vendor_subnet_id"`
 	TenantProjectNumber string `json:"tenant_project_number"`
+	SatisfiesPzi        bool   `json:"satisfies_pzi"`
+	SatisfiesPzs        bool   `json:"satisfies_pzs"`
 }
 
 type BucketDetailsArray []*BucketDetails

@@ -1401,6 +1401,65 @@ func (_c *MockGoogleServices_GetAddress_Call) RunAndReturn(run func(string, stri
 	return _c
 }
 
+// GetBucket provides a mock function with given fields: ctx, bucketName
+func (_m *MockGoogleServices) GetBucket(ctx context.Context, bucketName string) (*models.BucketDetails, error) {
+	ret := _m.Called(ctx, bucketName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBucket")
+	}
+
+	var r0 *models.BucketDetails
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.BucketDetails, error)); ok {
+		return rf(ctx, bucketName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.BucketDetails); ok {
+		r0 = rf(ctx, bucketName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BucketDetails)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, bucketName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetBucket_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBucket'
+type MockGoogleServices_GetBucket_Call struct {
+	*mock.Call
+}
+
+// GetBucket is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bucketName string
+func (_e *MockGoogleServices_Expecter) GetBucket(ctx interface{}, bucketName interface{}) *MockGoogleServices_GetBucket_Call {
+	return &MockGoogleServices_GetBucket_Call{Call: _e.mock.On("GetBucket", ctx, bucketName)}
+}
+
+func (_c *MockGoogleServices_GetBucket_Call) Run(run func(ctx context.Context, bucketName string)) *MockGoogleServices_GetBucket_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetBucket_Call) Return(_a0 *models.BucketDetails, _a1 error) *MockGoogleServices_GetBucket_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetBucket_Call) RunAndReturn(run func(context.Context, string) (*models.BucketDetails, error)) *MockGoogleServices_GetBucket_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCertificate provides a mock function with given fields: projectID, region, poolName, certificateID
 func (_m *MockGoogleServices) GetCertificate(projectID string, region string, poolName string, certificateID string) (*models.CustomCertificate, error) {
 	ret := _m.Called(projectID, region, poolName, certificateID)

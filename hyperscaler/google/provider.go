@@ -29,6 +29,7 @@ import (
 	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
+	storagev1 "google.golang.org/api/storage/v1"
 	scopesHttp "google.golang.org/api/transport/http"
 )
 
@@ -65,6 +66,7 @@ var (
 	initializePrivateCaService      = _initializePrivateCaService
 	initializeSecretManagerService  = _initializeSecretManagerService
 	initializeCloudDnsService       = _initializeCloudDnsService
+	initializeStorageV1Service      = _initializeStorageV1Service
 	initializeCloudRunService       = _initializeCloudRunService
 	initializeMockManagementService = _initializeMockManagementService
 	initializeMockNetworkingService = _initializeMockNetworkingService
@@ -87,6 +89,7 @@ type AdminGCPService struct {
 	networkingService    *servicenetworking.APIService
 	computeService       *compute.Service
 	storageService       *storage.Client
+	storageV1Service     *storagev1.Service
 	iamService           *iam.Service
 	privateCaService     *privateca.Service
 	secretManagerService *secretmanager.Service
@@ -198,11 +201,18 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
+	storageV1Service, err := initializeStorageV1Service(ctx)
+	if err != nil {
+		log.Errorf("Error initializeStorageV1Service :%s", err.Error())
+		return nil, err
+	}
+
 	gServices := AdminGCPService{
 		networkingService:    networkingService,
 		managementService:    managementService,
 		computeService:       computeService,
 		storageService:       storageService,
+		storageV1Service:     storageV1Service,
 		iamService:           iamService,
 		secretManagerService: secretManagerService,
 		cloudProjectsService: cloudProjectService,
@@ -479,6 +489,34 @@ func _initializeCloudDnsService(ctx context.Context) (*dns.Service, error) {
 	return svc, nil
 }
 
+// _initializeStorageV1Service initializes the Storage v1 API service in GCP
+func _initializeStorageV1Service(ctx context.Context) (*storagev1.Service, error) {
+	logger := util.GetLogger(ctx)
+	scopesOption := option.WithScopes(storagev1.CloudPlatformScope)
+	opts := []option.ClientOption{scopesOption}
+
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", storagev1.CloudPlatformScope)))
+	}
+	client, endpoint, err := newClient(ctx, opts...)
+	if err != nil {
+		logger.Errorf("error while creating new client for _initializeStorageV1Service : %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+	client.Timeout = waitTimeoutMinutes
+
+	svc, err := storagev1.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		logger.Errorf("storagev1.NewService error : %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+
+	if endpoint != "" {
+		svc.BasePath = endpoint
+	}
+	return svc, nil
+}
+
 func _initializeStorageService(ctx context.Context) (*storage.Client, error) {
 	scopesOption := option.WithScopes(storage.ScopeFullControl)
 	opts := []option.ClientOption{scopesOption}
@@ -554,6 +592,54 @@ func (gcpService *GcpServices) DeleteBucket(ctx context.Context, bucketName stri
 		return fmt.Errorf("Buckets.Delete: %v", err)
 	}
 	return nil
+}
+
+// GetBucket retrieves bucket details from GCP Storage API
+func (gcpService *GcpServices) GetBucket(ctx context.Context, bucketName string) (*hyperscalermodels.BucketDetails, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Getting bucket details for: %s", bucketName)
+
+	// Get bucket attributes from GCP Storage API using the high-level client
+	bucketAttrs, err := gcpService.AdminGCPService.storageService.Bucket(bucketName).Attrs(ctx)
+	if err != nil {
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) && gErr.Code == http.StatusNotFound {
+			logger.Errorf("Bucket %s not found", bucketName)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, fmt.Errorf("bucket %s not found", bucketName))
+		}
+		logger.Errorf("Failed to get bucket attributes for %s: %v", bucketName, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+
+	logger.Debugf("Successfully retrieved bucket attributes for: %s", bucketName)
+
+	// Get bucket details from Storage v1 API to access satisfiesPzi and satisfiesPzs fields
+	bucketV1, err := gcpService.AdminGCPService.storageV1Service.Buckets.Get(bucketName).Do()
+	if err != nil {
+		logger.Errorf("Failed to get bucket v1 details for %s: %v", bucketName, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+
+	// Extract PZI/PZS information from the v1 API response
+	satisfiesPzi := bucketV1.SatisfiesPZI
+	satisfiesPzs := bucketV1.SatisfiesPZS
+
+	// Create and return bucket details
+	bucketDetails := &hyperscalermodels.BucketDetails{
+		Name:          bucketAttrs.Name,
+		Location:      bucketAttrs.Location,
+		LocationType:  bucketAttrs.LocationType,
+		StorageClass:  bucketAttrs.StorageClass,
+		SatisfiesPzi:  satisfiesPzi,
+		SatisfiesPzs:  satisfiesPzs,
+		ProjectNumber: "", // Will be populated by the caller if needed
+		Region:        "", // Will be populated by the caller if needed
+		Created:       bucketAttrs.Created.Format("2006-01-02T15:04:05Z"),
+		Updated:       bucketAttrs.Updated.Format("2006-01-02T15:04:05Z"),
+	}
+
+	logger.Infof("Bucket %s - PZI: %t, PZS: %t", bucketName, satisfiesPzi, satisfiesPzs)
+	return bucketDetails, nil
 }
 
 // GetServiceNetworkingEndpoint returns the service consumer management endpoint

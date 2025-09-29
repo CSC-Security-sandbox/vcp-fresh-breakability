@@ -341,6 +341,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringPauseResumeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringHotTierAutoResizeWorkflow)
 	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncBackupZiZsWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -362,4 +363,5 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.AutoTierSyncActivity{SE: conn})
 	worker.RegisterActivity(&activities.WFLastExecutionActivity{TemporalClient: temporal})
 	worker.RegisterActivity(&activities.PoolActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.SyncBackupZiZsActivity{SE: conn})
 }

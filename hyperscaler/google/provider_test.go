@@ -29,6 +29,7 @@ import (
 	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
+	storagev1 "google.golang.org/api/storage/v1"
 	scopesHttp "google.golang.org/api/transport/http"
 )
 
@@ -505,6 +506,12 @@ func TestNewGoogleClient(t *testing.T) {
 			return &storage.Client{}, nil
 		}
 
+		initializeStorageV1Service = func(ctx context.Context) (*storagev1.Service, error) {
+			return &storagev1.Service{
+				BasePath: "",
+			}, nil
+		}
+
 		_, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
 		if err != nil {
 			t.Error("Unexpected error")
@@ -515,6 +522,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializePrivateCaService = _initializePrivateCaService
 		initializeSecretManagerService = _initializeSecretManagerService
 		initializeStorageService = _initializeStorageService
+		initializeStorageV1Service = _initializeStorageV1Service
 		initializeIamService = _initializeIamService
 		initializeCloudProjectsService = _initializeCloudProjectsService
 		initializeCloudDnsService = _initializeCloudDnsService
@@ -1094,6 +1102,242 @@ func TestInitializeStorageServiceWithMockMetaDataHost(t *testing.T) {
 	if client == nil {
 		t.Fatal("expected client, got nil")
 	}
+}
+
+func TestInitializeStorageV1Service(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{}, "", nil
+		}
+		client, err := _initializeStorageV1Service(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if client == nil {
+			t.Fatal("expected client, got nil")
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return nil, "", errors.New("fail")
+		}
+		client, err := _initializeStorageV1Service(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if client != nil {
+			t.Fatal("expected nil client, got non-nil")
+		}
+	})
+
+	t.Run("with MockMetaDataHost", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			if len(opts) == 0 {
+				t.Error("Expected at least one option when MockMetaDataHost is set")
+			}
+			return &http.Client{}, "", nil
+		}
+
+		client, err := _initializeStorageV1Service(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if client == nil {
+			t.Fatal("expected client, got nil")
+		}
+	})
+
+	t.Run("with custom endpoint", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{}, "custom-endpoint", nil
+		}
+
+		client, err := _initializeStorageV1Service(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if client == nil {
+			t.Fatal("expected client, got nil")
+		}
+		if client.BasePath != "custom-endpoint" {
+			t.Errorf("expected BasePath to be 'custom-endpoint', got %s", client.BasePath)
+		}
+	})
+}
+
+func TestGcpServices_GetBucket(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		// Create a test server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/b/") && strings.Contains(r.URL.Path, "/o") {
+				// Mock bucket attributes response
+				attrs := &storage.BucketAttrs{
+					Name: "test-bucket",
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(attrs)
+			} else if strings.Contains(r.URL.Path, "/b/test-bucket") {
+				// Mock Storage v1 API response
+				bucketV1 := &storagev1.Bucket{
+					Name:         "test-bucket",
+					SatisfiesPZI: true,
+					SatisfiesPZS: false,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(bucketV1)
+			}
+		}))
+		defer server.Close()
+
+		// Create storage client with test server
+		storageClient, err := storage.NewClient(context.Background(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+
+		// Create storage v1 service with test server
+		storageV1Client, err := storagev1.NewService(context.Background(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage v1 client: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService:   storageClient,
+				storageV1Service: storageV1Client,
+			},
+		}
+
+		result, err := gcpService.GetBucket(context.Background(), "test-bucket")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-bucket", result.Name)
+		assert.True(t, result.SatisfiesPzi)
+		assert.False(t, result.SatisfiesPzs)
+	})
+
+	t.Run("bucket not found", func(t *testing.T) {
+		// Create a test server that returns 404
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Not Found"}}`))
+		}))
+		defer server.Close()
+
+		// Create storage client with test server
+		storageClient, err := storage.NewClient(context.Background(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+		}
+
+		result, err := gcpService.GetBucket(context.Background(), "nonexistent-bucket")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// The error message is wrapped in VCPError, so we check for the underlying error
+		// The actual error message format may vary, so we just check that an error occurred
+		assert.NotNil(t, err)
+	})
+
+	t.Run("storage service error", func(t *testing.T) {
+		// Create a test server that returns 500 immediately
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": {"code": 500, "message": "Internal Server Error"}}`))
+		}))
+		defer server.Close()
+
+		// Create storage client with very short timeout to avoid hanging
+		httpClient := &http.Client{Timeout: 100 * time.Millisecond}
+		storageClient, err := storage.NewClient(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+		}
+
+		// Use a context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		result, err := gcpService.GetBucket(ctx, "test-bucket")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("storage v1 service error", func(t *testing.T) {
+		// Create a test server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/b/") && strings.Contains(r.URL.Path, "/o") {
+				// Mock bucket attributes response
+				attrs := &storage.BucketAttrs{
+					Name: "test-bucket",
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(attrs)
+			} else if strings.Contains(r.URL.Path, "/b/test-bucket") {
+				// Return error for Storage v1 API
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"error": {"code": 500, "message": "Internal Server Error"}}`))
+			}
+		}))
+		defer server.Close()
+
+		// Create storage client with short timeout
+		httpClient := &http.Client{Timeout: 100 * time.Millisecond}
+		storageClient, err := storage.NewClient(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+
+		// Create storage v1 service with test server
+		storageV1Client, err := storagev1.NewService(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage v1 client: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService:   storageClient,
+				storageV1Service: storageV1Client,
+			},
+		}
+
+		// Use a context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		result, err := gcpService.GetBucket(ctx, "test-bucket")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
 }
 
 func TestInitializeIamService(t *testing.T) {

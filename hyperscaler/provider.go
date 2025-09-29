@@ -38,6 +38,7 @@ type Services interface {
 
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
 	DeleteBucket(ctx context.Context, bucketName string) error
+	GetBucket(ctx context.Context, bucketName string) (*models.BucketDetails, error)
 
 	GetServiceAccount(projectID, email string) (*models.ServiceAccount, error)
 	CreateServiceAccount(createRequest *models.CreateServiceAccountRequest, projectNumber, email string) (account *models.ServiceAccount, err error)

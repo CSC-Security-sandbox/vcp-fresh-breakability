@@ -85,7 +85,7 @@ func TestBucketDetailsArray_Value(t *testing.T) {
 	bda := BucketDetailsArray{{BucketName: "test-bucket"}}
 	val, err := bda.Value()
 	assert.NoError(t, err)
-	assert.Equal(t, `[{"bucket_name":"test-bucket","service_account_name":"","vendor_subnet_id":"","tenant_project_number":""}]`, string(val.([]byte)))
+	assert.Equal(t, `[{"bucket_name":"test-bucket","service_account_name":"","vendor_subnet_id":"","tenant_project_number":"","satisfies_pzi":false,"satisfies_pzs":false}]`, string(val.([]byte)))
 }
 
 func TestImmutableAttributes_Scan(t *testing.T) {
