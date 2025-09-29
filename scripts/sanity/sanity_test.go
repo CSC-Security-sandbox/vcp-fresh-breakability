@@ -467,15 +467,7 @@ func TestUpdateSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	require.True(t, ok, "expected OperationV1beta, got %T", res)
-	operationID := extractOperationID(operation.GetName().Value)
-	require.NotEmpty(t, operationID)
-	describeParams := googleproxyclient.V1betaDescribeOperationParams{
-		ProjectNumber: params.ProjectNumber,
-		LocationId:    params.LocationId,
-		OperationId:   operationID,
-	}
-	done := pollOperationDone(t, client, ctx, describeParams, 20, 5*time.Second)
-	require.True(t, done, "operation did not complete in time")
+	require.True(t, operation.GetDone().Value, "operation should be done synchronously")
 }
 
 func TestDeleteSnapshotAndWaitForCompletion(t *testing.T) {
