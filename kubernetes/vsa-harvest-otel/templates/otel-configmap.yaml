@@ -19,6 +19,14 @@ data:
             sending_queue:
                 enabled: {{.Values.harvestConfig.sendingQueueEnabled}}
                 queue_size: 40000
+        googlecloud/scaling:
+            project: {{ .Values.otel.autoScaleProject }}
+            metric:
+                prefix: custom.googleapis.com
+                skip_create_descriptor: true
+            sending_queue:
+                enabled: false
+                queue_size: 40000
     extensions:
         health_check:
             endpoint: "0.0.0.0:13133"
@@ -51,7 +59,7 @@ data:
                 - job_name: "otel-scrape-job"
                   scrape_interval: 300s
                   http_sd_configs:
-                  - url: http://localhost:3000/pollers/prometheus-targets
+                  - url: {{ .Values.otel.metricsHost }}{{ .Values.otel.pollerMetricsEndPoint }}
                     refresh_interval: 30s
                   metric_relabel_configs:
                   - source_labels: ['__name__']
@@ -60,6 +68,14 @@ data:
                   - source_labels: ['__name__']
                     action: drop
                     regex: 'poller_memory|poller_memory_percent'
+        prometheus/scaling:
+            config:
+                scrape_configs:
+                  - job_name: "otel-scaling-metrics-job"
+                    scrape_interval: 30s
+                    static_configs:
+                      - targets: ["{{ .Values.otel.metricsHost }}"]
+                    metrics_path: {{ .Values.otel.harvestMetricEndPoint }}
 
 
     service:
@@ -74,4 +90,8 @@ data:
                 receivers: [prometheus]
                 processors: [resourcedetection, groupbyattrs,transform, batch]
                 exporters: [googlecloud, debug]
+            metrics/scaling:
+                receivers: [prometheus/scaling]
+                processors: [resourcedetection]
+                exporters: [googlecloud/scaling, debug]
 {{- end }}

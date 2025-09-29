@@ -34,6 +34,13 @@ images:
     digest: 'sha256:83ff24727f615c39056d954dd3a5d4ef227a5a9fe2c234a4489199e4351f0ab5'
     secondary: true
     pullPolicy: IfNotPresent
+  metricsAdapter:
+    name: vcp-container-images-us/custom-metrics-stackdriver-adapter
+    tag: v0.16.2-gke.0
+    digest: "sha256:44247a0905522a25e997a4fc2208d830be37a513520a2831d85c7ad03cc1f645"
+    secondary: false
+    primary: true
+    pullPolicy: IfNotPresent
 
 persistentVolumes:
   persistentVolumeBucket: harvest-farm-pv-au-se1
@@ -41,6 +48,10 @@ persistentVolumes:
 
 otel:
   project: "netapp-au-se1-autopush-sde-tst"
+  autoScaleProject: "netapp-au-se1-autopush-sde-tst"
+  metricsHost: http://localhost:3000
+  pollerMetricsEndPoint: /pollers/prometheus-targets
+  harvestMetricEndPoint: /leases-total
   command:
     name: otelcol-contrib
     extraArgs: []
@@ -68,9 +79,14 @@ otel:
   secondImageRegistryPath: ""
   secondImageRegistryPasswordAuth: false
 
+tls:
+  metricsAdapter:
+    insecureSkipTLSVerify: true
+
 containers:
   harvest: "harvest-pm2"
   otel: "otel-collector"
+  metricsAdapter: "custom-metrics-stackdriver-adapter"
 
 replicaCount: 2
 

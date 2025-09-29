@@ -3,7 +3,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "harvest.name" . }}-hpa
-  namespace: vcp
+  namespace: {{ .Values.global.namespace }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -14,10 +14,28 @@ spec:
   metrics:
     - external:
         metric:
-          name: custom.googleapis.com|harvest_poller_total
+          name: custom.googleapis.com|harvest_leases_total
           selector: {}
         target:
           averageValue: "1"
           type: AverageValue
       type: External
+  behavior:
+    scaleDown:
+      policies:
+      - periodSeconds: 60
+        type: Percent
+        value: 50
+      selectPolicy: Max
+      stabilizationWindowSeconds: 900
+    scaleUp:
+      policies:
+      - periodSeconds: 15
+        type: Pods
+        value: 4
+      - periodSeconds: 15
+        type: Percent
+        value: 100
+      selectPolicy: Max
+      stabilizationWindowSeconds: 0
 {{- end }}
