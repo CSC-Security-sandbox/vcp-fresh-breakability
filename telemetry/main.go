@@ -26,6 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/usage"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -36,6 +37,7 @@ var (
 	PerformanceQueue = "performance"
 	UsageQueue       = "usage"
 	CollectionQueue  = "collection"
+	migrateEnabled   = env.GetBool("RUN_MIGRATION_ON_START", false)
 )
 
 func main() {
@@ -63,6 +65,14 @@ func main() {
 	if err != nil {
 		logger.Error("Failed to initialize Telemetry database connection", "error", err.Error())
 		return
+	}
+
+	if migrateEnabled {
+		err := telemetryDbConn.Migrate(ctx)
+		if err != nil {
+			logger.Error("Failed to run migrations on Telemetry database", "error", err.Error())
+			return
+		}
 	}
 
 	logger.Info("Successfully connected to Telemetry database...")

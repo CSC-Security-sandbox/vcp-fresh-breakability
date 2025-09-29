@@ -140,10 +140,6 @@ func GetTelemetryDbConnection(ctx context.Context, logger log.Logger) (metricsdb
 		logger.Error("Failed to initialize telemetry database", "error", err.Error())
 		return nil, err
 	}
-	err = dbCon.Migrate(ctx)
-	if err != nil {
-		return nil, err
-	} // Ensure the telemetry database is migrated
 	return dbCon, nil
 }
 

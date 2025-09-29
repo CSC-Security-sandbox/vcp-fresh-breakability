@@ -109,13 +109,17 @@ func TestGetTelemetryDbConnection(t *testing.T) {
 	t.Run("Successful connection and migration", func(t *testing.T) {
 		conn.InitializeMetricsDatabase = func(ctx context.Context, cfg *common.Config, logger log.Logger) (metricsdb.Storage, error) {
 			mockDB := &metricsdb.MockStorage{}
-			mockDB.On("Migrate", ctx).Return(nil)
 			return mockDB, nil
 		}
 
 		dbCon, err := conn.GetTelemetryDbConnection(ctx, logger)
 		assert.NoError(t, err)
 		assert.NotNil(t, dbCon)
+
+		// Verify mock expectations
+		if mockDB, ok := dbCon.(*metricsdb.MockStorage); ok {
+			mockDB.AssertExpectations(t)
+		}
 	})
 
 	t.Run("InitializeMetricsDatabase fails", func(t *testing.T) {
@@ -128,36 +132,28 @@ func TestGetTelemetryDbConnection(t *testing.T) {
 		assert.Nil(t, dbCon)
 		assert.Contains(t, err.Error(), "failed to initialize telemetry database")
 	})
-
-	t.Run("Migration fails", func(t *testing.T) {
-		conn.InitializeMetricsDatabase = func(ctx context.Context, cfg *common.Config, logger log.Logger) (metricsdb.Storage, error) {
-			mockDB := &metricsdb.MockStorage{}
-			mockDB.On("Migrate", ctx).Return(errors.New("migration failed"))
-			return mockDB, nil
-		}
-
-		dbCon, err := conn.GetTelemetryDbConnection(ctx, logger)
-		assert.Error(t, err)
-		assert.Nil(t, dbCon)
-		assert.Contains(t, err.Error(), "migration failed")
-	})
 }
 
 func TestCloseDatabase(t *testing.T) {
 	// Mock context and logger
 	logger := log.NewLogger()
 
-	// Mock database connection
-	mockDB := &vcpdb.MockStorage{}
-	mockDB.On("Close").Return(nil)
-	// Call the function to close the database connection
-	conn.CloseDatabase(mockDB, logger)
-	assert.True(t, mockDB.AssertCalled(t, "Close"))
+	t.Run("Successful close", func(t *testing.T) {
+		// Mock database connection
+		mockDB := &vcpdb.MockStorage{}
+		mockDB.On("Close").Return(nil)
+		// Call the function to close the database connection
+		conn.CloseDatabase(mockDB, logger)
+		mockDB.AssertExpectations(t)
+	})
 
-	// Test error case
-	mockDB.On("Close").Return(errors.New("failed to close database"))
-	conn.CloseDatabase(mockDB, logger)
-	assert.True(t, mockDB.AssertCalled(t, "Close"))
+	t.Run("Close with error", func(t *testing.T) {
+		// Test error case
+		mockDB := &vcpdb.MockStorage{}
+		mockDB.On("Close").Return(errors.New("failed to close database"))
+		conn.CloseDatabase(mockDB, logger)
+		mockDB.AssertExpectations(t)
+	})
 }
 
 func TestInitializeDatabase(t *testing.T) {
@@ -203,19 +199,21 @@ func TestInitializeDatabase(t *testing.T) {
 func TestDoConnect(t *testing.T) {
 	logger := log.NewLogger()
 
-	mockDB := vcpdb.MockStorage{}
 	t.Run("Successful connection on first attempt", func(t *testing.T) {
+		mockDB := &vcpdb.MockStorage{}
 		mockDB.On("Connect", false).Return(nil).Once()
-		err := conn.DoConnect(logger, &mockDB)
+		err := conn.DoConnect(logger, mockDB)
 		assert.NoError(t, err)
+		mockDB.AssertExpectations(t)
 	})
 
 	t.Run("Successful connection after retries", func(t *testing.T) {
+		mockDB := &vcpdb.MockStorage{}
 		mockDB.On("Connect", false).Return(errors.New("connection failed")).Once()
 		mockDB.On("Connect", false).Return(nil).Once()
 
 		start := time.Now()
-		err := conn.DoConnect(logger, &mockDB)
+		err := conn.DoConnect(logger, mockDB)
 		duration := time.Since(start)
 
 		assert.NoError(t, err)

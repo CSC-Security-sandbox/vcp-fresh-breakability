@@ -28,35 +28,38 @@ type DeploymentConfig struct {
 	ServiceAccountName string
 	Network            string
 	Subnetwork         string
+	CloudSQLInstances  []string // List of Cloud SQL instance connection names
 }
 
 func main() {
 	// Command line flags
 	var (
-		serviceName        = flag.String("service", "vsa-harvest-otel", "Cloud Run service name")
-		image              = flag.String("image", "", "Container image URL")
+		serviceName        = flag.String("service", "telemetry-service", "Cloud Run service name")
+		image              = flag.String("image", "us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:latest", "Container image URL")
 		projectID          = flag.String("project", "", "GCP project ID")
-		region             = flag.String("region", "australia-southeast1", "GCP region")
-		network            = flag.String("network", "cv-tst-au-se1-k8s-vpc", "Network name")
+		region             = flag.String("region", "", "GCP region")
+		network            = flag.String("network", "", "Network name")
 		subnet             = flag.String("subnet", "cloud-run", "Subnetwork name")
 		minInstances       = flag.Int64("min-instances", 0, "Minimum number of instances")
 		maxInstances       = flag.Int64("max-instances", 5, "Maximum number of instances (0 for no limit)")
 		envVarsFlag        = flag.String("env-vars", "", "Environment variables in format KEY1=VALUE1,KEY2=VALUE2")
+		cloudSQLInstances  = flag.String("cloud-sql-instances", "", "Comma-separated list of Cloud SQL instance connection names (project:region:instance)")
 		enableScheduler    = flag.Bool("enable-scheduler", true, "Enable Cloud Scheduler to invoke the service")
-		serviceAccountName = flag.String("service-account-name", "svc-sde-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com", "Cloud Run service account name")
+		serviceAccountName = flag.String("service-account-name", "", "Cloud Run service account name")
 	)
 	flag.Parse()
 
-	// Use default values from the gcloud command if not provided
-	if *image == "" {
-		*image = "us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:25092.0.0-DEV.15"
-	}
-	if *projectID == "" {
-		*projectID = "netapp-au-se1-autopush-sde-tst"
-	}
-
 	// Parse environment variables
 	envVars := parseEnvVars(*envVarsFlag)
+
+	// Parse Cloud SQL instances
+	var sqlInstances []string
+	if *cloudSQLInstances != "" {
+		sqlInstances = strings.Split(*cloudSQLInstances, ",")
+		for i, instance := range sqlInstances {
+			sqlInstances[i] = strings.TrimSpace(instance)
+		}
+	}
 
 	// Add default environment variables from the gcloud command
 	if len(envVars) == 0 {
@@ -76,6 +79,7 @@ func main() {
 		ServiceAccountName: *serviceAccountName,
 		Network:            *network,
 		Subnetwork:         *subnet,
+		CloudSQLInstances:  sqlInstances,
 	}
 
 	if err := deployCloudRunService(context.Background(), config); err != nil {
@@ -124,12 +128,35 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 	}
 
 	// Convert environment variables to Cloud Run format
-	envVars := make([]*cloudrun.GoogleCloudRunV2EnvVar, 0, len(config.EnvVars))
+	envVars := make([]*cloudrun.GoogleCloudRunV2EnvVar, 0, len(config.EnvVars)+2) // +2 for the secrets
+
+	// Define secrets that should be fetched from Secret Manager
+	secretKeys := map[string]string{
+		"DB_PASSWORD":         "vcp-autopush-tst-au-se1-db-password-key",
+		"METRICS_DB_PASSWORD": "vcp-autopush-tst-au-se1-metrics-db-password-key",
+	}
+
 	for key, value := range config.EnvVars {
 		// Skip commented out variables (starting with ^#^)
 		if strings.HasPrefix(key, "^#^") {
 			continue
 		}
+
+		// Skip if this variable should be configured as a secret
+		if secretName, isSecret := secretKeys[key]; isSecret {
+			// Add as secret reference instead of plain value
+			envVars = append(envVars, &cloudrun.GoogleCloudRunV2EnvVar{
+				Name: key,
+				ValueSource: &cloudrun.GoogleCloudRunV2EnvVarSource{
+					SecretKeyRef: &cloudrun.GoogleCloudRunV2SecretKeySelector{
+						Secret:  secretName,
+						Version: "latest",
+					},
+				},
+			})
+			continue
+		}
+
 		envVars = append(envVars, &cloudrun.GoogleCloudRunV2EnvVar{
 			Name:  key,
 			Value: value,
@@ -145,6 +172,18 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 				ContainerPort: 8080,
 			},
 		},
+	}
+
+	// Add Cloud SQL volume mounts if instances are specified
+	// This mounts the Cloud SQL connector proxy at /cloudsql which allows
+	// secure connections to Cloud SQL instances via Unix domain sockets
+	if len(config.CloudSQLInstances) > 0 {
+		container.VolumeMounts = []*cloudrun.GoogleCloudRunV2VolumeMount{
+			{
+				Name:      "cloudsql",
+				MountPath: "/cloudsql",
+			},
+		}
 	}
 
 	// Create service template with scaling
@@ -165,9 +204,23 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 		ServiceAccount: config.ServiceAccountName,
 	}
 
+	// Add Cloud SQL volumes if instances are specified
+	// This configures the Cloud SQL connector to provide secure database connections
+	if len(config.CloudSQLInstances) > 0 {
+		template.Volumes = []*cloudrun.GoogleCloudRunV2Volume{
+			{
+				Name: "cloudsql",
+				CloudSqlInstance: &cloudrun.GoogleCloudRunV2CloudSqlInstance{
+					Instances: config.CloudSQLInstances,
+				},
+			},
+		}
+	}
+
 	// Create the service
 	service := &cloudrun.GoogleCloudRunV2Service{
 		Template: template,
+		Ingress:  "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
 		Labels: map[string]string{
 			"managed-by": "telemetry-deployer",
 		},
@@ -301,29 +354,26 @@ func getDefaultEnvVars() map[string]string {
 		"DB_HOST":                       getEnvOrDefault("DB_HOST", "postgres.default.svc.cluster.local"),
 		"DB_PORT":                       getEnvOrDefault("DB_PORT", "5432"),
 		"DB_USER":                       getEnvOrDefault("DB_USER", "postgres"),
-		"DB_PASSWORD":                   getEnvOrDefault("DB_PASSWORD", "testpass"),
+		"DB_PASSWORD":                   getEnvOrDefault("DB_PASSWORD", ""),
 		"DB_NAME":                       getEnvOrDefault("DB_NAME", "vcp"),
 		"DB_SSL_MODE":                   getEnvOrDefault("DB_SSL_MODE", "disable"),
 		"DB_TIMEZONE":                   getEnvOrDefault("DB_TIMEZONE", "UTC"),
 		"DB_MAX_OPEN_CONNS":             getEnvOrDefault("DB_MAX_OPEN_CONNS", "25"),
 		"DB_MAX_IDLE_CONNS":             getEnvOrDefault("DB_MAX_IDLE_CONNS", "25"),
 		"DB_CONN_MAX_LIFETIME":          getEnvOrDefault("DB_CONN_MAX_LIFETIME", "1h"),
-		"MIGRATION_PATH":                getEnvOrDefault("MIGRATION_PATH", "migrations/core"),
 		"DB_ADMIN_USER":                 getEnvOrDefault("DB_ADMIN_USER", "postgres"),
-		"DB_ADMIN_PASSWORD":             getEnvOrDefault("DB_ADMIN_PASSWORD", "testpass"),
+		"DB_ADMIN_PASSWORD":             getEnvOrDefault("DB_ADMIN_PASSWORD", ""),
 		"METRICS_DB_TYPE":               getEnvOrDefault("METRICS_DB_TYPE", "postgres"),
 		"METRICS_DB_HOST":               getEnvOrDefault("METRICS_DB_HOST", "postgres.default.svc.cluster.local"),
 		"METRICS_DB_PORT":               getEnvOrDefault("METRICS_DB_PORT", "5432"),
 		"METRICS_DB_USER":               getEnvOrDefault("METRICS_DB_USER", "postgres"),
-		"METRICS_DB_PASSWORD":           getEnvOrDefault("METRICS_DB_PASSWORD", "testpass"),
+		"METRICS_DB_PASSWORD":           getEnvOrDefault("METRICS_DB_PASSWORD", ""),
 		"METRICS_DB_NAME":               getEnvOrDefault("METRICS_DB_NAME", "metrics"),
 		"METRICS_DB_SSL_MODE":           getEnvOrDefault("METRICS_DB_SSL_MODE", "disable"),
 		"METRICS_DB_TIMEZONE":           getEnvOrDefault("METRICS_DB_TIMEZONE", "UTC"),
 		"METRICS_DB_MAX_OPEN_CONNS":     getEnvOrDefault("METRICS_DB_MAX_OPEN_CONNS", "25"),
 		"METRICS_DB_MAX_IDLE_CONNS":     getEnvOrDefault("METRICS_DB_MAX_IDLE_CONNS", "25"),
 		"METRICS_DB_CONN_MAX_LIFETIME":  getEnvOrDefault("METRICS_DB_CONN_MAX_LIFETIME", "1h"),
-		"RUN_MIGRATION_ON_START":        getEnvOrDefault("RUN_MIGRATION_ON_START", "true"),
-		"GCE_METADATA_HOST":             getEnvOrDefault("GCE_METADATA_HOST", "34.151.70.197:9090"),
 		"ROOT_URL":                      getEnvOrDefault("ROOT_URL", "https://servicecontrol.googleapis.com"),
 		"OPERATION_BATCH_SIZE":          getEnvOrDefault("OPERATION_BATCH_SIZE", "200"),
 		"PUSHER_SERVICE_NAME":           getEnvOrDefault("PUSHER_SERVICE_NAME", "autopush-netapp.sandbox.googleapis.com"),

@@ -93,7 +93,7 @@ spec:
               value: {{ .Values.global.coreConfig.localRegion | default "" | quote }}
             - name: REGION_NUMBER_MAP
               value: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
-            {{- if and (.Values.enabled) (.Values.metricsEnabled) }}
+            {{- if .Values.metricsEnabled }}
             - name: METRICS_DB_USER
               valueFrom:
                 secretKeyRef:
@@ -175,7 +175,7 @@ spec:
               value: {{ .Values.database.name | default "vcp" | quote }}
             - name: DB_TYPE
               value: {{ .Values.database.type | default "postgres" | quote }}
-            {{- if and (.Values.enabled) (.Values.metricsEnabled) }}
+            {{- if .Values.metricsEnabled }}
             - name: METRICS_DB_USER
               valueFrom:
                 secretKeyRef:

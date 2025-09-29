@@ -45,6 +45,7 @@ service:
 
 database:
   host: postgres-service
+  hostIP: ""
   user: vcp-db-user
   password: vcp-db-pass
   metricsUser: vcp-db-user
@@ -56,6 +57,7 @@ database:
   type: postgres
   sslMode: "disable"
   metricsHost: postgres-service
+  metricsHostIP: ""
   metricsPort: 5432
   metricsDbName: metrics
 
