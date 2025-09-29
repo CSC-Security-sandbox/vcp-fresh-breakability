@@ -822,9 +822,8 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		okResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalBadRequest{
-			Code:    400,
-			Message: "dfdgh",
+		badRequestResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalBadRequest{
+			Message: "Bad request error message",
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
 			ProjectNumber:  dstPrj,
@@ -834,7 +833,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
 			mock.Anything, &body, params,
-		).Return(okResp, nil)
+		).Return(badRequestResp, nil)
 
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -853,9 +852,10 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 				},
 			},
 		}
-		updatedResult, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult.Error)
+		result, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
 	})
 	t.Run("SuccessInternalServerError", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
@@ -864,9 +864,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		okResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalInternalServerError{
-			Code:    500,
-			Message: "dfdgh",
+
+		internalServerErrorResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalInternalServerError{
+			Message: "Internal server error message",
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
 			ProjectNumber:  dstPrj,
@@ -876,7 +876,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
 			mock.Anything, &body, params,
-		).Return(okResp, nil)
+		).Return(internalServerErrorResp, nil)
 
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -895,9 +895,10 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 				},
 			},
 		}
-		updatedResult, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult.Error)
+		result, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Internal server error message")
 	})
 	t.Run("SuccessUnauthorized", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
@@ -906,9 +907,9 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		okResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalUnauthorized{
-			Code:    500,
-			Message: "dfdgh",
+
+		unauthorizedResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalUnauthorized{
+			Message: "Unauthorized error message",
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
 			ProjectNumber:  dstPrj,
@@ -918,7 +919,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
 			mock.Anything, &body, params,
-		).Return(okResp, nil)
+		).Return(unauthorizedResp, nil)
 
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -937,9 +938,10 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 				},
 			},
 		}
-		updatedResult, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult.Error)
+		result, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Unauthorized error message")
 	})
 	t.Run("SuccessForbidden", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
@@ -948,9 +950,8 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		okResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalForbidden{
-			Code:    500,
-			Message: "dfdgh",
+		forbiddenResp := &googleproxyclient.V1betaGetMultipleReplicationsInternalForbidden{
+			Message: "Forbidden error message",
 		}
 		params := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
 			ProjectNumber:  dstPrj,
@@ -960,7 +961,7 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 		body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{replicationUUID}}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(
 			mock.Anything, &body, params,
-		).Return(okResp, nil)
+		).Return(forbiddenResp, nil)
 
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -979,9 +980,10 @@ func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 				},
 			},
 		}
-		updatedResult, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult.Error)
+		result, err := activity.GetReplicationOnDestinationForCleanup(context.Background(), result)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Forbidden error message")
 	})
 }
 
@@ -1147,14 +1149,15 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 	})
 	t.Run("SuccessBadRequest", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
+		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
 		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		okResp := &googleproxyclient.V1betaDescribeVolumeBadRequest{
-			Code:    400,
-			Message: "dfdgh",
+
+		badRequestResp := &googleproxyclient.V1betaDescribeVolumeBadRequest{
+			Message: "Bad request error message",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
 			ProjectNumber:  dstPrj,
@@ -1163,8 +1166,8 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
-			mock.Anything, params,
-		).Return(okResp, nil)
+			ctx, params,
+		).Return(badRequestResp, nil)
 
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -1184,20 +1187,21 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 				},
 			},
 		}
-		updatedResult, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult.Error)
+		result, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
 	})
 	t.Run("SuccessInternalServerError", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
+		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
 		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		okResp := &googleproxyclient.V1betaDescribeVolumeInternalServerError{
-			Code:    500,
-			Message: "dfdgh",
+		badRequestResp := &googleproxyclient.V1betaDescribeVolumeInternalServerError{
+			Message: "Bad request error message",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
 			ProjectNumber:  dstPrj,
@@ -1206,8 +1210,8 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
-			mock.Anything, params,
-		).Return(okResp, nil)
+			ctx, params,
+		).Return(badRequestResp, nil)
 
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -1227,20 +1231,21 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 				},
 			},
 		}
-		updatedResult, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult.Error)
+		result, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
 	})
 	t.Run("SuccessUnauthorized", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
 		mockClient := googleproxyclient.NewMockInvoker(tt)
 		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		ctx := context.Background()
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		okResp := &googleproxyclient.V1betaDescribeVolumeUnauthorized{
-			Code:    500,
-			Message: "dfdgh",
+		badRequestResp := &googleproxyclient.V1betaDescribeVolumeUnauthorized{
+			Message: "Bad request error message",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
 			ProjectNumber:  dstPrj,
@@ -1249,8 +1254,8 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
-			mock.Anything, params,
-		).Return(okResp, nil)
+			ctx, params,
+		).Return(badRequestResp, nil)
 
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -1270,20 +1275,21 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 				},
 			},
 		}
-		updatedResult, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult.Error)
+		result, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
 	})
 	t.Run("SuccessForbidden", func(tt *testing.T) {
 		mockStorage := &database.MockStorage{}
 		mockClient := googleproxyclient.NewMockInvoker(tt)
 		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		ctx := context.Background()
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		okResp := &googleproxyclient.V1betaDescribeVolumeForbidden{
-			Code:    500,
-			Message: "dfdgh",
+		badRequestResp := &googleproxyclient.V1betaDescribeVolumeForbidden{
+			Message: "Bad request error message",
 		}
 		params := googleproxyclient.V1betaDescribeVolumeParams{
 			ProjectNumber:  dstPrj,
@@ -1292,8 +1298,8 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 		mockClient.EXPECT().V1betaDescribeVolume(
-			mock.Anything, params,
-		).Return(okResp, nil)
+			ctx, params,
+		).Return(badRequestResp, nil)
 
 		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -1313,9 +1319,10 @@ func TestGetDestinationVolumeForCleanup(t *testing.T) {
 				},
 			},
 		}
-		updatedResult, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, updatedResult.Error)
+		result, err := activity.GetDestinationVolumeForCleanup(context.Background(), result)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
 	})
 }
 

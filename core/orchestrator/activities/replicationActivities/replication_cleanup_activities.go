@@ -117,17 +117,16 @@ func (a *CleanupVolumeReplicationActivity) GetReplicationOnDestinationForCleanup
 	case *googleproxyclient.V1betaGetMultipleReplicationsInternalOK:
 		result.DstReplication = &r.Replications[0]
 	case *googleproxyclient.V1betaGetMultipleReplicationsInternalBadRequest:
-		result.Error = errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsBadRequest, errors.New(r.Message))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsBadRequest, errors.New(r.Message))
 	case *googleproxyclient.V1betaGetMultipleReplicationsInternalInternalServerError:
-		result.Error = errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsInternalServerError, errors.New(r.Message))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsInternalServerError, errors.New(r.Message))
 	case *googleproxyclient.V1betaGetMultipleReplicationsInternalUnauthorized:
-		result.Error = errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsUnauthorized, errors.New(r.Message))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsUnauthorized, errors.New(r.Message))
 	case *googleproxyclient.V1betaGetMultipleReplicationsInternalForbidden:
-		result.Error = errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsForbidden, errors.New(r.Message))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsForbidden, errors.New(r.Message))
 	case *googleproxyclient.V1betaGetMultipleReplicationsInternalNotFound:
-		result.Error = nil
+		return result, nil
 	}
-
 	return result, nil
 }
 
@@ -153,18 +152,18 @@ func (a *CleanupVolumeReplicationActivity) GetDestinationVolumeForCleanup(ctx co
 
 	switch r := res.(type) {
 	case *googleproxyclient.V1betaDescribeVolumeNotFound:
-		result.Error = nil
+		return result, nil
 	case *googleproxyclient.VolumeV1beta:
 		volumeResponse := res.(*googleproxyclient.VolumeV1beta)
 		result.DstVolume = volumeResponse
 	case *googleproxyclient.V1betaDescribeVolumeBadRequest:
-		result.Error = errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsBadRequest, errors.New(r.Message))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsBadRequest, errors.New(r.Message))
 	case *googleproxyclient.V1betaDescribeVolumeInternalServerError:
-		result.Error = errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsInternalServerError, errors.New(r.Message))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsInternalServerError, errors.New(r.Message))
 	case *googleproxyclient.V1betaDescribeVolumeUnauthorized:
-		result.Error = errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsUnauthorized, errors.New(r.Message))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsUnauthorized, errors.New(r.Message))
 	case *googleproxyclient.V1betaDescribeVolumeForbidden:
-		result.Error = errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsForbidden, errors.New(r.Message))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsForbidden, errors.New(r.Message))
 	}
 	return result, nil
 }
