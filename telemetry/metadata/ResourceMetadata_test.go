@@ -54,3 +54,42 @@ func Test_SetsDeploymentNameCorrectly(t *testing.T) {
 	metadata.SetDeploymentName(deploymentName)
 	assert.Equal(t, &deploymentName, metadata.DeploymentName)
 }
+
+func Test_ResourceMetadata_SetThroughput(t *testing.T) {
+	metadata := &ResourceMetadata{}
+
+	// Test setting throughput
+	throughput := 250.5
+	metadata.SetThroughput(throughput)
+
+	assert.NotNil(t, metadata.Throughput)
+	assert.Equal(t, throughput, *metadata.Throughput)
+}
+
+func Test_ResourceMetadata_SetResourceID(t *testing.T) {
+	metadata := &ResourceMetadata{}
+
+	// Test setting resource ID
+	resourceID := int64(12345)
+	metadata.SetResourceID(resourceID)
+
+	assert.NotNil(t, metadata.ResourceID)
+	assert.Equal(t, resourceID, *metadata.ResourceID)
+}
+
+func Test_ResourceMetadata_SetThroughputAndResourceID_Integration(t *testing.T) {
+	metadata := &ResourceMetadata{}
+
+	// Test setting both throughput and resource ID
+	throughput := 100.25
+	resourceID := int64(98765)
+
+	metadata.SetThroughput(throughput)
+	metadata.SetResourceID(resourceID)
+
+	// Verify both values are set correctly
+	assert.NotNil(t, metadata.Throughput)
+	assert.NotNil(t, metadata.ResourceID)
+	assert.Equal(t, throughput, *metadata.Throughput)
+	assert.Equal(t, resourceID, *metadata.ResourceID)
+}

@@ -32,6 +32,11 @@ func TestMeasuredType_String(t *testing.T) {
 			mt:       MeasuredType("CUSTOM_METRIC"),
 			expected: "CUSTOM_METRIC",
 		},
+		{
+			name:     "VolumeAllocatedThroughput string conversion",
+			mt:       VolumeAllocatedThroughput,
+			expected: "VOLUME_ALLOCATED_THROUGHPUT",
+		},
 	}
 
 	for _, tt := range tests {
@@ -102,6 +107,18 @@ func TestNewMeasuredType(t *testing.T) {
 			input:          "non_existent_metric_type",
 			expectedType:   MeasuredType(""),
 			expectedExists: false,
+		},
+		{
+			name:           "Valid VolumeAllocatedThroughput type with proper case",
+			input:          "VOLUME_ALLOCATED_THROUGHPUT",
+			expectedType:   VolumeAllocatedThroughput,
+			expectedExists: false, // Not in CombinedKeyResourceTypeMeasuredTypeMap currently
+		},
+		{
+			name:           "Valid VolumeAllocatedThroughput type with lowercase",
+			input:          "volume_allocated_throughput",
+			expectedType:   VolumeAllocatedThroughput,
+			expectedExists: false, // Not in CombinedKeyResourceTypeMeasuredTypeMap currently
 		},
 	}
 
@@ -222,6 +239,61 @@ func TestMeasuredType_Constants(t *testing.T) {
 	for _, c := range constants {
 		t.Run(c.name, func(t *testing.T) {
 			assert.Equal(t, c.expected, string(c.constant))
+		})
+	}
+}
+
+// Test for VolumeAllocatedThroughput metric type
+func TestMeasuredType_VolumeAllocatedThroughput(t *testing.T) {
+	tests := []struct {
+		name     string
+		mt       MeasuredType
+		expected string
+	}{
+		{
+			name:     "VolumeAllocatedThroughput string conversion",
+			mt:       VolumeAllocatedThroughput,
+			expected: "VOLUME_ALLOCATED_THROUGHPUT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.mt.String()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Test for NewMeasuredType with VolumeAllocatedThroughput
+func TestNewMeasuredType_VolumeAllocatedThroughput(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedType   MeasuredType
+		expectedExists bool
+	}{
+		{
+			name:           "Valid VolumeAllocatedThroughput type with proper case",
+			input:          "VOLUME_ALLOCATED_THROUGHPUT",
+			expectedType:   VolumeAllocatedThroughput,
+			expectedExists: false, // Not in CombinedKeyResourceTypeMeasuredTypeMap currently
+		},
+		{
+			name:           "Valid VolumeAllocatedThroughput type with lowercase",
+			input:          "volume_allocated_throughput",
+			expectedType:   VolumeAllocatedThroughput,
+			expectedExists: false, // Not in CombinedKeyResourceTypeMeasuredTypeMap currently
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, exists := NewMeasuredType(tt.input)
+			assert.Equal(t, tt.expectedExists, exists)
+			if tt.expectedExists {
+				assert.Equal(t, tt.expectedType, result)
+			}
 		})
 	}
 }

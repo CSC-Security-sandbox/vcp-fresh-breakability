@@ -38,6 +38,7 @@ const (
 	BackupLogicalSize                                    MeasuredType = "BACKUP_LOGICAL_SIZE"
 	BackupVolumeAllocatedSize                            MeasuredType = "BACKUP_VOLUME_ALLOCATED_SIZE"
 	TotalLogicalSize                                     MeasuredType = "TOTAL_LOGICAL_SIZE"
+	VolumeAllocatedThroughput                            MeasuredType = "VOLUME_ALLOCATED_THROUGHPUT"
 )
 
 func init() {

@@ -40,6 +40,7 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 		&datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{
+					ID:   1,
 					UUID: "pool-uuid-1",
 				},
 				Name:           "Pool1",
@@ -52,7 +53,11 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 					},
 					Name: "Account1",
 				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 100,
+				},
 			},
+			Throughput:   100.0,
 			QuotaInBytes: 500,
 		},
 	)
@@ -64,6 +69,10 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Len(t, result.HydratedMetrics, 2)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
 	assert.Len(t, result.HydratedMetricsDataModel, 2) // Should have 2 hydrated metrics (both PoolAllocatedSize and AllocatedUsed)
+
+	// Test new PoolMetadataMap field
+	assert.NotNil(t, result.PoolMetadataMap, "PoolMetadataMap should not be nil")
+	assert.Len(t, result.PoolMetadataMap, 1, "PoolMetadataMap should contain one entry")
 
 	// Check first metric (PoolAllocatedSize)
 	assert.Equal(t, metadata.PoolAllocatedSize, result.HydratedMetrics[0].MeasuredType)
@@ -121,6 +130,9 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 					Name:      "Account1",
 				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 0,
+				},
 			},
 			QuotaInBytes: 300,
 		},
@@ -134,6 +146,9 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 					Name:      "Account2",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 0,
 				},
 			},
 			QuotaInBytes: 800,
@@ -321,6 +336,9 @@ func TestGetPoolMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 					BaseModel: datamodel.BaseModel{UUID: "account-uuid-integration"},
 					Name:      "IntegrationAccount",
 				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 0,
+				},
 			},
 			QuotaInBytes: 1500,
 		},
@@ -368,4 +386,292 @@ func TestGetPoolMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	assert.True(t, timeDiff < time.Minute, "Timestamp should be recent")
 	timeDiff2 := time.Since(hmAllocatedUsed.MetricTimestamp)
 	assert.True(t, timeDiff2 < time.Minute, "Timestamp should be recent")
+}
+
+// Test for new throughput functionality and PoolMetadataMap
+func Test_GetPoolMetrics_WithThroughputAndMetadataMap(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	var pools []*datamodel.PoolView
+	pools = append(
+		pools,
+		&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   42,
+					UUID: "pool-uuid-throughput",
+				},
+				Name:           "ThroughputPool",
+				SizeInBytes:    2048,
+				UsedBytes:      1024,
+				DeploymentName: "gcp-deployment-throughput",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						UUID: "account-uuid-throughput",
+					},
+					Name: "ThroughputAccount",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 150,
+				},
+			},
+			Throughput:   150.5,
+			QuotaInBytes: 1024,
+		},
+	)
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Test new PoolMetadataMap field
+	assert.NotNil(t, result.PoolMetadataMap, "PoolMetadataMap should not be nil")
+	assert.Len(t, result.PoolMetadataMap, 1, "PoolMetadataMap should contain one entry")
+
+	poolMetadata, exists := result.PoolMetadataMap[42]
+	assert.True(t, exists, "Pool metadata should exist for pool ID 42")
+
+	// Test throughput metadata
+	assert.Equal(t, 150.0, *poolMetadata.Throughput, "Throughput should be set correctly")
+	assert.Equal(t, int64(42), *poolMetadata.ResourceID, "ResourceID should be set correctly")
+	assert.Equal(t, "pool-uuid-throughput", *poolMetadata.ResourceUUID, "ResourceUUID should match")
+	assert.Equal(t, "ThroughputPool", *poolMetadata.ResourceName, "ResourceName should match")
+	assert.Equal(t, "gcp-deployment-throughput", *poolMetadata.DeploymentName, "DeploymentName should match")
+	assert.Equal(t, metadata.VolumePool, poolMetadata.ResourceType, "ResourceType should be VolumePool")
+	assert.Equal(t, "us-east-1", *poolMetadata.RegionName, "RegionName should match config")
+	assert.Equal(t, "ThroughputAccount", *poolMetadata.AccountName, "AccountName should match")
+	assert.Equal(t, int64(2048), *poolMetadata.SizeInBytes, "SizeInBytes should match")
+}
+
+func Test_GetPoolMetrics_MultiplePoolsWithDifferentThroughput(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-west-2"}
+
+	pools := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   100,
+					UUID: "pool-uuid-1",
+				},
+				Name:           "Pool1",
+				SizeInBytes:    1000,
+				UsedBytes:      300,
+				DeploymentName: "gcp-deployment-1",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+					Name:      "Account1",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 200,
+				},
+			},
+			Throughput:   200.0,
+			QuotaInBytes: 300,
+		},
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   200,
+					UUID: "pool-uuid-2",
+				},
+				Name:           "Pool2",
+				SizeInBytes:    2000,
+				UsedBytes:      800,
+				DeploymentName: "gcp-deployment-2",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
+					Name:      "Account2",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 350,
+				},
+			},
+			Throughput:   350.5,
+			QuotaInBytes: 800,
+		},
+	}
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Test PoolMetadataMap contains both pools
+	assert.Len(t, result.PoolMetadataMap, 2, "PoolMetadataMap should contain two entries")
+
+	// Test first pool metadata
+	pool1Metadata, exists := result.PoolMetadataMap[100]
+	assert.True(t, exists, "Pool metadata should exist for pool ID 100")
+	assert.Equal(t, 200.0, *pool1Metadata.Throughput, "Pool1 throughput should be 200.0")
+	assert.Equal(t, int64(100), *pool1Metadata.ResourceID, "Pool1 ResourceID should be 100")
+
+	// Test second pool metadata
+	pool2Metadata, exists := result.PoolMetadataMap[200]
+	assert.True(t, exists, "Pool metadata should exist for pool ID 200")
+	assert.Equal(t, 350.0, *pool2Metadata.Throughput, "Pool2 throughput should be 350.0")
+	assert.Equal(t, int64(200), *pool2Metadata.ResourceID, "Pool2 ResourceID should be 200")
+}
+
+func Test_GetPoolMetrics_ZeroThroughput(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	var pools []*datamodel.PoolView
+	pools = append(
+		pools,
+		&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid-zero-throughput",
+				},
+				Name:           "ZeroThroughputPool",
+				SizeInBytes:    1000,
+				UsedBytes:      500,
+				DeploymentName: "gcp-deployment-zero",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						UUID: "account-uuid-zero",
+					},
+					Name: "ZeroAccount",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 0,
+				},
+			},
+			Throughput:   0.0, // Zero throughput
+			QuotaInBytes: 500,
+		},
+	)
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Test PoolMetadataMap with zero throughput
+	poolMetadata, exists := result.PoolMetadataMap[1]
+	assert.True(t, exists, "Pool metadata should exist for pool ID 1")
+	assert.Equal(t, 0.0, *poolMetadata.Throughput, "Throughput should be 0.0")
+	assert.Equal(t, int64(1), *poolMetadata.ResourceID, "ResourceID should be set")
+}
+
+// Test pool metadata includes throughput and resource ID
+func Test_GetPoolMetrics_IncludesThroughputAndResourceID(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-west-2"}
+
+	throughput := 500.75
+	var pools []*datamodel.PoolView
+	pools = append(
+		pools,
+		&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   42,
+					UUID: "pool-uuid-throughput",
+				},
+				Name:           "ThroughputPool",
+				SizeInBytes:    5000,
+				UsedBytes:      2500,
+				DeploymentName: "throughput-deployment",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						UUID: "account-uuid-throughput",
+					},
+					Name: "ThroughputAccount",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 500,
+				},
+			},
+			Throughput:   throughput,
+			QuotaInBytes: 2500,
+		},
+	)
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.HydratedMetrics, 2)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
+	assert.Len(t, result.HydratedMetricsDataModel, 2) // Should have 2 hydrated metrics
+
+	// Test new PoolMetadataMap functionality
+	assert.NotNil(t, result.PoolMetadataMap, "PoolMetadataMap should not be nil")
+	assert.Len(t, result.PoolMetadataMap, 1, "PoolMetadataMap should contain one entry")
+
+	// Verify the pool metadata contains throughput and resource ID
+	poolMetadata, exists := result.PoolMetadataMap[42]
+	assert.True(t, exists, "Pool metadata should exist for pool ID 42")
+	assert.NotNil(t, poolMetadata.Throughput, "Pool throughput should be set")
+	assert.Equal(t, 500.0, *poolMetadata.Throughput, "Pool throughput should match")
+	assert.NotNil(t, poolMetadata.ResourceID, "Pool resource ID should be set")
+	assert.Equal(t, int64(42), *poolMetadata.ResourceID, "Pool resource ID should match")
+
+	// Verify other metadata fields
+	assert.Equal(t, "pool-uuid-throughput", derefString(poolMetadata.ResourceUUID))
+	assert.Equal(t, "ThroughputPool", derefString(poolMetadata.ResourceName))
+	assert.Equal(t, "ThroughputAccount", derefString(poolMetadata.AccountName))
+	assert.Equal(t, metadata.VolumePool, poolMetadata.ResourceType)
+
+	// Check metric metadata also has throughput and resource ID
+	assert.NotNil(t, result.HydratedMetrics[0].Metadata.Throughput)
+	assert.Equal(t, 500.0, *result.HydratedMetrics[0].Metadata.Throughput)
+	assert.NotNil(t, result.HydratedMetrics[0].Metadata.ResourceID)
+	assert.Equal(t, int64(42), *result.HydratedMetrics[0].Metadata.ResourceID)
+}
+
+// Test assemblePoolMetadata function with throughput and resource ID
+func Test_AssemblePoolMetadata_WithThroughputAndResourceID(t *testing.T) {
+	config := &common.TelemetryConfig{RegionName: "eu-west-1"}
+	throughput := 1000.5
+
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   123,
+				UUID: "test-pool-uuid",
+			},
+			Name:           "TestPool",
+			SizeInBytes:    8192,
+			DeploymentName: "test-deployment",
+			Account: &datamodel.Account{
+				Name: "TestAccount",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 1000,
+			},
+		},
+		Throughput: throughput,
+	}
+
+	result := assemblePoolMetadata(pool, config)
+
+	// Verify all metadata fields
+	assert.Equal(t, "test-pool-uuid", derefString(result.ResourceUUID))
+	assert.Equal(t, "TestPool", derefString(result.ResourceName))
+	assert.Equal(t, "TestPool", derefString(result.ResourceDisplayName))
+	assert.Equal(t, metadata.VolumePool, result.ResourceType)
+	assert.Equal(t, int64(8192), derefInt64(result.SizeInBytes))
+	assert.Equal(t, "eu-west-1", derefString(result.RegionName))
+	assert.Equal(t, "TestAccount", derefString(result.AccountName))
+	assert.Equal(t, "test-deployment", derefString(result.DeploymentName))
+
+	// Verify new fields
+	assert.NotNil(t, result.Throughput, "Throughput should be set")
+	assert.Equal(t, 1000.0, *result.Throughput, "Throughput should match")
+	assert.NotNil(t, result.ResourceID, "ResourceID should be set")
+	assert.Equal(t, int64(123), *result.ResourceID, "ResourceID should match")
 }

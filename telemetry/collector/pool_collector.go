@@ -20,6 +20,8 @@ type PoolMetricsResult struct {
 	HydratedMetrics []entity.HydratedMetric
 	// HydratedMetricsDataModel contains the data model hydrated metrics
 	HydratedMetricsDataModel []datamodel2.HydratedMetrics
+	// PoolMetadataMap contains a map of pool IDs to its metadata
+	PoolMetadataMap map[int64]metadata.ResourceMetadata
 }
 
 // GetPoolMetrics retrieves metrics for all pools from the database and returns them in a structured result.
@@ -40,10 +42,16 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 	var metrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
 
+	// Create a pool metadata map for all pools
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
 	// Iterate over all pools and generate metrics
 	for _, pool := range pools {
 		// Assemble metadata for the pool
 		poolMetadata := assemblePoolMetadata(pool, config)
+
+		// Add to the pool metadata map
+		poolMetadataMap[pool.ID] = poolMetadata
 
 		// Create a metric for the pool
 		now := time.Now()
@@ -60,6 +68,7 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 	return &PoolMetricsResult{
 		HydratedMetrics:          metrics,
 		HydratedMetricsDataModel: hydratedMetrics,
+		PoolMetadataMap:          poolMetadataMap,
 	}, nil
 }
 
@@ -71,8 +80,12 @@ func assemblePoolMetadata(pool *datamodel.PoolView, config *common.TelemetryConf
 	met.SetResourceType(metadata.VolumePool)
 	met.SetSizeInBytes(pool.SizeInBytes)
 	met.SetRegionName(config.RegionName)
-	met.SetAccountName(pool.Account.Name)
+	if pool.Account != nil {
+		met.SetAccountName(pool.Account.Name)
+	}
 	met.SetDeploymentName(pool.DeploymentName)
+	met.SetThroughput(float64(pool.PoolAttributes.ThroughputMibps))
+	met.SetResourceID(pool.ID)
 	return met
 }
 

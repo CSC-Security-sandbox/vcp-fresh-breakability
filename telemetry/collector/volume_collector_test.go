@@ -33,6 +33,9 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 
+	// Create poolMetadataMap for testing
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
 	backupChainBytes := int64(1024)
 	volumes := []*datamodel.Volume{
 		{
@@ -51,13 +54,19 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	// VolumeAllocatedThroughput should be in separate field
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 0)
+	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
-	// Check metric
+	// Check BackupVolumeAllocatedSize metric (in regular field)
 	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
@@ -82,6 +91,9 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	// Create poolMetadataMap for testing
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes1 := int64(1024)
 	backupChainBytes2 := int64(2048)
@@ -114,20 +126,26 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	// VolumeAllocatedThroughput should be in separate field (2 volumes)
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 0)
+	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true (2 volumes)
 	assert.Len(t, result.HydratedMetrics, 2)
 	assert.Len(t, result.HydratedMetricsDataModel, 2)
 
-	// Check first volume metric
+	// Check first volume BackupVolumeAllocatedSize metric (in regular field)
 	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
 	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
 
-	// Check second volume metric
+	// Check second volume BackupVolumeAllocatedSize metric (in regular field)
 	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetrics[1].MeasuredType)
 	assert.Equal(t, float64(4096), result.HydratedMetrics[1].Quantity)
 	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[1].Metadata.ResourceUUID))
@@ -151,9 +169,10 @@ func Test_GetVolumeMetrics_EmptyVolumes(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 	m.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
@@ -164,9 +183,10 @@ func Test_GetVolumeMetrics_ListVolumesWithAccountsError(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(nil, assert.AnError)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.Error(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
@@ -177,6 +197,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	zeroBackupChainBytes := int64(0)
 	positiveBackupChainBytes := int64(1024)
@@ -209,14 +230,20 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	// Only one volume should be processed (the one with positive backup chain bytes)
+
+	// VolumeAllocatedThroughput metrics should be generated for both volumes (2 total)
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 0)
+
+	// Only one volume should be processed for BackupVolumeAllocatedSize (the one with positive backup chain bytes)
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
-	// Check that only the second volume is processed
+	// Check that only the second volume is processed for backup billing
 	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
 	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[0].Metadata.AccountName))
@@ -227,6 +254,7 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	positiveBackupChainBytes := int64(1024)
 	volumes := []*datamodel.Volume{
@@ -234,6 +262,7 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
 			Name:        "Volume1",
 			SizeInBytes: 2048,
+			Throughput:  100, // Add throughput so VolumeAllocatedThroughput metric is generated
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
@@ -244,6 +273,7 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
 			Name:        "Volume2",
 			SizeInBytes: 4096,
+			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
@@ -256,10 +286,16 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	// Both volumes should be processed (nil DataProtection is not filtered out)
+
+	// Both volumes should generate VolumeAllocatedThroughput metrics
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 2)
+
+	// Both volumes should be processed for backup billing (nil DataProtection is not filtered out)
 	assert.Len(t, result.HydratedMetrics, 2)
 	assert.Len(t, result.HydratedMetricsDataModel, 2)
 
@@ -280,6 +316,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(1024)
 	volumes := []*datamodel.Volume{
@@ -287,6 +324,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
 			Name:        "Volume1",
 			SizeInBytes: 2048,
+			Throughput:  100, // Won't matter since account is nil, but added for consistency
 			Account:     nil, // Nil account should be filtered out
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
@@ -296,6 +334,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
 			Name:        "Volume2",
 			SizeInBytes: 4096,
+			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
@@ -308,9 +347,15 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	// Only one volume should generate VolumeAllocatedThroughput (the one with valid account)
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+
 	// Only one volume should be processed (the one with valid account)
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
@@ -326,6 +371,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(1024)
 	volumes := []*datamodel.Volume{
@@ -333,6 +379,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: ""}, // Missing UUID
 			Name:        "Volume1",
 			SizeInBytes: 2048,
+			Throughput:  100, // Won't matter since UUID is missing, but added for consistency
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
@@ -345,6 +392,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
 			Name:        "Volume2",
 			SizeInBytes: 4096,
+			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
@@ -357,9 +405,15 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	// Only one volume should generate VolumeAllocatedThroughput (the one with valid UUID)
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+
 	// Only one volume should be processed (the one with valid UUID)
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
@@ -375,6 +429,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(1024)
 	volumes := []*datamodel.Volume{
@@ -382,6 +437,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
 			Name:        "", // Missing name
 			SizeInBytes: 2048,
+			Throughput:  100, // Won't matter since name is missing, but added for consistency
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
@@ -394,6 +450,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
 			Name:        "Volume2",
 			SizeInBytes: 4096,
+			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
@@ -406,9 +463,15 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	// Only one volume should generate VolumeAllocatedThroughput (the one with valid name)
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+
 	// Only one volume should be processed (the one with valid name)
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
@@ -424,6 +487,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(1024)
 	volumes := []*datamodel.Volume{
@@ -431,6 +495,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
 			Name:        "Volume1",
 			SizeInBytes: 2048,
+			Throughput:  100, // Won't matter since account name is missing, but added for consistency
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "", // Missing account name
@@ -443,6 +508,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
 			Name:        "Volume2",
 			SizeInBytes: 4096,
+			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
@@ -455,9 +521,15 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	// Only one volume should generate VolumeAllocatedThroughput (the one with valid account name)
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+
 	// Only one volume should be processed (the one with valid account name)
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
@@ -509,6 +581,7 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "ap-south-1"}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(5000)
 	volumes := []*datamodel.Volume{
@@ -516,6 +589,7 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-integration"},
 			Name:        "IntegrationVolume",
 			SizeInBytes: 10000,
+			Throughput:  150, // Add throughput so VolumeAllocatedThroughput metric is generated
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-integration"},
 				Name:      "IntegrationAccount",
@@ -528,9 +602,14 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config)
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	// Verify that VolumeAllocatedThroughput metric is generated
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
 
 	// Verify that BackupVolumeAllocatedSize metric is converted to HydratedMetrics
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
@@ -557,4 +636,165 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	// Verify timestamp is recent (within last minute)
 	timeDiff := time.Since(hmBackupVolumeAllocated.MetricTimestamp)
 	assert.True(t, timeDiff < time.Minute, "Timestamp should be recent")
+}
+
+// Test for new VolumeAllocatedThroughput functionality
+func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	// Create poolMetadataMap with throughput data
+	poolThroughput := 250.5
+	poolMetadata := metadata.ResourceMetadata{}
+	poolMetadata.SetThroughput(poolThroughput)
+	poolMetadata.SetResourceID(int64(10))
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{
+		10: poolMetadata,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-throughput"},
+			Name:        "ThroughputVolume",
+			SizeInBytes: 2048,
+			Throughput:  100, // Volume has its own throughput, should use volume throughput
+			PoolID:      10,  // Matches the pool in metadata map
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "account-uuid-throughput"},
+				Name:      "ThroughputAccount",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// VolumeAllocatedThroughput should be in separate field
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
+	assert.Len(t, result.HydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetricsDataModel, 1)
+
+	// Check VolumeAllocatedThroughput metric (in separate field)
+	assert.Equal(t, metadata.VolumeAllocatedThroughput, result.VolumeAllocatedThroughputHydratedMetrics[0].MeasuredType)
+	assert.Equal(t, float64(100), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity) // Should use volume throughput when volume.Throughput != 0
+	assert.Equal(t, "volume-uuid-throughput", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceUUID))
+	assert.Equal(t, "ThroughputVolume", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceName))
+	assert.Equal(t, "ThroughputAccount", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.AccountName))
+	assert.Equal(t, metadata.Volume, result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceType)
+
+	// Check BackupVolumeAllocatedSize metric (in regular field)
+	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
+	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
+	assert.Equal(t, "volume-uuid-throughput", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
+}
+
+func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	// Create poolMetadataMap with pool throughput for PoolID 20
+	poolMetadata := metadata.ResourceMetadata{}
+	poolMetadata.SetThroughput(300.0) // Set pool throughput
+	poolMetadata.SetResourceID(int64(20))
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{
+		20: poolMetadata,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-zero-throughput"},
+			Name:        "ZeroThroughputVolume",
+			SizeInBytes: 2048,
+			Throughput:  0, // Zero throughput should use pool throughput
+			PoolID:      20,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "account-uuid-zero"},
+				Name:      "ZeroAccount",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// VolumeAllocatedThroughput should be in separate field
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
+	assert.Len(t, result.HydratedMetrics, 1)
+
+	// Check VolumeAllocatedThroughput metric with zero volume throughput (should use pool throughput)
+	assert.Equal(t, metadata.VolumeAllocatedThroughput, result.VolumeAllocatedThroughputHydratedMetrics[0].MeasuredType)
+	assert.Equal(t, float64(300), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity) // Should use pool throughput
+	assert.Equal(t, "volume-uuid-zero-throughput", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceUUID))
+}
+
+func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	// Create poolMetadataMap with nil throughput (should default to 0.0)
+	poolMetadata := metadata.ResourceMetadata{}
+	poolMetadata.SetResourceID(int64(30))
+	// Don't set throughput, so it remains nil
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{
+		30: poolMetadata,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-nil-pool-throughput"},
+			Name:        "NilPoolThroughputVolume",
+			SizeInBytes: 2048,
+			Throughput:  150, // Non-zero volume throughput, should use volume throughput
+			PoolID:      30,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "account-uuid-nil"},
+				Name:      "NilAccount",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// VolumeAllocatedThroughput should be in separate field
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
+	assert.Len(t, result.HydratedMetrics, 1)
+
+	// Check VolumeAllocatedThroughput metric - should use volume throughput when volume.Throughput != 0
+	assert.Equal(t, metadata.VolumeAllocatedThroughput, result.VolumeAllocatedThroughputHydratedMetrics[0].MeasuredType)
+	assert.Equal(t, float64(150), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity) // Should use volume throughput (150)
+	assert.Equal(t, "volume-uuid-nil-pool-throughput", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceUUID))
 }

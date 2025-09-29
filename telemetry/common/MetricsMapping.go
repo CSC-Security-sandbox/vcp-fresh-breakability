@@ -19,6 +19,9 @@ func CreateMetricsMappingMap() map[metadata.CombinedKeyResourceTypeMeasuredType]
 		{ResourceType: metadata.Volume, MeasuredType: metadata.BackupLogicalSize}: {
 			Left: "backup_used", Middle: "", Right: "",
 		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.VolumeAllocatedThroughput}: {
+			Left: "throughput_limit", Middle: "", Right: "",
+		},
 	}
 	return metricsMappingMap
 }

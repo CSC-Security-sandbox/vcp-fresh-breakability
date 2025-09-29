@@ -11,6 +11,8 @@ type ResourceMetadata struct {
 	AutoTierEnabled     *bool
 	AccountName         *string
 	DeploymentName      *string
+	Throughput          *float64
+	ResourceID          *int64
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {
@@ -43,4 +45,12 @@ func (m *ResourceMetadata) SetAccountName(accountName string) {
 
 func (m *ResourceMetadata) SetDeploymentName(deploymentName string) {
 	m.DeploymentName = &deploymentName
+}
+
+func (m *ResourceMetadata) SetThroughput(throughput float64) {
+	m.Throughput = &throughput
+}
+
+func (m *ResourceMetadata) SetResourceID(resourceID int64) {
+	m.ResourceID = &resourceID
 }

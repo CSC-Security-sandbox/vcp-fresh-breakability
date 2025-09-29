@@ -47,24 +47,25 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 		return err
 	}
 
+	var backupMetricsResult *collector.BackupMetricsResult
 	if telemetryConfig.EnableBackupMetrics || telemetryConfig.EnableBackupBillingMetrics {
-		backupMetricsResult, err := collector.GetBackupMetrics(ctx, mp.vcpDatastore, telemetryConfig)
+		backupMetricsResult, err = collector.GetBackupMetrics(ctx, mp.vcpDatastore, telemetryConfig)
 		if err != nil {
 			logger.Error("Failed to get backup metrics", "error", err.Error())
 			return err
 		}
-		volumeMetricsResult, err := collector.GetVolumeMetrics(ctx, mp.vcpDatastore, telemetryConfig)
-		if err != nil {
-			logger.Error("Failed to get volume metrics", "error", err.Error())
-			return err
-		}
-		if telemetryConfig.EnableBackupMetrics {
-			allHydratedMetrics = append(allHydratedMetrics, backupMetricsResult.HydratedMetrics...)
-		}
-		if telemetryConfig.EnableBackupBillingMetrics {
-			allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, backupMetricsResult.HydratedMetricsDataModel...)
-			allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, volumeMetricsResult.HydratedMetricsDataModel...)
-		}
+	}
+	volumeMetricsResult, err := collector.GetVolumeMetrics(ctx, mp.vcpDatastore, telemetryConfig, poolMetricsResult.PoolMetadataMap)
+	if err != nil {
+		logger.Error("Failed to get volume metrics", "error", err.Error())
+		return err
+	}
+	if telemetryConfig.EnableBackupMetrics {
+		allHydratedMetrics = append(allHydratedMetrics, backupMetricsResult.HydratedMetrics...)
+	}
+	if telemetryConfig.EnableBackupBillingMetrics {
+		allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, backupMetricsResult.HydratedMetricsDataModel...)
+		allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, volumeMetricsResult.HydratedMetricsDataModel...)
 	}
 
 	allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, poolMetricsResult.HydratedMetricsDataModel...)
@@ -75,6 +76,7 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 	}
 
 	allHydratedMetrics = append(allHydratedMetrics, poolMetricsResult.HydratedMetrics...)
+	allHydratedMetrics = append(allHydratedMetrics, volumeMetricsResult.VolumeAllocatedThroughputHydratedMetrics...)
 
 	mp.sink.DeliverMetrics(ctx, allHydratedMetrics)
 	if telemetryConfig.EnableVolumeMetrics {

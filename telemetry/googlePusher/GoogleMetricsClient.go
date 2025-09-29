@@ -379,9 +379,14 @@ func (client *GoogleMetricsClient) createMetricValueSet(metricName string, metri
 
 func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric) (MetricValue, error) {
 	metricValue := &servicecontrol.MetricValue{}
-
+	mibToKibConverter := 1024
 	metricMeasuredType, _ := metric.GetMeasuredType()
+
 	switch metricMeasuredType {
+	case metadata.VolumeAllocatedThroughput:
+		volAllocatedThroughputInMibPerSec, _ := metric.GetDoubleQuantity()
+		volAllocatedThroughputInKibPerSec := int64(volAllocatedThroughputInMibPerSec * float64(mibToKibConverter))
+		metricValue.Int64Value = &volAllocatedThroughputInKibPerSec
 	default:
 		val, _ := metric.GetQuantity()
 		metricValue.Int64Value = nillable.ToPointer(val)

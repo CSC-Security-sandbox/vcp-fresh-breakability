@@ -11,6 +11,7 @@ import (
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -20,10 +21,12 @@ type VolumeMetricsResult struct {
 	HydratedMetrics []entity.HydratedMetric
 	// HydratedMetricsDataModel contains the data model hydrated metrics
 	HydratedMetricsDataModel []datamodel2.HydratedMetrics
+	// VolumeAllocatedThroughputHydratedMetrics contains volume allocated throughput metrics
+	VolumeAllocatedThroughputHydratedMetrics []entity.HydratedMetric
 }
 
 // GetVolumeMetrics retrieves volume allocated size metrics for volumes with backup data from the database and returns them in a structured result.
-func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig) (*VolumeMetricsResult, error) {
+func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, poolMetadataMap map[int64]metadata.ResourceMetadata) (*VolumeMetricsResult, error) {
 	logger := util.GetLogger(ctx)
 	volumes, err := vcpDB.ListVolumesWithAccounts(ctx)
 	if err != nil {
@@ -38,14 +41,15 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 
 	// Initialize a slice to hold the hydrated metrics
 	var metrics []entity.HydratedMetric
+	var volumeAllocatedThroughputMetrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
 
 	// Iterate over all volumes and generate metrics
 	for _, volume := range volumes {
-		// Filter volumes that have backup logical size > 0
-		if volume.DataProtection != nil && volume.DataProtection.BackupChainBytes != nil && *volume.DataProtection.BackupChainBytes <= 0 {
-			continue
-		}
+		var volumeAllocatedThroughputMetric entity.HydratedMetric
+		// Assemble metadata for the volume
+		volumeMetadata := assembleVolumeMetadata(volume, config)
+		now := time.Now()
 
 		// Validate volume attributes before processing
 		if volume.UUID == "" {
@@ -65,28 +69,51 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			continue
 		}
 
-		// Assemble metadata for the volume
-		volumeMetadata := assembleVolumeMetadata(volume, config)
+		if volume.Throughput != 0 {
+			volumeAllocatedThroughputMetric = setupHydratedMetric(now, volumeMetadata, metadata.VolumeAllocatedThroughput, float64(volume.Throughput))
+			volumeAllocatedThroughputMetrics = append(volumeAllocatedThroughputMetrics, volumeAllocatedThroughputMetric)
+		} else {
+			var poolThroughput *float64
+			// Lookup pool metadata using PoolID
+			if poolMeta, ok := poolMetadataMap[volume.PoolID]; ok {
+				poolThroughput = poolMeta.Throughput
+				if poolThroughput == nil {
+					poolThroughput = nillable.ToPointer(0.0)
+				}
 
+				volumeAllocatedThroughputMetric = setupHydratedMetric(now, volumeMetadata, metadata.VolumeAllocatedThroughput, *poolThroughput)
+				volumeAllocatedThroughputMetrics = append(volumeAllocatedThroughputMetrics, volumeAllocatedThroughputMetric)
+			} else {
+				logger.Warnf("Pool metadata missing for PoolID %s (volume %s)", volume.PoolID, volume.UUID)
+			}
+		}
+
+		// Filter volumes that have backup logical size > 0
+		if volume.DataProtection != nil && volume.DataProtection.BackupChainBytes != nil && *volume.DataProtection.BackupChainBytes <= 0 {
+			continue
+		}
 		// Create a metric for the volume allocated size
-		now := time.Now()
 		// Use the allocated size (size_in_bytes) as the quantity for volume allocated size
 		allocatedSize := volume.SizeInBytes
 
-		metric := setupHydratedMetric(now, volumeMetadata, metadata.BackupVolumeAllocatedSize, float64(allocatedSize))
-		metrics = append(metrics, metric)
-		// Use actual account name from the preloaded account
-		accountName := ""
-		if volume.Account != nil {
-			accountName = volume.Account.Name
+		if config.EnableBackupBillingMetrics {
+			metric := setupHydratedMetric(now, volumeMetadata, metadata.BackupVolumeAllocatedSize, float64(allocatedSize))
+			metrics = append(metrics, metric)
+
+			// Use actual account name from the preloaded account
+			accountName := ""
+			if volume.Account != nil {
+				accountName = volume.Account.Name
+			}
+			hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, now, float64(allocatedSize)))
 		}
-		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, now, float64(allocatedSize)))
 	}
 
 	// Return the structured result
 	return &VolumeMetricsResult{
-		HydratedMetrics:          metrics,
-		HydratedMetricsDataModel: hydratedMetrics,
+		HydratedMetrics:                          metrics,
+		HydratedMetricsDataModel:                 hydratedMetrics,
+		VolumeAllocatedThroughputHydratedMetrics: volumeAllocatedThroughputMetrics,
 	}, nil
 }
 
@@ -99,7 +126,9 @@ func assembleVolumeMetadata(volume *datamodel.Volume, config *common.TelemetryCo
 	// Use the allocated size (size_in_bytes) for billing
 	met.SetSizeInBytes(volume.SizeInBytes)
 	met.SetRegionName(config.RegionName)
-	met.SetAccountName(volume.Account.Name)
+	if volume.Account != nil {
+		met.SetAccountName(volume.Account.Name)
+	}
 	met.SetDeploymentName(EmptyDeploymentName)
 	return met
 }
