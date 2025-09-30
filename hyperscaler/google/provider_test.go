@@ -970,22 +970,81 @@ func TestDeleteBucket(t *testing.T) {
 		statusCode     int
 		expectError    bool
 		expectedErrMsg string
+		expectSuccess  bool
+		lifecycleSet   bool
+		serverResponse func(w http.ResponseWriter, r *http.Request)
 	}{
 		{
-			name:        "Success",
-			statusCode:  http.StatusNoContent, // 204 No Content on successful delete
-			expectError: false,
+			name:          "Success",
+			statusCode:    http.StatusNoContent, // 204 No Content on successful delete
+			expectError:   false,
+			expectSuccess: true,
 		},
 		{
-			name:        "BucketNotFound",
-			statusCode:  http.StatusNotFound,
-			expectError: false,
+			name:          "BucketNotFound",
+			statusCode:    http.StatusNotFound,
+			expectError:   false,
+			expectSuccess: true,
+		},
+		{
+			name:           "FetchAttributesError",
+			statusCode:     http.StatusForbidden,
+			expectError:    true,
+			expectedErrMsg: "failed to fetch attributes",
+			expectSuccess:  false,
+		},
+		{
+			name: "Failed to set lifecycle policy",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case http.MethodDelete:
+					http.Error(w, "Forbidden", http.StatusForbidden)
+				case http.MethodGet:
+					w.WriteHeader(http.StatusOK)
+					if _, err := w.Write([]byte(`{}`)); err != nil {
+						t.Fatalf("failed to write response: %v", err)
+					}
+				case http.MethodPatch:
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				default:
+					http.NotFound(w, r)
+				}
+			},
+			expectError:    true,
+			expectedErrMsg: "error setting lifecycle policy for bucket test-bucket",
+			expectSuccess:  false,
+		},
+		{
+			name: "LifecyclePolicySetSuccessfully",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case http.MethodDelete:
+					http.Error(w, "Forbidden", http.StatusForbidden)
+				case http.MethodGet:
+					w.WriteHeader(http.StatusOK)
+					// Return bucket without lifecycle policy
+					_, _ = w.Write([]byte(`{"name": "test-bucket"}`))
+				case http.MethodPatch:
+					w.WriteHeader(http.StatusOK)
+					// Return success for lifecycle policy update
+					_, _ = w.Write([]byte(`{"name": "test-bucket"}`))
+				default:
+					http.NotFound(w, r)
+				}
+			},
+			expectError:   false,
+			expectSuccess: false, // Should return false after setting lifecycle policy
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				if tc.serverResponse != nil {
+					tc.serverResponse(rw, req)
+					return
+				}
+
 				if req.Method == http.MethodDelete && strings.Contains(req.URL.Path, "/b/") {
 					rw.Header().Set("Content-Type", "application/json")
 					rw.WriteHeader(tc.statusCode)
@@ -1004,6 +1063,68 @@ func TestDeleteBucket(t *testing.T) {
 					}
 					return
 				}
+
+				if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/b/") {
+					rw.Header().Set("Content-Type", "application/json")
+					if tc.statusCode == http.StatusForbidden {
+						rw.WriteHeader(http.StatusForbidden)
+						_, _ = rw.Write([]byte(`{
+							"error": {
+								"code": 403,
+								"message": "Forbidden",
+								"errors": [{
+									"message": "Forbidden",
+									"reason": "forbidden"
+								}]
+							}
+						}`))
+					} else {
+						rw.WriteHeader(http.StatusOK)
+						lifecycle := ""
+						if tc.lifecycleSet {
+							lifecycle = `{
+								"lifecycle": {
+									"rule": [{
+										"action": {"type": "Delete"},
+										"condition": {"allObjects": true}
+									}]
+								}
+							}`
+						}
+						_, _ = fmt.Fprintf(rw, `{"name": "test-bucket",%s}`, lifecycle)
+					}
+					return
+				}
+
+				if req.Method == http.MethodPatch && strings.Contains(req.URL.Path, "/b/") {
+					rw.Header().Set("Content-Type", "application/json")
+					if tc.statusCode == http.StatusInternalServerError {
+						rw.WriteHeader(http.StatusInternalServerError)
+						_, _ = rw.Write([]byte(`{
+							"error": {
+								"code": 500,
+								"message": "Internal Server Error",
+								"errors": [{
+									"message": "Internal Server Error",
+									"reason": "backendError"
+								}]
+							}
+						}`))
+					} else {
+						rw.WriteHeader(http.StatusOK)
+						_, _ = rw.Write([]byte(`{
+							"name": "test-bucket",
+							"lifecycle": {
+								"rule": [{
+									"action": {"type": "Delete"},
+									"condition": {"allObjects": true}
+								}]
+							}
+						}`))
+					}
+					return
+				}
+
 				http.NotFound(rw, req)
 			}))
 			defer server.Close()
@@ -1031,7 +1152,7 @@ func TestDeleteBucket(t *testing.T) {
 				Logger: util.GetLogger(ctx),
 			}
 
-			err = gcp.DeleteBucket(ctx, "test-bucket")
+			success, err := gcp.DeleteBucketWithLifecyclePolicy(ctx, "test-bucket")
 
 			if tc.expectError {
 				if err == nil {
@@ -1044,8 +1165,81 @@ func TestDeleteBucket(t *testing.T) {
 					t.Errorf("expected no error, got: %v", err)
 				}
 			}
+
+			if success != tc.expectSuccess {
+				t.Errorf("expected success to be %v, got %v", tc.expectSuccess, success)
+			}
 		})
 	}
+}
+
+func TestIsBucketDeletePolicySet(t *testing.T) {
+	t.Run("WhenBucketIsNil", func(tt *testing.T) {
+		result := _isBucketDeletePolicySet(nil)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenBucketLifecycleIsNil", func(tt *testing.T) {
+		bucket := &storage.BucketAttrs{}
+		result := _isBucketDeletePolicySet(bucket)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenBucketLifecycleRuleIsNil", func(tt *testing.T) {
+		bucket := &storage.BucketAttrs{
+			Lifecycle: storage.Lifecycle{},
+		}
+		result := _isBucketDeletePolicySet(bucket)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenBucketLifecycleRuleIsEmpty", func(tt *testing.T) {
+		bucket := &storage.BucketAttrs{
+			Lifecycle: storage.Lifecycle{
+				Rules: []storage.LifecycleRule{},
+			},
+		}
+		result := _isBucketDeletePolicySet(bucket)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenBucketLifecycleRuleHasDeleteActionWithAllObjectsAsTrue", func(tt *testing.T) {
+		bucket := &storage.BucketAttrs{
+			Lifecycle: storage.Lifecycle{
+				Rules: []storage.LifecycleRule{
+					{
+						Action: storage.LifecycleAction{
+							Type: "Delete",
+						},
+						Condition: storage.LifecycleCondition{
+							AllObjects: true,
+						},
+					},
+				},
+			},
+		}
+		result := _isBucketDeletePolicySet(bucket)
+		assert.True(tt, result)
+	})
+
+	t.Run("WhenBucketLifecycleRuleHasNonDeleteAction", func(tt *testing.T) {
+		bucket := &storage.BucketAttrs{
+			Lifecycle: storage.Lifecycle{
+				Rules: []storage.LifecycleRule{
+					{
+						Action: storage.LifecycleAction{
+							Type: "SetStorageClass",
+						},
+						Condition: storage.LifecycleCondition{
+							AllObjects: true,
+						},
+					},
+				},
+			},
+		}
+		result := _isBucketDeletePolicySet(bucket)
+		assert.False(tt, result)
+	})
 }
 
 func TestInitializeStorageService(t *testing.T) {

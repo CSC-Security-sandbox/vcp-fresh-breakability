@@ -937,49 +937,59 @@ func (_c *MockGoogleServices_DeleteAllServiceAccountKeys_Call) RunAndReturn(run 
 	return _c
 }
 
-// DeleteBucket provides a mock function with given fields: ctx, bucketName
-func (_m *MockGoogleServices) DeleteBucket(ctx context.Context, bucketName string) error {
+// DeleteBucketWithLifecyclePolicy provides a mock function with given fields: ctx, bucketName
+func (_m *MockGoogleServices) DeleteBucketWithLifecyclePolicy(ctx context.Context, bucketName string) (bool, error) {
 	ret := _m.Called(ctx, bucketName)
 
 	if len(ret) == 0 {
-		panic("no return value specified for DeleteBucket")
+		panic("no return value specified for DeleteBucketWithLifecyclePolicy")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
+		return rf(ctx, bucketName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
 		r0 = rf(ctx, bucketName)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, bucketName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
-// MockGoogleServices_DeleteBucket_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBucket'
-type MockGoogleServices_DeleteBucket_Call struct {
+// MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBucketWithLifecyclePolicy'
+type MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call struct {
 	*mock.Call
 }
 
-// DeleteBucket is a helper method to define mock.On call
+// DeleteBucketWithLifecyclePolicy is a helper method to define mock.On call
 //   - ctx context.Context
 //   - bucketName string
-func (_e *MockGoogleServices_Expecter) DeleteBucket(ctx interface{}, bucketName interface{}) *MockGoogleServices_DeleteBucket_Call {
-	return &MockGoogleServices_DeleteBucket_Call{Call: _e.mock.On("DeleteBucket", ctx, bucketName)}
+func (_e *MockGoogleServices_Expecter) DeleteBucketWithLifecyclePolicy(ctx interface{}, bucketName interface{}) *MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call {
+	return &MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call{Call: _e.mock.On("DeleteBucketWithLifecyclePolicy", ctx, bucketName)}
 }
 
-func (_c *MockGoogleServices_DeleteBucket_Call) Run(run func(ctx context.Context, bucketName string)) *MockGoogleServices_DeleteBucket_Call {
+func (_c *MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call) Run(run func(ctx context.Context, bucketName string)) *MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
 
-func (_c *MockGoogleServices_DeleteBucket_Call) Return(_a0 error) *MockGoogleServices_DeleteBucket_Call {
-	_c.Call.Return(_a0)
+func (_c *MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call) Return(_a0 bool, _a1 error) *MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockGoogleServices_DeleteBucket_Call) RunAndReturn(run func(context.Context, string) error) *MockGoogleServices_DeleteBucket_Call {
+func (_c *MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockGoogleServices_DeleteBucketWithLifecyclePolicy_Call {
 	_c.Call.Return(run)
 	return _c
 }

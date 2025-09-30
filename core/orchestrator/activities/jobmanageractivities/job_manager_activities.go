@@ -23,6 +23,7 @@ const (
 	CleanupHydratedMetricsTable   = "CLEANUP_HYDRATED_METRICS_TABLE"
 	CleanupAggregatedUsageTable   = "CLEANUP_AGGREGATED_USAGE_TABLE"
 	SyncVsaAutoTiering            = "SYNC_VSA_AUTO_TIERING"
+	DeleteResources               = "DELETE_RESOURCES"
 	SyncBackupZiZsMetadata        = "SYNC_BACKUP_ZIZS_METADATA"
 )
 
@@ -36,6 +37,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	CleanupHydratedMetricsTable:   backgroundworkflows.CleanupHydratedMetricsTableWorkflow,
 	CleanupAggregatedUsageTable:   backgroundworkflows.CleanupAggregatedUsageTableWorkflow,
 	SyncVsaAutoTiering:            backgroundworkflows.SyncVSAAutoTieringWorkflow,
+	DeleteResources:               backgroundworkflows.ResourceCleanupParentWorkflow,
 	SyncBackupZiZsMetadata:        backgroundworkflows.SyncBackupZiZsWorkflow,
 }
 

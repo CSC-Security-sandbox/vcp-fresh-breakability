@@ -49,6 +49,8 @@ type (
 		ListPoolsWithPagination(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error)
 		ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error)
 		ListPoolUUIDsPaginated(ctx context.Context, filter *dbutils.Filter, offset, limit int) ([]*PoolIdentifier, error)
+		ListPendingResourceDeletions(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error)
+		GetResourcesCount(ctx context.Context) (int64, error)
 		GetPoolsCount(ctx context.Context, filter *dbutils.Filter) (int64, error)
 		GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error)
 		GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error)
@@ -266,5 +268,8 @@ type (
 		AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error)
 
 		HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error
+
+		CreatePendingResourceDeletion(ctx context.Context, resourceType, resourceName, errorMessage, accountName string, poolID int64) (*datamodel.PendingResourceDeletions, error)
+		UpdatePendingResourceDeletion(ctx context.Context, resourceID int64, isDeletion bool, errorMessage string) (*datamodel.PendingResourceDeletions, error)
 	}
 )

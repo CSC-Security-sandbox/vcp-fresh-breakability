@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -33,12 +34,6 @@ type GenericChildWorkflowConfig struct {
 	ProcessBatchActivity    interface{}
 }
 
-// PoolError represents a pool error with pool name and error message
-type PoolError struct {
-	PoolName string
-	Error    string
-}
-
 // GenericChildWorkflowResult represents the result of a generic child workflow
 type GenericChildWorkflowResult struct {
 	WorkflowID          string
@@ -46,7 +41,7 @@ type GenericChildWorkflowResult struct {
 	SuccessfulItems     int
 	FailedItems         int
 	Error               string
-	FailedPoolNames     []string
+	FailedResourceNames []string
 }
 
 // GenericParentWorkflowResult represents the result of a generic parent workflow
@@ -244,8 +239,8 @@ func GenericChildWorkflow(ctx workflow.Context, offset, limit int, config Generi
 	// Aggregate results from all completed activities
 	totalSuccessCount := 0
 	totalFailureCount := 0
-	var allFailedPoolNames []string
-	var allFailedPoolErrors []PoolError
+	var allFailedResourceNames []string
+	var allFailedResourceErrors []backgroundactivities.ParentChildWorkflowError
 
 	for _, result := range allResults {
 		if resultMap, ok := result.(map[string]interface{}); ok {
@@ -259,26 +254,26 @@ func GenericChildWorkflow(ctx workflow.Context, offset, limit int, config Generi
 					totalFailureCount += int(failed)
 				}
 			}
-			// Collect failed pool names
-			if val, exists := resultMap["FailedPoolNames"]; exists {
-				if failedPoolNames, ok := val.([]interface{}); ok {
-					for _, poolName := range failedPoolNames {
-						if name, ok := poolName.(string); ok {
-							allFailedPoolNames = append(allFailedPoolNames, name)
+			// Collect failed resource names
+			if val, exists := resultMap["FailedResourceNames"]; exists {
+				if failedResourceNames, ok := val.([]interface{}); ok {
+					for _, resourceName := range failedResourceNames {
+						if name, ok := resourceName.(string); ok {
+							allFailedResourceNames = append(allFailedResourceNames, name)
 						}
 					}
 				}
 			}
-			// Collect failed pool errors (for logging, not returned in workflow result)
-			if val, exists := resultMap["FailedPoolErrors"]; exists {
-				if failedPoolErrors, ok := val.([]interface{}); ok {
-					for _, poolError := range failedPoolErrors {
-						if poolErrorMap, ok := poolError.(map[string]interface{}); ok {
-							poolName, _ := poolErrorMap["PoolName"].(string)
-							errorMsg, _ := poolErrorMap["Error"].(string)
-							allFailedPoolErrors = append(allFailedPoolErrors, PoolError{
-								PoolName: poolName,
-								Error:    errorMsg,
+			// Collect failed resource errors (for logging, not returned in workflow result)
+			if val, exists := resultMap["FailedResourceErrors"]; exists {
+				if failedResourceErrors, ok := val.([]interface{}); ok {
+					for _, resourceError := range failedResourceErrors {
+						if resourceErrorMap, ok := resourceError.(map[string]interface{}); ok {
+							resourceName, _ := resourceErrorMap["ResourceName"].(string)
+							errorMsg, _ := resourceErrorMap["Error"].(string)
+							allFailedResourceErrors = append(allFailedResourceErrors, backgroundactivities.ParentChildWorkflowError{
+								ResourceName: resourceName,
+								Error:        errorMsg,
 							})
 						}
 					}
@@ -288,6 +283,9 @@ func GenericChildWorkflow(ctx workflow.Context, offset, limit int, config Generi
 			logger.Warnf("Child Workflow '%s' -> Unexpected result type: %T", config.WorkflowName, result)
 		}
 	}
+	if len(allFailedResourceErrors) > 0 {
+		logger.Errorf("Child workflow '%s' -> All failed resource errors: %+v", config.WorkflowName, allFailedResourceErrors)
+	}
 	logger.Infof("Child workflow '%s' completed -> Total items processed: %d, successful: %d, failed: %d", config.WorkflowName, totalItemsProcessed, totalSuccessCount, totalFailureCount)
 
 	return &GenericChildWorkflowResult{
@@ -295,7 +293,7 @@ func GenericChildWorkflow(ctx workflow.Context, offset, limit int, config Generi
 		TotalItemsProcessed: totalItemsProcessed,
 		SuccessfulItems:     totalSuccessCount,
 		FailedItems:         totalFailureCount,
-		FailedPoolNames:     allFailedPoolNames,
+		FailedResourceNames: allFailedResourceNames,
 	}, nil
 }
 

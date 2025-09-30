@@ -39,6 +39,11 @@
     "cronExpression": "*/5 * * * *",
     "state": "CREATING"
   },
+  "DELETE_RESOURCES": {
+    "jobType": "DELETE_RESOURCES",
+    "cronExpression": "0 0 * * *",
+    "state": "CREATING"
+  },
   "SYNC_BACKUP_ZIZS_METADATA": {
     "jobType": "SYNC_BACKUP_ZIZS_METADATA",
     "cronExpression": "0 */12 * * *",

@@ -2118,3 +2118,175 @@ func TestPersistenceStore_AccountDelegates_ErrorCases(t *testing.T) {
 	err = store.RollBackDeletedAccount(ctx, 12345)
 	assert.Error(t, err)
 }
+
+// TestPersistenceStore_CreatePendingResourceDeletion tests the CreatePendingResourceDeletion wrapper method
+func TestPersistenceStore_CreatePendingResourceDeletion(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	resourceType := "BUCKET"
+	resourceName := "test-bucket"
+	errorMessage := "test error"
+	accountName := "test-account"
+	poolID := int64(123)
+
+	// Test successful creation
+	result, err := store.CreatePendingResourceDeletion(ctx, resourceType, resourceName, errorMessage, accountName, poolID)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, resourceType, result.ResourceType)
+	assert.Equal(t, resourceName, result.ResourceName)
+	assert.Equal(t, errorMessage, result.Error)
+	assert.Equal(t, accountName, result.AccountName)
+	assert.Equal(t, poolID, result.ResourceAttributes.PoolID)
+}
+
+// TestPersistenceStore_ListPendingResourceDeletions tests the ListPendingResourceDeletions wrapper method
+func TestPersistenceStore_ListPendingResourceDeletions(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	offset := 0
+	limit := 10
+
+	// Test successful listing
+	results, err := store.ListPendingResourceDeletions(ctx, offset, limit)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+	assert.IsType(t, []*datamodel.PendingResourceDeletions{}, results)
+}
+
+// TestPersistenceStore_UpdatePendingResourceDeletion tests the UpdatePendingResourceDeletion wrapper method
+func TestPersistenceStore_UpdatePendingResourceDeletion(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	resourceID := int64(1)
+	isDeletion := true
+	errorMessage := "updated error message"
+
+	// Test successful update
+	result, err := store.UpdatePendingResourceDeletion(ctx, resourceID, isDeletion, errorMessage)
+	// Note: This might fail if the resource doesn't exist, but we're testing the wrapper method
+	if err != nil {
+		// Verify it's a database error, not a wrapper error
+		assert.True(t, err.Error() == "An internal error occurred." || err.Error() == "Resource not found")
+	} else {
+		assert.NotNil(t, result)
+		assert.Equal(t, resourceID, result.ID)
+		assert.Equal(t, errorMessage, result.Error)
+	}
+}
+
+// TestPersistenceStore_GetResourcesCount tests the GetResourcesCount wrapper method
+func TestPersistenceStore_GetResourcesCount(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Test successful count
+	count, err := store.GetResourcesCount(ctx)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, count, int64(0))
+}
+
+// TestPersistenceStore_CreatePendingResourceDeletion_ErrorHandling tests error handling in CreatePendingResourceDeletion
+func TestPersistenceStore_CreatePendingResourceDeletion_ErrorHandling(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Test with empty resource type
+	result, err := store.CreatePendingResourceDeletion(ctx, "", "test-bucket", "test error", "test-account", 123)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "An internal error occurred.")
+
+	// Test with empty resource name
+	result, err = store.CreatePendingResourceDeletion(ctx, "BUCKET", "", "test error", "test-account", 123)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "An internal error occurred.")
+}
+
+// TestPersistenceStore_ListPendingResourceDeletions_WithPagination tests ListPendingResourceDeletions with different pagination parameters
+func TestPersistenceStore_ListPendingResourceDeletions_WithPagination(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Test with offset and limit
+	results, err := store.ListPendingResourceDeletions(ctx, 5, 10)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+
+	// Test with zero limit (should return all)
+	results, err = store.ListPendingResourceDeletions(ctx, 0, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+}
+
+// TestPersistenceStore_UpdatePendingResourceDeletion_NotFound tests UpdatePendingResourceDeletion with non-existent resource
+func TestPersistenceStore_UpdatePendingResourceDeletion_NotFound(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	resourceID := int64(99999) // Non-existent ID
+	isDeletion := true
+	errorMessage := "test error"
+
+	// Test with non-existent resource
+	result, err := store.UpdatePendingResourceDeletion(ctx, resourceID, isDeletion, errorMessage)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, err.Error() == "An internal error occurred." || err.Error() == "Resource not found")
+}

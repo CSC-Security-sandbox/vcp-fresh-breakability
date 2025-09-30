@@ -76,6 +76,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: "test-account"},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
@@ -221,6 +222,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: "test-account"},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
@@ -610,6 +612,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
@@ -754,6 +757,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 		}
 		pool := &datamodel.Pool{
+			Account: &datamodel.Account{Name: "test-account"},
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
@@ -1919,6 +1923,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
+		Account:          &datamodel.Account{Name: "test-account"},
 		ServiceAccountId: "test-service-account",
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
@@ -1937,7 +1942,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2012,6 +2017,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		Account:     &datamodel.Account{Name: "test-account"},
 		KmsConfig:   &datamodel.KmsConfig{},
 		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
 		State:       models.LifeCycleStateCreating,
@@ -2023,7 +2029,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2096,6 +2102,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		Account:     &datamodel.Account{Name: "test-account"},
 		KmsConfig:   &datamodel.KmsConfig{},
 		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
 		State:       models.LifeCycleStateAvailable,
@@ -2107,7 +2114,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2181,6 +2188,7 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		Account:     &datamodel.Account{Name: "test-account"},
 		KmsConfig:   &datamodel.KmsConfig{},
 		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
 		State:       models.LifeCycleStateError,
@@ -2191,7 +2199,7 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2257,6 +2265,7 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
+		Account:          &datamodel.Account{Name: "test-account"},
 		ServiceAccountId: "test-service-account",
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
@@ -2275,7 +2284,7 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2345,6 +2354,7 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 	}
 	// Set up test data
 	params := &common.DeletePoolParams{
@@ -2364,7 +2374,7 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2440,6 +2450,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		Account:     &datamodel.Account{Name: "test-account"},
 		KmsConfig:   &datamodel.KmsConfig{},
 		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
 	}
@@ -2448,7 +2459,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolEmpty, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2491,6 +2502,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		Account:     &datamodel.Account{Name: "test-account"},
 		KmsConfig:   &datamodel.KmsConfig{},
 		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
 	}
@@ -2499,7 +2511,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolNonEmpty, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2559,6 +2571,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "password",
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 	}
 
 	// Mock activity responses
@@ -2584,7 +2597,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
 
 	// Rollback activities that will be called when CreateAutoTierBucket fails
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2656,6 +2669,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
+			Account:        &datamodel.Account{Name: "test-account"},
 			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
@@ -2701,7 +2715,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2783,6 +2797,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
+			Account:        &datamodel.Account{Name: "test-account"},
 		}
 
 		defer func() {
@@ -2829,7 +2844,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2915,6 +2930,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
+			Account:        &datamodel.Account{Name: "test-account"},
 		}
 		svmName := "svmName"
 		defer func() {
@@ -3061,6 +3077,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
+			Account:        &datamodel.Account{Name: "test-account"},
 		}
 
 		svmName := "svmName"
@@ -3110,7 +3127,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("some error", kms_activities.ErrTypeKmsConfigNotFound, errors.New("some error"))).Once()
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3415,6 +3432,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
+			Account:        &datamodel.Account{Name: "test-account"},
 		}
 		svmName := "svmName"
 		defer func() {
@@ -3469,7 +3487,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3558,6 +3576,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
+			Account:        &datamodel.Account{Name: "test-account"},
 		}
 		svmName := "svmName"
 		defer func() {
@@ -3611,7 +3630,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("error"))
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3700,6 +3719,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
 			DeploymentName: "test-deployment",
+			Account:        &datamodel.Account{Name: "test-account"},
 		}
 		svmName := "svmName"
 		defer func() {
@@ -3752,7 +3772,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(errors.New("error"))
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3960,6 +3980,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		Account:        &datamodel.Account{Name: "test-account"},
 		DeploymentName: "test-deployment",
 	}
 
@@ -4101,6 +4122,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		Account:        &datamodel.Account{Name: "test-account"},
 		DeploymentName: "test-deployment",
 	}
 	svmName := "svmName"
@@ -4243,6 +4265,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 	}
 	mockNoResponseString := ""
 	mockAddressURI := "test-address-uri"
@@ -4309,7 +4332,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 	}
 	// Mock rollback activities
 	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4376,6 +4399,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 	}
 	mockNoResponseString := ""
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
@@ -4438,7 +4462,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 	}
 	// Mock rollback activities
 	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4505,6 +4529,7 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 	}
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	env.RegisterWorkflowWithOptions(
@@ -4565,7 +4590,7 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 	}
 	// Mock rollback activities
 	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4628,6 +4653,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
@@ -4704,7 +4730,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 	}
 	// Mock rollback activities
 	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4772,6 +4798,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 	}
 	mockAddressURI := "test-address-uri"
 	mockOperationName := "op-1"
@@ -4902,6 +4929,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		Account: &datamodel.Account{Name: "test-account"},
 	}
 	mockAddressURI := "test-address-uri"
 	mockNoResponseString := ""
@@ -4976,7 +5004,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 	}
 	// Mock rollback activities
 	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -6669,6 +6697,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
+		Account:        &datamodel.Account{Name: "test-account"},
 	}
 
 	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
@@ -7231,6 +7260,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 					SecretID: "",
 					AuthType: envs.USERNAME_PWD,
 				},
+				Account: &datamodel.Account{Name: "test-account"},
 			},
 			expectedServiceAccountID: "vsa-sa-legacy-pool-name",
 			description:              "Legacy pools should use their stored service account ID",
@@ -7252,6 +7282,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 					SecretID: "",
 					AuthType: envs.USERNAME_PWD,
 				},
+				Account: &datamodel.Account{Name: "test-account"},
 			},
 			expectedServiceAccountID: "vsa-sa-gcnv-abc123def456789",
 			description:              "New pools should use their deployment-based service account ID",
@@ -7296,7 +7327,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 			env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(tt.pool, nil)
 			env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 			mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+			env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 			// Capture the service account ID from DeleteServiceAccount call
 			env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.MatchedBy(func(serviceAccountID string) bool {

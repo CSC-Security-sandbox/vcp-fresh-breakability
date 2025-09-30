@@ -83,6 +83,11 @@ workerConfig:
   SnapshotSyncMaxConcurrentActivitiesPerChild: 5
   gcpHydrateAuthServiceAccount: ""
   gcpHydrateBaseUrl: ""
+  ResourceCleanupParentWorkflowBatchSize: 100
+  ResourceCleanupChildWorkflowTimeout: 240
+  ResourceCleanupChildWorkflowActivityBatchSize: 25
+  ResourceCleanupChildWorkflowActivityTimeoutMinutes: 60
+  ResourceCleanupMaxConcurrentActivitiesPerChild: 5
   proxyClientTransportSchema: "https"
   vlmWorkflowRetryMaxAttempts: "1"
   smcProjectId: ""

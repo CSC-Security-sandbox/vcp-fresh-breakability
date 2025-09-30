@@ -3,6 +3,7 @@ package adminbackgroundjobs
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,70 @@ func TestLoadJobSpecs(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Len(tt, adminJobSpecs, 0)
 		adminJobSpecs = make(map[string]*datamodel.AdminJobSpec)
+	})
+	t.Run("WhenDELETE_RESOURCES_CRON_EXPRESSION_IsSet", func(tt *testing.T) {
+		// Set environment variable
+		err := os.Setenv("DELETE_RESOURCES_CRON_EXPRESSION", "0 2,14 * * *")
+		assert.NoError(tt, err)
+		defer func() {
+			err := os.Unsetenv("DELETE_RESOURCES_CRON_EXPRESSION")
+			assert.NoError(tt, err)
+		}()
+
+		// Load JSON with DELETE_RESOURCES job
+		data = []byte(`{"DELETE_RESOURCES": {"jobType": "DELETE_RESOURCES", "cronExpression": "0 1,13 * * *", "state": "CREATING"}}`)
+		err = LoadJobSpecs()
+		assert.NoError(tt, err)
+		assert.Len(tt, adminJobSpecs, 1)
+
+		// Verify the cron expression was overridden
+		deleteResourcesSpec, exists := adminJobSpecs["DELETE_RESOURCES"]
+		assert.True(tt, exists)
+		assert.Equal(tt, "0 2,14 * * *", deleteResourcesSpec.CronExpression)
+
+		adminJobSpecs = make(map[string]*datamodel.AdminJobSpec) // Reset for next test
+	})
+
+	t.Run("WhenDELETE_RESOURCES_CRON_EXPRESSION_IsNotSet", func(tt *testing.T) {
+		// Ensure environment variable is not set
+		err := os.Unsetenv("DELETE_RESOURCES_CRON_EXPRESSION")
+		assert.NoError(tt, err)
+
+		// Load JSON with DELETE_RESOURCES job
+		data = []byte(`{"DELETE_RESOURCES": {"jobType": "DELETE_RESOURCES", "cronExpression": "0 1,13 * * *", "state": "CREATING"}}`)
+		err = LoadJobSpecs()
+		assert.NoError(tt, err)
+		assert.Len(tt, adminJobSpecs, 1)
+
+		// Verify the cron expression was not overridden
+		deleteResourcesSpec, exists := adminJobSpecs["DELETE_RESOURCES"]
+		assert.True(tt, exists)
+		assert.Equal(tt, "0 1,13 * * *", deleteResourcesSpec.CronExpression)
+
+		adminJobSpecs = make(map[string]*datamodel.AdminJobSpec) // Reset for next test
+	})
+
+	t.Run("WhenDELETE_RESOURCES_CRON_EXPRESSION_IsEmpty", func(tt *testing.T) {
+		// Set empty environment variable
+		err := os.Setenv("DELETE_RESOURCES_CRON_EXPRESSION", "")
+		assert.NoError(tt, err)
+		defer func() {
+			err := os.Unsetenv("DELETE_RESOURCES_CRON_EXPRESSION")
+			assert.NoError(tt, err)
+		}()
+
+		// Load JSON with DELETE_RESOURCES job
+		data = []byte(`{"DELETE_RESOURCES": {"jobType": "DELETE_RESOURCES", "cronExpression": "0 1,13 * * *", "state": "CREATING"}}`)
+		err = LoadJobSpecs()
+		assert.NoError(tt, err)
+		assert.Len(tt, adminJobSpecs, 1)
+
+		// Verify the cron expression was not overridden (empty env var should not override)
+		deleteResourcesSpec, exists := adminJobSpecs["DELETE_RESOURCES"]
+		assert.True(tt, exists)
+		assert.Equal(tt, "0 1,13 * * *", deleteResourcesSpec.CronExpression)
+
+		adminJobSpecs = make(map[string]*datamodel.AdminJobSpec) // Reset for next test
 	})
 }
 

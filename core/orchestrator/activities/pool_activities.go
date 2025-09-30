@@ -1659,7 +1659,7 @@ func (j *PoolActivity) CreateAutoTierBucket(ctx context.Context, autoTierBucketN
 // DeleteAutoTierBucket deletes the specified GCP bucket used for auto-tiering.
 // It initializes a GCP service client and attempts to delete the bucket.
 // Returns an error if the deletion fails or if GCP service initialization fails.
-func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketName string) error {
+func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketName string, accountName string, poolID int64) error {
 	logger := util.GetLogger(ctx)
 	if autoTierBucketName == "" {
 		// If the bucket name is empty, log a warning and return nil
@@ -1672,9 +1672,20 @@ func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketN
 	}
 
 	logger.Debugf("Deleting autoTiering bucket %v", autoTierBucketName)
-	err = DeleteGCPBucket(ctx, autoTierBucketName, gcpService)
-	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+	isDeleted, err := DeleteGCPBucket(ctx, autoTierBucketName, gcpService)
+	if !isDeleted {
+		var errorMessage string
+		if err != nil {
+			errorMessage = err.Error()
+		} else {
+			errorMessage = ""
+		}
+		_, err := j.SE.CreatePendingResourceDeletion(ctx, models.ResourceTypeStringBucket, autoTierBucketName, errorMessage, accountName, poolID)
+		if err != nil {
+			logger.Errorf("Failed to insert the bucket entry which needs to be cleaned up for bucket %s: %v",
+				autoTierBucketName, err)
+			// TODO: Alert about persistent failure to insert pending resource deletion for auto-tiering bucket.
+		}
 	}
 
 	return nil
@@ -1692,16 +1703,16 @@ func _createGCPBucket(ctx context.Context, projectId, bucketName, region string,
 	return nil
 }
 
-func _deleteGCPBucket(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
+func _deleteGCPBucket(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
 	logger := gcpService.GetLogger()
-	err := gcpService.DeleteBucket(ctx, bucketName)
+	isDeleted, err := gcpService.DeleteBucketWithLifecyclePolicy(ctx, bucketName)
 	if err != nil {
 		logger.Errorf("error deleting bucket: %v", err)
-		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
+		return isDeleted, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 	logger.Infof("Bucket deleted successfully %s", bucketName)
 
-	return nil
+	return isDeleted, nil
 }
 
 // CreateServiceAccountWithStorageRole creates a GCP service account with the specified ID and display name,

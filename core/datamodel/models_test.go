@@ -1,6 +1,7 @@
 package datamodel
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -296,4 +297,63 @@ func TestCacheParameters(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, CacheParameters{}, cp)
 	})
+}
+
+func TestResourceAttributes_Scan(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected ResourceAttributes
+		wantErr  bool
+	}{
+		{
+			name:  "valid JSON bytes",
+			input: []byte(`{"pool_id": 123}`),
+			expected: ResourceAttributes{
+				PoolID: 123,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "nil input",
+			input:    nil,
+			expected: ResourceAttributes{},
+			wantErr:  false,
+		},
+		{
+			name:     "invalid type",
+			input:    "not bytes",
+			expected: ResourceAttributes{},
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var ra ResourceAttributes
+			err := ra.Scan(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, ra)
+			}
+		})
+	}
+}
+
+func TestResourceAttributes_Value(t *testing.T) {
+	ra := ResourceAttributes{
+		PoolID: 123,
+	}
+
+	value, err := ra.Value()
+	assert.NoError(t, err)
+	assert.NotNil(t, value)
+
+	// Verify it can be unmarshaled back
+	var result ResourceAttributes
+	err = json.Unmarshal(value.([]byte), &result)
+	assert.NoError(t, err)
+	assert.Equal(t, ra, result)
 }

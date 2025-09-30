@@ -5,7 +5,6 @@ import (
 	digitalCert "crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
@@ -2898,7 +2898,8 @@ func Test_createServiceAccountAndAttachRole(t *testing.T) {
 }
 
 func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
-	activity := activities.PoolActivity{}
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.Background()
 	bucketName := "us-central1-test-pool"
 
@@ -2911,33 +2912,66 @@ func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
 	}()
 
 	t.Run("success", func(t *testing.T) {
-		activities.DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
-			return nil
+		activities.DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
+			return true, nil
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
 
-		err := activity.DeleteAutoTierBucket(ctx, bucketName)
+		err := activity.DeleteAutoTierBucket(ctx, bucketName, "accountName", 2)
 		assert.NoError(t, err)
 	})
 
 	t.Run("failure", func(t *testing.T) {
-		activities.DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
-			return errors.New("delete failed")
+		activities.DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
+			return false, errors.New("delete failed")
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		err := activity.DeleteAutoTierBucket(ctx, bucketName)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "delete failed")
+
+		// Mock the CreatePendingResourceDeletion call that happens when bucket deletion fails
+		mockStorage.On("CreatePendingResourceDeletion", ctx, "BUCKET", bucketName, "delete failed", "accountName", int64(2)).Return(&datamodel.PendingResourceDeletions{}, nil)
+
+		err := activity.DeleteAutoTierBucket(ctx, bucketName, "accountName", 2)
+		assert.NoError(t, err)
 	})
 
 	t.Run("empty bucket name", func(t *testing.T) {
 		// Test the case where bucket name is empty - should log warning and return nil
-		err := activity.DeleteAutoTierBucket(ctx, "")
+		err := activity.DeleteAutoTierBucket(ctx, "", "accountName", 2)
 		assert.NoError(t, err)
+	})
+
+	t.Run("failure_no_error", func(t *testing.T) {
+		activities.DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
+			return false, nil // No error but deletion failed
+		}
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+
+		// Mock the CreatePendingResourceDeletion call with empty error message
+		mockStorage.On("CreatePendingResourceDeletion", ctx, "BUCKET", bucketName, "", "accountName", int64(2)).Return(&datamodel.PendingResourceDeletions{}, nil)
+
+		err := activity.DeleteAutoTierBucket(ctx, bucketName, "accountName", 2)
+		assert.NoError(t, err)
+	})
+
+	t.Run("failure_create_pending_deletion_fails", func(t *testing.T) {
+		activities.DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
+			return false, errors.New("delete failed")
+		}
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+
+		// Mock the CreatePendingResourceDeletion call to return an error
+		mockStorage.On("CreatePendingResourceDeletion", ctx, "BUCKET", bucketName, "delete failed", "accountName", int64(2)).Return(nil, errors.New("database error"))
+
+		err := activity.DeleteAutoTierBucket(ctx, bucketName, "accountName", 2)
+		assert.NoError(t, err) // Function should still return nil even if logging fails
 	})
 }
 
@@ -2951,8 +2985,8 @@ func Test_deleteGCPBucket(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
 		mockGcp.EXPECT().GetLogger().Return(logger)
-		mockGcp.EXPECT().DeleteBucket(ctx, bucketName).Return(nil)
-		err := activities.DeleteGCPBucket(ctx, bucketName, mockGcp)
+		mockGcp.EXPECT().DeleteBucketWithLifecyclePolicy(ctx, bucketName).Return(true, nil)
+		_, err := activities.DeleteGCPBucket(ctx, bucketName, mockGcp)
 		assert.NoError(t, err)
 	})
 
@@ -2960,8 +2994,8 @@ func Test_deleteGCPBucket(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
 
 		mockGcp.EXPECT().GetLogger().Return(logger)
-		mockGcp.EXPECT().DeleteBucket(ctx, bucketName).Return(errors.New("delete failed"))
-		err := activities.DeleteGCPBucket(ctx, bucketName, mockGcp)
+		mockGcp.EXPECT().DeleteBucketWithLifecyclePolicy(ctx, bucketName).Return(false, errors.New("delete failed"))
+		_, err := activities.DeleteGCPBucket(ctx, bucketName, mockGcp)
 		assert.Error(t, err)
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) && customErr.Unwrap() != nil {
@@ -4531,7 +4565,7 @@ func TestPoolActivity_DeleteAutoTierBucket_GetGCPServiceFails(t *testing.T) {
 	}
 
 	// Act
-	err := activity.DeleteAutoTierBucket(ctx, autoTierBucketName)
+	err := activity.DeleteAutoTierBucket(ctx, autoTierBucketName, "accountName", 2)
 
 	// Assert
 	assert.Error(t, err)

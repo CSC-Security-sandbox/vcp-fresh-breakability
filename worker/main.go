@@ -341,6 +341,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringPauseResumeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringHotTierAutoResizeWorkflow)
 	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.ResourceCleanupParentWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.ResourceCleanupChildWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncBackupZiZsWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
@@ -349,6 +351,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeRefreshActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.ResourceDeleteActivity{SE: conn})
 	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})

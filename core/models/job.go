@@ -33,8 +33,9 @@ const (
 
 const (
 	// Resource types
-	ResourceTypePool   ResourceType = "POOL"
-	ResourceTypeSubnet ResourceType = "SUBNET"
+	ResourceTypePool         ResourceType = "POOL"
+	ResourceTypeSubnet       ResourceType = "SUBNET"
+	ResourceTypeStringBucket              = "BUCKET"
 )
 
 type PoolCategory string

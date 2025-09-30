@@ -1171,6 +1171,22 @@ func (s *PersistenceStore) GetAccounts(ctx context.Context, includeDelete bool, 
 	return s.dataStore.GetAccounts(ctx, includeDelete, pagination)
 }
 
+func (s *PersistenceStore) CreatePendingResourceDeletion(ctx context.Context, resourceType, resourceName, errorMessage, accountName string, poolID int64) (*datamodel.PendingResourceDeletions, error) {
+	return s.dataStore.CreatePendingResourceDeletion(ctx, resourceType, resourceName, errorMessage, accountName, poolID)
+}
+
+func (s *PersistenceStore) ListPendingResourceDeletions(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error) {
+	return s.dataStore.ListPendingResourceDeletions(ctx, offset, limit)
+}
+
+func (s *PersistenceStore) UpdatePendingResourceDeletion(ctx context.Context, resourceID int64, isDeletion bool, errorMessage string) (*datamodel.PendingResourceDeletions, error) {
+	return s.dataStore.UpdatePendingResourceDeletion(ctx, resourceID, isDeletion, errorMessage)
+}
+
+func (s *PersistenceStore) GetResourcesCount(ctx context.Context) (int64, error) {
+	return s.dataStore.GetResourcesCount(ctx)
+}
+
 func (s *PersistenceStore) DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error {
 	return s.dataStore.DeleteServiceAccount(ctx, serviceAccount)
 }

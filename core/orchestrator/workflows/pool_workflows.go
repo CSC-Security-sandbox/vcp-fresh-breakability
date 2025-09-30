@@ -265,7 +265,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	dbPool.AutoTieringConfig.BucketName = AutoTierBucketName
 
-	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, AutoTierBucketName)
+	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, AutoTierBucketName, dbPool.Account.Name, dbPool.ID)
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -940,7 +940,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		bucketName = dbPool.AutoTieringConfig.BucketName
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteAutoTierBucket, bucketName).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteAutoTierBucket, bucketName, dbPool.Account.Name, dbPool.ID).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

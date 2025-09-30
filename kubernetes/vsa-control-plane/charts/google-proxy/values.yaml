@@ -60,6 +60,7 @@ minCustomThroughput: "64"
 maxCustomIops: "160000"
 maxCustomThroughput: "5120"
 iopsPerMibps: "16"
+deleteResourcesCronExpression: "0 0 * * *" # DELETE_RESOURCES job configuration
 waitForTemporalEnabled: true
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"

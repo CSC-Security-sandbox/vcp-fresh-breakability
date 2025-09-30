@@ -38,7 +38,7 @@ type Services interface {
 	GetComputeRegionalOpStatus(projectNumber, region, operationName string) (*models.ComputeOperation, error)
 
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
-	DeleteBucket(ctx context.Context, bucketName string) error
+	DeleteBucketWithLifecyclePolicy(ctx context.Context, bucketName string) (bool, error)
 	GetBucket(ctx context.Context, bucketName string) (*models.BucketDetails, error)
 	EmptyBucket(ctx context.Context, bucketName string) error
 

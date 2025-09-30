@@ -583,19 +583,13 @@ func (a *SyncSnapshotActivity) HydrateSnapshotsToCCFE(ctx context.Context, creat
 	return nil
 }
 
-// PoolError represents a pool error with pool name and error message
-type PoolError struct {
-	PoolName string
-	Error    string
-}
-
 // SyncSnapshotsForPoolBatchReturnValue represents the return value for batch processing
 type SyncSnapshotsForPoolBatchReturnValue struct {
-	TotalProcessed   int
-	Successful       int
-	Failed           int
-	FailedPoolNames  []string
-	FailedPoolErrors []PoolError
+	TotalProcessed       int
+	Successful           int
+	Failed               int
+	FailedResourceNames  []string
+	FailedResourceErrors []ParentChildWorkflowError
 }
 
 // SyncSnapshotsForPoolBatchActivity processes a batch of pools for snapshot synchronization
@@ -613,8 +607,8 @@ func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Con
 	// Process each pool in the batch with controlled concurrency
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	var failedPoolNames []string
-	var failedPoolErrors []PoolError
+	var FailedResourceNames []string
+	var FailedResourceErrors []ParentChildWorkflowError
 
 	// Concurrent goroutines to process the snapshot sync for each pool
 	semaphore := make(chan struct{}, snapshotSyncMaxConcurrency)
@@ -634,10 +628,10 @@ func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Con
 			if err != nil {
 				logger.Errorf("Failed to sync snapshots for pool %s: %v", pid.Name, err)
 				result.Failed++
-				failedPoolNames = append(failedPoolNames, pid.Name)
-				failedPoolErrors = append(failedPoolErrors, PoolError{
-					PoolName: pid.Name,
-					Error:    err.Error(),
+				FailedResourceNames = append(FailedResourceNames, pid.Name)
+				FailedResourceErrors = append(FailedResourceErrors, ParentChildWorkflowError{
+					ResourceName: pid.Name,
+					Error:        err.Error(),
 				})
 			} else {
 				result.Successful++
@@ -650,11 +644,11 @@ func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Con
 	logger.Infof("Snapshot batch processing completed: total pools = %d, successful = %d, failed = %d", result.TotalProcessed, result.Successful, result.Failed)
 
 	if result.Failed > 0 {
-		logger.Warnf("Snapshot sync failed for %d pools. Failed pools: %v", result.Failed, failedPoolNames)
+		logger.Warnf("Snapshot sync failed for %d pools. Failed pools: %v", result.Failed, FailedResourceNames)
 	}
 
-	result.FailedPoolNames = failedPoolNames
-	result.FailedPoolErrors = failedPoolErrors
+	result.FailedResourceNames = FailedResourceNames
+	result.FailedResourceErrors = FailedResourceErrors
 	return result, nil
 }
 

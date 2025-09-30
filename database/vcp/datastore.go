@@ -29,6 +29,7 @@ func getVcpModels() []interface{} {
 		&datamodel.BackupPolicy{},
 		&datamodel.NodeNodeGroupMap{},
 		&datamodel.NodeGroup{},
+		&datamodel.PendingResourceDeletions{},
 	}
 }
 

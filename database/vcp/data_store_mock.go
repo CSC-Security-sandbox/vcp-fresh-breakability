@@ -1285,6 +1285,69 @@ func (_c *MockDataStore_CreateNodeNodeGroupMap_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// CreatePendingResourceDeletion provides a mock function with given fields: ctx, resourceType, resourceName, errorMessage, accountName, poolID
+func (_m *MockDataStore) CreatePendingResourceDeletion(ctx context.Context, resourceType string, resourceName string, errorMessage string, accountName string, poolID int64) (*datamodel.PendingResourceDeletions, error) {
+	ret := _m.Called(ctx, resourceType, resourceName, errorMessage, accountName, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreatePendingResourceDeletion")
+	}
+
+	var r0 *datamodel.PendingResourceDeletions
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, int64) (*datamodel.PendingResourceDeletions, error)); ok {
+		return rf(ctx, resourceType, resourceName, errorMessage, accountName, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, int64) *datamodel.PendingResourceDeletions); ok {
+		r0 = rf(ctx, resourceType, resourceName, errorMessage, accountName, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.PendingResourceDeletions)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string, int64) error); ok {
+		r1 = rf(ctx, resourceType, resourceName, errorMessage, accountName, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreatePendingResourceDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreatePendingResourceDeletion'
+type MockDataStore_CreatePendingResourceDeletion_Call struct {
+	*mock.Call
+}
+
+// CreatePendingResourceDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - resourceType string
+//   - resourceName string
+//   - errorMessage string
+//   - accountName string
+//   - poolID int64
+func (_e *MockDataStore_Expecter) CreatePendingResourceDeletion(ctx interface{}, resourceType interface{}, resourceName interface{}, errorMessage interface{}, accountName interface{}, poolID interface{}) *MockDataStore_CreatePendingResourceDeletion_Call {
+	return &MockDataStore_CreatePendingResourceDeletion_Call{Call: _e.mock.On("CreatePendingResourceDeletion", ctx, resourceType, resourceName, errorMessage, accountName, poolID)}
+}
+
+func (_c *MockDataStore_CreatePendingResourceDeletion_Call) Run(run func(ctx context.Context, resourceType string, resourceName string, errorMessage string, accountName string, poolID int64)) *MockDataStore_CreatePendingResourceDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string), args[5].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreatePendingResourceDeletion_Call) Return(_a0 *datamodel.PendingResourceDeletions, _a1 error) *MockDataStore_CreatePendingResourceDeletion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreatePendingResourceDeletion_Call) RunAndReturn(run func(context.Context, string, string, string, string, int64) (*datamodel.PendingResourceDeletions, error)) *MockDataStore_CreatePendingResourceDeletion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSVM provides a mock function with given fields: ctx, svm
 func (_m *MockDataStore) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
 	ret := _m.Called(ctx, svm)
@@ -6306,6 +6369,62 @@ func (_c *MockDataStore_GetReplicationSnapshotsByVolumeID_Call) RunAndReturn(run
 	return _c
 }
 
+// GetResourcesCount provides a mock function with given fields: ctx
+func (_m *MockDataStore) GetResourcesCount(ctx context.Context) (int64, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetResourcesCount")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) int64); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetResourcesCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetResourcesCount'
+type MockDataStore_GetResourcesCount_Call struct {
+	*mock.Call
+}
+
+// GetResourcesCount is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) GetResourcesCount(ctx interface{}) *MockDataStore_GetResourcesCount_Call {
+	return &MockDataStore_GetResourcesCount_Call{Call: _e.mock.On("GetResourcesCount", ctx)}
+}
+
+func (_c *MockDataStore_GetResourcesCount_Call) Run(run func(ctx context.Context)) *MockDataStore_GetResourcesCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetResourcesCount_Call) Return(_a0 int64, _a1 error) *MockDataStore_GetResourcesCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetResourcesCount_Call) RunAndReturn(run func(context.Context) (int64, error)) *MockDataStore_GetResourcesCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetServiceAccountFromEmail provides a mock function with given fields: ctx, email
 func (_m *MockDataStore) GetServiceAccountFromEmail(ctx context.Context, email string) (*datamodel.ServiceAccount, error) {
 	ret := _m.Called(ctx, email)
@@ -8707,6 +8826,66 @@ func (_c *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call) RunAndReturn(ru
 	return _c
 }
 
+// ListPendingResourceDeletions provides a mock function with given fields: ctx, offset, limit
+func (_m *MockDataStore) ListPendingResourceDeletions(ctx context.Context, offset int, limit int) ([]*datamodel.PendingResourceDeletions, error) {
+	ret := _m.Called(ctx, offset, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPendingResourceDeletions")
+	}
+
+	var r0 []*datamodel.PendingResourceDeletions
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) ([]*datamodel.PendingResourceDeletions, error)); ok {
+		return rf(ctx, offset, limit)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) []*datamodel.PendingResourceDeletions); ok {
+		r0 = rf(ctx, offset, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.PendingResourceDeletions)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
+		r1 = rf(ctx, offset, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListPendingResourceDeletions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPendingResourceDeletions'
+type MockDataStore_ListPendingResourceDeletions_Call struct {
+	*mock.Call
+}
+
+// ListPendingResourceDeletions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - offset int
+//   - limit int
+func (_e *MockDataStore_Expecter) ListPendingResourceDeletions(ctx interface{}, offset interface{}, limit interface{}) *MockDataStore_ListPendingResourceDeletions_Call {
+	return &MockDataStore_ListPendingResourceDeletions_Call{Call: _e.mock.On("ListPendingResourceDeletions", ctx, offset, limit)}
+}
+
+func (_c *MockDataStore_ListPendingResourceDeletions_Call) Run(run func(ctx context.Context, offset int, limit int)) *MockDataStore_ListPendingResourceDeletions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListPendingResourceDeletions_Call) Return(_a0 []*datamodel.PendingResourceDeletions, _a1 error) *MockDataStore_ListPendingResourceDeletions_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListPendingResourceDeletions_Call) RunAndReturn(run func(context.Context, int, int) ([]*datamodel.PendingResourceDeletions, error)) *MockDataStore_ListPendingResourceDeletions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPoolUUIDs provides a mock function with given fields: ctx, filter
 func (_m *MockDataStore) ListPoolUUIDs(ctx context.Context, filter *utils.Filter) ([]*PoolIdentifier, error) {
 	ret := _m.Called(ctx, filter)
@@ -10751,6 +10930,67 @@ func (_c *MockDataStore_UpdateNodeNodeGroupMap_Call) Return(_a0 *datamodel.NodeN
 }
 
 func (_c *MockDataStore_UpdateNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)) *MockDataStore_UpdateNodeNodeGroupMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdatePendingResourceDeletion provides a mock function with given fields: ctx, resourceID, isDeletion, errorMessage
+func (_m *MockDataStore) UpdatePendingResourceDeletion(ctx context.Context, resourceID int64, isDeletion bool, errorMessage string) (*datamodel.PendingResourceDeletions, error) {
+	ret := _m.Called(ctx, resourceID, isDeletion, errorMessage)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePendingResourceDeletion")
+	}
+
+	var r0 *datamodel.PendingResourceDeletions
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, bool, string) (*datamodel.PendingResourceDeletions, error)); ok {
+		return rf(ctx, resourceID, isDeletion, errorMessage)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, bool, string) *datamodel.PendingResourceDeletions); ok {
+		r0 = rf(ctx, resourceID, isDeletion, errorMessage)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.PendingResourceDeletions)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, bool, string) error); ok {
+		r1 = rf(ctx, resourceID, isDeletion, errorMessage)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdatePendingResourceDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePendingResourceDeletion'
+type MockDataStore_UpdatePendingResourceDeletion_Call struct {
+	*mock.Call
+}
+
+// UpdatePendingResourceDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - resourceID int64
+//   - isDeletion bool
+//   - errorMessage string
+func (_e *MockDataStore_Expecter) UpdatePendingResourceDeletion(ctx interface{}, resourceID interface{}, isDeletion interface{}, errorMessage interface{}) *MockDataStore_UpdatePendingResourceDeletion_Call {
+	return &MockDataStore_UpdatePendingResourceDeletion_Call{Call: _e.mock.On("UpdatePendingResourceDeletion", ctx, resourceID, isDeletion, errorMessage)}
+}
+
+func (_c *MockDataStore_UpdatePendingResourceDeletion_Call) Run(run func(ctx context.Context, resourceID int64, isDeletion bool, errorMessage string)) *MockDataStore_UpdatePendingResourceDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(bool), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdatePendingResourceDeletion_Call) Return(_a0 *datamodel.PendingResourceDeletions, _a1 error) *MockDataStore_UpdatePendingResourceDeletion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdatePendingResourceDeletion_Call) RunAndReturn(run func(context.Context, int64, bool, string) (*datamodel.PendingResourceDeletions, error)) *MockDataStore_UpdatePendingResourceDeletion_Call {
 	_c.Call.Return(run)
 	return _c
 }

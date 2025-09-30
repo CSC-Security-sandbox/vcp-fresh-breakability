@@ -72,6 +72,7 @@ var (
 	initializeMockManagementService = _initializeMockManagementService
 	initializeMockNetworkingService = _initializeMockNetworkingService
 	initializeMockComputeService    = _initializeMockComputeService
+	isBucketDeletePolicySet         = _isBucketDeletePolicySet
 )
 
 type GcpServices struct {
@@ -579,20 +580,68 @@ func (gcpService *GcpServices) CreateBucketIfNotExists(ctx context.Context, proj
 	return nil
 }
 
-func (gcpService *GcpServices) DeleteBucket(ctx context.Context, bucketName string) error {
+func (gcpService *GcpServices) DeleteBucketWithLifecyclePolicy(ctx context.Context, bucketName string) (bool, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("Deleting bucket: %s", bucketName)
+	logger.Debugf("Attempting to delete bucket: %s", bucketName)
 
+	// Attempt to delete the bucket
 	err := gcpService.AdminGCPService.storageService.Bucket(bucketName).Delete(ctx)
 	if err != nil {
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) && gErr.Code == http.StatusNotFound {
 			// Bucket does not exist, treat as success
-			return nil
+			logger.Infof("Bucket %s does not exist. Treating as success.", bucketName)
+			return true, nil
 		}
-		return fmt.Errorf("Buckets.Delete: %v", err)
+
+		// Fetch bucket attributes to check for lifecycle policies
+		bucketAttr, attrErr := gcpService.AdminGCPService.storageService.Bucket(bucketName).Attrs(ctx)
+		if attrErr != nil {
+			var apiErr *googleapi.Error
+			if !errors.As(attrErr, &apiErr) || apiErr.Code != http.StatusNotFound {
+				return false, fmt.Errorf("failed to fetch attributes for bucket %s: %w", bucketName, attrErr)
+			}
+		}
+
+		// Check if a delete lifecycle policy is set
+		if isBucketDeletePolicySet(bucketAttr) {
+			logger.Infof("Bucket %s has a delete lifecycle policy set. Skipping deletion.", bucketName)
+			return false, nil
+		}
+
+		// Attempt to set a lifecycle policy to delete all objects
+		_, updateErr := gcpService.AdminGCPService.storageService.Bucket(bucketName).Update(ctx, storage.BucketAttrsToUpdate{
+			Lifecycle: &storage.Lifecycle{
+				Rules: []storage.LifecycleRule{
+					{
+						Action:    storage.LifecycleAction{Type: "Delete"},
+						Condition: storage.LifecycleCondition{AllObjects: true},
+					},
+				},
+			},
+		})
+		if updateErr != nil {
+			logger.Errorf("Failed to set lifecycle policy for bucket %s: %v", bucketName, updateErr)
+			return false, fmt.Errorf("error setting lifecycle policy for bucket %s: %w", bucketName, updateErr)
+		}
+
+		return false, nil
 	}
-	return nil
+
+	logger.Infof("Bucket %s successfully deleted.", bucketName)
+	return true, nil
+}
+
+func _isBucketDeletePolicySet(bucket *storage.BucketAttrs) bool {
+	if bucket == nil || bucket.Lifecycle.Rules == nil || len(bucket.Lifecycle.Rules) == 0 {
+		return false
+	}
+	for _, rule := range bucket.Lifecycle.Rules {
+		if rule.Action.Type == "Delete" && rule.Condition.AllObjects {
+			return true
+		}
+	}
+	return false
 }
 
 // GetBucket retrieves bucket details from GCP Storage API

@@ -39,6 +39,12 @@ func LoadJobSpecs() error {
 	if err != nil {
 		return err
 	}
+	// Override DELETE_RESOURCES cron expression from environment variable if set
+	if deleteResourcesSpec, exists := adminJobSpecs["DELETE_RESOURCES"]; exists {
+		if envCronExpr := env.GetString("DELETE_RESOURCES_CRON_EXPRESSION", ""); envCronExpr != "" {
+			deleteResourcesSpec.CronExpression = envCronExpr
+		}
+	}
 
 	// Remove the SYNC_AUTO_TIERING_POOLS job spec if auto tiering feature is not enabled.
 	if !env.GetBool("AUTO_TIERING_ENABLED", false) {

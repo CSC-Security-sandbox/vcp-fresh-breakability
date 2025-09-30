@@ -541,8 +541,8 @@ func TestBackupVaultActivity_DeleteBackupVaultBuckets(t *testing.T) {
 				hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 					return &google.GcpServices{}, nil
 				}
-				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
-					return nil
+				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
+					return true, nil
 				}
 			},
 			expectedError: false,
@@ -577,10 +577,9 @@ func TestBackupVaultActivity_DeleteBackupVaultBuckets(t *testing.T) {
 				hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 					return &google.GcpServices{}, nil
 				}
-				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
-					// Should only be called for bucket-2
+				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) { // Should only be called for bucket-2
 					assert.Equal(t, "bucket-2", bucketName)
-					return nil
+					return true, nil
 				}
 			},
 			expectedError: false,
@@ -599,9 +598,9 @@ func TestBackupVaultActivity_DeleteBackupVaultBuckets(t *testing.T) {
 				hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 					return &google.GcpServices{}, nil
 				}
-				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
+				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
 					t.Fatal("DeleteGCPBucket should not be called when there are no buckets")
-					return nil
+					return false, nil
 				}
 			},
 			expectedError: false,
@@ -655,12 +654,12 @@ func TestBackupVaultActivity_DeleteBackupVaultBuckets(t *testing.T) {
 				hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 					return &google.GcpServices{}, nil
 				}
-				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
+				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
 					if bucketName == "bucket-1" {
-						return errors.New("failed to delete bucket-1")
+						return false, errors.New("failed to delete bucket-1")
 					}
 					t.Fatal("DeleteGCPBucket should not be called for bucket-2 when bucket-1 fails")
-					return nil
+					return false, nil
 				}
 			},
 			expectedError: true,
@@ -691,15 +690,15 @@ func TestBackupVaultActivity_DeleteBackupVaultBuckets(t *testing.T) {
 				hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 					return &google.GcpServices{}, nil
 				}
-				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
+				DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
 					if bucketName == "bucket-1" {
-						return nil
+						return true, nil
 					}
 					if bucketName == "bucket-2" {
-						return errors.New("failed to delete bucket-2")
+						return false, errors.New("failed to delete bucket-2")
 					}
 					t.Fatal("DeleteGCPBucket called with unexpected bucket name")
-					return nil
+					return false, nil
 				}
 			},
 			expectedError: true,
@@ -799,9 +798,9 @@ func TestBackupVaultActivity_DeleteBackupVaultBuckets_EdgeCases(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) error {
+		DeleteGCPBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (bool, error) {
 			t.Fatal("DeleteGCPBucket should not be called when bucket details is nil")
-			return nil
+			return false, nil
 		}
 		mockStorage := database.NewMockStorage(t)
 

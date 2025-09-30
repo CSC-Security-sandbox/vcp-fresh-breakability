@@ -201,6 +201,41 @@ func (j JSONB) Value() (driver.Value, error) {
 	return json.Marshal(j)
 }
 
+type ResourceAttributes struct {
+	PoolID int64 `json:"pool_id"`
+}
+
+// Scan implements the Scanner interface for ResourceAttributes
+func (ra *ResourceAttributes) Scan(value interface{}) error {
+	if value == nil {
+		*ra = ResourceAttributes{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, ra)
+}
+
+// Value implements the Valuer interface for ResourceAttributes
+func (ra ResourceAttributes) Value() (driver.Value, error) {
+	return json.Marshal(ra)
+}
+
+type PendingResourceDeletions struct {
+	ID                 int64               `json:"id" gorm:"primaryKey"`
+	CreatedAt          time.Time           `json:"createdAt"`
+	UpdatedAt          time.Time           `json:"updatedAt"`
+	DeletedAt          *gorm.DeletedAt     `gorm:"index" json:"deletedAt"`
+	ResourceType       string              `gorm:"column:resource_type;type:text;not null"`
+	ResourceName       string              `gorm:"column:resource_name;type:text;not null;uniqueIndex"`
+	RetryCounter       int64               `gorm:"column:retry_counter;type:bigint"`
+	Error              string              `gorm:"column:error;type:text"`
+	AccountName        string              `gorm:"column:account_name;type:text"`
+	ResourceAttributes *ResourceAttributes `gorm:"column:resource_attributes;type:jsonb"`
+}
+
 type VolumeAttributes struct {
 	CreationToken      string           `json:"creation_token"`
 	Protocols          []string         `json:"protocols"`

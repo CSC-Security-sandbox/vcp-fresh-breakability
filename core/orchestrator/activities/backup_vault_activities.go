@@ -374,7 +374,7 @@ func (j *BackupVaultActivity) DeleteBackupVaultBuckets(ctx context.Context, back
 	for _, bucketDetail := range backupVault.BucketDetails {
 		if bucketDetail.BucketName != "" {
 			logger.Infof("Deleting bucket %s for backup vault %s", bucketDetail.BucketName, backupVault.Name)
-			err = DeleteGCPBucket(ctx, bucketDetail.BucketName, gcpService)
+			_, err := DeleteGCPBucket(ctx, bucketDetail.BucketName, gcpService)
 			if err != nil {
 				logger.Errorf("Failed to delete bucket %s: %v", bucketDetail.BucketName, err)
 				return errors.WrapAsTemporalApplicationError(err)
@@ -469,7 +469,7 @@ func (a *BackupVaultActivity) deleteGCPBucketsForVault(ctx context.Context, vaul
 			}
 
 			// Then delete the empty bucket
-			err = gcpService.DeleteBucket(ctx, bucketDetail.BucketName)
+			_, err = gcpService.DeleteBucketWithLifecyclePolicy(ctx, bucketDetail.BucketName)
 			if err != nil {
 				logger.Errorf("Failed to delete bucket %s: %v", bucketDetail.BucketName, err)
 				return errors.NewVCPError(errors.ErrGCPResourceDeprovisionError, err)

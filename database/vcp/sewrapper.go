@@ -309,6 +309,46 @@ func (re *retryEngine) ListPoolUUIDsPaginated(ctx context.Context, filter *dbuti
 	return var0, err
 }
 
+func (re *retryEngine) ListPendingResourceDeletions(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error) {
+	var var0 []*datamodel.PendingResourceDeletions
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListPendingResourceDeletions(ctx, offset, limit)
+		if err != nil {
+			re.logError("ListPendingResourceDeletions", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetResourcesCount(ctx context.Context) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetResourcesCount(ctx)
+		if err != nil {
+			re.logError("GetResourcesCount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetPoolsCount(ctx context.Context, filter *dbutils.Filter) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4109,4 +4149,44 @@ func (re *retryEngine) HardDeleteResourceByTable(ctx context.Context, table stri
 	}
 
 	return err
+}
+
+func (re *retryEngine) CreatePendingResourceDeletion(ctx context.Context, resourceType, resourceName, errorMessage, accountName string, poolID int64) (*datamodel.PendingResourceDeletions, error) {
+	var var0 *datamodel.PendingResourceDeletions
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreatePendingResourceDeletion(ctx, resourceType, resourceName, errorMessage, accountName, poolID)
+		if err != nil {
+			re.logError("CreatePendingResourceDeletion", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdatePendingResourceDeletion(ctx context.Context, resourceID int64, isDeletion bool, errorMessage string) (*datamodel.PendingResourceDeletions, error) {
+	var var0 *datamodel.PendingResourceDeletions
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdatePendingResourceDeletion(ctx, resourceID, isDeletion, errorMessage)
+		if err != nil {
+			re.logError("UpdatePendingResourceDeletion", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
 }

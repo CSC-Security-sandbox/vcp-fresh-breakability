@@ -35,6 +35,7 @@ data:
   GCP_HYDRATE_BASE_URL: "{{ index .Values "gcpHydrateBaseUrl" }}"
   PROXY_CLIENT_TRANSPORT_SCHEMA: "{{ index .Values "proxyClientTransportSchema" }}"
   VCP_PAIRED_REGIONS: "{{ index .Values "vcpPairedRegions" }}"
+  DELETE_RESOURCES_CRON_EXPRESSION: "{{ index .Values "deleteResourcesCronExpression" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
   CVP_HOST: "{{ index .Values "cvpHost" }}"
   VSA_AUTH_TYPE: "{{ index .Values "vsaAuthType" }}" #0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
