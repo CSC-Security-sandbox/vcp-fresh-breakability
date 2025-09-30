@@ -518,6 +518,68 @@ func (d *DataStoreRepository) ListPoolUUIDs(ctx context.Context, filter *utils2.
 	return results, nil
 }
 
+// ListPoolUUIDsPaginated retrieves pool identifiers with pagination support
+func (d *DataStoreRepository) ListPoolUUIDsPaginated(ctx context.Context, filter *utils2.Filter, offset, limit int) ([]*PoolIdentifier, error) {
+	var db *gorm.DB
+
+	if filter != nil {
+		if filter.ShouldIncludeDeleted() {
+			db = d.db.ApplyFilter(filter.Apply()).Unscoped().GORM().WithContext(ctx)
+		} else {
+			db = d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
+		}
+	} else {
+		db = d.db.GORM().WithContext(ctx)
+	}
+
+	// Apply pagination if limit > 0
+	if limit > 0 {
+		db = db.Limit(limit)
+	}
+	if offset > 0 {
+		db = db.Offset(offset)
+	}
+
+	var results []*PoolIdentifier
+	err := db.Model(&datamodel.Pool{}).Select("uuid, vendor_id, name, account_id").Find(&results).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return results, nil
+}
+
+// GetPoolsCount counts pools based on the provided filter
+func (d *DataStoreRepository) GetPoolsCount(ctx context.Context, filter *utils2.Filter) (int64, error) {
+	var db *gorm.DB
+
+	if filter != nil {
+		if filter.ShouldIncludeDeleted() {
+			db = d.db.ApplyFilter(filter.Apply()).Unscoped().GORM().WithContext(ctx)
+		} else {
+			db = d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
+		}
+	} else {
+		db = d.db.GORM().WithContext(ctx)
+	}
+
+	var count int64
+	var err error
+	
+	// Only apply deleted_at filter when not including deleted records
+	if filter == nil || !filter.ShouldIncludeDeleted() {
+		err = db.Model(&datamodel.Pool{}).Where("deleted_at IS NULL").Count(&count).Error
+	} else {
+		err = db.Model(&datamodel.Pool{}).Count(&count).Error
+	}
+	
+	if err != nil {
+		return 0, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return count, nil
+}
+
 func _getPoolsByKmsConfigID(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Pool, error) {
 	var pools []*datamodel.Pool
 	err := db.Where("kms_config_id = ?", kmsConfigID).Find(&pools).Error

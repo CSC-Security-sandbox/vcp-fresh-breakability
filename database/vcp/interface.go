@@ -47,6 +47,8 @@ type (
 		GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 		ListPools(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.PoolView, error)
 		ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error)
+		ListPoolUUIDsPaginated(ctx context.Context, filter *dbutils.Filter, offset, limit int) ([]*PoolIdentifier, error)
+		GetPoolsCount(ctx context.Context, filter *dbutils.Filter) (int64, error)
 		GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error)
 		GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error)
 		SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error

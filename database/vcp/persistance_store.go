@@ -403,6 +403,14 @@ func (s *PersistenceStore) ListPoolUUIDs(ctx context.Context, filter *dbutils.Fi
 	return s.dataStore.ListPoolUUIDs(ctx, filter)
 }
 
+func (s *PersistenceStore) ListPoolUUIDsPaginated(ctx context.Context, filter *dbutils.Filter, offset, limit int) ([]*PoolIdentifier, error) {
+	return s.dataStore.ListPoolUUIDsPaginated(ctx, filter, offset, limit)
+}
+
+func (s *PersistenceStore) GetPoolsCount(ctx context.Context, filter *dbutils.Filter) (int64, error) {
+	return s.dataStore.GetPoolsCount(ctx, filter)
+}
+
 func (s *PersistenceStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPoolByName(ctx, conditions)
 }

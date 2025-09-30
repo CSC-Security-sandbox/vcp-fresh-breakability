@@ -13,10 +13,17 @@ import (
 	temporalutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
+
+var fetchTemporalClient = _fetchTemporalClient
+
+func _fetchTemporalClient(ctx context.Context) client.Client {
+	return activity.GetClient(ctx)
+}
 
 type SyncHardDeleteWF struct {
 	workflows.BaseWorkflow

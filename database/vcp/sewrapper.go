@@ -269,6 +269,46 @@ func (re *retryEngine) ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter
 	return var0, err
 }
 
+func (re *retryEngine) ListPoolUUIDsPaginated(ctx context.Context, filter *dbutils.Filter, offset, limit int) ([]*PoolIdentifier, error) {
+	var var0 []*PoolIdentifier
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListPoolUUIDsPaginated(ctx, filter, offset, limit)
+		if err != nil {
+			re.logError("ListPoolUUIDsPaginated", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetPoolsCount(ctx context.Context, filter *dbutils.Filter) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetPoolsCount(ctx, filter)
+		if err != nil {
+			re.logError("GetPoolsCount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error) {
 	var var0 *datamodel.PoolView
 	err := retry.Do(func(attempt int) (bool, error) {

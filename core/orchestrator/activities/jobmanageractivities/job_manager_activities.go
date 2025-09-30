@@ -28,7 +28,7 @@ const (
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
 var JobTypeToWorkflow = map[string]interface{}{
-	SyncVsaSnapshots:              backgroundworkflows.SyncVSASnapshotsWorkflow,
+	SyncVsaSnapshots:              backgroundworkflows.SnapshotsSyncParentWorkflow,
 	RotateKmsServiceAccounts:      background_kms_workflows.RotateKmsSAKeyWorkflow,
 	OrphanJobScheduler:            backgroundworkflows.OrphanJobSchedulerWorkflow,
 	SyncLatestBackupLogicalSize:   backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,

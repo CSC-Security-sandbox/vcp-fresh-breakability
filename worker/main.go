@@ -319,8 +319,8 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
 	worker.RegisterWorkflow(jobmanagerworkflows.JobManagerWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.SyncVSASnapshotsWorkflow)
-	worker.RegisterWorkflow(backgroundworkflows.SyncSnapshotsForPoolWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SnapshotsSyncParentWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SnapshotsSyncChildWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupInitWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflow)
@@ -351,7 +351,6 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
 	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
-	worker.RegisterActivity(&backgroundworkflows.StartSyncSnapshotForPoolActivity{})
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.OrphanJobActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})

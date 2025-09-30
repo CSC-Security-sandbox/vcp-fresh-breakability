@@ -25,6 +25,46 @@ func TestSetupStorageForTest_Persistence_Store(t *testing.T) {
 	assert.NotNil(t, store.DB())
 }
 
+func TestPersistenceStore_ListPoolUUIDsPaginated(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	filter := &dbutils.Filter{}
+	offset := 0
+	limit := 10
+
+	// Test successful call
+	poolIdentifiers, err := store.ListPoolUUIDsPaginated(ctx, filter, offset, limit)
+	assert.NoError(t, err)
+	assert.NotNil(t, poolIdentifiers)
+}
+
+func TestPersistenceStore_GetPoolsCount(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	filter := &dbutils.Filter{}
+
+	// Test successful call
+	count, err := store.GetPoolsCount(ctx, filter)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, count, int64(0))
+}
+
 func TestClearInMemoryDB_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, err := SetupStorageForTest(logger)

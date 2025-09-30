@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -32,6 +34,96 @@ func setup(t *testing.T) *DataStoreRepository {
 		t.Fatalf("Failed to clean up test database: %v", err)
 	}
 	return store
+}
+
+func TestDataStoreRepository_ListPoolUUIDsPaginated_WithPagination(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	// Create test data
+	pools, account := createDBPools(t, store)
+	defer store.db.Delete(account)
+
+	// Test with pagination
+	filter := &utils.Filter{}
+	offset := 0
+	limit := 1
+
+	results, err := store.ListPoolUUIDsPaginated(ctx, filter, offset, limit)
+	assert.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.Equal(t, pools[0].UUID, results[0].UUID)
+}
+
+func TestDataStoreRepository_ListPoolUUIDsPaginated_WithOffset(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	// Create test data
+	pools, account := createDBPools(t, store)
+	defer store.db.Delete(account)
+
+	// Test with offset
+	filter := &utils.Filter{}
+	offset := 1
+	limit := 1
+
+	results, err := store.ListPoolUUIDsPaginated(ctx, filter, offset, limit)
+	assert.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.Equal(t, pools[2].UUID, results[0].UUID)
+}
+
+func TestDataStoreRepository_GetPoolsCount_WithFilter(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	// Create test data
+	_, account := createDBPools(t, store)
+	defer store.db.Delete(account)
+
+	// Test with filter
+	filter := &utils.Filter{}
+	filter.SetIncludeDeleted(false)
+
+	count, err := store.GetPoolsCount(ctx, filter)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+}
+
+func TestDataStoreRepository_GetPoolsCount_WithDeletedFilter(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	// Create test data
+	pools, account := createDBPools(t, store)
+	defer store.db.Delete(account)
+
+	// Soft delete a pool
+	err := store.db.Delete(pools[0]).Error()
+	assert.NoError(t, err)
+
+	// Test with deleted filter
+	filter := &utils.Filter{}
+	filter.IncludeDeleted = true
+
+	count, err := store.GetPoolsCount(ctx, filter)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(3), count)
+}
+
+func TestDataStoreRepository_GetPoolsCount_WithoutFilter(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	// Create test data
+	_, account := createDBPools(t, store)
+	defer store.db.Delete(account)
+
+	// Test without filter
+	count, err := store.GetPoolsCount(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
 }
 
 func createDBPools(t *testing.T, store *DataStoreRepository) ([]*datamodel.Pool, *datamodel.Account) {
@@ -2164,4 +2256,28 @@ func Test_getPoolsByKmsConfigID(t *testing.T) {
 		_, err = _getPoolsByKmsConfigID(wrapper.GORM(), 1)
 		assert.Error(t, err)
 	})
+}
+
+func TestDataStoreRepository_GetPoolsCount_ErrorHandling(t *testing.T) {
+	// This test covers line 545 in pools.go - error handling in GetPoolsCount
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	filter := &utils.Filter{}
+
+	// Close the database to simulate error
+	sqlDB, _ := store.DB().DB()
+	_ = sqlDB.Close()
+
+	// Test GetPoolsCount with closed database
+	count, err := store.GetPoolsCount(ctx, filter)
+	assert.Error(t, err)
+	assert.Equal(t, int64(0), count)
 }

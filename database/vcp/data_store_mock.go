@@ -6190,6 +6190,63 @@ func (_c *MockDataStore_GetPoolsByAccountName_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GetPoolsCount provides a mock function with given fields: ctx, filter
+func (_m *MockDataStore) GetPoolsCount(ctx context.Context, filter *utils.Filter) (int64, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPoolsCount")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter) (int64, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter) int64); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetPoolsCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPoolsCount'
+type MockDataStore_GetPoolsCount_Call struct {
+	*mock.Call
+}
+
+// GetPoolsCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *utils.Filter
+func (_e *MockDataStore_Expecter) GetPoolsCount(ctx interface{}, filter interface{}) *MockDataStore_GetPoolsCount_Call {
+	return &MockDataStore_GetPoolsCount_Call{Call: _e.mock.On("GetPoolsCount", ctx, filter)}
+}
+
+func (_c *MockDataStore_GetPoolsCount_Call) Run(run func(ctx context.Context, filter *utils.Filter)) *MockDataStore_GetPoolsCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Filter))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolsCount_Call) Return(_a0 int64, _a1 error) *MockDataStore_GetPoolsCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolsCount_Call) RunAndReturn(run func(context.Context, *utils.Filter) (int64, error)) *MockDataStore_GetPoolsCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetReplicationSnapshotsByVolumeID provides a mock function with given fields: ctx, volumeID
 func (_m *MockDataStore) GetReplicationSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, volumeID)
@@ -8705,6 +8762,67 @@ func (_c *MockDataStore_ListPoolUUIDs_Call) Return(_a0 []*PoolIdentifier, _a1 er
 }
 
 func (_c *MockDataStore_ListPoolUUIDs_Call) RunAndReturn(run func(context.Context, *utils.Filter) ([]*PoolIdentifier, error)) *MockDataStore_ListPoolUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListPoolUUIDsPaginated provides a mock function with given fields: ctx, filter, offset, limit
+func (_m *MockDataStore) ListPoolUUIDsPaginated(ctx context.Context, filter *utils.Filter, offset int, limit int) ([]*PoolIdentifier, error) {
+	ret := _m.Called(ctx, filter, offset, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPoolUUIDsPaginated")
+	}
+
+	var r0 []*PoolIdentifier
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, int, int) ([]*PoolIdentifier, error)); ok {
+		return rf(ctx, filter, offset, limit)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, int, int) []*PoolIdentifier); ok {
+		r0 = rf(ctx, filter, offset, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*PoolIdentifier)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter, int, int) error); ok {
+		r1 = rf(ctx, filter, offset, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListPoolUUIDsPaginated_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPoolUUIDsPaginated'
+type MockDataStore_ListPoolUUIDsPaginated_Call struct {
+	*mock.Call
+}
+
+// ListPoolUUIDsPaginated is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *utils.Filter
+//   - offset int
+//   - limit int
+func (_e *MockDataStore_Expecter) ListPoolUUIDsPaginated(ctx interface{}, filter interface{}, offset interface{}, limit interface{}) *MockDataStore_ListPoolUUIDsPaginated_Call {
+	return &MockDataStore_ListPoolUUIDsPaginated_Call{Call: _e.mock.On("ListPoolUUIDsPaginated", ctx, filter, offset, limit)}
+}
+
+func (_c *MockDataStore_ListPoolUUIDsPaginated_Call) Run(run func(ctx context.Context, filter *utils.Filter, offset int, limit int)) *MockDataStore_ListPoolUUIDsPaginated_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Filter), args[2].(int), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListPoolUUIDsPaginated_Call) Return(_a0 []*PoolIdentifier, _a1 error) *MockDataStore_ListPoolUUIDsPaginated_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListPoolUUIDsPaginated_Call) RunAndReturn(run func(context.Context, *utils.Filter, int, int) ([]*PoolIdentifier, error)) *MockDataStore_ListPoolUUIDsPaginated_Call {
 	_c.Call.Return(run)
 	return _c
 }

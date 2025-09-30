@@ -74,6 +74,13 @@ workerConfig:
   objectStoreAuthType: "GCP_SA"
   gcpHydrateEnabled: "true"
   gcpHydrateBatchSize: "10"
+  snapshotSyncMaxConcurrency: 20
+  ontapSnapshotFetchConcurrencyLimit: 5
+  SnapshotSyncParentWorkflowBatchSize: 100
+  SnapshotSyncChildWorkflowTimeout: 120
+  SnapshotSyncChildWorkflowActivityBatchSize: 10
+  SnapshotSyncChildWorkflowActivityTimeoutMinutes: 10
+  SnapshotSyncMaxConcurrentActivitiesPerChild: 5
   gcpHydrateAuthServiceAccount: ""
   gcpHydrateBaseUrl: ""
   proxyClientTransportSchema: "https"
