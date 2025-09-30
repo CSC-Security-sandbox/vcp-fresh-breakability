@@ -86,8 +86,8 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	poolPrimaryZone := pool.PoolAttributes.PrimaryZone
-	// Validate that volume zone matches pool's primary zone
-	if params.Zone != poolPrimaryZone {
+	// Validate that volume zone matches pool's primary zone for zonal volume
+	if !pool.PoolAttributes.IsRegionalHA && params.Zone != poolPrimaryZone {
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume zone '%s' does not match pool's primary zone '%s'.", params.Zone, poolPrimaryZone))
 	}
 

@@ -3446,6 +3446,105 @@ func TestCreateVolume(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Volume zone '' does not match pool's primary zone 'us-west1-a'", "Expected error message about zone mismatch")
 	})
 
+	t.Run("WhenZoneIsEmptyForRegionalPool", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: true,
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Empty zone should return error
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume_regional",
+			Zone:          "", // Empty zone should not cause validation error as regional volume is being created in regional pool
+			VendorID:      "",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Creating regional volume",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+			Name:      "test_account",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		// Mock workflow execution
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		_, workflowID, err := createVolume(ctx, store, temporal, params)
+		assert.NoError(tt, err, "Expected no error when VendorID zone does not match pool's primary zone in case of regional pool")
+		assert.NotEmpty(tt, workflowID, "Expected workflow ID to be returned")
+	})
+
 	t.Run("WhenVendorIDIsEmptyReturnsError", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
