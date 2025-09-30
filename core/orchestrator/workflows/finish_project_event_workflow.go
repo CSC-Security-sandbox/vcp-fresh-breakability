@@ -212,6 +212,11 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 		// Note: We don't return error here to allow the workflow to continue with other cleanup activities
 	}
 
+	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteServiceAccountsFromAccountID, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteAccountActivity, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)

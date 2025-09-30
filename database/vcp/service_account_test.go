@@ -110,3 +110,32 @@ func TestGetGcpKmsServiceAccountFromEmail(t *testing.T) {
 		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "not found")
 	})
 }
+
+func TestDeleteServiceAccount(t *testing.T) {
+	t.Run("DeletesServiceAccountAndUpdatesState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sa := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@email.com",
+			State:               models.AccountStateEnabled,
+			StateDetails:        "active",
+		}
+		err = store.db.Create(sa).Error()
+		assert.NoError(tt, err)
+
+		err = store.DeleteServiceAccount(context.Background(), sa)
+		assert.NoError(tt, err)
+
+		var updated datamodel.ServiceAccount
+		err = store.db.Where("uuid = ?", "sa-uuid").First(&updated).Error()
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateDisabled, updated.State)
+		assert.Equal(tt, models.LifeCycleStateDisabledDetails, updated.StateDetails)
+	})
+}

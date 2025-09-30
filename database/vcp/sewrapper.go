@@ -2741,6 +2741,25 @@ func (re *retryEngine) ListKmsServiceAccounts(ctx context.Context, filter *dbuti
 	return var0, err
 }
 
+func (re *retryEngine) DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteServiceAccount(ctx, serviceAccount)
+		if err != nil {
+			re.logError("DeleteServiceAccount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName, ownerID string) (*datamodel.BackupVault, error) {
 	var var0 *datamodel.BackupVault
 	err := retry.Do(func(attempt int) (bool, error) {

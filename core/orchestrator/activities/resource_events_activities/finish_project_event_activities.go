@@ -188,3 +188,29 @@ func (j *FinishProjectEventActivity) RollbackAccountStateActivity(ctx context.Co
 	}
 	return nil
 }
+
+func (j *FinishProjectEventActivity) DeleteServiceAccountsFromAccountID(ctx context.Context, projectNumber string) error {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+	account, err := se.GetAccount(ctx, projectNumber)
+	if err != nil {
+		logger.Errorf("Error getting account for project %s", projectNumber)
+		return err
+	}
+
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", account.ID))
+
+	serviceAccounts, err := se.ListKmsServiceAccounts(ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	for _, serviceAccount := range serviceAccounts {
+		err = se.DeleteServiceAccount(ctx, serviceAccount)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

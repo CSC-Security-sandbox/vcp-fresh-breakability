@@ -6,6 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -15,6 +16,7 @@ import (
 
 var (
 	listKmsServiceAccounts = _listKmsServiceAccounts
+	deleteServiceAccount   = _deleteServiceAccount
 )
 
 func (d *DataStoreRepository) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error) {
@@ -75,4 +77,16 @@ func _listKmsServiceAccounts(db *gorm.DB) ([]*datamodel.ServiceAccount, error) {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return sa, nil
+}
+
+func (d *DataStoreRepository) DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error {
+	return deleteServiceAccount(d.db.GORM().WithContext(ctx), serviceAccount)
+}
+
+func _deleteServiceAccount(db *gorm.DB, serviceAccount *datamodel.ServiceAccount) error {
+	serviceAccount.UpdatedAt = utils.GetTimeNow()
+	serviceAccount.State = models.LifeCycleStateDisabled
+	serviceAccount.StateDetails = models.LifeCycleStateDisabledDetails
+
+	return db.Save(serviceAccount).Error
 }

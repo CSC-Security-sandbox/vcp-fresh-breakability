@@ -2560,6 +2560,53 @@ func (_c *MockStorage_DeleteSVM_Call) RunAndReturn(run func(context.Context, *da
 	return _c
 }
 
+// DeleteServiceAccount provides a mock function with given fields: ctx, serviceAccount
+func (_m *MockStorage) DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error {
+	ret := _m.Called(ctx, serviceAccount)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteServiceAccount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ServiceAccount) error); ok {
+		r0 = rf(ctx, serviceAccount)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_DeleteServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteServiceAccount'
+type MockStorage_DeleteServiceAccount_Call struct {
+	*mock.Call
+}
+
+// DeleteServiceAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccount *datamodel.ServiceAccount
+func (_e *MockStorage_Expecter) DeleteServiceAccount(ctx interface{}, serviceAccount interface{}) *MockStorage_DeleteServiceAccount_Call {
+	return &MockStorage_DeleteServiceAccount_Call{Call: _e.mock.On("DeleteServiceAccount", ctx, serviceAccount)}
+}
+
+func (_c *MockStorage_DeleteServiceAccount_Call) Run(run func(ctx context.Context, serviceAccount *datamodel.ServiceAccount)) *MockStorage_DeleteServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ServiceAccount))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteServiceAccount_Call) Return(_a0 error) *MockStorage_DeleteServiceAccount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_DeleteServiceAccount_Call) RunAndReturn(run func(context.Context, *datamodel.ServiceAccount) error) *MockStorage_DeleteServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteSnapshot provides a mock function with given fields: ctx, id
 func (_m *MockStorage) DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, id)

@@ -671,3 +671,79 @@ func Test_RollbackAccountStateActivity(t *testing.T) {
 		mockSE.AssertExpectations(tt)
 	})
 }
+
+func Test_DeleteServiceAccountsFromAccountID(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		projectNumber := "test-project"
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: projectNumber}
+		serviceAccounts := []*datamodel.ServiceAccount{
+			{BaseModel: datamodel.BaseModel{ID: 1}},
+			{BaseModel: datamodel.BaseModel{ID: 2}},
+		}
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListKmsServiceAccounts(ctx, mock.Anything).Return(serviceAccounts, nil)
+		mockSE.EXPECT().DeleteServiceAccount(ctx, serviceAccounts[0]).Return(nil)
+		mockSE.EXPECT().DeleteServiceAccount(ctx, serviceAccounts[1]).Return(nil)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		err := activity.DeleteServiceAccountsFromAccountID(ctx, projectNumber)
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("GetAccount_Error", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		projectNumber := "test-project"
+		expectedErr := errors.New("account not found")
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(nil, expectedErr)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		err := activity.DeleteServiceAccountsFromAccountID(ctx, projectNumber)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedErr, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ListKmsServiceAccounts_Error", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		projectNumber := "test-project"
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: projectNumber}
+		expectedErr := errors.New("list service accounts failed")
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListKmsServiceAccounts(ctx, mock.Anything).Return(nil, expectedErr)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		err := activity.DeleteServiceAccountsFromAccountID(ctx, projectNumber)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedErr, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteServiceAccount_Error", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		projectNumber := "test-project"
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: projectNumber}
+		serviceAccounts := []*datamodel.ServiceAccount{
+			{BaseModel: datamodel.BaseModel{ID: 1}},
+		}
+		expectedErr := errors.New("delete service account failed")
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListKmsServiceAccounts(ctx, mock.Anything).Return(serviceAccounts, nil)
+		mockSE.EXPECT().DeleteServiceAccount(ctx, serviceAccounts[0]).Return(expectedErr)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		err := activity.DeleteServiceAccountsFromAccountID(ctx, projectNumber)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedErr, err)
+		mockSE.AssertExpectations(tt)
+	})
+}

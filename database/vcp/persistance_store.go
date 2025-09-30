@@ -1154,3 +1154,7 @@ func (s *PersistenceStore) GetLatestBackupsGroupedByVolumeUUID(ctx context.Conte
 func (s *PersistenceStore) GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
 	return s.dataStore.GetAccounts(ctx, includeDelete, pagination)
 }
+
+func (s *PersistenceStore) DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error {
+	return s.dataStore.DeleteServiceAccount(ctx, serviceAccount)
+}
