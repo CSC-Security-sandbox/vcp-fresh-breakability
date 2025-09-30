@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
@@ -507,8 +508,22 @@ func TestPersistenceStore_AggregatedUsageCRUD(t *testing.T) {
 	// Test Create
 	t.Run("create aggregated usage", func(t *testing.T) {
 		usage := &datamodel.AggregatedUsage{
-			ResourceType: metadata.ResourceType("storage"),
-			// Using Quantity field which is the correct field name
+			ID:               1001,
+			ResourceUUID:     "test-resource-uuid",
+			AccountID:        "test-account",
+			VendorCustomerID: ptrString("vendor-cust-123"),
+			AggregationStart: time.Now(),
+			AggregationEnd:   time.Now().Add(1 * time.Hour),
+			MeasuredType:     metadata.MeasuredType("test-measured"),
+			ResourceType:     metadata.ResourceType("storage"),
+			Quantity:         10.0,
+			AggregationType:  "hourly",
+			IsBillable:       true,
+			State:            datamodel.Unsubmitted,
+			VolumeStyle:      "block",
+			ServiceLevel:     "gold",
+			ReplicationType:  "none",
+			IsUnified:        false,
 		}
 
 		err := ps.CreateAggregatedUsage(ctx, usage)
@@ -940,8 +955,14 @@ func TestPersistenceStore_FieldValidation(t *testing.T) {
 
 	t.Run("aggregated usage with zero values", func(t *testing.T) {
 		usage := &datamodel.AggregatedUsage{
-			ResourceType:    "",
-			AggregationType: "",
+			ID:               1001,
+			ResourceUUID:     "",
+			AccountID:        "",
+			VendorCustomerID: ptrString(""),
+			MeasuredType:     metadata.MeasuredType(""),
+			ResourceType:     metadata.ResourceType(""),
+			AggregationType:  "",
+			State:            datamodel.TrackingState(0),
 		}
 
 		err := ps.CreateAggregatedUsage(ctx, usage)

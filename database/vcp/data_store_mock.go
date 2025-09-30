@@ -8886,6 +8886,66 @@ func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
+// ListPoolsWithPagination provides a mock function with given fields: ctx, filter, pagination
+func (_m *MockDataStore) ListPoolsWithPagination(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination) ([]*datamodel.PoolView, error) {
+	ret := _m.Called(ctx, filter, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPoolsWithPagination")
+	}
+
+	var r0 []*datamodel.PoolView
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, *utils.Pagination) ([]*datamodel.PoolView, error)); ok {
+		return rf(ctx, filter, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, *utils.Pagination) []*datamodel.PoolView); ok {
+		r0 = rf(ctx, filter, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.PoolView)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter, *utils.Pagination) error); ok {
+		r1 = rf(ctx, filter, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListPoolsWithPagination_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPoolsWithPagination'
+type MockDataStore_ListPoolsWithPagination_Call struct {
+	*mock.Call
+}
+
+// ListPoolsWithPagination is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *utils.Filter
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListPoolsWithPagination(ctx interface{}, filter interface{}, pagination interface{}) *MockDataStore_ListPoolsWithPagination_Call {
+	return &MockDataStore_ListPoolsWithPagination_Call{Call: _e.mock.On("ListPoolsWithPagination", ctx, filter, pagination)}
+}
+
+func (_c *MockDataStore_ListPoolsWithPagination_Call) Run(run func(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination)) *MockDataStore_ListPoolsWithPagination_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Filter), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListPoolsWithPagination_Call) Return(_a0 []*datamodel.PoolView, _a1 error) *MockDataStore_ListPoolsWithPagination_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListPoolsWithPagination_Call) RunAndReturn(run func(context.Context, *utils.Filter, *utils.Pagination) ([]*datamodel.PoolView, error)) *MockDataStore_ListPoolsWithPagination_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListSvmsWithAccountId provides a mock function with given fields: ctx, accountId
 func (_m *MockDataStore) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
 	ret := _m.Called(ctx, accountId)
@@ -9175,6 +9235,66 @@ func (_c *MockDataStore_ListVolumesWithAccounts_Call) Return(_a0 []*datamodel.Vo
 }
 
 func (_c *MockDataStore_ListVolumesWithAccounts_Call) RunAndReturn(run func(context.Context) ([]*datamodel.Volume, error)) *MockDataStore_ListVolumesWithAccounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVolumesWithPagination provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockDataStore) ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Volume, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVolumesWithPagination")
+	}
+
+	var r0 []*datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Volume, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.Volume); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListVolumesWithPagination_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVolumesWithPagination'
+type MockDataStore_ListVolumesWithPagination_Call struct {
+	*mock.Call
+}
+
+// ListVolumesWithPagination is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListVolumesWithPagination(ctx interface{}, conditions interface{}, pagination interface{}) *MockDataStore_ListVolumesWithPagination_Call {
+	return &MockDataStore_ListVolumesWithPagination_Call{Call: _e.mock.On("ListVolumesWithPagination", ctx, conditions, pagination)}
+}
+
+func (_c *MockDataStore_ListVolumesWithPagination_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockDataStore_ListVolumesWithPagination_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListVolumesWithPagination_Call) Return(_a0 []*datamodel.Volume, _a1 error) *MockDataStore_ListVolumesWithPagination_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListVolumesWithPagination_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Volume, error)) *MockDataStore_ListVolumesWithPagination_Call {
 	_c.Call.Return(run)
 	return _c
 }

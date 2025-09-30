@@ -399,6 +399,10 @@ func (s *PersistenceStore) ListPools(ctx context.Context, filter *dbutils.Filter
 	return s.dataStore.ListPools(ctx, filter)
 }
 
+func (s *PersistenceStore) ListPoolsWithPagination(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error) {
+	return s.dataStore.ListPoolsWithPagination(ctx, filter, pagination)
+}
+
 func (s *PersistenceStore) ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error) {
 	return s.dataStore.ListPoolUUIDs(ctx, filter)
 }
@@ -533,6 +537,10 @@ func (s *PersistenceStore) UpdateVolumeState(ctx context.Context, id string, sta
 
 func (s *PersistenceStore) ListVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
 	return s.dataStore.ListVolumes(ctx, conditions)
+}
+
+func (s *PersistenceStore) ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	return s.dataStore.ListVolumesWithPagination(ctx, conditions, pagination)
 }
 
 func (s *PersistenceStore) GetVolumeCount(ctx context.Context, accountName string) (int64, error) {

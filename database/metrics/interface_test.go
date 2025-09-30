@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -87,8 +88,22 @@ func TestDataStoreRepository_AggregatedUsageCRUD(t *testing.T) {
 	ctx := context.Background()
 
 	usage := &datamodel.AggregatedUsage{
-		ID:           1001,
-		ResourceType: metadata.ResourceType("test-resource"),
+		ID:               1001,
+		ResourceUUID:     "test-resource-uuid",
+		AccountID:        "test-account",
+		VendorCustomerID: ptrString("vendor-cust-123"),
+		AggregationStart: time.Now(),
+		AggregationEnd:   time.Now().Add(1 * time.Hour),
+		MeasuredType:     metadata.MeasuredType("test-measured"),
+		ResourceType:     metadata.ResourceType("test-resource"),
+		Quantity:         10.0,
+		AggregationType:  "sum",
+		IsBillable:       true,
+		State:            datamodel.Unsubmitted,
+		VolumeStyle:      "block",
+		ServiceLevel:     "gold",
+		ReplicationType:  "none",
+		IsUnified:        false,
 	}
 	// Create
 	assert.NoError(t, repo.CreateAggregatedUsage(ctx, usage))
@@ -112,4 +127,15 @@ func TestDataStoreRepository_AggregatedUsageCRUD(t *testing.T) {
 	usages, err = repo.GetAggregatedUsage(ctx, map[string]interface{}{"id": 1001})
 	assert.NoError(t, err)
 	assert.Empty(t, usages)
+}
+
+func ptrString(s string) *string {
+	return &s
+}
+
+func TestPtrString(t *testing.T) {
+	s := "hello"
+	ptr := ptrString(s)
+	assert.NotNil(t, ptr)
+	assert.Equal(t, "hello", *ptr)
 }

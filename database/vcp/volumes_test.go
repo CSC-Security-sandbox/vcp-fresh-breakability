@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -2442,5 +2443,355 @@ func TestBuildVolumeUpdateQuery(t *testing.T) {
 		assert.Equal(tt, int64(2000), args[3]) // int64 value
 		assert.Equal(tt, "test-uuid-3", args[4])
 		assert.Equal(tt, "3000", args[5]) // string value
+	})
+}
+
+// Add this test method at the end of the file
+func TestListVolumesWithPagination(t *testing.T) {
+	t.Run("WhenNoVolumesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		conditions := [][]interface{}{
+			{"account_id", "=", 999}, // Non-existent account ID
+		}
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+		volumes, err := store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 0, len(volumes), "Expected %v volumes, got %v", 0, len(volumes))
+	})
+
+	t.Run("WhenVolumesExistWithPagination", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		// Create 5 volumes for pagination testing
+		volumes := make([]*datamodel.Volume, 5)
+		for i := 0; i < 5; i++ {
+			volumes[i] = &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("test-volume-uuid-%d", i+1)},
+				Name:      fmt.Sprintf("test_volume_%d", i+1),
+				AccountID: account.ID,
+				Account:   account,
+				Pool:      pool,
+				PoolID:    pool.ID,
+			}
+			err = store.db.Create(volumes[i]).Error()
+			assert.NoError(tt, err, "Failed to create volume %d", i+1)
+		}
+
+		conditions := [][]interface{}{
+			{"account_id = ?", account.ID},
+		}
+
+		// Test first page with limit 2
+		pagination := &dbutils.Pagination{Limit: 2, Offset: 0}
+		resultVolumes, err := store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 2, len(resultVolumes), "Expected 2 volumes on first page, got %v", len(resultVolumes))
+
+		// Test second page with limit 2
+		pagination = &dbutils.Pagination{Limit: 2, Offset: 2}
+		resultVolumes, err = store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 2, len(resultVolumes), "Expected 2 volumes on second page, got %v", len(resultVolumes))
+
+		// Test third page with limit 2
+		pagination = &dbutils.Pagination{Limit: 2, Offset: 4}
+		resultVolumes, err = store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 1, len(resultVolumes), "Expected 1 volume on third page, got %v", len(resultVolumes))
+
+		// Test with limit larger than total volumes
+		pagination = &dbutils.Pagination{Limit: 10, Offset: 0}
+		resultVolumes, err = store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 5, len(resultVolumes), "Expected 5 volumes with large limit, got %v", len(resultVolumes))
+	})
+
+	t.Run("WhenPaginationIsNil", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		conditions := [][]interface{}{
+			{"account_id", "=", account.ID},
+		}
+
+		// Test with nil pagination - should use default limit
+		resultVolumes, err := store.ListVolumesWithPagination(context.Background(), conditions, nil)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 1, len(resultVolumes), "Expected 1 volume with nil pagination, got %v", len(resultVolumes))
+	})
+
+	t.Run("WhenPaginationHasZeroLimit", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		conditions := [][]interface{}{
+			{"account_id", "=", account.ID},
+		}
+
+		// Test with zero limit - should use default limit (1000)
+		pagination := &dbutils.Pagination{Limit: 0, Offset: 0}
+		resultVolumes, err := store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 1, len(resultVolumes), "Expected 1 volume with zero limit (default), got %v", len(resultVolumes))
+	})
+
+	t.Run("WhenDatabaseError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate an error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		conditions := [][]interface{}{
+			{"account_id", "=", 1},
+		}
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+		volumes, err := store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Nil(tt, volumes, "Expected nil volumes when error occurs")
+	})
+
+	t.Run("WhenOffsetExceedsTotalVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		conditions := [][]interface{}{
+			{"account_id", "=", account.ID},
+		}
+
+		// Test with offset beyond total volumes
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 100}
+		resultVolumes, err := store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 0, len(resultVolumes), "Expected 0 volumes when offset exceeds total, got %v", len(resultVolumes))
+	})
+
+	t.Run("WhenVolumesWithBackupPolicyAttached", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		accountID := int64(1)
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		policyEnabled := true
+		policyDisabled := false
+		backupPolicyUUID := "test-backup-policy-uuid"
+
+		volume1 := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:           "test_volume_1",
+			AccountID:      account.ID,
+			Account:        account,
+			Pool:           pool,
+			PoolID:         pool.ID,
+			DataProtection: &datamodel.DataProtection{BackupPolicyID: backupPolicyUUID, ScheduledBackupEnabled: &policyEnabled},
+		}
+		err = store.db.Create(volume1).Error()
+		assert.NoError(tt, err, "Failed to create volume 1")
+
+		volume2 := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "test-volume-uuid-2"},
+			Name:           "test_volume_2",
+			AccountID:      account.ID,
+			Account:        account,
+			Pool:           pool,
+			PoolID:         pool.ID,
+			DataProtection: &datamodel.DataProtection{BackupPolicyID: backupPolicyUUID, ScheduledBackupEnabled: &policyDisabled},
+		}
+		err = store.db.Create(volume2).Error()
+		assert.NoError(tt, err, "Failed to create volume 2")
+
+		volume3 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-3"},
+			Name:      "test_volume_3",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			// No DataProtection
+		}
+		err = store.db.Create(volume3).Error()
+		assert.NoError(tt, err, "Failed to create volume 3")
+
+		conditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"data_protection->>'scheduled_backup_enabled' = true"},
+		}
+
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+		volumes, err := store.ListVolumesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 1, len(volumes), "Expected 1 volume with backup policy enabled, got %v", len(volumes))
+		assert.Equal(tt, "test-volume-uuid-1", volumes[0].UUID, "Expected volume 1 UUID, got %v", volumes[0].UUID)
 	})
 }

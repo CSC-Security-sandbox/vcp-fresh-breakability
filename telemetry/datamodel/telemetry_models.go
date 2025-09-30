@@ -21,7 +21,9 @@ type HydratedMetrics struct {
 
 type AggregatedUsage struct {
 	ID                     int64                 `gorm:"primaryKey;autoIncrement" json:"id"`
-	VendorCustomerID       *string               `gorm:"column:vendor_customer_id;size:255;index" json:"vendor_customer_id"`
+	ResourceUUID           string                `gorm:"column:resource_uuid;size:255;not null;index" json:"resource_uuid"`
+	AccountID              string                `gorm:"column:account_id;size:255;not null;index" json:"account_id"`
+	VendorCustomerID       *string               `gorm:"column:vendor_customer_id;size:255;not null;index" json:"vendor_customer_id"`
 	AggregationEnd         time.Time             `gorm:"column:aggregation_end;not null;index" json:"aggregation_end"`
 	AggregationStart       time.Time             `gorm:"column:aggregation_start;not null;index" json:"aggregation_start"`
 	MeasuredType           metadata.MeasuredType `gorm:"column:measured_type;not null;index" json:"measured_type"`
@@ -43,8 +45,6 @@ type AggregatedUsage struct {
 	IsBillable             bool                  `gorm:"column:is_billable;default:false" json:"is_billable"`
 	CreatedAt              time.Time             `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt              time.Time             `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
-	ResourceUUID           string                `gorm:"column:resource_uuid;size:255" json:"resource_uuid"`
-	AccountUUID            string                `gorm:"column:account_uuid;size:255" json:"account_uuid"`
 	VolumeStyle            string                `gorm:"column:volume_style;size:255" json:"volume_style"`
 	ReplicationType        string                `gorm:"column:replication_type;size:255" json:"replication_type"`
 	ServiceLevel           string                `gorm:"column:service_level;size:255" json:"service_level"`

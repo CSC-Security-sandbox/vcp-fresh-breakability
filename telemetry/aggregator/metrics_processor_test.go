@@ -2,6 +2,8 @@ package aggregator
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
+	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
@@ -38,6 +41,7 @@ func TestGroupMetricsByResource(t *testing.T) {
 			MetricTimestamp: now,
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment1",
 		},
 		{
 			ResourceName:    "resource1",
@@ -47,6 +51,7 @@ func TestGroupMetricsByResource(t *testing.T) {
 			MetricTimestamp: now.Add(1 * time.Hour),
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment1",
 		},
 		{
 			ResourceName:    "resource2",
@@ -56,6 +61,7 @@ func TestGroupMetricsByResource(t *testing.T) {
 			MetricTimestamp: now,
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment1",
 		},
 		{
 			ResourceName:    "resource1",
@@ -65,6 +71,7 @@ func TestGroupMetricsByResource(t *testing.T) {
 			MetricTimestamp: now,
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment2",
 		},
 	}
 
@@ -74,20 +81,24 @@ func TestGroupMetricsByResource(t *testing.T) {
 	assert.Equal(t, 3, len(result), "Expected 3 resource groups")
 
 	// Check each group has the correct metrics
-	resourceKey1 := ResourceUniqueIdentifier{
-		ResourceName: "resource1",
-		ConsumerID:   "customer1",
-		Location:     "location1",
+	// Check each group has the correct metrics
+	resourceKey1 := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "resource1",
+		DeploymentName: "deployment1",
+		ConsumerID:     "customer1",
 	}
-	resourceKey2 := ResourceUniqueIdentifier{
-		ResourceName: "resource2",
-		ConsumerID:   "customer1",
-		Location:     "location1",
+	resourceKey2 := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "resource2",
+		DeploymentName: "deployment1",
+		ConsumerID:     "customer1",
 	}
-	resourceKey3 := ResourceUniqueIdentifier{
-		ResourceName: "resource1",
-		ConsumerID:   "customer2",
-		Location:     "location1",
+	resourceKey3 := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "resource1",
+		DeploymentName: "deployment2",
+		ConsumerID:     "customer2",
 	}
 
 	// First group should have 2 metrics
@@ -148,9 +159,14 @@ func TestProcessMetrics_EmptyMetrics(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{}
-	processor := NewBillingProvider(mockDB, config, mockSink)
+	vcpDB := &database2.MockStorage{}
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
 	ctx := context.Background()
 	now := time.Now()
+
+	// Mock VCP database calls for label fetching - now returns data directly, not wrapped in PaginationResponse
+	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 
 	// Expect call to GetHydratedMetrics with empty results
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
@@ -170,6 +186,7 @@ func TestProcessMetrics_EmptyMetrics(t *testing.T) {
 	assert.NoError(t, err, "ProcessMetrics should not return error with empty metrics")
 
 	mockDB.AssertExpectations(t)
+	vcpDB.AssertExpectations(t)
 }
 
 // TestProcessMetrics_DatabaseError tests database errors during processing
@@ -178,9 +195,14 @@ func TestProcessMetrics_DatabaseError(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{}
-	processor := NewBillingProvider(mockDB, config, mockSink)
+	vcpDB := &database2.MockStorage{}
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
 	ctx := context.Background()
 	now := time.Now()
+
+	// Mock VCP database calls for label fetching
+	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 
 	// Expect calls to GetAggregatedUsage for retry logic (both UNSUBMITTED and ERROR states)
 	// These need to be set up first since they're called before GetHydratedMetrics
@@ -202,6 +224,7 @@ func TestProcessMetrics_DatabaseError(t *testing.T) {
 	assert.Contains(t, err.Error(), "database error")
 
 	mockDB.AssertExpectations(t)
+	vcpDB.AssertExpectations(t)
 }
 
 // TestCreateComplexFilter tests creating complex filters
@@ -236,14 +259,21 @@ func TestCreateComplexFilter_AllOptions(t *testing.T) {
 // TestProcessMetricsWithJobDef_UnsupportedAggregation tests unsupported aggregation types
 func TestProcessMetricsWithJobDef_UnsupportedAggregation(t *testing.T) {
 	mockDB := &database.MockStorage{}
-	processor := &BillingProvider{metricsdb: mockDB}
+	processor := &BillingProvider{
+		metricsdb: mockDB,
+		resourceCollection: &ResourceCollection{
+			PoolData:   make(map[ResourceKey]ResourceData),
+			VolumeData: make(map[ResourceKey]ResourceData),
+		},
+	}
 	ctx := context.Background()
 
 	now := time.Now()
-	resourceID := ResourceUniqueIdentifier{
-		ResourceName: "test-resource",
-		ConsumerID:   "test-customer",
-		Location:     "test-location",
+	resourceID := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "test-resource",
+		DeploymentName: "test-deployment",
+		ConsumerID:     "test-customer",
 	}
 
 	metrics := []datamodel2.HydratedMetrics{
@@ -338,15 +368,22 @@ func TestIsBillableMetric_VariousMetrics(t *testing.T) {
 // TestProcessMetricsWithJobDef tests various scenarios for processMetricsWithJobDef
 func TestProcessMetricsWithJobDef(t *testing.T) {
 	mockDB := &database.MockStorage{}
-	processor := &BillingProvider{metricsdb: mockDB}
+	processor := &BillingProvider{
+		metricsdb: mockDB,
+		resourceCollection: &ResourceCollection{
+			PoolData:   make(map[ResourceKey]ResourceData),
+			VolumeData: make(map[ResourceKey]ResourceData),
+		},
+	}
 	ctx := context.Background()
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
 
-	resourceID := ResourceUniqueIdentifier{
-		ResourceName: "test-resource",
-		ConsumerID:   "test-customer",
-		Location:     "test-location",
+	resourceID := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "test-resource",
+		DeploymentName: "test-deployment",
+		ConsumerID:     "test-customer",
 	}
 
 	customerID := "test-customer"
@@ -469,10 +506,15 @@ func TestProcessMetricsSuccess(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{}
-	processor := NewBillingProvider(mockDB, config, mockSink)
+	vcpDB := &database2.MockStorage{}
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
 	ctx := context.Background()
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
+
+	// Mock VCP database calls for label fetching
+	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 
 	// Create test metrics that will be returned from the mock
 	metrics := []datamodel2.HydratedMetrics{
@@ -521,6 +563,7 @@ func TestProcessMetricsSuccess(t *testing.T) {
 
 	// Verify expectations
 	mockDB.AssertExpectations(t)
+	vcpDB.AssertExpectations(t)
 }
 
 // TestProcessMetricsWithJobDefErrors tests error scenarios in processMetricsWithJobDef
@@ -528,10 +571,15 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{}
-	processor := NewBillingProvider(mockDB, config, mockSink)
+	vcpDB := &database2.MockStorage{}
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
 	ctx := context.Background()
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
+
+	// Mock VCP database calls for label fetching
+	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 
 	// Create test metrics
 	metrics := []datamodel2.HydratedMetrics{
@@ -571,6 +619,7 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 
 	// Verify expectations
 	mockDB.AssertExpectations(t)
+	vcpDB.AssertExpectations(t)
 }
 
 // TestCounterDeltaWithReset tests counter reset scenarios
@@ -659,9 +708,14 @@ func TestProcessMetrics_GetUnsentUsagesError(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{MaxGoogleBillingPushRetry: 3}
-	processor := NewBillingProvider(mockDB, config, mockSink)
+	vcpDB := &database2.MockStorage{}
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
 	ctx := context.Background()
 	now := time.Now()
+
+	// Mock VCP database calls for label fetching
+	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 
 	// Expect call to GetAggregatedUsage for UNSUBMITTED with error
 	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
@@ -678,6 +732,7 @@ func TestProcessMetrics_GetUnsentUsagesError(t *testing.T) {
 	assert.NoError(t, err, "ProcessMetrics should not fail when retry logic fails")
 
 	mockDB.AssertExpectations(t)
+	vcpDB.AssertExpectations(t)
 }
 
 // TestProcessMetrics_WithAggregatedRecordsDelivery tests successful delivery of aggregated records
@@ -685,7 +740,8 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{}
-	processor := NewBillingProvider(mockDB, config, mockSink)
+	vcpDB := &database2.MockStorage{}
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
 	ctx := context.Background()
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
@@ -714,8 +770,13 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 			MetricTimestamp: startTime.Add(10 * time.Minute),
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment1",
 		},
 	}
+
+	// Mock VCP database calls for label fetching
+	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 
 	// Expect calls to GetAggregatedUsage for retry logic
 	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
@@ -749,6 +810,7 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	// Verify expectations
 	mockDB.AssertExpectations(t)
 	mockSink.AssertExpectations(t)
+	vcpDB.AssertExpectations(t)
 }
 
 // TestProcessMetrics_DeliveryError tests error in DeliverMetrics
@@ -756,10 +818,15 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{}
-	processor := NewBillingProvider(mockDB, config, mockSink)
+	vcpDB := &database2.MockStorage{}
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
 	ctx := context.Background()
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
+
+	// Mock VCP database calls for label fetching
+	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 
 	// Create test metrics that will be processed
 	metrics := []datamodel2.HydratedMetrics{
@@ -771,6 +838,7 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 			MetricTimestamp: startTime.Add(10 * time.Minute),
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "test-deployment",
 		},
 	}
 
@@ -811,7 +879,13 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 // TestGetUnsentGoogleUsages_ErrorStateWithRetries tests filtering error records by retry count
 func TestGetUnsentGoogleUsages_ErrorStateWithRetries(t *testing.T) {
 	mockDB := &database.MockStorage{}
-	processor := &BillingProvider{metricsdb: mockDB}
+	processor := &BillingProvider{
+		metricsdb: mockDB,
+		resourceCollection: &ResourceCollection{
+			PoolData:   make(map[ResourceKey]ResourceData),
+			VolumeData: make(map[ResourceKey]ResourceData),
+		},
+	}
 	ctx := context.Background()
 
 	// Create error records with different error counts
@@ -858,7 +932,13 @@ func TestGetUnsentGoogleUsages_ErrorStateWithRetries(t *testing.T) {
 // TestGetUnsentGoogleUsages_ErrorInErrorStateQuery tests error in error state query
 func TestGetUnsentGoogleUsages_ErrorInErrorStateQuery(t *testing.T) {
 	mockDB := &database.MockStorage{}
-	processor := &BillingProvider{metricsdb: mockDB}
+	processor := &BillingProvider{
+		metricsdb: mockDB,
+		resourceCollection: &ResourceCollection{
+			PoolData:   make(map[ResourceKey]ResourceData),
+			VolumeData: make(map[ResourceKey]ResourceData),
+		},
+	}
 	ctx := context.Background()
 
 	// Expect successful UNSUBMITTED query
@@ -884,15 +964,22 @@ func TestGetUnsentGoogleUsages_ErrorInErrorStateQuery(t *testing.T) {
 // TestProcessMetricsWithJobDef_NonBillableRecord tests when aggregated record is not billable
 func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 	mockDB := &database.MockStorage{}
-	processor := &BillingProvider{metricsdb: mockDB}
+	processor := &BillingProvider{
+		metricsdb: mockDB,
+		resourceCollection: &ResourceCollection{
+			PoolData:   make(map[ResourceKey]ResourceData),
+			VolumeData: make(map[ResourceKey]ResourceData),
+		},
+	}
 	ctx := context.Background()
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
 
-	resourceID := ResourceUniqueIdentifier{
-		ResourceName: "test-resource",
-		ConsumerID:   "test-customer",
-		Location:     "test-location",
+	resourceID := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "test-resource",
+		DeploymentName: "test-deployment",
+		ConsumerID:     "test-customer",
 	}
 
 	metrics := []datamodel2.HydratedMetrics{
@@ -904,6 +991,7 @@ func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 			MetricTimestamp: startTime,
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "test-deployment",
 		},
 	}
 
@@ -922,6 +1010,282 @@ func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 	assert.Equal(t, 0, len(aggregatedRecords), "Non-billable records should not be added to aggregatedRecords")
 
 	mockDB.AssertExpectations(t)
+}
+
+// TestNewBillingProvider tests the NewBillingProvider constructor
+func TestNewBillingProvider(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	vcpDB := &database2.MockStorage{}
+	config := &common.TelemetryConfig{}
+	mockSink := &MockUsageSink{}
+
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
+
+	assert.NotNil(t, processor)
+	assert.Equal(t, mockDB, processor.metricsdb)
+	assert.Equal(t, vcpDB, processor.vcpDataStore)
+	assert.Equal(t, config, processor.config)
+	assert.Equal(t, mockSink, processor.usageSink)
+	assert.NotNil(t, processor.resourceCollection)
+	assert.NotNil(t, processor.resourceCollection.PoolData)
+	assert.NotNil(t, processor.resourceCollection.VolumeData)
+	assert.NotNil(t, processor.usedKeys)
+}
+
+// TestLimitLabels tests the limitLabels function
+func TestLimitLabels(t *testing.T) {
+	processor := &BillingProvider{
+		config: &common.TelemetryConfig{
+			GoogleBillingLabelsMaxEntries: 3,
+		},
+	}
+
+	tests := []struct {
+		name     string
+		labels   *datamodel.JSONB
+		expected int
+	}{
+		{
+			name:     "nil labels",
+			labels:   nil,
+			expected: 0,
+		},
+		{
+			name:     "empty labels",
+			labels:   &datamodel.JSONB{},
+			expected: 0,
+		},
+		{
+			name: "labels within limit",
+			labels: &datamodel.JSONB{
+				"key1": "value1",
+				"key2": "value2",
+			},
+			expected: 2,
+		},
+		{
+			name: "labels exceeding limit",
+			labels: &datamodel.JSONB{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+				"key4": "value4",
+				"key5": "value5",
+			},
+			expected: 3, // Should be limited to 3
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processor.limitLabels(tt.labels)
+			assert.Equal(t, tt.expected, len(result))
+		})
+	}
+}
+
+func TestFetchResourceData(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 2, GoogleBillingLabelsMaxEntries: 10}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// Helper to reset resourceCollection
+	resetCollection := func() {
+		provider.resourceCollection = &ResourceCollection{
+			PoolData:   make(map[ResourceKey]ResourceData),
+			VolumeData: make(map[ResourceKey]ResourceData),
+		}
+	}
+
+	t.Run("Both pool and volume fetch succeed", func(t *testing.T) {
+		resetCollection() // First call returns one pool, second call returns empty slice (pagination end)
+		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+					Name:           "pool1",
+					AccountID:      1,
+					VendorID:       "/projects/12345/",
+					DeploymentName: "dep1",
+					PoolAttributes: &datamodel.PoolAttributes{
+						Labels:      &datamodel.JSONB{"test": "test"},
+						PrimaryZone: "us-central1"},
+					Account: &datamodel.Account{Name: "account1"},
+				},
+			},
+		}, nil).Once()
+		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+		// First call returns one volume, second call returns empty slice (pagination end)
+		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+				Name:      "vol1",
+				AccountID: 2,
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Labels:         &datamodel.JSONB{"key": "value"},
+					VendorSubnetID: "projects/54321/",
+				},
+				Pool:    &datamodel.Pool{DeploymentName: "dep2"},
+				Account: &datamodel.Account{Name: "account1"},
+			},
+		}, nil).Once()
+		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+
+		err := provider.fetchResourceData(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, provider.resourceCollection.PoolData, 1)
+		assert.Len(t, provider.resourceCollection.VolumeData, 1)
+		mockVcpDB.AssertExpectations(t)
+	})
+
+	t.Run("Pool fetch fails, volume fetch succeeds", func(t *testing.T) {
+		resetCollection()
+		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool error")).Once()
+		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+				Name:      "vol1",
+				AccountID: 2,
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Labels:         &datamodel.JSONB{"key": "value"},
+					VendorSubnetID: "projects/54321/",
+				},
+				Pool:    &datamodel.Pool{DeploymentName: "dep2"},
+				Account: &datamodel.Account{Name: "account1"},
+			},
+		}, nil).Once()
+		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+		err := provider.fetchResourceData(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, provider.resourceCollection.PoolData, 0)
+		assert.Len(t, provider.resourceCollection.VolumeData, 1)
+		mockVcpDB.AssertExpectations(t)
+	})
+
+	t.Run("Volume fetch fails, pool fetch succeeds", func(t *testing.T) {
+		resetCollection()
+		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+					Name:           "pool1",
+					AccountID:      1,
+					VendorID:       "/projects/12345/",
+					DeploymentName: "dep1",
+					PoolAttributes: &datamodel.PoolAttributes{Labels: &datamodel.JSONB{"key": "value"}},
+					Account:        &datamodel.Account{Name: "account1"},
+				},
+			},
+		}, nil).Once()
+		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume error")).Once()
+		err := provider.fetchResourceData(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, provider.resourceCollection.PoolData, 1)
+		assert.Len(t, provider.resourceCollection.VolumeData, 0)
+		mockVcpDB.AssertExpectations(t)
+	})
+
+	t.Run("Both pool and volume fetch fail", func(t *testing.T) {
+		resetCollection()
+		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool error")).Once()
+		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume error")).Once()
+		err := provider.fetchResourceData(ctx)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to fetch any resource data")
+		assert.Len(t, provider.resourceCollection.PoolData, 0)
+		assert.Len(t, provider.resourceCollection.VolumeData, 0)
+		mockVcpDB.AssertExpectations(t)
+	})
+}
+
+func TestCleanupUnusedResourceKeys(t *testing.T) {
+	ctx := context.Background()
+	resourceKey1 := ResourceKey{
+		ResourceType:   metadata.VolumePool,
+		ResourceName:   "pool1",
+		DeploymentName: "deployment1",
+		ConsumerID:     "customer1",
+	}
+
+	resourceKey2 := ResourceKey{
+		ResourceType:   metadata.VolumePool,
+		ResourceName:   "pool2",
+		DeploymentName: "deployment2",
+		ConsumerID:     "customer2",
+	}
+
+	resourceKey3 := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "volume1",
+		DeploymentName: "deployment1",
+		ConsumerID:     "customer1",
+	}
+
+	resourceKey4 := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "volume2",
+		DeploymentName: "deployment2",
+		ConsumerID:     "customer2",
+	}
+	provider := &BillingProvider{
+		resourceCollection: &ResourceCollection{
+			PoolData: map[ResourceKey]ResourceData{
+				resourceKey1: {UUID: "pool-uuid-1", AccountID: 123, Labels: Labels{"env": "prod"}},
+				resourceKey2: {UUID: "pool-uuid-2", AccountID: 456, Labels: Labels{"env": "test"}},
+			},
+			VolumeData: map[ResourceKey]ResourceData{
+				resourceKey3: {UUID: "volume-uuid-1", AccountID: 789, Labels: Labels{"env": "prod"}},
+				resourceKey4: {UUID: "volume-uuid-2", AccountID: 101, Labels: Labels{"env": "test"}},
+			},
+		},
+		usedKeys: map[ResourceKey]bool{
+			resourceKey1: true,
+			resourceKey3: true,
+		},
+	}
+
+	// Run cleanup
+	provider.cleanupUnusedResourceKeys(ctx)
+
+	// Wait for goroutine to finish
+	time.Sleep(100 * time.Millisecond)
+
+	// Only used keys should remain
+	assert.Len(t, provider.resourceCollection.PoolData, 1)
+	assert.Contains(t, provider.resourceCollection.PoolData, resourceKey1)
+	assert.NotContains(t, provider.resourceCollection.PoolData, resourceKey2)
+
+	assert.Len(t, provider.resourceCollection.VolumeData, 1)
+	assert.Contains(t, provider.resourceCollection.VolumeData, resourceKey3)
+	assert.NotContains(t, provider.resourceCollection.VolumeData, resourceKey4)
+
+	// usedKeys should be reset to nil
+	assert.Nil(t, provider.usedKeys)
+}
+
+func TestResourceKeyMapKeyEquality(t *testing.T) {
+	key1 := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "vol1",
+		DeploymentName: "dep1",
+		ConsumerID:     "acc1",
+	}
+	key2 := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "vol1",
+		DeploymentName: "dep1",
+		ConsumerID:     "acc1",
+	}
+
+	m := make(map[ResourceKey]string)
+	m[key1] = "test-value"
+
+	// Both keys should retrieve the same value
+	require.Equal(t, "test-value", m[key2])
 }
 
 // Helper function to create string pointers

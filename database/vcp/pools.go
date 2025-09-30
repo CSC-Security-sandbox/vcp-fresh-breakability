@@ -19,11 +19,12 @@ import (
 )
 
 var (
-	uniqueSerialSeqName   = "cluster_serial_seq"
-	getPoolWithDetails    = _getPoolWithDetails
-	listPoolWithDetails   = _listPoolWithDetails
-	getPoolByName         = _getPoolByName
-	getPoolsByKmsConfigID = _getPoolsByKmsConfigID
+	uniqueSerialSeqName           = "cluster_serial_seq"
+	getPoolWithDetails            = _getPoolWithDetails
+	listPoolWithDetails           = _listPoolWithDetails
+	listPoolWithDetailsPagination = _listPoolWithDetailsPagination
+	getPoolByName                 = _getPoolByName
+	getPoolsByKmsConfigID         = _getPoolsByKmsConfigID
 )
 
 // CreatedPool converts created pool to available pool
@@ -264,6 +265,16 @@ func (d *DataStoreRepository) ListPools(ctx context.Context, filter *utils2.Filt
 	return listPoolWithDetails(d.db.GORM().WithContext(ctx))
 }
 
+func (d *DataStoreRepository) ListPoolsWithPagination(ctx context.Context, filter *utils2.Filter, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
+	if filter != nil {
+		if filter.ShouldIncludeDeleted() {
+			return listPoolWithDetailsPagination(d.db.ApplyFilter(filter.Apply()).Unscoped().GORM().WithContext(ctx), pagination)
+		}
+		return listPoolWithDetailsPagination(d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx), pagination)
+	}
+	return listPoolWithDetailsPagination(d.db.GORM().WithContext(ctx), pagination)
+}
+
 func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error) {
 	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{VendorID: vendorID, AccountID: accountID})
 }
@@ -299,6 +310,15 @@ func _getPoolByName(db *gorm.DB) (*datamodel.PoolView, error) {
 func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.PoolView, error) {
 	var pools []*datamodel.PoolView
 	err := db.Preload("Account").Preload("KmsConfig").Find(&pools).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return pools, nil
+}
+
+func _listPoolWithDetailsPagination(db *gorm.DB, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
+	var pools []*datamodel.PoolView
+	err := db.Preload("Account").Scopes(utils2.Paginate(pagination)).Find(&pools).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

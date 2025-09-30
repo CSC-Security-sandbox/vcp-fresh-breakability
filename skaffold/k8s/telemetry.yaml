@@ -126,3 +126,7 @@ spec:
               value: "1000"
             - name: NUM_WORKERS
               value: "10"
+            - name: POOL_VOLUME_LABEL_PAGE_SIZE
+              value: "5000"
+            - name: GOOGLE_BILLING_LABELS_MAX_ENTRIES
+              value: "64"

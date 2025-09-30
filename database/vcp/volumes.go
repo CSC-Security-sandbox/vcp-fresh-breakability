@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -393,6 +394,19 @@ func (d *DataStoreRepository) ListVolumes(ctx context.Context, conditions [][]in
 func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
 	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").Find(&volumes).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return volumes, nil
+}
+
+func (d *DataStoreRepository) ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	return _listVolumesWithDetailsPagination(d.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
+}
+
+func _listVolumesWithDetailsPagination(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := db.Preload("Account").Preload("Pool").Scopes(dbutils.Paginate(pagination)).Find(&volumes).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

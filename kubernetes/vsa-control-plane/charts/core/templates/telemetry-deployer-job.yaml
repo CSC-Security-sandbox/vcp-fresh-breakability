@@ -125,6 +125,10 @@ spec:
               value: {{ .Values.telemetryDeployer.maxGoogleBillingPushRetry | default "5" | quote }}
             - name: PAGE_SIZE
               value: {{ .Values.telemetryDeployer.pageSize | default "1000" | quote }}
+            - name: GOOGLE_BILLING_LABELS_MAX_ENTRIES
+              value: {{ .Values.telemetryDeployer.googleBillingLabelsMaxEntries | default "64" | quote }}
+            - name: POOL_VOLUME_LABEL_PAGE_SIZE
+              value: {{ .Values.telemetryDeployer.poolVolumeLabelPageSize | default "5000" | quote }}
           resources:
             limits:
               cpu: {{ .Values.telemetryDeployer.resources.limits.cpu | default .Values.resources.limits.cpu }}

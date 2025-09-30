@@ -89,8 +89,8 @@ func main() {
 	wrapper := collector.NewMetricClientWrapper(client)
 	config := metricscommon.LoadMetricsConfigFromBytes()
 	provider := collector.NewGoogleProvider(tenantProvider, wrapper, config.VolumeMetrics)
-	billingProvidor := aggregator.NewBillingProvider(telemetryDbConn, metricscommon.LoadConfig(), billingSink)
-	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvidor)
+	billingProvider := aggregator.NewBillingProvider(telemetryDbConn, VCPDbConn, metricscommon.LoadConfig(), billingSink)
+	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvider)
 
 	queue := utils.NewQueue(tdb, &metricsProcessor)
 	provider.SetJobQueue(queue)

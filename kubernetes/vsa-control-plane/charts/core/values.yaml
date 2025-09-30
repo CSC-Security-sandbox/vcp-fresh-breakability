@@ -90,6 +90,8 @@ telemetryDeployer:
   pushBatchSize: 1000
   maxGoogleBillingPushRetry: 5
   pageSize: 1000
+  googleBillingLabelsMaxEntries: 64
+  poolVolumeLabelPageSize: 5000
   resources:
     limits:
       cpu: 1000m

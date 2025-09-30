@@ -2,32 +2,62 @@ package aggregator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-type ResourceUniqueIdentifier struct {
-	ResourceName string
-	ConsumerID   string
-	Location     string
+type ResourceKey struct {
+	ResourceType   metadata.ResourceType
+	ResourceName   string
+	DeploymentName string
+	ConsumerID     string
+}
+
+type Labels map[string]interface{}
+
+type ResourceData struct {
+	UUID      string
+	AccountID int64
+	Labels    Labels
+}
+
+type ResourceCollection struct {
+	PoolData   map[ResourceKey]ResourceData
+	VolumeData map[ResourceKey]ResourceData
 }
 
 type BillingProvider struct {
-	metricsdb database2.Storage
-	config    *common.TelemetryConfig
-	usageSink common.UsageSink
+	metricsdb          database2.Storage
+	vcpDataStore       database.Storage
+	config             *common.TelemetryConfig
+	usageSink          common.UsageSink
+	resourceCollection *ResourceCollection
+	usedKeys           map[ResourceKey]bool
 }
 
-func NewBillingProvider(db database2.Storage, config *common.TelemetryConfig, usageSink common.UsageSink) *BillingProvider {
+func NewBillingProvider(db database2.Storage, vcpDB database.Storage, config *common.TelemetryConfig, usageSink common.UsageSink) *BillingProvider {
 	return &BillingProvider{
-		metricsdb: db,
-		config:    config,
-		usageSink: usageSink,
+		metricsdb:    db,
+		vcpDataStore: vcpDB,
+		config:       config,
+		usageSink:    usageSink,
+		resourceCollection: &ResourceCollection{
+			PoolData:   make(map[ResourceKey]ResourceData),
+			VolumeData: make(map[ResourceKey]ResourceData),
+		},
+		usedKeys: make(map[ResourceKey]bool),
 	}
 }
 
@@ -37,6 +67,11 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 	var aggregatedRecords []datamodel2.AggregatedUsage
 	aggregationStartTime := aggregationEndTime.Add(-1 * time.Hour)
 	logger.Infof("Processing metrics from %v to %v", aggregationStartTime, aggregationEndTime)
+
+	// Fetch label values from VCP database at the start of each aggregator cycle
+	if err := p.fetchResourceData(ctx); err != nil {
+		logger.Errorf("Failed to fetch resource data: %v", err)
+	}
 
 	// Get unsent/retry records from database
 	aggregatedRecordsToRetry, err := p.getUnsentGoogleUsages(ctx, p.config.MaxGoogleBillingPushRetry)
@@ -67,9 +102,9 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 		resourceGroups := p.groupMetricsByResource(metrics)
 
 		// Process each resource group
-		for resourceIdentifier, resourceMetrics := range resourceGroups {
-			if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, &aggregatedRecords); err != nil {
-				logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
+		for resourceKey, resourceMetrics := range resourceGroups {
+			if err := p.processMetricsWithJobDef(ctx, resourceKey, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, &aggregatedRecords); err != nil {
+				logger.Errorf("Failed to process metrics for resource key %s : %v", resourceKey, err)
 				continue
 			}
 		}
@@ -81,7 +116,224 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 			logger.Errorf("Failed to deliver aggregated metrics: %v", err)
 		}
 	}
+
+	// Cleanup unused resource keys in ResourceCollection Map asynchronously
+	p.cleanupUnusedResourceKeys(ctx)
+
 	return nil
+}
+
+// fetchResourceData fetches label values from pool and volume tables in VCP database
+func (p *BillingProvider) fetchResourceData(ctx context.Context) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Fetching resource data from VCP database")
+
+	var poolsDataError, volumeDataError error
+
+	// Fetch pool labels
+	if err := p.fetchPoolData(ctx); err != nil {
+		logger.Errorf("Failed to fetch pool resource data: %v", err)
+		poolsDataError = err
+	}
+
+	// Fetch volume labels
+	if err := p.fetchVolumeData(ctx); err != nil {
+		logger.Errorf("Failed to fetch volume labels: %v", err)
+		volumeDataError = err
+	}
+
+	// Log summary of what was successfully fetched
+	poolCount := len(p.resourceCollection.PoolData)
+	volumeCount := len(p.resourceCollection.VolumeData)
+
+	if poolsDataError != nil && volumeDataError != nil {
+		logger.Errorf("Failed to fetch both pool and volume resource data. Pool error: %v, Volume error: %v", poolsDataError, volumeDataError)
+		return fmt.Errorf("failed to fetch any resource data")
+	} else if poolsDataError != nil {
+		logger.Warnf("Failed to fetch pool resource data: %v, but successfully fetched %d volume resource data", poolsDataError, volumeCount)
+	} else if volumeDataError != nil {
+		logger.Warnf("Failed to fetch volume resource data: %v, but successfully fetched %d pool resource data", volumeDataError, poolCount)
+	} else {
+		logger.Infof("Successfully fetched resource data for %d pools and %d volumes", poolCount, volumeCount)
+	}
+
+	return nil
+}
+
+// fetchPoolData fetches labels from pool table using pagination
+func (p *BillingProvider) fetchPoolData(ctx context.Context) error {
+	logger := util.GetLogger(ctx)
+
+	// Create filter for pools with labels
+	filter := dbutils.CreateFilterWithConditions(
+		dbutils.NewFilterCondition("pool_attributes IS NOT NULL AND pool_attributes->>'labels' IS NOT NULL", "", nil),
+	)
+
+	offset := 0
+	// Use configurable limit from config
+	limit := p.config.PoolVolumeLabelPageSize
+	totalProcessed := 0
+	batchCount := 0
+
+	for {
+		// Create pagination with offset and limit
+		pagination := &dbutils.Pagination{
+			Offset: offset,
+			Limit:  limit,
+		}
+
+		// Fetch paginated pools using ListPoolsWithPagination
+		pools, err := p.vcpDataStore.ListPoolsWithPagination(ctx, filter, pagination)
+		if err != nil {
+			return fmt.Errorf("failed to list pools (offset %d): %w", offset, err)
+		}
+
+		// Break if no records returned
+		if len(pools) == 0 {
+			break
+		}
+
+		// Process current batch
+		for _, pool := range pools {
+			// Extract and limit labels
+			limitedLabels := p.limitLabels(pool.PoolAttributes.Labels)
+
+			poolResourceData := ResourceData{
+				UUID:      pool.UUID,
+				AccountID: pool.AccountID,
+				Labels:    limitedLabels,
+			}
+			id := ResourceKey{
+				ResourceType:   metadata.VolumePool,
+				ResourceName:   pool.Name,
+				DeploymentName: pool.DeploymentName,
+				ConsumerID:     pool.Account.Name,
+			}
+			p.resourceCollection.PoolData[id] = poolResourceData
+		}
+
+		totalProcessed += len(pools)
+		batchCount++
+		logger.Debugf("Processed %d pools in batch %d (offset: %d, total: %d)", len(pools), batchCount, offset, totalProcessed)
+
+		// Update offset for next iteration
+		offset += limit
+	}
+
+	logger.Infof("Fetched resource data for %d pools in %d batches", len(p.resourceCollection.PoolData), batchCount)
+	return nil
+}
+
+// fetchVolumeData fetches labels from volume table using pagination
+func (p *BillingProvider) fetchVolumeData(ctx context.Context) error {
+	logger := util.GetLogger(ctx)
+
+	// Create conditions for volumes with labels
+	conditions := [][]interface{}{
+		{"volume_attributes IS NOT NULL"},
+		{"volume_attributes->>'labels' IS NOT NULL"},
+	}
+
+	offset := 0
+	// Use configurable limit from config
+	limit := p.config.PoolVolumeLabelPageSize
+	totalProcessed := 0
+	batchCount := 0
+
+	for {
+		// Create pagination with offset and limit
+		pagination := &dbutils.Pagination{
+			Offset: offset,
+			Limit:  limit,
+		}
+
+		// Fetch paginated volumes using ListVolumesWithPagination
+		volumes, err := p.vcpDataStore.ListVolumesWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			return fmt.Errorf("failed to list volumes (offset %d): %w", offset, err)
+		}
+
+		// Break if no records returned
+		if len(volumes) == 0 {
+			break
+		}
+
+		// Process current batch
+		for _, volume := range volumes {
+			// Extract and limit labels
+			limitedLabels := p.limitLabels(volume.VolumeAttributes.Labels)
+
+			volumeResourceData := ResourceData{
+				UUID:      volume.UUID,
+				AccountID: volume.AccountID,
+				Labels:    limitedLabels,
+			}
+			id := ResourceKey{
+				ResourceType:   metadata.Volume,
+				ResourceName:   volume.Name,
+				DeploymentName: volume.Pool.DeploymentName,
+				ConsumerID:     volume.Account.Name,
+			}
+			p.resourceCollection.VolumeData[id] = volumeResourceData
+		}
+
+		totalProcessed += len(volumes)
+		batchCount++
+		logger.Debugf("Processed %d volumes in batch %d (offset: %d, total: %d)", len(volumes), batchCount, offset, totalProcessed)
+
+		// Update offset for next iteration
+		offset += limit
+	}
+
+	logger.Infof("Fetched resource data for %d volumes in %d batches", len(p.resourceCollection.VolumeData), batchCount)
+	return nil
+}
+
+// limitLabels limits the number of labels to the configured maximum
+func (p *BillingProvider) limitLabels(labels *datamodel.JSONB) Labels {
+	if labels == nil {
+		return make(Labels)
+	}
+
+	limitedLabels := make(Labels)
+	count := 0
+
+	for key, value := range *labels {
+		if count >= p.config.GoogleBillingLabelsMaxEntries {
+			break
+		}
+		limitedLabels[key] = value
+		count++
+	}
+
+	return limitedLabels
+}
+
+// getResourceDataForAggregationUsage returns the billing labels for a given resource
+// and tracks the key as used for cleanup purposes
+func (p *BillingProvider) getResourceDataForAggregationUsage(id ResourceKey, resourceType metadata.ResourceType) *ResourceData {
+	var resourceData ResourceData
+	var found bool
+
+	// Track this key as used
+	if p.usedKeys == nil {
+		p.usedKeys = make(map[ResourceKey]bool)
+	}
+	p.usedKeys[id] = true
+
+	// Get labels based on resource type
+	switch resourceType {
+	case metadata.VolumePool:
+		resourceData, found = p.resourceCollection.PoolData[id]
+	case metadata.Volume:
+		resourceData, found = p.resourceCollection.VolumeData[id]
+	default:
+		return nil
+	}
+	if !found {
+		return nil
+	}
+	return &resourceData
 }
 
 // CreateFilterWithConditions creates a filter map with conditions for metrics queries
@@ -137,14 +389,15 @@ func (p *BillingProvider) CreateComplexFilter(options map[string]interface{}) ma
 	}
 }
 
-func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMetrics) map[ResourceUniqueIdentifier][]datamodel2.HydratedMetrics {
-	groups := make(map[ResourceUniqueIdentifier][]datamodel2.HydratedMetrics)
+func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMetrics) map[ResourceKey][]datamodel2.HydratedMetrics {
+	groups := make(map[ResourceKey][]datamodel2.HydratedMetrics)
 	for _, metric := range metrics {
 		if metric.ResourceName != "" {
-			identifier := ResourceUniqueIdentifier{
-				ResourceName: metric.ResourceName,
-				Location:     metric.Location,
-				ConsumerID:   metric.ConsumerID,
+			identifier := ResourceKey{
+				ResourceName:   metric.ResourceName,
+				DeploymentName: metric.DeploymentName,
+				ConsumerID:     metric.ConsumerID,
+				ResourceType:   metric.ResourceType,
 			}
 			groups[identifier] = append(groups[identifier], metric)
 		}
@@ -152,10 +405,10 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 	return groups
 }
 
-func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceUniqueIdentifier ResourceUniqueIdentifier, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, aggregatedRecords *[]datamodel2.AggregatedUsage) error {
+func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, aggregatedRecords *[]datamodel2.AggregatedUsage) error {
 	logger := util.GetLogger(ctx)
 	if len(metrics) == 0 {
-		logger.Infof("No metrics found for resource %s and customer id %s", resourceUniqueIdentifier.ResourceName, resourceUniqueIdentifier.ConsumerID)
+		logger.Infof("No metrics found for resource key %s and customer id %s", resourceKey, resourceKey.ConsumerID)
 		return nil
 	}
 
@@ -181,9 +434,38 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		lastCounterValue = &val
 	}
 
+	// Get resource data for the resource
+	resourceData := p.getResourceDataForAggregationUsage(resourceKey, metrics[0].ResourceType)
+
+	// Initialize with default values
+	var billingLabelsJSON *string
+	resourceUUID := ""
+	accountID := ""
+
+	// Process resource data if available
+	if resourceData != nil {
+		resourceUUID = resourceData.UUID
+		accountID = strconv.FormatInt(resourceData.AccountID, 10)
+
+		// Only marshal labels if they exist
+		if len(resourceData.Labels) > 0 {
+			labelsBytes, err := json.Marshal(resourceData.Labels)
+			if err != nil {
+				logger.Errorf("Failed to marshal billing labels for resource name %s, deployment name :%s : %v", resourceKey.ResourceName, resourceKey.DeploymentName, err)
+			} else {
+				labelsStr := string(labelsBytes)
+				billingLabelsJSON = &labelsStr
+			}
+		}
+	} else {
+		logger.Infof("No resourceData found for resource name %s, deployment name :%s", resourceKey.ResourceName, resourceKey.DeploymentName)
+	}
+
 	// Create aggregated record with all available fields
 	aggregated := &datamodel2.AggregatedUsage{
-		VendorCustomerID:       &resourceUniqueIdentifier.ConsumerID,
+		ResourceUUID:           resourceUUID,
+		AccountID:              accountID,
+		VendorCustomerID:       &resourceKey.ConsumerID,
 		AggregationStart:       start,
 		AggregationEnd:         end,
 		MeasuredType:           metrics[0].MeasuredType,
@@ -194,7 +476,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		LastCounterValue:       lastCounterValue,
 		SourceRegion:           &metrics[0].Location,
 		DestinationRegion:      nil,
-		BillingLabels:          nil,
+		BillingLabels:          billingLabelsJSON,
 		ReplicationDstVolumeID: nil,
 		DoubleEncryption:       nil,
 		State:                  datamodel2.Unsubmitted,
@@ -204,11 +486,24 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		AggregationType:        string(jobDef.AggregationType),
 	}
 
-	logger.Infof("Processing metrics for resource %s and customer id %s with aggregation type %s and %s", resourceUniqueIdentifier.ResourceName, resourceUniqueIdentifier.ConsumerID, jobDef.AggregationType, aggregated)
+	// Format labels for better readability
+	labelsInfo := "none"
+	if resourceData != nil && len(resourceData.Labels) > 0 {
+		// Create a formatted string of key-value pairs
+		var labelPairs []string
+		for key, value := range resourceData.Labels {
+			labelPairs = append(labelPairs, fmt.Sprintf("%s=%v", key, value))
+		}
+		labelsInfo = fmt.Sprintf("[%s]", strings.Join(labelPairs, ", "))
+	}
+
+	logger.Debugf("Processing metrics for resource %s (customer: %s, type: %s, labels: %s)",
+		resourceKey.ResourceName, resourceKey.ConsumerID, jobDef.AggregationType, labelsInfo)
+
 	// Store aggregated metrics
 	err := p.metricsdb.CreateAggregatedUsage(ctx, aggregated)
 	if err != nil {
-		logger.Errorf("Failed to create aggregated usage for resource %s and customer id %s: %v", resourceUniqueIdentifier.ResourceName, resourceUniqueIdentifier.ConsumerID, err)
+		logger.Errorf("Failed to create aggregated usage for resource name %s, deployment name :%s : %v", resourceKey.ResourceName, resourceKey.DeploymentName, err)
 		return err
 	}
 	if aggregated.IsBillable {
@@ -250,4 +545,41 @@ func (p *BillingProvider) getUnsentGoogleUsages(ctx context.Context, maxRetries 
 	}
 
 	return allRecords, nil
+}
+
+// cleanupUnusedResourceKeys asynchronously removes unused keys from ResourceCollection Map
+func (p *BillingProvider) cleanupUnusedResourceKeys(ctx context.Context) {
+	go func() {
+		logger := util.GetLogger(ctx)
+
+		if p.usedKeys == nil {
+			logger.Debug("No used keys tracked, skipping cleanup")
+			return
+		}
+
+		deletedPoolCount := 0
+		deletedVolumeCount := 0
+
+		// Clean up unused pool keys
+		for key := range p.resourceCollection.PoolData {
+			if !p.usedKeys[key] {
+				delete(p.resourceCollection.PoolData, key)
+				deletedPoolCount++
+			}
+		}
+
+		// Clean up unused volume keys
+		for key := range p.resourceCollection.VolumeData {
+			if !p.usedKeys[key] {
+				delete(p.resourceCollection.VolumeData, key)
+				deletedVolumeCount++
+			}
+		}
+
+		logger.Infof("ResourceCollection Map cleanup completed - removed %d unused pool keys and %d unused volume keys",
+			deletedPoolCount, deletedVolumeCount)
+
+		// Reset used keys for next aggregation cycle
+		p.usedKeys = nil
+	}()
 }
