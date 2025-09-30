@@ -166,7 +166,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context) error {
 
 	// Create filter for pools with labels
 	filter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("pool_attributes IS NOT NULL AND pool_attributes->>'labels' IS NOT NULL", "", nil),
+		dbutils.NewFilterCondition("pool_attributes IS NOT NULL AND pool_attributes ? 'labels'", "", nil),
 	)
 
 	offset := 0
@@ -231,7 +231,7 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context) error {
 	// Create conditions for volumes with labels
 	conditions := [][]interface{}{
 		{"volume_attributes IS NOT NULL"},
-		{"volume_attributes->>'labels' IS NOT NULL"},
+		{"volume_attributes ? 'labels'"},
 	}
 
 	offset := 0
