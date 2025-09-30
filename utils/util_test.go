@@ -860,6 +860,102 @@ func Test_convertBytesToGib(t *testing.T) {
 	}
 }
 
+func Test_calculateRequiredVolumeSize(t *testing.T) {
+	t.Run("WithRestoreVolumeBufferEnabled_Returns20PercentMore", func(t *testing.T) {
+		// Enable the new calculation method
+		SetRestoreVolumeBufferEnabledForTesting(true)
+		defer SetRestoreVolumeBufferEnabledForTesting(false)
+
+		testCases := []struct {
+			name       string
+			backupSize int64
+			expected   int64
+		}{
+			{
+				name:       "NormalSize",
+				backupSize: 100 * 1024 * 1024 * 1024,                  // 100 GiB
+				expected:   int64(float64(100*1024*1024*1024) * 1.20), // 120 GiB
+			},
+			{
+				name:       "ZeroBackupSize",
+				backupSize: 0, // 0 bytes
+				expected:   0, // 0 * 1.20 = 0
+			},
+			{
+				name:       "VerySmallBackup",
+				backupSize: 1, // 1 byte
+				expected:   1, // 1 * 1.20 = 1.2, truncated to 1
+			},
+			{
+				name:       "LargeBackup",
+				backupSize: 1000 * 1024 * 1024 * 1024,                  // 1000 GiB
+				expected:   int64(float64(1000*1024*1024*1024) * 1.20), // 1200 GiB
+			},
+		}
+
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				result := _calculateRequiredVolumeSize(tt.backupSize)
+				if result != tt.expected {
+					t.Errorf("Expected %d, got %d", tt.expected, result)
+				}
+			})
+		}
+	})
+
+	t.Run("WithRestoreVolumeBufferDisabled_ReturnsCeilOfBackupSizePlus1GiB", func(t *testing.T) {
+		// Disable the new calculation method (default)
+		SetRestoreVolumeBufferEnabledForTesting(false)
+		defer SetRestoreVolumeBufferEnabledForTesting(false)
+
+		testCases := []struct {
+			name       string
+			backupSize int64
+			expected   int64
+		}{
+			{
+				name:       "ExactGiB",
+				backupSize: 100 * 1024 * 1024 * 1024, // 100 GiB
+				expected:   101 * 1024 * 1024 * 1024, // 101 GiB (100 + 1)
+			},
+			{
+				name:       "NonExactGiB",
+				backupSize: 100*1024*1024*1024 + 500*1024*1024, // 100.5 GiB
+				expected:   102 * 1024 * 1024 * 1024,           // 102 GiB (ceil(100.5 + 1) = 102)
+			},
+			{
+				name:       "SmallBackup",
+				backupSize: 500 * 1024 * 1024,      // 0.5 GiB
+				expected:   2 * 1024 * 1024 * 1024, // 2 GiB (ceil(0.5 + 1) = 2)
+			},
+			{
+				name:       "ZeroBackupSize",
+				backupSize: 0,                      // 0 bytes
+				expected:   1 * 1024 * 1024 * 1024, // 1 GiB (ceil(0 + 1) = 1)
+			},
+			{
+				name:       "VerySmallBackup",
+				backupSize: 1,                      // 1 byte
+				expected:   2 * 1024 * 1024 * 1024, // 2 GiB (ceil(1 + 1GiB) = ceil(1.0000000009313226) = 2)
+			},
+			{
+				name:       "JustUnder1GiB",
+				backupSize: 1024*1024*1024 - 1,     // 1 GiB - 1 byte
+				expected:   2 * 1024 * 1024 * 1024, // 2 GiB (ceil(1GiB-1 + 1GiB) = ceil(1.9999999990686774) = 2)
+			},
+		}
+
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				result := _calculateRequiredVolumeSize(tt.backupSize)
+				if result != tt.expected {
+					t.Errorf("Expected %d, got %d", tt.expected, result)
+				}
+			})
+		}
+	})
+}
+
 func TestConvertsValidJsonToModel(t *testing.T) {
 	t.Run("ValidJson", func(tt *testing.T) {
 		jsonData := []byte(`{"name": "test", "age": 30}`)

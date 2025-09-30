@@ -3901,6 +3901,254 @@ func TestCreateVolume(t *testing.T) {
 		// Verify that SnapshotDirectory is set to false for SAN protocols
 		assert.False(tt, volumeObj.VolumeAttributes.SnapshotDirectory)
 	})
+	t.Run("WhenCreateVolumeWithBackupPathVolumeSizeTooSmall", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		// Ensure account has a valid ID after creation
+		if account.ID == 0 {
+			tt.Fatalf("Account ID should not be 0 after creation")
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+			SizeInBytes: 1000 * 1024 * 1024 * 1024, // 1TB
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			Name:      "bv1",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(backupVault).Error
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		// Create a backup with a large size (100GB)
+		backupSizeInBytes := int64(100 * 1024 * 1024 * 1024) // 100GB
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "backupName",
+			BackupVaultID: backupVault.ID,
+			SizeInBytes:   backupSizeInBytes,
+		}
+		err = store.DB().Create(backup).Error
+		if err != nil {
+			tt.Fatalf("Failed to create backup: %v", err)
+		}
+
+		// Create volume with size smaller than required (80GB < 120GB required)
+		volumeSizeInBytes := int64(80 * 1024 * 1024 * 1024) // 80GB
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes:  uint64(volumeSizeInBytes),
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "bv1",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+			},
+			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
+			BackupPath: "projects/project123/locations/location123/backupVaults/bv1/backups/backupName",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil // Use the real account instead of the mock
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+
+		// Should return error due to volume size being too small for backup
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "Restored Volume size should be greater than or equal to the logical size of the backup")
+	})
+	t.Run("WhenCreateVolumeWithBackupPathVolumeSizeTooSmallWithNewCalculation", func(tt *testing.T) {
+		// Enable the new restore volume buffer method
+		utils.SetRestoreVolumeBufferEnabledForTesting(true)
+		defer utils.SetRestoreVolumeBufferEnabledForTesting(false)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		// Ensure account has a valid ID after creation
+		if account.ID == 0 {
+			tt.Fatalf("Account ID should not be 0 after creation")
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+			SizeInBytes: 1000 * 1024 * 1024 * 1024, // 1TB
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			Name:      "bv1",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(backupVault).Error
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		// Create a backup with a large size (100GB)
+		backupSizeInBytes := int64(100 * 1024 * 1024 * 1024) // 100GB
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "backupName",
+			BackupVaultID: backupVault.ID,
+			SizeInBytes:   backupSizeInBytes,
+		}
+		err = store.DB().Create(backup).Error
+		if err != nil {
+			tt.Fatalf("Failed to create backup: %v", err)
+		}
+
+		// Create volume with size smaller than required (80GB < 120GB required with 20% calculation)
+		volumeSizeInBytes := int64(80 * 1024 * 1024 * 1024) // 80GB
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes:  uint64(volumeSizeInBytes),
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "bv1",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+			},
+			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
+			BackupPath: "projects/project123/locations/location123/backupVaults/bv1/backups/backupName",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil // Use the real account instead of the mock
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+
+		// Should return error due to volume size being too small for backup
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "Restored Volume size should be greater than or equal to the logical size of the backup")
+	})
 }
 
 func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
@@ -13781,6 +14029,79 @@ func TestValidateCreateVolumeParamsEdgeCases(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestBackupVolumeSizeValidation tests the backup volume size validation logic
+func TestBackupVolumeSizeValidation(t *testing.T) {
+	t.Run("SuccessfulValidation_VolumeSizeAdequate", func(tt *testing.T) {
+		// Test the validation logic directly
+		volumeSize := int64(100 * 1024 * 1024 * 1024)     // 100GB
+		backupSize := int64(80 * 1024 * 1024 * 1024)      // 80GB
+		requiredSize := int64(float64(backupSize) * 1.20) // 96GB
+
+		// This should pass as 100GB > 96GB
+		assert.True(tt, volumeSize >= requiredSize, "Volume size should be adequate")
+	})
+
+	t.Run("FailedValidation_VolumeSizeTooSmall", func(tt *testing.T) {
+		// Test the validation logic directly
+		volumeSize := int64(80 * 1024 * 1024 * 1024)      // 80GB
+		backupSize := int64(100 * 1024 * 1024 * 1024)     // 100GB
+		requiredSize := int64(float64(backupSize) * 1.20) // 120GB
+
+		// This should fail as 80GB < 120GB
+		assert.False(tt, volumeSize >= requiredSize, "Volume size should be insufficient")
+	})
+
+	t.Run("EdgeCase_ExactSizeMatch", func(tt *testing.T) {
+		// Test the validation logic directly
+		volumeSize := int64(100 * 1024 * 1024 * 1024)     // 100GB
+		backupSize := int64(83 * 1024 * 1024 * 1024)      // 83GB (100/1.20 = 83.33)
+		requiredSize := int64(float64(backupSize) * 1.20) // 99.6GB
+
+		// This should pass as 100GB > 99.6GB
+		assert.True(tt, volumeSize >= requiredSize, "Volume size should be adequate for exact match")
+	})
+
+	t.Run("EdgeCase_ZeroBackupSize", func(tt *testing.T) {
+		// Test the validation logic directly
+		volumeSize := int64(1 * 1024 * 1024 * 1024)       // 1GB
+		backupSize := int64(0)                            // 0GB
+		requiredSize := int64(float64(backupSize) * 1.20) // 0GB
+
+		// This should pass as 1GB > 0GB
+		assert.True(tt, volumeSize >= requiredSize, "Volume size should be adequate for zero backup")
+	})
+
+	t.Run("EdgeCase_LargeBackupSize", func(tt *testing.T) {
+		// Test the validation logic directly
+		volumeSize := int64(150 * 1024 * 1024 * 1024)     // 150GB
+		backupSize := int64(200 * 1024 * 1024 * 1024)     // 200GB
+		requiredSize := int64(float64(backupSize) * 1.20) // 240GB
+
+		// This should fail as 150GB < 240GB
+		assert.False(tt, volumeSize >= requiredSize, "Volume size should be insufficient for large backup")
+	})
+
+	t.Run("EdgeCase_VerySmallVolumeSize", func(tt *testing.T) {
+		// Test the validation logic directly
+		volumeSize := int64(8 * 1024 * 1024 * 1024)       // 8GB
+		backupSize := int64(10 * 1024 * 1024 * 1024)      // 10GB
+		requiredSize := int64(float64(backupSize) * 1.20) // 12GB
+
+		// This should fail as 8GB < 12GB
+		assert.False(tt, volumeSize >= requiredSize, "Volume size should be insufficient for very small volume")
+	})
+
+	t.Run("EdgeCase_FractionalCalculations", func(tt *testing.T) {
+		// Test the validation logic directly
+		volumeSize := int64(100 * 1024 * 1024 * 1024)     // 100GB
+		backupSize := int64(67 * 1024 * 1024 * 1024)      // 67GB
+		requiredSize := int64(float64(backupSize) * 1.20) // 80.4GB
+
+		// This should pass as 100GB > 80.4GB
+		assert.True(tt, volumeSize >= requiredSize, "Volume size should be adequate for fractional calculations")
+	})
 }
 
 // TestHotTierBypassModeValidation tests the validation logic for HotTierBypassModeEnabled

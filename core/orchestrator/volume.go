@@ -295,7 +295,12 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if err != nil {
 			return nil, "", err
 		}
-		volumeObj.VolumeAttributes.RestoredBackupID = backup.UUID // Set the restored backup ID from the backup object
+		volumeObj.VolumeAttributes.RestoredBackupID = backup.UUID                   // Set the restored backup ID from the backup object
+		requiredVolumeSize := utils.CalculateRequiredVolumeSize(backup.SizeInBytes) // Calculate required volume size based on env flag
+		if volumeObj.SizeInBytes < requiredVolumeSize {
+			logger.Error("The volume size is too small for the selected backup")
+			return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("Restored Volume size should be greater than or equal to the logical size of the backup : %d bytes", requiredVolumeSize))
+		}
 	}
 
 	if params.LargeCapacity {

@@ -318,6 +318,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 				SecretID: "pool-credential-secret-id",
 			},
 			DeploymentName: "test-pool-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
+			},
 		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
@@ -428,6 +431,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_Jo
 				SecretID: "pool-credential-secret-id",
 			},
 			DeploymentName: "test-pool-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
+			},
 		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
@@ -1816,6 +1822,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 				SecretID: "pool-credential-secret-id",
 			},
 			DeploymentName: "test-pool-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
+			},
 		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
@@ -1936,6 +1945,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 				SecretID: "pool-credential-secret-id",
 			},
 			DeploymentName: "test-pool-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
+			},
 		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
@@ -2046,6 +2058,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateBack
 				SecretID: "pool-credential-secret-id",
 			},
 			DeploymentName: "test-pool-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
+			},
 		},
 		DataProtection: &datamodel.DataProtection{
 			BackupVaultID: "backup-vault-uuid-1",
@@ -3629,6 +3644,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 				SecretID:      "test-secret-id",
 				CertificateID: "test-cert-id",
 				AuthType:      0, // USERNAME_PWD
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
 			},
 		},
 		VolumeAttributes: &datamodel.VolumeAttributes{

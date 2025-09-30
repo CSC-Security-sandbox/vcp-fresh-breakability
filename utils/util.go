@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	goerrors "errors"
 	"fmt"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -75,6 +76,7 @@ var (
 	GetBackupRegion                = _getBackupRegion
 	GenerateStrongPassword         = _generateStrongPassword
 	ParsePEMCertificate            = _parsePEMCertificate
+	CalculateRequiredVolumeSize    = _calculateRequiredVolumeSize
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
 	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
 	// fileProtocolAllowlistedAccounts contains the parsed set of account IDs that are allowlisted for file protocol support
@@ -82,6 +84,7 @@ var (
 	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
 	AutoTieringEnabled              = env.GetBool("AUTO_TIERING_ENABLED", false)
 	immutableBackupEnabled          = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
+	RestoreVolumeBufferEnabled      = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
 )
 
 const (
@@ -992,11 +995,37 @@ func SetFileProtocolAllowlistedAccountsForTesting(accounts string) {
 	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 }
 
+
 func GetSnHostProject(pool *datamodel.Pool) string {
 	if pool == nil {
 		return ""
 	}
 	return pool.SnHostProject
+}
+
+// SetRestoreVolumeBufferEnabledForTesting is a test helper function that allows tests to set
+// the restore volume buffer flag by setting the environment variable.
+// This should only be used in tests.
+func SetRestoreVolumeBufferEnabledForTesting(enabled bool) {
+	err := os.Setenv("RESTORE_VOLUME_BUFFER_ENABLED", strconv.FormatBool(enabled))
+	if err != nil {
+		return
+	}
+	// Re-read the environment variable to update the cached value
+	RestoreVolumeBufferEnabled = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
+}
+
+
+// _calculateRequiredVolumeSize calculates the required volume size based on backup size
+// If RESTORE_VOLUME_BUFFER_ENABLED is true, returns 20% more than backup size
+// Otherwise, returns ceil of backup size + 1 GiB
+func _calculateRequiredVolumeSize(backupSizeInBytes int64) int64 {
+	if RestoreVolumeBufferEnabled {
+		// 20% more than backup size
+		return int64(float64(backupSizeInBytes) * 1.20)
+	}
+	// ceil of backup size + 1 GiB
+	return int64(math.Ceil(float64(backupSizeInBytes+GiBInBytes)/float64(GiBInBytes))) * GiBInBytes
 }
 
 // GetLocationFromVendorID extracts the location from a vendor ID.
