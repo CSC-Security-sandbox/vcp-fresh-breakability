@@ -3,7 +3,6 @@ package activities
 import (
 	"context"
 	"fmt"
-	"go.temporal.io/sdk/temporal"
 	"net/http"
 	"strings"
 
@@ -12,7 +11,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 )
 
 const (
@@ -170,5 +171,10 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) ValidateAndRel
 			}
 		}
 	}
+	return nil
+}
+
+func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) AlertHarvestUnRegisterFailure(ctx context.Context, errorDetails string) error {
+	metrics.IncJobStatusCounter(ctx, errorDetails, "failed to un-register nodes from harvest farm")
 	return nil
 }

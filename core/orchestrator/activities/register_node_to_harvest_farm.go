@@ -5,21 +5,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"go.temporal.io/sdk/temporal"
-	"gorm.io/gorm"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"strconv"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
+	"gorm.io/gorm"
 )
 
 const (
@@ -194,6 +195,12 @@ func (a *RegisterNodeToHarvestFarmActivity) updateDatabaseRecords(ctx context.Co
 		logger.Errorf("Failed to update k8s lease info in DB for node id %d: %v", nodeGroupMap.NodeID, err)
 		return err
 	}
+	return nil
+}
+
+// AlertHarvestRegisterFailure logs error details to metrics for monitoring purposes
+func (a *RegisterNodeToHarvestFarmActivity) AlertHarvestRegisterFailure(ctx context.Context, errorDetails string) error {
+	metrics.IncJobStatusCounter(ctx, errorDetails, "failed to register nodes to harvest farm")
 	return nil
 }
 

@@ -90,6 +90,12 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	defer func() {
+		if err != nil {
+			_ = workflow.ExecuteActivity(ctx, registerActivity.AlertHarvestRegisterFailure, err.Error()).Get(ctx, nil)
+		}
+	}()
+
 	// 1. Register nodes to Harvest farm
 	var nodeMappings []*datamodel.NodeNodeGroupMap
 	err = workflow.ExecuteActivity(ctx, registerActivity.RegisterNodeToHarvestFarm,

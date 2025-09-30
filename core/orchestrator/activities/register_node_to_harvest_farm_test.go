@@ -3,7 +3,6 @@ package activities
 import (
 	"context"
 	"errors"
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"go.temporal.io/sdk/temporal"
 	"gorm.io/gorm"
 )
@@ -868,4 +868,12 @@ func TestValidateAndCreateKubernetesLease_LeaseCheckError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, updatedMappings)
 	assert.Contains(t, err.Error(), "kubernetes connection error")
+}
+
+func TestAlertHarvestRegisterFailure(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+	ctx := context.Background()
+	err := activity.AlertHarvestRegisterFailure(ctx, "test-error-details")
+	assert.NoError(t, err)
 }

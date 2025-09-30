@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"errors"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -79,6 +80,12 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args 
 		CustomerProjectID: input.CustomerProjectID,
 		TenantProjectID:   input.TenantProjectID,
 	}
+
+	defer func() {
+		if err != nil {
+			_ = workflow.ExecuteActivity(ctx, unRegisterActivity.AlertHarvestUnRegisterFailure, err.Error()).Get(ctx, nil)
+		}
+	}()
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
 

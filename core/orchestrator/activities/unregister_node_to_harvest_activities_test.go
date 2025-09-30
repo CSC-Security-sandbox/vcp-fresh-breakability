@@ -3,7 +3,6 @@ package activities
 import (
 	"context"
 	"fmt"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"net/http"
 	"strconv"
 	"testing"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -433,4 +433,12 @@ func TestValidateAndReleaseLease_DBError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "db-error", err.Error())
 	mockStorage.AssertExpectations(t)
+}
+
+func TestUnRegisterAlertHarvestRegisterFailure(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockSE}
+	ctx := context.Background()
+	err := activity.AlertHarvestUnRegisterFailure(ctx, "test-error-details")
+	assert.NoError(t, err)
 }

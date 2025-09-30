@@ -76,6 +76,8 @@ func TestRegisterNodeToHarvestFarmWorkflow_ActivityFails(t *testing.T) {
 	activity := newTestActivityWithMockStorage(mockStorage)
 	env.RegisterActivity(activity.RegisterNodeToHarvestFarm)
 
+	env.OnActivity(activity.AlertHarvestRegisterFailure, mock.Anything, mock.Anything).Return(nil)
+
 	// Simulate error in GetNodesByPoolID
 	mockStorage.On("GetNodesByPoolID", mock.Anything, input.PoolID).Return(nil, assert.AnError)
 	// Do not mock AssignTwoNodesToTwoGroups, as it should not be called if GetNodesByPoolID fails
@@ -84,6 +86,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_ActivityFails(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, env.AssertExpectations(t))
 	mockStorage.AssertExpectations(t)
 }
 
@@ -108,12 +111,13 @@ func TestRegisterNodeToHarvestFarmWorkflow_InvalidInput(t *testing.T) {
 		TenantProject:    input.TenantProjectID,
 	}).Return(nil, assert.AnError)
 
-	env.OnActivity(activity.ValidateAndCreateKubernetesLease, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity(activity.AlertHarvestRegisterFailure, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(RegisterNodeToHarvestFarmWorkflow, input)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, env.AssertExpectations(t))
 	mockStorage.AssertExpectations(t)
 }
 
@@ -138,10 +142,14 @@ func TestRegisterNodeToHarvestFarmWorkflow_SameNodeIDs(t *testing.T) {
 		TenantProject:    input.TenantProjectID,
 	}).Return(nil, assert.AnError)
 
+	// mock Activity to alert on failure
+	env.OnActivity(activity.AlertHarvestRegisterFailure, mock.Anything, mock.Anything).Return(nil)
+
 	env.ExecuteWorkflow(RegisterNodeToHarvestFarmWorkflow, input)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, env.AssertExpectations(t))
 	mockStorage.AssertExpectations(t)
 }
 
@@ -175,6 +183,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_LargeGroupSize(t *testing.T) {
 		TenantProject:    input.TenantProjectID,
 	}).Return([]*datamodel.NodeNodeGroupMap{{NodeID: node1.ID}, {NodeID: node2.ID}}, nil)
 
+	// mock Activities
 	env.OnActivity(activity.ValidateAndCreateKubernetesLease, mock.Anything, mock.Anything).Return(nil, nil)
 
 	env.ExecuteWorkflow(RegisterNodeToHarvestFarmWorkflow, input)
@@ -252,6 +261,8 @@ func TestRegisterNodeToHarvestFarmWorkflow_UpdateNodeNodeGroupMapFails(t *testin
 
 	// Mock validate and create lease activity to fail with DB error
 	env.OnActivity(activity.ValidateAndCreateKubernetesLease, mock.Anything, nodeMappings).Return(nil, errors.New("Failed to update k8s lease info in DB for node"))
+
+	env.OnActivity(activity.AlertHarvestRegisterFailure, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(RegisterNodeToHarvestFarmWorkflow, input)
 
@@ -354,6 +365,8 @@ func TestRegisterNodeToHarvestFarmWorkflow_GetCredentialsReturnsNil(t *testing.T
 
 	// Mock validate and create lease activity to succeed
 	env.OnActivity(activity.ValidateAndCreateKubernetesLease, mock.Anything, nodeMappings).Return(nodeMappings, nil)
+
+	env.OnActivity(activity.AlertHarvestRegisterFailure, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(RegisterNodeToHarvestFarmWorkflow, input)
 
