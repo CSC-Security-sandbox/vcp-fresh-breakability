@@ -2931,6 +2931,66 @@ func (_c *MockGoogleServices_IsServiceAccountCreated_Call) RunAndReturn(run func
 	return _c
 }
 
+// ListAddressesByDeployment provides a mock function with given fields: projectName, region, deploymentID
+func (_m *MockGoogleServices) ListAddressesByDeployment(projectName string, region string, deploymentID string) (*[]models.Address, error) {
+	ret := _m.Called(projectName, region, deploymentID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAddressesByDeployment")
+	}
+
+	var r0 *[]models.Address
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (*[]models.Address, error)); ok {
+		return rf(projectName, region, deploymentID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) *[]models.Address); ok {
+		r0 = rf(projectName, region, deploymentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*[]models.Address)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(projectName, region, deploymentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_ListAddressesByDeployment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAddressesByDeployment'
+type MockGoogleServices_ListAddressesByDeployment_Call struct {
+	*mock.Call
+}
+
+// ListAddressesByDeployment is a helper method to define mock.On call
+//   - projectName string
+//   - region string
+//   - deploymentID string
+func (_e *MockGoogleServices_Expecter) ListAddressesByDeployment(projectName interface{}, region interface{}, deploymentID interface{}) *MockGoogleServices_ListAddressesByDeployment_Call {
+	return &MockGoogleServices_ListAddressesByDeployment_Call{Call: _e.mock.On("ListAddressesByDeployment", projectName, region, deploymentID)}
+}
+
+func (_c *MockGoogleServices_ListAddressesByDeployment_Call) Run(run func(projectName string, region string, deploymentID string)) *MockGoogleServices_ListAddressesByDeployment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_ListAddressesByDeployment_Call) Return(_a0 *[]models.Address, _a1 error) *MockGoogleServices_ListAddressesByDeployment_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_ListAddressesByDeployment_Call) RunAndReturn(run func(string, string, string) (*[]models.Address, error)) *MockGoogleServices_ListAddressesByDeployment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListSubnetworks provides a mock function with given fields: projectName, region
 func (_m *MockGoogleServices) ListSubnetworks(projectName string, region string) (*[]models.Subnet, error) {
 	ret := _m.Called(projectName, region)

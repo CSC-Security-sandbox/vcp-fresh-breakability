@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"net"
 	"os"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	vmrs_config "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/config"
@@ -76,6 +76,7 @@ var (
 	GetGatewayFromIpCidrRange         = _getGatewayFromIpCidrRange
 	ResolveZonesForCluster            = _resolveZonesForCluster
 	GetInternalVSANetworkForFirewalls = _getInternalVSANetworkForFirewalls
+	ListAddressesByDeployment         = _listAddressesByDeployment
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
@@ -712,6 +713,53 @@ func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *d
 	}
 
 	return nil
+}
+
+func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamodel.Pool, tenancyDetails *commonparams.TenancyInfo, region string) (*[]datamodel.SubnetToIPs, error) {
+	logger := util.GetLogger(ctx)
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
+	}
+
+	// Fetch all addresses with deployment ID filter only (no subnet filter)
+	// This avoids the issue with incomplete subnet information in the API response
+	addresses, err := ListAddressesByDeployment(gcpService, tenancyDetails.RegionalTenantProject, region, pool.DeploymentName)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// If no subnetworkNAme
+	if len(tenancyDetails.SubnetworkNames) == 0 {
+		logger.Debugf("No subnetwork found for the pool: %s", pool.Name)
+		return nil, nil
+	}
+
+	// Build result with only the target subnet
+	subnetToIps := make([]datamodel.SubnetToIPs, 0)
+	// Iterate through addresses and filter by the specific subnetwork
+	if addresses != nil {
+		for _, targetSubnetName := range tenancyDetails.SubnetworkNames {
+			logger.Debugf("Filtering addresses for target subnet: %s", targetSubnetName)
+			totalIPs := int64(0)
+			for _, address := range *addresses {
+				logger.Debugf("Address: %s, SubnetURI: %s, SelfLink: %s", address.AddressName, address.SubnetURI, address.SelfLink)
+
+				// Check if this address belongs to our target subnet
+				// Match by subnet name in the SubnetURI or SelfLink
+				if strings.HasSuffix(address.SubnetURI, "/"+targetSubnetName) {
+					totalIPs++
+					logger.Debugf("Address %s matched target subnet %s", address.AddressName, targetSubnetName)
+				}
+			}
+			subnetToIps = append(subnetToIps, datamodel.SubnetToIPs{
+				SubnetName:  targetSubnetName,
+				IPsReserved: totalIPs,
+			})
+			logger.Infof("Target subnet %s has %d reserved IPs", targetSubnetName, totalIPs)
+		}
+	}
+	return &subnetToIps, nil
 }
 
 func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (*string, error) {
@@ -2302,4 +2350,9 @@ func (j *PoolActivity) HydrateUpdatedPoolToCCFE(ctx context.Context, dbPool data
 	}
 
 	return nil
+}
+
+// Add this function
+func _listAddressesByDeployment(gcpService hyperscaler2.GoogleServices, projectName, region, deploymentID string) (*[]hyperscaler_models.Address, error) {
+	return gcpService.ListAddressesByDeployment(projectName, region, deploymentID)
 }

@@ -271,8 +271,8 @@ func _findEmptySubnet(ctx context.Context, se database.Storage, subnet hyperscal
 		return 0, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, errors.New("subnetwork does not have an IP range"))
 	}
 
-	// Check the number of pools using this subnetwork
-	pools, err := getPoolsBySubnetwork(ctx, se, accountId, subnet.Name, poolNetwork)
+	// Get the sum of all reserved IPs for this subnet
+	sumOfReservedIPs, err := _getSumOfReservedIPsForSubnet(ctx, se, accountId, subnet.Name, poolNetwork)
 	if err != nil {
 		return 0, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
@@ -282,7 +282,9 @@ func _findEmptySubnet(ctx context.Context, se database.Storage, subnet hyperscal
 	}
 
 	// 4 IPs are reserved for the network, gateway, broadcast, and subnet address
-	freeIPs := totalIPs - 4 - len(pools)*totalIPPerHAPair // Assuming each pool uses 6 IPs
+	// Each pool reserves IPReserved from a given subnet
+	freeIPs := totalIPs - 4 - int(sumOfReservedIPs)
+
 	return freeIPs, nil
 }
 
@@ -317,6 +319,49 @@ func _getIPsInSubnet(ipCidrRange string) (int, error) {
 		return 0, fmt.Errorf("IPCR range must be between 1 and 32. CIDR notation found : %s", ipCidrRange)
 	}
 	return 1 << (32 - cidr), nil
+}
+
+// _getSumOfReservedIPsForSubnet calculates the total number of IPs reserved for a specific subnet
+// by summing up the IPsReserved field from cluster_details.reserved_ips_in_subnet for all pools
+func _getSumOfReservedIPsForSubnet(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) (int64, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get all pools using this subnetwork
+	pools, err := getPoolsBySubnetwork(ctx, se, accountID, subnetworkName, poolNetwork)
+	if err != nil {
+		return 0, err
+	}
+
+	var totalReservedIPs int64 = 0
+
+	// Iterate through all pools and sum up reserved IPs for the specific subnet
+	for _, pool := range pools {
+		// We update ReservedIPsInSubnet for a given cluster during pool create which gives us the dynamic IP consumption
+		// We have to handle Pools where we don't have this field set.
+		if pool.ClusterDetails.ReservedIPsInSubnet != nil {
+			for _, subnetToIPs := range *pool.ClusterDetails.ReservedIPsInSubnet {
+				if subnetToIPs.SubnetName == subnetworkName {
+					totalReservedIPs += subnetToIPs.IPsReserved
+					logger.Debugf("Pool %s has %d reserved IPs in subnet %s",
+						pool.Name, subnetToIPs.IPsReserved, subnetworkName)
+					break
+				}
+			}
+		} else {
+			// For pools where we don't have the reservedIPsInSubnet, we will use the default value
+			totalReservedIPs += ipsReservedInSubnetByPoolType(pool)
+			logger.Debugf("Pool %s doesn't have reserved IPs in subnet %s, using default %d",
+				pool.Name, subnetworkName, totalIPPerHAPair)
+		}
+	}
+
+	logger.Infof("Total reserved IPs for subnet %s: %d", subnetworkName, totalReservedIPs)
+	return totalReservedIPs, nil
+}
+
+// IPsReservedInSubnetByPoolType Based on pool type, default IPsReserved will be returned
+func ipsReservedInSubnetByPoolType(pool *datamodel.PoolView) int64 {
+	return int64(totalIPPerHAPair)
 }
 
 // getPoolTenantProject extracts the tenant project number from the target pool

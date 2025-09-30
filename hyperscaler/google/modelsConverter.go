@@ -142,6 +142,7 @@ func convertGCPAddressToAddress(address *compute.Address) *models.Address {
 		AddressName: address.Name,
 		Region:      address.Region,
 		SelfLink:    address.SelfLink,
+		SubnetURI:   address.Subnetwork,
 	}
 }
 
@@ -286,4 +287,20 @@ func _validateAndConvertToCustomCloudDNSRecord(recordSet *dns.ResourceRecordSet,
 		Data:        recordSet.Rrdatas[0],
 		ManagedZone: managedZone,
 	}, nil
+}
+
+func convertGoogleAddressesToAddresses(addresses *compute.AddressList) *[]models.Address {
+	if addresses == nil || len(addresses.Items) == 0 {
+		return &[]models.Address{}
+	}
+
+	var result []models.Address
+	for _, address := range addresses.Items {
+		convertedAddress := convertGCPAddressToAddress(address)
+		if convertedAddress != nil {
+			result = append(result, *convertedAddress)
+		}
+	}
+
+	return &result
 }

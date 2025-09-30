@@ -29,6 +29,7 @@ type Services interface {
 	GetAddress(projectName string, region string, address string) (*models.Address, error)
 	CreateAddressOperation(address *models.Address) (string, error)
 	ReleaseAddress(region, projectNumber, addressName string) (string, error)
+	ListAddressesByDeployment(projectName, region, deploymentID string) (*[]models.Address, error)
 
 	GetForwardingRule(projectName string, region string, endpointName string) (*models.ForwardingRule, error)
 	CreateForwardingRuleOperation(forwardingRule *models.ForwardingRule) (string, error)

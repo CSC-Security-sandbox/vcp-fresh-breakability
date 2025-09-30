@@ -736,3 +736,99 @@ func Test_validateAndConvertToCustomCloudDNSRecord(t *testing.T) {
 		assert.Equal(tt, expected, result)
 	})
 }
+
+// ... existing code ...
+
+func Test_convertGoogleAddressesToAddresses(t *testing.T) {
+	t.Run("WhenAddressesIsNil", func(tt *testing.T) {
+		result := convertGoogleAddressesToAddresses(nil)
+		assert.NotNil(tt, result)
+		assert.Empty(tt, *result)
+	})
+
+	t.Run("WhenAddressesItemsIsEmpty", func(tt *testing.T) {
+		addresses := &compute.AddressList{
+			Items: []*compute.Address{},
+		}
+		result := convertGoogleAddressesToAddresses(addresses)
+		assert.NotNil(tt, result)
+		assert.Empty(tt, *result)
+	})
+
+	t.Run("WhenAddressesHasValidItems", func(tt *testing.T) {
+		addresses := &compute.AddressList{
+			Items: []*compute.Address{
+				{
+					Name:       "test-address-1",
+					Region:     "us-central1",
+					SelfLink:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/test-address-1",
+					Subnetwork: "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				},
+				{
+					Name:       "test-address-2",
+					Region:     "us-west1",
+					SelfLink:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-west1/addresses/test-address-2",
+					Subnetwork: "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-west1/subnetworks/test-subnet-2",
+				},
+			},
+		}
+
+		expected := []models.Address{
+			{
+				AddressName: "test-address-1",
+				Region:      "us-central1",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/test-address-1",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+			},
+			{
+				AddressName: "test-address-2",
+				Region:      "us-west1",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-west1/addresses/test-address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-west1/subnetworks/test-subnet-2",
+			},
+		}
+
+		result := convertGoogleAddressesToAddresses(addresses)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, expected, *result)
+	})
+
+	t.Run("WhenAddressesHasNilItem", func(tt *testing.T) {
+		addresses := &compute.AddressList{
+			Items: []*compute.Address{
+				{
+					Name:       "test-address-1",
+					Region:     "us-central1",
+					SelfLink:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/test-address-1",
+					Subnetwork: "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				},
+				nil, // This should be filtered out
+				{
+					Name:       "test-address-2",
+					Region:     "us-west1",
+					SelfLink:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-west1/addresses/test-address-2",
+					Subnetwork: "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-west1/subnetworks/test-subnet-2",
+				},
+			},
+		}
+
+		expected := []models.Address{
+			{
+				AddressName: "test-address-1",
+				Region:      "us-central1",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/test-address-1",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+			},
+			{
+				AddressName: "test-address-2",
+				Region:      "us-west1",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-west1/addresses/test-address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-west1/subnetworks/test-subnet-2",
+			},
+		}
+
+		result := convertGoogleAddressesToAddresses(addresses)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, expected, *result)
+	})
+}

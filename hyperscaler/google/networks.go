@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicenetworking/v1"
 )
@@ -19,6 +20,7 @@ var (
 	minimumTenantNetworkSize   = env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
 	minimumLVTenantNetworkSize = env.GetInt64("DATA_SUBNET_CIDR_BLOCK_LV", int64(26))
 	defaultSleepTime           = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
+	GlobalRegion               = "global"
 
 	CreateTPSubnetOp       = _createTPSubnetOp
 	getProjectIDFromNumber = _getProjectIDFromNumber
@@ -476,4 +478,80 @@ func _getProjectIDFromNumber(gcpService *GcpServices, projectNumber string) (str
 		return "", err
 	}
 	return project.Name, nil
+}
+
+// ListAddressesWithFilter retrieves a list of addresses with optional filtering
+// Parameters:
+//   - projectName: GCP project name
+//   - region: GCP region (use "global" for global addresses)
+//   - subnetName: Optional subnet name to filter by (partial match)
+//   - deploymentID: Optional deployment_id label to filter by
+//   - additionalLabels: Optional additional labels to filter by (map of key-value pairs)
+func (gcpService *GcpServices) ListAddressesWithFilter(projectName, region, subnetName, deploymentID string, additionalLabels map[string]string) (*[]models.Address, error) {
+	gcpService.Logger.Debugf("Calling ListAddressesWithFilter for project: %s, region: %s, subnet: %s, deployment: %s",
+		projectName, region, subnetName, deploymentID)
+
+	// Build filter string
+	var filterParts []string
+
+	if projectName == "" {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, errors.New("project name is required"))
+	}
+
+	// Add subnet filter if provided
+	if subnetName != "" {
+		subnetFilter := fmt.Sprintf("subnetwork=\"%s\"", subnetName)
+		filterParts = append(filterParts, subnetFilter)
+	}
+
+	// Add deployment_id filter if provided
+	if deploymentID != "" {
+		deploymentFilter := fmt.Sprintf("labels.deployment_id=\"%s\"", deploymentID)
+		filterParts = append(filterParts, deploymentFilter)
+	}
+
+	// Add additional label filters if provided
+	if additionalLabels != nil {
+		for key, value := range additionalLabels {
+			labelFilter := fmt.Sprintf("labels.%s=\"%s\"", key, value)
+			filterParts = append(filterParts, labelFilter)
+		}
+	}
+
+	// Combine all filters with AND
+	filter := strings.Join(filterParts, " AND ")
+
+	gcpService.Logger.Debugf("Using filter: %s", filter)
+
+	// Handle global addresses (region = "global")
+	var addresses *compute.AddressList
+	var err error
+
+	if region == GlobalRegion {
+		call := gcpService.AdminGCPService.computeService.GlobalAddresses.List(projectName).Context(gcpService.Ctx)
+		if filter != "" {
+			call = call.Filter(filter)
+		}
+		addresses, err = call.Do()
+	} else {
+		call := gcpService.AdminGCPService.computeService.Addresses.List(projectName, region).Context(gcpService.Ctx)
+		if filter != "" {
+			call = call.Filter(filter)
+		}
+		addresses, err = call.Do()
+	}
+
+	if err != nil {
+		gcpService.Logger.Errorf("ListAddressesWithFilter failed for project: %s, region: %s, filter: %s with error: %v",
+			projectName, region, filter, err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+
+	gcpService.Logger.Debugf("ListAddressesWithFilter success with number of addresses: %d", len(addresses.Items))
+	return convertGoogleAddressesToAddresses(addresses), nil
+}
+
+// ListAddressesByDeployment retrieves addresses filtered by subnet and deployment_id
+func (gcpService *GcpServices) ListAddressesByDeployment(projectName, region, deploymentID string) (*[]models.Address, error) {
+	return gcpService.ListAddressesWithFilter(projectName, region, "", deploymentID, nil)
 }

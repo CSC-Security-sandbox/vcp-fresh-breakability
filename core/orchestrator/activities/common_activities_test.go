@@ -1213,3 +1213,237 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func Test_getSumOfReservedIPsForSubnet(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	accountID := "123"
+	subnetworkName := "test-subnet"
+	poolNetwork := "test-network"
+
+	t.Run("success with pools having ReservedIPsInSubnet", func(t *testing.T) {
+		// Mock pools with ReservedIPsInSubnet data
+		mockPools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					Name: "pool1",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: &[]datamodel.SubnetToIPs{
+							{SubnetName: subnetworkName, IPsReserved: 5},
+							{SubnetName: "other-subnet", IPsReserved: 3},
+						},
+					},
+				},
+			},
+			{
+				Pool: datamodel.Pool{
+					Name: "pool2",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: &[]datamodel.SubnetToIPs{
+							{SubnetName: subnetworkName, IPsReserved: 7},
+						},
+					},
+				},
+			},
+		}
+
+		// Mock the getPoolsBySubnetwork function
+		origGetPoolsBySubnetwork := getPoolsBySubnetwork
+		getPoolsBySubnetwork = func(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) ([]*datamodel.PoolView, error) {
+			return mockPools, nil
+		}
+		defer func() { getPoolsBySubnetwork = origGetPoolsBySubnetwork }()
+
+		result, err := _getSumOfReservedIPsForSubnet(ctx, mockStorage, accountID, subnetworkName, poolNetwork)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(12), result) // 5 + 7
+	})
+
+	t.Run("success with pools having no ReservedIPsInSubnet", func(t *testing.T) {
+		// Mock pools without ReservedIPsInSubnet data
+		mockPools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					Name: "pool1",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: nil,
+					},
+				},
+			},
+			{
+				Pool: datamodel.Pool{
+					Name: "pool2",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: nil,
+					},
+				},
+			},
+		}
+
+		// Mock the getPoolsBySubnetwork function
+		origGetPoolsBySubnetwork := getPoolsBySubnetwork
+		getPoolsBySubnetwork = func(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) ([]*datamodel.PoolView, error) {
+			return mockPools, nil
+		}
+		defer func() { getPoolsBySubnetwork = origGetPoolsBySubnetwork }()
+
+		result, err := _getSumOfReservedIPsForSubnet(ctx, mockStorage, accountID, subnetworkName, poolNetwork)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2*totalIPPerHAPair), result) // 2 pools * default IPs per HA pair
+	})
+
+	t.Run("success with mixed pools", func(t *testing.T) {
+		// Mock pools with mixed ReservedIPsInSubnet data
+		mockPools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					Name: "pool1",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: &[]datamodel.SubnetToIPs{
+							{SubnetName: subnetworkName, IPsReserved: 5},
+						},
+					},
+				},
+			},
+			{
+				Pool: datamodel.Pool{
+					Name: "pool2",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: nil, // This pool will use default value
+					},
+				},
+			},
+		}
+
+		// Mock the getPoolsBySubnetwork function
+		origGetPoolsBySubnetwork := getPoolsBySubnetwork
+		getPoolsBySubnetwork = func(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) ([]*datamodel.PoolView, error) {
+			return mockPools, nil
+		}
+		defer func() { getPoolsBySubnetwork = origGetPoolsBySubnetwork }()
+
+		result, err := _getSumOfReservedIPsForSubnet(ctx, mockStorage, accountID, subnetworkName, poolNetwork)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(5+totalIPPerHAPair), result) // 5 + default IPs per HA pair
+	})
+
+	t.Run("success with no pools", func(t *testing.T) {
+		// Mock empty pools list
+		mockPools := []*datamodel.PoolView{}
+
+		// Mock the getPoolsBySubnetwork function
+		origGetPoolsBySubnetwork := getPoolsBySubnetwork
+		getPoolsBySubnetwork = func(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) ([]*datamodel.PoolView, error) {
+			return mockPools, nil
+		}
+		defer func() { getPoolsBySubnetwork = origGetPoolsBySubnetwork }()
+
+		result, err := _getSumOfReservedIPsForSubnet(ctx, mockStorage, accountID, subnetworkName, poolNetwork)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), result)
+	})
+
+	t.Run("success with pools having ReservedIPsInSubnet but no matching subnet", func(t *testing.T) {
+		// Mock pools with ReservedIPsInSubnet but no matching subnet name
+		mockPools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					Name: "pool1",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: &[]datamodel.SubnetToIPs{
+							{SubnetName: "other-subnet", IPsReserved: 5},
+							{SubnetName: "another-subnet", IPsReserved: 3},
+						},
+					},
+				},
+			},
+		}
+
+		// Mock the getPoolsBySubnetwork function
+		origGetPoolsBySubnetwork := getPoolsBySubnetwork
+		getPoolsBySubnetwork = func(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) ([]*datamodel.PoolView, error) {
+			return mockPools, nil
+		}
+		defer func() { getPoolsBySubnetwork = origGetPoolsBySubnetwork }()
+
+		result, err := _getSumOfReservedIPsForSubnet(ctx, mockStorage, accountID, subnetworkName, poolNetwork)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), result) // No matching subnet found
+	})
+
+	t.Run("error when getPoolsBySubnetwork fails", func(t *testing.T) {
+		// Mock the getPoolsBySubnetwork function to return error
+		origGetPoolsBySubnetwork := getPoolsBySubnetwork
+		getPoolsBySubnetwork = func(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) ([]*datamodel.PoolView, error) {
+			return nil, errors.New("database error")
+		}
+		defer func() { getPoolsBySubnetwork = origGetPoolsBySubnetwork }()
+
+		result, err := _getSumOfReservedIPsForSubnet(ctx, mockStorage, accountID, subnetworkName, poolNetwork)
+
+		assert.Error(t, err)
+		assert.Equal(t, int64(0), result)
+	})
+
+	t.Run("success with multiple matching subnets in same pool", func(t *testing.T) {
+		// Mock pool with multiple entries for the same subnet (should only count the first match)
+		mockPools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					Name: "pool1",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: &[]datamodel.SubnetToIPs{
+							{SubnetName: subnetworkName, IPsReserved: 5},
+							{SubnetName: subnetworkName, IPsReserved: 3}, // This should be ignored due to break statement
+						},
+					},
+				},
+			},
+		}
+
+		// Mock the getPoolsBySubnetwork function
+		origGetPoolsBySubnetwork := getPoolsBySubnetwork
+		getPoolsBySubnetwork = func(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) ([]*datamodel.PoolView, error) {
+			return mockPools, nil
+		}
+		defer func() { getPoolsBySubnetwork = origGetPoolsBySubnetwork }()
+
+		result, err := _getSumOfReservedIPsForSubnet(ctx, mockStorage, accountID, subnetworkName, poolNetwork)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(5), result) // Only first match should be counted
+	})
+
+	t.Run("success with empty pool network", func(t *testing.T) {
+		// Test with empty pool network parameter
+		mockPools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					Name: "pool1",
+					ClusterDetails: datamodel.ClusterDetails{
+						ReservedIPsInSubnet: &[]datamodel.SubnetToIPs{
+							{SubnetName: subnetworkName, IPsReserved: 8},
+						},
+					},
+				},
+			},
+		}
+
+		// Mock the getPoolsBySubnetwork function
+		origGetPoolsBySubnetwork := getPoolsBySubnetwork
+		getPoolsBySubnetwork = func(ctx context.Context, se database.Storage, accountID, subnetworkName, poolNetwork string) ([]*datamodel.PoolView, error) {
+			return mockPools, nil
+		}
+		defer func() { getPoolsBySubnetwork = origGetPoolsBySubnetwork }()
+
+		result, err := _getSumOfReservedIPsForSubnet(ctx, mockStorage, accountID, subnetworkName, "")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(8), result)
+	})
+}

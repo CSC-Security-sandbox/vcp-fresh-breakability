@@ -54,13 +54,19 @@ type PoolView struct {
 }
 
 type ClusterDetails struct {
-	ExternalName          string   `json:"external_name"`
-	OntapVersion          string   `json:"ontap_version"`
-	RegionalTenantProject string   `json:"regional_tenant_project"`
-	SnHostProject         string   `json:"sn_host_project"`
-	Network               string   `json:"network"`
-	SubnetNames           []string `json:"subnet_names"`
-	InterclusterLifIPs    []string `json:"intercluster_lifs,omitempty"`
+	ExternalName          string         `json:"external_name"`
+	OntapVersion          string         `json:"ontap_version"`
+	RegionalTenantProject string         `json:"regional_tenant_project"`
+	SnHostProject         string         `json:"sn_host_project"`
+	Network               string         `json:"network"`
+	SubnetNames           []string       `json:"subnet_names"`
+	InterclusterLifIPs    []string       `json:"intercluster_lifs,omitempty"`
+	ReservedIPsInSubnet   *[]SubnetToIPs `json:"reserved_ips_in_subnet,omitempty"`
+}
+
+type SubnetToIPs struct {
+	SubnetName  string `json:"subnet_name"`
+	IPsReserved int64  `json:"ips_reserved"`
 }
 
 type PoolAttributes struct {

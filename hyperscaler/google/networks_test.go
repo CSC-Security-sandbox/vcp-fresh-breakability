@@ -2835,3 +2835,572 @@ func TestGetComputeGlobalOpStatus(t *testing.T) {
 		}
 	})
 }
+
+func Test_ListAddressesWithFilter(t *testing.T) {
+	ctx := context.Background()
+	projectName := "test-project"
+	region := "us-central1"
+	subnetName := "test-subnet"
+	deploymentID := "test-deployment"
+	additionalLabels := map[string]string{
+		"environment": "test",
+		"team":        "platform",
+	}
+	t.Run("Failure_ProjectNameEmpty", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Check filter parameters
+			filter := req.URL.Query().Get("filter")
+			if filter == "" {
+				t.Errorf("Expected filter got %s", filter)
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-1",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+						Subnetwork:  fmt.Sprintf("projects/%s/regions/%s/subnetworks/%s", projectName, region, subnetName),
+						Labels: map[string]string{
+							"deployment_id": deploymentID,
+							"environment":   additionalLabels["environment"],
+							"team":          additionalLabels["team"],
+						},
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter("", region, subnetName, deploymentID, additionalLabels)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("Success_WithAllFilters", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Check filter parameters
+			filter := req.URL.Query().Get("filter")
+			if filter == "" {
+				t.Errorf("Expected filter got %s", filter)
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-1",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+						Subnetwork:  fmt.Sprintf("projects/%s/regions/%s/subnetworks/%s", projectName, region, subnetName),
+						Labels: map[string]string{
+							"deployment_id": deploymentID,
+							"environment":   additionalLabels["environment"],
+							"team":          additionalLabels["team"],
+						},
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, region, subnetName, deploymentID, additionalLabels)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+	})
+
+	t.Run("Success_WithOnlySubnetFilter", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Check filter parameters
+			filter := req.URL.Query().Get("filter")
+			expectedFilter := fmt.Sprintf("subnetwork=\"%s\"", subnetName)
+			if filter != expectedFilter {
+				t.Errorf("Expected filter %s, got %s", expectedFilter, filter)
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-1",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+						Subnetwork:  fmt.Sprintf("projects/%s/regions/%s/subnetworks/%s", projectName, region, subnetName),
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, region, subnetName, "", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+	})
+
+	t.Run("Success_WithOnlyDeploymentFilter", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Check filter parameters
+			filter := req.URL.Query().Get("filter")
+			expectedFilter := fmt.Sprintf("labels.deployment_id=\"%s\"", deploymentID)
+			if filter != expectedFilter {
+				t.Errorf("Expected filter %s, got %s", expectedFilter, filter)
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-1",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+						Labels: map[string]string{
+							"deployment_id": deploymentID,
+						},
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, region, "", deploymentID, nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+	})
+
+	t.Run("Success_WithOnlyAdditionalLabels", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Check filter parameters
+			filter := req.URL.Query().Get("filter")
+			expectedFilter := "labels.environment=\"test\" AND labels.team=\"platform\""
+			if filter != expectedFilter {
+				t.Errorf("Expected filter %s, got %s", expectedFilter, filter)
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-1",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+						Labels:      additionalLabels,
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, region, "", "", additionalLabels)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+	})
+
+	t.Run("Success_NoFilters", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Check that no filter is applied
+			filter := req.URL.Query().Get("filter")
+			if filter != "" {
+				t.Errorf("Expected no filter, got %s", filter)
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-1",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, region, "", "", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+	})
+
+	t.Run("Success_GlobalRegion", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/global/addresses", projectName)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-global-address",
+						Address:     "1.2.3.4",
+						AddressType: "EXTERNAL",
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, "global", "", "", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+	})
+
+	t.Run("Success_EmptyResponse", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Return empty response
+			response := &compute.AddressList{
+				Items: []*compute.Address{},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, region, "", "", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 0)
+	})
+
+	t.Run("Error_GCPAPIError", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			rw.WriteHeader(http.StatusInternalServerError)
+			_, err := rw.Write([]byte("Internal Server Error"))
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, region, "", "", nil)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func Test_ListAddressesByDeployment(t *testing.T) {
+	ctx := context.Background()
+	projectName := "test-project"
+	region := "us-central1"
+	deploymentID := "test-deployment"
+
+	t.Run("Success", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			// Check filter parameters
+			filter := req.URL.Query().Get("filter")
+			expectedFilter := fmt.Sprintf("labels.deployment_id=\"%s\"", deploymentID)
+			if filter != expectedFilter {
+				t.Errorf("Expected filter %s, got %s", expectedFilter, filter)
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-1",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+						Labels: map[string]string{
+							"deployment_id": deploymentID,
+						},
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesByDeployment(projectName, region, deploymentID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+	})
+
+	t.Run("Error_FromListAddressesWithFilter", func(t *testing.T) {
+		defer testReset(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+			}
+
+			rw.WriteHeader(http.StatusInternalServerError)
+			_, err := rw.Write([]byte("Internal Server Error"))
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesByDeployment(projectName, region, deploymentID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}

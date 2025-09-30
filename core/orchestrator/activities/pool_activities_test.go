@@ -9260,3 +9260,340 @@ func TestAutoTierSyncActivity_HydrateUpdatedPoolToCCFE(t *testing.T) {
 		assert.Error(tt, err)
 	})
 }
+
+func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockStorage}
+
+	pool := datamodel.Pool{
+		DeploymentName: "test-deployment",
+	}
+
+	tenancyDetails := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		SubnetworkNames:       []string{"test-subnet"},
+	}
+
+	region := "us-central1"
+
+	// Mock ListAddressesByDeployment function
+	originalListAddressesByDeployment := activities.ListAddressesByDeployment
+	originalGetGCPService := hyperscaler2.GetGCPService
+	defer func() {
+		activities.ListAddressesByDeployment = originalListAddressesByDeployment
+		hyperscaler2.GetGCPService = originalGetGCPService
+	}()
+
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return &google.GcpServices{Logger: log.NewLogger()}, nil
+	}
+
+	t.Run("success with matching addresses", func(t *testing.T) {
+		// Mock addresses with matching subnet names
+		mockAddresses := &[]hyperscaler_models.Address{
+			{
+				AddressName: "address-1",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-1",
+			},
+			{
+				AddressName: "address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-2",
+			},
+			{
+				AddressName: "address-3",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/other-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-3",
+			},
+		}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+		assert.Equal(t, "test-subnet", (*result)[0].SubnetName)
+		assert.Equal(t, int64(2), (*result)[0].IPsReserved) // Only 2 addresses match the subnet
+	})
+
+	t.Run("success with no matching addresses", func(t *testing.T) {
+		// Mock addresses with no matching subnet names
+		mockAddresses := &[]hyperscaler_models.Address{
+			{
+				AddressName: "address-1",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/other-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-1",
+			},
+			{
+				AddressName: "address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/another-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-2",
+			},
+		}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+		assert.Equal(t, "test-subnet", (*result)[0].SubnetName)
+		assert.Equal(t, int64(0), (*result)[0].IPsReserved) // No addresses match the subnet
+	})
+
+	t.Run("success with multiple subnets", func(t *testing.T) {
+		// Test with multiple subnets in tenancy details
+		tenancyDetailsMultiple := &commonparams.TenancyInfo{
+			RegionalTenantProject: "test-project",
+			SubnetworkNames:       []string{"subnet-1", "subnet-2"},
+		}
+
+		mockAddresses := &[]hyperscaler_models.Address{
+			{
+				AddressName: "address-1",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/subnet-1",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-1",
+			},
+			{
+				AddressName: "address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/subnet-2",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-2",
+			},
+			{
+				AddressName: "address-3",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/subnet-2",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-3",
+			},
+		}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetailsMultiple, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 2)
+
+		// Check subnet-1 has 1 address
+		subnet1Result := (*result)[0]
+		assert.Equal(t, "subnet-1", subnet1Result.SubnetName)
+		assert.Equal(t, int64(1), subnet1Result.IPsReserved)
+
+		// Check subnet-2 has 2 addresses
+		subnet2Result := (*result)[1]
+		assert.Equal(t, "subnet-2", subnet2Result.SubnetName)
+		assert.Equal(t, int64(2), subnet2Result.IPsReserved)
+	})
+
+	t.Run("success with no addresses", func(t *testing.T) {
+		// Mock empty addresses list
+		mockAddresses := &[]hyperscaler_models.Address{}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+		assert.Equal(t, "test-subnet", (*result)[0].SubnetName)
+		assert.Equal(t, int64(0), (*result)[0].IPsReserved)
+	})
+
+	t.Run("success with nil addresses", func(t *testing.T) {
+		// Mock nil addresses
+		var mockAddresses *[]hyperscaler_models.Address = nil
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 0)
+	})
+
+	t.Run("success with no subnetwork names", func(t *testing.T) {
+		// Test with empty subnetwork names
+		tenancyDetailsEmpty := &commonparams.TenancyInfo{
+			RegionalTenantProject: "test-project",
+			SubnetworkNames:       []string{},
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetailsEmpty, region)
+
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("error when GetGCPService fails", func(t *testing.T) {
+		// Mock GCP service to return error
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("error when ListAddressesByDeployment fails", func(t *testing.T) {
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{Logger: log.NewLogger()}, nil
+		}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return nil, errors.New("failed to list addresses")
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to list addresses")
+	})
+
+	t.Run("success with addresses having empty SubnetURI", func(t *testing.T) {
+		// Mock addresses with empty SubnetURI
+		mockAddresses := &[]hyperscaler_models.Address{
+			{
+				AddressName: "address-1",
+				SubnetURI:   "",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-1",
+			},
+			{
+				AddressName: "address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-2",
+			},
+		}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+		assert.Equal(t, "test-subnet", (*result)[0].SubnetName)
+		assert.Equal(t, int64(1), (*result)[0].IPsReserved) // Only address-2 matches
+	})
+
+	t.Run("success with partial subnet name matches", func(t *testing.T) {
+		// Test that partial matches work (contains check)
+		mockAddresses := &[]hyperscaler_models.Address{
+			{
+				AddressName: "address-1",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet-extra",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-1",
+			},
+			{
+				AddressName: "address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/prefix-test-subnet-suffix",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-2",
+			},
+			{
+				AddressName: "address-3",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/other-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-3",
+			},
+		}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+		assert.Equal(t, "test-subnet", (*result)[0].SubnetName)
+		assert.Equal(t, int64(0), (*result)[0].IPsReserved) // address-1 and address-2 contain "test-subnet"
+	})
+
+	t.Run("success with HasSuffix matching behavior", func(t *testing.T) {
+		// Test that HasSuffix correctly matches only addresses ending with the target subnet name
+		// This test would fail with Contains but pass with HasSuffix
+		mockAddresses := &[]hyperscaler_models.Address{
+			{
+				AddressName: "address-1",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-1",
+			},
+			{
+				AddressName: "address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/prefix-test-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-2",
+			},
+			{
+				AddressName: "address-3",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet-suffix",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-3",
+			},
+			{
+				AddressName: "address-4",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-4",
+			},
+		}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+		assert.Equal(t, "test-subnet", (*result)[0].SubnetName)
+		assert.Equal(t, int64(2), (*result)[0].IPsReserved) // Only address-1 and address-4 should match (end with /test-subnet)
+	})
+
+	t.Run("success with forward slash prefix in HasSuffix check", func(t *testing.T) {
+		// Test that the forward slash prefix in HasSuffix check works correctly
+		mockAddresses := &[]hyperscaler_models.Address{
+			{
+				AddressName: "address-1",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-1",
+			},
+			{
+				AddressName: "address-2",
+				SubnetURI:   "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/subnetworks/test-subnet-extra",
+				SelfLink:    "https://www.googleapis.com/compute/v1/projects/test-project/regions/us-central1/addresses/address-2",
+			},
+		}
+
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return mockAddresses, nil
+		}
+
+		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+		assert.Equal(t, "test-subnet", (*result)[0].SubnetName)
+		assert.Equal(t, int64(1), (*result)[0].IPsReserved) // Only address-1 should match (ends with /test-subnet)
+	})
+}
