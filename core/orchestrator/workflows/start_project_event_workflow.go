@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -112,26 +113,12 @@ func (s *startProjectEventOffStateWorkflow) Setup(ctx workflow.Context, input in
 	})
 }
 
-func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (result interface{}, customErr *vsaerrors.CustomError) {
 	logger := util.GetLogger(ctx)
 	startProjectEventParams := args[0].(*common.StartProjectEventParams)
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{}
 
 	var err error
-	// Defer function to handle final account state update
-	defer func() {
-		targetState := models.AccountStateEnabled
-		// Only handle final state if we successfully set the initial state
-		if err != nil {
-			updateErr := workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, targetState).Get(ctx, nil)
-			if updateErr != nil {
-				logger.Errorf("Failed to update account state to %s: %v", targetState, updateErr)
-			} else {
-				logger.Infof("Successfully updated account state to %s", targetState)
-			}
-		}
-	}()
-
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -156,6 +143,21 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	ao2 := ao1
 
+	accountStateToSet := models.AccountStateEnabled // default to failure state, will be changed to success state only on completion
+	defer func() {
+		updateErr := workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, accountStateToSet).Get(ctx, nil)
+		if updateErr != nil {
+			logger.Errorf("Failed to update account state to %s: %v", accountStateToSet, updateErr)
+			// Return error if we failed to update account state and the target state was success (AccountStateHyperscalerDisabled)
+			if accountStateToSet == models.AccountStateHyperscalerDisabled {
+				customErr = ConvertToVSAError(updateErr)
+				return
+			}
+		} else {
+			logger.Infof("Successfully updated account state to %s", accountStateToSet)
+		}
+	}()
+
 	// Set account state to "disabling" before starting VSA operations
 	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateDisabling).Get(ctx, nil)
 	if err != nil {
@@ -163,12 +165,30 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	}
 
 	poolActivity := &resource_events_activities.StartProjectEventActivity{}
-	var poolList []*datamodel.PoolView
+	var allPoolList []*datamodel.PoolView
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, startProjectEventParams.State).Get(ctx, &poolList)
+	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, gcpserver.ResourceStateUpdateV1betaStateOFF).Get(ctx, &allPoolList) // No filter - get all pools
 	if err != nil {
 		logger.Errorf("Failed to list pools for project %s: %v", startProjectEventParams.ProjectNumber, err)
 		return nil, ConvertToVSAError(err)
+	}
+
+	// Filter pools to exclude those in transient states and check associated resources
+	var filterResult *resource_events_activities.PoolFilterResult
+	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.FilterPoolsForClusterOperations, allPoolList).Get(ctx, &filterResult)
+	if err != nil {
+		logger.Errorf("Failed to filter pools for cluster operations: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	// Now evaluate all results and determine final outcome
+	var hasVSAFailure bool
+	var hasSDEFailure bool
+
+	poolList := filterResult.FilteredPools
+	if filterResult.VSAError {
+		logger.Errorf("Some pools/volumes/snapshots are in transient states. Job will fail even if available pools are processed.")
+		hasVSAFailure = true // Mark as failure when transient states are detected
 	}
 
 	// Check if there are any pools to process
@@ -198,7 +218,6 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	var sdeResult *common.StartProjectEventResult
 	if cvp.CVP_HOST != "" {
 		logger.Info("Starting SDE operations")
-
 		// Step 1: Start SDE operation
 		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.StartProjectEventForSDEActivity, startProjectEventParams).Get(ctx, &sdeResult)
 		if err != nil {
@@ -250,10 +269,6 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 		}
 	}
 
-	// Now evaluate all results and determine final outcome
-	var hasVSAFailure bool
-	var hasSDEFailure bool
-
 	// Check VSA operation results
 	if vsaResults != nil && vsaResults.FailedPools > 0 {
 		hasVSAFailure = true
@@ -266,28 +281,30 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 		logger.Errorf("SDE operations failed: %v", sdeError)
 	}
 
-	// Handle failures - revert account state if either operation failed
+	// Handle failures - account state remains at failure state (models.AccountStateEnabled)
 	if hasVSAFailure || hasSDEFailure {
-		logger.Error("One or more operations failed, reverting account state to enabled")
-
+		logger.Error("One or more operations failed, account state remains enabled")
 		// Return appropriate error based on what failed
 		if hasVSAFailure && hasSDEFailure {
+			// Check if VSA failure is due to transient states
+			if filterResult.VSAError && (vsaResults == nil || vsaResults.FailedPools == 0) {
+				return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, fmt.Errorf("Job failed due to pools/volumes/snapshots in transient states. SDE also failed: %v", sdeError)))
+			}
 			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, fmt.Errorf("Both VSA and SDE operations failed. VSA: %d pools failed, SDE: %v", vsaResults.FailedPools, sdeError)))
 		} else if hasVSAFailure {
+			// Check if VSA failure is due to transient states
+			if filterResult.VSAError && (vsaResults == nil || vsaResults.FailedPools == 0) {
+				return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, errors.New("Job failed due to pools/volumes/snapshots in transient states")))
+			}
 			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, errors.New("One or more cluster power off operations failed")))
 		} else {
 			return nil, ConvertToVSAError(sdeError)
 		}
 	}
 
-	// All operations completed successfully - mark for success state update in defer
-	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateHyperscalerDisabled).Get(ctx, nil)
-	if err != nil {
-		logger.Error("Enable account in database failed")
-		return nil, ConvertToVSAError(err)
-	}
-
-	logger.Info("HRE ON state operations completed successfully")
+	// All operations completed successfully - set account state to success state
+	accountStateToSet = models.AccountStateHyperscalerDisabled
+	logger.Info("Start Project Event OFF state operations completed successfully")
 	return nil, nil
 }
 
@@ -350,26 +367,12 @@ func (s *startProjectEventOnStateWorkflow) Setup(ctx workflow.Context, input int
 	})
 }
 
-func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (result interface{}, customErr *vsaerrors.CustomError) {
 	logger := util.GetLogger(ctx)
 	startProjectEventParams := args[0].(*common.StartProjectEventParams)
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{}
 
 	var err error
-	// Defer function to handle final account state update
-	defer func() {
-		targetState := models.AccountStateHyperscalerDisabled
-		// Only handle final state if we successfully set the initial state
-		if err != nil {
-			updateErr := workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, targetState).Get(ctx, nil)
-			if updateErr != nil {
-				logger.Errorf("Failed to update account state to %s: %v", targetState, updateErr)
-			} else {
-				logger.Infof("Successfully updated account state to %s", targetState)
-			}
-		}
-	}()
-
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -395,6 +398,21 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	ao2 := ao1
 
+	accountStateToSet := models.AccountStateHyperscalerDisabled // default to failure state, will be changed to success state only on completion
+	defer func() {
+		updateErr := workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, accountStateToSet).Get(ctx, nil)
+		if updateErr != nil {
+			logger.Errorf("Failed to update account state to %s: %v", accountStateToSet, updateErr)
+			// Return error if we failed to update account state and the target state was success (AccountStateEnabled)
+			if accountStateToSet == models.AccountStateEnabled {
+				customErr = ConvertToVSAError(updateErr)
+				return
+			}
+		} else {
+			logger.Infof("Successfully updated account state to %s", accountStateToSet)
+		}
+	}()
+
 	// Set account state to "enabling" before starting VSA operations
 	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateEnabling).Get(ctx, nil)
 	if err != nil {
@@ -405,7 +423,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	poolActivity := &resource_events_activities.StartProjectEventActivity{}
 
 	var poolList []*datamodel.PoolView
-	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, startProjectEventParams.State).Get(ctx, &poolList)
+	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, gcpserver.ResourceStateUpdateV1betaStateON).Get(ctx, &poolList)
 	if err != nil {
 		logger.Errorf("Failed to list pools for project %s: %v", startProjectEventParams.ProjectNumber, err)
 		return nil, ConvertToVSAError(err)
@@ -439,7 +457,6 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	var sdeResult *common.StartProjectEventResult
 	if cvp.CVP_HOST != "" {
 		logger.Info("Starting SDE operations")
-
 		// Start SDE operation
 		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.StartProjectEventForSDEActivity, startProjectEventParams).Get(ctx, &sdeResult)
 		if err != nil {
@@ -496,7 +513,9 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 				logger.Info("SDE operation completed successfully via polling")
 			}
 		}
-	} // Now evaluate all results and determine final outcome
+	}
+
+	// Now evaluate all results and determine final outcome
 	var hasVSAFailure bool
 	var hasSDEFailure bool
 
@@ -512,9 +531,9 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 		logger.Errorf("SDE operations failed: %v", sdeError)
 	}
 
-	// Handle failures - revert account state if either operation failed
+	// Handle failures - account state remains at failure state (models.AccountStateHyperscalerDisabled)
 	if hasVSAFailure || hasSDEFailure {
-		logger.Error("One or more operations failed, reverting account state to disabled")
+		logger.Error("One or more operations failed, account state remains disabled")
 
 		// Return appropriate error based on what failed
 		if hasVSAFailure && hasSDEFailure {
@@ -526,14 +545,9 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 		}
 	}
 
-	// All operations completed successfully - mark for success state update in defer
-	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateEnabled).Get(ctx, nil)
-	if err != nil {
-		logger.Error("Enable account in database failed")
-		return nil, ConvertToVSAError(err)
-	}
-
-	logger.Info("HRE ON state operations completed successfully")
+	// All operations completed successfully - set account state to success state
+	accountStateToSet = models.AccountStateEnabled
+	logger.Info("Start Project Event ON state operations completed successfully")
 	return nil, nil
 }
 
@@ -760,7 +774,7 @@ func (s *startProjectEventOffStateWorkflow) processClusterForOFFState(ctx workfl
 
 	err = vsaClientWorkflowManager.ValidateClusterHealth(ctx, validateClusterHealthRequest)
 	if err != nil {
-		if strings.Contains(err.Error(), "Cloud VM is not running") {
+		if strings.Contains(strings.ToLower(err.Error()), "cloud vm is offline") {
 			logger.Infof("Cluster is already powered off for deployment %s, considering power-off operation successful", currentVlmConfig.Deployment.DeploymentID)
 			return nil
 		}
@@ -768,16 +782,16 @@ func (s *startProjectEventOffStateWorkflow) processClusterForOFFState(ctx workfl
 		return err
 	}
 
-	logger.Info("Cluster health check passed", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
+	logger.Info("Cluster health validated successfully", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
+
+	// Step 2: Power off the cluster
+	logger.Info("Starting cluster power off operation", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
 
 	clusterPowerOpRequest := &vlm.ClusterPowerOpRequest{
 		VLMConfig:        *currentVlmConfig,
 		OntapCredentials: *ontapCredentials,
 		Operation:        vlm.ClusterPowerOff,
 	}
-
-	// Step 2: Power off the cluster gracefully
-	logger.Info("Starting graceful cluster power off operation", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
 
 	err = vsaClientWorkflowManager.ClusterPowerOp(ctx, clusterPowerOpRequest)
 	if err != nil {

@@ -462,8 +462,8 @@
     "http_code": 500
   },
   "6073": {
-    "description": "Client error during HandleResouceEvent",
-    "message": "Client error during HandleResouceEvent",
+    "description": "Client error during HandleResourceEvent",
+    "message": "Client error during HandleResourceEvent",
     "retriable": false,
     "http_code": 500
   },
@@ -478,6 +478,54 @@
     "message": "Cannot delete resource while it is transitioning",
     "retriable": true,
     "http_code": 500
+  },
+  "6076": {
+    "description": "Resource not found",
+    "message": "Resource not found",
+    "retriable": false,
+    "http_code": 404
+  },
+  "6077": {
+    "description": "Bad request error",
+    "message": "Bad request error",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6078": {
+    "description": "Internal server error",
+    "message": "Internal server error",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6079": {
+    "description": "Unauthorised error",
+    "message": "Unauthorised error",
+    "retriable": false,
+    "http_code": 401
+  },
+  "6080": {
+      "description": "Forbidden error",
+      "message": "Forbidden error",
+      "retriable": false,
+      "http_code": 403
+  },
+  "6081": {
+      "description": "Conflict error",
+      "message": "Conflict error",
+      "retriable": false,
+      "http_code": 409
+  },
+  "6082": {
+      "description": "Not implemented yet error",
+      "message": "Not implemented yet error",
+      "retriable": true,
+      "http_code": 501
+  },
+  "6083": {
+    "description": "Too many requests error",
+    "message": "Too many requests error",
+    "retriable": true,
+    "http_code": 429
   },
   "7001": {
     "description": "Snapshot Deletion Error",
@@ -1299,7 +1347,7 @@
     "description": "VSA Cluster Operation Error",
     "message": "VSA cluster operation failed",
     "retriable": false,
-    "http_code": 500
+    "http_code": 400
   },
   "6212": {
     "description": "List Pools for Account Error",

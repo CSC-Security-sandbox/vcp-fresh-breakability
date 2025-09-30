@@ -444,8 +444,12 @@ func TestGetSnapshotPolicyName(t *testing.T) {
 }
 
 func WfTest(ctx workflow.Context, jobUUID string, timeout time.Duration) error {
+	activityTimeout := timeout
+	if timeout < 5*time.Second {
+		activityTimeout = 5 * time.Second
+	}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout: timeout,
+		StartToCloseTimeout: activityTimeout,
 	})
 	err := PollOnDBJob(ctx, jobUUID, timeout)
 	if err != nil {

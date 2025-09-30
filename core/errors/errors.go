@@ -124,19 +124,27 @@ const (
 	ErrRestoreVolumeValidation            = 7008
 
 	// CMEK Error Codes
-	ErrDescribingSDEJob                  = 6057
-	ErrSDEJobNotFinished                 = 6058
-	ErrSDEKmsDeleteJobFailed             = 6059
-	ErrCVPClientStartProjectEventError   = 6060
-	ErrInvalidOperationName              = 6061
-	ErrKMSMigration                      = 6063
-	ErrKMSDelete                         = 6066
-	ErrKMSUpdate                         = 6067
-	ErrKMSCreate                         = 6068
-	ErrGeneratingUniqueSerialNumber      = 6069
-	ErrCVPClientHandleResourceEventError = 6073
-	ErrCVPClientFinishProjectEventError  = 6074
-	ErrHREResourceIsTransitioning        = 6075
+	ErrDescribingSDEJob                            = 6057
+	ErrSDEJobNotFinished                           = 6058
+	ErrSDEKmsDeleteJobFailed                       = 6059
+	ErrCVPClientStartProjectEventError             = 6060
+	ErrInvalidOperationName                        = 6061
+	ErrKMSMigration                                = 6063
+	ErrKMSDelete                                   = 6066
+	ErrKMSUpdate                                   = 6067
+	ErrKMSCreate                                   = 6068
+	ErrGeneratingUniqueSerialNumber                = 6069
+	ErrCVPClientHandleResourceEventError           = 6073
+	ErrCVPClientFinishProjectEventError            = 6074
+	ErrHREResourceIsTransitioning                  = 6075
+	ErrHandleResourceEventErrorNotFound            = 6076
+	ErrHandleResourceEventErrorBadRequest          = 6077
+	ErrHandleResourceEventErrorInternalServerError = 6078
+	ErrHandleResourceEventErrorUnauthorized        = 6079
+	ErrHandleResourceEventErrorForbidden           = 6080
+	ErrHandleResourceEventErrorConflict            = 6081
+	ErrHandleResourceEventErrorNotImplemented      = 6082
+	ErrHandleResourceEventErrorTooManyRequests     = 6083
 
 	// Replication Error Codes 6100 - 6999
 	ErrReplicationScheduleUnspecified                                                        = 6100

@@ -393,9 +393,9 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 	// Assert workflow completed with error (HostGroup should not fallback to SDE)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
-	// Verify the error contains the expected message
+	// Verify the error contains the expected message and is the proper VCP error
 	workflowError := s.env.GetWorkflowError()
-	assert.Contains(s.T(), workflowError.Error(), "HostGroup resource not found in VCP")
+	assert.Contains(s.T(), workflowError.Error(), "HostGroup not found in VCP")
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + ERROR
 }
 
@@ -850,9 +850,9 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 	// Assert workflow completed with error (HostGroup should not fallback to SDE)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
-	// Verify the error contains the expected message
+	// Verify the error contains the expected message and is the proper VCP error
 	workflowError := s.env.GetWorkflowError()
-	assert.Contains(s.T(), workflowError.Error(), "HostGroup resource not found in VCP")
+	assert.Contains(s.T(), workflowError.Error(), "HostGroup not found in VCP")
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + ERROR
 }
 

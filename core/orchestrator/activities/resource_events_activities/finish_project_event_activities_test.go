@@ -157,7 +157,11 @@ func Test_FinishProjectEventForSDEActivity(t *testing.T) {
 		activity := &FinishProjectEventActivity{SE: mockSE}
 		_, err := activity.FinishProjectEventForSDEActivity(ctx, params)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "Client not available")
+
+		var applicationError *temporal.ApplicationError
+		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, applicationError.NonRetryable())
+		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
 
 	t.Run("FinishProjectEventForSDEActivity_WhenCVPClientReturnsUnexpectedResponse", func(tt *testing.T) {
@@ -383,12 +387,12 @@ func Test_PollFinishProjectEventSDEOperationActivity(t *testing.T) {
 		activity := &FinishProjectEventActivity{SE: mockSE}
 		err := activity.PollFinishProjectEventSDEOperationActivity(ctx, params, result)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "Error describing SDE Operation")
+		assert.ErrorContains(tt, err, "Client error during HandleResourceEvent")
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
-		assert.Equal(tt, "NonRetryableError", applicationError.Type())
+		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
 
 	t.Run("PollFinishProjectEventSDEOperationActivity_WhenOperationNameIsNil", func(tt *testing.T) {
@@ -409,12 +413,12 @@ func Test_PollFinishProjectEventSDEOperationActivity(t *testing.T) {
 		activity := &FinishProjectEventActivity{SE: mockSE}
 		err := activity.PollFinishProjectEventSDEOperationActivity(ctx, params, result)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "operation name is nil")
+		assert.ErrorContains(tt, err, "Invalid Operation Name")
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
-		assert.Equal(tt, "InvalidOperationNameError", applicationError.Type())
+		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
 
 	t.Run("PollFinishProjectEventSDEOperationActivity_WhenResultIsDone", func(tt *testing.T) {
@@ -746,4 +750,241 @@ func Test_DeleteServiceAccountsFromAccountID(t *testing.T) {
 		assert.Equal(tt, expectedErr, err)
 		mockSE.AssertExpectations(tt)
 	})
+}
+
+// Test that HTTP status constants are correctly defined and accessible
+func Test_HTTPStatusConstants_FinishProjectEvent(t *testing.T) {
+	t.Run("VerifyConstantsAreShared", func(tt *testing.T) {
+		// Verify that common package constants are imported and available
+		assert.Equal(tt, 400, common.HTTPStatusBadRequest)
+		assert.Equal(tt, 401, common.HTTPStatusUnauthorized)
+		assert.Equal(tt, 403, common.HTTPStatusForbidden)
+		assert.Equal(tt, 404, common.HTTPStatusNotFound)
+		assert.Equal(tt, 429, common.HTTPStatusTooManyRequests)
+		assert.Equal(tt, 500, common.HTTPStatusInternalServerError)
+	})
+}
+
+// Test coverage for missing lines in FinishProjectEventForSDEActivity error handling
+func Test_FinishProjectEventForSDEActivity_ErrorCoverage(t *testing.T) {
+	testCases := []struct {
+		name           string
+		errorType      interface{}
+		expectedCode   int
+		expectedRetryable bool
+		expectedMessage string
+	}{
+		{
+			name:           "FinishProjectEventForSDEActivity_BadRequestError",
+			errorType:      &resource_events.V1betaResourceStateUpdateBadRequest{},
+			expectedCode:   errors2.ErrHandleResourceEventErrorBadRequest,
+			expectedRetryable: false,
+			expectedMessage: "Bad request error",
+		},
+		{
+			name:           "FinishProjectEventForSDEActivity_UnauthorizedError",
+			errorType:      &resource_events.V1betaResourceStateUpdateUnauthorized{},
+			expectedCode:   errors2.ErrHandleResourceEventErrorUnauthorized,
+			expectedRetryable: false,
+			expectedMessage: "Unauthorised error",
+		},
+		{
+			name:           "FinishProjectEventForSDEActivity_ForbiddenError",
+			errorType:      &resource_events.V1betaResourceStateUpdateForbidden{},
+			expectedCode:   errors2.ErrHandleResourceEventErrorForbidden,
+			expectedRetryable: false,
+			expectedMessage: "Forbidden error",
+		},
+		{
+			name:           "FinishProjectEventForSDEActivity_NotFoundError",
+			errorType:      &resource_events.V1betaResourceStateUpdateNotFound{},
+			expectedCode:   errors2.ErrHandleResourceEventErrorNotFound,
+			expectedRetryable: false,
+			expectedMessage: "Resource not found",
+		},
+		{
+			name:           "FinishProjectEventForSDEActivity_ConflictError",
+			errorType:      &resource_events.V1betaResourceStateUpdateConflict{},
+			expectedCode:   errors2.ErrHandleResourceEventErrorConflict,
+			expectedRetryable: false,
+			expectedMessage: "Conflict error",
+		},
+		{
+			name:           "FinishProjectEventForSDEActivity_InternalServerError",
+			errorType:      &resource_events.V1betaResourceStateUpdateInternalServerError{},
+			expectedCode:   errors2.ErrHandleResourceEventErrorInternalServerError,
+			expectedRetryable: false,
+			expectedMessage: "Internal server error",
+		},
+		{
+			name:           "FinishProjectEventForSDEActivity_NotImplementedError",
+			errorType:      &resource_events.V1betaResourceStateUpdateNotImplemented{},
+			expectedCode:   errors2.ErrHandleResourceEventErrorNotImplemented,
+			expectedRetryable: false,
+			expectedMessage: "Not implemented yet error",
+		},
+		{
+			name:           "FinishProjectEventForSDEActivity_TooManyRequestsError",
+			errorType:      &resource_events.V1betaResourceStateUpdateTooManyRequests{},
+			expectedCode:   errors2.ErrHandleResourceEventErrorTooManyRequests,
+			expectedRetryable: true,
+			expectedMessage: "Too many requests error",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			ctx := context.Background()
+			mockSE := database.NewMockStorage(t)
+			mockClient := resource_events.NewMockClientService(t)
+			cvpClient := &cvpapi.Cvp{ResourceEvents: mockClient}
+
+			originalCreateClient := cvp.CreateClient
+			defer func() { createClient = originalCreateClient }()
+			createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
+				return *cvpClient
+			}
+
+			originalToken := auth.GetSignedJwtToken
+			defer func() { getSignedToken = originalToken }()
+			getSignedToken = func(projectNumber string) (string, error) {
+				return "test-token", nil
+			}
+
+			params := &common.FinishProjectEventParams{
+				LocationId:     "test-location",
+				ProjectNumber:  "test-project-number",
+				XCorrelationID: "test-correlation-id",
+				State:          "test-state",
+			}
+
+			mockClient.EXPECT().V1betaFinishProjectEvent(mock.Anything).Return(nil, nil, nil, tc.errorType.(error))
+
+			activity := &FinishProjectEventActivity{SE: mockSE}
+			result, err := activity.FinishProjectEventForSDEActivity(ctx, params)
+
+			assert.Error(tt, err)
+			assert.Nil(tt, result)
+
+			var applicationError *temporal.ApplicationError
+			assert.True(tt, errors2.As(err, &applicationError))
+			assert.Equal(tt, !tc.expectedRetryable, applicationError.NonRetryable())
+			assert.Equal(tt, "CustomError", applicationError.Type())
+			assert.Contains(tt, err.Error(), tc.expectedMessage)
+		})
+	}
+}
+
+// Test coverage for missing lines in PollFinishProjectEventSDEOperationActivity error handling
+func Test_PollFinishProjectEventSDEOperationActivity_ErrorCoverage(t *testing.T) {
+	testCases := []struct {
+		name           string
+		httpStatusCode int32
+		expectedCode   int
+		expectedRetryable bool
+		expectedMessage string
+	}{
+		{
+			name:           "PollFinishProjectEventSDEOperationActivity_BadRequestError",
+			httpStatusCode: int32(common.HTTPStatusBadRequest),
+			expectedCode:   errors2.ErrHandleResourceEventErrorBadRequest,
+			expectedRetryable: false,
+			expectedMessage: "Bad request error",
+		},
+		{
+			name:           "PollFinishProjectEventSDEOperationActivity_UnauthorizedError",
+			httpStatusCode: int32(common.HTTPStatusUnauthorized),
+			expectedCode:   errors2.ErrHandleResourceEventErrorUnauthorized,
+			expectedRetryable: false,
+			expectedMessage: "Unauthorised error",
+		},
+		{
+			name:           "PollFinishProjectEventSDEOperationActivity_ForbiddenError",
+			httpStatusCode: int32(common.HTTPStatusForbidden),
+			expectedCode:   errors2.ErrHandleResourceEventErrorForbidden,
+			expectedRetryable: false,
+			expectedMessage: "Forbidden error",
+		},
+		{
+			name:           "PollFinishProjectEventSDEOperationActivity_NotFoundError",
+			httpStatusCode: int32(common.HTTPStatusNotFound),
+			expectedCode:   errors2.ErrHandleResourceEventErrorNotFound,
+			expectedRetryable: false,
+			expectedMessage: "Resource not found",
+		},
+		{
+			name:           "PollFinishProjectEventSDEOperationActivity_InternalServerError",
+			httpStatusCode: int32(common.HTTPStatusInternalServerError),
+			expectedCode:   errors2.ErrHandleResourceEventErrorInternalServerError,
+			expectedRetryable: false,
+			expectedMessage: "Internal server error",
+		},
+		{
+			name:           "PollFinishProjectEventSDEOperationActivity_TooManyRequestsError",
+			httpStatusCode: int32(common.HTTPStatusTooManyRequests),
+			expectedCode:   errors2.ErrHandleResourceEventErrorTooManyRequests,
+			expectedRetryable: true,
+			expectedMessage: "Too many requests error",
+		},
+		{
+			name:           "PollFinishProjectEventSDEOperationActivity_UnknownErrorCode",
+			httpStatusCode: 999,
+			expectedCode:   errors2.ErrCVPClientFinishProjectEventError,
+			expectedRetryable: false,
+			expectedMessage: "Client Error during FinishProjectEvent",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			ctx := context.Background()
+			mockSE := database.NewMockStorage(t)
+			mockAsync := &async.MockClientService{}
+			mockCVP := &cvpapi.Cvp{Async: mockAsync}
+
+			originalCreateClient := cvp.CreateClient
+			defer func() { createClient = originalCreateClient }()
+			createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *mockCVP }
+
+			originalToken := auth.GetSignedJwtToken
+			defer func() { getSignedToken = originalToken }()
+			getSignedToken = func(projectNumber string) (string, error) {
+				return "test-token", nil
+			}
+
+			params := &common.FinishProjectEventParams{
+				LocationId:     "test-location",
+				ProjectNumber:  "test-project-number",
+				XCorrelationID: "test-correlation-id",
+				State:          "test-state",
+			}
+
+			result := &common.FinishProjectEventResult{
+				Done: nillable.GetBoolPtr(false),
+				Name: nillable.GetStringPtr("operations/test-operation-name"),
+			}
+
+			response := &async.V1betaDescribeOperationOK{
+				Payload: &models2.OperationV1beta{
+					Done: nillable.GetBoolPtr(true),
+					Error: &models2.StatusV1Beta{
+						Code:    float64(tc.httpStatusCode),
+						Message: "Test Error Message",
+					},
+				},
+			}
+			mockAsync.EXPECT().V1betaDescribeOperation(mock.Anything).Return(response, nil)
+
+			activity := &FinishProjectEventActivity{SE: mockSE}
+			err := activity.PollFinishProjectEventSDEOperationActivity(ctx, params, result)
+
+			assert.Error(tt, err)
+
+			var applicationError *temporal.ApplicationError
+			assert.True(tt, errors2.As(err, &applicationError))
+			assert.Equal(tt, !tc.expectedRetryable, applicationError.NonRetryable())
+			assert.Equal(tt, "CustomError", applicationError.Type())
+			assert.Contains(tt, err.Error(), tc.expectedMessage)
+		})
+	}
 }

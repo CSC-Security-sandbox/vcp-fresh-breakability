@@ -2,11 +2,13 @@ package resource_events_activities
 
 import (
 	"context"
+	"fmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -14,11 +16,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/sdk/temporal"
-)
-
-const (
-	ErrNotRetryable = "NonRetryableError"
 )
 
 type StartProjectEventActivity struct {
@@ -26,7 +23,7 @@ type StartProjectEventActivity struct {
 }
 
 func (j *StartProjectEventActivity) StartProjectEventForSDEActivity(ctx context.Context, params *common.StartProjectEventParams) (*common.StartProjectEventResult, error) {
-	body := &models.ProjectStateUpdateV1beta{StateUpdateV1beta: models.StateUpdateV1beta{State: params.State}}
+	body := &cvpmodels.ProjectStateUpdateV1beta{StateUpdateV1beta: cvpmodels.StateUpdateV1beta{State: params.State}}
 	reqParams := &resource_events.V1betaStartProjectEventParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -44,12 +41,54 @@ func (j *StartProjectEventActivity) StartProjectEventForSDEActivity(ctx context.
 	created, accepted, _, err := cvpClient.ResourceEvents.V1betaStartProjectEvent(reqParams)
 	if err != nil {
 		logger.Errorf("Error turning %s SDE data path: %v", params.State, err)
-		// Check if this is a 404 Not Found error and make it non-retryable
-		if _, tooManyRequests := err.(*resource_events.V1betaResourceStateUpdateTooManyRequests); tooManyRequests {
-			logger.Infof("SDE HandleResourceEvent returned 404 (resource not found), treating as non-retryable: %v", err)
-			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
+		switch e := err.(type) {
+		case *resource_events.V1betaResourceStateUpdateBadRequest:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorBadRequest,
+					fmt.Errorf("Bad request for project state update: %s", e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateUnauthorized:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorUnauthorized,
+					fmt.Errorf("Unauthorized for project state update: %s", e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateForbidden:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorForbidden,
+					fmt.Errorf("Forbidden for project state update: %s", e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateNotFound:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotFound,
+					fmt.Errorf("Project not found for state update: %s", e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateConflict:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorConflict,
+					fmt.Errorf("Conflict for project state update: %s", e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateInternalServerError:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorInternalServerError,
+					fmt.Errorf("Internal server error for project state update: %s", e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateNotImplemented:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
+					fmt.Errorf("Not implemented for project state update: %s", e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateTooManyRequests:
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorTooManyRequests,
+					fmt.Errorf("Too many requests for project state update: %s", e.Error())),
+			)
+
+		default:
+			logger.Warnf("Unknown error type for project state update: %T - %s", err, err.Error())
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrCVPClientStartProjectEventError, err),
+			)
 		}
-		return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrNotRetryable, err)
 	}
 
 	if created != nil {
@@ -95,18 +134,57 @@ func (j *StartProjectEventActivity) PollStartProjectEventSDEOperationActivity(ct
 	operationParams.LocationID = params.LocationId
 	res, err := pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 	if err != nil {
-		// Check if this is a 404 Not Found error and make it non-retryable
-		if _, tooManyRequests := err.(*resource_events.V1betaResourceStateUpdateTooManyRequests); tooManyRequests {
-			logger.Infof("SDE HandleResourceEvent returned 404 (resource not found), treating as non-retryable: %v", err)
-			return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
-		}
-		logger.Errorf("Error while polling SDE handleResourceEvent operation: %s", operationUUID)
-		return temporal.NewNonRetryableApplicationError(err.Error(), ErrNotRetryable, err)
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err),
+		)
 	}
 
 	if res.Done != nil && *res.Done {
 		if res.Error != nil {
-			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientStartProjectEventError, errors.New(res.Error.Message)))
+			switch int(res.Error.Code) {
+			case common.HTTPStatusBadRequest:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorBadRequest,
+						fmt.Errorf("Bad request while polling operation %s: %s", operationUUID, res.Error.Message)),
+				)
+
+			case common.HTTPStatusUnauthorized:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorUnauthorized,
+						fmt.Errorf("Unauthorized while polling operation %s: %s", operationUUID, res.Error.Message)),
+				)
+
+			case common.HTTPStatusForbidden:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorForbidden,
+						fmt.Errorf("Forbidden while polling operation %s: %s", operationUUID, res.Error.Message)),
+				)
+
+			case common.HTTPStatusNotFound:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotFound,
+						fmt.Errorf("Operation %s not found while polling: %s", operationUUID, res.Error.Message)),
+				)
+
+			case common.HTTPStatusInternalServerError:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorInternalServerError,
+						fmt.Errorf("Internal server error while polling operation %s: %s", operationUUID, res.Error.Message)),
+				)
+
+			case common.HTTPStatusTooManyRequests:
+				return vsaerrors.WrapAsTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorTooManyRequests,
+						fmt.Errorf("Too many requests while polling operation %s: %s", operationUUID, res.Error.Message)),
+				)
+
+			default:
+				logger.Warnf("Unknown error code while polling operation %s: %d - %s", operationUUID, int(res.Error.Code), res.Error.Message)
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrCVPClientStartProjectEventError,
+						fmt.Errorf("SDE polling failed for operation %s: %s", operationUUID, res.Error.Message)),
+				)
+			}
 		}
 		return nil
 	}
@@ -118,15 +196,19 @@ func (j *StartProjectEventActivity) ListPoolsForAccount(ctx context.Context, pro
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseListPoolsForAccount, err))
 	}
-	var jobTransitioningStates string
+
+	var filter *dbutils.Filter
 	switch state {
 	case string(gcpserver.ResourceStateUpdateV1betaStateOFF):
-		jobTransitioningStates = string(gcpserver.PoolV1betaStoragePoolStateREADY)
+		filter = dbutils.CreateFilterWithConditions(dbutils.NewFilterCondition("account_id", "=", account.ID))
 	case string(gcpserver.ResourceStateUpdateV1betaStateON):
-		jobTransitioningStates = string(gcpserver.PoolV1betaStoragePoolStateDISABLED)
+		jobTransitioningStates := []string{string(gcpserver.PoolV1betaStoragePoolStateDISABLED)}
+		filter = dbutils.CreateFilterWithConditions(dbutils.NewFilterCondition("account_id", "=", account.ID),
+			dbutils.NewFilterCondition("state", "in", jobTransitioningStates))
+	default:
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInvalidOperationName, fmt.Errorf("invalid resource state: %s", state)))
 	}
-	filter := dbutils.CreateFilterWithConditions(dbutils.NewFilterCondition("account_id", "=", account.ID),
-		dbutils.NewFilterCondition("state", "=", jobTransitioningStates))
+
 	pools, err := j.SE.ListPools(ctx, filter)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseListPoolsForAccount, err))
@@ -144,4 +226,132 @@ func (j *StartProjectEventActivity) UpdateAccountStateForHandleResource(ctx cont
 		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseUpdateAccountState, err))
 	}
 	return nil
+}
+
+// PoolFilterResult represents the result of filtering pools
+type PoolFilterResult struct {
+	FilteredPools []*datamodel.PoolView
+	VSAError      bool
+}
+
+// FilterPoolsForClusterOperations filters pools based on transient states and associated resources
+func (j *StartProjectEventActivity) FilterPoolsForClusterOperations(ctx context.Context, allPools []*datamodel.PoolView) (*PoolFilterResult, error) {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	var filteredPools []*datamodel.PoolView
+	var vsaError bool
+
+	for _, pool := range allPools {
+		// Skip pools in transient states (Creating, Updating, Deleting)
+		if isPoolInTransientState(pool.State) {
+			logger.Warnf("Skipping pool %s (%s) - in transient state: %s", pool.Name, pool.UUID, pool.State)
+			vsaError = true
+			continue
+		}
+
+		// Only process READY or ERROR pools for cluster health check and operations
+		if pool.State != models.LifeCycleStateREADY && pool.State != models.LifeCycleStateError {
+			logger.Infof("Skipping pool %s (%s) - not in READY or ERROR state: %s", pool.Name, pool.UUID, pool.State)
+			vsaError = true
+			continue
+		}
+
+		// Check for volumes and snapshots in transient states
+		volumes, err := se.GetVolumesByPoolID(ctx, pool.Pool.ID)
+		if err != nil {
+			logger.Errorf("Failed to get volumes for pool %s: %v", pool.Name, err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		hasTransientResource := false
+		for _, volume := range volumes {
+			// Check volume transient state
+			if isVolumeInTransientState(volume.State) {
+				logger.Warnf("Skipping pool %s (%s) - volume %s in transient state: %s", pool.Name, pool.UUID, volume.Name, volume.State)
+				hasTransientResource = true
+				vsaError = true
+				break
+			}
+
+			// Check snapshots transient states for this volume
+			snapshots, err := se.GetSnapshotsByVolumeID(ctx, volume.ID)
+			if err != nil {
+				logger.Errorf("Failed to get snapshots for volume %s: %v", volume.Name, err)
+				return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+
+			for _, snapshot := range snapshots {
+				if isSnapshotInTransientState(snapshot.State) {
+					logger.Warnf("Skipping pool %s (%s) - snapshot %s in transient state: %s", pool.Name, pool.UUID, snapshot.Name, snapshot.State)
+					hasTransientResource = true
+					vsaError = true
+					break
+				}
+			}
+
+			if hasTransientResource {
+				break
+			}
+		}
+
+		if hasTransientResource {
+			continue
+		}
+
+		// Pool and all its resources are in valid states, include it
+		filteredPools = append(filteredPools, pool)
+		logger.Infof("Including pool %s (%s) for cluster operations - state: %s", pool.Name, pool.UUID, pool.State)
+	}
+
+	logger.Infof("Pool filtering complete: %d total pools, %d filtered for operations", len(allPools), len(filteredPools))
+	return &PoolFilterResult{
+		FilteredPools: filteredPools,
+		VSAError:      vsaError,
+	}, nil
+}
+
+// isPoolInTransientState checks if pool is in a transient state
+func isPoolInTransientState(state string) bool {
+	transientStates := []string{
+		models.LifeCycleStateCreating,
+		models.LifeCycleStateUpdating,
+		models.LifeCycleStateDeleting,
+	}
+	for _, transientState := range transientStates {
+		if state == transientState {
+			return true
+		}
+	}
+	return false
+}
+
+// isVolumeInTransientState checks if volume is in a transient state
+func isVolumeInTransientState(state string) bool {
+	transientStates := []string{
+		models.LifeCycleStateCreating,
+		models.LifeCycleStateUpdating,
+		models.LifeCycleStateDeleting,
+		models.LifeCycleStateRestoring,
+	}
+	for _, transientState := range transientStates {
+		if state == transientState {
+			return true
+		}
+	}
+	return false
+}
+
+// isSnapshotInTransientState checks if snapshot is in a transient state
+func isSnapshotInTransientState(state string) bool {
+	transientStates := []string{
+		models.LifeCycleStateCreating,
+		models.LifeCycleStateDeleting,
+	}
+	for _, transientState := range transientStates {
+		if state == transientState {
+			return true
+		}
+	}
+	return false
 }

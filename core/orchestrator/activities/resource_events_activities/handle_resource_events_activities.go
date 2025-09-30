@@ -2,6 +2,7 @@ package resource_events_activities
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
@@ -21,8 +22,7 @@ import (
 )
 
 const (
-	ErrTypeResourceNotFound = "NotFoundErr"
-	ErrInvalidRequest       = "InvalidRequestErr"
+	ErrSignedTokenFailed = "SignedTokenFailedError"
 )
 
 var (
@@ -192,22 +192,58 @@ func (a *ResourceEventsActivity) HandleResourceEventsForSDEActivity(ctx context.
 
 	jwtToken, err := getSignedToken(params.ProjectNumber)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGetSignedToken, err))
+		logger := util.GetLogger(ctx)
+		logger.Errorf("Failed to get signed token for project %s: %v", params.ProjectNumber, err)
+		return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrSignedTokenFailed, err)
 	}
 
 	logger := util.GetLogger(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	created, accepted, _, err := cvpClient.ResourceEvents.V1betaResourceStateUpdate(reqParams)
 	if err != nil {
-		logger.Errorf("Error turning %s Resource: %v", params.State, err)
-		// Check if this is a 429 Too Many Requests (rate limiting) response. We wrap it
-		// as a custom Temporal application error (not marked non-retryable) so the
-		// workflow's retry policy can decide whether to retry.
-		if _, tooManyRequests := err.(*resource_events.V1betaResourceStateUpdateTooManyRequests); tooManyRequests {
-			logger.Warnf("SDE HandleResourceEvent returned 429 Too Many Requests (rate limited): %v", err)
-			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
+		logger.Errorf("Error updating %s Resource state for resource %s: %v", params.State, params.ResourceId, err)
+		switch e := err.(type) {
+		case *resource_events.V1betaResourceStateUpdateBadRequest:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorBadRequest,
+					fmt.Errorf("Bad request for resource state update %s: %s", params.ResourceId, e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateUnauthorized:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorUnauthorized,
+					fmt.Errorf("Unauthorized for resource state update %s: %s", params.ResourceId, e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateForbidden:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorForbidden,
+					fmt.Errorf("Forbidden for resource state update %s: %s", params.ResourceId, e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateNotFound:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotFound,
+					fmt.Errorf("Resource %s not found for state update: %s", params.ResourceId, e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateConflict:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorConflict,
+					fmt.Errorf("Conflict for resource state update %s: %s", params.ResourceId, e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateInternalServerError:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorInternalServerError,
+					fmt.Errorf("Internal server error for resource state update %s: %s", params.ResourceId, e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateTooManyRequests:
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorTooManyRequests,
+					fmt.Errorf("Too many requests for project state update: %s", e.Error())),
+			)
+		default:
+			logger.Warnf("Unknown error type for resource state update %s: %T - %s", params.ResourceId, err, err.Error())
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err),
+			)
 		}
-		return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrNotRetryable, err)
 	}
 
 	if created != nil {
@@ -235,13 +271,14 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 	}
 
 	if result.Name == nil {
-		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInvalidOperationName, errors.New("operation name is nil")))
+		return temporal.NewNonRetryableApplicationError("operation name is nil", ErrInvalidRequest, errors.New("operation name is nil"))
 	}
 
 	logger := util.GetLogger(ctx)
 	jwtToken, err := getSignedToken(params.ProjectNumber)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGetSignedToken, err))
+		logger.Errorf("Failed to get signed token for polling operation: %v", err)
+		return temporal.NewNonRetryableApplicationError(err.Error(), ErrSignedTokenFailed, err)
 	}
 	cvpClient := createClient(logger, jwtToken)
 
@@ -253,20 +290,57 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 	operationParams.LocationID = params.LocationId
 	res, err := PollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 	if err != nil {
-		// Check if this is a 429 Too Many Requests (rate limiting) response. We wrap it
-		// as a custom Temporal application error (not marked non-retryable) so the
-		// workflow's retry policy can decide whether to retry.
-		if _, tooManyRequests := err.(*resource_events.V1betaResourceStateUpdateTooManyRequests); tooManyRequests {
-			logger.Warnf("SDE HandleResourceEvent polling hit 429 Too Many Requests (rate limited): %v", err)
-			return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
-		}
-		logger.Errorf("Error while polling SDE handleResourceEvent operation: %s", operationUUID)
-		return temporal.NewNonRetryableApplicationError(err.Error(), ErrNotRetryable, err)
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err),
+		)
 	}
 
 	if res.Done != nil && *res.Done {
 		if res.Error != nil {
-			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, errors.New(res.Error.Message)))
+			switch int(res.Error.Code) {
+			case common.HTTPStatusBadRequest:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorBadRequest,
+						fmt.Errorf("Bad request while polling operation %s for resource %s: %s", operationUUID, params.ResourceId, res.Error.Message)),
+				)
+
+			case common.HTTPStatusUnauthorized:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorUnauthorized,
+						fmt.Errorf("Unauthorized while polling operation %s for resource %s: %s", operationUUID, params.ResourceId, res.Error.Message)),
+				)
+
+			case common.HTTPStatusForbidden:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorForbidden,
+						fmt.Errorf("Forbidden while polling operation %s for resource %s: %s", operationUUID, params.ResourceId, res.Error.Message)),
+				)
+
+			case common.HTTPStatusNotFound:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotFound,
+						fmt.Errorf("Operation %s not found while polling for resource %s: %s", operationUUID, params.ResourceId, res.Error.Message)),
+				)
+
+			case common.HTTPStatusInternalServerError:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorInternalServerError,
+						fmt.Errorf("Internal server error while polling operation %s for resource %s: %s", operationUUID, params.ResourceId, res.Error.Message)),
+				)
+
+			case common.HTTPStatusTooManyRequests:
+				return vsaerrors.WrapAsTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorTooManyRequests,
+						fmt.Errorf("Too many requests while polling operation %s for resource %s: %s", operationUUID, params.ResourceId, res.Error.Message)),
+				)
+
+			default:
+				logger.Warnf("Unknown error code while polling operation %s for resource %s: %d - %s", operationUUID, params.ResourceId, int(res.Error.Code), res.Error.Message)
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError,
+						fmt.Errorf("SDE polling failed for operation %s (resource: %s): %s", operationUUID, params.ResourceId, res.Error.Message)),
+				)
+			}
 		}
 		return nil
 	}

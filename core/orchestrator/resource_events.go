@@ -40,9 +40,15 @@ func _createOrGetStartProjectEventJob(ctx context.Context, se database.Storage, 
 	// For DELETE state we already returned NotImplemented error
 	switch params.State {
 	case models.StateOn:
+		if account.State == models.AccountStateEnabled {
+			return "", errors.NewBadRequestErr("account is already in desired state")
+		}
 		wf = workflows.StartProjectEventOnStateWorkflow
 		jobType = string(models.JobTypeStartProjectEventOnState)
 	case models.StateOff:
+		if account.State == models.AccountStateHyperscalerDisabled {
+			return "", errors.NewBadRequestErr("account is already in desired state")
+		}
 		wf = workflows.StartProjectEventOffStateWorkflow
 		jobType = string(models.JobTypeStartProjectEventOffState)
 	}

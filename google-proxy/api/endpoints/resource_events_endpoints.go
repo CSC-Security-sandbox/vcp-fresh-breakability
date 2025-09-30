@@ -41,6 +41,9 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 
 	job, err := h.Orchestrator.CreateOrGetStartProjectEventJob(ctx, reqParams)
 	if err != nil {
+		if errors.IsBadRequestErr(err) {
+			return &gcpgenserver.V1betaStartProjectEventBadRequest{Code: 400, Message: err.Error()}, nil
+		}
 		logger.Error("Failed to create startProjectEvent", "error", err.Error())
 		return &gcpgenserver.V1betaStartProjectEventInternalServerError{Code: 500, Message: err.Error()}, nil
 	}

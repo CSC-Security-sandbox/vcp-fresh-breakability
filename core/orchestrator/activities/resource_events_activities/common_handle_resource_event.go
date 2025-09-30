@@ -13,6 +13,11 @@ import (
 	"go.temporal.io/sdk/temporal"
 )
 
+const (
+	ErrTypeResourceNotFound = "NotFoundErr"
+	ErrInvalidRequest       = "InvalidRequestErr"
+)
+
 var (
 	createClient   = cvp.CreateClient
 	getSignedToken = auth.GetSignedJwtToken

@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
@@ -121,7 +122,9 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 				isVCPResource = false
 				if handleResourceEventParams.ResourceType == common.ResourceStateV1ResourceTypeHostGroup {
 					// For HostGroup resource, if not found in VCP, it is an error
-					return nil, ConvertToVSAError(temporal.NewNonRetryableApplicationError("HostGroup resource not found in VCP", resource_events_activities.ErrTypeResourceNotFound, nil))
+					return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+						vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotFound,
+							fmt.Errorf("HostGroup not found in VCP"))))
 				}
 			} else {
 				return nil, ConvertToVSAError(err)
@@ -132,7 +135,9 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 		}
 	} else if isVCPResource {
 		if handleResourceEventParams.ResourceType == common.ResourceStateV1ResourceTypeStoragePool {
-			return nil, ConvertToVSAError(errors.NewNotImplementedYetErr())
+			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
+					fmt.Errorf("HRE ON event for StoragePool is not implemented"))))
 		}
 		return nil, nil
 	}
@@ -144,20 +149,7 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 	var result *common.HandleResourceEventResult
 	err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsForSDEActivity, handleResourceEventParams).Get(ctx, &result)
 	if err != nil {
-		var applicationErr *temporal.ApplicationError
-		if errorcore.As(err, &applicationErr) && applicationErr.NonRetryable() {
-			// For NotFoundErr from SDE (404 responses), treat as non-retryable and continue
-			if applicationErr.Type() == resource_events_activities.ErrTypeResourceNotFound {
-				logger := util.GetLogger(ctx)
-				logger.Infof("Resource %s not found in SDE", handleResourceEventParams.ResourceId)
-				return nil, ConvertToVSAError(err)
-			} else {
-				return nil, ConvertToVSAError(err)
-			}
-		} else {
-			// For other retryable errors, return and let Temporal retry
-			return nil, ConvertToVSAError(err)
-		}
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, handleResourceEventActivity.PollHandleResourceEventSDEOperationActivity, handleResourceEventParams, &result).Get(ctx, nil)
@@ -266,7 +258,9 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 				isVCPResource = false
 				if handleResourceEventParams.ResourceType == common.ResourceStateV1ResourceTypeHostGroup {
 					// For HostGroup resource, if not found in VCP, it is an error
-					return nil, ConvertToVSAError(temporal.NewNonRetryableApplicationError("HostGroup resource not found in VCP", resource_events_activities.ErrTypeResourceNotFound, nil))
+					return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+						vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotFound,
+							fmt.Errorf("HostGroup not found in VCP"))))
 				}
 			} else {
 				return nil, ConvertToVSAError(err)
@@ -277,7 +271,9 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 		}
 	} else if isVCPResource {
 		if handleResourceEventParams.ResourceType == common.ResourceStateV1ResourceTypeStoragePool {
-			return nil, ConvertToVSAError(errors.NewNotImplementedYetErr())
+			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
+					fmt.Errorf("HRE OFF event for StoragePool is not implemented"))))
 		}
 		return nil, nil
 	}
@@ -289,20 +285,7 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 	var result *common.HandleResourceEventResult
 	err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsForSDEActivity, handleResourceEventParams).Get(ctx, &result)
 	if err != nil {
-		var applicationErr *temporal.ApplicationError
-		if errorcore.As(err, &applicationErr) && applicationErr.NonRetryable() {
-			// For NotFoundErr from SDE (404 responses), treat as non-retryable and continue
-			if applicationErr.Type() == resource_events_activities.ErrTypeResourceNotFound {
-				logger := util.GetLogger(ctx)
-				logger.Infof("Resource %s not found in SDE", handleResourceEventParams.ResourceId)
-				return nil, ConvertToVSAError(err)
-			} else {
-				return nil, ConvertToVSAError(err)
-			}
-		} else {
-			// For other retryable errors, return and let Temporal retry
-			return nil, ConvertToVSAError(err)
-		}
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, handleResourceEventActivity.PollHandleResourceEventSDEOperationActivity, handleResourceEventParams, &result).Get(ctx, nil)
@@ -433,19 +416,7 @@ func (s updateResourceStateCommonResourceOFFWorkflow) Run(ctx workflow.Context, 
 	var result *common.HandleResourceEventResult
 	err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsForSDEActivity, handleResourceEventParams).Get(ctx, &result)
 	if err != nil {
-		var applicationErr *temporal.ApplicationError
-		if errorcore.As(err, &applicationErr) && applicationErr.NonRetryable() {
-			// For NotFoundErr from SDE (404 responses), treat as non-retryable and continue
-			if applicationErr.Type() == resource_events_activities.ErrTypeResourceNotFound {
-				logger.Infof("Resource %s not found in SDE", handleResourceEventParams.ResourceId)
-				return nil, ConvertToVSAError(err)
-			} else {
-				return nil, ConvertToVSAError(err)
-			}
-		} else {
-			// For other retryable errors, return and let Temporal retry
-			return nil, ConvertToVSAError(err)
-		}
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, handleResourceEventActivity.PollHandleResourceEventSDEOperationActivity, handleResourceEventParams, &result).Get(ctx, nil)
@@ -576,19 +547,7 @@ func (s updateResourceStateCommonResourceONWorkflow) Run(ctx workflow.Context, a
 	var result *common.HandleResourceEventResult
 	err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsForSDEActivity, handleResourceEventParams).Get(ctx, &result)
 	if err != nil {
-		var applicationErr *temporal.ApplicationError
-		if errorcore.As(err, &applicationErr) && applicationErr.NonRetryable() {
-			// For NotFoundErr from SDE (404 responses), treat as non-retryable and continue
-			if applicationErr.Type() == resource_events_activities.ErrTypeResourceNotFound {
-				logger.Infof("Resource %s not found in SDE", handleResourceEventParams.ResourceId)
-				return nil, ConvertToVSAError(err)
-			} else {
-				return nil, ConvertToVSAError(err)
-			}
-		} else {
-			// For other retryable errors, return and let Temporal retry
-			return nil, ConvertToVSAError(err)
-		}
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, handleResourceEventActivity.PollHandleResourceEventSDEOperationActivity, handleResourceEventParams, &result).Get(ctx, nil)
@@ -797,7 +756,9 @@ func (s updateResourceStateDELETEWorkflow) Run(ctx workflow.Context, args ...int
 	}
 
 	if updateResourceStateParams.ResourceType == common.ResourceStateV1ResourceTypeVolume && isVCPResource {
-		return nil, ConvertToVSAError(errors.NewNotImplementedYetErr())
+		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
+				fmt.Errorf("HRE DELETE event for VSA volume is not implemented"))))
 	}
 
 	return nil, nil

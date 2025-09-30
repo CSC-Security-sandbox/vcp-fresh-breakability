@@ -10,6 +10,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+const (
+	// HTTP Status Codes for SDE Error Handling
+	HTTPStatusBadRequest          = 400
+	HTTPStatusUnauthorized        = 401
+	HTTPStatusForbidden           = 403
+	HTTPStatusNotFound            = 404
+	HTTPStatusInternalServerError = 500
+	HTTPStatusTooManyRequests     = 429
+)
+
 // CreatePoolParams describes parameters supplied to CreatingPool
 type CreatePoolParams struct {
 	AccountName             string
