@@ -59,7 +59,7 @@ data:
                 - job_name: "otel-scrape-job"
                   scrape_interval: 300s
                   http_sd_configs:
-                  - url: {{ .Values.otel.metricsHost }}{{ .Values.otel.pollerMetricsEndPoint }}
+                  - url: http://{{ .Values.otel.metricsHost }}{{ .Values.otel.pollerMetricsEndPoint }}
                     refresh_interval: 30s
                   metric_relabel_configs:
                   - source_labels: ['__name__']

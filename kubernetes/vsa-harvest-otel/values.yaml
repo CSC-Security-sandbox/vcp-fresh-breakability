@@ -49,7 +49,7 @@ persistentVolumes:
 otel:
   project: "netapp-au-se1-autopush-sde-tst"
   autoScaleProject: "netapp-au-se1-autopush-sde-tst"
-  metricsHost: http://localhost:3000
+  metricsHost: localhost:3000
   pollerMetricsEndPoint: /pollers/prometheus-targets
   harvestMetricEndPoint: /leases-total
   command:
