@@ -5079,7 +5079,6 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 		temporal.On("SignalWithStartWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		_, _, err = createVolume(ctx, store, temporal, params)
-
 		// Should not fail due to protocol validation (may fail for other reasons like workflow execution)
 		// The key is that it should not fail with protocol mismatch error
 		if err != nil {
@@ -5175,7 +5174,6 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		_, _, err = createVolume(ctx, store, temporal, params)
-
 		// Should not fail due to protocol validation since volume is nil
 		// The validation should be skipped when volume is nil
 		if err != nil {
@@ -5303,7 +5301,6 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 		temporal.On("SignalWithStartWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		_, _, err = createVolume(ctx, store, temporal, params)
-
 		// Should not fail due to protocol validation since VolumeAttributes is nil
 		// The validation should be skipped when VolumeAttributes is nil
 		if err != nil {
@@ -15767,5 +15764,269 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 
 		assert.NoError(t, err) // Should pass without immutable backup validation
 		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProtection(t *testing.T) {
+	// Enable immutable backup feature flag for this test
+	utils.SetImmutableBackupEnabledForTest(true)
+	defer utils.SetImmutableBackupEnabledForTest(false)
+
+	ctx := context.Background()
+
+	t.Run("Validates immutable backup when volume has existing DataProtection with BackupVaultID and BackupPolicyID", func(t *testing.T) {
+		// Setup
+		mockStorage := database.NewMockStorage(t)
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid",
+				},
+				AllowAutoTiering: true,
+				SizeInBytes:      2000000000000,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "account-uuid",
+					},
+				},
+			},
+			QuotaInBytes: 1000000000000,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "volume-uuid",
+			},
+			Name:        "test-volume",
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100000000000,
+			AccountID:   1,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "account-uuid",
+				},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  "existing-vault-id",
+				BackupPolicyID: "existing-policy-id",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		params := &common.UpdateVolumeParams{
+			VolumeId:    "volume-uuid",
+			AccountName: "test-account",
+			Region:      "us-west1",
+			DataProtection: &models.UpdateDataProtection{
+				// Not updating backup policy or vault, just other fields
+				ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+			},
+		}
+
+		// Mock checkIsValidImmutableBackupPolicyWithRetry to return success
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "existing-vault-id", int64(1)).
+			Return(&datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "existing-vault-id",
+				},
+				LifeCycleState: models.LifeCycleStateREADY,
+			}, nil)
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, "existing-policy-id", int64(1)).
+			Return(&datamodel.BackupPolicy{
+				BaseModel: datamodel.BaseModel{
+					UUID: "existing-policy-id",
+				},
+				LifeCycleState: models.LifeCycleStateREADY,
+			}, nil)
+
+		// Act
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Does not validate immutable backup when volume has no DataProtection", func(t *testing.T) {
+		// Setup
+		mockStorage := database.NewMockStorage(t)
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid",
+				},
+				AllowAutoTiering: true,
+				SizeInBytes:      2000000000000,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "account-uuid",
+					},
+				},
+			},
+			QuotaInBytes: 1000000000000,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "volume-uuid",
+			},
+			Name:        "test-volume",
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100000000000,
+			AccountID:   1,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "account-uuid",
+				},
+			},
+			DataProtection:   nil, // No DataProtection
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		params := &common.UpdateVolumeParams{
+			VolumeId:    "volume-uuid",
+			AccountName: "test-account",
+			Region:      "us-west1",
+		}
+
+		// Act
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		// Should not call any backup-related methods
+		mockStorage.AssertNotCalled(t, "GetBackupVaultByUUIDndOwnerID")
+		mockStorage.AssertNotCalled(t, "GetBackupPolicyByUUIDAndOwnerID")
+	})
+
+	t.Run("Does not validate immutable backup when volume has DataProtection but missing BackupVaultID", func(t *testing.T) {
+		// Setup
+		mockStorage := database.NewMockStorage(t)
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid",
+				},
+				AllowAutoTiering: true,
+				SizeInBytes:      2000000000000,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "account-uuid",
+					},
+				},
+			},
+			QuotaInBytes: 1000000000000,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "volume-uuid",
+			},
+			Name:        "test-volume",
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100000000000,
+			AccountID:   1,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "account-uuid",
+				},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  "", // Empty vault ID
+				BackupPolicyID: "existing-policy-id",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		params := &common.UpdateVolumeParams{
+			VolumeId:    "volume-uuid",
+			AccountName: "test-account",
+			Region:      "us-west1",
+		}
+
+		// Act
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		// Should not call checkIsValidImmutableBackupPolicyWithRetry
+		mockStorage.AssertNotCalled(t, "GetBackupVaultByUUIDndOwnerID")
+		mockStorage.AssertNotCalled(t, "GetBackupPolicyByUUIDAndOwnerID")
+	})
+
+	t.Run("Does not validate immutable backup when volume has DataProtection but missing BackupPolicyID", func(t *testing.T) {
+		// Setup
+		mockStorage := database.NewMockStorage(t)
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid",
+				},
+				AllowAutoTiering: true,
+				SizeInBytes:      2000000000000,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "account-uuid",
+					},
+				},
+			},
+			QuotaInBytes: 1000000000000,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "volume-uuid",
+			},
+			Name:        "test-volume",
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100000000000,
+			AccountID:   1,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "account-uuid",
+				},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  "existing-vault-id",
+				BackupPolicyID: "", // Empty policy ID
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		params := &common.UpdateVolumeParams{
+			VolumeId:    "volume-uuid",
+			AccountName: "test-account",
+			Region:      "us-west1",
+		}
+
+		// Act
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		// Should not call checkIsValidImmutableBackupPolicyWithRetry
+		mockStorage.AssertNotCalled(t, "GetBackupVaultByUUIDndOwnerID")
+		mockStorage.AssertNotCalled(t, "GetBackupPolicyByUUIDAndOwnerID")
 	})
 }

@@ -1827,8 +1827,8 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		logger := util.GetLogger(ctx)
 		if params.DataProtection != nil {
 			// Validate immutable backup policy compliance when both BackupPolicyId and BackupVaultID are set
-			if params.DataProtection.BackupPolicyId != nil && params.DataProtection.BackupVaultID != nil {
-				err := checkIsValidImmutableBackupPolicyWithRetry(ctx, se, *params.DataProtection.BackupPolicyId, *params.DataProtection.BackupVaultID, volume.Account.ID, params.Region, params.AccountName)
+			if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" && volume.DataProtection.BackupPolicyID != "" {
+				err := checkIsValidImmutableBackupPolicyWithRetry(ctx, se, volume.DataProtection.BackupPolicyID, volume.DataProtection.BackupVaultID, volume.Account.ID, params.Region, params.AccountName)
 				if err != nil {
 					logger.Errorf("Immutable backup policy validation failed %v", err)
 					return customerrors.NewUserInputValidationErr("Backup policy is not compliant with immutable backup vault settings")
