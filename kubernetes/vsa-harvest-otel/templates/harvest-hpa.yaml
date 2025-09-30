@@ -9,8 +9,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "harvest.name" . }}
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: {{ .Values.horizontalPodAutoscaling.minReplicas }}
+  maxReplicas: {{ .Values.horizontalPodAutoscaling.maxReplicas }}
   metrics:
     - external:
         metric:

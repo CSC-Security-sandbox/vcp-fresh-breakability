@@ -18,7 +18,9 @@ configMap:
   create: true
 
 horizontalPodAutoscaling:
-  enable: false
+  enable: true
+  minReplicas: 2
+  maxReplicas: 10
 
 images:
   pm2:
