@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -242,8 +243,10 @@ type (
 		GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error)
 
 		CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
+		CreateAdminJobSpecIfNotExists(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
 		GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error)
 		UpdateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) error
+		UpdateAdminJobSpecWithLock(ctx context.Context, jobType, state string, lockThreshold, currentTime time.Time) (int64, error)
 		GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error)
 
 		CreateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)

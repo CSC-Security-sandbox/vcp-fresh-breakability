@@ -113,6 +113,166 @@ type Node struct {
 	ExternalUUID string
 }
 
+// Takeover state constants
+const (
+	// TakeoverStateNotAttempted indicates the takeover operation hasn't started yet, and it's possible to initiate a takeover
+	TakeoverStateNotAttempted = "not_attempted"
+
+	// TakeoverStateNotPossible indicates the takeover operation can't be initiated. Check the failure message for more details
+	TakeoverStateNotPossible = "not_possible"
+
+	// TakeoverStateInProgress indicates the takeover operation is currently happening; the node is taking over its partner
+	TakeoverStateInProgress = "in_progress"
+
+	// TakeoverStateInTakeover indicates the takeover operation is complete
+	TakeoverStateInTakeover = "in_takeover"
+
+	// TakeoverStateFailed indicates the takeover operation failed. Check the failure message for more details
+	TakeoverStateFailed = "failed"
+)
+
+type TakeoverFailure struct {
+	Message string `json:"message,omitempty"`
+	Code    int    `json:"code,omitempty"`
+}
+
+type TakeoverState struct {
+	State   string           `json:"state,omitempty"`
+	Failure *TakeoverFailure `json:"failure,omitempty"`
+}
+
+// Helper methods for TakeoverState
+func (ts *TakeoverState) IsNotAttempted() bool {
+	return ts != nil && ts.State == TakeoverStateNotAttempted
+}
+
+func (ts *TakeoverState) IsNotPossible() bool {
+	return ts != nil && ts.State == TakeoverStateNotPossible
+}
+
+func (ts *TakeoverState) IsInProgress() bool {
+	return ts != nil && ts.State == TakeoverStateInProgress
+}
+
+func (ts *TakeoverState) IsInTakeover() bool {
+	return ts != nil && ts.State == TakeoverStateInTakeover
+}
+
+func (ts *TakeoverState) IsFailed() bool {
+	return ts != nil && ts.State == TakeoverStateFailed
+}
+
+func (ts *TakeoverState) IsHealthy() bool {
+	return ts.IsNotAttempted() || ts.IsInTakeover()
+}
+
+func (ts *TakeoverState) RequiresAttention() bool {
+	return ts.IsNotPossible() || ts.IsFailed()
+}
+
+type HAInfo struct {
+	Takeover *TakeoverState `json:"takeover,omitempty"`
+}
+
+type NodeWithHA struct {
+	UUID string  `json:"uuid"`
+	Name string  `json:"name"`
+	Ha   *HAInfo `json:"ha,omitempty"`
+}
+
+type TakeoverStateResponse struct {
+	Records []NodeWithHA `json:"records"`
+}
+
+// Takeover check structures for detailed takeover reasons
+type TakeoverCheck struct {
+	TakeoverPossible bool     `json:"takeover_possible"`
+	Reasons          []string `json:"reasons,omitempty"`
+}
+
+type HAInfoWithReasons struct {
+	TakeoverCheck *TakeoverCheck `json:"takeover_check,omitempty"`
+}
+
+type NodeWithTakeoverReasons struct {
+	UUID string             `json:"uuid"`
+	Name string             `json:"name"`
+	Ha   *HAInfoWithReasons `json:"ha,omitempty"`
+}
+
+type TakeoverReasonResponse struct {
+	Records []NodeWithTakeoverReasons `json:"records"`
+}
+
+// JSWAPBackingType represents the type of backing storage for JSWAP
+type JSWAPBackingType string
+
+// JSWAP backing type constants
+const (
+	// JSWAPBackingTypeEphemeralMemory indicates JSWAP is using ephemeral memory
+	JSWAPBackingTypeEphemeralMemory JSWAPBackingType = "ephemeral_memory"
+
+	// JSWAPBackingTypeEphemeralDisk indicates JSWAP is using ephemeral disk
+	JSWAPBackingTypeEphemeralDisk JSWAPBackingType = "ephemeral_disk"
+)
+
+// JSWAP swap mode constants
+const (
+	// JSWAPSwapModeDynamic indicates dynamic swap mode
+	JSWAPSwapModeDynamic = "dynamic"
+
+	// JSWAPSwapModeStatic indicates static swap mode
+	JSWAPSwapModeStatic = "static"
+)
+
+// Node action constants
+const (
+	// NodeActionTakeoverCheck indicates triggering a takeover check operation
+	NodeActionTakeoverCheck = "takeover_check"
+)
+
+type NVLog struct {
+	SwapMode    string `json:"swap_mode"`
+	BackingType string `json:"backing_type"`
+}
+
+type NodeWithJSWAP struct {
+	UUID  string `json:"uuid"`
+	Name  string `json:"name"`
+	NVLog *NVLog `json:"nvlog,omitempty"`
+}
+
+type JSWAPStatusResponse struct {
+	Records    []NodeWithJSWAP `json:"records"`
+	NumRecords int             `json:"num_records"`
+}
+
+// Consolidated cluster health structures
+type HAHealthInfo struct {
+	Takeover      *TakeoverState `json:"takeover,omitempty"`
+	TakeoverCheck *TakeoverCheck `json:"takeover_check,omitempty"`
+}
+
+type NodeHealthStatus struct {
+	UUID  string        `json:"uuid"`
+	Name  string        `json:"name"`
+	Ha    *HAHealthInfo `json:"ha,omitempty"`
+	NVLog *NVLog        `json:"nvlog,omitempty"`
+}
+
+type ClusterHealthStatusResponse struct {
+	Records    []NodeHealthStatus `json:"records"`
+	NumRecords int                `json:"num_records"`
+}
+
+func (nvlog *NVLog) IsDynamicMode() bool {
+	return nvlog != nil && nvlog.SwapMode == JSWAPSwapModeDynamic
+}
+
+func (nvlog *NVLog) IsStaticMode() bool {
+	return nvlog != nil && nvlog.SwapMode == JSWAPSwapModeStatic
+}
+
 type Aggregate struct {
 	Name                 string
 	State                string

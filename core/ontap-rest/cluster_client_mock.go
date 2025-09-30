@@ -415,6 +415,65 @@ func (_c *MockClusterClient_GetONTAPVersion_Call) RunAndReturn(run func() (*stri
 	return _c
 }
 
+// ModifyNode provides a mock function with given fields: ctx, params
+func (_m *MockClusterClient) ModifyNode(ctx context.Context, params *NodeModifyParams) (*cluster.NodeModifyOK, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ModifyNode")
+	}
+
+	var r0 *cluster.NodeModifyOK
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *NodeModifyParams) (*cluster.NodeModifyOK, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *NodeModifyParams) *cluster.NodeModifyOK); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*cluster.NodeModifyOK)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *NodeModifyParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClusterClient_ModifyNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ModifyNode'
+type MockClusterClient_ModifyNode_Call struct {
+	*mock.Call
+}
+
+// ModifyNode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *NodeModifyParams
+func (_e *MockClusterClient_Expecter) ModifyNode(ctx interface{}, params interface{}) *MockClusterClient_ModifyNode_Call {
+	return &MockClusterClient_ModifyNode_Call{Call: _e.mock.On("ModifyNode", ctx, params)}
+}
+
+func (_c *MockClusterClient_ModifyNode_Call) Run(run func(ctx context.Context, params *NodeModifyParams)) *MockClusterClient_ModifyNode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*NodeModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockClusterClient_ModifyNode_Call) Return(_a0 *cluster.NodeModifyOK, _a1 error) *MockClusterClient_ModifyNode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClusterClient_ModifyNode_Call) RunAndReturn(run func(context.Context, *NodeModifyParams) (*cluster.NodeModifyOK, error)) *MockClusterClient_ModifyNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NodesGet provides a mock function with given fields: params, ucbf
 func (_m *MockClusterClient) NodesGet(params *NodesGetParams, ucbf UserCallbackFunc[[]*Node]) error {
 	ret := _m.Called(params, ucbf)

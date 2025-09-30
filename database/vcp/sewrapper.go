@@ -6,7 +6,8 @@ package database
 
 import (
 	"context"
-	
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -3796,6 +3797,26 @@ func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamode
 	return var0, err
 }
 
+func (re *retryEngine) CreateAdminJobSpecIfNotExists(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
+	var var0 *datamodel.AdminJobSpec
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateAdminJobSpecIfNotExists(ctx, jobSpec)
+		if err != nil {
+			re.logError("CreateAdminJobSpecIfNotExists", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error) {
 	var var0 *datamodel.AdminJobSpec
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -3833,6 +3854,26 @@ func (re *retryEngine) UpdateAdminJobSpec(ctx context.Context, jobSpec *datamode
 	}
 
 	return err
+}
+
+func (re *retryEngine) UpdateAdminJobSpecWithLock(ctx context.Context, jobType, state string, lockThreshold, currentTime time.Time) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateAdminJobSpecWithLock(ctx, jobType, state, lockThreshold, currentTime)
+		if err != nil {
+			re.logError("UpdateAdminJobSpecWithLock", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
 }
 
 func (re *retryEngine) GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error) {

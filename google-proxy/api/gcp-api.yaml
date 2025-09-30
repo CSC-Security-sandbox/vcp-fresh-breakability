@@ -6968,7 +6968,7 @@ components:
           example: 20.0
         storagePoolState:
           type: string
-          description: The current lifecycle state of the resource
+          description: The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex UNIFIED pools.
           readOnly: true
           example: READY
           enum:
@@ -6981,6 +6981,7 @@ components:
             - DELETED
             - DELETING
             - ERROR
+            - DEGRADED
         storagePoolStateDetails:
           title: storagePoolStateDetails
           type: string

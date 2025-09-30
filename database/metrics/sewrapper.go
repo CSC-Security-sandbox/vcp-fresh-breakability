@@ -6,8 +6,8 @@ package database
 
 import (
 	"context"
-	
 	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"

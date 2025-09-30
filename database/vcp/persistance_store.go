@@ -967,6 +967,10 @@ func (s *PersistenceStore) CreateAdminJobSpec(ctx context.Context, spec *datamod
 	return s.dataStore.CreateAdminJobSpec(ctx, spec)
 }
 
+func (s *PersistenceStore) CreateAdminJobSpecIfNotExists(ctx context.Context, spec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
+	return s.dataStore.CreateAdminJobSpecIfNotExists(ctx, spec)
+}
+
 func (s *PersistenceStore) GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error) {
 	return s.dataStore.GetAdminJobSpecByJobType(ctx, jobType)
 }
@@ -977,6 +981,10 @@ func (s *PersistenceStore) UpdateAdminJobSpec(ctx context.Context, jobSpec *data
 
 func (s *PersistenceStore) GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error) {
 	return s.dataStore.GetAdminJobSpecsByState(ctx, state)
+}
+
+func (s *PersistenceStore) UpdateAdminJobSpecWithLock(ctx context.Context, jobType, state string, lockThreshold, currentTime time.Time) (int64, error) {
+	return s.dataStore.UpdateAdminJobSpecWithLock(ctx, jobType, state, lockThreshold, currentTime)
 }
 
 func (s *PersistenceStore) ErroredResource(ctx context.Context, resource interface{}, errMessage string) (interface{}, error) {

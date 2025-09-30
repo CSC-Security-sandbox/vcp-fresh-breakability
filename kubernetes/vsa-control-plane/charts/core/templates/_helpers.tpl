@@ -90,4 +90,14 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{- if .Values.requiredTakeoverReasons }}
+REQUIRED_TAKEOVER_REASONS: {{ join "," .Values.requiredTakeoverReasons | quote }}
 {{- end }}
+{{- if .Values.jobPollingMaxDuration }}
+JOB_POLLING_MAX_DURATION: {{ .Values.jobPollingMaxDuration | quote }}
+{{- end }}
+{{- if .Values.jobPollingInterval }}
+JOB_POLLING_INTERVAL: {{ .Values.jobPollingInterval | quote }}
+{{- end }}
+{{- end -}}

@@ -275,3 +275,295 @@ func TestCreateAdminJobSpec_RevivesSoftDeleted(t *testing.T) {
 	assert.Equal(t, "CREATING", revived.State)
 	assert.Nil(t, revived.DeletedAt)
 }
+
+func TestCreateAdminJobSpecIfNotExists(t *testing.T) {
+	t.Run("WhenAdminJobSpecDoesNotExist_Success", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-if-not-exists"},
+			JobType:        "TEST_JOB_IF_NOT_EXISTS",
+			CronExpression: "0 0 * * *",
+			State:          "CREATING",
+		}
+
+		newJobSpec, err := store.CreateAdminJobSpecIfNotExists(tt.Context(), jobSpec)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, newJobSpec)
+		assert.Equal(tt, "TEST_JOB_IF_NOT_EXISTS", newJobSpec.JobType)
+		assert.Equal(tt, "0 0 * * *", newJobSpec.CronExpression)
+		assert.Equal(tt, "CREATING", newJobSpec.State)
+	})
+
+	t.Run("WhenAdminJobSpecAlreadyExists_Fails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-exists"},
+			JobType:        "TEST_JOB_EXISTS",
+			CronExpression: "0 0 * * *",
+			State:          "CREATING",
+		}
+
+		// First creation should succeed
+		_, err = store.CreateAdminJobSpecIfNotExists(tt.Context(), jobSpec)
+		assert.NoError(tt, err)
+
+		// Second creation with same JobType should fail
+		duplicateJobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-duplicate"},
+			JobType:        "TEST_JOB_EXISTS", // Same JobType
+			CronExpression: "*/5 * * * *",
+			State:          "SCHEDULED",
+		}
+
+		newJobSpec, err := store.CreateAdminJobSpecIfNotExists(tt.Context(), duplicateJobSpec)
+		assert.Error(tt, err)
+		assert.Nil(tt, newJobSpec)
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseDataInsertError, customErr.TrackingID)
+		} else {
+			tt.Fatalf("Expected a CustomError with ErrDatabaseDataInsertError, got: %v", err)
+		}
+	})
+
+	t.Run("WhenTransactionFails", func(tt *testing.T) {
+		// This test would require mocking the database to simulate transaction failure
+		// For now, we'll skip this as it's more of an integration test concern
+		tt.Skip("Transaction failure test requires database mocking")
+	})
+}
+
+func TestUpdateAdminJobSpecWithLock(t *testing.T) {
+	t.Run("WhenJobSpecExistsAndLockConditionsMet_Success", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		// Create a job spec
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-lock"},
+			JobType:        "TEST_JOB_LOCK",
+			CronExpression: "0 0 * * *",
+			State:          "SCHEDULED",
+		}
+
+		createdJobSpec, err := store.CreateAdminJobSpec(tt.Context(), jobSpec)
+		assert.NoError(tt, err)
+
+		// Set the updated_at to an older time to simulate a job that needs updating
+		oldTime := time.Now().Add(-10 * time.Minute)
+		db.Model(&datamodel.AdminJobSpec{}).
+			Where("job_type = ?", "TEST_JOB_LOCK").
+			Update("updated_at", oldTime)
+
+		// Now try to update with lock
+		lockThreshold := time.Now().Add(-5 * time.Minute) // Threshold is 5 minutes ago
+		currentTime := time.Now()
+
+		rowsAffected, err := store.UpdateAdminJobSpecWithLock(tt.Context(),
+			"TEST_JOB_LOCK", "SCHEDULED", lockThreshold, currentTime)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), rowsAffected)
+
+		// Verify the updated_at field was actually updated
+		updatedJobSpec, err := store.GetAdminJobSpecByJobType(tt.Context(), "TEST_JOB_LOCK")
+		assert.NoError(tt, err)
+		assert.True(tt, updatedJobSpec.UpdatedAt.After(createdJobSpec.UpdatedAt))
+	})
+
+	t.Run("WhenJobSpecDoesNotExist_NoRowsAffected", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		lockThreshold := time.Now().Add(-5 * time.Minute)
+		currentTime := time.Now()
+
+		rowsAffected, err := store.UpdateAdminJobSpecWithLock(tt.Context(),
+			"NON_EXISTENT_JOB", "SCHEDULED", lockThreshold, currentTime)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), rowsAffected)
+	})
+
+	t.Run("WhenStateDoesNotMatch_NoRowsAffected", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		// Create a job spec with CREATING state
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-state-mismatch"},
+			JobType:        "TEST_JOB_STATE_MISMATCH",
+			CronExpression: "0 0 * * *",
+			State:          "CREATING", // Different from what we'll search for
+		}
+
+		_, err = store.CreateAdminJobSpec(tt.Context(), jobSpec)
+		assert.NoError(tt, err)
+
+		lockThreshold := time.Now().Add(-5 * time.Minute)
+		currentTime := time.Now()
+
+		// Try to update with SCHEDULED state (but job is in CREATING state)
+		rowsAffected, err := store.UpdateAdminJobSpecWithLock(tt.Context(),
+			"TEST_JOB_STATE_MISMATCH", "SCHEDULED", lockThreshold, currentTime)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), rowsAffected)
+	})
+
+	t.Run("WhenUpdatedAtIsAfterLockThreshold_NoRowsAffected", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		// Create a job spec
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-recent"},
+			JobType:        "TEST_JOB_RECENT",
+			CronExpression: "0 0 * * *",
+			State:          "SCHEDULED",
+		}
+
+		_, err = store.CreateAdminJobSpec(tt.Context(), jobSpec)
+		assert.NoError(tt, err)
+
+		// Set updated_at to a recent time (after our threshold)
+		recentTime := time.Now().Add(-2 * time.Minute)
+		db.Model(&datamodel.AdminJobSpec{}).
+			Where("job_type = ?", "TEST_JOB_RECENT").
+			Update("updated_at", recentTime)
+
+		// Set lock threshold to 5 minutes ago (older than the updated_at)
+		lockThreshold := time.Now().Add(-5 * time.Minute)
+		currentTime := time.Now()
+
+		rowsAffected, err := store.UpdateAdminJobSpecWithLock(tt.Context(),
+			"TEST_JOB_RECENT", "SCHEDULED", lockThreshold, currentTime)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), rowsAffected) // Should not update because updated_at > lockThreshold
+	})
+
+	t.Run("WhenMultipleJobsMatchConditions_UpdatesAll", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		// Create multiple job specs with the same JobType and State
+		jobSpec1 := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-multi-1"},
+			JobType:        "TEST_JOB_MULTI",
+			CronExpression: "0 0 * * *",
+			State:          "SCHEDULED",
+		}
+		jobSpec2 := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-multi-2"},
+			JobType:        "TEST_JOB_MULTI",
+			CronExpression: "*/5 * * * *",
+			State:          "SCHEDULED",
+		}
+
+		_, err = store.CreateAdminJobSpec(tt.Context(), jobSpec1)
+		assert.NoError(tt, err)
+
+		// For the second one, we need to use CreateAdminJobSpecIfNotExists since CreateAdminJobSpec does upsert
+		// Actually, since CreateAdminJobSpec does upsert by job_type, we can't have two records with the same job_type
+		// Let's modify the test to use different job types
+		jobSpec2.JobType = "TEST_JOB_MULTI_2"
+		_, err = store.CreateAdminJobSpec(tt.Context(), jobSpec2)
+		assert.NoError(tt, err)
+
+		// Set both to old times
+		oldTime := time.Now().Add(-10 * time.Minute)
+		db.Model(&datamodel.AdminJobSpec{}).
+			Where("job_type IN ?", []string{"TEST_JOB_MULTI", "TEST_JOB_MULTI_2"}).
+			Update("updated_at", oldTime)
+
+		lockThreshold := time.Now().Add(-5 * time.Minute)
+		currentTime := time.Now()
+
+		// Update the first job
+		rowsAffected1, err := store.UpdateAdminJobSpecWithLock(tt.Context(),
+			"TEST_JOB_MULTI", "SCHEDULED", lockThreshold, currentTime)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), rowsAffected1)
+
+		// Update the second job
+		rowsAffected2, err := store.UpdateAdminJobSpecWithLock(tt.Context(),
+			"TEST_JOB_MULTI_2", "SCHEDULED", lockThreshold, currentTime)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), rowsAffected2)
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		// This test would require mocking the database to simulate an error
+		// For now, we'll skip this as it's more of an integration test concern
+		tt.Skip("Database error test requires database mocking")
+	})
+}

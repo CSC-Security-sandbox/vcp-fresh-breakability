@@ -9,6 +9,18 @@ serviceAccountName: vcp-core
 deployerServiceAccountName: vcp-core
 metricsEnabled: false
 replicaCount: 1
+enableBackgroundTask: true
+requiredTakeoverReasons:
+  - "disabled"
+  - "Storage failover mailbox disks are in a degraded state"
+  - "Local node has encountered errors while reading the storage failover partner's mailbox disks"
+  - "Storage failover interconnect error"
+  - "Partner node halted after disabling takeover"
+  - "Mailbox disks are not healthy"
+  - "Local node missing partner disks"
+  - "Default"
+jobPollingMaxDuration: 25 # seconds
+jobPollingInterval: 3 # seconds
 
 images:
   core:
@@ -63,8 +75,8 @@ database:
 
 resources:
   limits:
-    cpu: 1000m
-    memory: 512Mi
+    cpu: 1
+    memory: 1Gi
   requests:
     cpu: 200m
     memory: 256Mi

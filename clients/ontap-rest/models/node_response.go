@@ -425,6 +425,9 @@ type NodeResponseInlineRecordsInlineArrayItem struct {
 	// Example: node-01
 	Name *string `json:"name,omitempty"`
 
+	// nvlog
+	Nvlog *NodeResponseInlineRecordsInlineArrayItemInlineNvlog `json:"nvlog,omitempty"`
+
 	// nvram
 	Nvram *NodeResponseInlineRecordsInlineArrayItemInlineNvram `json:"nvram,omitempty"`
 
@@ -578,6 +581,10 @@ func (m *NodeResponseInlineRecordsInlineArrayItem) Validate(formats strfmt.Regis
 	}
 
 	if err := m.validateMetrocluster(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateNvlog(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -922,6 +929,25 @@ func (m *NodeResponseInlineRecordsInlineArrayItem) validateMetrocluster(formats 
 				return ve.ValidateName("metrocluster")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
 				return ce.ValidateName("metrocluster")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *NodeResponseInlineRecordsInlineArrayItem) validateNvlog(formats strfmt.Registry) error {
+	if swag.IsZero(m.Nvlog) { // not required
+		return nil
+	}
+
+	if m.Nvlog != nil {
+		if err := m.Nvlog.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("nvlog")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("nvlog")
 			}
 			return err
 		}
@@ -1319,6 +1345,10 @@ func (m *NodeResponseInlineRecordsInlineArrayItem) ContextValidate(ctx context.C
 	}
 
 	if err := m.contextValidateModel(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateNvlog(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -1749,6 +1779,27 @@ func (m *NodeResponseInlineRecordsInlineArrayItem) contextValidateModel(ctx cont
 
 	if err := validate.ReadOnly(ctx, "model", "body", m.Model); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *NodeResponseInlineRecordsInlineArrayItem) contextValidateNvlog(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Nvlog != nil {
+
+		if swag.IsZero(m.Nvlog) { // not required
+			return nil
+		}
+
+		if err := m.Nvlog.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("nvlog")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("nvlog")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -7558,6 +7609,145 @@ func (m *NodeResponseRecordsItems0MetroclusterPortsItems0) MarshalBinary() ([]by
 // UnmarshalBinary interface implementation
 func (m *NodeResponseRecordsItems0MetroclusterPortsItems0) UnmarshalBinary(b []byte) error {
 	var res NodeResponseRecordsItems0MetroclusterPortsItems0
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
+	return nil
+}
+
+// NodeResponseInlineRecordsInlineArrayItemInlineNvlog Non-volatile write log settings.
+//
+// swagger:model node_response_inline_records_inline_array_item_inline_nvlog
+type NodeResponseInlineRecordsInlineArrayItemInlineNvlog struct {
+
+	// Indicates the current NVLog journal backing type.
+	// Enum: ["ephemeral_memory","ephemeral_disk"]
+	BackingType *string `json:"backing_type,omitempty"`
+
+	// Indicates the current NVLog journal swap mode.
+	// Enum: ["dynamic","manual"]
+	SwapMode *string `json:"swap_mode,omitempty"`
+}
+
+// Validate validates this node response inline records inline array item inline nvlog
+func (m *NodeResponseInlineRecordsInlineArrayItemInlineNvlog) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.validateBackingType(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSwapMode(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+var nodeResponseInlineRecordsInlineArrayItemInlineNvlogTypeBackingTypePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["ephemeral_memory","ephemeral_disk"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		nodeResponseInlineRecordsInlineArrayItemInlineNvlogTypeBackingTypePropEnum = append(nodeResponseInlineRecordsInlineArrayItemInlineNvlogTypeBackingTypePropEnum, v)
+	}
+}
+
+const (
+
+	// NodeResponseInlineRecordsInlineArrayItemInlineNvlogBackingTypeEphemeralMemory captures enum value "ephemeral_memory"
+	NodeResponseInlineRecordsInlineArrayItemInlineNvlogBackingTypeEphemeralMemory string = "ephemeral_memory"
+
+	// NodeResponseInlineRecordsInlineArrayItemInlineNvlogBackingTypeEphemeralDisk captures enum value "ephemeral_disk"
+	NodeResponseInlineRecordsInlineArrayItemInlineNvlogBackingTypeEphemeralDisk string = "ephemeral_disk"
+)
+
+// prop value enum
+func (m *NodeResponseInlineRecordsInlineArrayItemInlineNvlog) validateBackingTypeEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, nodeResponseInlineRecordsInlineArrayItemInlineNvlogTypeBackingTypePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *NodeResponseInlineRecordsInlineArrayItemInlineNvlog) validateBackingType(formats strfmt.Registry) error {
+	if swag.IsZero(m.BackingType) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateBackingTypeEnum("nvlog"+"."+"backing_type", "body", *m.BackingType); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var nodeResponseInlineRecordsInlineArrayItemInlineNvlogTypeSwapModePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["dynamic","manual"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		nodeResponseInlineRecordsInlineArrayItemInlineNvlogTypeSwapModePropEnum = append(nodeResponseInlineRecordsInlineArrayItemInlineNvlogTypeSwapModePropEnum, v)
+	}
+}
+
+const (
+
+	// NodeResponseInlineRecordsInlineArrayItemInlineNvlogSwapModeDynamic captures enum value "dynamic"
+	NodeResponseInlineRecordsInlineArrayItemInlineNvlogSwapModeDynamic string = "dynamic"
+
+	// NodeResponseInlineRecordsInlineArrayItemInlineNvlogSwapModeManual captures enum value "manual"
+	NodeResponseInlineRecordsInlineArrayItemInlineNvlogSwapModeManual string = "manual"
+)
+
+// prop value enum
+func (m *NodeResponseInlineRecordsInlineArrayItemInlineNvlog) validateSwapModeEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, nodeResponseInlineRecordsInlineArrayItemInlineNvlogTypeSwapModePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *NodeResponseInlineRecordsInlineArrayItemInlineNvlog) validateSwapMode(formats strfmt.Registry) error {
+	if swag.IsZero(m.SwapMode) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateSwapModeEnum("nvlog"+"."+"swap_mode", "body", *m.SwapMode); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ContextValidate validates this node response inline records inline array item inline nvlog based on context it is used
+func (m *NodeResponseInlineRecordsInlineArrayItemInlineNvlog) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *NodeResponseInlineRecordsInlineArrayItemInlineNvlog) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *NodeResponseInlineRecordsInlineArrayItemInlineNvlog) UnmarshalBinary(b []byte) error {
+	var res NodeResponseInlineRecordsInlineArrayItemInlineNvlog
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}

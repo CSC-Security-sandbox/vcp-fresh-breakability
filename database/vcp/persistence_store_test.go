@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2117,6 +2118,191 @@ func TestPersistenceStore_AccountDelegates_ErrorCases(t *testing.T) {
 
 	err = store.RollBackDeletedAccount(ctx, 12345)
 	assert.Error(t, err)
+}
+
+// Tests for CreateAdminJobSpecIfNotExists and UpdateAdminJobSpecWithLock methods
+func TestCreateAdminJobSpecIfNotExists_Persistence_Store(t *testing.T) {
+	t.Run("WhenAdminJobSpecDoesNotExist_Success", func(t *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(t, err)
+
+		err = ClearInMemoryDB(store.DB())
+		require.NoError(t, err)
+
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-if-not-exists"},
+			JobType:        "TEST_JOB_IF_NOT_EXISTS",
+			CronExpression: "0 0 * * *",
+			State:          "CREATING",
+		}
+
+		newJobSpec, err := store.CreateAdminJobSpecIfNotExists(context.Background(), jobSpec)
+		assert.NoError(t, err)
+		assert.NotNil(t, newJobSpec)
+		assert.Equal(t, "TEST_JOB_IF_NOT_EXISTS", newJobSpec.JobType)
+		assert.Equal(t, "0 0 * * *", newJobSpec.CronExpression)
+		assert.Equal(t, "CREATING", newJobSpec.State)
+	})
+
+	t.Run("WhenAdminJobSpecAlreadyExists_Fails", func(t *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(t, err)
+
+		err = ClearInMemoryDB(store.DB())
+		require.NoError(t, err)
+
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-exists"},
+			JobType:        "TEST_JOB_EXISTS",
+			CronExpression: "0 0 * * *",
+			State:          "CREATING",
+		}
+
+		// First creation should succeed
+		_, err = store.CreateAdminJobSpecIfNotExists(context.Background(), jobSpec)
+		assert.NoError(t, err)
+
+		// Second creation with same JobType should fail
+		duplicateJobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-duplicate"},
+			JobType:        "TEST_JOB_EXISTS", // Same JobType
+			CronExpression: "*/5 * * * *",
+			State:          "SCHEDULED",
+		}
+
+		newJobSpec, err := store.CreateAdminJobSpecIfNotExists(context.Background(), duplicateJobSpec)
+		assert.Error(t, err)
+		assert.Nil(t, newJobSpec)
+	})
+}
+
+func TestUpdateAdminJobSpecWithLock_Persistence_Store(t *testing.T) {
+	t.Run("WhenJobSpecExistsAndLockConditionsMet_Success", func(t *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(t, err)
+
+		err = ClearInMemoryDB(store.DB())
+		require.NoError(t, err)
+
+		// Create a job spec
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-lock"},
+			JobType:        "TEST_JOB_LOCK",
+			CronExpression: "0 0 * * *",
+			State:          "SCHEDULED",
+		}
+
+		createdJobSpec, err := store.CreateAdminJobSpec(context.Background(), jobSpec)
+		assert.NoError(t, err)
+
+		// Set the updated_at to an older time to simulate a job that needs updating
+		oldTime := time.Now().Add(-10 * time.Minute)
+		store.DB().Model(&datamodel.AdminJobSpec{}).
+			Where("job_type = ?", "TEST_JOB_LOCK").
+			Update("updated_at", oldTime)
+
+		// Now try to update with lock
+		lockThreshold := time.Now().Add(-5 * time.Minute) // Threshold is 5 minutes ago
+		currentTime := time.Now()
+
+		rowsAffected, err := store.UpdateAdminJobSpecWithLock(context.Background(),
+			"TEST_JOB_LOCK", "SCHEDULED", lockThreshold, currentTime)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), rowsAffected)
+
+		// Verify the updated_at field was actually updated
+		updatedJobSpec, err := store.GetAdminJobSpecByJobType(context.Background(), "TEST_JOB_LOCK")
+		assert.NoError(t, err)
+		assert.True(t, updatedJobSpec.UpdatedAt.After(createdJobSpec.UpdatedAt))
+	})
+
+	t.Run("WhenJobSpecDoesNotExist_NoRowsAffected", func(t *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(t, err)
+
+		err = ClearInMemoryDB(store.DB())
+		require.NoError(t, err)
+
+		lockThreshold := time.Now().Add(-5 * time.Minute)
+		currentTime := time.Now()
+
+		rowsAffected, err := store.UpdateAdminJobSpecWithLock(context.Background(),
+			"NON_EXISTENT_JOB", "SCHEDULED", lockThreshold, currentTime)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), rowsAffected)
+	})
+
+	t.Run("WhenStateDoesNotMatch_NoRowsAffected", func(t *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(t, err)
+
+		err = ClearInMemoryDB(store.DB())
+		require.NoError(t, err)
+
+		// Create a job spec with CREATING state
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-state-mismatch"},
+			JobType:        "TEST_JOB_STATE_MISMATCH",
+			CronExpression: "0 0 * * *",
+			State:          "CREATING", // Different from what we'll search for
+		}
+
+		_, err = store.CreateAdminJobSpec(context.Background(), jobSpec)
+		assert.NoError(t, err)
+
+		lockThreshold := time.Now().Add(-5 * time.Minute)
+		currentTime := time.Now()
+
+		// Try to update with SCHEDULED state (but job is in CREATING state)
+		rowsAffected, err := store.UpdateAdminJobSpecWithLock(context.Background(),
+			"TEST_JOB_STATE_MISMATCH", "SCHEDULED", lockThreshold, currentTime)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), rowsAffected)
+	})
+
+	t.Run("WhenUpdatedAtIsAfterLockThreshold_NoRowsAffected", func(t *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(t, err)
+
+		err = ClearInMemoryDB(store.DB())
+		require.NoError(t, err)
+
+		// Create a job spec
+		jobSpec := &datamodel.AdminJobSpec{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-recent"},
+			JobType:        "TEST_JOB_RECENT",
+			CronExpression: "0 0 * * *",
+			State:          "SCHEDULED",
+		}
+
+		_, err = store.CreateAdminJobSpec(context.Background(), jobSpec)
+		assert.NoError(t, err)
+
+		// Set updated_at to a recent time (after our threshold)
+		recentTime := time.Now().Add(-2 * time.Minute)
+		store.DB().Model(&datamodel.AdminJobSpec{}).
+			Where("job_type = ?", "TEST_JOB_RECENT").
+			Update("updated_at", recentTime)
+
+		// Set lock threshold to 5 minutes ago (older than the updated_at)
+		lockThreshold := time.Now().Add(-5 * time.Minute)
+		currentTime := time.Now()
+
+		rowsAffected, err := store.UpdateAdminJobSpecWithLock(context.Background(),
+			"TEST_JOB_RECENT", "SCHEDULED", lockThreshold, currentTime)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), rowsAffected) // Should not update because updated_at > lockThreshold
+	})
 }
 
 // TestPersistenceStore_CreatePendingResourceDeletion tests the CreatePendingResourceDeletion wrapper method

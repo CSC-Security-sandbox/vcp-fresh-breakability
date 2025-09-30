@@ -388,6 +388,23 @@ func TestMockClientServiceJobGet(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceNodeModify(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *NodeModifyParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *NodeModifyOK
+	var ret1 *NodeModifyAccepted
+	var ret2 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _, _ = mockClientService.NodeModify(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertNodeModify(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceNodesGet(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *NodesGetParams

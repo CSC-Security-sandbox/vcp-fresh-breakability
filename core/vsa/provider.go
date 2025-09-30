@@ -2,6 +2,7 @@ package vsa
 
 import (
 	"context"
+
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
@@ -113,6 +114,9 @@ type Provider interface {
 	UpdateSecurityAudit(params UpdateSecurityAuditParams) (*SecurityAudit, error)
 	GetSecurityAudit() (*SecurityAudit, error)
 	EnableAutoVolOfflineCronForGCPKMS() error
+	GetClusterHealthStatus() (*ClusterHealthStatusResponse, error)
+	TriggerTakeoverCheck(targetNodeUUID string) (bool, error)
+	UpdateJSwapMode(targetNodeUUID string, backingType JSWAPBackingType) (bool, error)
 }
 
 type OntapRestProvider struct {

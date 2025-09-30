@@ -10,6 +10,8 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	time "time"
+
 	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 )
 
@@ -725,6 +727,65 @@ func (_c *MockStorage_CreateAdminJobSpec_Call) Return(_a0 *datamodel.AdminJobSpe
 }
 
 func (_c *MockStorage_CreateAdminJobSpec_Call) RunAndReturn(run func(context.Context, *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)) *MockStorage_CreateAdminJobSpec_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateAdminJobSpecIfNotExists provides a mock function with given fields: ctx, jobSpec
+func (_m *MockStorage) CreateAdminJobSpecIfNotExists(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
+	ret := _m.Called(ctx, jobSpec)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAdminJobSpecIfNotExists")
+	}
+
+	var r0 *datamodel.AdminJobSpec
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)); ok {
+		return rf(ctx, jobSpec)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AdminJobSpec) *datamodel.AdminJobSpec); ok {
+		r0 = rf(ctx, jobSpec)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AdminJobSpec)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.AdminJobSpec) error); ok {
+		r1 = rf(ctx, jobSpec)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateAdminJobSpecIfNotExists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAdminJobSpecIfNotExists'
+type MockStorage_CreateAdminJobSpecIfNotExists_Call struct {
+	*mock.Call
+}
+
+// CreateAdminJobSpecIfNotExists is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobSpec *datamodel.AdminJobSpec
+func (_e *MockStorage_Expecter) CreateAdminJobSpecIfNotExists(ctx interface{}, jobSpec interface{}) *MockStorage_CreateAdminJobSpecIfNotExists_Call {
+	return &MockStorage_CreateAdminJobSpecIfNotExists_Call{Call: _e.mock.On("CreateAdminJobSpecIfNotExists", ctx, jobSpec)}
+}
+
+func (_c *MockStorage_CreateAdminJobSpecIfNotExists_Call) Run(run func(ctx context.Context, jobSpec *datamodel.AdminJobSpec)) *MockStorage_CreateAdminJobSpecIfNotExists_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.AdminJobSpec))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateAdminJobSpecIfNotExists_Call) Return(_a0 *datamodel.AdminJobSpec, _a1 error) *MockStorage_CreateAdminJobSpecIfNotExists_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateAdminJobSpecIfNotExists_Call) RunAndReturn(run func(context.Context, *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)) *MockStorage_CreateAdminJobSpecIfNotExists_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -10094,6 +10155,66 @@ func (_c *MockStorage_UpdateAdminJobSpec_Call) Return(_a0 error) *MockStorage_Up
 }
 
 func (_c *MockStorage_UpdateAdminJobSpec_Call) RunAndReturn(run func(context.Context, *datamodel.AdminJobSpec) error) *MockStorage_UpdateAdminJobSpec_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAdminJobSpecWithLock provides a mock function with given fields: ctx, jobType, state, lockThreshold, currentTime
+func (_m *MockStorage) UpdateAdminJobSpecWithLock(ctx context.Context, jobType string, state string, lockThreshold time.Time, currentTime time.Time) (int64, error) {
+	ret := _m.Called(ctx, jobType, state, lockThreshold, currentTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAdminJobSpecWithLock")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, time.Time, time.Time) (int64, error)); ok {
+		return rf(ctx, jobType, state, lockThreshold, currentTime)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, time.Time, time.Time) int64); ok {
+		r0 = rf(ctx, jobType, state, lockThreshold, currentTime)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, time.Time, time.Time) error); ok {
+		r1 = rf(ctx, jobType, state, lockThreshold, currentTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateAdminJobSpecWithLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAdminJobSpecWithLock'
+type MockStorage_UpdateAdminJobSpecWithLock_Call struct {
+	*mock.Call
+}
+
+// UpdateAdminJobSpecWithLock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobType string
+//   - state string
+//   - lockThreshold time.Time
+//   - currentTime time.Time
+func (_e *MockStorage_Expecter) UpdateAdminJobSpecWithLock(ctx interface{}, jobType interface{}, state interface{}, lockThreshold interface{}, currentTime interface{}) *MockStorage_UpdateAdminJobSpecWithLock_Call {
+	return &MockStorage_UpdateAdminJobSpecWithLock_Call{Call: _e.mock.On("UpdateAdminJobSpecWithLock", ctx, jobType, state, lockThreshold, currentTime)}
+}
+
+func (_c *MockStorage_UpdateAdminJobSpecWithLock_Call) Run(run func(ctx context.Context, jobType string, state string, lockThreshold time.Time, currentTime time.Time)) *MockStorage_UpdateAdminJobSpecWithLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(time.Time), args[4].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateAdminJobSpecWithLock_Call) Return(_a0 int64, _a1 error) *MockStorage_UpdateAdminJobSpecWithLock_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateAdminJobSpecWithLock_Call) RunAndReturn(run func(context.Context, string, string, time.Time, time.Time) (int64, error)) *MockStorage_UpdateAdminJobSpecWithLock_Call {
 	_c.Call.Return(run)
 	return _c
 }

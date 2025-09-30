@@ -26,6 +26,7 @@ const (
 	LifeCycleStateCreated                      = "CREATED"
 	LifeCycleStateKeyCheckPending              = "KEY_CHECK_PENDING"
 	LifeCycleStateMigrating                    = "MIGRATING"
+	LifeCycleStateDegraded                     = "DEGRADED" // Pool degraded due to JSWAP switch to ephemeral_disk for takeover issues
 	KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED = "KEY_STATE_UNSPECIFIED"
 	LifeCycleStateUnknown                      = "UNKNOWN" // Unknown state, used when the state is not decided yet
 
@@ -51,6 +52,7 @@ const (
 	LifeCycleStateUnknownDetails             = "Unknown state" // Unknown state details, used when the state is not decided yet
 	LifeCycleStateInUseDetails               = "In use"
 	LifeCycleStateMigratingDetails           = "Kms config is in migrating state"
+	LifeCycleStateDegradedDetails            = "Pool degraded due to takeover issues"
 	LifeCycleStateVolMigratingDetails        = "Volume encryption in progress"
 	LifeCycleStateHyperscalerDisabledDetails = "Hyperscaler disabled"
 

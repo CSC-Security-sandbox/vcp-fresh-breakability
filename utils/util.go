@@ -490,6 +490,10 @@ func GetCoRelationIDFromContext(ctx context.Context) string {
 
 		return fields[string(middleware.RequestCorrelationID)].(string)
 	}
+	// Check if correlation ID is directly stored in context (new pattern)
+	if corrID, ok := ctx.Value(middleware.CorrelationContextKey).(string); ok {
+		return corrID
+	}
 	return ""
 }
 

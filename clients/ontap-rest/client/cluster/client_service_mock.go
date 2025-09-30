@@ -234,6 +234,19 @@ func (mock *MockClientService) AssertJobGet(params *JobGetParams, authInfo runti
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// NodeModify mocks a call to ClientService.NodeModify
+func (mock *MockClientService) NodeModify(params *NodeModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*NodeModifyOK, *NodeModifyAccepted, error) {
+	mock.calls <- &mockClientServiceCall{name: "NodeModify", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**NodeModifyOK), *ret[1].(**NodeModifyAccepted), *ret[2].(*error)
+}
+
+// AssertNodeModify verifies that NodeModify has been invoked
+func (mock *MockClientService) AssertNodeModify(params *NodeModifyParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *NodeModifyOK, ret1 *NodeModifyAccepted, ret2 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "NodeModify", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}
+
 // NodesGet mocks a call to ClientService.NodesGet
 func (mock *MockClientService) NodesGet(params *NodesGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*NodesGetOK, error) {
 	mock.calls <- &mockClientServiceCall{name: "NodesGet", params: []interface{}{&params, &authInfo, &opts}}

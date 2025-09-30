@@ -41,6 +41,7 @@ require (
 	go.temporal.io/api v1.44.1
 	go.temporal.io/sdk v1.33.0
 	go.temporal.io/sdk/contrib/opentelemetry v0.6.0
+	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.42.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0

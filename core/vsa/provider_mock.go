@@ -1965,6 +1965,63 @@ func (_c *MockProvider_GetAggregates_Call) RunAndReturn(run func() ([]*Aggregate
 	return _c
 }
 
+// GetClusterHealthStatus provides a mock function with no fields
+func (_m *MockProvider) GetClusterHealthStatus() (*ClusterHealthStatusResponse, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterHealthStatus")
+	}
+
+	var r0 *ClusterHealthStatusResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (*ClusterHealthStatusResponse, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() *ClusterHealthStatusResponse); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ClusterHealthStatusResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetClusterHealthStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterHealthStatus'
+type MockProvider_GetClusterHealthStatus_Call struct {
+	*mock.Call
+}
+
+// GetClusterHealthStatus is a helper method to define mock.On call
+func (_e *MockProvider_Expecter) GetClusterHealthStatus() *MockProvider_GetClusterHealthStatus_Call {
+	return &MockProvider_GetClusterHealthStatus_Call{Call: _e.mock.On("GetClusterHealthStatus")}
+}
+
+func (_c *MockProvider_GetClusterHealthStatus_Call) Run(run func()) *MockProvider_GetClusterHealthStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetClusterHealthStatus_Call) Return(_a0 *ClusterHealthStatusResponse, _a1 error) *MockProvider_GetClusterHealthStatus_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetClusterHealthStatus_Call) RunAndReturn(run func() (*ClusterHealthStatusResponse, error)) *MockProvider_GetClusterHealthStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetClusterPeer provides a mock function with given fields: clusterPeerUUID
 func (_m *MockProvider) GetClusterPeer(clusterPeerUUID string) (*ClusterPeer, error) {
 	ret := _m.Called(clusterPeerUUID)
@@ -4756,6 +4813,62 @@ func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) RunAndReturn(run 
 	return _c
 }
 
+// TriggerTakeoverCheck provides a mock function with given fields: targetNodeUUID
+func (_m *MockProvider) TriggerTakeoverCheck(targetNodeUUID string) (bool, error) {
+	ret := _m.Called(targetNodeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TriggerTakeoverCheck")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (bool, error)); ok {
+		return rf(targetNodeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(targetNodeUUID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(targetNodeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_TriggerTakeoverCheck_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TriggerTakeoverCheck'
+type MockProvider_TriggerTakeoverCheck_Call struct {
+	*mock.Call
+}
+
+// TriggerTakeoverCheck is a helper method to define mock.On call
+//   - targetNodeUUID string
+func (_e *MockProvider_Expecter) TriggerTakeoverCheck(targetNodeUUID interface{}) *MockProvider_TriggerTakeoverCheck_Call {
+	return &MockProvider_TriggerTakeoverCheck_Call{Call: _e.mock.On("TriggerTakeoverCheck", targetNodeUUID)}
+}
+
+func (_c *MockProvider_TriggerTakeoverCheck_Call) Run(run func(targetNodeUUID string)) *MockProvider_TriggerTakeoverCheck_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_TriggerTakeoverCheck_Call) Return(_a0 bool, _a1 error) *MockProvider_TriggerTakeoverCheck_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_TriggerTakeoverCheck_Call) RunAndReturn(run func(string) (bool, error)) *MockProvider_TriggerTakeoverCheck_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UnmountVolume provides a mock function with given fields: volumeUUID
 func (_m *MockProvider) UnmountVolume(volumeUUID string) (*OntapAsyncResponse, error) {
 	ret := _m.Called(volumeUUID)
@@ -4902,6 +5015,63 @@ func (_c *MockProvider_UpdateExportPolicyRules_Call) Return(_a0 error) *MockProv
 }
 
 func (_c *MockProvider_UpdateExportPolicyRules_Call) RunAndReturn(run func(UpdateExportPolicyRulesParams) error) *MockProvider_UpdateExportPolicyRules_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateJSwapMode provides a mock function with given fields: targetNodeUUID, backingType
+func (_m *MockProvider) UpdateJSwapMode(targetNodeUUID string, backingType JSWAPBackingType) (bool, error) {
+	ret := _m.Called(targetNodeUUID, backingType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateJSwapMode")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, JSWAPBackingType) (bool, error)); ok {
+		return rf(targetNodeUUID, backingType)
+	}
+	if rf, ok := ret.Get(0).(func(string, JSWAPBackingType) bool); ok {
+		r0 = rf(targetNodeUUID, backingType)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, JSWAPBackingType) error); ok {
+		r1 = rf(targetNodeUUID, backingType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_UpdateJSwapMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateJSwapMode'
+type MockProvider_UpdateJSwapMode_Call struct {
+	*mock.Call
+}
+
+// UpdateJSwapMode is a helper method to define mock.On call
+//   - targetNodeUUID string
+//   - backingType JSWAPBackingType
+func (_e *MockProvider_Expecter) UpdateJSwapMode(targetNodeUUID interface{}, backingType interface{}) *MockProvider_UpdateJSwapMode_Call {
+	return &MockProvider_UpdateJSwapMode_Call{Call: _e.mock.On("UpdateJSwapMode", targetNodeUUID, backingType)}
+}
+
+func (_c *MockProvider_UpdateJSwapMode_Call) Run(run func(targetNodeUUID string, backingType JSWAPBackingType)) *MockProvider_UpdateJSwapMode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(JSWAPBackingType))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateJSwapMode_Call) Return(_a0 bool, _a1 error) *MockProvider_UpdateJSwapMode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_UpdateJSwapMode_Call) RunAndReturn(run func(string, JSWAPBackingType) (bool, error)) *MockProvider_UpdateJSwapMode_Call {
 	_c.Call.Return(run)
 	return _c
 }

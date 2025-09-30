@@ -2,14 +2,15 @@ package ontap_rest
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	securitypriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
@@ -34,11 +35,29 @@ type ClusterClient interface { // generate:mock
 	ScheduleCollectionGet(sfp *ScheduleCollectionGetParams, ucbf UserCallbackFunc[[]*Schedule]) error
 	GetJob(UUID string) (*cluster.JobGetOK, error)
 	PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*cluster.PostClusterAccessTokenOK, error)
+	ModifyNode(ctx context.Context, params *NodeModifyParams) (*cluster.NodeModifyOK, error)
 }
 
 type clusterClient struct {
 	api     cluster.ClientService
 	apiPriv *securitypriv.ClientService
+}
+
+// NodeModifyParams represents parameters for modifying a node
+type NodeModifyParams struct {
+	UUID   string
+	Action string
+	Body   *NodeModifyBody
+}
+
+// NodeModifyBody represents the body for node modify requests
+type NodeModifyBody struct {
+	NVLog *NVLogModify `json:"nvlog,omitempty"`
+}
+
+// NVLogModify represents nvlog modification parameters
+type NVLogModify struct {
+	BackingType string `json:"backing_type,omitempty"`
 }
 
 var paginateNodesGet = _paginate[[]*Node]
@@ -191,4 +210,49 @@ func (cc clusterClient) PostClusterLicenseAccessToken(ctx context.Context, clien
 		return nil, err
 	}
 	return res, nil
+}
+
+// ModifyNode modifies a node with the given parameters
+func (cc clusterClient) ModifyNode(ctx context.Context, params *NodeModifyParams) (*cluster.NodeModifyOK, error) {
+	logger := util.GetLogger(ctx)
+
+	// Create the ONTAP REST client parameters
+	ontapParams := cluster.NewNodeModifyParams()
+	ontapParams.UUID = strfmt.UUID(string(params.UUID))
+
+	if params.Action != "" {
+		ontapParams.Action = &params.Action
+	}
+
+	nodeInfo := &models.Node{}
+
+	// Set nvlog backing type if provided
+	if params.Body != nil && params.Body.NVLog != nil {
+		nodeInfo.Nvlog = &models.NodeInlineNvlog{
+			BackingType: &params.Body.NVLog.BackingType,
+		}
+	}
+
+	ontapParams.Info = nodeInfo
+
+	// Call the ONTAP REST API
+	response, accepted, err := cc.api.NodeModify(ontapParams, nil)
+	if err != nil {
+		parsedErr := errors.ParseOntapError(ctx, err)
+		logger.Errorf("ONTAP error: ModifyNode() failed with error: %+v", parsedErr)
+		return nil, err
+	}
+
+	// Handle accepted response (async operation)
+	if accepted != nil {
+		logger.Info("Node modification accepted as async operation")
+		// Convert NodeModifyAccepted to NodeModifyOK for consistency
+		return &cluster.NodeModifyOK{
+			Payload: &models.NodeJobLinkResponse{
+				Job: accepted.Payload.Job,
+			},
+		}, nil
+	}
+
+	return response, nil
 }

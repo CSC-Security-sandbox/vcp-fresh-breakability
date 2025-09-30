@@ -112,6 +112,8 @@ type ClientService interface {
 
 	JobGet(params *JobGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*JobGetOK, error)
 
+	NodeModify(params *NodeModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*NodeModifyOK, *NodeModifyAccepted, error)
+
 	NodesGet(params *NodesGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*NodesGetOK, error)
 
 	PostClusterAccessToken(params *PostClusterAccessTokenParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*PostClusterAccessTokenOK, error)
@@ -416,6 +418,59 @@ func (a *Client) JobGet(params *JobGetParams, authInfo runtime.ClientAuthInfoWri
 	// unexpected success response
 	unexpectedSuccess := result.(*JobGetDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	NodeModify Updates the node information or performs shutdown/reboot actions on a node.
+
+### Related ONTAP commands
+* `cluster ha modify`
+* `storage failover modify`
+* `system node modify`
+* `system node reboot`
+* `system node power off`
+* `system node power on`
+* `system service-processor network modify`
+* `system service-processor reboot-sp`
+* `system service-processor image modify`
+* `system service-processor network auto-configuration enable`
+* `system service-processor network auto-configuration disable`
+*/
+func (a *Client) NodeModify(params *NodeModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*NodeModifyOK, *NodeModifyAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewNodeModifyParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "node_modify",
+		Method:             "PATCH",
+		PathPattern:        "/cluster/nodes/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &NodeModifyReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch value := result.(type) {
+	case *NodeModifyOK:
+		return value, nil, nil
+	case *NodeModifyAccepted:
+		return nil, value, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*NodeModifyDefault)
+	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*

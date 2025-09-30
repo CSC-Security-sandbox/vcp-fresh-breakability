@@ -74,6 +74,8 @@ type Config struct {
 
 	// Admin job specifications configuration
 	RefreshAdminJobSpecs bool
+
+	EnableBackgroundTask bool
 }
 
 func LoadConfig() *Config {
@@ -103,6 +105,7 @@ func LoadConfig() *Config {
 	dbAdminPassword := env.GetString("DB_ADMIN_PASSWORD", "")
 	dbMSIUser := env.GetString("DB_MSI_USER", "")
 	refreshAdminJobSpecs := env.GetBool("REFRESH_ADMIN_JOB_SPECS", true)
+	enableBackgroundTask := env.GetBool("ENABLE_BACKGROUND_TASKS", true)
 
 	metricsDBType := env.GetString("METRICS_DB_TYPE", "postgres")
 	metricsDBHost := env.GetString("METRICS_DB_HOST", "")
@@ -162,6 +165,7 @@ func LoadConfig() *Config {
 		MSIEnabled:           msiEnabled,
 		MSIDBUser:            dbMSIUser,
 		RefreshAdminJobSpecs: refreshAdminJobSpecs,
+		EnableBackgroundTask: enableBackgroundTask,
 
 		MetricsDBType:            metricsDBType,
 		MetricsDBHost:            metricsDBHost,
