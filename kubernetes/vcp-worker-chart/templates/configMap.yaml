@@ -53,11 +53,11 @@ data:
   VSA_NODE_USERNAME: {{$.Values.workerConfig.vsaNodeUsername | quote }}
   GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: {{$.Values.workerConfig.gcpHydrateAuthServiceAccount | quote }}
   GCP_HYDRATE_BASE_URL: {{$.Values.workerConfig.gcpHydrateBaseUrl | quote }}
-  RESOURCE_CLEANUP_PARENT_WORKFLOW_BATCH_SIZE: {{$.Values.workerConfig.ResourceCleanupParentWorkflowBatchSize | quote }}
-  RESOURCE_CLEANUP_CHILD_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.ResourceCleanupChildWorkflowTimeout | quote }}
-  RESOURCE_CLEANUP_CHILD_WORKFLOW_ACTIVITY_BATCH_SIZE: {{$.Values.workerConfig.ResourceCleanupChildWorkflowActivityBatchSize | quote }}
-  RESOURCE_CLEANUP_CHILD_WORKFLOW_ACTIVITY_TIMEOUT_MINUTES: {{$.Values.workerConfig.ResourceCleanupChildWorkflowActivityTimeoutMinutes | quote }}
-  RESOURCE_CLEANUP_MAX_CONCURRENT_ACTIVITIES_PER_CHILD: {{$.Values.workerConfig.ResourceCleanupMaxConcurrentActivitiesPerChild | quote }}
+  RESOURCE_CLEANUP_PARENT_WORKFLOW_BATCH_SIZE: {{$.Values.workerConfig.resourceCleanupParentWorkflowBatchSize | quote }}
+  RESOURCE_CLEANUP_CHILD_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.resourceCleanupChildWorkflowTimeout | quote }}
+  RESOURCE_CLEANUP_CHILD_WORKFLOW_ACTIVITY_BATCH_SIZE: {{$.Values.workerConfig.resourceCleanupChildWorkflowActivityBatchSize | quote }}
+  RESOURCE_CLEANUP_CHILD_WORKFLOW_ACTIVITY_TIMEOUT_MINUTES: {{$.Values.workerConfig.resourceCleanupChildWorkflowActivityTimeoutMinutes | quote }}
+  RESOURCE_CLEANUP_MAX_CONCURRENT_ACTIVITIES_PER_CHILD: {{$.Values.workerConfig.resourceCleanupMaxConcurrentActivitiesPerChild | quote }}
   PROXY_CLIENT_TRANSPORT_SCHEMA: {{$.Values.workerConfig.proxyClientTransportSchema | quote }}
   VCP_PAIRED_REGIONS: "{{ index $.Values.workerConfig "vcpPairedRegions" }}"
   GCP_KMS_KEY_ROTATION_ENABLED: {{$.Values.workerConfig.gcpKmsKeyRotationEnabled | quote }}
@@ -75,11 +75,11 @@ data:
   GCP_HYDRATE_BATCH_SIZE: {{$.Values.workerConfig.gcpHydrateBatchSize | quote }}
   SNAPSHOT_SYNC_MAX_CONCURRENCY: {{$.Values.workerConfig.snapshotSyncMaxConcurrency | quote }}
   ONTAP_SNAPSHOT_FETCH_MAX_CONCURRENCY: {{$.Values.workerConfig.ontapSnapshotFetchConcurrencyLimit | quote }}
-  SNAPSHOT_SYNC_PARENT_WORKFLOW_BATCH_SIZE: {{$.Values.workerConfig.SnapshotSyncParentWorkflowBatchSize | quote }}
-  SNAPSHOT_SYNC_CHILD_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.SnapshotSyncChildWorkflowTimeout | quote }}
-  SNAPSHOT_SYNC_CHILD_WORKFLOW_ACTIVITY_BATCH_SIZE: {{$.Values.workerConfig.SnapshotSyncChildWorkflowActivityBatchSize | quote }}
-  SNAPSHOT_SYNC_CHILD_WORKFLOW_ACTIVITY_TIMEOUT_MINUTES: {{$.Values.workerConfig.SnapshotSyncChildWorkflowActivityTimeoutMinutes | quote }}
-  SNAPSHOT_SYNC_MAX_CONCURRENT_ACTIVITIES_PER_CHILD: {{$.Values.workerConfig.SnapshotSyncMaxConcurrentActivitiesPerChild | quote }}
+  SNAPSHOT_SYNC_PARENT_WORKFLOW_BATCH_SIZE: {{$.Values.workerConfig.snapshotSyncParentWorkflowBatchSize | quote }}
+  SNAPSHOT_SYNC_CHILD_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.snapshotSyncChildWorkflowTimeout | quote }}
+  SNAPSHOT_SYNC_CHILD_WORKFLOW_ACTIVITY_BATCH_SIZE: {{$.Values.workerConfig.snapshotSyncChildWorkflowActivityBatchSize | quote }}
+  SNAPSHOT_SYNC_CHILD_WORKFLOW_ACTIVITY_TIMEOUT_MINUTES: {{$.Values.workerConfig.snapshotSyncChildWorkflowActivityTimeoutMinutes | quote }}
+  SNAPSHOT_SYNC_MAX_CONCURRENT_ACTIVITIES_PER_CHILD: {{$.Values.workerConfig.snapshotSyncMaxConcurrentActivitiesPerChild | quote }}
   VSA_NODE_PASSWORD: {{$.Values.workerConfig.vsaNodePassword | quote }}
   CERTIFICATE_LIFETIME: {{$.Values.workerConfig.certificateLifetime | quote }}
   CA_POOL_NAME: {{$.Values.workerConfig.caPoolName | quote }}
