@@ -162,31 +162,6 @@ metadata:
   namespace: vcp
 data:
   config.yaml: |
-    receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: localhost:4317
-      prometheus:
-        config:
-          scrape_configs:
-            - job_name: 'otel-collector'
-              scrape_interval: 300s
-              http_sd_configs:
-                - url: http://localhost:3000/pollers/prometheus-targets
-                  refresh_interval: 30s
-    
-    processors:
-      batch:
-      groupbyattrs:
-        keys:
-          - tenant_project
-      transform:
-        error_mode: ignore
-        metric_statements:
-          - set(resource.attributes["gcp.project.id"], resource.attributes["tenant_project"])
-          - delete_key(resource.attributes, "tenant_project")
-    
     exporters:
       debug:
         verbosity: normal
@@ -198,33 +173,79 @@ data:
         sending_queue:
           enabled: true
           queue_size: 40000
-      googlecloud/tenant:
+      googlecloud/scaling:
         project: "netapp-au-se1-autopush-sde-tst"
         metric:
           prefix: custom.googleapis.com
           skip_create_descriptor: true
         sending_queue:
-          enabled: true
-          queue_size: 40000    
-    
+          enabled: false
+          queue_size: 40000
+    extensions:
+      health_check:
+        endpoint: "0.0.0.0:13133"
+    processors:
+      batch:
+        send_batch_size: 200
+        send_batch_max_size: 200
+        timeout: 200ms
+      groupbyattrs:
+        keys:
+          - tenant_project
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 30
+      resourcedetection:
+        detectors: [gcp]
+        timeout: 10s
+      transform:
+        error_mode: ignore
+        metric_statements:
+          - set(resource.attributes["gcp.project.id"], resource.attributes["tenant_project"])
+          - delete_key(resource.attributes, "tenant_project")
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: "otel-scrape-job"
+              scrape_interval: 300s
+              http_sd_configs:
+                - url: http://localhost:3000/pollers/prometheus-targets
+                  refresh_interval: 30s
+              metric_relabel_configs:
+                - source_labels: ['__name__']
+                  action: drop
+                  regex: 'metadata_collector_api_time|metadata_collector_bytesRx|metadata_collector_calc_time|metadata_collector_instances|metadata_collector_metrics|metadata_collector_numCalls|metadata_collector_numPartials|metadata_collector_parse_time|metadata_collector_pluginInstances|metadata_collector_plugin_time|metadata_collector_poll_time|metadata_collector_skips|metadata_collector_task_time|metadata_component_count|metadata_component_status|metadata_exporter_count|metadata_exporter_time|metadata_target_goroutines|metadata_target_ping|metadata_target_status'
+                - source_labels: ['__name__']
+                  action: drop
+                  regex: 'poller_memory|poller_memory_percent'
+      prometheus/scaling:
+        config:
+          scrape_configs:
+            - job_name: "otel-scaling-metrics-job"
+              scrape_interval: 30s
+              static_configs:
+                - targets: ["localhost:3000"]
+              metrics_path: /leases-total
+
+
     service:
+      extensions:
+        - health_check
       pipelines:
         metrics:
-          receivers:
-            - prometheus
-          exporters:
-            # - debug
-            - googlecloud
-        metrics/tenant:
-          receivers:
-            - prometheus
-          processors:
-            - batch
-            - groupbyattrs
-            - transform
-          exporters:
-            # - debug
-            - googlecloud/tenant
+          receivers: [prometheus]
+          processors: [resourcedetection]
+          exporters: [googlecloud, debug]
+        metrics/tenants:
+          receivers: [prometheus]
+          processors: [resourcedetection, groupbyattrs,transform, batch]
+          exporters: [googlecloud, debug]
+        metrics/scaling:
+          receivers: [prometheus/scaling]
+          processors: [resourcedetection]
+          exporters: [googlecloud/scaling, debug]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

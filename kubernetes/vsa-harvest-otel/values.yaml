@@ -32,8 +32,8 @@ images:
     pullPolicy: IfNotPresent
   otel:
     name: vcp-open-telemetry-images/opentelemetry-collector-contrib
-    tag: 0.118.0
-    digest: 'sha256:83ff24727f615c39056d954dd3a5d4ef227a5a9fe2c234a4489199e4351f0ab5'
+    tag: 0.126.0
+    digest: 'sha256:4a21c4e5a319827ccc1b150d03424102ab12a30515ba2dfb46379959f5fb4ba6'
     secondary: true
     pullPolicy: IfNotPresent
   metricsAdapter:
