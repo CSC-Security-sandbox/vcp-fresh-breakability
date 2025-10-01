@@ -1361,6 +1361,18 @@
     "retriable": false,
     "http_code": 400
   },
+  "6214": {
+    "description": "Autotiering is disabled in Destination Pool",
+    "message": "Failed to create destination volume since destination pool has autotiering disabled",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6215": {
+    "description": "Destination Volume Cooling days out of limits",
+    "message": "Failed to create destination volume since cooling days is out of limits. It should be between 2 and 183 days",
+    "retriable": false,
+    "http_code": 400
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

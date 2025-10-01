@@ -45,11 +45,11 @@ type CreateReplicationParamsBody struct {
 }
 
 type DestinationVolumeParams struct {
-	Description   *string                           `json:"description,omitempty"`
-	VolumeID      string                            `json:"volumeID,omitempty"`
-	ShareName     string                            `json:"shareName,omitempty"`
-	StoragePool   *string                           `json:"storagePool"`
-	TieringPolicy *gcpgenserver.TieringPolicyV1beta `json:"tieringPolicy,omitempty"`
+	Description   *string                                `json:"description,omitempty"`
+	VolumeID      string                                 `json:"volumeID,omitempty"`
+	ShareName     string                                 `json:"shareName,omitempty"`
+	StoragePool   *string                                `json:"storagePool"`
+	TieringPolicy *googleproxyclient.TieringPolicyV1beta `json:"tieringPolicy,omitempty"`
 }
 
 type CreateReplicationResult struct {

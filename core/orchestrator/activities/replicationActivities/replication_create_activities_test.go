@@ -5047,22 +5047,22 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 
 	t.Run("WithTieringPolicyAllFields_ShouldConvertCorrectly", func(tt *testing.T) {
 		// Arrange
-		tierAction := gcpserver.TieringPolicyV1betaTierActionENABLED
+		tierAction := googleproxyclient.TieringPolicyV1betaTierActionENABLED
 		coolingThreshold := int32(30)
 		hotTierBypass := true
 
-		tieringPolicy := &gcpserver.TieringPolicyV1beta{
-			TierAction: gcpserver.OptNilTieringPolicyV1betaTierAction{
+		tieringPolicy := &googleproxyclient.TieringPolicyV1beta{
+			TierAction: googleproxyclient.OptNilTieringPolicyV1betaTierAction{
 				Value: tierAction,
 				Set:   true,
 				Null:  false,
 			},
-			CoolingThresholdDays: gcpserver.OptNilInt32{
+			CoolingThresholdDays: googleproxyclient.OptNilInt32{
 				Value: coolingThreshold,
 				Set:   true,
 				Null:  false,
 			},
-			HotTierBypassModeEnabled: gcpserver.OptNilBool{
+			HotTierBypassModeEnabled: googleproxyclient.OptNilBool{
 				Value: hotTierBypass,
 				Set:   true,
 				Null:  false,
@@ -5112,18 +5112,18 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 
 	t.Run("WithTieringPolicyPartialFields_ShouldConvertCorrectly", func(tt *testing.T) {
 		// Arrange - Only TierAction is set
-		tierAction := gcpserver.TieringPolicyV1betaTierActionPAUSED
+		tierAction := googleproxyclient.TieringPolicyV1betaTierActionPAUSED
 
-		tieringPolicy := &gcpserver.TieringPolicyV1beta{
-			TierAction: gcpserver.OptNilTieringPolicyV1betaTierAction{
+		tieringPolicy := &googleproxyclient.TieringPolicyV1beta{
+			TierAction: googleproxyclient.OptNilTieringPolicyV1betaTierAction{
 				Value: tierAction,
 				Set:   true,
 				Null:  false,
 			},
-			CoolingThresholdDays: gcpserver.OptNilInt32{
+			CoolingThresholdDays: googleproxyclient.OptNilInt32{
 				Set: false, // Not set
 			},
-			HotTierBypassModeEnabled: gcpserver.OptNilBool{
+			HotTierBypassModeEnabled: googleproxyclient.OptNilBool{
 				Set: false, // Not set
 			},
 		}
@@ -5205,16 +5205,16 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 		// Arrange - Only CoolingThresholdDays is set
 		coolingThreshold := int32(90)
 
-		tieringPolicy := &gcpserver.TieringPolicyV1beta{
-			TierAction: gcpserver.OptNilTieringPolicyV1betaTierAction{
+		tieringPolicy := &googleproxyclient.TieringPolicyV1beta{
+			TierAction: googleproxyclient.OptNilTieringPolicyV1betaTierAction{
 				Set: false, // Not set
 			},
-			CoolingThresholdDays: gcpserver.OptNilInt32{
+			CoolingThresholdDays: googleproxyclient.OptNilInt32{
 				Value: coolingThreshold,
 				Set:   true,
 				Null:  false,
 			},
-			HotTierBypassModeEnabled: gcpserver.OptNilBool{
+			HotTierBypassModeEnabled: googleproxyclient.OptNilBool{
 				Set: false, // Not set
 			},
 		}
@@ -5261,14 +5261,14 @@ func TestConvertSourceVolumeToDestinationVolume(t *testing.T) {
 		// Arrange - Only HotTierBypassModeEnabled is set
 		hotTierBypass := false
 
-		tieringPolicy := &gcpserver.TieringPolicyV1beta{
-			TierAction: gcpserver.OptNilTieringPolicyV1betaTierAction{
+		tieringPolicy := &googleproxyclient.TieringPolicyV1beta{
+			TierAction: googleproxyclient.OptNilTieringPolicyV1betaTierAction{
 				Set: false, // Not set
 			},
-			CoolingThresholdDays: gcpserver.OptNilInt32{
+			CoolingThresholdDays: googleproxyclient.OptNilInt32{
 				Set: false, // Not set
 			},
-			HotTierBypassModeEnabled: gcpserver.OptNilBool{
+			HotTierBypassModeEnabled: googleproxyclient.OptNilBool{
 				Value: hotTierBypass,
 				Set:   true,
 				Null:  false,

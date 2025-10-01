@@ -576,6 +576,11 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 	if resourceId = &result.Event.CreateReplicationParams.DestinationVolumeParameters.VolumeID; result.Event.CreateReplicationParams.DestinationVolumeParameters.VolumeID == "" {
 		resourceId = &result.Event.SourceVolume.Name
 	}
+	destVolParams := result.Event.CreateReplicationParams.DestinationVolumeParameters
+	var tieringPolicyV1beta googleproxyclient.OptTieringPolicyV1beta
+	if destVolParams.TieringPolicy != nil {
+		tieringPolicyV1beta = googleproxyclient.NewOptTieringPolicyV1beta(*destVolParams.TieringPolicy)
+	}
 
 	volume := googleproxyclient.VolumeV1beta{
 		ResourceId:    *resourceId,
@@ -586,6 +591,7 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 		Description:   googleproxyclient.NewOptNilString(nillable.GetString(result.Event.CreateReplicationParams.DestinationVolumeParameters.Description, "")),
 		Protocols:     protocols,
 		BlockDevices:  blockDevices,
+		TieringPolicy: tieringPolicyV1beta,
 	}
 	if result.Event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy != nil {
 		tieringPolicyParam := result.Event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy

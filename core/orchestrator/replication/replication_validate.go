@@ -60,14 +60,16 @@ var (
 	InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
 	InternalParseRegionAndZone     = utils.ParseRegionAndZone
 
-	regexpCompile      = regexp.Compile
-	JsonMarshal        = json.Marshal
-	JsonUnMarshal      = json.Unmarshal
-	hydrationEnabled   = env.GetBool("GCP_HYDRATE_ENABLED", true)
-	autoTieringEnabled = env.GetBool("AUTO_TIERING_ENABLED", false)
-	cpcrEnabled        = env.GetBool("CPCRR_ENABLED", false)
-	czcrEnabled        = env.GetBool("CZCRR_ENABLED", false)
-	getQuotaLimit      = common.GetQuotaLimit
+	regexpCompile           = regexp.Compile
+	JsonMarshal             = json.Marshal
+	JsonUnMarshal           = json.Unmarshal
+	hydrationEnabled        = env.GetBool("GCP_HYDRATE_ENABLED", true)
+	autoTieringEnabled      = env.GetBool("AUTO_TIERING_ENABLED", false)
+	cpcrEnabled             = env.GetBool("CPCRR_ENABLED", false)
+	czcrEnabled             = env.GetBool("CZCRR_ENABLED", false)
+	getQuotaLimit           = common.GetQuotaLimit
+	minCoolingThresholdDays = 2
+	maxCoolingThresholdDays = 183
 )
 
 type QuotaType string
@@ -207,6 +209,23 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		typeErr := errors.NewVCPError(errors.ErrDestPoolSize, errors.New("Volume exceeds destination pool size"))
 		logger.Error("Volume exceeds destination pool size", common.Error(typeErr))
 		return nil, typeErr
+	}
+
+	// Validate AutoTiering
+	tieringPolicy := event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy
+
+	if (tieringPolicy != nil && !tieringPolicy.TierAction.IsNull()) && !destPool.AllowAutoTiering.IsNull() && !destPool.AllowAutoTiering.Value {
+		typeErr := errors.NewVCPError(errors.ErrDestPoolTieringPolicyMismatch, errors.New("Auto tiering is not enabled on the destination pool"))
+		logger.Error("Auto tiering is not enabled on the destination pool", common.Error(typeErr))
+		return nil, typeErr
+	}
+
+	if tieringPolicy != nil && !tieringPolicy.CoolingThresholdDays.IsNull() {
+		if tieringPolicy.CoolingThresholdDays.Value < int32(minCoolingThresholdDays) || tieringPolicy.CoolingThresholdDays.Value > int32(maxCoolingThresholdDays) {
+			typeErr := errors.NewVCPError(errors.ErrDestVolumeTieringThresholdOutOfRange, errors.New("Coolness threshold days should be in between 2 and 183"))
+			logger.Error("Coolness threshold days should be in between 2 and 183", common.Error(typeErr))
+			return nil, typeErr
+		}
 	}
 
 	if event.SourceVolume.Pool.ServiceLevel != string(destPool.ServiceLevel) {

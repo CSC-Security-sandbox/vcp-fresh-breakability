@@ -259,6 +259,8 @@ const (
 	ErrVSAClusterOperationFailed                                                             = 6211
 	ErrDatabaseListPoolsForAccount                                                           = 6212
 	ErrDatabaseUpdateAccountState                                                            = 6213
+	ErrDestPoolTieringPolicyMismatch                                                         = 6214
+	ErrDestVolumeTieringThresholdOutOfRange                                                  = 6215
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

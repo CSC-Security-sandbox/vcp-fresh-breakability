@@ -17,7 +17,6 @@ import (
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -849,7 +848,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 			XCorrelationID:      xCorrelationID,
 		}
 		paramsCopy := eventCopy.CreateReplicationParams
-		paramsCopy.DestinationVolumeParameters.TieringPolicy = &gcpserver.TieringPolicyV1beta{}
+		paramsCopy.DestinationVolumeParameters.TieringPolicy = &googleproxyclient.TieringPolicyV1beta{}
 		paramsCopy.ReplicationSchedule = &unspecified
 		eventCopy.CreateReplicationParams = paramsCopy
 
@@ -1225,6 +1224,105 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
 		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrDestPoolSize, errors.New("Volume exceeds destination pool size")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenDestinationPoolSizeATDisabled", func(t *testing.T) {
+		// Patch env variable
+		autoTieringEnabled = true
+		defer func() {
+			autoTieringEnabled = env.GetBool("AUTO_TIERING_ENABLED", false)
+			event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy = nil
+		}()
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+		event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy = &googleproxyclient.TieringPolicyV1beta{
+			TierAction: googleproxyclient.OptNilTieringPolicyV1betaTierAction{
+				Value: "ENABLED",
+				Set:   true,
+				Null:  false,
+			},
+			CoolingThresholdDays: googleproxyclient.OptNilInt32{Value: 2},
+		}
+		// Set a Autotiering disabled destination pool
+		nonATPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(50),
+			SizeInBytes:      1000, // Smaller than source volume size (100) + allocated bytes (50)
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(nonATPool, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrDestPoolTieringPolicyMismatch, errors.New("Auto tiering is not enabled on the destination pool")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenDestinationVolumeHasInvalidCoolingDays", func(t *testing.T) {
+		// Patch env variable
+		autoTieringEnabled = true
+		defer func() {
+			autoTieringEnabled = env.GetBool("AUTO_TIERING_ENABLED", false)
+			event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy = nil
+		}()
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+		event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy = &googleproxyclient.TieringPolicyV1beta{
+			TierAction: googleproxyclient.OptNilTieringPolicyV1betaTierAction{
+				Value: "ENABLED",
+				Set:   true,
+				Null:  false,
+			},
+			CoolingThresholdDays: googleproxyclient.OptNilInt32{Value: 1},
+		}
+
+		atPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(50),
+			SizeInBytes:      1000,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			AllowAutoTiering: googleproxyclient.OptNilBool{Value: true, Set: true},
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(atPool, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrDestVolumeTieringThresholdOutOfRange, errors.New("Coolness threshold days should be in between 2 and 183")), err)
 		mm.AssertExpectations(t)
 	})
 
