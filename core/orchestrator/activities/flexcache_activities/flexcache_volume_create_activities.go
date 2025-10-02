@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -59,7 +60,7 @@ func (a FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx 
 }
 
 func (a FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
-	logger := util.GetLogger(ctx)
+	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 	cacheParams := volume.CacheParameters
 	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
@@ -92,7 +93,7 @@ func (a FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx cont
 }
 
 func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForClusterPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
-	logger := util.GetLogger(ctx)
+	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 	clusterPeer := result.ClusterPeer
 	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
@@ -159,6 +160,103 @@ func (a FlexCacheVolumeCreateActivity) WaitForClusterPeerActivity(ctx context.Co
 	return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("cluster peer is not ready yet"))
 }
 
+func (a FlexCacheVolumeCreateActivity) CreateSVMPeeringInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	volume := result.DBVolume
+	cacheParams := volume.CacheParameters
+	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	params := vsa.CreateSVMPeerParams{
+		LocalSVMName:    volume.Svm.Name,
+		PeerSVMName:     cacheParams.PeerSvmName,
+		PeerClusterName: cacheParams.PeerClusterName,
+		Applications:    []ontaprestmodels.SvmPeerApplications{ontaprestmodels.SvmPeerApplicationsFlexcache},
+	}
+
+	svmPeer, err := provider.CreateSVMPeer(params)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	result.SVMPeer = svmPeer
+
+	return result, nil
+}
+
+func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForSVMPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	volume := result.DBVolume
+	cacheParams := volume.CacheParameters
+
+	peerCommand := fmt.Sprintf("vserver peer accept -vserver %s -peer-vserver %s", cacheParams.PeerSvmName, volume.Svm.Name)
+
+	volume.SvmPeerUUID = &result.SVMPeer.UUID
+	cacheParams.Passphrase = nil
+	cacheParams.CommandExpiryTime = nil
+	cacheParams.Command = &peerCommand
+	cacheParams.CacheStateDetailsCode = coremodels.WaitingForSVMPeeringCode
+	cacheParams.CacheStateDetails = coremodels.WaitingForSVMPeering
+	a.setCacheStates(result, models.FlexCacheV1betaCacheStatePENDINGSVMPEERING)
+
+	updates := map[string]interface{}{
+		"cache_parameters": volume.CacheParameters,
+		"svm_peer_uuid":    volume.SvmPeerUUID,
+	}
+	if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	logger.Debug("svm peer command updated successfully")
+
+	return result, nil
+}
+
+func (a FlexCacheVolumeCreateActivity) WaitForSVMPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
+	}
+	svmPeer, err := provider.GetSVMPeer(&result.DBVolume.Svm.Name, &result.DBVolume.CacheParameters.PeerSvmName)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if svmPeer.State == vsa.SvmPeerStateRejected || svmPeer.State == vsa.SvmPeerStateSuspended {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSVMPeerError, fmt.Errorf("svm peer state is %s", svmPeer.State)))
+	}
+
+	if svmPeer.State == vsa.SvmPeerStatePeered {
+		return result, nil
+	}
+
+	return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("svm peer is not ready yet"))
+}
+
+func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeDetailsActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	volume := result.DBVolume
+	volume.CacheParameters.CacheStateDetailsCode = coremodels.DefaultCode
+	volume.CacheParameters.CacheStateDetails = ""
+	volume.CacheParameters.Command = nil
+	volume.CacheParameters.CommandExpiryTime = nil
+	volume.CacheParameters.Passphrase = nil
+	volume.VolumeAttributes.ExternalUUID = result.VolumeResponse.ExternalUUID
+	a.setCacheStates(result, models.FlexCacheV1betaCacheStatePEERED)
+
+	updates := map[string]interface{}{
+		"cache_parameters":  volume.CacheParameters,
+		"volume_attributes": volume.VolumeAttributes,
+		"state":             coremodels.LifeCycleStateREADY,
+		"state_details":     coremodels.LifeCycleStateAvailableDetails,
+	}
+	if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	return result, nil
+}
+
 func (a FlexCacheVolumeCreateActivity) UpdateVolumeDetailsOnErrorActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
 	volume := result.DBVolume
 	updates := map[string]interface{}{
@@ -186,6 +284,9 @@ func (a FlexCacheVolumeCreateActivity) shouldSetErrorState(result *flexcache.Cre
 	nonErrorCodes := []int{
 		coremodels.ClusterPeeringExpiredCode,
 		coremodels.SourceClusterUnreachableCode,
+		coremodels.SVMPeeringExpiredCode,
+		coremodels.ErrorDuringClusterPeerCode,
+		coremodels.ErrorDuringSVMPeeringCode,
 	}
 
 	for _, code := range nonErrorCodes {

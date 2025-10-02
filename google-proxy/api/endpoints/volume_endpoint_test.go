@@ -2516,30 +2516,8 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.True(tt, result.Network.IsSet(), "Network should be set for non-empty string")
 		assert.Equal(tt, "network-123", result.Network.Value)
 	})
-
-	t.Run("ConvertVolumeV1betaCVPToModelWithEmptyPeerIPAddresses", func(tt *testing.T) {
-		// Test that empty PeerIPAddresses slice is not set in the result
-		cacheParams := &cvpmodels.FlexCacheV1beta{
-			PeerClusterName:      "test-cluster",
-			PeerSvmName:          "test-svm",
-			PeerVolumeName:       "test-volume",
-			PeerIPAddresses:      []string{}, // Empty slice
-			EnableGlobalFileLock: nillable.GetBoolPtr(true),
-		}
-
-		input := &cvpmodels.VolumeV1beta{
-			VolumeID:        "vol-123",
-			VolumeState:     "active",
-			CacheParameters: cacheParams,
-		}
-
-		result := _convertVolumeV1betaCVPToModel(input)
-
-		assert.Equal(tt, "vol-123", result.VolumeId.Value)
-		assert.False(tt, result.CacheParameters.IsSet(), "CacheParameters should not be set")
-	})
-
-	t.Run("ConvertVolumeV1betaCVPToModelWithNonEmptyPeerIPAddresses", func(tt *testing.T) {
+	
+	t.Run("ConvertVolumeV1betaCVPToModelWithCacheParams", func(tt *testing.T) {
 		// Test that non-empty PeerIPAddresses slice is properly set in the result
 		cacheParams := &cvpmodels.FlexCacheV1beta{
 			PeerClusterName:      "test-cluster",
@@ -3719,6 +3697,11 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 					Recursion: nillable.ToPointer(true),
 				},
 			},
+			CacheStateDetails:     models.InitiatingClusterPeering,
+			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
+			Passphrase:            nillable.ToPointer("some passphrase"),
+			PeeringCommand:        "some command",
+			PeerExpiryTime:        nillable.ToPointer(time.Now()),
 		}
 
 		result := convertToFlexCacheV1(cp)

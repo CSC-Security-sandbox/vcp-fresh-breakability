@@ -10,6 +10,7 @@ type CreateFlexCacheResult struct {
 	DBVolume       *datamodel.Volume
 	Node           *models.Node
 	ClusterPeer    *vsa.ClusterPeer
+	SVMPeer        *vsa.SvmPeer
 	VolumeResponse *vsa.VolumeResponse
 }
 

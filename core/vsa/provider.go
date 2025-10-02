@@ -65,6 +65,7 @@ type Provider interface {
 	AcceptSvmPeering(srcSVMName, dstSVMName string) error
 	GetSVMPeer(localSVMName, remoteSVMName *string) (*SvmPeer, error)
 	DeleteSVMPeer(svmPeerUUID string, force bool) error
+	CreateSVMPeer(params CreateSVMPeerParams) (*SvmPeer, error)
 	CreateVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
 	AuthorizeVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
 	DeleteVolumeReplication(params *DeleteVolumeReplicationParams) (*VolumeReplication, error)

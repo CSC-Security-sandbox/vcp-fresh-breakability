@@ -239,14 +239,13 @@ func TestSvmPeerCollectionGet(t *testing.T) {
 func TestSvmPeerCreate(t *testing.T) {
 	expectedJobID := "1"
 	params := &SvmPeerCreateParams{
-		SvmPeer: models.SvmPeer{
-			Svm: &models.SvmPeerInlineSvm{Name: nillable.ToPointer("dest-svm")},
-			Peer: &models.SvmPeerInlinePeer{
-				Svm:     &models.SvmPeerInlinePeerInlineSvm{Name: nillable.ToPointer("src-svm")},
-				Cluster: &models.SvmPeerInlinePeerInlineCluster{Name: nillable.ToPointer("src-cluster")},
-			},
-		},
+		PeerClusterName: "src-cluster",
+		PeerSVMName:     "src-svm",
+		LocalSVMName:    "dest-svm",
 	}
+
+	ontapParams := svmPeerCreateParamsToONTAP(params)
+
 	t.Run("WhenRESTCallFails", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}
 		svm := svm.New(transport, nil)
@@ -267,7 +266,7 @@ func TestSvmPeerCreate(t *testing.T) {
 			assert.EqualError(tt, err, expectedError.Error())
 		}()
 
-		mcs.AssertSvmPeerCreate(svm.NewSvmPeerCreateParams().WithInfo(&params.SvmPeer).WithReturnTimeout(&returnTimeout), nil, nil, nil, resp, nil)
+		mcs.AssertSvmPeerCreate(svm.NewSvmPeerCreateParams().WithInfo(ontapParams.Info).WithReturnTimeout(&returnTimeout), nil, nil, nil, resp, nil)
 		mp.On("Poll", "1").Return(expectedError).Times(1)
 
 		mcs.AssertMockClientServiceDone()
@@ -283,7 +282,7 @@ func TestSvmPeerCreate(t *testing.T) {
 			assert.NoError(tt, err)
 		}()
 
-		mcs.AssertSvmPeerCreate(svm.NewSvmPeerCreateParams().WithInfo(&params.SvmPeer).WithReturnTimeout(&returnTimeout), nil, nil, resp, nil, nil)
+		mcs.AssertSvmPeerCreate(svm.NewSvmPeerCreateParams().WithInfo(ontapParams.Info).WithReturnTimeout(&returnTimeout), nil, nil, resp, nil, nil)
 		mcs.AssertMockClientServiceDone()
 	})
 	t.Run("WhenSuccessfulAsync", func(tt *testing.T) {
@@ -297,7 +296,7 @@ func TestSvmPeerCreate(t *testing.T) {
 			err := client.SvmPeerCreate(params)
 			assert.NoError(tt, err)
 		}()
-		mcs.AssertSvmPeerCreate(svm.NewSvmPeerCreateParams().WithInfo(&params.SvmPeer).WithReturnTimeout(&returnTimeout), nil, nil, nil, resp, nil)
+		mcs.AssertSvmPeerCreate(svm.NewSvmPeerCreateParams().WithInfo(ontapParams.Info).WithReturnTimeout(&returnTimeout), nil, nil, nil, resp, nil)
 		mp.On("Poll", expectedJobID).Return(nil).Times(1)
 		mcs.AssertMockClientServiceDone()
 	})

@@ -1024,6 +1024,64 @@ func (_c *MockProvider_CreateSVM_Call) RunAndReturn(run func(CreateSvmParams) (*
 	return _c
 }
 
+// CreateSVMPeer provides a mock function with given fields: params
+func (_m *MockProvider) CreateSVMPeer(params CreateSVMPeerParams) (*SvmPeer, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSVMPeer")
+	}
+
+	var r0 *SvmPeer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(CreateSVMPeerParams) (*SvmPeer, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(CreateSVMPeerParams) *SvmPeer); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SvmPeer)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(CreateSVMPeerParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateSVMPeer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSVMPeer'
+type MockProvider_CreateSVMPeer_Call struct {
+	*mock.Call
+}
+
+// CreateSVMPeer is a helper method to define mock.On call
+//   - params CreateSVMPeerParams
+func (_e *MockProvider_Expecter) CreateSVMPeer(params interface{}) *MockProvider_CreateSVMPeer_Call {
+	return &MockProvider_CreateSVMPeer_Call{Call: _e.mock.On("CreateSVMPeer", params)}
+}
+
+func (_c *MockProvider_CreateSVMPeer_Call) Run(run func(params CreateSVMPeerParams)) *MockProvider_CreateSVMPeer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(CreateSVMPeerParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateSVMPeer_Call) Return(_a0 *SvmPeer, _a1 error) *MockProvider_CreateSVMPeer_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateSVMPeer_Call) RunAndReturn(run func(CreateSVMPeerParams) (*SvmPeer, error)) *MockProvider_CreateSVMPeer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSecurityLogForwarding provides a mock function with given fields: params
 func (_m *MockProvider) CreateSecurityLogForwarding(params CreateSecurityLogForwardingParams) (*CreateSecurityLogForwardingResponse, error) {
 	ret := _m.Called(params)

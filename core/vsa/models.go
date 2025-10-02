@@ -90,6 +90,22 @@ type Lif struct {
 	SubnetMask   string
 }
 
+type CreateSVMPeerParams struct {
+	LocalSVMName    string
+	PeerSVMName     string
+	PeerClusterName string
+	Applications    []ontaprestmodel.SvmPeerApplications
+}
+
+var (
+	SvmPeerStatePeered       = "peered"
+	SvmPeerStateRejected     = "rejected"
+	SvmPeerStateSuspended    = "suspended"
+	SvmPeerStateInitiated    = "initiated"
+	SvmPeerStatePending      = "pending"
+	SvmPeerStateInitializing = "initializing"
+)
+
 // SvmPeer describes SvmPeer information retrieved from ONTAP
 type SvmPeer struct {
 	UUID            string

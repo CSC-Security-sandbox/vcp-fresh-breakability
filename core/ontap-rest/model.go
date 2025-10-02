@@ -3019,7 +3019,10 @@ func svmPeerGetCollectionParamsToONTAP(params *SvmPeerGetCollectionParams) *svm.
 // SvmPeerCreateParams is the input params struct for svm_client.SvmPeerCreate
 type SvmPeerCreateParams struct {
 	BaseParams
-	models.SvmPeer
+	LocalSVMName    string
+	PeerSVMName     string
+	PeerClusterName string
+	Applications    []models.SvmPeerApplications
 }
 
 func svmPeerCreateParamsToONTAP(params *SvmPeerCreateParams) *svm.SvmPeerCreateParams {
@@ -3028,7 +3031,27 @@ func svmPeerCreateParamsToONTAP(params *SvmPeerCreateParams) *svm.SvmPeerCreateP
 		return otParams
 	}
 
-	otParams.SetInfo(&params.SvmPeer)
+	svmPeerInlineApplications := make([]*models.SvmPeerApplications, len(params.Applications))
+	for i, app := range params.Applications {
+		svmPeerInlineApplications[i] = &app
+	}
+
+	svmPeerInfo := &models.SvmPeer{
+		Svm: &models.SvmPeerInlineSvm{
+			Name: &params.LocalSVMName,
+		},
+		Peer: &models.SvmPeerInlinePeer{
+			Svm: &models.SvmPeerInlinePeerInlineSvm{
+				Name: &params.PeerSVMName,
+			},
+			Cluster: &models.SvmPeerInlinePeerInlineCluster{
+				Name: &params.PeerClusterName,
+			},
+		},
+		SvmPeerInlineApplications: svmPeerInlineApplications,
+	}
+
+	otParams.SetInfo(svmPeerInfo)
 	otParams.SetReturnTimeout(&returnTimeout)
 	return otParams
 }

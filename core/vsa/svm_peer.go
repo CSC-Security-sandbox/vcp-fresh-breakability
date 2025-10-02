@@ -54,32 +54,6 @@ func (rc *OntapRestProvider) GetSVMPeer(localSVMName, remoteSVMName *string) (*S
 	return storageSvmPeer, nil
 }
 
-func (rc *OntapRestProvider) createSVMPeer(localSVMName, peerSVMName, peerClusterName string, snapmirrorApplication ontaprestmodels.SvmPeerApplications) error {
-	client, err := getOntapClientFunc(rc.ClientParams)
-	if err != nil {
-		return err
-	}
-	svmPeerInlineApplications := make([]*ontaprestmodels.SvmPeerApplications, 0)
-	svmPeerInlineApplications = append(svmPeerInlineApplications, &snapmirrorApplication)
-	params := &ontapRest.SvmPeerCreateParams{
-		SvmPeer: ontaprestmodels.SvmPeer{
-			Svm: &ontaprestmodels.SvmPeerInlineSvm{
-				Name: nillable.GetStringPtr(localSVMName),
-			},
-			Peer: &ontaprestmodels.SvmPeerInlinePeer{
-				Svm: &ontaprestmodels.SvmPeerInlinePeerInlineSvm{
-					Name: nillable.GetStringPtr(peerSVMName),
-				},
-				Cluster: &ontaprestmodels.SvmPeerInlinePeerInlineCluster{
-					Name: nillable.GetStringPtr(peerClusterName),
-				},
-			},
-			SvmPeerInlineApplications: svmPeerInlineApplications,
-		},
-	}
-	return client.SVM().SvmPeerCreate(params)
-}
-
 func (rc *OntapRestProvider) acceptSVMPeer(svmPeerUUID string) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
@@ -111,6 +85,13 @@ func (rc *OntapRestProvider) CreateSvmPeering(srcClusterName, srcSVMName, dstSVM
 	if err != nil {
 		return err
 	}
+
+	params := CreateSVMPeerParams{
+		LocalSVMName:    dstSVMName,
+		PeerSVMName:     srcSVMName,
+		PeerClusterName: srcClusterName,
+		Applications:    []ontaprestmodels.SvmPeerApplications{snapmirrorApplication},
+	}
 	// Destination is local, Source is remote
 	svmPeer, err := rc.GetSVMPeer(&dstSVMName, &srcSVMName)
 	if err != nil {
@@ -118,7 +99,7 @@ func (rc *OntapRestProvider) CreateSvmPeering(srcClusterName, srcSVMName, dstSVM
 			return err
 		}
 		// SVM peer does not exist
-		err = rc.createSVMPeer(dstSVMName, srcSVMName, srcClusterName, snapmirrorApplication)
+		_, err = rc.CreateSVMPeer(params)
 		if err != nil {
 			return err
 		}
@@ -132,7 +113,7 @@ func (rc *OntapRestProvider) CreateSvmPeering(srcClusterName, srcSVMName, dstSVM
 			if err != nil {
 				return err
 			}
-			err = rc.createSVMPeer(dstSVMName, srcSVMName, srcClusterName, snapmirrorApplication)
+			_, err = rc.CreateSVMPeer(params)
 			if err != nil {
 				return err
 			}
@@ -198,4 +179,30 @@ func (rc *OntapRestProvider) AcceptSvmPeering(srcSVMName, dstSVMName string) err
 		time.Sleep(time.Duration(svmPeerPollIntervalSeconds) * time.Second)
 	}
 	return errors.New("Timeout during peering infrastructure setup")
+}
+
+func (rc *OntapRestProvider) CreateSVMPeer(params CreateSVMPeerParams) (*SvmPeer, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	createParams := &ontapRest.SvmPeerCreateParams{
+		LocalSVMName:    params.LocalSVMName,
+		PeerSVMName:     params.PeerSVMName,
+		PeerClusterName: params.PeerClusterName,
+		Applications:    params.Applications,
+	}
+	err = client.SVM().SvmPeerCreate(createParams)
+	if err != nil {
+		return nil, err
+	}
+
+	// We must fetch the SVM peer by local and remote SVM names
+	// because the create SVM peer API does not return the UUID
+	clusterPeer, err := rc.GetSVMPeer(&params.LocalSVMName, &params.PeerSVMName)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterPeer, nil
 }

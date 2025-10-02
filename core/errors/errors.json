@@ -1449,7 +1449,19 @@
     "description": "Cluster peering expired",
     "message": "Cluster peering expired",
     "retriable": false,
+    "http_code": 408
+  },
+  "11002": {
+    "description": "Error during SVM peering",
+    "message": "Error during SVM peering",
+    "retriable": false,
     "http_code": 400
+  },
+  "11003": {
+    "description": "SVM peering expired",
+    "message": "SVM peering expired",
+    "retriable": false,
+    "http_code": 408
   },
   "12001": {
     "description": "Immutable backup validation failed due to backup policy update",

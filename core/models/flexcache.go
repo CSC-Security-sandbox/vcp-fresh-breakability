@@ -25,8 +25,8 @@ type CacheParameters struct {
 
 	CacheState            string `json:"cache_state"`
 	PreviousCacheState    string `json:"previous_cache_state"`
-	CacheStateDetails     string `json:"cache_state_details"`
-	CacheStateDetailsCode int    `json:"cache_state_details_code"`
+	CacheStateDetails     string `json:"cache_state_details,omitempty"`
+	CacheStateDetailsCode int    `json:"cache_state_details_code,omitempty"`
 
 	PeerExpiryTime *time.Time `json:"peerExpiryTime,omitempty"`
 	PeeringCommand string     `json:"peeringCommand,omitempty"`

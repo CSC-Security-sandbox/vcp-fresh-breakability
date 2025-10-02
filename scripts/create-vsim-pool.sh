@@ -12,6 +12,7 @@ SVM_NAME="vcp-vsim-svm"
 POSTGRES_URL=""
 POSTGRES_USER="postgres"
 POSTGRES_PASS="testpass"
+POSTGRES_SSL_MODE="disable"
 
 # Colors for output
 RED='\033[0;31m'
@@ -40,6 +41,7 @@ Optional arguments:
   --postgres-url    PostgreSQL connection URL (if not provided, will get from k8s cluster)
   --postgres-user   PostgreSQL username (default: postgres)
   --postgres-pass   PostgreSQL password (default: testpass)
+  --postgres-ssl-mode PostgreSQL SSL mode (default: disable, options: disable, require, verify-ca, verify-full)
   --help            Show this help message
 
 Environment variables:
@@ -48,7 +50,7 @@ Environment variables:
 
 Examples:
   $0 --vsim-config /path/to/vsim1.conf --vsim-config /path/to/vsim2.conf --project-number 261841488504 --region us-east1
-  $0 --vsim-config /path/to/vsim1.conf --vsim-config /path/to/vsim2.conf --vsim-config /path/to/vsim3.conf --project-number 261841488504 --region us-west-2 --postgres-url localhost:5432 --postgres-user admin --postgres-pass mypass
+  $0 --vsim-config /path/to/vsim1.conf --vsim-config /path/to/vsim2.conf --vsim-config /path/to/vsim3.conf --project-number 261841488504 --region us-west-2 --postgres-url localhost:5432 --postgres-user admin --postgres-pass mypass --postgres-ssl-mode require
   DEBUG=true $0 --vsim-config /path/to/vsim1.conf --vsim-config /path/to/vsim2.conf --project-number 261841488504 --region us-west-2
 EOF
 }
@@ -80,6 +82,10 @@ parse_args() {
                 ;;
             --postgres-pass)
                 POSTGRES_PASS="$2"
+                shift 2
+                ;;
+            --postgres-ssl-mode)
+                POSTGRES_SSL_MODE="$2"
                 shift 2
                 ;;
             --debug)
@@ -235,7 +241,7 @@ configure_postgres_connection() {
     fi
 
     # Build connection string with provided credentials
-    POSTGRES_CONNECTION_STRING="postgres://$POSTGRES_USER:$POSTGRES_PASS@$POSTGRES_ENDPOINT/vcp?sslmode=disable"
+    POSTGRES_CONNECTION_STRING="postgres://$POSTGRES_USER:$POSTGRES_PASS@$POSTGRES_ENDPOINT/vcp?sslmode=$POSTGRES_SSL_MODE"
     log_info "PostgreSQL connection configured with user: $POSTGRES_USER"
 }
 

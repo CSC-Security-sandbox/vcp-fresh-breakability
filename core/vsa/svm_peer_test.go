@@ -139,56 +139,6 @@ func TestGetSvmPeer(t *testing.T) {
 	})
 }
 
-func TestCreateSVMPeer(t *testing.T) {
-	localSVMName := "dst-svm"
-	peerSVMName := "src-svm"
-	peerClusterName := "src-cluster"
-	var snapmirrorApplication = models.SvmPeerApplicationsSnapmirror
-	t.Run("WhenSvmPeerCollectionGetReturnsError", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mm := new(ontaprest.MockSVMClient)
-
-		originalgetOntapClientFunc := getOntapClientFunc
-		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		ontapProvider := &OntapRestProvider{}
-		expectedError := errors.New("some error")
-		mockClient.On("SVM").Return(mm)
-		mm.On("SvmPeerCreate", mock.Anything).Return(expectedError).Times(1)
-		err := ontapProvider.createSVMPeer(localSVMName, peerSVMName, peerClusterName, snapmirrorApplication)
-		assert.Error(tt, err)
-		assert.Equal(tt, expectedError, err)
-	})
-	t.Run("WhenSuccessful", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mm := new(ontaprest.MockSVMClient)
-
-		originalgetOntapClientFunc := getOntapClientFunc
-		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		ontapProvider := &OntapRestProvider{}
-		mockClient.On("SVM").Return(mm)
-		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
-		err := ontapProvider.createSVMPeer(localSVMName, peerSVMName, peerClusterName, snapmirrorApplication)
-		assert.NoError(tt, err)
-	})
-	t.Run("OntapClientFuncError", func(tt *testing.T) {
-		originalgetOntapClientFunc := getOntapClientFunc
-		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return nil, errors.New("OntapClientFunc error")
-		}
-		ontapProvider := &OntapRestProvider{}
-		err := ontapProvider.createSVMPeer(localSVMName, peerSVMName, peerClusterName, snapmirrorApplication)
-		assert.Error(tt, err)
-		assert.Equal(tt, errors.New("OntapClientFunc error"), err)
-	})
-}
-
 func TestAcceptSvmPeer(t *testing.T) {
 	svmPeerUUID := "peer-uuid"
 	t.Run("WhenSvmPeerCollectionGetReturnsError", func(tt *testing.T) {
@@ -453,10 +403,28 @@ func TestCreateSvmPeering(t *testing.T) {
 			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
+		svmPeerCollectionResponse := []*ontaprest.SvmPeer{
+			{
+				SvmPeer: models.SvmPeer{
+					State: nillable.ToPointer(models.SvmPeerStateRejected),
+					UUID:  &peerUUID,
+					SvmPeerInlineApplications: []*models.SvmPeerApplications{
+						&application,
+					},
+					Svm: &models.SvmPeerInlineSvm{UUID: nillable.ToPointer(localSVMUUID), Name: nillable.ToPointer(localSVMName)},
+					Peer: &models.SvmPeerInlinePeer{
+						Svm:     &models.SvmPeerInlinePeerInlineSvm{UUID: nillable.ToPointer(remoteSVMUUID), Name: nillable.ToPointer(remoteSVMName)},
+						Cluster: &models.SvmPeerInlinePeerInlineCluster{Name: nillable.ToPointer(clusterName)},
+					},
+				},
+			},
+		}
+
 		expectedError := errors.New("Error getting svm peer this time for some reason")
 		expected := errors.NewNotFoundErr("not found", nil)
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerCollectionGet", mock.Anything).Return(nil, expected).Times(1)
+		mm.On("SvmPeerCollectionGet", mock.Anything).Return(svmPeerCollectionResponse, nil).Times(1)
 		mm.On("SvmPeerCollectionGet", mock.Anything).Return(nil, expectedError).Times(1)
 		mm.On("SvmPeerDelete", mock.Anything).Return(nil).Times(1)
 		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
@@ -492,7 +460,7 @@ func TestCreateSvmPeering(t *testing.T) {
 		expected := errors.NewNotFoundErr("not found", nil)
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerCollectionGet", mock.Anything).Return(nil, expected).Times(1)
-		mm.On("SvmPeerCollectionGet", mock.Anything).Return(svmPeerCollectionResponse, nil).Times(1)
+		mm.On("SvmPeerCollectionGet", mock.Anything).Return(svmPeerCollectionResponse, nil).Times(2)
 		mm.On("SvmPeerDelete", mock.Anything).Return(expectedError).Times(1)
 		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
 
@@ -527,7 +495,7 @@ func TestCreateSvmPeering(t *testing.T) {
 		expected := errors.NewNotFoundErr("not found", nil)
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerCollectionGet", mock.Anything).Return(nil, expected).Times(1)
-		mm.On("SvmPeerCollectionGet", mock.Anything).Return(svmPeerCollectionResponse, nil).Times(1)
+		mm.On("SvmPeerCollectionGet", mock.Anything).Return(svmPeerCollectionResponse, nil).Times(2)
 		mm.On("SvmPeerDelete", mock.Anything).Return(nil).Times(1)
 		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
 
@@ -767,5 +735,125 @@ func TestAcceptSvmPeering(t *testing.T) {
 		mm.On("SvmPeerModify", mock.Anything).Return(nil).Times(1)
 		err := ontapProvider.AcceptSvmPeering(srcSvmName, dstSvmName)
 		assert.NoError(tt, err)
+	})
+}
+
+func TestCreateSVMPeer(t *testing.T) {
+	localSVMName := "local-svm"
+	peerSVMName := "peer-svm"
+	peerClusterName := "peer-cluster"
+	localSVMUUID := "local-svm-uuid"
+	peerUUID := "peer-uuid"
+	application := models.SvmPeerApplications("snapmirror")
+
+	params := CreateSVMPeerParams{
+		LocalSVMName:    localSVMName,
+		PeerSVMName:     peerSVMName,
+		PeerClusterName: peerClusterName,
+		Applications:    []models.SvmPeerApplications{application},
+	}
+
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	t.Run("OntapClientFuncError", func(tt *testing.T) {
+		getOntapClientFunc = func(p ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("OntapClientFunc error")
+		}
+		provider := &OntapRestProvider{}
+		resp, err := provider.CreateSVMPeer(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, errors.New("OntapClientFunc error"), err)
+	})
+
+	t.Run("WhenSvmPeerCreateReturnsError", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mm := new(ontaprest.MockSVMClient)
+		getOntapClientFunc = func(p ontaprest.RESTClientParams) (ontaprest.RESTClient, error) { return mockClient, nil }
+		provider := &OntapRestProvider{}
+		expectedError := errors.New("create error")
+		mockClient.On("SVM").Return(mm)
+		mm.On("SvmPeerCreate", mock.Anything).Return(expectedError).Times(1)
+		resp, err := provider.CreateSVMPeer(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("WhenGetSVMPeerReturnsError", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mm := new(ontaprest.MockSVMClient)
+		getOntapClientFunc = func(p ontaprest.RESTClientParams) (ontaprest.RESTClient, error) { return mockClient, nil }
+		provider := &OntapRestProvider{}
+		expectedError := errors.New("some error")
+		mockClient.On("SVM").Return(mm)
+		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
+		mm.On("SvmPeerCollectionGet", mock.Anything).Return(nil, expectedError).Times(1)
+		resp, err := provider.CreateSVMPeer(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("WhenGetSVMPeerReturnsNotFound", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mm := new(ontaprest.MockSVMClient)
+		getOntapClientFunc = func(p ontaprest.RESTClientParams) (ontaprest.RESTClient, error) { return mockClient, nil }
+		provider := &OntapRestProvider{}
+		expectedError := errors.NewNotFoundErr("SVM peer not found", nil)
+		mockClient.On("SVM").Return(mm)
+		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
+		mm.On("SvmPeerCollectionGet", mock.Anything).Return([]*ontaprest.SvmPeer{}, nil).Times(1)
+		resp, err := provider.CreateSVMPeer(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("WhenGetSVMPeerReturnsMultiple", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mm := new(ontaprest.MockSVMClient)
+		getOntapClientFunc = func(p ontaprest.RESTClientParams) (ontaprest.RESTClient, error) { return mockClient, nil }
+		provider := &OntapRestProvider{}
+		mockClient.On("SVM").Return(mm)
+		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
+		peer1 := &ontaprest.SvmPeer{SvmPeer: models.SvmPeer{UUID: nillable.ToPointer("uuid-1")}}
+		peer2 := &ontaprest.SvmPeer{SvmPeer: models.SvmPeer{UUID: nillable.ToPointer("uuid-2")}}
+		mm.On("SvmPeerCollectionGet", mock.Anything).Return([]*ontaprest.SvmPeer{peer1, peer2}, nil).Times(1)
+		resp, err := provider.CreateSVMPeer(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, errors.New("Multiple SVM peers found"), err)
+	})
+
+	t.Run("WhenGetSVMPeerReturnsEmptyUUID", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mm := new(ontaprest.MockSVMClient)
+		getOntapClientFunc = func(p ontaprest.RESTClientParams) (ontaprest.RESTClient, error) { return mockClient, nil }
+		provider := &OntapRestProvider{}
+		mockClient.On("SVM").Return(mm)
+		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
+		peer := &ontaprest.SvmPeer{SvmPeer: models.SvmPeer{UUID: nillable.ToPointer("")}}
+		mm.On("SvmPeerCollectionGet", mock.Anything).Return([]*ontaprest.SvmPeer{peer}, nil).Times(1)
+		resp, err := provider.CreateSVMPeer(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, errors.New("SVM peer UUID is nil or empty"), err)
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mm := new(ontaprest.MockSVMClient)
+		getOntapClientFunc = func(p ontaprest.RESTClientParams) (ontaprest.RESTClient, error) { return mockClient, nil }
+		provider := &OntapRestProvider{}
+		peer := &ontaprest.SvmPeer{SvmPeer: models.SvmPeer{State: nillable.ToPointer(models.SvmPeerStatePeered), UUID: nillable.ToPointer(peerUUID), SvmPeerInlineApplications: []*models.SvmPeerApplications{&application}, Svm: &models.SvmPeerInlineSvm{UUID: nillable.ToPointer(localSVMUUID), Name: nillable.ToPointer(localSVMName)}}}
+		mockClient.On("SVM").Return(mm)
+		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
+		mm.On("SvmPeerCollectionGet", mock.Anything).Return([]*ontaprest.SvmPeer{peer}, nil).Times(1)
+		resp, err := provider.CreateSVMPeer(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, peerUUID, resp.UUID)
 	})
 }

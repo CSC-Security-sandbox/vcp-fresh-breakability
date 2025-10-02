@@ -267,7 +267,7 @@ jobs:
 
       - name: Run golangci-lint script
         run: vsacictl lint
-
+        
   call-integration-test:
     needs: [build, common, unit_tests]
     uses: ./.github/workflows/integrationtest.yaml

@@ -148,8 +148,8 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	waitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
-	err = workflow.ExecuteActivity(waitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	clusterPeerWaitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
+	err = workflow.ExecuteActivity(clusterPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 	if err != nil {
 		if temporal.IsTimeoutError(err) {
 			err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerTimeout, err))
@@ -158,12 +158,31 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateSVMPeeringInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	svmPeerWaitCtx := getWaitContext(ctx, nil)
+	err = workflow.ExecuteActivity(svmPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
+		if temporal.IsTimeoutError(err) {
+			err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSVMPeerTimeout, err))
+		}
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeDetails, &dbVolume, &flexcacheResult.VolumeResponse).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeDetailsActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -178,6 +197,12 @@ func updateStateDetailsAndCode(result *flexcache.CreateFlexCacheResult, err erro
 		case vsaerrors.ErrClusterPeerTimeout:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ClusterPeeringExpiredCode
 			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ClusterPeeringExpired
+		case vsaerrors.ErrSVMPeerTimeout:
+			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.SVMPeeringExpiredCode
+			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.SVMPeeringExpired
+		case vsaerrors.ErrSVMPeerError:
+			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringSVMPeeringCode
+			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringSVMPeering
 		default:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringClusterPeerCode
 			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringClusterPeer
@@ -187,7 +212,7 @@ func updateStateDetailsAndCode(result *flexcache.CreateFlexCacheResult, err erro
 
 func getWaitContext(ctx workflow.Context, cacheParams *datamodel.CacheParameters) workflow.Context {
 	expiry := getClusterPeerTimeout()
-	if cacheParams.CommandExpiryTime != nil && cacheParams.CommandExpiryTime.After(time.Now()) {
+	if cacheParams != nil && cacheParams.CommandExpiryTime != nil && cacheParams.CommandExpiryTime.After(workflow.Now(ctx)) {
 		expiry = time.Until(*cacheParams.CommandExpiryTime)
 	}
 

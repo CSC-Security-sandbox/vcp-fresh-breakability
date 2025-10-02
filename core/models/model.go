@@ -83,6 +83,9 @@ const (
 	WaitingForClusterPeering = "Waiting for cluster peering to be created on source cluster"
 	ErrorDuringClusterPeer   = "Cluster peering failed, please try again"
 	ClusterPeeringExpired    = "Cluster peering expired"
+	WaitingForSVMPeering     = "Waiting for SVM peering to be established"
+	ErrorDuringSVMPeering    = "SVM peering failed, please try again"
+	SVMPeeringExpired        = "SVM peering expired"
 )
 
 const (

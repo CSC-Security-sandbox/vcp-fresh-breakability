@@ -100,11 +100,13 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 
 	if params.CacheParameters != nil {
 		volumeObj.CacheParameters = &datamodel.CacheParameters{
-			PeerSvmName:       params.CacheParameters.PeerSvmName,
-			PeerVolumeName:    params.CacheParameters.PeerVolumeName,
-			PeerClusterName:   params.CacheParameters.PeerClusterName,
-			PeerIpAddresses:   params.CacheParameters.PeerIPAddresses,
-			CommandExpiryTime: params.CacheParameters.PeerExpiryTime,
+			PeerSvmName:           params.CacheParameters.PeerSvmName,
+			PeerVolumeName:        params.CacheParameters.PeerVolumeName,
+			PeerClusterName:       params.CacheParameters.PeerClusterName,
+			PeerIpAddresses:       params.CacheParameters.PeerIPAddresses,
+			CacheStateDetailsCode: params.CacheParameters.CacheStateDetailsCode,
+			CacheStateDetails:     params.CacheParameters.CacheStateDetails,
+			CommandExpiryTime:     params.CacheParameters.PeerExpiryTime,
 		}
 	}
 

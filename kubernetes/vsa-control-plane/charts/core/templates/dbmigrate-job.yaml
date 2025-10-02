@@ -175,6 +175,8 @@ spec:
               value: {{ .Values.database.name | default "vcp" | quote }}
             - name: DB_TYPE
               value: {{ .Values.database.type | default "postgres" | quote }}
+            - name: DB_SSL_MODE
+              value: {{ .Values.database.sslMode | quote }}
             {{- if .Values.metricsEnabled }}
             - name: METRICS_DB_USER
               valueFrom:
