@@ -157,6 +157,9 @@ func TestConvertToGCPHydrateCreateRequests(t *testing.T) {
 			},
 			Name:        "backup1",
 			SizeInBytes: 12345,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "bucket1",
+			},
 		},
 		{
 			BaseModel: datamodel.BaseModel{
@@ -165,6 +168,9 @@ func TestConvertToGCPHydrateCreateRequests(t *testing.T) {
 			},
 			Name:        "backup2",
 			SizeInBytes: 67890,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "bucket2",
+			},
 		},
 	}
 	result := convertToGCPHydrateCreateRequests(backups)
@@ -175,10 +181,24 @@ func TestConvertToGCPHydrateCreateRequests(t *testing.T) {
 	require.NotNil(result[0].Backup.VolumeUsageBytes)
 	require.Equal(uint64(12345), *result[0].Backup.VolumeUsageBytes)
 
+	// Validate AssetLocationMetadata for backup1
+	require.NotNil(result[0].Backup.AssetLocationMetadata)
+	require.Len(result[0].Backup.AssetLocationMetadata.ChildAssets, 1)
+	require.Equal("storage.googleapis.com/Bucket", result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetType)
+	require.Len(result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames, 1)
+	require.Equal("//storage.googleapis.com/bucket1", result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames[0])
+
 	require.Equal("backup2", result[1].Backup.ResourceId)
 	require.Equal("uuid2", result[1].Backup.BackupId)
 	require.NotNil(result[1].Backup.VolumeUsageBytes)
 	require.Equal(uint64(67890), *result[1].Backup.VolumeUsageBytes)
+
+	// Validate AssetLocationMetadata for backup2
+	require.NotNil(result[1].Backup.AssetLocationMetadata)
+	require.Len(result[1].Backup.AssetLocationMetadata.ChildAssets, 1)
+	require.Equal("storage.googleapis.com/Bucket", result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetType)
+	require.Len(result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames, 1)
+	require.Equal("//storage.googleapis.com/bucket2", result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames[0])
 
 	result = convertToGCPHydrateCreateRequests([]*datamodel.Backup{})
 	require.Empty(result)
@@ -360,6 +380,22 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		assert.Equal(t, "could not hydrate backups to CCFE", err.Error())
 		mockStorage.AssertExpectations(t)
 	})
+
+	t.Run("WhenHydrationIsDisabled", func(t *testing.T) {
+		// Store original value
+		originalHydrationEnabled := hydrationEnabled
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		// Disable hydration
+		hydrationEnabled = false
+
+		// The method should return early without calling any external functions
+		err := activity.HydrateCreatedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
 }
 
 func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
@@ -454,6 +490,22 @@ func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
 		err := activity.HydrateDeletedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")
 		assert.Error(t, err)
 		assert.Equal(t, "could not hydrate backups to CCFE", err.Error())
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenHydrationIsDisabled", func(t *testing.T) {
+		// Store original value
+		originalHydrationEnabled := hydrationEnabled
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		// Disable hydration
+		hydrationEnabled = false
+
+		// The method should return early without calling any external functions
+		err := activity.HydrateDeletedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")
+		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -963,5 +1015,127 @@ func TestGetSnapshotByNameAndVolumeID(t *testing.T) {
 		assert.Equal(t, longSnapshotName, snapshot.Name)
 
 		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestUpdateBackupState(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := ScheduledBackupActivity{SE: mockStorage}
+
+	t.Run("UpdateBackupStateSuccess", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "backup-uuid-1",
+			},
+			Name:  "test-backup",
+			State: models.LifeCycleStateREADY,
+		}
+
+		expectedUpdatedBackup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "backup-uuid-1",
+			},
+			Name:  "test-backup",
+			State: models.LifeCycleStateREADY,
+		}
+
+		mockStorage.On("UpdateBackupState", ctx, backup).Return(expectedUpdatedBackup, nil).Once()
+
+		updatedBackup, err := activity.UpdateBackupState(ctx, backup)
+		assert.NoError(t, err)
+		assert.NotNil(t, updatedBackup)
+		assert.Equal(t, expectedUpdatedBackup, updatedBackup)
+		assert.Equal(t, models.LifeCycleStateREADY, updatedBackup.State)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupStateWithNilBackup", func(t *testing.T) {
+		mockStorage.On("UpdateBackupState", ctx, (*datamodel.Backup)(nil)).Return(nil, errors.New("backup cannot be nil")).Once()
+
+		updatedBackup, err := activity.UpdateBackupState(ctx, nil)
+		assert.Error(t, err)
+		assert.Nil(t, updatedBackup)
+		assert.Equal(t, "backup cannot be nil", err.Error())
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupStateDatabaseError", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "backup-uuid-1",
+			},
+			Name:  "test-backup",
+			State: models.LifeCycleStateCreating,
+		}
+
+		mockStorage.On("UpdateBackupState", ctx, backup).Return(nil, errors.New("database connection failed")).Once()
+
+		updatedBackup, err := activity.UpdateBackupState(ctx, backup)
+		assert.Error(t, err)
+		assert.Nil(t, updatedBackup)
+		assert.Equal(t, "database connection failed", err.Error())
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupStateWithDifferentStates", func(t *testing.T) {
+		testCases := []struct {
+			name          string
+			initialState  string
+			expectedState string
+		}{
+			{
+				name:          "CreatingToReady",
+				initialState:  models.LifeCycleStateCreating,
+				expectedState: models.LifeCycleStateREADY,
+			},
+			{
+				name:          "ReadyToError",
+				initialState:  models.LifeCycleStateREADY,
+				expectedState: models.LifeCycleStateError,
+			},
+			{
+				name:          "CreatingToError",
+				initialState:  models.LifeCycleStateCreating,
+				expectedState: models.LifeCycleStateError,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				backup := &datamodel.Backup{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "backup-uuid-1",
+					},
+					Name:  "test-backup",
+					State: tc.initialState,
+				}
+
+				expectedUpdatedBackup := &datamodel.Backup{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "backup-uuid-1",
+					},
+					Name:  "test-backup",
+					State: tc.expectedState,
+				}
+
+				mockStorage.On("UpdateBackupState", ctx, backup).Return(expectedUpdatedBackup, nil).Once()
+
+				updatedBackup, err := activity.UpdateBackupState(ctx, backup)
+				assert.NoError(t, err)
+				assert.NotNil(t, updatedBackup)
+				assert.Equal(t, tc.expectedState, updatedBackup.State)
+
+				mockStorage.AssertExpectations(t)
+			})
+		}
 	})
 }

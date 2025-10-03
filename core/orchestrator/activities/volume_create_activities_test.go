@@ -132,7 +132,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 			Account:            &datamodel.Account{Name: "test-account"},
 			AutoTieringEnabled: false,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				IsDataProtection: false,
+				IsDataProtection:  false,
 				SnapshotDirectory: false,
 			},
 		}

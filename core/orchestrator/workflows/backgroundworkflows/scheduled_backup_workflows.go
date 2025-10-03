@@ -327,6 +327,10 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	if preTransferErr != nil {
 		return nil, workflows.ConvertToVSAError(preTransferErr)
 	}
+	if snapmirrorRelationship.DestinationUUID == nil {
+		preTransferErr = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("DestinationUUID not found in snapmirror relationship"))
+		return nil, workflows.ConvertToVSAError(preTransferErr)
+	}
 
 	var snapshotName string
 	preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.GenerateScheduledSnapshotName, timestamp).Get(ctx, &snapshotName)
@@ -431,22 +435,20 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		wf.Logger.Errorf("Failed to update backup size fields for volume %s: %v", volume.Name, err)
 	}
 
-	if hydrationEnabled {
-		location := utils.GetLocation(*dbSnapshot)
-		err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotToCCFEActivity,
-			dbSnapshot,
-			volume.Name,
-			location,
-			volume.Account.Name).Get(ctx, nil)
-		if err != nil {
-			// Log the error but don't fail the entire workflow
-			wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for backup %s: %v", backup.Name, err)
-		}
+	location := utils.GetLocation(*dbSnapshot)
+	err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotToCCFEActivity,
+		dbSnapshot,
+		volume.Name,
+		location,
+		volume.Account.Name).Get(ctx, nil)
+	if err != nil {
+		// Log the error but don't fail the entire workflow
+		wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for backup %s: %v", backup.Name, err)
+	}
 
-		postTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateCreatedBackupsToCCFE, volume, backups, backupVault.Name).Get(ctx, nil)
-		if postTransferErr != nil {
-			return nil, workflows.ConvertToVSAError(postTransferErr)
-		}
+	postTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateCreatedBackupsToCCFE, volume, backups, backupVault.Name).Get(ctx, nil)
+	if postTransferErr != nil {
+		return nil, workflows.ConvertToVSAError(postTransferErr)
 	}
 
 	ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
@@ -647,11 +649,9 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		}
 	}
 	// Hydrate all deleted backups to CCFE after processing all backups
-	if hydrationEnabled {
-		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateDeletedBackupsToCCFE, volume, backupToBeDeleted, backupVault.Name).Get(ctx, nil)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateDeletedBackupsToCCFE, volume, backupToBeDeleted, backupVault.Name).Get(ctx, nil)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	return nil, nil

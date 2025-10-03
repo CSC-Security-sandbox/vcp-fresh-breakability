@@ -8,6 +8,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -115,6 +116,7 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	backupActivity := &activities.BackupActivity{}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -273,6 +275,15 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			// Log the error but don't fail the entire backup workflow
 			wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
 		}
+	}
+
+	// Hydrate asset location metadata to CCFE
+	backups := []*datamodel.Backup{backupActivitiesContext.BackupWorkflowInit.Backup}
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivity.HydrateCreatedBackupsToCCFE,
+		backupActivitiesContext.BackupWorkflowInit.Volume, backups, backupActivitiesContext.BackupWorkflowInit.BackupVault.Name).Get(ctx, nil)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to hydrate asset location metadata to CCFE for the backup %s: %v", backupActivitiesContext.BackupWorkflowInit.Backup.Name, err)
 	}
 
 	return backupActivitiesContext, nil

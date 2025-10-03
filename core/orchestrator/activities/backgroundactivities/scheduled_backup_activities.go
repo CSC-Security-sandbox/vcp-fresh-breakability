@@ -20,6 +20,7 @@ import (
 const (
 	backupTypeSCHEDULED       = "SCHEDULED"
 	scheduledBackupNameFormat = "%s-scheduled-backup-%s-%s"
+	backupAssetType           = "storage.googleapis.com/Bucket"
 )
 
 // ScheduledBackupActivity represents activities related to scheduled backups.
@@ -63,6 +64,12 @@ func (j *ScheduledBackupActivity) GenerateScheduledSnapshotName(ctx context.Cont
 // Returns an error if the operation fails.
 func (j *ScheduledBackupActivity) HydrateCreatedBackupsToCCFE(ctx context.Context, volume *datamodel.Volume, backups []*datamodel.Backup, backupVaultName string) error {
 	logger := util.GetLogger(ctx)
+
+	if !hydrationEnabled {
+		logger.Info("Hydration is disabled, skipping created backups hydration to CCFE")
+		return nil
+	}
+
 	if len(backups) == 0 {
 		logger.Warnf("HydrateCreatedBackupsToCCFE called with no backups for volume %s", volume.Name)
 		return nil
@@ -90,6 +97,12 @@ func (j *ScheduledBackupActivity) HydrateCreatedBackupsToCCFE(ctx context.Contex
 // Returns an error if the operation fails.
 func (j *ScheduledBackupActivity) HydrateDeletedBackupsToCCFE(ctx context.Context, volume *datamodel.Volume, backups []*datamodel.Backup, backupVaultName string) error {
 	logger := util.GetLogger(ctx)
+
+	if !hydrationEnabled {
+		logger.Info("Hydration is disabled, skipping deleted backups hydration to CCFE")
+		return nil
+	}
+
 	if len(backups) == 0 {
 		logger.Warnf("HydrateDeletedBackupsToCCFE called with no backups for volume %s", volume.Name)
 		return nil
@@ -261,9 +274,29 @@ func convertToGCPHydrateCreateRequests(backups []*datamodel.Backup) []models.Req
 			BackupId:         backup.UUID,
 			VolumeUsageBytes: &volumeUsageInBytes,
 		}}
+
+		if backup.Attributes != nil && backup.Attributes.BucketName != "" {
+			assetLocationMetadata := getOrCreateAssetLocationMetadata(request.Backup)
+			assetLocationMetadata.ChildAssets = append(assetLocationMetadata.ChildAssets, &models.ChildAsset{
+				AssetType:  backupAssetType,
+				AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", backup.Attributes.BucketName)},
+			})
+		}
+
 		requests = append(requests, request)
 	}
 	return requests
+}
+
+// getOrCreateAssetLocationMetadata safely gets or creates AssetLocationMetadata
+// Returns the existing instance if it exists, or creates a new one if it's nil
+func getOrCreateAssetLocationMetadata(backup *models.HydrateBackup) *models.AssetLocationMetadata {
+	if backup.AssetLocationMetadata == nil {
+		backup.AssetLocationMetadata = &models.AssetLocationMetadata{
+			ChildAssets: []*models.ChildAsset{},
+		}
+	}
+	return backup.AssetLocationMetadata
 }
 
 // convertToGCPHydrateDeleteRequests converts a slice of Backup objects to a slice of backup names for deletion.

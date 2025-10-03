@@ -690,6 +690,8 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 			ServiceAccountName:  "", // No service accounts created
 			TenantProjectNumber: bucketDetails.TenantProjectNumber,
 			VendorSubnetID:      volume.VolumeAttributes.VendorSubnetID,
+			SatisfiesPzi:        bucketDetails.SatisfiesPzi,
+			SatisfiesPzs:        bucketDetails.SatisfiesPzs,
 		}
 	}
 

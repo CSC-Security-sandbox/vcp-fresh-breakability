@@ -370,6 +370,8 @@ type BucketDetails struct {
 	TenantProjectNumber string
 	Location            string
 	AccountId           string
+	SatisfiesPzi        bool
+	SatisfiesPzs        bool
 }
 
 type ResourceNames struct {

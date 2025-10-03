@@ -6,7 +6,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -30,11 +29,11 @@ type OrphanJobWorkflowManager interface {
 var (
 	jobTypeToWorkflowMapping = map[models.JobType]WorkflowMapping{
 		models.JobTypeCreateKmsConfig: {
-			workflowFunc: kms_workflows.CreateKmsConfigWorkflow,
+			workflowFunc: "CreateKmsConfigWorkflow",
 			getArgsFunc:  &CreateKmsConfigArgs{},
 		},
 		models.JobTypeDeleteKmsConfig: {
-			workflowFunc: kms_workflows.DeleteKmsConfigWorkflow,
+			workflowFunc: "DeleteKmsConfigWorkflow",
 			getArgsFunc:  &DeleteKmsConfigArgs{},
 		},
 	}

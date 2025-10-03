@@ -7,6 +7,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -460,6 +461,12 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
+			// Setting the 'satisfiesPzi' and 'satisfiesPzs' fields in bucketDetails by fetching the latest info from GCP
+			err = syncBucketDetailsWithGCP(ctx, bucketDetails)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+
 			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateBackupVaultWithBucketDetails, &dbVolume, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
@@ -540,4 +547,26 @@ func createLunMapParams(lunName string, svmName string, hostParams []*common.Hos
 	}
 
 	return lunMapParam
+}
+
+// syncBucketDetailsWithGCP syncs bucket details with GCP to get the latest ZiZs information
+func syncBucketDetailsWithGCP(ctx workflow.Context, bucketDetails *common.BucketDetails) error {
+	logger := util.GetLogger(ctx)
+	existingBucketDetails := &datamodel.BucketDetails{
+		BucketName:          bucketDetails.BucketName,
+		TenantProjectNumber: bucketDetails.TenantProjectNumber,
+		ServiceAccountName:  bucketDetails.ServiceAccountName,
+		VendorSubnetID:      bucketDetails.VendorSubnetID,
+	}
+	var updatedBucketDetails *datamodel.BucketDetails
+	syncBackupZiZsActivity := &backgroundactivities.SyncBackupZiZsActivity{}
+	err := workflow.ExecuteActivity(ctx, syncBackupZiZsActivity.SyncBucketDetails, existingBucketDetails).Get(ctx, &updatedBucketDetails)
+	if err != nil {
+		// Log the error, but do not fail the workflow
+		logger.Errorf("Failed to sync bucket details for bucket %s: %v", existingBucketDetails.BucketName, err)
+	} else if updatedBucketDetails != nil {
+		bucketDetails.SatisfiesPzi = updatedBucketDetails.SatisfiesPzi
+		bucketDetails.SatisfiesPzs = updatedBucketDetails.SatisfiesPzs
+	}
+	return nil // Always return nil to not fail the workflow
 }

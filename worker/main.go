@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	"net/http"
 	"os"
 	"time"
@@ -27,6 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
+	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -315,6 +315,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&replicationActivities.CleanupVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.UpdateVolumeInReplicationActivity{SE: dbcon})
+	worker.RegisterActivity(&backgroundactivities.SyncBackupZiZsActivity{SE: dbcon})
 }
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
