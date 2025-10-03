@@ -25,15 +25,15 @@ horizontalPodAutoscaling:
 images:
   pm2:
     name: vcp-container-images-us/harvest-multi
-    tag: 25.09.24-1
-    digest: "sha256:d4783b472d55a33d98cf7749857c7341e68edf60e07e6ad6ec0007c226634eb2"
+    tag: 25.10.01-1
+    digest: "sha256:5b7bcf4f0bb74a7436bedd30cb88d8cdb3af981f381569614e76803519aee2b3"
     secondary: false
     primary: true
     pullPolicy: IfNotPresent
   otel:
     name: vcp-open-telemetry-images/opentelemetry-collector-contrib
-    tag: 0.126.0
-    digest: 'sha256:4a21c4e5a319827ccc1b150d03424102ab12a30515ba2dfb46379959f5fb4ba6'
+    tag: 0.118.0
+    digest: 'sha256:83ff24727f615c39056d954dd3a5d4ef227a5a9fe2c234a4489199e4351f0ab'
     secondary: true
     pullPolicy: IfNotPresent
   metricsAdapter:
