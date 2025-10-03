@@ -2,14 +2,14 @@ package aggregator
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -1291,4 +1291,559 @@ func TestResourceKeyMapKeyEquality(t *testing.T) {
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s
+}
+
+// TestFetchMetricsForCounterAggregation tests the optimized database-level sorting approach
+func TestFetchMetricsForCounterAggregation(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	processor := &BillingProvider{
+		metricsdb: mockDB,
+	}
+
+	now := time.Now()
+	aggregationStartTime := now.Add(-1 * time.Hour)
+	aggregationEndTime := now
+
+	// Mock metrics data - simulating database returning sorted results
+	mockMetrics := []datamodel2.HydratedMetrics{
+		// Resource 1 - within window (newer first due to DESC sorting)
+		{
+			ResourceName:    "resource1",
+			ConsumerID:      "customer1",
+			DeploymentName:  "deployment1",
+			MetricTimestamp: now.Add(-30 * time.Minute), // Within window
+			Quantity:        150,
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+		},
+		{
+			ResourceName:    "resource1",
+			ConsumerID:      "customer1",
+			DeploymentName:  "deployment1",
+			MetricTimestamp: now.Add(-45 * time.Minute), // Within window
+			Quantity:        140,
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+		},
+		// Resource 1 - before window (closest to start time)
+		{
+			ResourceName:    "resource1",
+			ConsumerID:      "customer1",
+			DeploymentName:  "deployment1",
+			MetricTimestamp: now.Add(-90 * time.Minute), // Before window
+			Quantity:        130,
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+		},
+		// Resource 1 - older record before window (should be ignored)
+		{
+			ResourceName:    "resource1",
+			ConsumerID:      "customer1",
+			DeploymentName:  "deployment1",
+			MetricTimestamp: now.Add(-110 * time.Minute), // Older, should be skipped
+			Quantity:        120,
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+		},
+		// Resource 2 - within window
+		{
+			ResourceName:    "resource2",
+			ConsumerID:      "customer1",
+			DeploymentName:  "deployment1",
+			MetricTimestamp: now.Add(-20 * time.Minute), // Within window
+			Quantity:        200,
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+		},
+		// Resource 2 - before window
+		{
+			ResourceName:    "resource2",
+			ConsumerID:      "customer1",
+			DeploymentName:  "deployment1",
+			MetricTimestamp: now.Add(-80 * time.Minute), // Before window
+			Quantity:        190,
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+		},
+	}
+
+	// Mock the database call
+	mockDB.On("GetHydratedMetrics", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		// Verify the filter includes the extended time range and ordering
+		if order, ok := filter["order"].(string); ok {
+			return strings.Contains(order, "metric_timestamp DESC")
+		}
+		return false
+	})).Return(mockMetrics, nil)
+
+	// Execute the method
+	result, err := processor.fetchMetricsForCounterAndIntegralAggregation(
+		context.Background(),
+		aggregationStartTime,
+		aggregationEndTime,
+		"VOLUME",
+		"ALLOCATED_SIZE",
+	)
+
+	// Verify results
+	assert.NoError(t, err)
+	// We expect: 3 for resource1 (2 within window + 1 before) + 2 for resource2 (1 within window + 1 before) = 5 total
+	assert.Len(t, result, 5, "Expected 5 metrics: 3 for resource1 (2 within + 1 before) + 2 for resource2 (1 within + 1 before)")
+
+	// Verify that we got the correct metrics for each resource
+	resource1Metrics := 0
+	resource2Metrics := 0
+	resource1HasPreWindow := false
+	resource2HasPreWindow := false
+
+	for _, metric := range result {
+		if metric.ResourceName == "resource1" {
+			resource1Metrics++
+			if metric.MetricTimestamp.Before(aggregationStartTime) {
+				resource1HasPreWindow = true
+				assert.Equal(t, float64(130), metric.Quantity, "Should get the latest record before window for resource1")
+			}
+		} else if metric.ResourceName == "resource2" {
+			resource2Metrics++
+			if metric.MetricTimestamp.Before(aggregationStartTime) {
+				resource2HasPreWindow = true
+				assert.Equal(t, float64(190), metric.Quantity, "Should get the latest record before window for resource2")
+			}
+		}
+	}
+
+	assert.Equal(t, 3, resource1Metrics, "Resource1 should have 3 metrics (2 within window + 1 before)")
+	assert.Equal(t, 2, resource2Metrics, "Resource2 should have 2 metrics (1 within window + 1 before)")
+	assert.True(t, resource1HasPreWindow, "Resource1 should have one record from before the window")
+	assert.True(t, resource2HasPreWindow, "Resource2 should have one record from before the window")
+
+	mockDB.AssertExpectations(t)
+}
+
+// TestFilterMetricsForCounterAndIntegralAggregationSorted tests the filtering logic for sorted metrics
+func TestFilterMetricsForCounterAndIntegralAggregationSorted(t *testing.T) {
+	processor := &BillingProvider{}
+	now := time.Now()
+	aggregationStartTime := now.Add(-1 * time.Hour)
+
+	tests := []struct {
+		name     string
+		metrics  []datamodel2.HydratedMetrics
+		expected int
+		desc     string
+	}{
+		{
+			name: "metrics_with_previous_and_current_window",
+			metrics: []datamodel2.HydratedMetrics{
+				// Within window (sorted DESC by timestamp)
+				{MetricTimestamp: now.Add(-30 * time.Minute), Quantity: 150},
+				{MetricTimestamp: now.Add(-45 * time.Minute), Quantity: 140},
+				// Before window (latest first due to DESC sorting)
+				{MetricTimestamp: now.Add(-90 * time.Minute), Quantity: 130},
+				{MetricTimestamp: now.Add(-110 * time.Minute), Quantity: 120}, // Should be ignored
+			},
+			expected: 3,
+			desc:     "Should return 2 within window + 1 latest before window",
+		},
+		{
+			name: "only_current_window_metrics",
+			metrics: []datamodel2.HydratedMetrics{
+				{MetricTimestamp: now.Add(-30 * time.Minute), Quantity: 150},
+				{MetricTimestamp: now.Add(-45 * time.Minute), Quantity: 140},
+			},
+			expected: 2,
+			desc:     "Should return all metrics when all are within window",
+		},
+		{
+			name: "only_previous_window_metrics",
+			metrics: []datamodel2.HydratedMetrics{
+				{MetricTimestamp: now.Add(-90 * time.Minute), Quantity: 130},
+				{MetricTimestamp: now.Add(-110 * time.Minute), Quantity: 120},
+			},
+			expected: 1,
+			desc:     "Should return only the latest metric when all are before window",
+		},
+		{
+			name:     "empty_metrics",
+			metrics:  []datamodel2.HydratedMetrics{},
+			expected: 0,
+			desc:     "Should return empty when no metrics provided",
+		},
+		{
+			name: "single_metric_within_window",
+			metrics: []datamodel2.HydratedMetrics{
+				{MetricTimestamp: now.Add(-30 * time.Minute), Quantity: 150},
+			},
+			expected: 1,
+			desc:     "Should return single metric when it's within window",
+		},
+		{
+			name: "single_metric_before_window",
+			metrics: []datamodel2.HydratedMetrics{
+				{MetricTimestamp: now.Add(-90 * time.Minute), Quantity: 130},
+			},
+			expected: 1,
+			desc:     "Should return single metric when it's before window",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processor.filterMetricsForCounterAndIntegralAggregationSorted(tt.metrics, aggregationStartTime)
+			assert.Len(t, result, tt.expected, tt.desc)
+
+			// Verify we don't get multiple records from before the window
+			preWindowCount := 0
+			for _, metric := range result {
+				if metric.MetricTimestamp.Before(aggregationStartTime) {
+					preWindowCount++
+				}
+			}
+			assert.LessOrEqual(t, preWindowCount, 1, "Should have at most 1 record from before the aggregation window")
+		})
+	}
+}
+
+// TestFetchMetricsForCounterAggregation_DatabaseError tests error handling
+func TestFetchMetricsForCounterAggregation_DatabaseError(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	processor := &BillingProvider{
+		metricsdb: mockDB,
+	}
+
+	now := time.Now()
+	aggregationStartTime := now.Add(-1 * time.Hour)
+	aggregationEndTime := now
+
+	// Mock database error
+	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(nil, errors.New("database connection error"))
+
+	// Execute the method
+	result, err := processor.fetchMetricsForCounterAndIntegralAggregation(
+		context.Background(),
+		aggregationStartTime,
+		aggregationEndTime,
+		"VOLUME",
+		"ALLOCATED_SIZE",
+	)
+
+	// Verify error handling
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "database connection error")
+
+	mockDB.AssertExpectations(t)
+}
+
+// TestFetchMetricsForCounterAggregation_FilterValidation tests that the correct filter is created
+func TestFetchMetricsForCounterAggregation_FilterValidation(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	processor := &BillingProvider{
+		metricsdb: mockDB,
+	}
+
+	now := time.Now()
+	aggregationStartTime := now.Add(-1 * time.Hour)
+	aggregationEndTime := now
+
+	// Mock the database call with detailed filter validation
+	mockDB.On("GetHydratedMetrics", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		// Verify all required filter components
+		conditions, hasConditions := filter["conditions"].([][]interface{})
+		order, hasOrder := filter["order"].(string)
+
+		if !hasConditions || !hasOrder {
+			return false
+		}
+
+		// Verify time range extends 2 hours back
+		expectedStartTime := aggregationStartTime.Add(-2 * time.Hour)
+
+		// Check conditions
+		foundStartTime := false
+		foundEndTime := false
+		foundResourceType := false
+		foundMeasuredType := false
+
+		for _, condition := range conditions {
+			if len(condition) >= 2 {
+				condStr := condition[0].(string)
+				if strings.Contains(condStr, "metric_timestamp >=") {
+					if condition[1].(time.Time).Equal(expectedStartTime) {
+						foundStartTime = true
+					}
+				}
+				if strings.Contains(condStr, "metric_timestamp <=") {
+					if condition[1].(time.Time).Equal(aggregationEndTime) {
+						foundEndTime = true
+					}
+				}
+				if strings.Contains(condStr, "resource_type =") {
+					if condition[1].(string) == "VOLUME" {
+						foundResourceType = true
+					}
+				}
+				if strings.Contains(condStr, "measured_type =") {
+					if condition[1].(string) == "ALLOCATED_SIZE" {
+						foundMeasuredType = true
+					}
+				}
+			}
+		}
+
+		// Verify ordering includes resource grouping and timestamp DESC
+		hasCorrectOrder := strings.Contains(order, "resource_name") &&
+			strings.Contains(order, "deployment_name") &&
+			strings.Contains(order, "consumer_id") &&
+			strings.Contains(order, "metric_timestamp DESC")
+
+		return foundStartTime && foundEndTime && foundResourceType && foundMeasuredType && hasCorrectOrder
+	})).Return([]datamodel2.HydratedMetrics{}, nil)
+
+	// Execute the method
+	_, err := processor.fetchMetricsForCounterAndIntegralAggregation(
+		context.Background(),
+		aggregationStartTime,
+		aggregationEndTime,
+		"VOLUME",
+		"ALLOCATED_SIZE",
+	)
+
+	// Verify no error
+	assert.NoError(t, err)
+	mockDB.AssertExpectations(t)
+}
+
+// TestFilterMetricsForCounterAndIntegralAggregationSorted_EdgeCases tests edge cases in filtering
+func TestFilterMetricsForCounterAndIntegralAggregationSorted_EdgeCases(t *testing.T) {
+	processor := &BillingProvider{}
+	now := time.Now()
+	aggregationStartTime := now.Add(-1 * time.Hour)
+
+	t.Run("metrics_exactly_at_aggregation_start", func(t *testing.T) {
+		metrics := []datamodel2.HydratedMetrics{
+			{MetricTimestamp: aggregationStartTime, Quantity: 150},                       // Exactly at start - should be included
+			{MetricTimestamp: aggregationStartTime.Add(-1 * time.Minute), Quantity: 140}, // Just before - should be included as previous
+		}
+
+		result := processor.filterMetricsForCounterAndIntegralAggregationSorted(metrics, aggregationStartTime)
+		assert.Len(t, result, 2, "Should include metric exactly at start time and one before")
+	})
+
+	t.Run("multiple_metrics_same_timestamp", func(t *testing.T) {
+		sameTime := now.Add(-30 * time.Minute)
+		metrics := []datamodel2.HydratedMetrics{
+			{MetricTimestamp: sameTime, Quantity: 150},
+			{MetricTimestamp: sameTime, Quantity: 140},
+		}
+
+		result := processor.filterMetricsForCounterAndIntegralAggregationSorted(metrics, aggregationStartTime)
+		assert.Len(t, result, 2, "Should include all metrics with same timestamp within window")
+	})
+
+	t.Run("metrics_in_ascending_order", func(t *testing.T) {
+		// Test with metrics not properly sorted (should still work due to time-based filtering)
+		metrics := []datamodel2.HydratedMetrics{
+			{MetricTimestamp: now.Add(-110 * time.Minute), Quantity: 120}, // Oldest
+			{MetricTimestamp: now.Add(-90 * time.Minute), Quantity: 130},  // Before window
+			{MetricTimestamp: now.Add(-45 * time.Minute), Quantity: 140},  // Within window
+			{MetricTimestamp: now.Add(-30 * time.Minute), Quantity: 150},  // Within window
+		}
+
+		result := processor.filterMetricsForCounterAndIntegralAggregationSorted(metrics, aggregationStartTime)
+		// Should get: first record before window (120) + both within window (140, 150) = 3 total
+		assert.Len(t, result, 3, "Should handle incorrectly sorted metrics gracefully")
+	})
+}
+
+// TestProcessBillingMetrics_NonCounterAggregation tests the path for non-counter aggregation types
+func TestProcessBillingMetrics_NonCounterAggregation(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+	mockUsageSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize:       100,
+		MaxGoogleBillingPushRetry:     3,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	processor := NewBillingProvider(mockDB, mockVCPDB, config, mockUsageSink)
+
+	ctx := context.Background()
+	now := time.Now()
+
+	// Mock the VCP database calls for resource data
+	mockVCPDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockVCPDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Mock unsent usages
+	mockDB.On("GetAggregatedUsage", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["state"] == datamodel2.Unsubmitted
+	})).Return([]datamodel2.AggregatedUsage{}, nil)
+
+	mockDB.On("GetAggregatedUsage", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["state"] == datamodel2.Error
+	})).Return([]datamodel2.AggregatedUsage{}, nil)
+
+	// Mock the GetHydratedMetrics for non-counter aggregation (this will hit the else branch on line 96)
+	mockDB.On("GetHydratedMetrics", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		// This should be called for FirstAggregation type which is not counter or integral
+		return true
+	})).Return([]datamodel2.HydratedMetrics{}, nil)
+
+	// Mock delivery - should not be called since no metrics to deliver
+	// mockUsageSink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0, nil)
+
+	// Execute - this should trigger the else branch for non-counter aggregation types
+	err := processor.ProcessBillingMetrics(ctx, now)
+
+	assert.NoError(t, err)
+	mockDB.AssertExpectations(t)
+	mockVCPDB.AssertExpectations(t)
+	// mockUsageSink.AssertExpectations(t) // Not called since no metrics
+}
+
+// TestProcessBillingMetrics_FetchResourceDataError tests error handling in fetchResourceData
+func TestProcessBillingMetrics_FetchResourceDataError(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+	mockUsageSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize:       100,
+		MaxGoogleBillingPushRetry:     3,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	processor := NewBillingProvider(mockDB, mockVCPDB, config, mockUsageSink)
+
+	ctx := context.Background()
+	now := time.Now()
+
+	// Mock pool data fetch failure (should hit line 102)
+	mockVCPDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool fetch error"))
+	// Mock volume data fetch failure
+	mockVCPDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume fetch error"))
+
+	// Mock unsent usages
+	mockDB.On("GetAggregatedUsage", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["state"] == datamodel2.Unsubmitted
+	})).Return([]datamodel2.AggregatedUsage{}, nil)
+
+	mockDB.On("GetAggregatedUsage", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+		return filter["state"] == datamodel2.Error
+	})).Return([]datamodel2.AggregatedUsage{}, nil)
+
+	// Mock the GetHydratedMetrics calls for all aggregation types
+	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil)
+
+	// Mock delivery - should not be called since no metrics to deliver
+	// mockUsageSink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0, nil)
+
+	// Execute - should continue processing despite resource data fetch errors
+	err := processor.ProcessBillingMetrics(ctx, now)
+
+	assert.NoError(t, err) // Should not return error even if resource data fetch fails
+	mockDB.AssertExpectations(t)
+	mockVCPDB.AssertExpectations(t)
+	// mockUsageSink.AssertExpectations(t) // Not called since no metrics
+}
+
+// TestCreateComplexFilter_WithLimitAndOrder tests the complex filter creation for missing lines 409
+func TestCreateComplexFilter_WithLimitAndOrder(t *testing.T) {
+	processor := &BillingProvider{}
+
+	tests := []struct {
+		name     string
+		options  map[string]interface{}
+		expected map[string]interface{}
+	}{
+		{
+			name: "with_valid_order_and_limit",
+			options: map[string]interface{}{
+				"order": "metric_timestamp DESC",
+				"limit": 10,
+			},
+			expected: map[string]interface{}{
+				"conditions": [][]interface{}{},
+				"order":      "metric_timestamp DESC",
+				"limit":      10,
+			},
+		},
+		{
+			name: "with_zero_limit_should_be_ignored",
+			options: map[string]interface{}{
+				"order": "resource_name ASC",
+				"limit": 0, // Should be ignored
+			},
+			expected: map[string]interface{}{
+				"conditions": [][]interface{}{},
+				"order":      "resource_name ASC",
+				// limit should not be present
+			},
+		},
+		{
+			name: "with_negative_limit_should_be_ignored",
+			options: map[string]interface{}{
+				"order": "resource_name ASC",
+				"limit": -5, // Should be ignored
+			},
+			expected: map[string]interface{}{
+				"conditions": [][]interface{}{},
+				"order":      "resource_name ASC",
+				// limit should not be present
+			},
+		},
+		{
+			name: "with_empty_order_should_be_ignored",
+			options: map[string]interface{}{
+				"order": "", // Should be ignored
+				"limit": 5,
+			},
+			expected: map[string]interface{}{
+				"conditions": [][]interface{}{},
+				"limit":      5,
+				// order should not be present
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processor.CreateComplexFilter(tt.options)
+
+			// Check conditions
+			conditions, hasConditions := result["conditions"]
+			assert.True(t, hasConditions, "Should always have conditions")
+			// Convert nil slice to empty slice for comparison
+			actualConditions := conditions.([][]interface{})
+			expectedConditions := tt.expected["conditions"].([][]interface{})
+			if actualConditions == nil {
+				actualConditions = [][]interface{}{}
+			}
+			if expectedConditions == nil {
+				expectedConditions = [][]interface{}{}
+			}
+			assert.Equal(t, expectedConditions, actualConditions)
+
+			// Check order
+			if expectedOrder, hasExpectedOrder := tt.expected["order"]; hasExpectedOrder {
+				order, hasOrder := result["order"]
+				assert.True(t, hasOrder, "Should have order when expected")
+				assert.Equal(t, expectedOrder, order)
+			} else {
+				_, hasOrder := result["order"]
+				assert.False(t, hasOrder, "Should not have order when not expected")
+			}
+
+			// Check limit
+			if expectedLimit, hasExpectedLimit := tt.expected["limit"]; hasExpectedLimit {
+				limit, hasLimit := result["limit"]
+				assert.True(t, hasLimit, "Should have limit when expected")
+				assert.Equal(t, expectedLimit, limit)
+			} else {
+				_, hasLimit := result["limit"]
+				assert.False(t, hasLimit, "Should not have limit when not expected")
+			}
+		})
+	}
 }

@@ -83,21 +83,32 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 	// Process each job definition
 	for key, jobDef := range common.DefaultAggregationJobDefinitions {
-		// Create filter with conditions using our helper method
-		filter := p.CreateFilterWithConditions(
-			aggregationStartTime,
-			aggregationEndTime,
-			key.ResourceType.String(),
-			key.MeasuredType.String(),
-		)
+		var metrics []datamodel2.HydratedMetrics
+		var err error
 
-		// Fetch metrics with filter conditions
-		metrics, err := p.metricsdb.GetHydratedMetrics(ctx, filter)
+		if jobDef.AggregationType == common.IntegralAggregation || jobDef.AggregationType == common.CounterAggregation {
+			// For counter aggregation and integral aggregation, we need:
+			// 1. All records from current aggregation window
+			// 2. Only the latest record from previous period (closest to aggregation start)
+			metrics, err = p.fetchMetricsForCounterAndIntegralAggregation(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String())
+		} else {
+			// For other aggregation types, fetch only current window
+			filter := p.CreateFilterWithConditions(
+				aggregationStartTime,
+				aggregationEndTime,
+				key.ResourceType.String(),
+				key.MeasuredType.String(),
+			)
+			metrics, err = p.metricsdb.GetHydratedMetrics(ctx, filter)
+		}
+
 		if err != nil {
 			logger.Error("Failed to list hydrated metrics", "error", err.Error())
 			return err
 		}
-		logger.Debugf("Fetched metrics for aggregation", "metrics:", metrics)
+
+		logger.Debugf("Fetched metrics for aggregation", "total_metrics:", len(metrics), "aggregation_type:", jobDef.AggregationType)
+
 		// Group metrics by resource
 		resourceGroups := p.groupMetricsByResource(metrics)
 
@@ -384,9 +395,21 @@ func (p *BillingProvider) CreateComplexFilter(options map[string]interface{}) ma
 		conditions = append(conditions, []interface{}{"uuid in ?", uuids})
 	}
 
-	return map[string]interface{}{
+	filter := map[string]interface{}{
 		"conditions": conditions,
 	}
+
+	// Add ordering if present
+	if order, ok := options["order"].(string); ok && order != "" {
+		filter["order"] = order
+	}
+
+	// Add limit if present
+	if limit, ok := options["limit"].(int); ok && limit > 0 {
+		filter["limit"] = limit
+	}
+
+	return filter
 }
 
 func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMetrics) map[ResourceKey][]datamodel2.HydratedMetrics {
@@ -403,6 +426,64 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 		}
 	}
 	return groups
+}
+
+// fetchMetricsForCounterAndIntegralAggregation fetches metrics for counter aggregation using a single query
+// This gets all records from the current aggregation window plus the latest record from the previous period
+func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceType, measuredType string) ([]datamodel2.HydratedMetrics, error) {
+	// Create a complex filter that sorts by resource and timestamp
+	filter := p.CreateComplexFilter(map[string]interface{}{
+		"startTime":    aggregationStartTime.Add(-2 * time.Hour), // Look back 2 hours
+		"endTime":      aggregationEndTime,
+		"resourceType": resourceType,
+		"measuredType": measuredType,
+		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp DESC", // Database sorts for us
+	})
+
+	// Fetch all metrics within the extended time range, already sorted by the database
+	allMetrics, err := p.metricsdb.GetHydratedMetrics(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Group by resource and filter to get only what we need
+	resourceGroups := p.groupMetricsByResource(allMetrics)
+	var finalMetrics []datamodel2.HydratedMetrics
+
+	for _, resourceMetrics := range resourceGroups {
+		// No need to sort - data is already sorted by the database
+		// Filter each resource group to get the desired records
+		filteredForResource := p.filterMetricsForCounterAndIntegralAggregationSorted(resourceMetrics, aggregationStartTime)
+		finalMetrics = append(finalMetrics, filteredForResource...)
+	}
+
+	return finalMetrics, nil
+}
+
+// filterMetricsForCounterAndIntegralAggregationSorted filters metrics to include only the latest record before
+// aggregationStartTime and all records within the aggregation window
+// Assumes metrics are already sorted by timestamp DESC (latest first)
+func (p *BillingProvider) filterMetricsForCounterAndIntegralAggregationSorted(metrics []datamodel2.HydratedMetrics, aggregationStartTime time.Time) []datamodel2.HydratedMetrics {
+	var result []datamodel2.HydratedMetrics
+	var foundPreviousRecord bool
+
+	// Since metrics are already sorted by timestamp DESC, we can process them in order
+	for _, metric := range metrics {
+		if metric.MetricTimestamp.Before(aggregationStartTime) {
+			// This is a record from before the aggregation window
+			// Since data is sorted DESC, this is the latest record before the window
+			if !foundPreviousRecord {
+				result = append(result, metric)
+				foundPreviousRecord = true
+			}
+			// Skip any other records from before the window (they're older)
+		} else {
+			// This record is within the aggregation window - include it
+			result = append(result, metric)
+		}
+	}
+
+	return result
 }
 
 func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, aggregatedRecords *[]datamodel2.AggregatedUsage) error {

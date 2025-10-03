@@ -39,11 +39,11 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 		SKU:             BillingMetricNameReplication,
 	},
 	{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolAllocatedSize}: {
-		AggregationType: CounterAggregation,
+		AggregationType: IntegralAggregation,
 		IsBillable:      false,
 	},
 	{ResourceType: metadata.VolumePool, MeasuredType: metadata.AllocatedUsed}: {
-		AggregationType: CounterAggregation,
+		AggregationType: IntegralAggregation,
 		IsBillable:      false,
 	},
 	{ResourceType: metadata.Volume, MeasuredType: metadata.CbsVolumeBackupSize}: {

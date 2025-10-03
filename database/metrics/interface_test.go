@@ -139,3 +139,120 @@ func TestPtrString(t *testing.T) {
 	assert.NotNil(t, ptr)
 	assert.Equal(t, "hello", *ptr)
 }
+
+// TestGetHydratedMetrics_OrderAndLimit tests the order and limit functionality
+func TestGetHydratedMetrics_OrderAndLimit(t *testing.T) {
+	repo := setupTestDataStoreRepository(t)
+	ctx := context.Background()
+
+	// Create test metrics with different timestamps
+	now := time.Now()
+	metric1 := &datamodel.HydratedMetrics{
+		MeasuredType:    metadata.MeasuredType("test-type"),
+		ResourceType:    metadata.ResourceType("test-resource"),
+		ResourceName:    "resource-1",
+		MetricTimestamp: now.Add(-2 * time.Hour),
+		Quantity:        100.0,
+	}
+	metric2 := &datamodel.HydratedMetrics{
+		MeasuredType:    metadata.MeasuredType("test-type"),
+		ResourceType:    metadata.ResourceType("test-resource"),
+		ResourceName:    "resource-2",
+		MetricTimestamp: now.Add(-1 * time.Hour),
+		Quantity:        200.0,
+	}
+	metric3 := &datamodel.HydratedMetrics{
+		MeasuredType:    metadata.MeasuredType("test-type"),
+		ResourceType:    metadata.ResourceType("test-resource"),
+		ResourceName:    "resource-3",
+		MetricTimestamp: now,
+		Quantity:        300.0,
+	}
+
+	// Create metrics
+	assert.NoError(t, repo.CreateHydratedMetrics(ctx, metric1))
+	assert.NoError(t, repo.CreateHydratedMetrics(ctx, metric2))
+	assert.NoError(t, repo.CreateHydratedMetrics(ctx, metric3))
+
+	// Test with order by timestamp DESC
+	filterWithOrder := map[string]interface{}{
+		"measured_type": "test-type",
+		"order":         "metric_timestamp DESC",
+	}
+	metrics, err := repo.GetHydratedMetrics(ctx, filterWithOrder)
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 3)
+	// Should be ordered newest first
+	assert.Equal(t, "resource-3", metrics[0].ResourceName)
+	assert.Equal(t, "resource-2", metrics[1].ResourceName)
+	assert.Equal(t, "resource-1", metrics[2].ResourceName)
+
+	// Test with order by resource_name ASC
+	filterWithOrderAsc := map[string]interface{}{
+		"measured_type": "test-type",
+		"order":         "resource_name ASC",
+	}
+	metrics, err = repo.GetHydratedMetrics(ctx, filterWithOrderAsc)
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 3)
+	// Should be ordered alphabetically
+	assert.Equal(t, "resource-1", metrics[0].ResourceName)
+	assert.Equal(t, "resource-2", metrics[1].ResourceName)
+	assert.Equal(t, "resource-3", metrics[2].ResourceName)
+
+	// Test with limit
+	filterWithLimit := map[string]interface{}{
+		"measured_type": "test-type",
+		"order":         "metric_timestamp DESC",
+		"limit":         2,
+	}
+	metrics, err = repo.GetHydratedMetrics(ctx, filterWithLimit)
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 2)
+	// Should return only the 2 newest metrics
+	assert.Equal(t, "resource-3", metrics[0].ResourceName)
+	assert.Equal(t, "resource-2", metrics[1].ResourceName)
+
+	// Test with zero limit (should be ignored)
+	filterWithZeroLimit := map[string]interface{}{
+		"measured_type": "test-type",
+		"limit":         0,
+	}
+	metrics, err = repo.GetHydratedMetrics(ctx, filterWithZeroLimit)
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 3) // Should return all metrics since limit 0 is ignored
+
+	// Test with negative limit (should be ignored)
+	filterWithNegativeLimit := map[string]interface{}{
+		"measured_type": "test-type",
+		"limit":         -1,
+	}
+	metrics, err = repo.GetHydratedMetrics(ctx, filterWithNegativeLimit)
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 3) // Should return all metrics since negative limit is ignored
+
+	// Test with empty order string (should be ignored)
+	filterWithEmptyOrder := map[string]interface{}{
+		"measured_type": "test-type",
+		"order":         "",
+	}
+	metrics, err = repo.GetHydratedMetrics(ctx, filterWithEmptyOrder)
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 3) // Should return all metrics
+
+	// Test with complex conditions, order, and limit together
+	complexFilter := map[string]interface{}{
+		"conditions": [][]interface{}{
+			{"measured_type = ?", "test-type"},
+			{"quantity >= ?", 150.0},
+		},
+		"order": "quantity ASC",
+		"limit": 1,
+	}
+	metrics, err = repo.GetHydratedMetrics(ctx, complexFilter)
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 1)
+	// Should return the metric with quantity 200.0 (smallest >= 150)
+	assert.Equal(t, "resource-2", metrics[0].ResourceName)
+	assert.Equal(t, 200.0, metrics[0].Quantity)
+}

@@ -51,6 +51,24 @@ func (r *DataStoreRepository) GetHydratedMetrics(ctx context.Context, filter map
 			delete(filter, "conditions")
 		}
 
+		// Handle ordering if present
+		if order, ok := filter["order"]; ok {
+			if orderStr, ok := order.(string); ok && orderStr != "" {
+				db = db.Order(orderStr)
+			}
+			// Remove the order key from filter
+			delete(filter, "order")
+		}
+
+		// Handle limit if present
+		if limit, ok := filter["limit"]; ok {
+			if limitVal, ok := limit.(int); ok && limitVal > 0 {
+				db = db.Limit(limitVal)
+			}
+			// Remove the limit key from filter
+			delete(filter, "limit")
+		}
+
 		// Apply any remaining simple filters
 		if len(filter) > 0 {
 			db = db.Where(filter)
