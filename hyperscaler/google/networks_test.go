@@ -2837,74 +2837,38 @@ func TestGetComputeGlobalOpStatus(t *testing.T) {
 }
 
 func Test_ListAddressesWithFilter(t *testing.T) {
-	ctx := context.Background()
-	projectName := "test-project"
-	region := "us-central1"
-	subnetName := "test-subnet"
-	deploymentID := "test-deployment"
-	additionalLabels := map[string]string{
-		"environment": "test",
-		"team":        "platform",
-	}
 	t.Run("Failure_ProjectNameEmpty", func(t *testing.T) {
 		defer testReset(t)
-
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
-			if req.URL.Path != expectedPath {
-				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
-			}
-
-			// Check filter parameters
-			filter := req.URL.Query().Get("filter")
-			if filter == "" {
-				t.Errorf("Expected filter got %s", filter)
-			}
-
-			// Return mock response
-			response := &compute.AddressList{
-				Items: []*compute.Address{
-					{
-						Name:        "test-address-1",
-						Address:     "10.0.0.1",
-						AddressType: "INTERNAL",
-						Subnetwork:  fmt.Sprintf("projects/%s/regions/%s/subnetworks/%s", projectName, region, subnetName),
-						Labels: map[string]string{
-							"deployment_id": deploymentID,
-							"environment":   additionalLabels["environment"],
-							"team":          additionalLabels["team"],
-						},
-					},
-				},
-			}
-
-			rw.Header().Set("Content-Type", "application/json")
-			err := json.NewEncoder(rw).Encode(response)
-			if err != nil {
-				return
-			}
-		}))
-		defer server.Close()
-
-		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
-		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+		
+		region := "us-central1"
+		subnetName := "test-subnet"
+		deploymentID := "test-deployment"
+		additionalLabels := map[string]string{
+			"environment": "test",
+			"team":        "platform",
 		}
-		adminService := AdminGCPService{computeService: svc}
 
-		gcpService := &GcpServices{
-			AdminGCPService: &adminService,
+		result, err := (&GcpServices{
+			AdminGCPService: &AdminGCPService{},
 			Logger:          log.NewLogger(),
-		}
-
-		result, err := gcpService.ListAddressesWithFilter("", region, subnetName, deploymentID, additionalLabels)
+		}).ListAddressesWithFilter("", region, subnetName, deploymentID, additionalLabels)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
 	})
+
 	t.Run("Success_WithAllFilters", func(t *testing.T) {
 		defer testReset(t)
+		
+		ctx := context.Background()
+		projectName := "test-project"
+		region := "us-central1"
+		subnetName := "test-subnet"
+		deploymentID := "test-deployment"
+		additionalLabels := map[string]string{
+			"environment": "test",
+			"team":        "platform",
+		}
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
@@ -2964,6 +2928,11 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_WithOnlySubnetFilter", func(t *testing.T) {
 		defer testReset(t)
+		
+		ctx := context.Background()
+		projectName := "test-project"
+		region := "us-central1"
+		subnetName := "test-subnet"
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
@@ -3019,6 +2988,11 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_WithOnlyDeploymentFilter", func(t *testing.T) {
 		defer testReset(t)
+		
+		ctx := context.Background()
+		projectName := "test-project"
+		region := "us-central1"
+		deploymentID := "test-deployment"
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
@@ -3076,6 +3050,14 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_WithOnlyAdditionalLabels", func(t *testing.T) {
 		defer testReset(t)
+		
+		ctx := context.Background()
+		projectName := "test-project"
+		region := "us-central1"
+		additionalLabels := map[string]string{
+			"environment": "test",
+			"team":        "platform",
+		}
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
@@ -3131,6 +3113,10 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_NoFilters", func(t *testing.T) {
 		defer testReset(t)
+		
+		ctx := context.Background()
+		projectName := "test-project"
+		region := "us-central1"
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
@@ -3184,6 +3170,9 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_GlobalRegion", func(t *testing.T) {
 		defer testReset(t)
+		
+		ctx := context.Background()
+		projectName := "test-project"
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/global/addresses", projectName)
@@ -3231,6 +3220,10 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_EmptyResponse", func(t *testing.T) {
 		defer testReset(t)
+		
+		ctx := context.Background()
+		projectName := "test-project"
+		region := "us-central1"
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
@@ -3272,6 +3265,10 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Error_GCPAPIError", func(t *testing.T) {
 		defer testReset(t)
+		
+		ctx := context.Background()
+		projectName := "test-project"
+		region := "us-central1"
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
