@@ -15,3 +15,65 @@ func (s *Error) SetFake() {
 		}
 	}
 }
+
+// SetFake set fake values.
+func (s *GenerateReportV1beta) SetFake() {
+	{
+		{
+			s.StartDate.SetFake()
+		}
+	}
+	{
+		{
+			s.TimeZone.SetFake()
+		}
+	}
+	{
+		{
+			s.SinkType.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *GenerateReportV1betaSinkType) SetFake() {
+	*s = GenerateReportV1betaSinkTypeGcs
+}
+
+// SetFake set fake values.
+func (s *GenerateReportV1betaTimeZone) SetFake() {
+	*s = GenerateReportV1betaTimeZoneUTC
+}
+
+// SetFake set fake values.
+func (s *OptGenerateReportV1beta) SetFake() {
+	var elem GenerateReportV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptGenerateReportV1betaSinkType) SetFake() {
+	var elem GenerateReportV1betaSinkType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptGenerateReportV1betaTimeZone) SetFake() {
+	var elem GenerateReportV1betaTimeZone
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptNilDate) SetFake() {
+	s.Null = true
+	s.Set = true
+}

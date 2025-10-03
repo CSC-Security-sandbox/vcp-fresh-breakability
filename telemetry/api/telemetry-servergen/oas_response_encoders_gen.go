@@ -7,11 +7,35 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
+	ht "github.com/ogen-go/ogen/http"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-
-	ht "github.com/ogen-go/ogen/http"
 )
+
+func encodeV1GenerateReportResponse(response V1GenerateReportRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *V1GenerateReportAccepted:
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		return nil
+
+	case *V1GenerateReportBadRequest:
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		return nil
+
+	case *V1GenerateReportInternalServerError:
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
 
 func encodeV1PerformanceResponse(response V1PerformanceRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {

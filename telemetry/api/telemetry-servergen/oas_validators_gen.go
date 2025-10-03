@@ -4,7 +4,6 @@ package coreapiserver
 
 import (
 	"github.com/go-faster/errors"
-
 	"github.com/ogen-go/ogen/validate"
 )
 
@@ -52,4 +51,74 @@ func (s *ErrorStatusCode) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *GenerateReportV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.TimeZone.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "timeZone",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.SinkType.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sinkType",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s GenerateReportV1betaSinkType) Validate() error {
+	switch s {
+	case "gcs":
+		return nil
+	case "terminal":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s GenerateReportV1betaTimeZone) Validate() error {
+	switch s {
+	case "UTC":
+		return nil
+	case "PST":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }

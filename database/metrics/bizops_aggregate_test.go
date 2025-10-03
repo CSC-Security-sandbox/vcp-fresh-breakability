@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 func setupFailingTestDataStoreRepository(t *testing.T, failurePoint string) *DataStoreRepository {
@@ -48,12 +49,12 @@ func setupFailingTestDataStoreRepository(t *testing.T, failurePoint string) *Dat
 
 	setupGCPContinents := func() {
 		mock.ExpectExec("(?i)create temp table gcp_continents").WillReturnResult(sqlmock.NewResult(0, 0))
-		mock.ExpectExec("(?i)INSERT INTO").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("(?i)INSERT INTO gcp_continents").WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectExec("(?i)create temp table google_continents").WillReturnResult(sqlmock.NewResult(0, 0))
 	}
 
 	setupPoolUsage := func() {
-		mock.ExpectExec("(?i)create temp table pool_usage_calculated").WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectExec("(?i)create  temp table pool_usage_calculated").WillReturnResult(sqlmock.NewResult(0, 0))
 	}
 
 	switch failurePoint {
@@ -90,7 +91,6 @@ func setupFailingTestDataStoreRepository(t *testing.T, failurePoint string) *Dat
 		setupUsageStatistics()
 		setupGCPContinents()
 		setupPoolUsage()
-
 		// Mock the final query with actual data
 		rows := sqlmock.NewRows(reportColumns).
 			AddRow("TEST_COMPONENT", "TEST_CUSTOMER", true, 1, 2,
@@ -115,10 +115,10 @@ func TestDataStoreRepository_AggregateUsageForBizOps(t *testing.T) {
 	var buf bytes.Buffer
 	bizopsAggrParams := &datamodel.BizOpsAggregateParams{
 		AccountsInfo: []*datamodel.AccountInfo{
-			{UUID: "123", UserName: "Test Account"},
+			{AccountID: "123", UserName: "TEST_CUSTOMER", IsActive: true},
 		},
 		ContinentMap: map[string]string{
-			"us-east1": "North America",
+			"us": "northamerica",
 		},
 		Region:    "us-east1",
 		AggrStart: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -126,12 +126,14 @@ func TestDataStoreRepository_AggregateUsageForBizOps(t *testing.T) {
 		Writer:    &buf,
 	}
 
+	// As part of success test we are also verifying CSV output
+	// as the function is writing to the provided writer
+	// In other tests we are only verifying error handling
+	// by mocking DB calls to simulate failures at different points
+	// and not checking CSV output
 	t.Run("Success", func(t *testing.T) {
-		// Below test will set up in-memory DB for integration test
-		// which will test the full flow including temp tables
-		// Note: we are not mocking DB calls for this test
-		repo := setupTestDataStoreRepository(t)
-		err := repo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
+		mockRepo := setupFailingTestDataStoreRepository(t, "success")
+		err := mockRepo.AggregateUsageForBizOps(ctx, bizopsAggrParams)
 		assert.NoError(t, err)
 		// Check if writer has data
 		assert.Greater(t, buf.Len(), 0, "Writer should contain data")
@@ -139,6 +141,7 @@ func TestDataStoreRepository_AggregateUsageForBizOps(t *testing.T) {
 		csvData := buf.String()
 		assert.Contains(t, csvData, "COMPONENT")
 		assert.Contains(t, csvData, "CUSTOMER_ID")
+		assert.Contains(t, csvData, "TEST_CUSTOMER")
 	})
 	// For below tests we are mocking DB calls to simulate failures at different points
 	t.Run("Failure - Database Begin Error", func(t *testing.T) {

@@ -133,3 +133,22 @@ packages:
       dir: "{{.InterfaceDir}}"
     interfaces:
       RequestProcessor:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops/sink:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      BizOpsSink:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      BizOpsProvider:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops/sink/gcs:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      BucketHandle:
+      StorageClient:

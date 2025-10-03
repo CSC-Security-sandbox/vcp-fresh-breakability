@@ -8,6 +8,12 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// V1GenerateReport implements v1_generateReport operation.
+	//
+	// Trigger BizOps Report Generation.
+	//
+	// POST /v1/generateReport
+	V1GenerateReport(ctx context.Context, req OptGenerateReportV1beta) (V1GenerateReportRes, error)
 	// V1Performance implements v1_performance operation.
 	//
 	// Trigger Performance Metrics Collection.

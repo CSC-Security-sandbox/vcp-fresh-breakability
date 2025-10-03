@@ -8,11 +8,13 @@ import (
 	metricdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -24,10 +26,15 @@ type MetricsProcessor struct {
 	sink                 performance.Sink
 	googleMetricProvider collector.VolumeMetricsProvider
 	billingProvider      *aggregator.BillingProvider
+	bizopsProvider       bizops.BizOpsProvider
 }
 
-func NewMetricsProcessor(vcpDatastore database.Storage, telemetryDatastore metricdb.Storage, sink performance.Sink, metricsProvider collector.VolumeMetricsProvider, billingProvider *aggregator.BillingProvider) MetricsProcessor {
-	return MetricsProcessor{vcpDatastore: vcpDatastore, telemetryDatastore: telemetryDatastore, sink: sink, googleMetricProvider: metricsProvider, billingProvider: billingProvider}
+func NewMetricsProcessor(
+	vcpDatastore database.Storage, telemetryDatastore metricdb.Storage,
+	sink performance.Sink, metricsProvider collector.VolumeMetricsProvider,
+	billingProvider *aggregator.BillingProvider, bizopsProvider bizops.BizOpsProvider,
+) MetricsProcessor {
+	return MetricsProcessor{vcpDatastore: vcpDatastore, telemetryDatastore: telemetryDatastore, sink: sink, googleMetricProvider: metricsProvider, billingProvider: billingProvider, bizopsProvider: bizopsProvider}
 }
 
 func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error {
@@ -130,5 +137,16 @@ func (mp *MetricsProcessor) CollectMetrics(ctx context.Context, projectId string
 		return err
 	}
 	logger.Debugf("Successfully collected %d metrics %v", len(results), projectId)
+	return nil
+}
+
+func (mp *MetricsProcessor) ProcessBizOps(ctx context.Context, params *utils.BizOpsReportParams) error {
+	logger := util.GetLogger(ctx)
+	err := mp.bizopsProvider.ProcessBizOps(ctx, logger, params)
+	if err != nil {
+		logger.Error("Failed to process BizOps metrics", "error", err.Error())
+		return err
+	}
+	logger.Infof("Successfully processed BizOps Report for start time: '%v' with timezone:'%s' ", params.StartDate, params.TimeZone)
 	return nil
 }

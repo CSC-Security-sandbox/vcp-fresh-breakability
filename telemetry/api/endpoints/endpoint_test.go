@@ -2,7 +2,7 @@ package api
 
 import (
 	context "context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -11,6 +11,7 @@ import (
 	vcpdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
 	procMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -25,6 +26,10 @@ func (m *MockVCPProcessor) ProcessUsageMetrics(ctx context.Context) error {
 }
 
 func (m *MockVCPProcessor) CollectMetrics(ctx context.Context, projectId string) error {
+	return nil
+}
+
+func (m *MockVCPProcessor) ProcessBizOps(ctx context.Context, params *utils.BizOpsReportParams) error {
 	return nil
 }
 
@@ -173,4 +178,128 @@ func Test_V1Usage_DBError(t *testing.T) {
 
 	assert.Error(t, err, "Handler should return error if DB fails")
 	assert.IsType(t, &oasgenserver.V1UsageInternalServerError{}, response)
+}
+
+func Test_ReturnsAcceptedResponseForGenerateReportEndpoint(t *testing.T) {
+	vcpStore := &vcpdb.MockStorage{}
+	telemetryStore, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
+	handler := Handler{
+		vcpDatastore:       vcpStore,
+		telemetryDatastore: telemetryStore,
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
+	}
+
+	// Context cancellation should not affect the response since we use context.WithoutCancel
+	cancel()
+	req := oasgenserver.OptGenerateReportV1beta{}
+	oldParseparseReportParams := parseReportParams
+	defer func() { parseReportParams = oldParseparseReportParams }()
+	parseReportParams = func(bizOpsReportParams *utils.BizOpsReportParams) error {
+		return nil
+	}
+	response, err := handler.V1GenerateReport(ctx, req)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &oasgenserver.V1GenerateReportAccepted{}, response)
+}
+
+func Test_V1GenerateReportParamsError(t *testing.T) {
+	vcpStore := &vcpdb.MockStorage{}
+	telemetryStore, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
+	handler := Handler{
+		vcpDatastore:       vcpStore,
+		telemetryDatastore: telemetryStore,
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
+	}
+
+	// Context cancellation should not affect the response since we use context.WithoutCancel
+	cancel()
+	req := oasgenserver.OptGenerateReportV1beta{}
+	oldParseparseReportParams := parseReportParams
+	defer func() { parseReportParams = oldParseparseReportParams }()
+	parseReportParams = func(bizOpsReportParams *utils.BizOpsReportParams) error {
+		return fmt.Errorf("test error")
+	}
+	response, err := handler.V1GenerateReport(ctx, req)
+
+	assert.Error(t, err)
+	assert.IsType(t, &oasgenserver.V1GenerateReportInternalServerError{}, response)
+}
+
+func Test_V1GenerateReport_DBError(t *testing.T) {
+	vcpStore := &vcpdb.MockStorage{}
+	telemetryStore, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Force DB error by closing the connection
+	_ = telemetryStore.Close()
+
+	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
+	handler := Handler{
+		vcpDatastore:       vcpStore,
+		telemetryDatastore: telemetryStore,
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
+	}
+	req := oasgenserver.OptGenerateReportV1beta{}
+	response, err := handler.V1GenerateReport(context.Background(), req)
+
+	assert.Error(t, err, "Handler should return error if DB fails")
+	assert.IsType(t, &oasgenserver.V1GenerateReportInternalServerError{}, response)
+}
+
+func Test_V1GenerateReport_ContextCancel(t *testing.T) {
+	vcpStore := &vcpdb.MockStorage{}
+	telemetryStore, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
+	handler := Handler{
+		vcpDatastore:       vcpStore,
+		telemetryDatastore: telemetryStore,
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
+	}
+
+	// Context cancellation should not affect the response since we use context.WithoutCancel
+	cancel()
+	req := oasgenserver.OptGenerateReportV1beta{}
+	response, err := handler.V1GenerateReport(ctx, req)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &oasgenserver.V1GenerateReportAccepted{}, response)
 }

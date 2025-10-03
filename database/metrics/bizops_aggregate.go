@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"fmt"
+	"io"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"gorm.io/gorm"
-	"io"
 )
 
 var (
@@ -75,7 +77,7 @@ func (r *DataStoreRepository) AggregateUsageForBizOps(
 	}
 
 	// Create AggregatedUsageConstrained
-	err = tx.Exec(AggregatedUsageConstrained,
+	err = tx.Exec(aggregatedUsageConstrained,
 		bizopsAggrParams.AggrStart.UTC(), bizopsAggrParams.AggrEnd.UTC(),
 		bizopsAggrParams.Region).Error
 	if err != nil {
@@ -83,7 +85,7 @@ func (r *DataStoreRepository) AggregateUsageForBizOps(
 	}
 
 	// Create UsageStatistics
-	err = tx.Exec(UsageStatistics).Error
+	err = tx.Exec(usageStatistics).Error
 	if err != nil {
 		return err
 	}
@@ -95,15 +97,15 @@ func (r *DataStoreRepository) AggregateUsageForBizOps(
 	}
 
 	// PoolUsageCalculated
-	err = tx.Exec(PoolUsageCalculated, bizopsAggrParams.Region).Error
+	err = tx.Exec(poolUsageCalculated).Error
 	if err != nil {
 		return err
 	}
 
 	// Final Report
 	rows, err := tx.Raw(
-		FinalReport, bizopsAggrParams.AggrStart,
-		bizopsAggrParams.AggrEnd, bizopsAggrParams.Region,
+		finalReport, bizopsAggrParams.AggrStart.Format(time.RFC3339),
+		bizopsAggrParams.AggrEnd.Format(time.RFC3339), bizopsAggrParams.Region,
 	).Rows()
 	if err != nil {
 		return err
@@ -122,7 +124,7 @@ func (r *DataStoreRepository) AggregateUsageForBizOps(
 
 func ingestAccountInfo(tx *gorm.DB, accountInfo []*datamodel.AccountInfo) error {
 	var err error
-	query := fmt.Sprintf(CreateTempAccountTable, accountTableName)
+	query := fmt.Sprintf(createTempAccountTable, accountTableName)
 	err = tx.Exec(query).Error
 	if err != nil {
 		return err
@@ -137,16 +139,16 @@ func ingestAccountInfo(tx *gorm.DB, accountInfo []*datamodel.AccountInfo) error 
 
 func ingestGoogleContinents(tx *gorm.DB, continentMap map[string]string, region string) error {
 	var err error
-	err = tx.Exec(CreateGoogleContinents).Error
+	err = tx.Exec(createGoogleContinents).Error
 	if err != nil {
 		return err
 	}
 	for key, val := range continentMap {
-		if err := tx.Exec(InsertGoogleContinent, key, val).Error; err != nil {
+		if err := tx.Exec(insertGoogleContinent, key, val).Error; err != nil {
 			return err
 		}
 	}
-	err = tx.Exec(GoogleContinents, region).Error
+	err = tx.Exec(googleContinents, region).Error
 	if err != nil {
 		return err
 	}

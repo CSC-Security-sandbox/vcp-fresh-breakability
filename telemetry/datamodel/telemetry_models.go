@@ -78,9 +78,9 @@ const (
 
 // Below structs are not created in DB
 type AccountInfo struct {
-	UUID     string `json:"uuid"`
-	UserName string `json:"user_name"`
-	IsActive bool   `json:"is_active"`
+	AccountID string `json:"account_id"`
+	UserName  string `json:"user_name"`
+	IsActive  bool   `json:"is_active"`
 }
 type BizOpsAggregateParams struct {
 	AccountsInfo []*AccountInfo

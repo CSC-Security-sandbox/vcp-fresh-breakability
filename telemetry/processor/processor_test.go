@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,12 +12,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	metricdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	metricsdm "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -1358,4 +1361,49 @@ func TestCollectMetrics_EmptyMetricsSlice(t *testing.T) {
 	err := mp.CollectMetrics(ctx, "project-empty")
 	assert.NoError(t, err)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", ctx, metrics, mock.AnythingOfType("int"))
+}
+
+func TestMetricsProcessor_ProcessBizOps(t *testing.T) {
+	ctx := context.Background()
+	t.Run("Success", func(t *testing.T) {
+		mockProvider := &bizops.MockBizOpsProvider{}
+		mp := &MetricsProcessor{bizopsProvider: mockProvider}
+		params := &utils.BizOpsReportParams{}
+		mockProvider.On("ProcessBizOps", ctx, mock.Anything, params).Return(nil)
+		err := mp.ProcessBizOps(ctx, params)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		mockProvider.AssertCalled(t, "ProcessBizOps", ctx, mock.Anything, params)
+	})
+	t.Run("Failure", func(t *testing.T) {
+		mockProvider := &bizops.MockBizOpsProvider{}
+		mp := &MetricsProcessor{bizopsProvider: mockProvider}
+		params := &utils.BizOpsReportParams{}
+		mockProvider.On("ProcessBizOps", ctx, mock.Anything, params).Return(fmt.Errorf("bizops error"))
+		err := mp.ProcessBizOps(ctx, params)
+		if err == nil || err.Error() != "bizops error" {
+			t.Errorf("expected bizops error, got %v", err)
+		}
+		mockProvider.AssertCalled(t, "ProcessBizOps", ctx, mock.Anything, params)
+	})
+}
+
+func Test_NewMetricsProcessor(t *testing.T) {
+	mp := NewMetricsProcessor(nil, nil, nil, nil, nil, nil)
+	if mp.vcpDatastore != nil {
+		t.Errorf("expected vcpDatastore to be set")
+	}
+	if mp.telemetryDatastore != nil {
+		t.Errorf("expected telemetryDatastore to be set")
+	}
+	if mp.sink != nil {
+		t.Errorf("expected sink to be set")
+	}
+	if mp.bizopsProvider != nil {
+		t.Errorf("expected bizopsProvider to be set")
+	}
+	if mp.billingProvider != nil {
+		t.Errorf("expected billingProvider to be set")
+	}
 }

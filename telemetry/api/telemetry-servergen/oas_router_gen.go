@@ -60,6 +60,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
+			case 'g': // Prefix: "generateReport"
+
+				if l := len("generateReport"); len(elem) >= l && elem[0:l] == "generateReport" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch r.Method {
+					case "POST":
+						s.handleV1GenerateReportRequest([0]string{}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, "POST")
+					}
+
+					return
+				}
+
 			case 'p': // Prefix: "performance"
 
 				if l := len("performance"); len(elem) >= l && elem[0:l] == "performance" {
@@ -194,6 +214,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
+			case 'g': // Prefix: "generateReport"
+
+				if l := len("generateReport"); len(elem) >= l && elem[0:l] == "generateReport" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch method {
+					case "POST":
+						r.name = V1GenerateReportOperation
+						r.summary = "Trigger BizOps Report Generation."
+						r.operationID = "v1_generateReport"
+						r.pathPattern = "/v1/generateReport"
+						r.args = args
+						r.count = 0
+						return r, true
+					default:
+						return
+					}
+				}
+
 			case 'p': // Prefix: "performance"
 
 				if l := len("performance"); len(elem) >= l && elem[0:l] == "performance" {

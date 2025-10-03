@@ -6,6 +6,7 @@ package coreapiserver
 type OperationName = string
 
 const (
-	V1PerformanceOperation OperationName = "V1Performance"
-	V1UsageOperation       OperationName = "V1Usage"
+	V1GenerateReportOperation OperationName = "V1GenerateReport"
+	V1PerformanceOperation    OperationName = "V1Performance"
+	V1UsageOperation          OperationName = "V1Usage"
 )

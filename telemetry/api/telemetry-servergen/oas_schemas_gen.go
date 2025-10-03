@@ -4,6 +4,9 @@ package coreapiserver
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/go-faster/errors"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -62,6 +65,347 @@ func (s *ErrorStatusCode) SetStatusCode(val int) {
 func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
+
+// Request body for generating a BizOps report.
+// Ref: #/components/schemas/GenerateReport_v1beta
+type GenerateReportV1beta struct {
+	// Start time for the report.
+	StartDate OptNilDate `json:"startDate"`
+	// Time zone for the report.
+	TimeZone OptGenerateReportV1betaTimeZone `json:"timeZone"`
+	// Sink type for the report.
+	SinkType OptGenerateReportV1betaSinkType `json:"sinkType"`
+}
+
+// GetStartDate returns the value of StartDate.
+func (s *GenerateReportV1beta) GetStartDate() OptNilDate {
+	return s.StartDate
+}
+
+// GetTimeZone returns the value of TimeZone.
+func (s *GenerateReportV1beta) GetTimeZone() OptGenerateReportV1betaTimeZone {
+	return s.TimeZone
+}
+
+// GetSinkType returns the value of SinkType.
+func (s *GenerateReportV1beta) GetSinkType() OptGenerateReportV1betaSinkType {
+	return s.SinkType
+}
+
+// SetStartDate sets the value of StartDate.
+func (s *GenerateReportV1beta) SetStartDate(val OptNilDate) {
+	s.StartDate = val
+}
+
+// SetTimeZone sets the value of TimeZone.
+func (s *GenerateReportV1beta) SetTimeZone(val OptGenerateReportV1betaTimeZone) {
+	s.TimeZone = val
+}
+
+// SetSinkType sets the value of SinkType.
+func (s *GenerateReportV1beta) SetSinkType(val OptGenerateReportV1betaSinkType) {
+	s.SinkType = val
+}
+
+// Sink type for the report.
+type GenerateReportV1betaSinkType string
+
+const (
+	GenerateReportV1betaSinkTypeGcs      GenerateReportV1betaSinkType = "gcs"
+	GenerateReportV1betaSinkTypeTerminal GenerateReportV1betaSinkType = "terminal"
+)
+
+// AllValues returns all GenerateReportV1betaSinkType values.
+func (GenerateReportV1betaSinkType) AllValues() []GenerateReportV1betaSinkType {
+	return []GenerateReportV1betaSinkType{
+		GenerateReportV1betaSinkTypeGcs,
+		GenerateReportV1betaSinkTypeTerminal,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GenerateReportV1betaSinkType) MarshalText() ([]byte, error) {
+	switch s {
+	case GenerateReportV1betaSinkTypeGcs:
+		return []byte(s), nil
+	case GenerateReportV1betaSinkTypeTerminal:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GenerateReportV1betaSinkType) UnmarshalText(data []byte) error {
+	switch GenerateReportV1betaSinkType(data) {
+	case GenerateReportV1betaSinkTypeGcs:
+		*s = GenerateReportV1betaSinkTypeGcs
+		return nil
+	case GenerateReportV1betaSinkTypeTerminal:
+		*s = GenerateReportV1betaSinkTypeTerminal
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Time zone for the report.
+type GenerateReportV1betaTimeZone string
+
+const (
+	GenerateReportV1betaTimeZoneUTC GenerateReportV1betaTimeZone = "UTC"
+	GenerateReportV1betaTimeZonePST GenerateReportV1betaTimeZone = "PST"
+)
+
+// AllValues returns all GenerateReportV1betaTimeZone values.
+func (GenerateReportV1betaTimeZone) AllValues() []GenerateReportV1betaTimeZone {
+	return []GenerateReportV1betaTimeZone{
+		GenerateReportV1betaTimeZoneUTC,
+		GenerateReportV1betaTimeZonePST,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GenerateReportV1betaTimeZone) MarshalText() ([]byte, error) {
+	switch s {
+	case GenerateReportV1betaTimeZoneUTC:
+		return []byte(s), nil
+	case GenerateReportV1betaTimeZonePST:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GenerateReportV1betaTimeZone) UnmarshalText(data []byte) error {
+	switch GenerateReportV1betaTimeZone(data) {
+	case GenerateReportV1betaTimeZoneUTC:
+		*s = GenerateReportV1betaTimeZoneUTC
+		return nil
+	case GenerateReportV1betaTimeZonePST:
+		*s = GenerateReportV1betaTimeZonePST
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// NewOptGenerateReportV1beta returns new OptGenerateReportV1beta with value set to v.
+func NewOptGenerateReportV1beta(v GenerateReportV1beta) OptGenerateReportV1beta {
+	return OptGenerateReportV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGenerateReportV1beta is optional GenerateReportV1beta.
+type OptGenerateReportV1beta struct {
+	Value GenerateReportV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptGenerateReportV1beta was set.
+func (o OptGenerateReportV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGenerateReportV1beta) Reset() {
+	var v GenerateReportV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGenerateReportV1beta) SetTo(v GenerateReportV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGenerateReportV1beta) Get() (v GenerateReportV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGenerateReportV1beta) Or(d GenerateReportV1beta) GenerateReportV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptGenerateReportV1betaSinkType returns new OptGenerateReportV1betaSinkType with value set to v.
+func NewOptGenerateReportV1betaSinkType(v GenerateReportV1betaSinkType) OptGenerateReportV1betaSinkType {
+	return OptGenerateReportV1betaSinkType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGenerateReportV1betaSinkType is optional GenerateReportV1betaSinkType.
+type OptGenerateReportV1betaSinkType struct {
+	Value GenerateReportV1betaSinkType
+	Set   bool
+}
+
+// IsSet returns true if OptGenerateReportV1betaSinkType was set.
+func (o OptGenerateReportV1betaSinkType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGenerateReportV1betaSinkType) Reset() {
+	var v GenerateReportV1betaSinkType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGenerateReportV1betaSinkType) SetTo(v GenerateReportV1betaSinkType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGenerateReportV1betaSinkType) Get() (v GenerateReportV1betaSinkType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGenerateReportV1betaSinkType) Or(d GenerateReportV1betaSinkType) GenerateReportV1betaSinkType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptGenerateReportV1betaTimeZone returns new OptGenerateReportV1betaTimeZone with value set to v.
+func NewOptGenerateReportV1betaTimeZone(v GenerateReportV1betaTimeZone) OptGenerateReportV1betaTimeZone {
+	return OptGenerateReportV1betaTimeZone{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGenerateReportV1betaTimeZone is optional GenerateReportV1betaTimeZone.
+type OptGenerateReportV1betaTimeZone struct {
+	Value GenerateReportV1betaTimeZone
+	Set   bool
+}
+
+// IsSet returns true if OptGenerateReportV1betaTimeZone was set.
+func (o OptGenerateReportV1betaTimeZone) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGenerateReportV1betaTimeZone) Reset() {
+	var v GenerateReportV1betaTimeZone
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGenerateReportV1betaTimeZone) SetTo(v GenerateReportV1betaTimeZone) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGenerateReportV1betaTimeZone) Get() (v GenerateReportV1betaTimeZone, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGenerateReportV1betaTimeZone) Or(d GenerateReportV1betaTimeZone) GenerateReportV1betaTimeZone {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilDate returns new OptNilDate with value set to v.
+func NewOptNilDate(v time.Time) OptNilDate {
+	return OptNilDate{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilDate is optional nullable time.Time.
+type OptNilDate struct {
+	Value time.Time
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilDate was set.
+func (o OptNilDate) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilDate) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilDate) SetTo(v time.Time) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilDate) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilDate) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v time.Time
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilDate) Get() (v time.Time, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilDate) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// V1GenerateReportAccepted is response for V1GenerateReport operation.
+type V1GenerateReportAccepted struct{}
+
+func (*V1GenerateReportAccepted) v1GenerateReportRes() {}
+
+// V1GenerateReportBadRequest is response for V1GenerateReport operation.
+type V1GenerateReportBadRequest struct{}
+
+func (*V1GenerateReportBadRequest) v1GenerateReportRes() {}
+
+// V1GenerateReportInternalServerError is response for V1GenerateReport operation.
+type V1GenerateReportInternalServerError struct{}
+
+func (*V1GenerateReportInternalServerError) v1GenerateReportRes() {}
 
 // V1PerformanceAccepted is response for V1Performance operation.
 type V1PerformanceAccepted struct{}

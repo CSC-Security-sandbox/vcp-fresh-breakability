@@ -13,6 +13,15 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// V1GenerateReport implements v1_generateReport operation.
+//
+// Trigger BizOps Report Generation.
+//
+// POST /v1/generateReport
+func (UnimplementedHandler) V1GenerateReport(ctx context.Context, req OptGenerateReportV1beta) (r V1GenerateReportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1Performance implements v1_performance operation.
 //
 // Trigger Performance Metrics Collection.

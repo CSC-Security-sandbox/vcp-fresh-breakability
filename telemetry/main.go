@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/endpoints"
 	coreapiserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	metricscommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
@@ -34,10 +35,7 @@ import (
 )
 
 var (
-	PerformanceQueue = "performance"
-	UsageQueue       = "usage"
-	CollectionQueue  = "collection"
-	migrateEnabled   = env.GetBool("RUN_MIGRATION_ON_START", false)
+	migrateEnabled = env.GetBool("RUN_MIGRATION_ON_START", false)
 )
 
 func main() {
@@ -81,6 +79,10 @@ func main() {
 
 	googleSink := performance.NewSink(ctx, metricscommon.LoadConfig())
 	billingSink := usage.NewSink(ctx, metricscommon.LoadConfig(), telemetryDbConn)
+	bizopsSink, err := bizops.NewSink(bizops.GCP)
+	if err != nil {
+		logger.Warnf("Failed to initialize Bizops Sink:%v", err)
+	}
 	tenantProvider := collector.NewGoogleTenantProjectProvider(VCPDbConn)
 	client, err := monitoring.NewMetricClient(ctx)
 	if err != nil {
@@ -90,7 +92,8 @@ func main() {
 	config := metricscommon.LoadMetricsConfigFromBytes()
 	provider := collector.NewGoogleProvider(tenantProvider, wrapper, config.VolumeMetrics)
 	billingProvider := aggregator.NewBillingProvider(telemetryDbConn, VCPDbConn, metricscommon.LoadConfig(), billingSink)
-	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvider)
+	bizopsProvider := bizops.NewBizOpsProvider(telemetryDbConn, VCPDbConn, bizopsSink)
+	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvider, bizopsProvider)
 
 	queue := utils.NewQueue(tdb, &metricsProcessor)
 	provider.SetJobQueue(queue)
@@ -137,22 +140,29 @@ func main() {
 	logger.Infof("Telemetry server started with workers %d", telemetryConfig.NumWorkers)
 	for i := 0; i < telemetryConfig.NumWorkers; i++ {
 		go func() {
-			queues := []string{PerformanceQueue}
+			queues := []string{utils.PerformanceQueue}
 			if err := queue.Worker(context.Background(), queues, &jobs.ProcessPerformanceMetrics{}); err != nil {
 				logger.Errorf(err.Error())
 			}
 		}()
 
 		go func() {
-			queues := []string{UsageQueue}
+			queues := []string{utils.UsageQueue}
 			if err := queue.Worker(context.Background(), queues, &jobs.ProcessUsageMetrics{}); err != nil {
 				logger.Errorf(err.Error())
 			}
 		}()
 
 		go func() {
-			queues := []string{CollectionQueue}
+			queues := []string{utils.CollectionQueue}
 			if err := queue.Worker(context.Background(), queues, &jobs.CollectMetrics{}); err != nil {
+				logger.Errorf(err.Error())
+			}
+		}()
+
+		go func() {
+			queues := []string{utils.BizOpsReportQueue}
+			if err := queue.Worker(context.Background(), queues, &jobs.BizOpsReport{}); err != nil {
 				logger.Errorf(err.Error())
 			}
 		}()

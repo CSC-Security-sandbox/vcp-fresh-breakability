@@ -104,6 +104,10 @@ telemetryDeployer:
   pageSize: 1000
   googleBillingLabelsMaxEntries: 64
   poolVolumeLabelPageSize: 5000
+  googleContinents: "northamerica:northamerica,latinamerica:latinamerica,southamerica:latinamerica,centralamerica:latinamerica,china:china,indonesia:indonesia,asia:asia,australia:oceania,oceania:oceania,europe:europe,middleeast:middleeast,africa:africa,antarctica:antarctica,na:northamerica,latam:latinamerica,sa:latinamerica,ca:latinamerica,cn:china,in:indonesia,apac:asia,au:oceania,oc:oceania,eu:europe,eu1:europe,eu2:europe,me:middleeast,us:northamerica,af:africa,an:antarctica,nam4:northamerica,eur4:europe,asia1:asia"
+  accountPaginationLimit: 1000
+  bizopsReportName : "google_vsa_analytics_report"
+  bizopsBucketName: "harvest-farm-pv-au-se1"
   resources:
     limits:
       cpu: 1000m
