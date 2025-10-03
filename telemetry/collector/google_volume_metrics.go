@@ -1,12 +1,12 @@
 package collector
 
 import (
+	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	"context"
 	"errors"
 	"fmt"
-
-	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
@@ -43,8 +43,14 @@ func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logg
 func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error) {
 	var projectResults []datamodel.HydratedMetrics
 	projectName := fmt.Sprintf("projects/%s", projectID)
+	telemetryConfig := common.LoadConfig()
+	env := telemetryConfig.Environment
 	for _, metric := range g.metrics {
-		filter := fmt.Sprintf(`metric.type="%s/%s"`, metric.ResourceType, metric.Metric)
+		resourceType := "k8s_cluster"
+		if env == "dev" {
+			resourceType = "generic_task"
+		}
+		filter := fmt.Sprintf(`metric.type="%s/%s" AND resource.type="%s"`, metric.ResourceType, metric.Metric, resourceType)
 		req := &monitoringpb.ListTimeSeriesRequest{
 			Name:   projectName,
 			Filter: filter,

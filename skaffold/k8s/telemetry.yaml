@@ -130,3 +130,5 @@ spec:
               value: "5000"
             - name: GOOGLE_BILLING_LABELS_MAX_ENTRIES
               value: "64"
+            - name: ENVIRONMENT
+              value: "dev"

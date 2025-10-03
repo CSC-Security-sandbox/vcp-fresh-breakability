@@ -129,6 +129,8 @@ spec:
               value: {{ .Values.telemetryDeployer.googleBillingLabelsMaxEntries | default "64" | quote }}
             - name: POOL_VOLUME_LABEL_PAGE_SIZE
               value: {{ .Values.telemetryDeployer.poolVolumeLabelPageSize | default "5000" | quote }}
+            - name: ENVIRONMENT
+              value: {{ .Values.environment | default "gcp"| quote }}
           resources:
             limits:
               cpu: {{ .Values.telemetryDeployer.resources.limits.cpu | default .Values.resources.limits.cpu }}
