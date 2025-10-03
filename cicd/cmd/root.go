@@ -3,6 +3,7 @@ package cmd
 import (
 	"main/cmd/images"
 	"main/cmd/jira"
+	"main/cmd/link-check"
 	"main/cmd/lint"
 	"main/cmd/release-cmd/tag"
 	"main/cmd/slack"
@@ -32,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(jira.JiraCmd)
 	rootCmd.AddCommand(unitTest.UnitTestCmd)
 	rootCmd.AddCommand(lint.LintCmd)
+	rootCmd.AddCommand(linkcheck.LinkCheckCmd)
 	rootCmd.AddCommand(images.ImagesCmd)
 	rootCmd.AddCommand(tag.TagCmd)
 	rootCmd.AddCommand(slack.SlackCmd)

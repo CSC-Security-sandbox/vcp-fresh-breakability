@@ -244,3 +244,9 @@ Raise a ticket with Google: <https://partnerissuetracker.corp.google.com/issues/
 ##### Autopush console.
 
 <https://console.cloud.google.com/netapp/pools?p2env=features%2F1649438282178%2Fbuild_units%2Fmain%2Fenvironments%2Fautopush&project=g1p-rc74879-dev>
+
+### Guides
+
+For operator and developer runbooks and debugging guides, see the doc/guides directory. Notable guides:
+
+- doc/guides/temporal-debugging.md — Operational guide for debugging Temporal workflows, tctl usage (including admintools usage for restricted clusters), and UI access for local and cluster environments.

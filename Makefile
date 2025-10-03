@@ -27,6 +27,40 @@ generate-monkey-mocks:
 	go install github.com/vektra/mockery/v2@$(MOCKERY_VERSION)
 	mockery --config .monkeyMocks.yaml
 
+.PHONY: link-check
+link-check:
+	go run ./scripts/link-checker/link-checker.go doc/
+
+.PHONY: docs-check
+docs-check:
+	@echo "Checking documentation sync..."
+	@echo "Running link check..."
+	@make link-check
+	@echo "Documentation check complete!"
+
+.PHONY: docs-update
+docs-update:
+	@echo "Updating documentation..."
+	@echo "Please review the following files for updates:"
+	@echo "- doc/api/ (for API changes)"
+	@echo "- doc/workflows/ (for workflow changes)"
+	@echo "- doc/architecture/ (for architecture changes)"
+	@echo "- doc/guides/ (for user-facing changes)"
+	@echo "See doc/guides/documentation-updates.md for detailed instructions"
+
+.PHONY: docs-validate
+docs-validate:
+	@echo "Validating documentation..."
+	@make link-check
+	@echo "Checking for missing documentation..."
+	@find . -name "*.go" -path "./core/*" -exec grep -l "func.*Workflow\|func.*Activity" {} \; | while read file; do \
+		basename=$$(basename $$file .go); \
+		if [ ! -f "doc/workflows/core/$$basename.md" ] && [ ! -f "doc/workflows/background/$$basename.md" ]; then \
+			echo "⚠️  Missing documentation for $$file"; \
+		fi; \
+	done
+	@echo "Documentation validation complete!"
+
 .PHONY: generate-cvp-client
 generate-cvp-client:
 	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.25.0

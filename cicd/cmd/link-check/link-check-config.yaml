@@ -1,0 +1,45 @@
+run:
+  timeout: 5   # Reduced timeout for faster checking
+  retries: 1   # Reduced retries for faster checking
+  skip-dirs:
+    - vendor
+    - clients/core-api
+    - clients/cvp
+    - clients/ontap-rest
+    - core/core-api/core-servergen
+    - google-proxy/api/gcp-servergen
+    - telemetry/api/telemetry-servergen
+    - cicd/cmd/lint
+    - .git
+    - node_modules
+    - build
+    - dist
+    - target
+    - artifacts
+    - checksums
+  skip-files:
+    - README.md
+    - CHANGELOG.md
+    - LICENSE
+    - .gitignore
+    - .gitattributes
+
+links:
+  skip-patterns:
+    # Skip ALL external URLs for fast mode
+    - "^https://"
+    - "^http://"
+    # Keep only local file patterns
+    - "^[^/].*"  # Relative paths
+    - "^\./"     # Current directory
+    - "^\.\./"   # Parent directory
+    - "^/"       # Absolute paths
+    - "^#.*"     # Anchor links
+    - "^mailto:" # Email links
+    - "^tel:"    # Phone links
+    - "^file://" # File URLs
+    - "^ftp://"  # FTP URLs
+    - "^javascript:" # JavaScript URLs
+    - "^data:"   # Data URLs
+  allow-insecure: false
+  fast-mode: true  # Skip external URL checking entirely

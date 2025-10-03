@@ -1,6 +1,6 @@
 package main
 
-import "main/cmd"
+import "github.com/vcp-vsa-control-Plane/vsa-control-plane/cicd/cmd"
 
 func main() {
 	cmd.Execute()
