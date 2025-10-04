@@ -66,6 +66,7 @@ var (
 	utilsGetPairedRegionUri           = utils.GetPairedRegionURI
 	utilsParseProjectNumberFromURI    = utils.ParseProjectNumberFromURI
 	authGetSignedJwtToken             = auth.GetSignedJwtToken
+	utilGetVolumeUriFromCcfeUri       = utils.GetVolumeUriFromCcfeUri
 )
 
 const (
@@ -1001,13 +1002,26 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 }
 
 func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicationInternalV1beta, currentLocation string, jobsList *[]googleproxyclient.InternalJobV1beta) gcpgenserver.ReplicationV1beta {
+	var srcVolUri, dstVolUri string
+	var role gcpgenserver.OptReplicationV1betaRole
+	// Todo ADD handling when GCNV is Source for Hybrid Replication
+	if in.RemoteRegion == currentLocation {
+		role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleDESTINATION)
+		srcVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeRemoteUri.Value)
+		dstVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeUri.Value)
+	} else {
+		role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleSOURCE)
+		srcVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeRemoteUri.Value)
+		dstVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeUri.Value)
+	}
+
 	sourceReplication := gcpgenserver.ReplicationVolumeInformationV1beta{
-		VolumeName: gcpgenserver.NewOptString(in.SourceVolumeName),
+		VolumeName: gcpgenserver.NewOptString(srcVolUri),
 		VolumeId:   gcpgenserver.NewOptString(in.SourceVolumeUuid.Value),
 	}
 
 	destinationReplication := gcpgenserver.ReplicationVolumeInformationV1beta{
-		VolumeName: gcpgenserver.NewOptString(in.DestinationVolumeName),
+		VolumeName: gcpgenserver.NewOptString(dstVolUri),
 		VolumeId:   gcpgenserver.NewOptString(in.DestinationVolumeUuid.Value),
 	}
 
@@ -1024,31 +1038,25 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 	}
 
 	out := gcpgenserver.ReplicationV1beta{
-		ReplicationId:       gcpgenserver.NewOptString(in.VolumeReplicationUuid.Value),
-		ResourceId:          gcpgenserver.NewOptString(in.Name.Value),
-		Description:         gcpgenserver.NewOptString(in.Description.Value),
-		Source:              gcpgenserver.NewOptReplicationVolumeInformationV1beta(sourceReplication),
-		Destination:         gcpgenserver.NewOptReplicationVolumeInformationV1beta(destinationReplication),
-		State:               gcpgenserver.NewOptReplicationV1betaState(mapInternalReplicationStateToCCFEState(in.LifeCycleState.Value)),
-		StateDetails:        gcpgenserver.NewOptString(in.LifeCycleStateDetails.Value),
-		StateDetailsCode:    gcpgenserver.NewOptInt32(0), // Fixme: add state codes mapping when hybrid replication support is added
-		ReplicationSchedule: gcpgenserver.NewOptReplicationV1betaReplicationSchedule(mapInternalReplicationScheduleToCCFEReschedule(in.ReplicationSchedule.Value)),
-		MirrorState:         gcpgenserver.NewOptReplicationV1betaMirrorState(mapInternalReplicationMirrorStateToCCFEMirrorState(in.MirrorState.Value)),
-		Healthy:             gcpgenserver.NewOptBool(in.Healthy.Value),
-		TransferStats:       gcpgenserver.NewOptTransferStatsV1beta(transferStats),
-		Created:             gcpgenserver.NewOptDateTime(in.CreatedAt.Value),
-		Labels:              gcpgenserver.OptReplicationV1betaLabels{},
-		// Fixme: add remaining fields when hybrid replication support is added
+		ReplicationId:                 gcpgenserver.NewOptString(in.VolumeReplicationUuid.Value),
+		ResourceId:                    gcpgenserver.NewOptString(in.Name.Value),
+		Description:                   gcpgenserver.NewOptString(in.Description.Value),
+		Source:                        gcpgenserver.NewOptReplicationVolumeInformationV1beta(sourceReplication),
+		Destination:                   gcpgenserver.NewOptReplicationVolumeInformationV1beta(destinationReplication),
+		State:                         gcpgenserver.NewOptReplicationV1betaState(mapInternalReplicationStateToCCFEState(in.LifeCycleState.Value)),
+		StateDetails:                  gcpgenserver.NewOptString(in.LifeCycleStateDetails.Value),
+		StateDetailsCode:              gcpgenserver.NewOptInt32(0), // Fixme: add state codes mapping when hybrid replication support is added
+		ReplicationSchedule:           gcpgenserver.NewOptReplicationV1betaReplicationSchedule(mapInternalReplicationScheduleToCCFEReschedule(in.ReplicationSchedule.Value)),
+		MirrorState:                   gcpgenserver.NewOptReplicationV1betaMirrorState(mapInternalReplicationMirrorStateToCCFEMirrorState(in.MirrorState.Value)),
+		Healthy:                       gcpgenserver.NewOptBool(in.Healthy.Value),
+		TransferStats:                 gcpgenserver.NewOptTransferStatsV1beta(transferStats),
+		Created:                       gcpgenserver.NewOptDateTime(in.CreatedAt.Value),
+		Role:                          role,
+		Labels:                        gcpgenserver.OptReplicationV1betaLabels{},
 		ClusterLocation:               gcpgenserver.OptString{},
 		HybridReplicationType:         gcpgenserver.OptReplicationV1betaHybridReplicationType{},
 		HybridPeeringDetails:          gcpgenserver.OptHybridPeeringV1beta{},
 		HybridReplicationUserCommands: gcpgenserver.OptHybridReplicationUserCommandsV1beta{},
-	}
-
-	if in.RemoteRegion == currentLocation {
-		out.Role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleDESTINATION)
-	} else {
-		out.Role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleSOURCE)
 	}
 
 	// Check active jobs and override state and mirror state if needed

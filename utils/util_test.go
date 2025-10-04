@@ -2840,3 +2840,23 @@ func TestImmutableBackupVaultErrMsg(t *testing.T) {
 	assert.Contains(t, ImmutableBackupVaultErrMsg, "ISCSI volumes",
 		"Error message should mention ISCSI volumes")
 }
+
+// Unit test for _getVolumeUriFromCcfeUri
+func Test_getVolumeUriFromCcfeUri(t *testing.T) {
+	t.Run("Valid CCFE URI", func(t *testing.T) {
+		uri := "projects/test-project/locations/us-central1/volumes/test-volume/replications/test-replication"
+		got := _getVolumeUriFromCcfeUri(uri)
+		want := "projects/test-project/locations/us-central1/volumes/test-volume"
+		if got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+
+	t.Run("Invalid CCFE URI", func(t *testing.T) {
+		uri := "invalid-uri"
+		got := _getVolumeUriFromCcfeUri(uri)
+		if got != "" {
+			t.Errorf("expected empty string for invalid URI, got %q", got)
+		}
+	})
+}

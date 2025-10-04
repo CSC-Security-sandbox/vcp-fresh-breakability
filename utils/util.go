@@ -59,6 +59,7 @@ var (
 	ParseRegionAndZone             = _parseRegionAndZone
 	ParseAndValidateRegionAndZone  = _parseAndValidateRegionAndZone
 	GetPairedRegionURI             = _getPairedRegionURI
+	GetVolumeUriFromCcfeUri        = _getVolumeUriFromCcfeUri
 	ConvertStringToMap             = _convertStringToMap
 	ConvertBytesToGib              = _convertBytesToGib
 	ValidateCcfeReplicationUri     = _validateCcfeReplicationUri
@@ -394,6 +395,21 @@ func _getPairedRegionURI(region string) (string, error) {
 		return "", errors.New("region not found in paired regions list")
 	}
 	return uri, nil
+}
+
+func _getVolumeUriFromCcfeUri(uri string) string {
+	uriMap, err := CFFEURIToMap(uri)
+	if err != nil {
+		// Return empty string if parsing fails
+		return ""
+	}
+
+	volumeName := uriMap["volumes"]
+	projects := uriMap["projects"]
+	locations := uriMap["locations"]
+
+	volumeUri := fmt.Sprintf("projects/%s/locations/%s/volumes/%s", projects, locations, volumeName)
+	return volumeUri
 }
 
 // _convertStringToMap converts a JSON-formatted string into a map[string]string.
@@ -999,7 +1015,6 @@ func SetFileProtocolAllowlistedAccountsForTesting(accounts string) {
 	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 }
 
-
 func GetSnHostProject(pool *datamodel.Pool) string {
 	if pool == nil {
 		return ""
@@ -1018,7 +1033,6 @@ func SetRestoreVolumeBufferEnabledForTesting(enabled bool) {
 	// Re-read the environment variable to update the cached value
 	RestoreVolumeBufferEnabled = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
 }
-
 
 // _calculateRequiredVolumeSize calculates the required volume size based on backup size
 // If RESTORE_VOLUME_BUFFER_ENABLED is true, returns 20% more than backup size

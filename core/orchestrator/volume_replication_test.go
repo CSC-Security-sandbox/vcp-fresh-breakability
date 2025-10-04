@@ -2628,6 +2628,8 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			LagTime:               googleproxyclient.NewOptInt64(60), // 1 minute
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil)
@@ -2636,9 +2638,9 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 		assert.Equal(tt, "replication-uuid-1", result.ReplicationId.Value)
 		assert.Equal(tt, "replication-1", result.ResourceId.Value)
 		assert.Equal(tt, "Test replication", result.Description.Value)
-		assert.Equal(tt, "source-volume", result.Source.Value.VolumeName.Value)
+		assert.Equal(tt, "projects/45110233509/locations/australia-souteast/volumes/source-volume", result.Source.Value.VolumeName.Value)
 		assert.Equal(tt, "source-volume-uuid", result.Source.Value.VolumeId.Value)
-		assert.Equal(tt, "destination-volume", result.Destination.Value.VolumeName.Value)
+		assert.Equal(tt, "projects/45110233509/locations/us-e4/volumes/destination-volume", result.Destination.Value.VolumeName.Value)
 		assert.Equal(tt, "destination-volume-uuid", result.Destination.Value.VolumeId.Value)
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
 		assert.Equal(tt, "Available for use", result.StateDetails.Value)
@@ -2683,6 +2685,8 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			LagTime:               googleproxyclient.NewOptInt64(60),
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-w1/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
 		}
 
 		result := convertInternalReplicationToCCFEModel(*replication, "us-w1", nil)
@@ -2962,7 +2966,8 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			LagTime:               googleproxyclient.NewOptInt64(60),
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
-			CcfeUri:               googleproxyclient.NewOptString("replication-1"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
