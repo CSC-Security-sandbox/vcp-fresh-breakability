@@ -131,6 +131,25 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			logger.Error("Failed to fetch parent snapshot for volume creation. Please use the correct snapshot and retry again.", "error", err)
 			return nil, "", err
 		}
+		// block volume creation from snapshot if snapshot is created for CRR or backup, or clone volume
+		if dbSnapshot != nil {
+			// Block if snapshot type is backup
+			if dbSnapshot.Type == activities.SnapshotTypeBackup {
+				logger.Error("Snapshot created for backup is not eligible for volume creation", "snapshot_id", dbSnapshot.UUID)
+				return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not eligible for volume creation. Snapshots created for backup, data protection, replication, or clone volumes are not supported.")
+			}
+			// Block if underlying volume itself is a clone (shares bytes with parent)
+			if dbSnapshot.Volume != nil && dbSnapshot.Volume.ClonesSharedBytes > 0 {
+				logger.Error("Snapshot from a clone volume is not eligible for volume creation", "snapshot_id", dbSnapshot.UUID, "volume_id", dbSnapshot.Volume.UUID, "clones_shared_bytes", dbSnapshot.Volume.ClonesSharedBytes)
+				return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not eligible for volume creation. Snapshots created for backup, data protection, replication, or clone volumes are not supported.")
+			}
+			// Block if snapshot name has snapmirror prefix (CRR replication snapshot)
+			if strings.HasPrefix(dbSnapshot.Name, "snapmirror.") {
+				logger.Error("Replication (snapmirror) snapshot is not eligible for volume creation", "snapshot_id", dbSnapshot.UUID, "snapshot_name", dbSnapshot.Name)
+				return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not eligible for volume creation. Snapshots created for backup, data protection, replication, or clone volumes are not supported.")
+			}
+		}
+
 		if params.Protocols != nil && dbSnapshot != nil && dbSnapshot.Volume != nil && dbSnapshot.Volume.VolumeAttributes != nil && dbSnapshot.Volume.VolumeAttributes.Protocols != nil {
 			if (utils.IsSanProtocols(params.Protocols) && utils.IsNasProtocols(dbSnapshot.Volume.VolumeAttributes.Protocols)) || (utils.IsNasProtocols(params.Protocols) && utils.IsSanProtocols(dbSnapshot.Volume.VolumeAttributes.Protocols)) {
 				logger.Error("Snapshot volume protocol type does not match requested volume protocol type", "snapshot_protocols", dbSnapshot.Volume.VolumeAttributes.Protocols, "requested_protocols", params.Protocols)
