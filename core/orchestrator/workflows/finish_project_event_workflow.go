@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
@@ -133,13 +134,17 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 	var listOfHostGroups []*datamodel.HostGroup
 	errHostGroup := workflow.ExecuteActivity(ctx, HostGroupActivities.ListHostGroups, finishProjectEventParams.ProjectNumber).Get(ctx, &listOfHostGroups)
 	if errHostGroup != nil {
-		return nil, ConvertToVSAError(errHostGroup)
+		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorListingResources,
+				fmt.Errorf("error listing HostGroup %w", errHostGroup))))
 	}
 	if len(listOfHostGroups) > 0 {
 		for _, hostGroup := range listOfHostGroups {
 			errDeleteHG := workflow.ExecuteActivity(ctx, HostGroupActivities.DeleteHostGroup, hostGroup.UUID, hostGroup.AccountID).Get(ctx, nil)
 			if errDeleteHG != nil {
-				return nil, ConvertToVSAError(errDeleteHG)
+				return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
+						fmt.Errorf("error deleting HostGroup %w", errDeleteHG))))
 			}
 		}
 	}
@@ -149,7 +154,9 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 	var kmsConfigs []*datamodel.KmsConfig
 	err = workflow.ExecuteActivity(ctx, kmsActivities.ListKmsConfigActivity, finishProjectEventParams.ProjectNumber).Get(ctx, &kmsConfigs)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorListingResources,
+				fmt.Errorf("error listing KMS config %w", err))))
 	}
 	// For now, we will have only one KMS config per project.
 	if len(kmsConfigs) > 0 && kmsConfigs[0] != nil {
@@ -157,7 +164,9 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 		err = workflow.ExecuteActivity(ctx, kmsActivities.DeleteKmsConfig, kmsConfig,
 			&common.DeleteKmsConfigParams{KmsConfigID: kmsConfig.UUID}).Get(ctx, nil)
 		if err != nil {
-			return nil, ConvertToVSAError(err)
+			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
+					fmt.Errorf("error deleting KMS config %w", err))))
 		}
 	}
 
@@ -214,12 +223,16 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 
 	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteServiceAccountsFromAccountID, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
+				fmt.Errorf("error delete service account %w", err))))
 	}
 
 	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteAccountActivity, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
+				fmt.Errorf("error deleting account %w", err))))
 	}
 
 	var errRollBack error
@@ -236,12 +249,16 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 		var canHardDelete bool
 		errRollBack = workflow.ExecuteActivity(ctx, finishProjectEventActivity.VerifySoftDeletedResourcesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, &canHardDelete)
 		if errRollBack != nil {
-			return nil, ConvertToVSAError(err)
+			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventHardDeleteResources,
+					fmt.Errorf("error verifying soft deleted resources %w", errRollBack))))
 		}
 		if canHardDelete {
 			errRollBack = workflow.ExecuteActivity(ctx, finishProjectEventActivity.HardDeleteResourcesInOrder, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
 			if errRollBack != nil {
-				return nil, ConvertToVSAError(err)
+				return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventHardDeleteResources,
+						fmt.Errorf("error Hard deleting resources %w", errRollBack))))
 			}
 		}
 	}

@@ -145,6 +145,9 @@ const (
 	ErrHandleResourceEventErrorConflict            = 6081
 	ErrHandleResourceEventErrorNotImplemented      = 6082
 	ErrHandleResourceEventErrorTooManyRequests     = 6083
+	ErrFinishProjectEventErrorListingResources     = 6084
+	ErrFinishProjectEventErrorDeletingResources    = 6085
+	ErrFinishProjectEventHardDeleteResources       = 6086
 
 	// Replication Error Codes 6100 - 6999
 	ErrReplicationScheduleUnspecified                                                        = 6100

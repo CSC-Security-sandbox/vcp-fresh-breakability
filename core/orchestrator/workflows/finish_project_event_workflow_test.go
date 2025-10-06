@@ -215,7 +215,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(kmsActivities.DeleteKmsConfig, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
-	
+
 	// Mock DeleteAccountActivity
 	s.env.OnActivity(finishProjectEventActivity.DeleteAccountActivity, mock.Anything, "test-project-number").Return(nil).Once()
 
@@ -803,7 +803,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	// Assert workflow failed and error contains rollback
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	err := s.env.GetWorkflowError()
-	assert.Nil(s.T(), err)
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "Error occurred during hard delete of resources in FinishProjectEvent")
 }
 
 func (s *FinishProjectEventDeleteStateTestSuite) TestFinishProjectEventDeleteStateWorkflow_PopulateRetryPolicyParamsError() {
@@ -857,4 +858,330 @@ func (s *FinishProjectEventDeleteStateTestSuite) TestFinishProjectEventDeleteSta
 	err := s.env.GetWorkflowError()
 	assert.Error(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "time: invalid duration")
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_ListHostGroups_Fails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
+	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
+	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+
+	// Mock finish project event activity
+	done := true
+	operationName := "test-operation"
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: &done,
+		Name: &operationName,
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock ListHostGroups to fail (covers line 137)
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(nil, errors.New("list host groups failed")).Once()
+
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_DeleteHostGroup_Fails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
+	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(hostGroupActivities.DeleteHostGroup)
+	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
+	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+
+	done := true
+	operationName := "test-operation"
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: &done,
+		Name: &operationName,
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return host group and fail delete (covers line 145)
+	hostGroups := []*datamodel.HostGroup{
+		{BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"}, AccountID: 123456},
+	}
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
+	s.env.OnActivity(hostGroupActivities.DeleteHostGroup, mock.Anything, "hg-uuid-1", int64(123456)).Return(nil, errors.New("delete host group failed")).Once()
+
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_ListKmsConfig_Fails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
+	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
+	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+
+	done := true
+	operationName := "test-operation"
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: &done,
+		Name: &operationName,
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
+
+	// Mock KMS activities - fail list (covers line 157)
+	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(nil, errors.New("list kms config failed")).Once()
+
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_DeleteKmsConfig_Fails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
+	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+	s.env.RegisterActivity(kmsActivities.DeleteKmsConfig)
+	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
+	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+
+	done := true
+	operationName := "test-operation"
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: &done,
+		Name: &operationName,
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
+
+	// Mock KMS activities - return config and fail delete (covers line 167)
+	kmsConfigs := []*datamodel.KmsConfig{
+		{BaseModel: datamodel.BaseModel{UUID: "KMS-uuid-1"}},
+	}
+	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(kmsConfigs, nil).Once()
+	s.env.OnActivity(kmsActivities.DeleteKmsConfig, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete kms config failed")).Once()
+
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_DeleteServiceAccounts_Fails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
+	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
+	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+
+	done := true
+	operationName := "test-operation"
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: &done,
+		Name: &operationName,
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock host group activities - return empty list
+	var hostGroups []*datamodel.HostGroup
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
+
+	// Mock KMS activities - return empty list
+	var kmsConfigs []*datamodel.KmsConfig
+	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(kmsConfigs, nil).Once()
+
+	// Mock backup cleanup activities
+	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock DeleteServiceAccountsFromAccountID to fail (covers line 226)
+	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(errors.New("delete service accounts failed")).Once()
+
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_HardDeleteResources_Fails() {
+	// Save and restore the global hardDeleteResources flag
+	origHardDelete := hardDeleteResources
+	hardDeleteResources = true
+	defer func() { hardDeleteResources = origHardDelete }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
+	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() { cvp.CVP_HOST = "" }()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
+	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(finishProjectEventActivity.DeleteAccountActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.VerifySoftDeletedResourcesForAccount)
+	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
+	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+
+	// Mock all activities to succeed except HardDeleteResourcesInOrder, which fails (covers line 259)
+	done := true
+	operationName := "test-operation"
+	finishResult := &commonparams.FinishProjectEventResult{Done: &done, Name: &operationName}
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil)
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
+	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
+	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(finishProjectEventActivity.DeleteAccountActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(finishProjectEventActivity.VerifySoftDeletedResourcesForAccount, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(finishProjectEventActivity.HardDeleteResourcesInOrder, mock.Anything, mock.Anything).Return(errors.New("hard delete failed"))
+	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
+
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	// Assert workflow failed and error contains hard delete
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "Error occurred during hard delete of resources in FinishProjectEvent")
 }

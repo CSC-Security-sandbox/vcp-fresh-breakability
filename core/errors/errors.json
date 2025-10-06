@@ -527,6 +527,24 @@
     "retriable": true,
     "http_code": 429
   },
+  "6084": {
+    "description": "FinishProjectEvent error while listing resources",
+    "message": "Error occurred while listing resources during FinishProjectEvent",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6085": {
+    "description": "FinishProjectEvent error while deleting resources",
+    "message": "Error occurred while deleting resources during FinishProjectEvent",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6086": {
+    "description": "FinishProjectEvent hard delete resources error",
+    "message": "Error occurred during hard delete of resources in FinishProjectEvent",
+    "retriable": false,
+    "http_code": 400
+  },
   "7001": {
     "description": "Snapshot Deletion Error",
     "message": "Cannot delete snapshot while snapshot is in use",
