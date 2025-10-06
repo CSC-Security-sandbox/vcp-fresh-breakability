@@ -2264,7 +2264,10 @@ func TestCreateVolume(t *testing.T) {
 		}()
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -2398,7 +2401,10 @@ func TestCreateVolume(t *testing.T) {
 		}()
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -2548,7 +2554,10 @@ func TestCreateVolume(t *testing.T) {
 		}()
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -2694,7 +2703,10 @@ func TestCreateVolume(t *testing.T) {
 		}()
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -2831,7 +2843,10 @@ func TestCreateVolume(t *testing.T) {
 		}()
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -2968,7 +2983,10 @@ func TestCreateVolume(t *testing.T) {
 		}()
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -3064,7 +3082,10 @@ func TestCreateVolume(t *testing.T) {
 		}()
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return errors.New("workflow error")
@@ -4623,6 +4644,12 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 
 	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
+	// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
@@ -4918,6 +4945,9 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 
 	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
+	// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
@@ -5126,6 +5156,9 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 	}()
 
 	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
@@ -5991,7 +6024,10 @@ func TestDeleteVolume(t *testing.T) {
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	    temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	    // Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -6108,7 +6144,10 @@ func TestDeleteVolume(t *testing.T) {
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	    temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	    // Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return errors.New("some error")
@@ -6130,7 +6169,7 @@ func TestDeleteVolume(t *testing.T) {
 		err = database.ClearInMemoryDB(store.DB())
 		assert.NoError(t, err, "Failed to clear in-memory database")
 
-		// Create account and volume
+		// Create account
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
 			Name:      "test_account",
@@ -6138,25 +6177,37 @@ func TestDeleteVolume(t *testing.T) {
 		err = store.DB().Create(account).Error
 		assert.NoError(t, err, "Failed to create account")
 
+		// Create pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+			VendorID: "/projects/project123/locations/location123/pools/pool123",
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err, "Failed to create pool")
+
+		// Create volume
 		volume := &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:         "test_volume",
 			AccountID:    account.ID,
+			PoolID:       pool.ID,
 			State:        models.LifeCycleStateREADY,
 			StateDetails: models.LifeCycleStateAvailableDetails,
-			Pool: &datamodel.Pool{
-				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-				PoolAttributes: &datamodel.PoolAttributes{
-					PrimaryZone: "us-west1-a",
-				},
-				VendorID: "/projects/project123/locations/location123/pools/pool123",
-			},
+			Pool:         pool,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(t, err, "Failed to create volume")
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	    temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	    // Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -10275,8 +10326,7 @@ func TestUpdateVolumeV2(t *testing.T) {
 		dbVol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vid"},
 		}
-		var count int64
-		count = 0
+		count := int64(0)
 		se.On("GetVolume", ctx, "vid").Return(dbVol, nil)
 		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(count, errors.New("replication not found"))
 		_, _, err := o.UpdateVolumeV2(ctx, param)
@@ -10297,8 +10347,7 @@ func TestUpdateVolumeV2(t *testing.T) {
 		dbVol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vid"},
 		}
-		var count int64
-		count = 1
+		count := int64(1)
 		se.On("GetVolume", ctx, "vid").Return(dbVol, nil)
 		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(count, nil)
 		_, job, err := o.UpdateVolumeV2(ctx, param)
@@ -13969,7 +14018,10 @@ func TestRevertVolume(t *testing.T) {
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return errors.New("workflow execution failed")
@@ -14066,7 +14118,10 @@ func TestRevertVolume(t *testing.T) {
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflow for auto pool scaling
+	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 			return nil
@@ -16676,5 +16731,299 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProte
 		// Should not call checkIsValidImmutableBackupPolicyWithRetry
 		mockStorage.AssertNotCalled(t, "GetBackupVaultByUUIDndOwnerID")
 		mockStorage.AssertNotCalled(t, "GetBackupPolicyByUUIDAndOwnerID")
+	})
+}
+
+func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
+	t.Run("WhenPoolIsNotInReadyState", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			State:     models.LifeCycleStateCreating,
+			Account:   &datamodel.Account{Name: "test-account"},
+		}
+
+		// Should return early without any calls to storage or temporal
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVolumeCountByPoolIDFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			State:     models.LifeCycleStateREADY,
+			Account:   &datamodel.Account{Name: "test-account"},
+		}
+
+		// Mock GetVolumeCountByPoolID to fail
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(0), errors.New("failed to get volume count"))
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAutoPoolScalingLimitsParsingFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			State:     models.LifeCycleStateREADY,
+			Account:   &datamodel.Account{Name: "test-account"},
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+
+		// Override autoPoolScalingLimits with invalid JSON
+		originalLimits := autoPoolScalingLimits
+		autoPoolScalingLimits = "invalid-json"
+		defer func() { autoPoolScalingLimits = originalLimits }()
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			State:       models.LifeCycleStateREADY,
+			Account:     &datamodel.Account{Name: "test-account"},
+			AccountID:   1,
+			SizeInBytes: 1000000000000, // 1TB
+			Description: "test pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 256,
+				Iops:            1024,
+				Labels:          nil,
+			},
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+
+		// Mock CreateJob to fail
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, errors.New("failed to create job"))
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			State:       models.LifeCycleStateREADY,
+			Account:     &datamodel.Account{Name: "test-account"},
+			AccountID:   1,
+			SizeInBytes: 1000000000000, // 1TB
+			Description: "test pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 256,
+				Iops:            1024,
+				Labels:          nil,
+			},
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+
+		// Mock CreateJob to succeed
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
+
+		// Mock UpdatePoolState to succeed
+		mockStorage.On("UpdatePoolState", ctx, pool, "UPDATING", "Update in progress").Return(pool, nil)
+
+		// Mock UpdatePoolState for state reversion when workflow fails
+		mockStorage.On("UpdatePoolState", ctx, pool, "READY", "").Return(pool, nil)
+
+		// Mock ExecuteWorkflow to fail
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx,
+			mock.AnythingOfType("internal.StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.UpdatePoolParams, *datamodel.Pool, *common.AutoPoolScalingParams) (gcpserver.V1betaDescribePoolRes, error)"),
+			mock.AnythingOfType("*common.UpdatePoolParams"),
+			pool,
+			mock.AnythingOfType("*common.AutoPoolScalingParams"),
+		).Return(nil, errors.New("failed to execute workflow"))
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:          "test-pool",
+			State:         models.LifeCycleStateREADY,
+			Account:       &datamodel.Account{Name: "test-account"},
+			AccountID:     1,
+			SizeInBytes:   1000000000000, // 1TB
+			Description:   "test pool",
+			LargeCapacity: false,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 256,
+				Iops:            1024,
+				Labels:          nil,
+			},
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+
+		// Mock CreateJob to succeed
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeUpdatePool) &&
+				job.State == string(models.JobsStateNEW) &&
+				job.ResourceName == pool.UUID &&
+				job.AccountID.Int64 == pool.AccountID &&
+				job.AccountID.Valid
+		})).Return(createdJob, nil)
+
+		// Mock UpdatePoolState to succeed
+		mockStorage.On("UpdatePoolState", ctx, pool, "UPDATING", "Update in progress").Return(pool, nil)
+
+		// Mock ExecuteWorkflow to succeed
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx,
+			mock.AnythingOfType("internal.StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.UpdatePoolParams, *datamodel.Pool, *common.AutoPoolScalingParams) (gcpserver.V1betaDescribePoolRes, error)"),
+			mock.MatchedBy(func(updateParams *common.UpdatePoolParams) bool {
+				return updateParams.PoolId == pool.UUID &&
+					updateParams.AccountName == pool.Account.Name &&
+					updateParams.SizeInBytes == uint64(pool.SizeInBytes) &&
+					updateParams.TotalThroughputMibps == pool.PoolAttributes.ThroughputMibps &&
+					*updateParams.TotalIops == pool.PoolAttributes.Iops &&
+					updateParams.Description == pool.Description
+			}),
+			pool,
+			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
+				return autoScalingParams.CurrentVolumeCount == 10 &&
+					len(autoScalingParams.VolLimitPerInstanceMap) > 0
+			}),
+		).Return(nil, nil)
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessfulWithLargeCapacityPool", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:          "test-pool",
+			State:         models.LifeCycleStateREADY,
+			Account:       &datamodel.Account{Name: "test-account"},
+			AccountID:     1,
+			SizeInBytes:   1000000000000, // 1TB
+			Description:   "test pool",
+			LargeCapacity: true,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 256,
+				Iops:            1024,
+				Labels:          nil,
+			},
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(5), nil)
+
+		// Mock CreateJob to succeed with large capacity job type
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeUpdateLargePool) &&
+				job.State == string(models.JobsStateNEW) &&
+				job.ResourceName == pool.UUID &&
+				job.AccountID.Int64 == pool.AccountID &&
+				job.AccountID.Valid
+		})).Return(createdJob, nil)
+
+		// Mock UpdatePoolState to succeed
+		mockStorage.On("UpdatePoolState", ctx, pool, "UPDATING", "Update in progress").Return(pool, nil)
+
+		// Mock ExecuteWorkflow to succeed
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx,
+			mock.AnythingOfType("internal.StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.UpdatePoolParams, *datamodel.Pool, *common.AutoPoolScalingParams) (gcpserver.V1betaDescribePoolRes, error)"),
+			mock.AnythingOfType("*common.UpdatePoolParams"),
+			pool,
+			mock.AnythingOfType("*common.AutoPoolScalingParams"),
+		).Return(nil, nil)
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAutoPoolScalingLimitsIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			State:     models.LifeCycleStateREADY,
+			Account:   &datamodel.Account{Name: "test-account"},
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+
+		// Override autoPoolScalingLimits with empty JSON object
+		originalLimits := autoPoolScalingLimits
+		autoPoolScalingLimits = "{}"
+		defer func() { autoPoolScalingLimits = originalLimits }()
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
 	})
 }

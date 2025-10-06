@@ -288,6 +288,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		DesiredIOPS:             *params.CustomPerformanceParams.Iops,
 		DesiredThroughputInMiBs: params.CustomPerformanceParams.ThroughputMibps,
 		DesiredCapacityInGiB:    int64(sizeInGB),
+		ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+			CurrentVolCount:        int64(0), // new pool, so current vol count is 0
+			VolLimitPerInstanceMap: nil,
+			CurrentInstanceType:    "",
+		},
 	}
 
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
@@ -500,7 +505,7 @@ var _ WorkflowInterface = &updatePoolWorkflow{}
 // const customerActionTimeout = 30 * time.Minute
 
 // UpdatePoolWorkflow processes pool related requests from a customer.
-func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, pool *datamodel.Pool) (gcpgenserver.V1betaDescribePoolRes, error) {
+func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, pool *datamodel.Pool, autoscaleConfig *common.AutoPoolScalingParams) (gcpgenserver.V1betaDescribePoolRes, error) {
 	updatePoolWF := new(updatePoolWorkflow)
 	err := updatePoolWF.Setup(ctx, params)
 	if err != nil {
@@ -511,7 +516,7 @@ func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, p
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	_, err = updatePoolWF.Run(ctx, params, pool)
+	_, err = updatePoolWF.Run(ctx, params, pool, autoscaleConfig)
 	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		updatePoolWF.Status = WorkflowStatusFailed
 		err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
@@ -550,6 +555,7 @@ func (wf *updatePoolWorkflow) Setup(ctx workflow.Context, input interface{}) err
 func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	updatePoolParams := args[0].(*common.UpdatePoolParams)
 	pool := args[1].(*datamodel.Pool)
+	autoScalingParams := args[2].(*common.AutoPoolScalingParams)
 	poolActivity := &activities.PoolActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams(pool.LargeCapacity)
 	if err != nil {
@@ -599,7 +605,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// if there is no need of vlm workflow, just perform update pool in db
 	if currentProvisionedSize == int64(toProvisionPoolSizeInBytes) &&
 		dbPool.PoolAttributes.ThroughputMibps == int64(updatePoolParams.TotalThroughputMibps) &&
-		dbPool.PoolAttributes.Iops == *updatePoolParams.TotalIops {
+		dbPool.PoolAttributes.Iops == *updatePoolParams.TotalIops && autoScalingParams == nil {
 		if dbPool.Description != updatePoolParams.Description {
 			dbPool.Description = updatePoolParams.Description
 		}
@@ -630,13 +636,25 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	// Determine VM scaling direction to decide the order of operations
+	currentInstanceType := currentVlmConfig.Deployment.VSAInstanceType
+
+	var poolInstanceScalingConfig *vmrs.PoolInstanceScalingConfig = nil
+	if autoScalingParams != nil {
+		poolInstanceScalingConfig = &vmrs.PoolInstanceScalingConfig{
+			CurrentVolCount:        autoScalingParams.CurrentVolumeCount,
+			VolLimitPerInstanceMap: autoScalingParams.VolLimitPerInstanceMap,
+			CurrentInstanceType:    currentInstanceType,
+		}
+	}
 
 	// Find the optimal VMs based on the customer requested performance.
 	// Use toProvisionPoolSizeInBytes which accounts for AutoTiering (hot tier size vs full size)
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
-		DesiredIOPS:             *updatePoolParams.TotalIops,
-		DesiredThroughputInMiBs: int64(updatePoolParams.TotalThroughputMibps),
-		DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(toProvisionPoolSizeInBytes)),
+		DesiredIOPS:                  *updatePoolParams.TotalIops,
+		DesiredThroughputInMiBs:      updatePoolParams.TotalThroughputMibps,
+		DesiredCapacityInGiB:         int64(utils.BytesToGigabytes(toProvisionPoolSizeInBytes)),
+		ConfigForPoolInstanceScaling: poolInstanceScalingConfig,
 	}
 
 	// Identify secondary and mediator zones first
@@ -662,8 +680,6 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Update the mediator zone in the VLM config
 	newVlmConfig.Deployment.Zone.MediatorZone = locationInfo.MediatorZone
-	// Determine VM scaling direction to decide the order of operations
-	currentInstanceType := currentVlmConfig.Deployment.VSAInstanceType
 	newInstanceType := newVlmConfig.Deployment.VSAInstanceType
 
 	// Only validate zones for machine type if the instance type is changing

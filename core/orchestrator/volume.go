@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -54,6 +55,8 @@ var (
 	envIsLocalEnv         = env.IsLocalEnv
 	cvpCreateClient       = cvp.CreateClient
 	GetBackupVaultFromCVP = getBackupVaultFromCVP
+	enableAutoPoolScaling = env.GetBool("ENABLE_AUTO_POOL_SCALING", true)
+	autoPoolScalingLimits = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":246,\"max_volume_count\":495},\"c3-standard-16-lssd\":{\"min_volume_count\":496,\"max_volume_count\":995}}")
 )
 
 const (
@@ -411,6 +414,14 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to start create volume workflow: ", "error", err)
 		return nil, "", err
 	}
+
+	// Check if pool needs scaling based on volume count (async, non-blocking)
+	// This happens after volume creation workflow is triggered successfully
+	// Configuration variables
+	if enableAutoPoolScaling {
+		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool)
+	}
+
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
 }
 
@@ -1434,6 +1445,18 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	// Check if pool needs scaling based on volume count (async, non-blocking)
+	// This happens after volume deletion workflow is triggered successfully
+	// Configuration variables
+	if enableAutoPoolScaling {
+		pool, err := se.GetPool(ctx, volume.Pool.UUID, volume.Account.ID)
+		if err != nil {
+			return nil, "", err
+		}
+		dbPool := database.ConvertPoolViewToPool(pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool)
+	}
+
 	volume.State = models.LifeCycleStateDeleting
 	volume.StateDetails = models.LifeCycleStateDeletingDetails
 	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
@@ -2003,4 +2026,94 @@ func validateAllowedClients(allowedClients string) error {
 		return customerrors.NewUserInputValidationErr("allowedClients must include unique IPv4 or IPv4 CIDR values.")
 	}
 	return nil
+}
+
+// checkAndTriggerPoolScalingIfNeeded checks if the pool needs scaling and triggers it asynchronously
+func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage, temporal client.Client, pool *datamodel.Pool) {
+	logger := util.GetLogger(ctx)
+
+	// Validate pool state - only scale pools in a stable state
+	if pool.State != models.LifeCycleStateREADY {
+		logger.Warnf("Pool not in ready state poolID: %s, state: %s", pool.UUID, pool.State)
+		return
+	}
+
+	// Get current volume count for the pool
+	currentVolumeCount, err := se.GetVolumeCountByPoolID(ctx, pool.ID)
+	if err != nil {
+		logger.Error("Failed to get volume count for pool", "poolID", pool.ID, "error", err)
+		return
+	}
+	volLimitPerInstanceMap := make(map[string]common.VolumeCountRange)
+	err = json.Unmarshal([]byte(autoPoolScalingLimits), &volLimitPerInstanceMap)
+	if err != nil || len(volLimitPerInstanceMap) == 0 {
+		logger.Error("Failed to parse auto pool scaling limits", "error", err)
+		return
+	}
+	autoScalingParams := &common.AutoPoolScalingParams{
+		VolLimitPerInstanceMap: volLimitPerInstanceMap,
+		CurrentVolumeCount:     currentVolumeCount,
+	}
+
+	region := env.GetString("LOCAL_REGION", "")
+	updateParams := &common.UpdatePoolParams{
+		PoolId:               pool.UUID,
+		AccountName:          pool.Account.Name,
+		Region:               region,
+		SizeInBytes:          uint64(pool.SizeInBytes),
+		TotalThroughputMibps: pool.PoolAttributes.ThroughputMibps,
+		TotalIops:            &pool.PoolAttributes.Iops,
+		Description:          pool.Description,
+		Labels:               pool.PoolAttributes.Labels,
+	}
+
+	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
+	job := &datamodel.Job{
+		Type:         string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
+		State:        string(models.JobsStateNEW),
+		ResourceName: pool.UUID,
+		AccountID:    sql.NullInt64{Int64: pool.AccountID, Valid: true},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return
+	}
+
+	poolCurrentState := pool.State
+	previousStateDetails := pool.StateDetails
+
+	// Put the pool in updating state before the operation
+	if _, poolErr := se.UpdatePoolState(ctx, pool, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails); poolErr != nil {
+		logger.Error("Failed to update pool state to ERROR", "poolID", pool.UUID, "error", poolErr)
+	}
+
+	defer func() {
+		if err != nil {
+			// Revert the state in error
+			if _, poolErr := se.UpdatePoolState(ctx, pool, poolCurrentState, previousStateDetails); poolErr != nil {
+				logger.Error("Failed to update pool state to ERROR", "poolID", pool.UUID, "error", poolErr)
+			}
+		}
+	}()
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.UpdatePoolWorkflow,
+		updateParams,
+		pool,
+		autoScalingParams,
+	)
+
+	if err != nil {
+		logger.Errorf("failed to start automatic pool scaling workflow: %v", err)
+	}
+
+	logger.Infof("Triggered instance upgrade for pool: %s", pool.Name)
+	return
 }

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/config"
 )
@@ -79,7 +81,7 @@ func TestNewLeastCostSingleVMDecisionMaker(t *testing.T) {
 				DesiredThroughputInMiBs: 1000,
 				DesiredCapacityInGiB:    1000,
 			},
-			expectedError:    "[vmrs] NoSuitableVMError: no suitable VM found for the customer request (customer request: {DesiredIOPS:1000 DesiredThroughputInMiBs:1000 DesiredCapacityInGiB:1000})",
+			expectedError:    "[vmrs] NoSuitableVMError: no suitable VM found for the customer request (customer request: {DesiredIOPS:1000 DesiredThroughputInMiBs:1000 DesiredCapacityInGiB:1000 ConfigForPoolInstanceScaling:<nil>})",
 			expectedDecision: nil,
 		},
 		{
@@ -90,7 +92,7 @@ func TestNewLeastCostSingleVMDecisionMaker(t *testing.T) {
 				DesiredThroughputInMiBs: 1,
 				DesiredCapacityInGiB:    1,
 			},
-			expectedError:    "[vmrs] NoSuitableVMError: no suitable VM found for the customer request (customer request: {DesiredIOPS:100 DesiredThroughputInMiBs:1 DesiredCapacityInGiB:1})",
+			expectedError:    "[vmrs] NoSuitableVMError: no suitable VM found for the customer request (customer request: {DesiredIOPS:100 DesiredThroughputInMiBs:1 DesiredCapacityInGiB:1 ConfigForPoolInstanceScaling:<nil>})",
 			expectedDecision: nil,
 		},
 		{
@@ -101,7 +103,7 @@ func TestNewLeastCostSingleVMDecisionMaker(t *testing.T) {
 				DesiredThroughputInMiBs: 100,
 				DesiredCapacityInGiB:    1,
 			},
-			expectedError:    "[vmrs] NoSuitableVMError: no suitable VM found for the customer request (customer request: {DesiredIOPS:1 DesiredThroughputInMiBs:100 DesiredCapacityInGiB:1})",
+			expectedError:    "[vmrs] NoSuitableVMError: no suitable VM found for the customer request (customer request: {DesiredIOPS:1 DesiredThroughputInMiBs:100 DesiredCapacityInGiB:1 ConfigForPoolInstanceScaling:<nil>})",
 			expectedDecision: nil,
 		},
 		{
@@ -112,7 +114,7 @@ func TestNewLeastCostSingleVMDecisionMaker(t *testing.T) {
 				DesiredThroughputInMiBs: 1,
 				DesiredCapacityInGiB:    20,
 			},
-			expectedError:    "[vmrs] NoSuitableVMError: no suitable VM found for the customer request (customer request: {DesiredIOPS:1 DesiredThroughputInMiBs:1 DesiredCapacityInGiB:20})",
+			expectedError:    "[vmrs] NoSuitableVMError: no suitable VM found for the customer request (customer request: {DesiredIOPS:1 DesiredThroughputInMiBs:1 DesiredCapacityInGiB:20 ConfigForPoolInstanceScaling:<nil>})",
 			expectedDecision: nil,
 		},
 	}
@@ -255,4 +257,314 @@ func TestCompareVMScalingDirection_EdgeCases(t *testing.T) {
 
 	assert.Nil(t, err, "expected no error")
 	assert.True(t, isScalingUp, "should be scaling up")
+}
+
+func TestLeastCostSingleVMDecisionMaker_FindOptimalVMs_VolumeLimits(t *testing.T) {
+	// Load test configuration
+	config, err := config.LoadConfig("testdata/valid_single_vm.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostSingleVMDecisionMaker(config)
+
+	cases := []struct {
+		name                 string
+		customerRequest      vmrs.CustomerRequestedPerformance
+		currentConfig        *vlm.VLMConfig
+		expectedError        string
+		expectedVMType       string
+		shouldFindSuitableVM bool
+		description          string
+	}{
+		{
+			name: "NoVolumeLimits_ShouldWorkAsNormal",
+			customerRequest: vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:                  1000,
+				DesiredThroughputInMiBs:      50,
+				DesiredCapacityInGiB:         100,
+				ConfigForPoolInstanceScaling: nil, // No volume scaling config
+			},
+			currentConfig:        &vlm.VLMConfig{},
+			expectedError:        "",
+			shouldFindSuitableVM: true,
+			description:          "When no volume limits are provided, should work as before",
+		},
+		{
+			name: "VolumeCountWithinRange_ShouldSelectVM",
+			customerRequest: vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:             1000,
+				DesiredThroughputInMiBs: 50,
+				DesiredCapacityInGiB:    100,
+				ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+					CurrentVolCount: 5, // Within range for c3-standard-4-lssd (0-245)
+					VolLimitPerInstanceMap: map[string]common.VolumeCountRange{
+						"c3-standard-4-lssd": {
+							MinVolumeCount: 0,
+							MaxVolumeCount: 245,
+						},
+						"c3-standard-8-lssd": {
+							MinVolumeCount: 246,
+							MaxVolumeCount: 495,
+						},
+						"c3-standard-16-lssd": {
+							MinVolumeCount: 496,
+							MaxVolumeCount: 995,
+						},
+					},
+				},
+			},
+			currentConfig:        &vlm.VLMConfig{},
+			expectedError:        "",
+			shouldFindSuitableVM: true,
+			description:          "When volume count is within acceptable range, should select VM",
+		},
+		{
+			name: "VolumeCountFitsHigherTierVM_ShouldSelectCorrectVM",
+			customerRequest: vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:             1000,
+				DesiredThroughputInMiBs: 50,
+				DesiredCapacityInGiB:    100,
+				ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+					CurrentVolCount: 300, // Fits c3-standard-8-lssd but not c3-standard-4-lssd
+					VolLimitPerInstanceMap: map[string]common.VolumeCountRange{
+						"c3-standard-4-lssd": {
+							MinVolumeCount: 0,
+							MaxVolumeCount: 245,
+						},
+						"c3-standard-8-lssd": {
+							MinVolumeCount: 246,
+							MaxVolumeCount: 495,
+						},
+						"c3-standard-16-lssd": {
+							MinVolumeCount: 496,
+							MaxVolumeCount: 995,
+						},
+					},
+				},
+			},
+			currentConfig:        &vlm.VLMConfig{},
+			expectedError:        "",
+			shouldFindSuitableVM: true,
+			description:          "When volume count fits higher tier VM but not lower tier, should select correct VM",
+		},
+		{
+			name: "ZeroVolumeCount_ShouldWork",
+			customerRequest: vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:             1000,
+				DesiredThroughputInMiBs: 50,
+				DesiredCapacityInGiB:    100,
+				ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+					CurrentVolCount: 0, // Zero volume count
+					VolLimitPerInstanceMap: map[string]common.VolumeCountRange{
+						"c3-standard-4-lssd": {
+							MinVolumeCount: 0,
+							MaxVolumeCount: 245,
+						},
+						"c3-standard-8-lssd": {
+							MinVolumeCount: 246,
+							MaxVolumeCount: 495,
+						},
+						"c3-standard-16-lssd": {
+							MinVolumeCount: 496,
+							MaxVolumeCount: 995,
+						},
+					},
+				},
+			},
+			currentConfig:        &vlm.VLMConfig{},
+			expectedError:        "",
+			shouldFindSuitableVM: true,
+			description:          "When volume count is zero but all VMs have minimum > 0, should fail",
+		},
+		{
+			name: "ZeroVolumeCount_WithZeroMinimum_ShouldWork",
+			customerRequest: vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:             1000,
+				DesiredThroughputInMiBs: 50,
+				DesiredCapacityInGiB:    100,
+				ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+					CurrentVolCount: 0, // Zero volume count
+					VolLimitPerInstanceMap: map[string]common.VolumeCountRange{
+						"c3-standard-4-lssd": {
+							MinVolumeCount: 0,
+							MaxVolumeCount: 245,
+						},
+						"c3-standard-8-lssd": {
+							MinVolumeCount: 246,
+							MaxVolumeCount: 495,
+						},
+						"c3-standard-16-lssd": {
+							MinVolumeCount: 496,
+							MaxVolumeCount: 995,
+						},
+					},
+				},
+			},
+			currentConfig:        &vlm.VLMConfig{},
+			expectedError:        "",
+			shouldFindSuitableVM: true,
+			description:          "When volume count is zero and minimum is set to 0, should select VM",
+		},
+		{
+			name: "VolumeCountExceedsPerformanceCapableVM_ShouldFail",
+			customerRequest: vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:             50000, // High performance requirement
+				DesiredThroughputInMiBs: 2000,
+				DesiredCapacityInGiB:    1000,
+				ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+					CurrentVolCount: 250, // Would fit c3-standard-8-lssd range but performance is too low
+					VolLimitPerInstanceMap: map[string]common.VolumeCountRange{
+						"c3-standard-4-lssd": {
+							MinVolumeCount: 0,
+							MaxVolumeCount: 245,
+						},
+						"c3-standard-8-lssd": {
+							MinVolumeCount: 246,
+							MaxVolumeCount: 495,
+						},
+						"c3-standard-16-lssd": {
+							MinVolumeCount: 496,
+							MaxVolumeCount: 995,
+						},
+					},
+				},
+			},
+			currentConfig:        &vlm.VLMConfig{},
+			expectedError:        "no suitable VM found for the customer request",
+			shouldFindSuitableVM: false,
+			description:          "When volume count fits but performance requirements don't, should fail",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			decision, err := dm.FindOptimalVMs(config, tc.customerRequest, tc.currentConfig)
+
+			if tc.shouldFindSuitableVM {
+				assert.Nil(t, err, "expected no error but got: %v", err)
+				assert.NotNil(t, decision, "expected a decision but got nil")
+				if decision != nil {
+					assert.NotEmpty(t, decision.ChosenVMs, "expected chosen VMs")
+					assert.Equal(t, 1, len(decision.ChosenVMs), "single VM decision maker should return exactly one VM")
+				}
+			} else {
+				assert.NotNil(t, err, "expected an error but got nil")
+				if tc.expectedError != "" {
+					assert.Contains(t, err.Error(), tc.expectedError, "error message should contain expected text")
+				}
+				assert.Nil(t, decision, "expected no decision when error occurs")
+			}
+		})
+	}
+}
+
+func TestLeastCostSingleVMDecisionMaker_HigherMachineType(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_single_vm.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostSingleVMDecisionMaker(config)
+
+	// Set up a scenario where multiple VMs can handle the request
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             12, // Low requirement that multiple VMs can handle
+		DesiredThroughputInMiBs: 424,
+		DesiredCapacityInGiB:    10,
+		ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+			CurrentVolCount:     247,
+			CurrentInstanceType: "c3-standard-4-lssd",
+			VolLimitPerInstanceMap: map[string]common.VolumeCountRange{
+				"c3-standard-4-lssd": {
+					MinVolumeCount: 0,
+					MaxVolumeCount: 245,
+				},
+				"c3-standard-8-lssd": {
+					MinVolumeCount: 246,
+					MaxVolumeCount: 495,
+				},
+				"c3-standard-16-lssd": {
+					MinVolumeCount: 496,
+					MaxVolumeCount: 995,
+				},
+			},
+		},
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, &vlm.VLMConfig{})
+
+	assert.Nil(t, err, "expected no error")
+	assert.NotNil(t, decision, "expected a decision")
+
+	if decision != nil {
+		// Should select the lowest cost VM that meets all criteria
+		// Since VMs are sorted by cost, the first qualifying VM should be selected
+		vmsSorted := dm.GetVMsSortedByCost()
+		assert.NotEmpty(t, vmsSorted, "expected sorted VMs list")
+
+		// Verify that we got a valid VM type
+		assert.NotEmpty(t, decision.ChosenVMs[0], "expected a VM type")
+
+		// The selected VM should be one that can handle the volume count and performance
+		selectedVMType := decision.ChosenVMs[0]
+		volumeRange, exists := customerRequest.ConfigForPoolInstanceScaling.VolLimitPerInstanceMap[selectedVMType]
+		assert.True(t, exists, "selected VM should have volume limits defined")
+		assert.True(t, customerRequest.ConfigForPoolInstanceScaling.CurrentVolCount >= volumeRange.MinVolumeCount,
+			"current volume count should be >= min limit")
+		assert.True(t, customerRequest.ConfigForPoolInstanceScaling.CurrentVolCount <= volumeRange.MaxVolumeCount,
+			"current volume count should be <= max limit")
+	}
+}
+
+func TestLeastCostSingleVMDecisionMaker_LowerMachineType(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_single_vm.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostSingleVMDecisionMaker(config)
+
+	// Set up a scenario where multiple VMs can handle the request
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             15001, // Low requirement that multiple VMs can handle
+		DesiredThroughputInMiBs: 501,
+		DesiredCapacityInGiB:    1001,
+		ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+			CurrentVolCount:     247,
+			CurrentInstanceType: "c3-standard-16-lssd",
+			VolLimitPerInstanceMap: map[string]common.VolumeCountRange{
+				"c3-standard-4-lssd": {
+					MinVolumeCount: 0,
+					MaxVolumeCount: 245,
+				},
+				"c3-standard-8-lssd": {
+					MinVolumeCount: 246,
+					MaxVolumeCount: 495,
+				},
+				"c3-standard-16-lssd": {
+					MinVolumeCount: 496,
+					MaxVolumeCount: 995,
+				},
+			},
+		},
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, &vlm.VLMConfig{})
+
+	assert.Nil(t, err, "expected no error")
+	assert.NotNil(t, decision, "expected a decision")
+
+	if decision != nil {
+		// Should select the lowest cost VM that meets all criteria
+		// Since VMs are sorted by cost, the first qualifying VM should be selected
+		vmsSorted := dm.GetVMsSortedByCost()
+		assert.NotEmpty(t, vmsSorted, "expected sorted VMs list")
+
+		// Verify that we got a valid VM type
+		assert.NotEmpty(t, decision.ChosenVMs[0], "expected a VM type")
+
+		// The selected VM should be one that can handle the volume count and performance
+		selectedVMType := decision.ChosenVMs[0]
+		volumeRange, exists := customerRequest.ConfigForPoolInstanceScaling.VolLimitPerInstanceMap[selectedVMType]
+		assert.True(t, exists, "selected VM should have volume limits defined")
+		assert.True(t, customerRequest.ConfigForPoolInstanceScaling.CurrentVolCount >= volumeRange.MinVolumeCount,
+			"current volume count should be >= min limit")
+		assert.True(t, customerRequest.ConfigForPoolInstanceScaling.CurrentVolCount <= volumeRange.MaxVolumeCount,
+			"current volume count should be <= max limit")
+	}
 }

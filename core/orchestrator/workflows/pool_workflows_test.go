@@ -1418,7 +1418,7 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	}
 
 	// Execute the workflow.
-	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
 	// Optionally query workflow status.
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -1500,7 +1500,7 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 		Return(nil, nil)
 
 	// Execute the workflow.
-	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
 	// Optionally query workflow status.
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -1624,7 +1624,7 @@ func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 	}
 
 	// Execute the workflow.
-	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
 	// Optionally query workflow status.
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -1742,7 +1742,7 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 	}
 
 	// Execute the workflow.
-	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
 	// Optionally query workflow status.
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -1874,7 +1874,7 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 	}
 
 	// Execute the workflow.
-	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
 	// Optionally query workflow status.
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")

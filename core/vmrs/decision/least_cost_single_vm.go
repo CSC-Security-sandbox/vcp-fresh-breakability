@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 )
 
@@ -40,10 +41,30 @@ func NewLeastCostSingleVMDecisionMaker(config *vmrs.VMRSConfig) *LeastCostSingle
 	}
 }
 
-// This implementation of DecisionMaker just loops over the VMRSConfig, looking for the lowest cost VM that satisfies the customer request. It can only ever return one VM identifier.
+// FindOptimalVMs This implementation of DecisionMaker loops over the VMRSConfig, looking for the lowest cost VM that satisfies the customer request and volume count requirements.
 func (d *LeastCostSingleVMDecisionMaker) FindOptimalVMs(config *vmrs.VMRSConfig, customerRequest vmrs.CustomerRequestedPerformance, currentConfig *vlm.VLMConfig) (*vmrs.Decision, error) {
+	// Try to find a VM that meets performance requirements
+	// If we have currentConfig, we can check if we need to consider volume count limits
+	var currentVolumeCount int64 = 0
+	var volumeLimits map[string]common.VolumeCountRange
+	var currentInstance = ""
+
+	// ConfigForPoolInstanceScaling is supposed to be non-nil only when we are dealing with volume create or delete operations on a pool.
+	if currentConfig != nil && customerRequest.ConfigForPoolInstanceScaling != nil && customerRequest.ConfigForPoolInstanceScaling.VolLimitPerInstanceMap != nil {
+		currentVolumeCount = customerRequest.ConfigForPoolInstanceScaling.CurrentVolCount
+		volumeLimits = customerRequest.ConfigForPoolInstanceScaling.VolLimitPerInstanceMap
+		currentInstance = customerRequest.ConfigForPoolInstanceScaling.CurrentInstanceType
+	}
+
 	for _, vm := range d.vmsSortedByCost {
-		if customerRequest.DesiredIOPS <= vm.OntapLimits.IOPS && customerRequest.DesiredThroughputInMiBs <= vm.OntapLimits.ThroughputInMiBs && customerRequest.DesiredCapacityInGiB <= vm.OntapLimits.CapacityInGiB {
+		if customerRequest.DesiredIOPS <= vm.OntapLimits.IOPS && customerRequest.DesiredThroughputInMiBs <= vm.OntapLimits.ThroughputInMiBs &&
+			customerRequest.DesiredCapacityInGiB <= vm.OntapLimits.CapacityInGiB {
+			if currentVolumeCount > 0 { // operation related to volume count limits
+				if (currentInstance != "" && vm.VMType == currentInstance) ||
+					currentVolumeCount < volumeLimits[vm.VMType].MinVolumeCount || currentVolumeCount > volumeLimits[vm.VMType].MaxVolumeCount { // skip the current instance type to avoid no-op scaling
+					continue
+				}
+			}
 			// The VM satisfies the customer request limits. When provisioning the VM, we need to upscale the customer requested performance by the overheads specified in the VMRSConfig.
 			// Scale up the customer requested performance to account for the various overheads (ontap/workload/hotspotting) specified in the VMRSConfig.
 			// We add a 1.0 to the overall workload headroom to account for the base performance that is always available.

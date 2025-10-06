@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 )
 
 type VMSelectionStrategy string
@@ -120,11 +121,18 @@ type DiskPerfLimit struct {
 	CapacityInGiB int64 `yaml:"capacity_in_gib" validate:"required"`
 }
 
+type PoolInstanceScalingConfig struct {
+	CurrentVolCount        int64
+	VolLimitPerInstanceMap map[string]common.VolumeCountRange
+	CurrentInstanceType    string
+}
+
 // CustomerRequestedPerformance represents the customer specified request for performance limits (IOPs, throughput, and capacity).
 type CustomerRequestedPerformance struct {
-	DesiredIOPS             int64 // IOPS requested by the customer
-	DesiredThroughputInMiBs int64 // Throughput requested by the customer
-	DesiredCapacityInGiB    int64 // Capacity requested by the customer
+	DesiredIOPS                  int64 // IOPS requested by the customer
+	DesiredThroughputInMiBs      int64 // Throughput requested by the customer
+	DesiredCapacityInGiB         int64 // Capacity requested by the customer
+	ConfigForPoolInstanceScaling *PoolInstanceScalingConfig
 }
 
 // Decision represents the list of VM identifiers that satisfy the CustomerRequestedPerformance based on the VMRS configuration that was input to the decision-making logic.

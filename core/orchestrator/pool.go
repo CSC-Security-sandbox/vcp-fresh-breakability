@@ -281,6 +281,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		workflows.UpdatePoolWorkflow,
 		params, // this contains the parameters for the update operation
 		pool,
+		nil,
 	)
 	if err != nil {
 		logger.Error("Failed to start pool update workflow: ", "error", err)

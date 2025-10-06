@@ -619,9 +619,13 @@ func TestUpdatePool(t *testing.T) {
 			PoolId:      "test-pool-id",
 		}
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.New("account not found")
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		_, _, err := _updatePool(ctx, se, temporal, params)
 		assert.EqualError(tt, err, "account not found")
@@ -639,9 +643,13 @@ func TestUpdatePool(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
 			Name:      "test_account",
 		}
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		_, _, err := _updatePool(ctx, store, temporal, params)
 		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "pool not found")
@@ -654,39 +662,54 @@ func TestUpdatePool(t *testing.T) {
 		}
 
 		_, account := createDBPools(t, store)
+
+		originalGetAccountWithName := getAccountWithName
+		originalValidateAndSetUpdatePoolParams := ValidateAndSetUpdatePoolParams
+
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
-		defer func() {
-			ValidateAndSetUpdatePoolParams = _validateAndSetUpdatePoolParams
-		}()
-
 		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return errors.New("invalid pool params")
 		}
+
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			ValidateAndSetUpdatePoolParams = originalValidateAndSetUpdatePoolParams
+		}()
+
 		_, _, err := _updatePool(ctx, store, temporal, params)
 		assert.EqualError(tt, err, "invalid pool params")
 	})
 	t.Run("WhenUpdatePoolSucceeds", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
 		params := &common.UpdatePoolParams{
-			AccountName: "test_account",
-			PoolId:      "test-pool-uuid1",
+			AccountName:          "test_account",
+			PoolId:               "test-pool-uuid1",
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        false,
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		pools, account := createDBPools(t, store)
+
+		originalGetAccountWithName := getAccountWithName
+		originalValidateAndSetUpdatePoolParams := ValidateAndSetUpdatePoolParams
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
-		defer func() {
-			ValidateAndSetUpdatePoolParams = _validateAndSetUpdatePoolParams
-		}()
-
 		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return nil
 		}
+
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			ValidateAndSetUpdatePoolParams = originalValidateAndSetUpdatePoolParams
+		}()
 
 		pool, _, err := _updatePool(ctx, store, temporal, params)
 		assert.NoError(tt, err, "Expected no error on updating pool")
@@ -696,24 +719,34 @@ func TestUpdatePool(t *testing.T) {
 	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
 		params := &common.UpdatePoolParams{
-			AccountName: "test_account",
-			PoolId:      "test-pool-uuid1",
+			AccountName:          "test_account",
+			PoolId:               "test-pool-uuid1",
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        false,
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
 
 		_, account := createDBPools(t, store)
+
+		originalGetAccountWithName := getAccountWithName
+		originalValidateAndSetUpdatePoolParams := ValidateAndSetUpdatePoolParams
+
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
-		defer func() {
-			ValidateAndSetUpdatePoolParams = _validateAndSetUpdatePoolParams
-		}()
-
 		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return nil
 		}
 
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			ValidateAndSetUpdatePoolParams = originalValidateAndSetUpdatePoolParams
+		}()
+
 		// Fail workflow execution.
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything).
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything, mock.Anything).
 			Return(nil, fmt.Errorf("workflow error"))
 
 		_, _, err := _updatePool(ctx, store, temporal, params)
@@ -725,9 +758,13 @@ func TestGetPool(t *testing.T) {
 	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
 		ctx, _, orch, _ := setup(tt)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: "test_account"}, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		_, err := orch.DescribePool(ctx, "non-existent-uuid", "")
 		var customErr *vsaerrors.CustomError
@@ -785,9 +822,13 @@ func TestDeletePool(t *testing.T) {
 			PoolID:      "test_pool_id",
 		}
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.New("account not found")
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		_, _, err := deletePool(ctx, temporal, se, params)
 		assert.EqualError(tt, err, "account not found")
@@ -804,9 +845,13 @@ func TestDeletePool(t *testing.T) {
 			PoolID:      "non_existent_pool_id",
 		}
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: "test_account"}, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		_, _, err = deletePool(ctx, temporal, store, params)
 		var customErr *vsaerrors.CustomError
@@ -826,9 +871,13 @@ func TestDeletePool(t *testing.T) {
 			PoolID:      pool.UUID,
 		}
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -843,9 +892,14 @@ func TestMultiplePools(t *testing.T) {
 	t.Run("ReturnsErrorWhenAccountDoesNotExist", func(tt *testing.T) {
 		ctx, _, orch, _ := setup(tt)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.NewNotFoundErr("account not found", nil)
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
 		_, err := orch.GetMultiplePools(ctx, "non-existent-account", []string{"uuid1", "uuid2"})
 		if err != nil {
 			t.Errorf("Expected nil, got error: %v", err)
@@ -855,9 +909,13 @@ func TestMultiplePools(t *testing.T) {
 		ctx, store, orch, _ := setup(tt)
 		_, account := createDBPools(t, store)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		pools, err := orch.GetMultiplePools(ctx, account.Name, []string{"non-existent-uuid"})
 		assert.NoError(tt, err)
@@ -875,9 +933,14 @@ func TestMultiplePools(t *testing.T) {
 			storage: mockStorage,
 		}
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: accountName}, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
 		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
 		_, err := orch.GetMultiplePools(ctx, accountName, []string{"uuid1", "uuid2"})
 		assert.EqualError(tt, err, "list pools error")
@@ -887,9 +950,13 @@ func TestMultiplePools(t *testing.T) {
 
 		dbPools, account := createDBPools(t, store)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		result, err := orch.GetMultiplePools(ctx, account.Name, []string{"test-pool-uuid1", "test-pool-uuid2"})
 		if err != nil {
@@ -905,9 +972,13 @@ func TestListPools(t *testing.T) {
 	t.Run("ReturnsErrorWhenAccountDoesNotExist", func(tt *testing.T) {
 		ctx, _, orch, _ := setup(tt)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.NewNotFoundErr("account not found", nil)
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		_, err := orch.ListPools(ctx, "non-existent-account", false)
 		if err == nil {
@@ -926,9 +997,13 @@ func TestListPools(t *testing.T) {
 		err := store.DB().Create(account).Error
 		assert.NoError(tt, err)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		pools, err := orch.ListPools(ctx, account.Name, false)
 		assert.NoError(tt, err)
@@ -944,9 +1019,14 @@ func TestListPools(t *testing.T) {
 			storage: mockStorage,
 		}
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: accountName}, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
 		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
 		_, err := orch.ListPools(ctx, accountName, false)
 		assert.EqualError(tt, err, "list pools error")
@@ -956,9 +1036,13 @@ func TestListPools(t *testing.T) {
 
 		dbPools, account := createDBPools(tt, store)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		pools, err := orch.ListPools(ctx, account.Name, false)
 		assert.NoError(tt, err)
@@ -971,9 +1055,13 @@ func TestListPools(t *testing.T) {
 
 		dbPools, account := createDBPools(tt, store)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		pools, err := orch.ListPools(ctx, account.Name, true)
 		assert.NoError(tt, err)
@@ -1075,9 +1163,13 @@ func TestGetPoolByName(t *testing.T) {
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		se := database.Storage(nil)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.New("account not found")
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		_, err := GetPoolByName(ctx, se, "test-pool", "test-account", queryDepthOne)
 		assert.EqualError(tt, err, "account not found")
@@ -1088,9 +1180,14 @@ func TestGetPoolByName(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: "test-account"}, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
 		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(nil, errors.New("pool not found"))
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthOne)
 		assert.EqualError(tt, err, "pool not found")
@@ -1101,9 +1198,14 @@ func TestGetPoolByName(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: "test-account"}, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
 		poolResp := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:      "test-pool",
@@ -1125,9 +1227,14 @@ func TestGetPoolByName(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 
+		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: "test-account"}, nil
 		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
 		poolResp := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:      "test-pool",
@@ -1349,7 +1456,7 @@ func TestUpdatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 
 	// Mock workflow execution to fail
 	workflowError := errors.New("workflow execution failed")
-	temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+	temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
 
 	// Execute test
 	result, jobID, err := _updatePool(ctx, store, temporal, params)
@@ -1803,7 +1910,7 @@ func TestUpdatePool_UpdateJobFailsInDefer(t *testing.T) {
 
 	// Mock workflow execution to fail
 	workflowError := errors.New("workflow execution failed")
-	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
 
 	// Mock UpdateJob to fail (Line 235)
 	jobUpdateError := errors.New("job update failed")
@@ -1891,7 +1998,7 @@ func TestUpdatePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 
 	// Mock workflow execution to fail
 	workflowError := errors.New("workflow execution failed")
-	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
 
 	// Mock UpdateJob to succeed
 	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)

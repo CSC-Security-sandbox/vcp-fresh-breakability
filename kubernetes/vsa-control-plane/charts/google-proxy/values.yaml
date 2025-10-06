@@ -66,6 +66,17 @@ waitForTemporalEnabled: true
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
 maxThinClonesPerPool: 100
+enableAutoPoolScaling: true
+autoPoolScalingLimits:
+  c3-standard-4-lssd:
+    min_volume_count: 1
+    max_volume_count: 245
+  c3-standard-8-lssd:
+    min_volume_count: 246
+    max_volume_count: 495
+  c3-standard-22-lssd:
+    min_volume_count: 496
+    max_volume_count: 995
 
 # Mock gcp access token for testing purposes
 mockAccessToken: ""

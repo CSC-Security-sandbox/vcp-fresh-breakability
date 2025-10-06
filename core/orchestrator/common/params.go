@@ -294,6 +294,17 @@ type UpdatePoolParams struct {
 	AutoResizeTriggeredUpdate bool
 }
 
+// VolumeCountRange defines the volume count range for auto pool scaling
+type VolumeCountRange struct {
+	MinVolumeCount int64 `json:"min_volume_count"`
+	MaxVolumeCount int64 `json:"max_volume_count"`
+}
+
+type AutoPoolScalingParams struct {
+	VolLimitPerInstanceMap map[string]VolumeCountRange
+	CurrentVolumeCount     int64
+}
+
 type CreateVolumeReplicationInternalParams struct {
 	ReverseResync     bool
 	VolumeReplication *models.VolumeReplication

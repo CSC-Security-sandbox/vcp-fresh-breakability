@@ -799,7 +799,7 @@ func TestAutoTieringHotTierAutoResizeWorkflow_Success(t *testing.T) {
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Mock child workflow
-	env.OnWorkflow(workflows.UpdatePoolWorkflow, mock.Anything, mock.Anything, pool).Return(nil, nil)
+	env.OnWorkflow(workflows.UpdatePoolWorkflow, mock.Anything, mock.Anything, pool, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(AutoTieringHotTierAutoResizeWorkflow, poolIdentifier)
@@ -1017,7 +1017,7 @@ func TestAutoTieringHotTierAutoResizeWorkflow_UpdatePoolWorkflowError(t *testing
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Mock child workflow to fail
-	env.OnWorkflow(workflows.UpdatePoolWorkflow, mock.Anything, mock.Anything, pool).Return(nil, assert.AnError)
+	env.OnWorkflow(workflows.UpdatePoolWorkflow, mock.Anything, mock.Anything, pool, mock.Anything).Return(nil, assert.AnError)
 
 	// Execute workflow
 	env.ExecuteWorkflow(AutoTieringHotTierAutoResizeWorkflow, poolIdentifier)
