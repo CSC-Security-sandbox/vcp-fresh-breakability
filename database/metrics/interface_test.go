@@ -140,6 +140,104 @@ func TestPtrString(t *testing.T) {
 	assert.Equal(t, "hello", *ptr)
 }
 
+// TestCreateAggregatedUsageBatch tests the batch creation functionality
+func TestCreateAggregatedUsageBatch(t *testing.T) {
+	repo := setupTestDataStoreRepository(t)
+	ctx := context.Background()
+
+	now := time.Now()
+
+	// Test with empty slice
+	err := repo.CreateAggregatedUsageBatch(ctx, []datamodel.AggregatedUsage{}, 10)
+	assert.NoError(t, err)
+
+	// Create multiple usage records for batch testing
+	usages := []datamodel.AggregatedUsage{
+		{
+			ID:               1001,
+			ResourceUUID:     "test-resource-uuid-1",
+			AccountID:        "test-account-1",
+			VendorCustomerID: ptrString("vendor-cust-123"),
+			AggregationStart: now,
+			AggregationEnd:   now.Add(1 * time.Hour),
+			MeasuredType:     metadata.MeasuredType("test-measured-1"),
+			ResourceType:     metadata.ResourceType("test-resource-1"),
+			Quantity:         10.0,
+			AggregationType:  "sum",
+			IsBillable:       true,
+			State:            datamodel.Unsubmitted,
+			VolumeStyle:      "block",
+			ServiceLevel:     "gold",
+			ReplicationType:  "none",
+			IsUnified:        false,
+		},
+		{
+			ID:               1002,
+			ResourceUUID:     "test-resource-uuid-2",
+			AccountID:        "test-account-2",
+			VendorCustomerID: ptrString("vendor-cust-456"),
+			AggregationStart: now,
+			AggregationEnd:   now.Add(1 * time.Hour),
+			MeasuredType:     metadata.MeasuredType("test-measured-2"),
+			ResourceType:     metadata.ResourceType("test-resource-2"),
+			Quantity:         20.0,
+			AggregationType:  "sum",
+			IsBillable:       true,
+			State:            datamodel.Unsubmitted,
+			VolumeStyle:      "file",
+			ServiceLevel:     "silver",
+			ReplicationType:  "async",
+			IsUnified:        true,
+		},
+		{
+			ID:               1003,
+			ResourceUUID:     "test-resource-uuid-3",
+			AccountID:        "test-account-3",
+			VendorCustomerID: ptrString("vendor-cust-789"),
+			AggregationStart: now,
+			AggregationEnd:   now.Add(1 * time.Hour),
+			MeasuredType:     metadata.MeasuredType("test-measured-3"),
+			ResourceType:     metadata.ResourceType("test-resource-3"),
+			Quantity:         30.0,
+			AggregationType:  "avg",
+			IsBillable:       false,
+			State:            datamodel.Submitted,
+			VolumeStyle:      "mixed",
+			ServiceLevel:     "bronze",
+			ReplicationType:  "sync",
+			IsUnified:        false,
+		},
+	}
+
+	// Create in batch
+	err = repo.CreateAggregatedUsageBatch(ctx, usages, 2)
+	assert.NoError(t, err)
+
+	// Verify all records were created
+	allUsages, err := repo.GetAggregatedUsage(ctx, map[string]interface{}{})
+	assert.NoError(t, err)
+	assert.Len(t, allUsages, 3)
+
+	// Verify specific records
+	usage1, err := repo.GetAggregatedUsage(ctx, map[string]interface{}{"id": 1001})
+	assert.NoError(t, err)
+	assert.Len(t, usage1, 1)
+	assert.Equal(t, "test-resource-uuid-1", usage1[0].ResourceUUID)
+	assert.Equal(t, "test-account-1", usage1[0].AccountID)
+
+	usage2, err := repo.GetAggregatedUsage(ctx, map[string]interface{}{"id": 1002})
+	assert.NoError(t, err)
+	assert.Len(t, usage2, 1)
+	assert.Equal(t, "test-resource-uuid-2", usage2[0].ResourceUUID)
+	assert.Equal(t, "test-account-2", usage2[0].AccountID)
+
+	usage3, err := repo.GetAggregatedUsage(ctx, map[string]interface{}{"id": 1003})
+	assert.NoError(t, err)
+	assert.Len(t, usage3, 1)
+	assert.Equal(t, "test-resource-uuid-3", usage3[0].ResourceUUID)
+	assert.Equal(t, "test-account-3", usage3[0].AccountID)
+}
+
 // TestGetHydratedMetrics_OrderAndLimit tests the order and limit functionality
 func TestGetHydratedMetrics_OrderAndLimit(t *testing.T) {
 	repo := setupTestDataStoreRepository(t)

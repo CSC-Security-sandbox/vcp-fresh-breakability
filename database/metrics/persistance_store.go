@@ -387,6 +387,10 @@ func (s *PersistenceStore) CreateAggregatedUsage(ctx context.Context, a *datamod
 	return s.dataStore.dataStore.CreateAggregatedUsage(ctx, a)
 }
 
+func (s *PersistenceStore) CreateAggregatedUsageBatch(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int) error {
+	return s.dataStore.dataStore.CreateAggregatedUsageBatch(ctx, usages, batchSize)
+}
+
 func (s *PersistenceStore) GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error) {
 	return s.dataStore.dataStore.GetAggregatedUsage(ctx, filter)
 }

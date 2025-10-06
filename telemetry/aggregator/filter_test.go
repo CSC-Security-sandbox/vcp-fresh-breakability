@@ -66,6 +66,10 @@ func (m *MockMetricsStorage) DeleteHydratedMetricsOlderThan(ctx context.Context,
 func (m *MockMetricsStorage) CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error {
 	return nil
 }
+
+func (m *MockMetricsStorage) CreateAggregatedUsageBatch(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int) error {
+	return nil
+}
 func (m *MockMetricsStorage) GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error) {
 	return nil, nil
 }

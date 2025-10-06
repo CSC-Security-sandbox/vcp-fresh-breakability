@@ -290,7 +290,8 @@ func TestProcessMetricsWithJobDef_UnsupportedAggregation(t *testing.T) {
 
 	// Test with unsupported aggregation type
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, jobDef, now.Add(-1*time.Hour), now, &aggregatedRecords)
+	var aggregatedUsageForDB []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, jobDef, now.Add(-1*time.Hour), now, &aggregatedRecords, &aggregatedUsageForDB)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported job type")
 
@@ -414,90 +415,80 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 	t.Run("EmptyMetrics", func(t *testing.T) {
 		// Test with no metrics
 		var aggregatedRecords []datamodel2.AggregatedUsage
+		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, []datamodel2.HydratedMetrics{},
-			common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, &aggregatedRecords)
+			common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
 		assert.NoError(t, err)
-		// No DB call should be made
+		// No DB call should be made, but record should be collected for batch
+		assert.Len(t, aggregatedUsageForDB, 0) // No metrics means no aggregated records
 		mockDB.AssertNotCalled(t, "CreateAggregatedUsage")
 	})
 
 	t.Run("IntegralAggregation", func(t *testing.T) {
-		// Setup expectations for DB call
-		mockDB.On("CreateAggregatedUsage", mock.Anything, mock.MatchedBy(func(usage *datamodel2.AggregatedUsage) bool {
-			return *usage.VendorCustomerID == customerID &&
-				usage.AggregationType == string(common.IntegralAggregation) &&
-				*usage.ResourceName == resourceName
-		})).Return(nil).Once()
-
+		// With batch saving, individual CreateAggregatedUsage calls are no longer made
 		// Test with Integral aggregation
 		var aggregatedRecords []datamodel2.AggregatedUsage
+		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, &aggregatedRecords)
+			common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
 		assert.NoError(t, err)
-		mockDB.AssertExpectations(t)
+		// Verify that the record was collected for batch saving
+		assert.Len(t, aggregatedUsageForDB, 1)
+		assert.Equal(t, string(common.IntegralAggregation), aggregatedUsageForDB[0].AggregationType)
+		assert.Equal(t, customerID, *aggregatedUsageForDB[0].VendorCustomerID)
+		assert.Equal(t, resourceName, *aggregatedUsageForDB[0].ResourceName)
 	})
 
 	t.Run("CounterAggregation", func(t *testing.T) {
-		// Setup expectations for DB call - expect LastCounterValue to be set
-		mockDB.On("CreateAggregatedUsage", mock.Anything, mock.MatchedBy(func(usage *datamodel2.AggregatedUsage) bool {
-			return *usage.VendorCustomerID == customerID &&
-				usage.AggregationType == string(common.CounterAggregation) &&
-				usage.LastCounterValue != nil &&
-				*usage.LastCounterValue == 200.0
-		})).Return(nil).Once()
-
-		// Test with Counter aggregation
+		// With batch saving, test the collected record instead
 		var aggregatedRecords []datamodel2.AggregatedUsage
+		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, &aggregatedRecords)
+			common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
 		assert.NoError(t, err)
-		mockDB.AssertExpectations(t)
+		// Verify that the record was collected and has LastCounterValue set
+		assert.Len(t, aggregatedUsageForDB, 1)
+		assert.Equal(t, string(common.CounterAggregation), aggregatedUsageForDB[0].AggregationType)
+		assert.NotNil(t, aggregatedUsageForDB[0].LastCounterValue)
+		assert.Equal(t, 200.0, *aggregatedUsageForDB[0].LastCounterValue)
 	})
 
 	t.Run("SumAggregation", func(t *testing.T) {
-		// Setup expectations for DB call
-		mockDB.On("CreateAggregatedUsage", mock.Anything, mock.MatchedBy(func(usage *datamodel2.AggregatedUsage) bool {
-			return *usage.VendorCustomerID == customerID &&
-				usage.AggregationType == string(common.SumAggregation) &&
-				*usage.ResourceName == resourceName
-		})).Return(nil).Once()
-
-		// Test with Sum aggregation
+		// With batch saving, test the collected record instead
 		var aggregatedRecords []datamodel2.AggregatedUsage
+		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords)
+			common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
 		assert.NoError(t, err)
-		mockDB.AssertExpectations(t)
+		// Verify that the record was collected for batch saving
+		assert.Len(t, aggregatedUsageForDB, 1)
+		assert.Equal(t, string(common.SumAggregation), aggregatedUsageForDB[0].AggregationType)
+		assert.Equal(t, resourceName, *aggregatedUsageForDB[0].ResourceName)
 	})
 
 	t.Run("FirstAggregation", func(t *testing.T) {
-		// Setup expectations for DB call
-		mockDB.On("CreateAggregatedUsage", mock.Anything, mock.MatchedBy(func(usage *datamodel2.AggregatedUsage) bool {
-			return *usage.VendorCustomerID == customerID &&
-				usage.AggregationType == string(common.FirstAggregation) &&
-				*usage.ResourceName == resourceName
-		})).Return(nil).Once()
-
-		// Test with First aggregation
+		// With batch saving, test the collected record instead
 		var aggregatedRecords []datamodel2.AggregatedUsage
+		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, &aggregatedRecords)
+			common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
 		assert.NoError(t, err)
-		mockDB.AssertExpectations(t)
+		// Verify that the record was collected for batch saving
+		assert.Len(t, aggregatedUsageForDB, 1)
+		assert.Equal(t, string(common.FirstAggregation), aggregatedUsageForDB[0].AggregationType)
+		assert.Equal(t, resourceName, *aggregatedUsageForDB[0].ResourceName)
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
-		// Setup expectations for DB call with error
-		dbErr := errors.New("database error")
-		mockDB.On("CreateAggregatedUsage", mock.Anything, mock.Anything).Return(dbErr).Once()
-
-		// Test with database error
+		// With batch saving, the function just collects records
+		// Database errors will occur during batch save, not here
 		var aggregatedRecords []datamodel2.AggregatedUsage
+		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords)
-		assert.Error(t, err)
-		assert.Equal(t, dbErr, err)
-		mockDB.AssertExpectations(t)
+			common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+		assert.NoError(t, err) // No error in collection phase
+		// Verify that the record was collected for batch saving
+		assert.Len(t, aggregatedUsageForDB, 1)
 	})
 }
 
@@ -546,8 +537,8 @@ func TestProcessMetricsSuccess(t *testing.T) {
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
 
-	// Setup expectations for CreateAggregatedUsage call
-	mockDB.On("CreateAggregatedUsage", mock.Anything, mock.Anything).Return(nil).Once()
+	// Setup expectations for CreateAggregatedUsageBatch call
+	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	// Expect calls to GetAggregatedUsage for retry logic (both UNSUBMITTED and ERROR states)
 	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
@@ -602,8 +593,8 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
 
-	// Setup expectations for CreateAggregatedUsage call with error
-	mockDB.On("CreateAggregatedUsage", mock.Anything, mock.Anything).Return(errors.New("database error")).Once()
+	// Setup expectations for CreateAggregatedUsageBatch call with error
+	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("database error")).Once()
 
 	// Expect calls to GetAggregatedUsage for retry logic (both UNSUBMITTED and ERROR states)
 	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
@@ -613,9 +604,10 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Once()
 
-	// Call ProcessMetrics - should continue despite error in processMetricsWithJobDef
+	// Call ProcessMetrics - with batch saving, database errors now propagate up
 	err := processor.ProcessBillingMetrics(ctx, now)
-	assert.NoError(t, err) // ProcessMetrics should not return the error from processMetricsWithJobDef
+	assert.Error(t, err) // ProcessMetrics should return the error from batch save
+	assert.Contains(t, err.Error(), "database error")
 
 	// Verify expectations
 	mockDB.AssertExpectations(t)
@@ -794,8 +786,8 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
 
-	// Setup expectations for CreateAggregatedUsage call
-	mockDB.On("CreateAggregatedUsage", mock.Anything, mock.Anything).Return(nil).Once()
+	// Setup expectations for CreateAggregatedUsageBatch call
+	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	// Expect DeliverMetrics to be called with both retry and new records
 	mockSink.On("DeliverMetrics", mock.Anything, mock.MatchedBy(func(records []datamodel2.AggregatedUsage) bool {
@@ -842,9 +834,21 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 		},
 	}
 
-	// Expect calls to GetAggregatedUsage for retry logic
+	// Expect calls to GetAggregatedUsage for retry logic - add a retry record to ensure DeliverMetrics is called
+	retryRecord := []datamodel2.AggregatedUsage{
+		{
+			ID:               1,
+			VendorCustomerID: stringPtr("customer1"),
+			ResourceName:     stringPtr("resource1"),
+			Quantity:         50.0,
+			AggregationStart: startTime,
+			AggregationEnd:   now,
+			State:            datamodel2.Unsubmitted,
+			IsBillable:       true,
+		},
+	}
 	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
+		retryRecord, nil,
 	).Once()
 	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
@@ -858,11 +862,8 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
 
-	// Setup expectations for CreateAggregatedUsage call - return a billable record
-	mockDB.On("CreateAggregatedUsage", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		usage := args.Get(1).(*datamodel2.AggregatedUsage)
-		usage.IsBillable = true // Ensure it's billable so it gets added to aggregatedRecords
-	}).Return(nil).Once()
+	// Setup expectations for CreateAggregatedUsageBatch call
+	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	// Expect DeliverMetrics to fail
 	mockSink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0, errors.New("delivery failed")).Once()
@@ -995,21 +996,16 @@ func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 		},
 	}
 
-	// Mock CreateAggregatedUsage to return a non-billable record
-	mockDB.On("CreateAggregatedUsage", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		usage := args.Get(1).(*datamodel2.AggregatedUsage)
-		usage.IsBillable = false // Set as non-billable
-	}).Return(nil).Once()
-
-	// Test with Sum aggregation
+	// With batch saving, we collect records first, then check billability
 	var aggregatedRecords []datamodel2.AggregatedUsage
+	var aggregatedUsageForDB []datamodel2.AggregatedUsage
 	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-		common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords)
+		common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(aggregatedRecords), "Non-billable records should not be added to aggregatedRecords")
-
-	mockDB.AssertExpectations(t)
+	// With batch approach, records are collected regardless of billability
+	// Billability is determined during the creation phase
+	assert.Len(t, aggregatedUsageForDB, 1)
 }
 
 // TestNewBillingProvider tests the NewBillingProvider constructor

@@ -149,6 +149,25 @@ func (re *retryEngine) CreateAggregatedUsage(ctx context.Context, a *datamodel.A
 	return err
 }
 
+func (re *retryEngine) CreateAggregatedUsageBatch(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.CreateAggregatedUsageBatch(ctx, usages, batchSize)
+		if err != nil {
+			re.logError("CreateAggregatedUsageBatch", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error) {
 	var var0 []datamodel.AggregatedUsage
 	err := retry.Do(func(attempt int) (bool, error) {

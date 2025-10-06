@@ -215,6 +215,54 @@ func (_c *MockStorage_CreateAggregatedUsage_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// CreateAggregatedUsageBatch provides a mock function with given fields: ctx, usages, batchSize
+func (_m *MockStorage) CreateAggregatedUsageBatch(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int) error {
+	ret := _m.Called(ctx, usages, batchSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAggregatedUsageBatch")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []datamodel.AggregatedUsage, int) error); ok {
+		r0 = rf(ctx, usages, batchSize)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_CreateAggregatedUsageBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAggregatedUsageBatch'
+type MockStorage_CreateAggregatedUsageBatch_Call struct {
+	*mock.Call
+}
+
+// CreateAggregatedUsageBatch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - usages []datamodel.AggregatedUsage
+//   - batchSize int
+func (_e *MockStorage_Expecter) CreateAggregatedUsageBatch(ctx interface{}, usages interface{}, batchSize interface{}) *MockStorage_CreateAggregatedUsageBatch_Call {
+	return &MockStorage_CreateAggregatedUsageBatch_Call{Call: _e.mock.On("CreateAggregatedUsageBatch", ctx, usages, batchSize)}
+}
+
+func (_c *MockStorage_CreateAggregatedUsageBatch_Call) Run(run func(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int)) *MockStorage_CreateAggregatedUsageBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]datamodel.AggregatedUsage), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateAggregatedUsageBatch_Call) Return(_a0 error) *MockStorage_CreateAggregatedUsageBatch_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_CreateAggregatedUsageBatch_Call) RunAndReturn(run func(context.Context, []datamodel.AggregatedUsage, int) error) *MockStorage_CreateAggregatedUsageBatch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateHydratedMetrics provides a mock function with given fields: ctx, m
 func (_m *MockStorage) CreateHydratedMetrics(ctx context.Context, m *datamodel.HydratedMetrics) error {
 	ret := _m.Called(ctx, m)

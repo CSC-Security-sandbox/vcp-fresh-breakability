@@ -65,6 +65,7 @@ func NewBillingProvider(db database2.Storage, vcpDB database.Storage, config *co
 func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregationEndTime time.Time) error {
 	logger := util.GetLogger(ctx)
 	var aggregatedRecords []datamodel2.AggregatedUsage
+	var aggregatedUsageForDB []datamodel2.AggregatedUsage // Collect all records for batch saving
 	aggregationStartTime := aggregationEndTime.Add(-1 * time.Hour)
 	logger.Infof("Processing metrics from %v to %v", aggregationStartTime, aggregationEndTime)
 
@@ -114,11 +115,23 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 		// Process each resource group
 		for resourceKey, resourceMetrics := range resourceGroups {
-			if err := p.processMetricsWithJobDef(ctx, resourceKey, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, &aggregatedRecords); err != nil {
+			if err := p.processMetricsWithJobDef(ctx, resourceKey, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, &aggregatedRecords, &aggregatedUsageForDB); err != nil {
 				logger.Errorf("Failed to process metrics for resource key %s : %v", resourceKey, err)
 				continue
 			}
 		}
+	}
+
+	// Batch save all aggregated usage records
+	if len(aggregatedUsageForDB) > 0 {
+		batchSize := p.config.PushBatchSize
+
+		err := p.metricsdb.CreateAggregatedUsageBatch(ctx, aggregatedUsageForDB, int(batchSize))
+		if err != nil {
+			logger.Errorf("Failed to batch save aggregated usage records: %v", err)
+			return err
+		}
+		logger.Infof("Successfully saved %d aggregated usage records in batches of %d", len(aggregatedUsageForDB), batchSize)
 	}
 
 	// Deliver all aggregated metrics at the end
@@ -486,7 +499,7 @@ func (p *BillingProvider) filterMetricsForCounterAndIntegralAggregationSorted(me
 	return result
 }
 
-func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, aggregatedRecords *[]datamodel2.AggregatedUsage) error {
+func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, aggregatedRecords *[]datamodel2.AggregatedUsage, aggregatedUsageForDB *[]datamodel2.AggregatedUsage) error {
 	logger := util.GetLogger(ctx)
 	if len(metrics) == 0 {
 		logger.Infof("No metrics found for resource key %s and customer id %s", resourceKey, resourceKey.ConsumerID)
@@ -581,12 +594,9 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	logger.Debugf("Processing metrics for resource %s (customer: %s, type: %s, labels: %s)",
 		resourceKey.ResourceName, resourceKey.ConsumerID, jobDef.AggregationType, labelsInfo)
 
-	// Store aggregated metrics
-	err := p.metricsdb.CreateAggregatedUsage(ctx, aggregated)
-	if err != nil {
-		logger.Errorf("Failed to create aggregated usage for resource name %s, deployment name :%s : %v", resourceKey.ResourceName, resourceKey.DeploymentName, err)
-		return err
-	}
+	// Collect aggregated record for batch saving
+	*aggregatedUsageForDB = append(*aggregatedUsageForDB, *aggregated)
+
 	if aggregated.IsBillable {
 		*aggregatedRecords = append(*aggregatedRecords, *aggregated)
 	}

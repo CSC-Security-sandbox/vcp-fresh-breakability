@@ -96,6 +96,14 @@ func (r *DataStoreRepository) CreateAggregatedUsage(ctx context.Context, a *data
 	return r.db.GORM().WithContext(ctx).Create(a).Error
 }
 
+func (r *DataStoreRepository) CreateAggregatedUsageBatch(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int) error {
+	if len(usages) == 0 {
+		return nil
+	}
+
+	return r.db.GORM().WithContext(ctx).CreateInBatches(usages, batchSize).Error
+}
+
 func (r *DataStoreRepository) GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error) {
 	var result []datamodel.AggregatedUsage
 	tx := r.db.GORM().WithContext(ctx)
@@ -147,6 +155,7 @@ type (
 
 		// AggregatedUsage CRUD
 		CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error
+		CreateAggregatedUsageBatch(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int) error
 		GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error)
 		UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error
 		DeleteAggregatedUsage(ctx context.Context, id int64) error
