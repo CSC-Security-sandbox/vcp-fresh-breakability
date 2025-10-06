@@ -117,6 +117,17 @@ func main() {
 		}
 
 		log.Printf("Successfully deployed Cloud Scheduler for service %s with cron: %s\n", config.ServiceName, config.SchedulerCron)
+
+		log.Println("Deploying Daily BizOps Cloud Scheduler")
+		config.SchedulerCron = "0 10 * * *"
+		config.ServiceName = "bizops"
+		config.ServiceURL = serviceURL + "/v1/generateReport"
+
+		if err := deployCloudScheduler(context.Background(), config); err != nil {
+			log.Panicf("Failed to deploy Cloud Scheduler: %v", err)
+		}
+
+		log.Printf("Successfully deployed Cloud Scheduler for service %s with cron: %s\n", config.ServiceName, config.SchedulerCron)
 	}
 }
 
@@ -143,13 +154,13 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 		}
 
 		// Skip if this variable should be configured as a secret
-		if secretName, isSecret := secretKeys[key]; isSecret {
+		if _, isExists := secretKeys[key]; isExists {
 			// Add as secret reference instead of plain value
 			envVars = append(envVars, &cloudrun.GoogleCloudRunV2EnvVar{
 				Name: key,
 				ValueSource: &cloudrun.GoogleCloudRunV2EnvVarSource{
 					SecretKeyRef: &cloudrun.GoogleCloudRunV2SecretKeySelector{
-						Secret:  secretName,
+						Secret:  value,
 						Version: "latest",
 					},
 				},
