@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestCreateScheduledBackup(t *testing.T) {
@@ -158,7 +159,8 @@ func TestConvertToGCPHydrateCreateRequests(t *testing.T) {
 			Name:        "backup1",
 			SizeInBytes: 12345,
 			Attributes: &datamodel.BackupAttributes{
-				BucketName: "bucket1",
+				BucketName:       "bucket1",
+				SourceVolumeZone: "us-central1-a",
 			},
 		},
 		{
@@ -170,6 +172,9 @@ func TestConvertToGCPHydrateCreateRequests(t *testing.T) {
 			SizeInBytes: 67890,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName: "bucket2",
+			},
+			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: nillable.ToPointer("us-central1"),
 			},
 		},
 	}
@@ -306,8 +311,8 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		},
 	}
 	backups := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"}, Name: "backup1", SizeInBytes: 1024000, BackupVault: &datamodel.BackupVault{Name: "backup-vault-1", RegionName: "us-east1"}},
-		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid-2"}, Name: "backup2", SizeInBytes: 1083532, BackupVault: &datamodel.BackupVault{Name: "backup-vault-1", RegionName: "us-east1"}},
+		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"}, Name: "backup1", SizeInBytes: 1024000, BackupVault: &datamodel.BackupVault{Name: "backup-vault-1", RegionName: "us-east1", SourceRegionName: nillable.ToPointer("us-east1")}},
+		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid-2"}, Name: "backup2", SizeInBytes: 1083532, BackupVault: &datamodel.BackupVault{Name: "backup-vault-1", RegionName: "us-east1"}, Attributes: &datamodel.BackupAttributes{SourceVolumeZone: "us-east1-b"}},
 	}
 
 	t.Run("HydrateCreatedBackupsToCcfeSuccess", func(t *testing.T) {
@@ -319,6 +324,9 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		}
 		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
 			return "mock-region", nil
+		}
+		utils.GetSourceVolumePathFromBackup = func(*datamodel.Backup) string {
+			return "mock-source-volume-path"
 		}
 
 		err := activity.HydrateCreatedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")
@@ -373,6 +381,9 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		}
 		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
 			return "mock-region", nil
+		}
+		utils.GetSourceVolumePathFromBackup = func(*datamodel.Backup) string {
+			return "mock-source-volume-path"
 		}
 
 		err := activity.HydrateCreatedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")

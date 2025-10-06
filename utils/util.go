@@ -36,48 +36,50 @@ import (
 )
 
 var (
-	localRegion                    = env.GetString("LOCAL_REGION", "local")
-	PairedRegions                  = env.GetString("VCP_PAIRED_REGIONS", "")
-	MinQuotaInBytesPool            = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1*TiBInBytes)          // 1 TiB
-	MaxQuotaInBytesPool            = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 425*TiBInBytes)        // 425 TiB
-	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 1073741824)          // 1 GiB
-	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 140737488355328)     // 128 TiB
-	MinQuotaInBytesLargeVolume     = env.GetUint64("MIN_QUOTA_IN_BYTES_LARGE_VOLUME", 12*TiBInBytes) // 12 TiB
-	MaxQuotaInBytesLargeVolume     = env.GetUint64("MAX_QUOTA_IN_BYTES_LARGE_VOLUME", 20*PiBInBytes) // 20 PiB
-	MinSizeGranularity             = env.GetUint64("MIN_SIZE_GRANULARITY", 1*GiBInBytes)             // 1 GiB
-	MinCustomThroughput            = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                      // 64 MiBps
-	MaxCustomThroughput            = env.GetUint64("MAX_CUSTOM_THROUGHPUT", 5120)                    // 5120 MiBps
-	MinCustomIops                  = env.GetUint64("MIN_CUSTOM_IOPS", 1024)                          // 1024 IOPS
-	MaxCustomIops                  = env.GetUint64("MAX_CUSTOM_IOPS", 160000)                        // 160000 IOPS
-	IopsPerMiBps                   = env.GetUint64("IOPS_PER_MIBPS", 16)                             // 16 IOPS per MiBps (for auto-calculation)
-	MinLvCoolTierCapacity          = env.GetUint64("MIN_LV_POOL_COOL_TIER_CAPACITY", 12*TiBInBytes)  // 12TiB
-	MaxLvPoolCapacity              = env.GetUint64("MAX_LV_POOL_CAPACITY", 20*PiBInBytes)            // 20PiB
-	MaxLvHotTierCapacity           = env.GetUint64("MAX_LV_HOT_TIER_POOL_CAPACITY", 5*PiBInBytes)    // 5PiB
-	MinLvThroughput                = env.GetUint64("MIN_LV_THROUGHPUT", 64)
-	MaxLvThroughput                = env.GetUint64("MAX_LV_THROUGHPUT", 60*1000)       // convert to megabit per second
-	MinHotTierSize                 = env.GetUint64("MIN_HOT_TIER_SIZE", 1099511627776) // 1 TiB
-	ParseRegionAndZone             = _parseRegionAndZone
-	ParseAndValidateRegionAndZone  = _parseAndValidateRegionAndZone
-	GetPairedRegionURI             = _getPairedRegionURI
-	GetVolumeUriFromCcfeUri        = _getVolumeUriFromCcfeUri
-	ConvertStringToMap             = _convertStringToMap
-	ConvertBytesToGib              = _convertBytesToGib
-	ValidateCcfeReplicationUri     = _validateCcfeReplicationUri
-	RenameSnapshotName             = _renameSnapshotName
-	ConvertToGcpResourceName       = _convertToGcpResourceName
-	CheckForGcpNamingConvention    = _checkForGcpNamingConvention
-	ParseProjectNumberFromURI      = _parseProjectNumberFromURI
-	sleep                          = _sleep
-	exponentialBackOffErrors       = []int{429}
-	maxExpBackOffDelay             = time.Duration(80) * time.Second
-	jitterBase                     = time.Millisecond
-	generateRandomString           = _generateRandomString
-	ReplicationUriRegex            = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
-	GetLocation                    = _getLocation
-	GetBackupRegion                = _getBackupRegion
-	GenerateStrongPassword         = _generateStrongPassword
-	ParsePEMCertificate            = _parsePEMCertificate
-	CalculateRequiredVolumeSize    = _calculateRequiredVolumeSize
+	localRegion                     = env.GetString("LOCAL_REGION", "local")
+	PairedRegions                   = env.GetString("VCP_PAIRED_REGIONS", "")
+	MinQuotaInBytesPool             = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1*TiBInBytes)          // 1 TiB
+	MaxQuotaInBytesPool             = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 425*TiBInBytes)        // 425 TiB
+	MinQuotaInBytesVolumeForVolume  = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 1073741824)          // 1 GiB
+	MaxQuotaInBytesVolumeForVolume  = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 140737488355328)     // 128 TiB
+	MinQuotaInBytesLargeVolume      = env.GetUint64("MIN_QUOTA_IN_BYTES_LARGE_VOLUME", 12*TiBInBytes) // 12 TiB
+	MaxQuotaInBytesLargeVolume      = env.GetUint64("MAX_QUOTA_IN_BYTES_LARGE_VOLUME", 20*PiBInBytes) // 20 PiB
+	MinSizeGranularity              = env.GetUint64("MIN_SIZE_GRANULARITY", 1*GiBInBytes)             // 1 GiB
+	MinCustomThroughput             = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                      // 64 MiBps
+	MaxCustomThroughput             = env.GetUint64("MAX_CUSTOM_THROUGHPUT", 5120)                    // 5120 MiBps
+	MinCustomIops                   = env.GetUint64("MIN_CUSTOM_IOPS", 1024)                          // 1024 IOPS
+	MaxCustomIops                   = env.GetUint64("MAX_CUSTOM_IOPS", 160000)                        // 160000 IOPS
+	IopsPerMiBps                    = env.GetUint64("IOPS_PER_MIBPS", 16)                             // 16 IOPS per MiBps (for auto-calculation)
+	MinLvCoolTierCapacity           = env.GetUint64("MIN_LV_POOL_COOL_TIER_CAPACITY", 12*TiBInBytes)  // 12TiB
+	MaxLvPoolCapacity               = env.GetUint64("MAX_LV_POOL_CAPACITY", 20*PiBInBytes)            // 20PiB
+	MaxLvHotTierCapacity            = env.GetUint64("MAX_LV_HOT_TIER_POOL_CAPACITY", 5*PiBInBytes)    // 5PiB
+	MinLvThroughput                 = env.GetUint64("MIN_LV_THROUGHPUT", 64)
+	MaxLvThroughput                 = env.GetUint64("MAX_LV_THROUGHPUT", 60*1000)       // convert to megabit per second
+	MinHotTierSize                  = env.GetUint64("MIN_HOT_TIER_SIZE", 1099511627776) // 1 TiB
+	ParseRegionAndZone              = _parseRegionAndZone
+	ParseAndValidateRegionAndZone   = _parseAndValidateRegionAndZone
+	GetPairedRegionURI              = _getPairedRegionURI
+	GetVolumeUriFromCcfeUri         = _getVolumeUriFromCcfeUri
+	ConvertStringToMap              = _convertStringToMap
+	ConvertBytesToGib               = _convertBytesToGib
+	ValidateCcfeReplicationUri      = _validateCcfeReplicationUri
+	RenameSnapshotName              = _renameSnapshotName
+	ConvertToGcpResourceName        = _convertToGcpResourceName
+	CheckForGcpNamingConvention     = _checkForGcpNamingConvention
+	ParseProjectNumberFromURI       = _parseProjectNumberFromURI
+	sleep                           = _sleep
+	exponentialBackOffErrors        = []int{429}
+	maxExpBackOffDelay              = time.Duration(80) * time.Second
+	jitterBase                      = time.Millisecond
+	generateRandomString            = _generateRandomString
+	ReplicationUriRegex             = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
+	GetLocation                     = _getLocation
+	GetBackupRegion                 = _getBackupRegion
+	GetSourceVolumePathFromBackup   = _getSourceVolumePathFromBackup
+	GetSourceSnapshotPathFromBackup = _getSourceSnapshotPathFromBackup
+	GenerateStrongPassword          = _generateStrongPassword
+	ParsePEMCertificate             = _parsePEMCertificate
+	CalculateRequiredVolumeSize     = _calculateRequiredVolumeSize
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
 	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
 	// fileProtocolAllowlistedAccounts contains the parsed set of account IDs that are allowlisted for file protocol support
@@ -1080,4 +1082,33 @@ func IsImmutableBackupEnabled() bool {
 // This should only be used in tests
 func SetImmutableBackupEnabledForTest(enabled bool) {
 	immutableBackupEnabled = enabled
+}
+
+// GetSourceVolumePathFromBackup gets the source volume path from a backup object
+func _getSourceVolumePathFromBackup(backup *datamodel.Backup) string {
+	var sourceVolumeZone string
+	if backup.Attributes.SourceVolumeZone == "" {
+		sourceVolumeZone = *backup.BackupVault.SourceRegionName
+	} else {
+		sourceVolumeZone = backup.Attributes.SourceVolumeZone
+	}
+	return fmt.Sprintf("projects/%s/locations/%s/volumes/%s",
+		backup.Attributes.AccountIdentifier,
+		sourceVolumeZone,
+		backup.Attributes.VolumeName)
+}
+
+// GetSourceSnapshotPathFromBackup gets the source snapshot path from a backup object
+func _getSourceSnapshotPathFromBackup(backup *datamodel.Backup) string {
+	var sourceVolumeZone string
+	if backup.Attributes.SourceVolumeZone == "" {
+		sourceVolumeZone = *backup.BackupVault.SourceRegionName
+	} else {
+		sourceVolumeZone = backup.Attributes.SourceVolumeZone
+	}
+	return fmt.Sprintf("projects/%s/locations/%s/volumes/%s/snapshots/%s",
+		backup.Attributes.AccountIdentifier,
+		sourceVolumeZone,
+		backup.Attributes.VolumeName,
+		RenameSnapshotName(backup.Attributes.SnapshotName))
 }

@@ -268,11 +268,13 @@ func (j *ScheduledBackupActivity) GetSnapshotByNameAndVolumeID(ctx context.Conte
 func convertToGCPHydrateCreateRequests(backups []*datamodel.Backup) []models.Request {
 	var requests []models.Request
 	for _, backup := range backups {
+		sourceVolume := utils.GetSourceVolumePathFromBackup(backup)
 		volumeUsageInBytes := uint64(backup.SizeInBytes)
 		request := models.Request{Backup: &models.HydrateBackup{
 			ResourceId:       backup.Name,
 			BackupId:         backup.UUID,
 			VolumeUsageBytes: &volumeUsageInBytes,
+			SourceVolume:     sourceVolume,
 		}}
 
 		if backup.Attributes != nil && backup.Attributes.BucketName != "" {

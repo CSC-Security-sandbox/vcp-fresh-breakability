@@ -54,6 +54,7 @@ type HydrateBackup struct {
 	BackupId              string                 `json:"netapp_uuid"`
 	VolumeUsageBytes      *uint64                `json:"volume_usage_bytes"`
 	AssetLocationMetadata *AssetLocationMetadata `json:"asset_location_metadata"`
+	SourceVolume          string                 `json:"source_volume"`
 }
 
 type AssetLocationMetadata struct {

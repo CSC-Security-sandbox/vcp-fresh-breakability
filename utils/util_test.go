@@ -2860,3 +2860,119 @@ func Test_getVolumeUriFromCcfeUri(t *testing.T) {
 		}
 	})
 }
+
+func TestGetSourceVolumePathFromBackup(t *testing.T) {
+	tests := []struct {
+		name         string
+		backup       *datamodel.Backup
+		expectedPath string
+		expectError  bool
+	}{
+		{
+			name: "backup with custom source volume zone",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "test-project-123",
+					SourceVolumeZone:  "us-central1-a",
+					VolumeName:        "test-volume",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-central1"),
+				},
+			},
+			expectedPath: "projects/test-project-123/locations/us-central1-a/volumes/test-volume",
+			expectError:  false,
+		},
+		{
+			name: "backup with empty source volume zone uses backup vault region",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "test-project-456",
+					SourceVolumeZone:  "",
+					VolumeName:        "test-volume-2",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-west1"),
+				},
+			},
+			expectedPath: "projects/test-project-456/locations/us-west1/volumes/test-volume-2",
+			expectError:  false,
+		},
+		{
+			name: "backup with special characters in names",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "project-with-dashes-123",
+					SourceVolumeZone:  "us-central1-b",
+					VolumeName:        "volume_with_underscores",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-central1"),
+				},
+			},
+			expectedPath: "projects/project-with-dashes-123/locations/us-central1-b/volumes/volume_with_underscores",
+			expectError:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := _getSourceVolumePathFromBackup(tt.backup)
+			assert.Equal(t, tt.expectedPath, result)
+		})
+	}
+}
+
+func TestGetSourceSnapshotPathFromBackup(t *testing.T) {
+	tests := []struct {
+		name         string
+		backup       *datamodel.Backup
+		expectedPath string
+		expectError  bool
+	}{
+		{
+			name: "backup with custom source volume zone and snapshot",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "test-project-123",
+					SourceVolumeZone:  "us-central1-a",
+					VolumeName:        "test-volume",
+					SnapshotName:      "test-snapshot",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-central1"),
+				},
+			},
+			expectedPath: "projects/test-project-123/locations/us-central1-a/volumes/test-volume/snapshots/test-snapshot",
+			expectError:  false,
+		},
+		{
+			name: "backup with empty source volume zone uses backup vault region",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "test-project-456",
+					SourceVolumeZone:  "",
+					VolumeName:        "test-volume-2",
+					SnapshotName:      "snapshot-2",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-west1"),
+				},
+			},
+			expectedPath: "projects/test-project-456/locations/us-west1/volumes/test-volume-2/snapshots/snapshot-2",
+			expectError:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := _getSourceSnapshotPathFromBackup(tt.backup)
+			assert.Equal(t, tt.expectedPath, result)
+		})
+	}
+}
+
+// Helper function to create string pointers for testing
+func stringPtr(s string) *string {
+	return &s
+}

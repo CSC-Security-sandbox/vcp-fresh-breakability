@@ -709,22 +709,8 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 	default:
 		state = gcpgenserver.BackupV1betaState(backup.State)
 	}
-	var sourceVolumeZone string
-	if backup.Attributes.SourceVolumeZone == "" {
-		sourceVolumeZone = *backup.BackupVault.SourceRegionName
-	} else {
-		sourceVolumeZone = backup.Attributes.SourceVolumeZone
-	}
-	sourceVolumePath := fmt.Sprintf("projects/%s/locations/%s/volumes/%s",
-		backup.Attributes.AccountIdentifier,
-		sourceVolumeZone,
-		backup.Attributes.VolumeName)
-
-	sourceSnapshotPath := fmt.Sprintf("projects/%s/locations/%s/volumes/%s/snapshots/%s",
-		backup.Attributes.AccountIdentifier,
-		sourceVolumeZone,
-		backup.Attributes.VolumeName,
-		utils.RenameSnapshotName(backup.Attributes.SnapshotName))
+	sourceVolumePath := utils.GetSourceVolumePathFromBackup(backup)
+	sourceSnapshotPath := utils.GetSourceSnapshotPathFromBackup(backup)
 
 	var satisfiesPzi, satisfiesPzs bool
 	for _, bucket := range backup.BackupVault.BucketDetails {
