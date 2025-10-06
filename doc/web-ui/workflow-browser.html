@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Browser - VSA Control Plane</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .main-content {
+            padding: 40px 0;
+        }
+
+        .category-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: white;
+            border: 2px solid #e9ecef;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .tab:hover {
+            border-color: #667eea;
+        }
+
+        .workflow-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .workflow-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .workflow-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .workflow-category {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .workflow-name {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .workflow-description {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .workflow-file {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .activities {
+            margin-bottom: 20px;
+        }
+
+        .activities h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .activity-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .activity {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            color: #495057;
+        }
+
+        .workflow-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .link-btn {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+
+        .link-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .link-btn.secondary {
+            background: #6c757d;
+        }
+
+        .link-btn.secondary:hover {
+            background: #5a6268;
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        @media (max-width: 768px) {
+            .workflow-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1><i class="fas fa-project-diagram"></i> Workflow Browser</h1>
+                <div>
+                    <a href="index.html" class="nav-link">Home</a>
+                    <a href="api-browser.html" class="nav-link">APIs</a>
+                    <a href="architecture-docs.html" class="nav-link">Architecture</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main-content">
+            <button onclick="goBack()" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </button>
+
+            <div class="category-tabs">
+                <div class="tab active" data-category="all">All Workflows</div>
+                <div class="tab" data-category="core">Core</div>
+                <div class="tab" data-category="background">Background</div>
+                <div class="tab" data-category="replication">Replication</div>
+                <div class="tab" data-category="control">Control</div>
+            </div>
+
+            <div class="workflow-grid" id="workflowGrid">
+                <!-- Workflows will be populated by JavaScript -->
+            </div>
+        </div>
+                    </div>
+
+    <script>
+        // Real workflow data with actual GitHub links
+        const workflows = [
+            {
+                category: 'core',
+                name: 'Pool Create Workflow',
+                description: 'Orchestrates the creation of a new storage pool including cluster provisioning and network configuration',
+                file: 'core/orchestrator/workflows/pool_workflows.go',
+                activities: ['CreatePoolActivity', 'ClusterProvisioningActivity', 'NetworkConfigurationActivity', 'VMRSActivity'],
+                documentation: 'doc/workflows/core/pool-workflows.md'
+            },
+            {
+                category: 'core',
+                name: 'Pool List (Orchestrator)',
+                description: 'Handles listing and filtering of storage pools through direct orchestrator calls',
+                file: 'core/orchestrator/pool.go',
+                activities: ['ListPools', 'GetPoolsByAccountName', 'ListAllPools'],
+                documentation: 'doc/workflows/core/pool-workflows.md'
+            },
+            {
+                category: 'core',
+                name: 'Volume Create Workflow',
+                description: 'Manages the complete volume creation process including provisioning and validation',
+                file: 'core/orchestrator/workflows/volume_create_workflow.go',
+                activities: ['VolumeCreateActivity', 'PreVolumeProvisioningActivity', 'PostVolumeProvisioningActivity'],
+                documentation: 'doc/workflows/core/volume-workflows.md'
+            },
+            {
+                category: 'core',
+                name: 'Volume List (Orchestrator)',
+                description: 'Handles listing and filtering of volumes through direct orchestrator calls',
+                file: 'core/orchestrator/volume.go',
+                activities: ['ListVolumes', 'GetMultipleVolumes', 'GetVolumeCount'],
+                documentation: 'doc/workflows/core/volume-workflows.md'
+            },
+            {
+                category: 'core',
+                name: 'Volume Update Workflow',
+                description: 'Handles volume configuration updates with validation and rollback capabilities',
+                file: 'core/orchestrator/workflows/volume_update_workflow.go',
+                activities: ['UpdateVolumeActivity', 'ValidateVolumeUpdateActivity', 'UpdateVolumeMetadataActivity'],
+                documentation: 'doc/workflows/core/volume-workflows.md'
+            },
+            {
+                category: 'core',
+                name: 'Volume Delete Workflow',
+                description: 'Manages volume deletion with proper cleanup of associated resources',
+                file: 'core/orchestrator/workflows/volume_delete_workflow.go',
+                activities: ['DeleteVolumeActivity', 'CleanupVolumeResourcesActivity', 'UpdateVolumeStatusActivity'],
+                documentation: 'doc/workflows/core/volume-workflows.md'
+            },
+            {
+                category: 'core',
+                name: 'Backup Workflow',
+                description: 'Orchestrates backup creation including snapshot management and object store preparation',
+                file: 'core/orchestrator/workflows/backup_workflow.go',
+                activities: ['BackupCreateActivity', 'PrepareObjectStoreActivity', 'UpdateSnapshotActivity'],
+                documentation: 'doc/workflows/core/backup-workflows.md'
+            },
+            {
+                category: 'core',
+                name: 'Snapshot Workflow',
+                description: 'Handles snapshot creation, management, and lifecycle operations',
+                file: 'core/orchestrator/workflows/snapshot_workflow.go',
+                activities: ['SnapshotCreateActivity', 'SnapshotValidationActivity', 'SnapshotCleanupActivity'],
+                documentation: 'doc/workflows/core/snapshot-workflows.md'
+            },
+            {
+                category: 'background',
+                name: 'Resource Cleanup Workflow',
+                description: 'Background workflow for cleaning up orphaned resources and maintaining system health',
+                file: 'core/orchestrator/workflows/background/resource_cleanup_workflow.go',
+                activities: ['ResourceScanActivity', 'CleanupOrphanedResourcesActivity', 'UpdateResourceStatusActivity'],
+                documentation: 'doc/workflows/background/resource-cleanup-workflows.md'
+            },
+            {
+                category: 'background',
+                name: 'Scheduled Backup Workflow',
+                description: 'Automated backup scheduling and execution based on configured policies',
+                file: 'core/orchestrator/workflows/background/scheduled_backup_workflow.go',
+                activities: ['BackupScheduleActivity', 'PolicyValidationActivity', 'BackupExecutionActivity'],
+                documentation: 'doc/workflows/background/scheduled-backup-workflows.md'
+            },
+            {
+                category: 'replication',
+                name: 'Replication Create Workflow',
+                description: 'Manages cross-region replication setup and configuration',
+                file: 'core/orchestrator/workflows/replication/replication_create_workflow.go',
+                activities: ['CreateReplicationActivity', 'ValidateRemoteVolumeActivity', 'UpdateVolumeInReplicationActivity'],
+                documentation: 'doc/workflows/replication/replication-workflows.md'
+            },
+            {
+                category: 'replication',
+                name: 'Replication Sync Workflow',
+                description: 'Handles ongoing replication synchronization and conflict resolution',
+                file: 'core/orchestrator/workflows/replication/replication_sync_workflow.go',
+                activities: ['ReplicationSyncActivity', 'ConflictResolutionActivity', 'DataValidationActivity'],
+                documentation: 'doc/workflows/replication/replication-workflows.md'
+            },
+            {
+                category: 'control',
+                name: 'Control Workflow',
+                description: 'System control operations including health checks and maintenance tasks',
+                file: 'core/orchestrator/workflows/control/control_workflow.go',
+                activities: ['HealthCheckActivity', 'MaintenanceActivity', 'SystemStatusActivity'],
+                documentation: 'doc/workflows/control/control-workflows.md'
+            }
+        ];
+
+        // GitHub repository base URL
+        const githubBase = 'https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser';
+
+        let currentCategory = 'all';
+
+        function renderWorkflows(category = 'all') {
+            const filteredWorkflows = category === 'all' ? workflows : workflows.filter(w => w.category === category);
+            const workflowGrid = document.getElementById('workflowGrid');
+            
+            workflowGrid.innerHTML = filteredWorkflows.map(workflow => `
+                <div class="workflow-card">
+                    <div class="workflow-header">
+                        <span class="workflow-category">${workflow.category.toUpperCase()}</span>
+                    </div>
+                    <h3 class="workflow-name">${workflow.name}</h3>
+                    <p class="workflow-description">${workflow.description}</p>
+                    
+                    <div class="workflow-file">
+                        <i class="fas fa-file-code"></i> ${workflow.file}
+                    </div>
+
+                    <div class="activities">
+                        <h4><i class="fas fa-cogs"></i> Activities:</h4>
+                        <div class="activity-list">
+                            ${workflow.activities.map(activity => `
+                                <span class="activity">${activity}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="workflow-links">
+                        <a href="${githubBase}/${workflow.file}" target="_blank" class="link-btn">
+                            <i class="fas fa-code"></i> View Code
+                        </a>
+                        <a href="${githubBase}/${workflow.documentation}" target="_blank" class="link-btn secondary">
+                            <i class="fas fa-book"></i> View Docs
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Category filtering
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Update active tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Filter workflows
+                const category = this.getAttribute('data-category');
+                currentCategory = category;
+                renderWorkflows(category);
+            });
+        });
+
+        // Initialize
+        renderWorkflows();
+
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

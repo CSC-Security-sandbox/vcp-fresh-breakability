@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Browser - VSA Control Plane</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .main-content {
+            padding: 40px 0;
+        }
+
+        .search-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .api-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .api-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .api-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        .api-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .api-method {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .api-method.post { background: #007bff; }
+        .api-method.put { background: #ffc107; color: #333; }
+        .api-method.delete { background: #dc3545; }
+
+        .api-endpoint {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+
+        .api-description {
+            color: #666;
+            margin: 15px 0;
+            line-height: 1.5;
+        }
+
+        .api-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .link-btn {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+
+        .link-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .link-btn.secondary {
+            background: #6c757d;
+        }
+
+        .link-btn.secondary:hover {
+            background: #5a6268;
+        }
+
+        .workflow-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .workflow-info h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .workflow-info p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        @media (max-width: 768px) {
+            .api-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1><i class="fas fa-code"></i> API Browser</h1>
+                <div>
+                    <a href="index.html" class="nav-link">Home</a>
+                    <a href="workflow-browser.html" class="nav-link">Workflows</a>
+                    <a href="architecture-docs.html" class="nav-link">Architecture</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main-content">
+            <button onclick="goBack()" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </button>
+
+            <div class="search-bar">
+                <input type="text" class="search-input" placeholder="Search APIs by name, endpoint, or description..." id="searchInput">
+            </div>
+
+            <div class="api-grid" id="apiGrid">
+                <!-- APIs will be populated by JavaScript -->
+            </div>
+        </div>
+                </div>
+
+    <script>
+        // Real API data with actual GitHub links
+        const apis = [
+            {
+                method: 'GET',
+                endpoint: '/v1beta/projects/{projectNumber}/locations/{locationId}/pools',
+                name: 'List Pools',
+                description: 'Retrieves a list of storage pools for the specified project and location',
+                workflow: 'Direct Orchestrator Call',
+                workflowFile: 'core/orchestrator/pool.go',
+                handler: 'google-proxy/api/gcp-servergen/oas_router_gen.go',
+                activities: ['ListPools', 'GetPoolsByAccountName'],
+                spec: 'google-proxy/api/gcp-api.yaml'
+            },
+            {
+                method: 'POST',
+                endpoint: '/v1beta/projects/{projectNumber}/locations/{locationId}/pools',
+                name: 'Create Pool',
+                description: 'Creates a new storage pool with the specified configuration',
+                workflow: 'Pool Create Workflow',
+                workflowFile: 'core/orchestrator/workflows/pool_workflows.go',
+                handler: 'google-proxy/api/gcp-servergen/oas_router_gen.go',
+                activities: ['CreatePoolActivity', 'ClusterProvisioningActivity', 'VMRSActivity'],
+                spec: 'google-proxy/api/gcp-api.yaml'
+            },
+            {
+                method: 'GET',
+                endpoint: '/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumes',
+                name: 'List Volumes',
+                description: 'Lists all volumes in the specified storage pool',
+                workflow: 'Direct Orchestrator Call',
+                workflowFile: 'core/orchestrator/volume.go',
+                handler: 'google-proxy/api/gcp-servergen/oas_router_gen.go',
+                activities: ['ListVolumes', 'GetMultipleVolumes'],
+                spec: 'google-proxy/api/gcp-api.yaml'
+            },
+            {
+                method: 'POST',
+                endpoint: '/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumes',
+                name: 'Create Volume',
+                description: 'Creates a new volume in the specified storage pool',
+                workflow: 'Volume Create Workflow',
+                workflowFile: 'core/orchestrator/workflows/volume_create_workflow.go',
+                handler: 'google-proxy/api/gcp-servergen/oas_router_gen.go',
+                activities: ['VolumeCreateActivity', 'PreVolumeProvisioningActivity', 'PostVolumeProvisioningActivity'],
+                spec: 'google-proxy/api/gcp-api.yaml'
+            },
+            {
+                method: 'PUT',
+                endpoint: '/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumes/{volumeId}',
+                name: 'Update Volume',
+                description: 'Updates the configuration of an existing volume',
+                workflow: 'Volume Update Workflow',
+                workflowFile: 'core/orchestrator/workflows/volume_update_workflow.go',
+                handler: 'core/orchestrator/activities/volume_update_activities.go',
+                activities: ['UpdateVolumeActivity', 'ValidateVolumeUpdateActivity'],
+                spec: 'google-proxy/api/gcp-api.yaml'
+            },
+            {
+                method: 'DELETE',
+                endpoint: '/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumes/{volumeId}',
+                name: 'Delete Volume',
+                description: 'Deletes the specified volume and cleans up associated resources',
+                workflow: 'Volume Delete Workflow',
+                workflowFile: 'core/orchestrator/workflows/volume_delete_workflow.go',
+                handler: 'core/orchestrator/activities/volume_delete_activities.go',
+                activities: ['DeleteVolumeActivity', 'CleanupVolumeResourcesActivity'],
+                spec: 'google-proxy/api/gcp-api.yaml'
+            },
+            {
+                method: 'POST',
+                endpoint: '/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumes/{volumeId}/backups',
+                name: 'Create Backup',
+                description: 'Creates a backup of the specified volume in the backup vault',
+                workflow: 'Backup Workflow',
+                workflowFile: 'core/orchestrator/workflows/backup_workflow.go',
+                handler: 'google-proxy/api/endpoints/backup_policy_endpoints.go',
+                activities: ['BackupCreateActivity', 'PrepareObjectStoreActivity', 'UpdateSnapshotActivity'],
+                spec: 'google-proxy/api/gcp-api.yaml'
+            },
+            {
+                method: 'POST',
+                endpoint: '/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumes/{volumeId}/replications',
+                name: 'Create Replication',
+                description: 'Creates a replication relationship for the specified volume',
+                workflow: 'Replication Create Workflow',
+                workflowFile: 'core/orchestrator/workflows/replicationWorkflows/replication_create_workflow.go',
+                handler: 'core/orchestrator/activities/replicationActivities/replication_create_activities.go',
+                activities: ['CreateReplicationActivity', 'ValidateRemoteVolumeActivity'],
+                spec: 'google-proxy/api/gcp-api.yaml'
+            }
+        ];
+
+        // GitHub repository base URL
+        const githubBase = 'https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser';
+
+        function renderAPIs(apiList = apis) {
+            const apiGrid = document.getElementById('apiGrid');
+            apiGrid.innerHTML = apiList.map(api => `
+                <div class="api-card">
+                <div class="api-header">
+                        <span class="api-method ${api.method.toLowerCase()}">${api.method}</span>
+                        <div class="api-endpoint">${api.endpoint}</div>
+                    </div>
+                    <h3>${api.name}</h3>
+                    <p class="api-description">${api.description}</p>
+                    
+                    <div class="workflow-info">
+                        <h4><i class="fas fa-project-diagram"></i> Workflow: ${api.workflow}</h4>
+                        <p>Handles the business logic for this API endpoint</p>
+                </div>
+
+                    <div class="api-links">
+                        <a href="${githubBase}/${api.workflowFile}" target="_blank" class="link-btn">
+                            <i class="fas fa-code"></i> View Workflow
+                        </a>
+                        <a href="${githubBase}/${api.handler}" target="_blank" class="link-btn secondary">
+                            <i class="fas fa-hand-pointer"></i> View Handler
+                        </a>
+                        <a href="${githubBase}/${api.spec}" target="_blank" class="link-btn secondary">
+                            <i class="fas fa-file-alt"></i> View Spec
+                        </a>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <strong>Activities:</strong>
+                        <div style="margin-top: 5px;">
+                            ${api.activities.map(activity => `
+                                <span style="background: #e9ecef; padding: 2px 8px; border-radius: 3px; font-size: 0.8rem; margin-right: 5px;">
+                                    ${activity}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase();
+            const filteredAPIs = apis.filter(api => 
+                api.name.toLowerCase().includes(query) ||
+                api.endpoint.toLowerCase().includes(query) ||
+                api.description.toLowerCase().includes(query) ||
+                api.workflow.toLowerCase().includes(query) ||
+                api.activities.some(activity => activity.toLowerCase().includes(query))
+            );
+            renderAPIs(filteredAPIs);
+        });
+
+        // Initialize
+        renderAPIs();
+
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

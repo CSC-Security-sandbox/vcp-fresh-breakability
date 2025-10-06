@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Documentation - VSA Control Plane</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .main-content {
+            padding: 40px 0;
+        }
+
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .doc-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .doc-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .doc-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .doc-card p {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .doc-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .doc-status {
+            background: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        .doc-status.draft {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .doc-status.deprecated {
+            background: #dc3545;
+        }
+
+        .doc-links {
+            display: flex;
+            gap: 10px;
+        }
+
+        .link-btn {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+
+        .link-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .link-btn.secondary {
+            background: #6c757d;
+        }
+
+        .link-btn.secondary:hover {
+            background: #5a6268;
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        .architecture-overview {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .architecture-overview h2 {
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+
+        .architecture-overview p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .components {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .component {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .component-icon {
+            font-size: 2rem;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .component h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .component p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .doc-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1><i class="fas fa-sitemap"></i> Architecture Documentation</h1>
+                <div>
+                    <a href="index.html" class="nav-link">Home</a>
+                    <a href="api-browser.html" class="nav-link">APIs</a>
+                    <a href="workflow-browser.html" class="nav-link">Workflows</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main-content">
+            <button onclick="goBack()" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </button>
+
+            <div class="architecture-overview">
+                <h2><i class="fas fa-info-circle"></i> System Architecture Overview</h2>
+                <p>The VSA Control Plane is a microservices-based system built with Go, using Temporal for workflow orchestration and PostgreSQL for data persistence. The architecture follows clean architecture principles with clear separation of concerns.</p>
+                
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon"><i class="fas fa-server"></i></div>
+                        <h4>Core Service</h4>
+                        <p>Main business logic and orchestration</p>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon"><i class="fas fa-cloud"></i></div>
+                        <h4>Google Proxy</h4>
+                        <p>GCP API integration and routing</p>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon"><i class="fas fa-database"></i></div>
+                        <h4>Database</h4>
+                        <p>PostgreSQL for data persistence</p>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon"><i class="fas fa-project-diagram"></i></div>
+                        <h4>Temporal</h4>
+                        <p>Workflow orchestration engine</p>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon"><i class="fas fa-chart-line"></i></div>
+                        <h4>Telemetry</h4>
+                        <p>Metrics and monitoring</p>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon"><i class="fas fa-cogs"></i></div>
+                        <h4>Worker</h4>
+                        <p>Temporal workflow execution</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2><i class="fas fa-clipboard-list"></i> Architecture Decision Records (ADRs)</h2>
+                <div class="doc-grid">
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0001</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Record Architecture Decisions</h3>
+                        <p>Decision to use Architecture Decision Records (ADRs) to document important architectural decisions and their context.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0001-record-architecture-decisions.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0002</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Database Choice for VCP</h3>
+                        <p>Decision to use PostgreSQL as the primary database for the VSA Control Plane due to its ACID compliance and JSON support.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0002-database-choice-for-vcp.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0003</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>OpenAPI 3.0.4 for API Definition</h3>
+                        <p>Adoption of OpenAPI 3.0.4 specification for API documentation and code generation across all services.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0003-open-api-3-0-4-for-api-definition.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0004</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Use Chi as Go Server Framework</h3>
+                        <p>Decision to use Chi router as the HTTP server framework for its lightweight nature and middleware support.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0004-use-chi-as-go-server-framework.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0005</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>VMRS for Preview</h3>
+                        <p>Implementation of Virtual Machine Resource Specification (VMRS) pattern for consistent resource management.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0005-vmrs-for-preview.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0006</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Large Volume VMRS Decision Maker</h3>
+                        <p>Decision for specialized VM selection logic for large volume clusters with multiple HA pairs and non-linear performance scaling.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0006-large-volume-vmrs-decision-maker.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0007</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Orphan Backup Deletion Architecture</h3>
+                        <p>Evolution from container-based to serverless Cloud Run implementation for ADC backup deletion operations.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0007-orphan-backup-deletion.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0008</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Backup Scheduler Decision</h3>
+                        <p>Architecture decision for backup scheduling and policy management in the VSA Control Plane.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0008-backup-scheduler-decision.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0009</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Hybrid Replications</h3>
+                        <p>Decision for supporting hybrid replication scenarios across different cloud environments.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0009-hybrid-replications.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0010</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Temporal as Orchestrator Engine</h3>
+                        <p>Adoption of Temporal for workflow orchestration to handle long-running storage operations with reliability.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0010-temporal-as-orchestrator-engine.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>ADR-0011</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Slog Logging Framework</h3>
+                        <p>Decision to use structured logging with slog for improved observability and debugging capabilities.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/decisions/0011-slog-logging-framework.md" target="_blank" class="link-btn">View ADR</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2><i class="fas fa-drafting-compass"></i> Design Documents</h2>
+                <div class="doc-grid">
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0001</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Cluster Serial Number Generation</h3>
+                        <p>Design for generating unique serial numbers for cluster identification and management.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0001-cluster-serial-number-generation.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0002</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>FlexCache Volumes Design</h3>
+                        <p>Architecture for FlexCache volume implementation and caching strategies.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0002-flexcache-volumes.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0003</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Backup Vault Design</h3>
+                        <p>Comprehensive backup vault architecture including storage policies and disaster recovery.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0003-backup-vault-design.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0004</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Backup Design</h3>
+                        <p>Detailed backup strategy including incremental backups, snapshots, and recovery procedures.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0004-backup-design.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0005</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>VSA Auto Tiering Design</h3>
+                        <p>Intelligent data tiering system for optimizing storage costs and performance.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0005-vsa-auto-tiering-design.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0006</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Volume Replication Design</h3>
+                        <p>Cross-region replication design for data protection and disaster recovery.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0006-volume-replication-endpoints-and-design.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0007</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Background Jobs Design</h3>
+                        <p>Architecture for managing background jobs using Temporal Schedules for service operation and customer tasks.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0007-background-jobs-design.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0008</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Queuing Mechanism for Jobs</h3>
+                        <p>Design for job queuing and processing mechanisms to handle high-volume background operations.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0008-queuing-mechanism-for-jobs.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0009</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>LRO Generic Sequence</h3>
+                        <p>Long Running Operation (LRO) generic sequence design for handling complex multi-step operations.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0009-lro-generic-sequence.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>Design-0003b</span>
+                            <span class="doc-status">Accepted</span>
+                        </div>
+                        <h3>Metrics and Billing Design</h3>
+                        <p>Comprehensive metrics collection and billing system architecture for usage tracking and cost management.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/designs/0003-metrics-and-billing.md" target="_blank" class="link-btn">View Design</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2><i class="fas fa-question-circle"></i> Architecture How-To</h2>
+                <div class="doc-grid">
+                    <div class="doc-card">
+                        <div class="doc-meta">
+                            <span>HOWTO</span>
+                            <span class="doc-status">Guide</span>
+                        </div>
+                        <h3>Architecture How-To Guide</h3>
+                        <p>Comprehensive guide for understanding and working with the VSA Control Plane architecture, including development practices and design patterns.</p>
+                        <div class="doc-links">
+                            <a href="https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/document-visualiser/doc/architecture/HOWTO.md" target="_blank" class="link-btn">View Guide</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

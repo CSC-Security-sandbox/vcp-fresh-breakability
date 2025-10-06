@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSA Control Plane Documentation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .card-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .link-btn {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+
+        .link-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .link-btn.secondary {
+            background: #6c757d;
+        }
+
+        .link-btn.secondary:hover {
+            background: #5a6268;
+        }
+
+        .quick-start {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .quick-start h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .step {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .search-box {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .search-box h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-results {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .search-result {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .search-result h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .search-result p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .steps {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-book"></i> VSA Control Plane</h1>
+            <p>Complete Documentation & Code Navigation</p>
+        </div>
+
+        <div class="quick-start">
+            <h2><i class="fas fa-rocket"></i> Quick Start for New Developers</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Follow Onboarding Guide</h3>
+                    <p>Set up your development environment and get access to required resources</p>
+        </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Complete Getting Started</h3>
+                    <p>Create your first Pool, Volume, and test the system end-to-end</p>
+            </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Explore Architecture</h3>
+                    <p>Understand system design, decisions, and architectural patterns</p>
+            </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Study APIs & Workflows</h3>
+                    <p>Deep dive into available APIs and Temporal workflows for implementation details</p>
+            </div>
+            </div>
+        </div>
+
+            <div class="search-box">
+            <h2><i class="fas fa-search"></i> Search Documentation</h2>
+            <input type="text" class="search-input" placeholder="Search for APIs, workflows, guides, or any documentation..." id="searchInput">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+
+        <div class="main-grid">
+            <div class="card" onclick="window.location.href='architecture-docs.html'">
+                <div class="card-icon">
+                <i class="fas fa-sitemap"></i>
+                </div>
+                <h2>Architecture</h2>
+                <p>System design, decisions, and architectural patterns. Essential for understanding the overall structure.</p>
+                <div class="card-links">
+                    <a href="architecture-docs.html" class="link-btn">View Decisions</a>
+                    <a href="architecture-docs.html" class="link-btn secondary">View Designs</a>
+                </div>
+        </div>
+
+            <div class="card" onclick="window.location.href='api-browser.html'">
+                <div class="card-icon">
+                    <i class="fas fa-code"></i>
+                </div>
+                <h2>APIs & Code</h2>
+                <p>All available APIs with direct links to implementation code. Perfect for understanding functionality.</p>
+                <div class="card-links">
+                    <a href="api-browser.html" class="link-btn">Browse APIs</a>
+                    <a href="api-browser.html" class="link-btn secondary">View Code</a>
+                </div>
+            </div>
+
+            <div class="card" onclick="window.location.href='workflow-browser.html'">
+                <div class="card-icon">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <h2>Workflows</h2>
+                <p>Temporal workflows and activities. Visual representation of business logic and processes.</p>
+                <div class="card-links">
+                    <a href="workflow-browser.html" class="link-btn">Core Workflows</a>
+                    <a href="workflow-browser.html" class="link-btn secondary">Background Jobs</a>
+                </div>
+            </div>
+
+            <div class="card" onclick="window.location.href='guides-browser.html'">
+                <div class="card-icon">
+                    <i class="fas fa-book-open"></i>
+                </div>
+                <h2>Guides</h2>
+                <p>Step-by-step guides for common tasks, setup, and development workflows.</p>
+                <div class="card-links">
+                    <a href="guides-browser.html" class="link-btn">View Guides</a>
+                    <a href="guides-browser.html" class="link-btn secondary">Setup Instructions</a>
+                </div>
+            </div>
+
+            <div class="card" onclick="navigateTo('testing')">
+                <div class="card-icon">
+                    <i class="fas fa-vial"></i>
+                </div>
+                <h2>Testing</h2>
+                <p>Test plans, test suites, and testing strategies for different components and features.</p>
+                <div class="card-links">
+                    <a href="#" class="link-btn">Test Plans</a>
+                    <a href="#" class="link-btn secondary">Test Suites</a>
+                </div>
+            </div>
+
+            <div class="card" onclick="navigateTo('infrastructure')">
+                <div class="card-icon">
+                    <i class="fas fa-server"></i>
+                </div>
+                <h2>Infrastructure</h2>
+                <p>Deployment, runbooks, and infrastructure documentation for operations and DevOps.</p>
+                <div class="card-links">
+                    <a href="#" class="link-btn">Runbooks</a>
+                    <a href="#" class="link-btn secondary">Deployment</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>VSA Control Plane Documentation - Navigate from docs to code seamlessly</p>
+        </div>
+    </div>
+
+    <script>
+        // Simple search functionality
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+
+        // Documentation data - simple structure
+        const docs = {
+            'architecture': {
+                title: 'Architecture Documentation',
+                description: 'System design and architectural decisions',
+                files: [
+                    { name: 'Architecture Decisions', path: '../architecture/decisions/', type: 'folder' },
+                    { name: 'Design Documents', path: '../architecture/designs/', type: 'folder' }
+                ]
+            },
+            'apis': {
+                title: 'API Documentation',
+                description: 'REST APIs and their implementations',
+                files: [
+                    { name: 'API Resources', path: '../api/resources/', type: 'folder' },
+                    { name: 'API Specifications', path: '../api/', type: 'folder' }
+                ]
+            },
+            'workflows': {
+                title: 'Workflow Documentation',
+                description: 'Temporal workflows and business processes',
+                files: [
+                    { name: 'Core Workflows', path: '../workflows/core/', type: 'folder' },
+                    { name: 'Background Workflows', path: '../workflows/background/', type: 'folder' },
+                    { name: 'Replication Workflows', path: '../workflows/replication/', type: 'folder' },
+                    { name: 'Control Workflows', path: '../workflows/control/', type: 'folder' }
+                ]
+            },
+            'guides': {
+                title: 'Development Guides',
+                description: 'Step-by-step guides and tutorials',
+                files: [
+                    { name: 'Development Guides', path: '../guides/', type: 'folder' }
+                ]
+            },
+            'testing': {
+                title: 'Testing Documentation',
+                description: 'Test plans and testing strategies',
+                files: [
+                    { name: 'Test Plans', path: '../testing/test-plans/', type: 'folder' }
+                ]
+            },
+            'infrastructure': {
+                title: 'Infrastructure Documentation',
+                description: 'Deployment and operations guides',
+                files: [
+                    { name: 'Runbooks', path: '../infrastructure/runbooks/', type: 'folder' },
+                    { name: 'Infrastructure', path: '../infrastructure/', type: 'folder' }
+                ]
+            }
+        };
+
+        // Search functionality
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase();
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            const results = [];
+            Object.entries(docs).forEach(([key, doc]) => {
+                if (doc.title.toLowerCase().includes(query) || 
+                    doc.description.toLowerCase().includes(query)) {
+                    results.push(doc);
+                }
+                
+                doc.files.forEach(file => {
+                    if (file.name.toLowerCase().includes(query)) {
+                        results.push({
+                            title: file.name,
+                            description: `Part of ${doc.title}`,
+                            path: file.path
+                        });
+                    }
+                });
+            });
+
+            displaySearchResults(results);
+        });
+
+        function displaySearchResults(results) {
+            if (results.length === 0) {
+                searchResults.innerHTML = '<p>No results found</p>';
+            } else {
+                searchResults.innerHTML = results.map(result => `
+                    <div class="search-result">
+                        <h3>${result.title}</h3>
+                        <p>${result.description}</p>
+                    </div>
+                `).join('');
+            }
+            searchResults.style.display = 'block';
+        }
+
+        // Navigation function
+        function navigateTo(section) {
+            const sectionData = docs[section];
+            if (sectionData) {
+                // Create a simple page for each section
+                showSection(sectionData);
+            }
+        }
+
+        function showSection(sectionData) {
+            // Hide main content
+            document.querySelector('.main-grid').style.display = 'none';
+            document.querySelector('.quick-start').style.display = 'none';
+            document.querySelector('.search-box').style.display = 'none';
+
+            // Create section content
+            const sectionHTML = `
+                <div class="section-content">
+                    <div class="section-header">
+                        <button onclick="goBack()" class="back-btn">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <h1>${sectionData.title}</h1>
+                        <p>${sectionData.description}</p>
+                    </div>
+                    <div class="files-grid">
+                        ${sectionData.files.map(file => `
+                            <div class="file-card" onclick="openFile('${file.path}')">
+                                <div class="file-icon">
+                                    <i class="fas fa-${file.type === 'folder' ? 'folder' : 'file'}"></i>
+                                </div>
+                                <h3>${file.name}</h3>
+                                <p>Click to explore</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Add section content
+            const container = document.querySelector('.container');
+            const existingSection = container.querySelector('.section-content');
+            if (existingSection) {
+                existingSection.remove();
+            }
+            container.insertAdjacentHTML('beforeend', sectionHTML);
+        }
+
+        function goBack() {
+            // Show main content
+            document.querySelector('.main-grid').style.display = 'grid';
+            document.querySelector('.quick-start').style.display = 'block';
+            document.querySelector('.search-box').style.display = 'block';
+            
+            // Remove section content
+            const sectionContent = document.querySelector('.section-content');
+            if (sectionContent) {
+                sectionContent.remove();
+            }
+        }
+
+        function openFile(path) {
+            // Open the file in a new tab
+            window.open(path, '_blank');
+        }
+
+        // Add CSS for section content
+        const style = document.createElement('style');
+        style.textContent = `
+            .section-content {
+                background: white;
+                border-radius: 15px;
+                padding: 30px;
+                margin-bottom: 30px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }
+            
+            .section-header {
+                margin-bottom: 30px;
+            }
+            
+            .back-btn {
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                margin-bottom: 20px;
+            }
+            
+            .back-btn:hover {
+                background: #5a6fd8;
+            }
+            
+            .files-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+            }
+            
+            .file-card {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: background 0.3s ease;
+                border-left: 4px solid #667eea;
+            }
+            
+            .file-card:hover {
+                background: #e9ecef;
+            }
+            
+            .file-icon {
+                font-size: 2rem;
+                color: #667eea;
+                margin-bottom: 10px;
+            }
+            
+            .file-card h3 {
+                color: #333;
+                margin-bottom: 5px;
+            }
+            
+            .file-card p {
+                color: #666;
+                font-size: 0.9rem;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
