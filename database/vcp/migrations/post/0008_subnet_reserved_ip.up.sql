@@ -26,10 +26,12 @@ WHERE
     deleted_at IS NULL
     AND cluster_details ? 'subnet_names'
     AND cluster_details -> 'subnet_names' IS NOT NULL
+    AND cluster_details -> 'subnet_names' != 'null' :: jsonb
     AND jsonb_array_length(cluster_details -> 'subnet_names') > 0
     AND (
         NOT (cluster_details ? 'reserved_ips_in_subnet')
         OR cluster_details -> 'reserved_ips_in_subnet' IS NULL
+        OR cluster_details -> 'reserved_ips_in_subnet' = 'null' :: jsonb
         OR jsonb_array_length(cluster_details -> 'reserved_ips_in_subnet') = 0
     );
 
