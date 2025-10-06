@@ -89,6 +89,8 @@ spec:
               value: "false"
             - name: ENABLE_VOLUME_METRICS
               value: "false"
+            - name: ENABLE_POOL_METRICS
+              value: "false"
             - name: ENABLE_BACKUP_METRICS
               value: "false"
             - name: ENABLE_REPLICATION_METRICS
