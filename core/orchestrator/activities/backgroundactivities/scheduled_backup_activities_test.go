@@ -689,7 +689,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		}
 
 		// Mock UpdateBackup call
-		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
 
 		// Mock UpdateBackupLatestLogicalBackupSizeByVolume call (should be called when LatestLogicalBackupSize != 0)
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(nil).Once()
@@ -717,7 +717,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		}
 
 		// Mock UpdateBackup call
-		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
 
 		// UpdateBackupLatestLogicalBackupSizeByVolume should NOT be called when LatestLogicalBackupSize == 0
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
@@ -743,7 +743,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		}
 
 		// Mock UpdateBackup call to fail
-		mockStorage.On("UpdateBackup", ctx, backup).Return(nil, errors.New("database error")).Once()
+		mockStorage.On("FinishBackup", ctx, backup).Return(nil, errors.New("database error")).Once()
 
 		err := activity.UpdateBackupSize(ctx, backup, volume)
 		assert.Error(t, err)
@@ -767,7 +767,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		}
 
 		// Mock UpdateBackup call to succeed
-		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
 
 		// Mock UpdateBackupLatestLogicalBackupSizeByVolume call to fail
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(errors.New("reset error")).Once()
@@ -795,7 +795,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		}
 
 		// Mock UpdateBackup call to succeed
-		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
 
 		// Mock UpdateBackupLatestLogicalBackupSizeByVolume call to succeed
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(nil).Once()
@@ -825,7 +825,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		}
 
 		// Mock UpdateBackup call to succeed
-		mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
 
 		// UpdateBackupLatestLogicalBackupSizeByVolume should NOT be called when LatestLogicalBackupSize == 0
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(errors.New("volume update error")).Once()

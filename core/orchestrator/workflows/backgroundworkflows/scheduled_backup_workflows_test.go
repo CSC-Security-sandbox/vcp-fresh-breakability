@@ -231,8 +231,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -340,8 +340,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_JobStatusUpdateFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -497,8 +497,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateJobF
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetBackupVaultFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -551,8 +551,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetBackupV
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_DailyScheduledBackupFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -615,8 +615,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_DailySched
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_WeeklyScheduledBackupFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -689,8 +689,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_MonthlySch
 		scheduledMonthlyBackupDay = originalScheduledMonthlyBackupDay
 	}()
 
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -763,8 +763,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NoBackupsT
 		scheduledMonthlyBackupDay = originalScheduledMonthlyBackupDay
 	}()
 
-	scheduledWeeklyBackupDay = int(time.Now().Weekday()) + 1 // Set to a different day to ensure no weekly backup is not created
-	scheduledMonthlyBackupDay = time.Now().Day() + 1         // Set to a different day to ensure no monthly backup is created
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday()) + 1 // Set to a different day to ensure no weekly backup is not created
+	scheduledMonthlyBackupDay = time.Now().UTC().Day() + 1         // Set to a different day to ensure no monthly backup is created
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -818,8 +818,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NoBackupsT
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetNodeFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -886,8 +886,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetNodeFai
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetObjStoreNameFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -962,8 +962,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetObjStor
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetOrCreateObjectStoreFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1043,8 +1043,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetOrCreat
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapmirrorGetOrCreateFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1129,8 +1129,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GenerateSnapshotNameFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1224,8 +1224,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GenerateSn
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBackupSnapshotInDBFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1321,8 +1321,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBack
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCreateFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1421,8 +1421,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCr
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateSnapshotInDBFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1525,8 +1525,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateSnap
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapmirrorTransferFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1630,8 +1630,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmirrorTransferStatusFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1736,8 +1736,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBackupFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1847,8 +1847,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCriticalActivityFailures() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1959,8 +1959,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 }
 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateBackupSizeFailure() {
-	scheduledWeeklyBackupDay = int(time.Now().Weekday())
-	scheduledMonthlyBackupDay = time.Now().Day()
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}

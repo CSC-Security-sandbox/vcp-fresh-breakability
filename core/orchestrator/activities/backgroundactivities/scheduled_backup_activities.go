@@ -219,7 +219,7 @@ func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *
 	logger := util.GetLogger(ctx)
 	se := j.SE
 
-	_, err := se.UpdateBackup(ctx, backup)
+	_, err := se.FinishBackup(ctx, backup)
 	if err != nil {
 		logger.Errorf("Failed to update backup %s with size information: %v", backup.UUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
