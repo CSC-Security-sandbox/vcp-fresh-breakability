@@ -1391,6 +1391,46 @@ func TestRevertVolume(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 
+	t.Run("TestRevertVolume_VolumeModifyErrorWithSnapshotInUse", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+		}
+
+		// Test for "Failed to restore snapshot"
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("Failed to restore snapshot due to clone")).Once()
+		err := rc.RevertVolume(params)
+		assert.Error(t, err)
+		customErr, ok := err.(*vsaerrors.CustomError)
+		assert.True(t, ok)
+		assert.Equal(t, vsaerrors.ErrRevertVolumeWhenSnapshotInUse, customErr.TrackingID)
+		assert.Contains(t, err.Error(), "Cannot revert the volume as snapshot is in use by the cloned volume")
+
+		// Test for "Volume snap restore error"
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("Volume snap restore error: snapshot in use")).Once()
+		err = rc.RevertVolume(params)
+		assert.Error(t, err)
+		customErr, ok = err.(*vsaerrors.CustomError)
+		assert.True(t, ok)
+		assert.Equal(t, vsaerrors.ErrRevertVolumeWhenSnapshotInUse, customErr.TrackingID)
+		assert.Contains(t, err.Error(), "Cannot revert the volume as snapshot is in use by the cloned volume")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
 	t.Run("TestRevertVolume_VolumeModifyErrorWithReplicationDestination", func(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)

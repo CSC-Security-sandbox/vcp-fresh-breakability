@@ -707,6 +707,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "7009": {
+    "description": "VolumeRevert Failure",
+    "message": "Error reverting volume - Cannot revert the volume as snapshot is in use by the cloned volume",
+    "retriable": false,
+    "http_code": 400
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",

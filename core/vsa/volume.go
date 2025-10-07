@@ -358,6 +358,9 @@ func (rc *OntapRestProvider) RevertVolume(params RevertVolumeParams) error {
 
 	done, jj, err := client.Storage().VolumeModify(revertParams)
 	if err != nil {
+		if strings.Contains(err.Error(), "Failed to restore snapshot") || strings.Contains(err.Error(), "Volume snap restore error") {
+			return vsaerrors.NewVCPError(vsaerrors.ErrRevertVolumeWhenSnapshotInUse, errors.NewUserInputValidationErr("Cannot revert a Volume when snapshot is in use by the cloned volume"))
+		}
 		if errors.IsNotFoundErr(err) {
 			return vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("Volume", nil))
 		}

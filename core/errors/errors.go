@@ -122,6 +122,7 @@ const (
 	ErrRevertReplicationDestinationVolume = 7006
 	ErrLunUpdate                          = 7007
 	ErrRestoreVolumeValidation            = 7008
+	ErrRevertVolumeWhenSnapshotInUse      = 7009
 
 	// CMEK Error Codes
 	ErrDescribingSDEJob                            = 6057

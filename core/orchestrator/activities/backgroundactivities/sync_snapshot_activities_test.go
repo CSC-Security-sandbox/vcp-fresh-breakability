@@ -1444,7 +1444,7 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_TimeoutScenario
 	mockProvider := new(vsa.MockProvider)
 	// Simulate slow response that will timeout
 	mockProvider.On("GetVolumes").Return(func() ([]*vsa.Volume, error) {
-		time.Sleep(50 * time.Millisecond) // Longer than context timeout
+		time.Sleep(100 * time.Millisecond) // Ensure this is longer than the context timeout
 		return []*vsa.Volume{}, nil
 	})
 
@@ -1457,8 +1457,12 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_TimeoutScenario
 	result, err := activity.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	// Check for either timeout or context cancelled error
-	assert.True(t, strings.Contains(err.Error(), "Timeout getting ONTAP volumes") || strings.Contains(err.Error(), "Context cancelled while getting ONTAP volumes"))
+	if err != nil {
+		assert.True(t,
+			strings.Contains(err.Error(), "Timeout getting ONTAP volumes") ||
+				strings.Contains(err.Error(), "Context cancelled while getting ONTAP volumes"),
+			"unexpected error: %v", err)
+	}
 	mockProvider.AssertExpectations(t)
 }
 
