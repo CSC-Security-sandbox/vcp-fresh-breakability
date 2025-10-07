@@ -2367,3 +2367,127 @@ func (j *PoolActivity) HydrateUpdatedPoolToCCFE(ctx context.Context, dbPool data
 func _listAddressesByDeployment(gcpService hyperscaler2.GoogleServices, projectName, region, deploymentID string) (*[]hyperscaler_models.Address, error) {
 	return gcpService.ListAddressesByDeployment(projectName, region, deploymentID)
 }
+
+// FetchPoolData fetches pool data from database and parses VLM config
+func (a *PoolActivity) FetchPoolData(ctx context.Context, input FetchPoolDataActivityInput) (*FetchPoolDataActivityOutput, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Starting pool data fetch", "poolUUID", input.PoolUUID, "accountID", input.AccountID)
+
+	// Record activity heartbeat
+	activity.RecordHeartbeat(ctx, "Starting pool data fetch")
+
+	// Fetch the pool from database
+	poolView, err := a.SE.GetPool(ctx, input.PoolUUID, input.AccountID)
+	if err != nil {
+		logger.Error("Failed to fetch pool", "poolUUID", input.PoolUUID, "error", err)
+		return &FetchPoolDataActivityOutput{
+			PoolUUID: input.PoolUUID,
+			Success:  false,
+			Error:    fmt.Sprintf("Failed to fetch pool: %v", err),
+		}, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	// Record activity heartbeat
+	activity.RecordHeartbeat(ctx, "Pool fetched, parsing VLM config")
+
+	// Parse VLM config from pool
+	var vlmConfig vlm.VLMConfig
+	if poolView.VLMConfig != "" {
+		err = json.Unmarshal([]byte(poolView.VLMConfig), &vlmConfig)
+		if err != nil {
+			logger.Error("Failed to parse VLM config", "poolUUID", input.PoolUUID, "error", err)
+			return &FetchPoolDataActivityOutput{
+				PoolUUID: input.PoolUUID,
+				Success:  false,
+				Error:    fmt.Sprintf("Failed to parse VLM config: %v", err),
+			}, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, err)
+		}
+	} else {
+		logger.Error("Failed to get VLM config", "poolUUID", input.PoolUUID, "error", err)
+		return &FetchPoolDataActivityOutput{
+			PoolUUID: input.PoolUUID,
+			Success:  false,
+			Error:    fmt.Sprintf("Failed to get VLM config: %v", err),
+		}, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, err)
+	}
+
+	logger.Info("Pool data fetch completed successfully", "poolUUID", input.PoolUUID)
+
+	return &FetchPoolDataActivityOutput{
+		PoolUUID:  input.PoolUUID,
+		VLMConfig: vlmConfig,
+		Success:   true,
+	}, nil
+}
+
+// UpdatePoolCompliance updates the pool with compliance data
+func (a *PoolActivity) UpdatePoolCompliance(ctx context.Context, input UpdatePoolComplianceActivityInput) (*UpdatePoolComplianceActivityOutput, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Starting pool compliance update", "poolUUID", input.PoolUUID)
+
+	// Record activity heartbeat
+	activity.RecordHeartbeat(ctx, "Updating pool compliance fields")
+
+	// Update the pool with compliance data
+	updates := map[string]interface{}{
+		"satisfy_zi": input.SatisfyZI,
+		"satisfy_zs": input.SatisfyZS,
+	}
+
+	// Add asset metadata if provided
+	if input.AssetMetadata != nil {
+		updates["asset_metadata"] = input.AssetMetadata
+	}
+
+	err := a.SE.UpdatePoolFields(ctx, input.PoolUUID, updates)
+	// Record heartbeat before the update call to signal we've started persisting
+	activity.RecordHeartbeat(ctx, "Persisting asset metadata")
+	logger.Info("Committing pool updates", "poolUUID", input.PoolUUID, "satisfyZI", input.SatisfyZI, "satisfyZS", input.SatisfyZS)
+	if err != nil {
+		logger.Error("Failed to update pool compliance fields", "poolUUID", input.PoolUUID, "error", err)
+		return &UpdatePoolComplianceActivityOutput{
+			PoolUUID: input.PoolUUID,
+			Success:  false,
+			Error:    fmt.Sprintf("Failed to update pool compliance fields: %v", err),
+		}, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	logger.Info("Pool compliance update completed successfully",
+		"poolUUID", input.PoolUUID,
+		"satisfyZI", input.SatisfyZI,
+		"satisfyZS", input.SatisfyZS)
+
+	return &UpdatePoolComplianceActivityOutput{
+		PoolUUID: input.PoolUUID,
+		Success:  true,
+	}, nil
+}
+
+// FetchPoolDataActivityInput represents the input for fetching pool data
+type FetchPoolDataActivityInput struct {
+	PoolUUID  string `json:"pool_uuid"`
+	AccountID int64  `json:"account_id"`
+}
+
+// FetchPoolDataActivityOutput represents the output for fetching pool data
+type FetchPoolDataActivityOutput struct {
+	PoolUUID  string        `json:"pool_uuid"`
+	VLMConfig vlm.VLMConfig `json:"vlm_config"`
+	Success   bool          `json:"success"`
+	Error     string        `json:"error,omitempty"`
+}
+
+// UpdatePoolComplianceActivityInput represents the input for updating pool compliance
+type UpdatePoolComplianceActivityInput struct {
+	PoolUUID      string                   `json:"pool_uuid"`
+	SatisfyZI     bool                     `json:"satisfy_zi"`
+	SatisfyZS     bool                     `json:"satisfy_zs"`
+	AssetMetadata *datamodel.AssetMetadata `json:"asset_metadata,omitempty"`
+}
+
+// UpdatePoolComplianceActivityOutput represents the output for updating pool compliance
+type UpdatePoolComplianceActivityOutput struct {
+	PoolUUID string `json:"pool_uuid"`
+	Success  bool   `json:"success"`
+	Error    string `json:"error,omitempty"`
+}

@@ -137,6 +137,8 @@ workerConfig:
   vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes: 120
   vlmValidateClusterHealthWorkflowTimeoutMinutes: 15
   vlmClusterPowerOpWorkflowTimeoutMinutes: 30
+  vlmGetClusterZIZSDetailsWFTimeoutMinutes: 10
+  vlmUpdateVsaMediatorWFTimeoutMinutes: 30
   # Comma-separated list of error patterns that trigger delete and retry operations
   vlmRetryErrorPatterns: ""
 
@@ -220,6 +222,10 @@ workerConfig:
   # Volume Refresh Configuration
   volumeRefreshWorkflowStartToCloseTimeout: "10m"
   volumeSyncChunkSize: "200"
+
+  # To enable the sync job to update zi/zs fields for pool
+  enableSyncPoolZIZS: "false"
+  syncPoolZIZSBatchSize: "5"
 
   # Mock gcp access token for testing purposes
   mockAccessToken: ""

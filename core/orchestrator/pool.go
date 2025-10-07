@@ -646,6 +646,8 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			Throughput: float64(pool.PoolAttributes.ThroughputMibps),
 			Iops:       pool.PoolAttributes.Iops,
 		},
+		SatisfiesPzi: pool.SatisfyZI,
+		SatisfiesPzs: pool.SatisfyZS,
 	}
 
 	if pool.KmsConfig != nil {
@@ -667,6 +669,15 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			CustomerProjectID: pool.KmsConfig.CustomerProjectID,
 			KeyProjectID:      pool.KmsConfig.KeyProjectID,
 			ResourceID:        pool.KmsConfig.ResourceID,
+		}
+	}
+	if pool.AssetMetadata != nil {
+		poolRes.AssetMetadata = &models.AssetMetadata{}
+		for _, originalPoolAssetMetadata := range pool.AssetMetadata.ChildAssets {
+			var assetMetadata models.ChildAsset
+			assetMetadata.AssetNames = originalPoolAssetMetadata.AssetNames
+			assetMetadata.AssetType = originalPoolAssetMetadata.AssetType
+			poolRes.AssetMetadata.ChildAssets = append(poolRes.AssetMetadata.ChildAssets, assetMetadata)
 		}
 	}
 	return poolRes

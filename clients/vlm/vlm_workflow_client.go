@@ -72,6 +72,7 @@ type VlmWorkflowClient interface {
 	UpdateVSAClusterDeployment(ctx workflow.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error)
 	ValidateClusterHealth(ctx workflow.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error
 	ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error
+	GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error)
 }
 
 type VSAClientWorkflowManager struct {
@@ -372,6 +373,65 @@ func (vlmManager *VSAClientWorkflowManager) UpdateVSAClusterDeployment(ctx workf
 	}
 
 	return updateVSAClusterDeploymentResponse, nil
+}
+
+func (vlmManager *VSAClientWorkflowManager) GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Starting GetClusterZiZsDetails workflow", "projectID", req.ProjectID, "deploymentID", req.DeploymentID)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract account ID from project ID (assuming project ID contains account info)
+	// If project ID doesn't contain account info, we'll use a default account
+	accountId := req.ProjectID // Using project ID as account identifier
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[GetClusterZiZsDetailsWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		TaskQueue:             getVLMWorkerQueue(logger, accountId),
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		// Generate fallback correlation ID if not present
+		correlationID = fmt.Sprintf("deployment_%s_time_%s", req.DeploymentID, time.Now().Format("20060102150405"))
+		logger.Info("Generated fallback correlation ID", "correlationID", correlationID)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, req.DeploymentID)
+
+	var resp GetResourceInfoResp
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, GetClusterZiZsDetailsWorkflowName, req).Get(childWorkflowContxt, &resp)
+	if err != nil {
+		logger.Error("Failed to execute GetClusterZiZsDetails workflow", "error", err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	logger.Info("GetClusterZiZsDetails workflow completed successfully",
+		"projectID", req.ProjectID,
+		"deploymentID", req.DeploymentID)
+
+	return &resp, nil
 }
 
 func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {

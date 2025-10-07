@@ -8,6 +8,31 @@ import (
 type VSAClientWorkflowManagerMock struct {
 }
 
+func (vlmManager *VSAClientWorkflowManagerMock) GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock GetClusterZiZsDetails")
+
+	// Create a mock response with sample compliance data
+	mockResponse := &GetResourceInfoResp{
+		ProjectID:    req.ProjectID,
+		DeploymentID: req.DeploymentID,
+		ResourceInfo: ResourceInformation{
+			GCPRI: map[string][]GCPResourceInformation{
+				"pool": {
+					{
+						SatisfiesPzi: true,  // Mock ZI compliance
+						SatisfiesPzs: false, // Mock ZS compliance
+						AssetType:    "pool",
+						AssetLink:    "mock-asset-link",
+					},
+				},
+			},
+		},
+	}
+
+	return mockResponse, nil
+}
+
 func (vlmManager *VSAClientWorkflowManagerMock) CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
 	logger := util.GetLogger(ctx)
 	logger.Info("Mock CreateVSAClusterDeployment")

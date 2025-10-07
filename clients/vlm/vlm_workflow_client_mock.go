@@ -233,6 +233,65 @@ func (_c *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call) RunAndReturn(ru
 	return _c
 }
 
+// GetClusterZiZsDetails provides a mock function with given fields: ctx, req
+func (_m *MockVlmWorkflowClient) GetClusterZiZsDetails(ctx internal.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterZiZsDetails")
+	}
+
+	var r0 *GetResourceInfoResp
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *GetResourceInfoReq) (*GetResourceInfoResp, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *GetResourceInfoReq) *GetResourceInfoResp); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*GetResourceInfoResp)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(internal.Context, *GetResourceInfoReq) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockVlmWorkflowClient_GetClusterZiZsDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterZiZsDetails'
+type MockVlmWorkflowClient_GetClusterZiZsDetails_Call struct {
+	*mock.Call
+}
+
+// GetClusterZiZsDetails is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - req *GetResourceInfoReq
+func (_e *MockVlmWorkflowClient_Expecter) GetClusterZiZsDetails(ctx interface{}, req interface{}) *MockVlmWorkflowClient_GetClusterZiZsDetails_Call {
+	return &MockVlmWorkflowClient_GetClusterZiZsDetails_Call{Call: _e.mock.On("GetClusterZiZsDetails", ctx, req)}
+}
+
+func (_c *MockVlmWorkflowClient_GetClusterZiZsDetails_Call) Run(run func(ctx internal.Context, req *GetResourceInfoReq)) *MockVlmWorkflowClient_GetClusterZiZsDetails_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*GetResourceInfoReq))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_GetClusterZiZsDetails_Call) Return(_a0 *GetResourceInfoResp, _a1 error) *MockVlmWorkflowClient_GetClusterZiZsDetails_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_GetClusterZiZsDetails_Call) RunAndReturn(run func(internal.Context, *GetResourceInfoReq) (*GetResourceInfoResp, error)) *MockVlmWorkflowClient_GetClusterZiZsDetails_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateVSAClusterDeployment provides a mock function with given fields: ctx, updateVSAClusterDeploymentRequest, ontapVersion
 func (_m *MockVlmWorkflowClient) UpdateVSAClusterDeployment(ctx internal.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error) {
 	ret := _m.Called(ctx, updateVSAClusterDeploymentRequest, ontapVersion)

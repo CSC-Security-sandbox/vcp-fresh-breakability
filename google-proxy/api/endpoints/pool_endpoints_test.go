@@ -3570,6 +3570,111 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 		assert.False(tt, result.Unified.Value, "Unified should be false for CVP pools")
 		assert.False(tt, result.UnifiedPool.Value, "UnifiedPool should be false for CVP pools")
 	})
+
+	t.Run("WhenPoolHasAssetMetadata", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-with-assets",
+			},
+			Description: "Pool with asset metadata",
+			VendorID:    "/projects/123/locations/us-east4/pools/test-pool",
+			Region:      "us-east4",
+			SizeInBytes: 2147483648, // 2 GiB
+			State:       models.LifeCycleStateAvailable,
+			QosType:     "auto",
+			AssetMetadata: &models.AssetMetadata{
+				ChildAssets: []models.ChildAsset{
+					{
+						AssetType:  "storage",
+						AssetNames: []string{"asset1", "asset2"},
+					},
+					{
+						AssetType:  "compute",
+						AssetNames: []string{"vm1"},
+					},
+				},
+			},
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AssetLocationMetadata.IsSet())
+
+		metadata := result.AssetLocationMetadata.Value
+		assert.True(tt, metadata.ChildAssets.Set)
+		assert.Len(tt, metadata.ChildAssets.Value, 2)
+
+		// Check first asset
+		firstAsset := metadata.ChildAssets.Value[0]
+		assert.Equal(tt, "storage", firstAsset.AssetType.Value)
+		assert.Equal(tt, []string{"asset1", "asset2"}, firstAsset.AssetNames)
+
+		// Check second asset
+		secondAsset := metadata.ChildAssets.Value[1]
+		assert.Equal(tt, "compute", secondAsset.AssetType.Value)
+		assert.Equal(tt, []string{"vm1"}, secondAsset.AssetNames)
+	})
+
+	t.Run("WhenPoolHasEmptyAssetMetadata", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-empty-assets",
+			},
+			Description: "Pool with empty asset metadata",
+			VendorID:    "/projects/123/locations/us-east4/pools/test-pool",
+			SizeInBytes: 1073741824, // 1 GiB
+			State:       models.LifeCycleStateAvailable,
+			AssetMetadata: &models.AssetMetadata{
+				ChildAssets: []models.ChildAsset{},
+			},
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AssetLocationMetadata.IsSet())
+
+		metadata := result.AssetLocationMetadata.Value
+		assert.True(tt, metadata.ChildAssets.Set)
+		assert.Empty(tt, metadata.ChildAssets.Value)
+	})
+
+	t.Run("WhenPoolHasSingleChildAsset", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-single-asset",
+			},
+			Description: "Pool with single asset",
+			VendorID:    "/projects/123/locations/us-east4/pools/test-pool",
+			SizeInBytes: 1073741824, // 1 GiB
+			State:       models.LifeCycleStateAvailable,
+			AssetMetadata: &models.AssetMetadata{
+				ChildAssets: []models.ChildAsset{
+					{
+						AssetType:  "database",
+						AssetNames: []string{"db1", "db2", "db3"},
+					},
+				},
+			},
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AssetLocationMetadata.IsSet())
+
+		metadata := result.AssetLocationMetadata.Value
+		assert.True(tt, metadata.ChildAssets.Set)
+		assert.Len(tt, metadata.ChildAssets.Value, 1)
+
+		asset := metadata.ChildAssets.Value[0]
+		assert.Equal(tt, "database", asset.AssetType.Value)
+		assert.Equal(tt, []string{"db1", "db2", "db3"}, asset.AssetNames)
+	})
 }
 
 // TestValidateThroughputAndIopsForUpdate tests the validateThroughputAndIopsForUpdate function

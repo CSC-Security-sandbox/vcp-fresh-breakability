@@ -28,6 +28,13 @@ type Pool struct {
 	SnHostProject           string
 	LargeCapacity           bool
 	KmsConfig               *KmsConfig
+	SatisfiesPzi            bool
+	SatisfiesPzs            bool
+	AssetMetadata           *AssetMetadata
+}
+
+type AssetMetadata struct {
+	ChildAssets []ChildAsset
 }
 
 // PoolAttributes describes the attributes of a pool model

@@ -339,6 +339,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.CleanupHydratedMetricsTableWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CleanupAggregatedUsageTableWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncVSAAutoTieringWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncPoolZIZSDetailsWorkflow)
+	worker.RegisterWorkflow(workflows.SyncPoolComplianceForPoolWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringPauseResumeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.AutoTieringHotTierAutoResizeWorkflow)
 	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)

@@ -130,6 +130,8 @@ data:
   VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
   VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmValidateClusterHealthWorkflowTimeoutMinutes | quote }}
   VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmClusterPowerOpWorkflowTimeoutMinutes | quote }}
+  VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmGetClusterZIZSDetailsWFTimeoutMinutes | quote }}
+  VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES: {{$.Values.workerConfig.vlmUpdateVsaMediatorWFTimeoutMinutes | quote }}
   VLM_RETRY_ERROR_PATTERNS: {{$.Values.workerConfig.vlmRetryErrorPatterns | quote }}
   GCE_METADATA_HOST: {{$.Values.workerConfig.gceMetadataHost | quote }}
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{$.Values.workerConfig.numberOfHaPairsLargeCapacity | quote }}
@@ -201,6 +203,9 @@ data:
 
   VOLUME_REFRESH_WORKFLOW_START_TO_CLOSE_TIMEOUT: {{$.Values.workerConfig.volumeRefreshWorkflowStartToCloseTimeout | quote }}
   VOLUME_SYNC_CHUNK_SIZE: {{$.Values.workerConfig.volumeSyncChunkSize | quote }}
+
+  ENABLE_SYNC_POOL_ZIZS: {{$.Values.workerConfig.enableSyncPoolZIZS | quote }}
+  SYNC_POOL_ZIZS_BATCH_SIZE: {{$.Values.workerConfig.syncPoolZIZSBatchSize | quote }}
 ---
   {{- end }}
 {{- end }}

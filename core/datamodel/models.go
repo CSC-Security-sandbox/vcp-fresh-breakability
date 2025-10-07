@@ -36,6 +36,9 @@ type Pool struct {
 	SnHostProject     string             `gorm:"column:sn_host_project;index"`
 	VLMConfig         string             `gorm:"vlm_config;type:text"`
 	LargeCapacity     bool               `gorm:"column:large_capacity;default:false"`
+	SatisfyZI         bool               `gorm:"column:satisfy_zi;default:false"`
+	SatisfyZS         bool               `gorm:"column:satisfy_zs;default:false"`
+	AssetMetadata     *AssetMetadata     `gorm:"column:asset_metadata;type:jsonb"`
 }
 
 type PoolCredentials struct {
@@ -43,6 +46,15 @@ type PoolCredentials struct {
 	CertificateID string `json:"certificate_id"`
 	Password      string `json:"password"`
 	AuthType      int    `json:"auth_type"`
+}
+
+type AssetMetadata struct {
+	ChildAssets []ChildAsset `json:"child_assets"`
+}
+
+type ChildAsset struct {
+	AssetNames []string `json:"asset_names"`
+	AssetType  string   `json:"asset_type"`
 }
 
 type PoolView struct {
@@ -148,6 +160,24 @@ func (pc *PoolCredentials) Scan(value interface{}) error {
 // Value implements the Valuer interface for PoolCredentials
 func (pc PoolCredentials) Value() (driver.Value, error) {
 	return json.Marshal(pc)
+}
+
+// Scan implements the Scanner interface for AssetMetadata
+func (am *AssetMetadata) Scan(value interface{}) error {
+	if value == nil {
+		*am = AssetMetadata{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, am)
+}
+
+// Value implements the Valuer interface for AssetMetadata
+func (am AssetMetadata) Value() (driver.Value, error) {
+	return json.Marshal(am)
 }
 
 type Volume struct {

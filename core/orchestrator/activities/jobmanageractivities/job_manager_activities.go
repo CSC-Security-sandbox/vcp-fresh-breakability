@@ -25,6 +25,7 @@ const (
 	SyncVsaAutoTiering            = "SYNC_VSA_AUTO_TIERING"
 	DeleteResources               = "DELETE_RESOURCES"
 	SyncBackupZiZsMetadata        = "SYNC_BACKUP_ZIZS_METADATA"
+	SyncPoolCompliance            = "SYNC_POOL_COMPLIANCE"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
@@ -39,6 +40,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	SyncVsaAutoTiering:            backgroundworkflows.SyncVSAAutoTieringWorkflow,
 	DeleteResources:               backgroundworkflows.ResourceCleanupParentWorkflow,
 	SyncBackupZiZsMetadata:        backgroundworkflows.SyncBackupZiZsWorkflow,
+	SyncPoolCompliance:            backgroundworkflows.SyncPoolZIZSDetailsWorkflow,
 }
 
 type JobManagerActivity struct {

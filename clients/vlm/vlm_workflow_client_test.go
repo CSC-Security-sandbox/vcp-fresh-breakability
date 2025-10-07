@@ -2716,3 +2716,434 @@ func TestClusterPowerOp_WithCredentials(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 }
+
+// TestGetClusterZiZsDetails tests the GetClusterZiZsDetails workflow execution
+func TestGetClusterZiZsDetails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	// Register mock workflow that returns successful response
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+			return &GetResourceInfoResp{
+				ProjectID:    request.ProjectID,
+				DeploymentID: request.DeploymentID,
+				ResourceInfo: ResourceInformation{
+					GCPRI: map[string][]GCPResourceInformation{
+						ZiZsComputeInstanceKey: {
+							{
+								SatisfiesPzi: true,
+								SatisfiesPzs: true,
+								AssetType:    "instance",
+								AssetLink:    "projects/test-project/zones/us-central1-a/instances/test-instance",
+							},
+						},
+					},
+				},
+			}, nil
+		},
+		workflow.RegisterOptions{Name: GetClusterZiZsDetailsWorkflowName},
+	)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "test-project",
+		DeploymentID: "test-deployment-id",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestGetClusterZiZsDetails_Error tests the GetClusterZiZsDetails workflow with errors
+func TestGetClusterZiZsDetails_Error(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	// Register mock workflow that returns an error
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+			return nil, errors.New("child workflow failed")
+		},
+		workflow.RegisterOptions{Name: GetClusterZiZsDetailsWorkflowName},
+	)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "test-project",
+		DeploymentID: "test-deployment-id",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "An error occurred during VLM workflow execution")
+}
+
+// TestGetClusterZiZsDetails_CorrelationIDNotFound tests the correlation ID fallback scenario
+func TestGetClusterZiZsDetails_CorrelationIDNotFound(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Register mock workflow that succeeds
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+			return &GetResourceInfoResp{
+				ProjectID:    request.ProjectID,
+				DeploymentID: request.DeploymentID,
+				ResourceInfo: ResourceInformation{
+					GCPRI: map[string][]GCPResourceInformation{},
+				},
+			}, nil
+		},
+		workflow.RegisterOptions{Name: GetClusterZiZsDetailsWorkflowName},
+	)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "test-project",
+		DeploymentID: "test-deployment-id",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestGetClusterZiZsDetails_IntegrationTest tests with integration test flag
+func TestGetClusterZiZsDetails_IntegrationTest(t *testing.T) {
+	// Set the environment variable to true
+	originalEnv := IsIntegrationTest
+	IsIntegrationTest = true
+	defer func() { IsIntegrationTest = originalEnv }()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "test-project",
+		DeploymentID: "test-deployment-id",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestGetClusterZiZsDetails_EmptyFields tests with empty fields
+func TestGetClusterZiZsDetails_EmptyFields(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	// Register mock workflow that handles empty fields
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+			return &GetResourceInfoResp{
+				ProjectID:    request.ProjectID,
+				DeploymentID: request.DeploymentID,
+				ResourceInfo: ResourceInformation{
+					GCPRI: map[string][]GCPResourceInformation{},
+				},
+			}, nil
+		},
+		workflow.RegisterOptions{Name: GetClusterZiZsDetailsWorkflowName},
+	)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "",
+		DeploymentID: "",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestGetClusterZiZsDetails_FileProtocolSupport tests file protocol logic
+func TestGetClusterZiZsDetails_FileProtocolSupport(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+			return &GetResourceInfoResp{
+				ProjectID:    request.ProjectID,
+				DeploymentID: request.DeploymentID,
+				ResourceInfo: ResourceInformation{
+					GCPRI: map[string][]GCPResourceInformation{
+						ZiZsComputeDiskKey: {
+							{
+								SatisfiesPzi: true,
+								SatisfiesPzs: false,
+								AssetType:    "disk",
+								AssetLink:    "projects/test-project/zones/us-central1-a/disks/test-disk",
+							},
+						},
+					},
+				},
+			}, nil
+		},
+		workflow.RegisterOptions{Name: GetClusterZiZsDetailsWorkflowName},
+	)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "file-protocol-project", // This should trigger file protocol logic
+		DeploymentID: "file-deployment-id",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestGetClusterZiZsDetails_ComplexResourceInfo tests with complex resource information
+func TestGetClusterZiZsDetails_ComplexResourceInfo(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+			return &GetResourceInfoResp{
+				ProjectID:    request.ProjectID,
+				DeploymentID: request.DeploymentID,
+				ResourceInfo: ResourceInformation{
+					GCPRI: map[string][]GCPResourceInformation{
+						ZiZsComputeInstanceKey: {
+							{
+								SatisfiesPzi: true,
+								SatisfiesPzs: true,
+								AssetType:    "instance",
+								AssetLink:    "projects/test-project/zones/us-central1-a/instances/test-instance-1",
+							},
+							{
+								SatisfiesPzi: false,
+								SatisfiesPzs: true,
+								AssetType:    "instance",
+								AssetLink:    "projects/test-project/zones/us-central1-b/instances/test-instance-2",
+							},
+						},
+						ZiZsComputeDiskKey: {
+							{
+								SatisfiesPzi: true,
+								SatisfiesPzs: false,
+								AssetType:    "disk",
+								AssetLink:    "projects/test-project/zones/us-central1-a/disks/test-disk-1",
+							},
+							{
+								SatisfiesPzi: false,
+								SatisfiesPzs: false,
+								AssetType:    "disk",
+								AssetLink:    "projects/test-project/zones/us-central1-c/disks/test-disk-2",
+							},
+						},
+					},
+				},
+			}, nil
+		},
+		workflow.RegisterOptions{Name: GetClusterZiZsDetailsWorkflowName},
+	)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "multi-resource-project",
+		DeploymentID: "complex-deployment-id",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestGetClusterZiZsDetails_CorrelationIDFallback tests the fallback correlation ID generation
+func TestGetClusterZiZsDetails_CorrelationIDFallback(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	// Note: Not setting context propagators to trigger correlation ID fallback
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+			return &GetResourceInfoResp{
+				ProjectID:    request.ProjectID,
+				DeploymentID: request.DeploymentID,
+				ResourceInfo: ResourceInformation{
+					GCPRI: map[string][]GCPResourceInformation{},
+				},
+			}, nil
+		},
+		workflow.RegisterOptions{Name: GetClusterZiZsDetailsWorkflowName},
+	)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "test-project",
+		DeploymentID: "fallback-test-deployment-id",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestGetClusterZiZsDetails_TimeoutConfiguration tests timeout configuration
+func TestGetClusterZiZsDetails_TimeoutConfiguration(t *testing.T) {
+	// Save original timeout map and restore it after test
+	originalTimeoutMap := WorkflowExecutionTimeoutMap
+	defer func() {
+		WorkflowExecutionTimeoutMap = originalTimeoutMap
+	}()
+
+	// Set up test timeout values
+	WorkflowExecutionTimeoutMap = map[string]time.Duration{
+		GetClusterZiZsDetailsWorkflowName: 15 * time.Minute, // Test timeout
+	}
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *GetResourceInfoReq) (*GetResourceInfoResp, error) {
+			return &GetResourceInfoResp{
+				ProjectID:    request.ProjectID,
+				DeploymentID: request.DeploymentID,
+				ResourceInfo: ResourceInformation{
+					GCPRI: map[string][]GCPResourceInformation{},
+				},
+			}, nil
+		},
+		workflow.RegisterOptions{Name: GetClusterZiZsDetailsWorkflowName},
+	)
+
+	getResourceInfoReq := &GetResourceInfoReq{
+		ProjectID:    "timeout-test-project",
+		DeploymentID: "timeout-test-deployment",
+	}
+
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.GetClusterZiZsDetails(ctx, getResourceInfoReq)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	// Verify timeout configuration exists
+	expectedTimeout := WorkflowExecutionTimeoutMap[GetClusterZiZsDetailsWorkflowName]
+	assert.Equal(t, 15*time.Minute, expectedTimeout)
+}

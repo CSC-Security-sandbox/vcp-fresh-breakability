@@ -114,6 +114,8 @@ func TestInternalDescribePool(t *testing.T) {
 			InterclusterLifs:         pool.ClusterAttributes.InterClusterLifs,
 			ClusterName:              gcpgenserver.NewOptString(pool.ClusterAttributes.ExternalName),
 			TotalIops:                gcpgenserver.NewOptNilFloat64(float64(pool.CustomPerformanceParams.Iops)),
+			SatisfiesPzs:             gcpgenserver.NewOptNilBool(false),
+			SatisfiesPzi:             gcpgenserver.NewOptNilBool(false),
 		}
 		resp, err := handler.V1betaInternalDescribePool(context.Background(), params)
 		assert.NoError(tt, err)

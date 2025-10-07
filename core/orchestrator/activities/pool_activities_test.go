@@ -9631,3 +9631,476 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 		assert.Equal(t, int64(1), (*result)[0].IPsReserved) // Only address-1 should match (ends with /test-subnet)
 	})
 }
+
+// Using the existing MockStorage from database/vcp package
+
+func TestFetchPoolData_Success(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Test data
+	poolUUID := "pool-123"
+	accountID := int64(12345)
+
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID: "deployment-123",
+			Provider:     "gcp",
+			Region:       "us-central1",
+			GCPConfig: vlm.GCPConfig{
+				ProjectID: "test-project",
+			},
+		},
+	}
+
+	vlmConfigJSON, _ := json.Marshal(vlmConfig)
+
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: poolUUID},
+			AccountID: accountID,
+			VLMConfig: string(vlmConfigJSON),
+		},
+	}
+
+	// Mock expectations
+	mockSE.On("GetPool", mock.Anything, poolUUID, accountID).Return(poolView, nil)
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Execute
+	input := activities.FetchPoolDataActivityInput{
+		PoolUUID:  poolUUID,
+		AccountID: accountID,
+	}
+
+	result, err := env.ExecuteActivity(activity.FetchPoolData, input)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	var output *activities.FetchPoolDataActivityOutput
+	err = result.Get(&output)
+	assert.NoError(t, err)
+	assert.NotNil(t, output)
+	assert.True(t, output.Success)
+	assert.Equal(t, poolUUID, output.PoolUUID)
+	assert.Equal(t, vlmConfig.Deployment.DeploymentID, output.VLMConfig.Deployment.DeploymentID)
+	assert.Equal(t, vlmConfig.Deployment.Provider, output.VLMConfig.Deployment.Provider)
+	assert.Equal(t, vlmConfig.Deployment.Region, output.VLMConfig.Deployment.Region)
+	assert.Equal(t, vlmConfig.Deployment.GCPConfig.ProjectID, output.VLMConfig.Deployment.GCPConfig.ProjectID)
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestFetchPoolData_DatabaseError(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Test data
+	poolUUID := "pool-123"
+	accountID := int64(12345)
+
+	dbError := errors.New("database connection failed")
+
+	// Mock expectations
+	mockSE.On("GetPool", mock.Anything, poolUUID, accountID).Return(nil, dbError)
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Execute
+	input := activities.FetchPoolDataActivityInput{
+		PoolUUID:  poolUUID,
+		AccountID: accountID,
+	}
+
+	_, err := env.ExecuteActivity(activity.FetchPoolData, input)
+
+	// Assertions
+	assert.Error(t, err)
+
+	// When activity fails, result might be nil, so we check the error directly
+	assert.Contains(t, err.Error(), "database connection failed")
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestFetchPoolData_InvalidVLMConfig(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Test data
+	poolUUID := "pool-123"
+	accountID := int64(12345)
+
+	// Invalid JSON in VLM config
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: poolUUID},
+			AccountID: accountID,
+			VLMConfig: "invalid json",
+		},
+	}
+
+	// Mock expectations
+	mockSE.On("GetPool", mock.Anything, poolUUID, accountID).Return(poolView, nil)
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Execute
+	input := activities.FetchPoolDataActivityInput{
+		PoolUUID:  poolUUID,
+		AccountID: accountID,
+	}
+
+	_, err := env.ExecuteActivity(activity.FetchPoolData, input)
+
+	// Assertions
+	assert.Error(t, err)
+
+	// When activity fails, result might be nil, so we check the error directly
+	assert.Contains(t, err.Error(), "Invalid input parameters provided")
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestFetchPoolData_EmptyVLMConfig(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Test data
+	poolUUID := "pool-123"
+	accountID := int64(12345)
+
+	// Empty VLM config
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: poolUUID},
+			AccountID: accountID,
+			VLMConfig: "",
+		},
+	}
+
+	// Mock expectations
+	mockSE.On("GetPool", mock.Anything, poolUUID, accountID).Return(poolView, nil)
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Execute
+	input := activities.FetchPoolDataActivityInput{
+		PoolUUID:  poolUUID,
+		AccountID: accountID,
+	}
+
+	result, err := env.ExecuteActivity(activity.FetchPoolData, input)
+
+	// Assertions - The function should now return an error for empty VLM config
+	assert.Error(t, err)
+	assert.Nil(t, result) // When activity returns error, result is nil
+
+	// Verify the error message
+	assert.Contains(t, err.Error(), "Invalid input parameters provided")
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestUpdatePoolCompliance_Success(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Test data
+	poolUUID := "pool-123"
+	satisfyZI := true
+	satisfyZS := false
+
+	assetMetadata := &datamodel.AssetMetadata{
+		ChildAssets: []datamodel.ChildAsset{
+			{
+				AssetType:  "compute",
+				AssetNames: []string{"instance-1", "instance-2"},
+			},
+			{
+				AssetType:  "storage",
+				AssetNames: []string{"bucket-1"},
+			},
+		},
+	}
+
+	// Mock expectations
+	expectedUpdates := map[string]interface{}{
+		"satisfy_zi":     satisfyZI,
+		"satisfy_zs":     satisfyZS,
+		"asset_metadata": assetMetadata,
+	}
+	mockSE.On("UpdatePoolFields", mock.Anything, poolUUID, expectedUpdates).Return(nil)
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Execute
+	input := activities.UpdatePoolComplianceActivityInput{
+		PoolUUID:      poolUUID,
+		SatisfyZI:     satisfyZI,
+		SatisfyZS:     satisfyZS,
+		AssetMetadata: assetMetadata,
+	}
+
+	result, err := env.ExecuteActivity(activity.UpdatePoolCompliance, input)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	var output *activities.UpdatePoolComplianceActivityOutput
+	err = result.Get(&output)
+	assert.NoError(t, err)
+	assert.NotNil(t, output)
+	assert.True(t, output.Success)
+	assert.Equal(t, poolUUID, output.PoolUUID)
+	assert.Empty(t, output.Error)
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestUpdatePoolCompliance_SuccessWithoutAssetMetadata(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Test data
+	poolUUID := "pool-123"
+	satisfyZI := true
+	satisfyZS := true
+
+	// Mock expectations
+	expectedUpdates := map[string]interface{}{
+		"satisfy_zi": satisfyZI,
+		"satisfy_zs": satisfyZS,
+	}
+	mockSE.On("UpdatePoolFields", mock.Anything, poolUUID, expectedUpdates).Return(nil)
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Execute
+	input := activities.UpdatePoolComplianceActivityInput{
+		PoolUUID:      poolUUID,
+		SatisfyZI:     satisfyZI,
+		SatisfyZS:     satisfyZS,
+		AssetMetadata: nil,
+	}
+
+	result, err := env.ExecuteActivity(activity.UpdatePoolCompliance, input)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	var output *activities.UpdatePoolComplianceActivityOutput
+	err = result.Get(&output)
+	assert.NoError(t, err)
+	assert.NotNil(t, output)
+	assert.True(t, output.Success)
+	assert.Equal(t, poolUUID, output.PoolUUID)
+	assert.Empty(t, output.Error)
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestUpdatePoolCompliance_DatabaseError(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Test data
+	poolUUID := "pool-123"
+	satisfyZI := true
+	satisfyZS := false
+
+	dbError := errors.New("database update failed")
+
+	// Mock expectations
+	expectedUpdates := map[string]interface{}{
+		"satisfy_zi": satisfyZI,
+		"satisfy_zs": satisfyZS,
+	}
+	mockSE.On("UpdatePoolFields", mock.Anything, poolUUID, expectedUpdates).Return(dbError)
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Execute
+	input := activities.UpdatePoolComplianceActivityInput{
+		PoolUUID:      poolUUID,
+		SatisfyZI:     satisfyZI,
+		SatisfyZS:     satisfyZS,
+		AssetMetadata: nil,
+	}
+
+	_, err := env.ExecuteActivity(activity.UpdatePoolCompliance, input)
+
+	// Assertions
+	assert.Error(t, err)
+
+	// When activity fails, result might be nil, so we check the error directly
+	assert.Contains(t, err.Error(), "database update failed")
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestUpdatePoolCompliance_ComplexAssetMetadata(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Test data
+	poolUUID := "pool-123"
+	satisfyZI := false
+	satisfyZS := true
+
+	// Complex asset metadata with multiple asset types and names
+	assetMetadata := &datamodel.AssetMetadata{
+		ChildAssets: []datamodel.ChildAsset{
+			{
+				AssetType:  "compute",
+				AssetNames: []string{"instance-1", "instance-2", "instance-3"},
+			},
+			{
+				AssetType:  "storage",
+				AssetNames: []string{"bucket-1", "bucket-2"},
+			},
+			{
+				AssetType:  "network",
+				AssetNames: []string{"vpc-1", "subnet-1", "subnet-2"},
+			},
+		},
+	}
+
+	// Mock expectations
+	expectedUpdates := map[string]interface{}{
+		"satisfy_zi":     satisfyZI,
+		"satisfy_zs":     satisfyZS,
+		"asset_metadata": assetMetadata,
+	}
+	mockSE.On("UpdatePoolFields", mock.Anything, poolUUID, expectedUpdates).Return(nil)
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Execute
+	input := activities.UpdatePoolComplianceActivityInput{
+		PoolUUID:      poolUUID,
+		SatisfyZI:     satisfyZI,
+		SatisfyZS:     satisfyZS,
+		AssetMetadata: assetMetadata,
+	}
+
+	result, err := env.ExecuteActivity(activity.UpdatePoolCompliance, input)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	var output *activities.UpdatePoolComplianceActivityOutput
+	err = result.Get(&output)
+	assert.NoError(t, err)
+	assert.NotNil(t, output)
+	assert.True(t, output.Success)
+	assert.Equal(t, poolUUID, output.PoolUUID)
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestUpdatePoolCompliance_AllComplianceScenarios(t *testing.T) {
+	// Setup test suite
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := &database.MockStorage{}
+	activity := &activities.PoolActivity{SE: mockSE}
+
+	// Register activity
+	env.RegisterActivity(activity)
+
+	// Test all possible compliance combinations
+	complianceScenarios := []struct {
+		name      string
+		satisfyZI bool
+		satisfyZS bool
+	}{
+		{"Both compliant", true, true},
+		{"ZI compliant, ZS not", true, false},
+		{"ZI not compliant, ZS compliant", false, true},
+		{"Neither compliant", false, false},
+	}
+
+	for _, scenario := range complianceScenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			poolUUID := "pool-123"
+
+			// Mock expectations
+			expectedUpdates := map[string]interface{}{
+				"satisfy_zi": scenario.satisfyZI,
+				"satisfy_zs": scenario.satisfyZS,
+			}
+			mockSE.On("UpdatePoolFields", mock.Anything, poolUUID, expectedUpdates).Return(nil)
+
+			// Execute
+			input := activities.UpdatePoolComplianceActivityInput{
+				PoolUUID:      poolUUID,
+				SatisfyZI:     scenario.satisfyZI,
+				SatisfyZS:     scenario.satisfyZS,
+				AssetMetadata: nil,
+			}
+
+			result, err := env.ExecuteActivity(activity.UpdatePoolCompliance, input)
+
+			// Assertions
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			var output *activities.UpdatePoolComplianceActivityOutput
+			err = result.Get(&output)
+			assert.NoError(t, err)
+			assert.NotNil(t, output)
+			assert.True(t, output.Success)
+			assert.Equal(t, poolUUID, output.PoolUUID)
+		})
+	}
+
+	mockSE.AssertExpectations(t)
+}

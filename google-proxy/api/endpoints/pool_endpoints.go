@@ -720,6 +720,8 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		SecondaryZone:           gcpgenserver.NewOptString(secondaryZone),
 		Labels:                  gcpgenserver.NewOptPoolV1betaLabels(labels),
 		LargeCapacity:           gcpgenserver.NewOptBool(pool.LargeCapacity),
+		SatisfiesPzs:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzs),
+		SatisfiesPzi:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzi),
 	}
 
 	kmsConfigId := ""
@@ -730,6 +732,21 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		kmsConfigId = pool.KmsConfig.UUID
 	}
 	poolV1beta.EncryptionType = gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(utils.GetEncryptionType(&kmsConfigId)))
+	var assetLocationMetadata gcpgenserver.PoolV1betaAssetLocationMetadata
+	if pool.AssetMetadata != nil {
+		var assets []gcpgenserver.ChildAsset
+		inChildAssets := pool.AssetMetadata.ChildAssets
+		for _, asset := range inChildAssets {
+			var childAsset gcpgenserver.ChildAsset
+			childAsset.AssetType = gcpgenserver.NewOptString(asset.AssetType)
+			childAsset.AssetNames = asset.AssetNames
+			assets = append(assets, childAsset)
+		}
+		assetLocationMetadata = gcpgenserver.PoolV1betaAssetLocationMetadata{
+			ChildAssets: gcpgenserver.OptNilChildAssetArray{Value: assets, Set: true},
+		}
+		poolV1beta.AssetLocationMetadata = gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata)
+	}
 
 	return poolV1beta
 }

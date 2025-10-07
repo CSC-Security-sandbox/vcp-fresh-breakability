@@ -48,5 +48,10 @@
     "jobType": "SYNC_BACKUP_ZIZS_METADATA",
     "cronExpression": "0 */12 * * *",
     "state": "CREATING"
+  },
+  "SYNC_POOL_COMPLIANCE": {
+    "jobType": "SYNC_POOL_COMPLIANCE",
+    "cronExpression": "0 * * * *",
+    "state": "CREATING"
   }
 }

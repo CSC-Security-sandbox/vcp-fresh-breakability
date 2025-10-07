@@ -2502,6 +2502,8 @@ type PoolV1 struct {
 	// Flag indicating if the pool satisfies zonal separation.
 	SatisfiesPzs          OptNilBool                        `json:"satisfies_pzs"`
 	AssetLocationMetadata OptNilPoolV1AssetLocationMetadata `json:"assetLocationMetadata"`
+	// Asset metadata containing child assets information.
+	AssetMetadata OptNilPoolV1AssetLocationMetadata `json:"assetMetadata"`
 	// Flag indicating if the custom performance is enabled for the pool.
 	CustomPerformanceEnabled OptBool `json:"customPerformanceEnabled"`
 	// The total iops set for a pool.
@@ -2681,6 +2683,11 @@ func (s *PoolV1) GetSatisfiesPzs() OptNilBool {
 // GetAssetLocationMetadata returns the value of AssetLocationMetadata.
 func (s *PoolV1) GetAssetLocationMetadata() OptNilPoolV1AssetLocationMetadata {
 	return s.AssetLocationMetadata
+}
+
+// GetAssetMetadata returns the value of AssetMetadata.
+func (s *PoolV1) GetAssetMetadata() OptNilPoolV1AssetLocationMetadata {
+	return s.AssetMetadata
 }
 
 // GetCustomPerformanceEnabled returns the value of CustomPerformanceEnabled.
@@ -2866,6 +2873,11 @@ func (s *PoolV1) SetSatisfiesPzs(val OptNilBool) {
 // SetAssetLocationMetadata sets the value of AssetLocationMetadata.
 func (s *PoolV1) SetAssetLocationMetadata(val OptNilPoolV1AssetLocationMetadata) {
 	s.AssetLocationMetadata = val
+}
+
+// SetAssetMetadata sets the value of AssetMetadata.
+func (s *PoolV1) SetAssetMetadata(val OptNilPoolV1AssetLocationMetadata) {
+	s.AssetMetadata = val
 }
 
 // SetCustomPerformanceEnabled sets the value of CustomPerformanceEnabled.

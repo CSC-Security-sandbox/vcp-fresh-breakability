@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,6 +43,7 @@ var (
 	WaitForServiceNetworkOperationStatus = _waitForServiceNetworkOperationStatus
 	WaitForGCPNetworkOperationStatus     = _waitForGCPNetworkOperationStatus
 	verifyKmsConfigReachability          = _verifyKmsConfigReachability
+	syncPoolZIZSDetailsWorkflow          = _syncPoolZIZSDetailsWorkflow
 )
 
 var (
@@ -60,6 +62,7 @@ var (
 	disableVsaCleanupOnVLMFailure     = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
 	enableAutoVolOfflineCronForGCPKMS = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
 	ginLoggingFeatureFlag             = env.GetBool("GIN_LOGGING_FEATURE", false)
+	enableSyncPoolZIZS                = env.GetBool("ENABLE_SYNC_POOL_ZIZS", false)
 )
 
 const (
@@ -465,6 +468,8 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
+	syncPoolZIZSDetailsWorkflow(ctx, dbPool, wf)
+
 	// Enable billing metrics related workflow(NodeToHarvestFarmWorkflow), when enableMetrics is true
 	if enableMetrics {
 		registerNodeToHarvestFarmWorkflowInput := RegisterNodeToHarvestFarmWorkflowInput{
@@ -492,6 +497,41 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 	return nil, nil
+}
+
+func _syncPoolZIZSDetailsWorkflow(ctx workflow.Context, dbPool *datamodel.Pool, wf *createPoolWorkflow) {
+	// Execute SyncPoolZIZSDetailsWorkflow asynchronously
+	// If sync fails, log warning but don't fail the main pool creation workflow
+	if enableSyncPoolZIZS {
+		// Start SyncPoolZIZSDetailsWorkflow as child workflow after successful pool creation
+		poolIdentifier := &database.PoolIdentifier{
+			UUID:      dbPool.UUID,
+			Name:      dbPool.Name,
+			AccountID: dbPool.AccountID,
+			VendorID:  dbPool.VendorID,
+		}
+
+		// Create child workflow context for SyncPoolZIZSDetailsWorkflow
+		syncPoolZIZSCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			WorkflowID:            fmt.Sprintf("sync-pool-zizs-%s-%s", dbPool.UUID, uuid.New().String()),
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON, // Continue running even if parent closes
+		})
+
+		// Add extra logger fields for better traceability
+		syncPoolZIZSCtx = util.AddExtraLoggerFields(syncPoolZIZSCtx, map[string]interface{}{
+			"parentWorkflowID": workflow.GetInfo(ctx).WorkflowExecution.ID,
+			"poolUUID":         dbPool.UUID,
+			"poolName":         dbPool.Name,
+		})
+
+		if syncErr := workflow.ExecuteChildWorkflow(syncPoolZIZSCtx, SyncPoolComplianceForPoolWorkflow, poolIdentifier).Get(syncPoolZIZSCtx, nil); syncErr != nil {
+			wf.Logger.Warnf("Failed to sync pool ZI/ZS compliance for pool %s (UUID: %s) due to error: %v", dbPool.Name, dbPool.UUID, syncErr)
+		}
+	} else {
+		wf.Logger.Infof("SyncPoolZIZS workflow is disabled via ENABLE_SYNC_POOL_ZIZS environment variable for pool %s (UUID: %s)", dbPool.Name, dbPool.UUID)
+	}
 }
 
 type updatePoolWorkflow struct {
@@ -1650,4 +1690,173 @@ func updateAutoTieringFields(dbPool *datamodel.Pool, updatePoolParams *common.Up
 		// Keep HotTierSizeInBytes in sync with SizeInBytes when AutoTiering is disabled
 		dbPool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.SizeInBytes)
 	}
+}
+
+// SyncPoolComplianceForPoolWorkflow orchestrates the pool ZI/ZS compliance sync process for a single pool
+func SyncPoolComplianceForPoolWorkflow(ctx workflow.Context, pool *database.PoolIdentifier) error {
+	syncPoolCompliancePoolWF := new(syncPoolComplianceForPoolWorkflow)
+	err := syncPoolCompliancePoolWF.Setup(ctx, pool)
+	if err != nil {
+		return err
+	}
+	syncPoolCompliancePoolWF.Status = WorkflowStatusRunning
+	_, errRun := syncPoolCompliancePoolWF.Run(ctx, pool)
+	if errRun != nil {
+		syncPoolCompliancePoolWF.Status = WorkflowStatusFailed
+		syncPoolCompliancePoolWF.Logger.Error("Failed to sync pool compliance for pool", "PoolName", pool.Name, "Error", errRun)
+		return errRun
+	}
+	syncPoolCompliancePoolWF.Status = WorkflowStatusCompleted
+	syncPoolCompliancePoolWF.Logger.Info("Sync pool compliance completed successfully for pool", "PoolName", pool.Name)
+	return nil
+}
+
+type syncPoolComplianceForPoolWorkflow struct {
+	BaseWorkflow
+}
+
+var _ WorkflowInterface = &syncPoolComplianceForPoolWorkflow{}
+
+func (wf *syncPoolComplianceForPoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	pool := input.(*database.PoolIdentifier)
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = strconv.FormatInt(pool.AccountID, 10)
+	wf.Status = WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
+			ID:         wf.ID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
+		}, nil
+	})
+}
+
+func (wf *syncPoolComplianceForPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+	logger := wf.Logger
+	poolIdentifier := args[0].(*database.PoolIdentifier)
+
+	retryPolicy, err := PopulateRetryPolicyParams(false) // Use default retry policy
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+	poolActivity := &activities.PoolActivity{}
+	logger.Infof("Starting synchronization of pool compliance for pool: %s", poolIdentifier.Name)
+
+	// Step 1: Fetch pool data
+	fetchInput := activities.FetchPoolDataActivityInput{
+		PoolUUID:  poolIdentifier.UUID,
+		AccountID: poolIdentifier.AccountID,
+	}
+
+	var fetchResult activities.FetchPoolDataActivityOutput
+	err = workflow.ExecuteActivity(ctx, poolActivity.FetchPoolData, fetchInput).Get(ctx, &fetchResult)
+	if err != nil {
+		logger.Error("FetchPoolData activity execution failed.", "Error", err, "PoolName", poolIdentifier.Name)
+		return nil, ConvertToVSAError(err)
+	}
+
+	if !fetchResult.Success {
+		logger.Error("Pool data fetch failed", "PoolName", poolIdentifier.Name, "Error", fetchResult.Error)
+		return nil, &vsaerrors.CustomError{Message: fetchResult.Error}
+	}
+
+	logger.Info("Pool data fetched successfully", "PoolName", poolIdentifier.Name)
+
+	// Step 2: Call VLM workflow to get compliance data
+	logger.Info("Calling VLM workflow for compliance check", "PoolName", poolIdentifier.Name)
+
+	// Create compliance request
+	req := &vlm.GetResourceInfoReq{
+		ProjectID:    fetchResult.VLMConfig.Deployment.GCPConfig.ProjectID,
+		DeploymentID: fetchResult.VLMConfig.Deployment.DeploymentID,
+	}
+
+	// Call VLM workflow to get compliance data
+	vlmClient := GetNewVSAClientWorkflowManager()
+	complianceResponse, err := vlmClient.GetClusterZiZsDetails(ctx, req)
+	if err != nil {
+		logger.Error("Failed to get pool compliance from VLM", "PoolName", poolIdentifier.Name, "Error", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	// Extract compliance data from response
+	satisfyZI := true
+	satisfyZS := true
+	var assetMetadata *datamodel.AssetMetadata
+	if complianceResponse.ResourceInfo.GCPRI != nil {
+		// Maps asset types to lists of asset names (grouped by asset_type)
+		mapsByType := make(map[string][]string)
+		for _, resources := range complianceResponse.ResourceInfo.GCPRI {
+			for _, resource := range resources {
+				if !resource.SatisfiesPzi {
+					satisfyZI = false
+				}
+				if !resource.SatisfiesPzs {
+					satisfyZS = false
+				}
+				// Accumulate asset_names grouped by asset_type
+				if resource.AssetType != "" && len(resource.AssetLink) > 0 {
+					mapsByType[resource.AssetType] = append(mapsByType[resource.AssetType], resource.AssetLink)
+				}
+			}
+		}
+		// Construct AssetMetadata
+		if len(mapsByType) > 0 {
+			childAssets := make([]datamodel.ChildAsset, 0)
+			for assetType, assetNames := range mapsByType {
+				childAssets = append(childAssets, datamodel.ChildAsset{AssetType: assetType, AssetNames: assetNames})
+			}
+			assetMetadata = &datamodel.AssetMetadata{
+				ChildAssets: childAssets,
+			}
+		}
+	}
+
+	logger.Info("VLM compliance check completed",
+		"PoolName", poolIdentifier.Name,
+		"satisfyZI", satisfyZI,
+		"satisfyZS", satisfyZS)
+
+	// Step 3: Update pool with compliance data
+	updateInput := activities.UpdatePoolComplianceActivityInput{
+		PoolUUID:      poolIdentifier.UUID,
+		SatisfyZI:     satisfyZI,
+		SatisfyZS:     satisfyZS,
+		AssetMetadata: assetMetadata,
+	}
+
+	var updateResult activities.UpdatePoolComplianceActivityOutput
+	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolCompliance, updateInput).Get(ctx, &updateResult)
+	if err != nil {
+		logger.Error("UpdatePoolCompliance activity execution failed.", "Error", err, "PoolName", poolIdentifier.Name)
+		return nil, ConvertToVSAError(err)
+	}
+
+	if !updateResult.Success {
+		logger.Error("Pool compliance update failed", "PoolName", poolIdentifier.Name, "Error", updateResult.Error)
+		return nil, &vsaerrors.CustomError{Message: updateResult.Error}
+	}
+
+	logger.Info("Pool compliance sync completed successfully",
+		"PoolName", poolIdentifier.Name,
+		"satisfyZI", satisfyZI,
+		"satisfyZS", satisfyZS)
+
+	return nil, nil
 }

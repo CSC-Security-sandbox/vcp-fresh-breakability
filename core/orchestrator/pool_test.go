@@ -262,6 +262,158 @@ func TestConvertDatastorePoolToModel_WithKms(t *testing.T) {
 	assert.Equal(t, result.KmsConfig.UUID, datastorePool.KmsConfig.UUID)
 }
 
+func TestConvertDatastorePoolToModel_WithAssetMetadata(t *testing.T) {
+	t.Run("WhenPoolHasAssetMetadata", func(tt *testing.T) {
+		datastorePool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid-with-assets",
+			},
+			Name:         "Test Pool With Assets",
+			Description:  "Test Description With Assets",
+			SizeInBytes:  1024,
+			State:        "active",
+			StateDetails: "running",
+			Network:      "test-network",
+			ServiceLevel: "FLEX",
+			AssetMetadata: &datamodel.AssetMetadata{
+				ChildAssets: []datamodel.ChildAsset{
+					{
+						AssetType:  "compute",
+						AssetNames: []string{"instance-1", "instance-2"},
+					},
+					{
+						AssetType:  "storage",
+						AssetNames: []string{"bucket-1"},
+					},
+				},
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "us-central1-b",
+			},
+		}
+		accountName := "test-account"
+
+		dbPoolView := database.ConvertPoolToPoolView(datastorePool)
+		result := convertDatastorePoolToModel(dbPoolView, accountName)
+
+		assert.NotNil(t, result.AssetMetadata)
+		assert.Len(t, result.AssetMetadata.ChildAssets, 2)
+
+		// Check first asset
+		firstAsset := result.AssetMetadata.ChildAssets[0]
+		assert.Equal(t, "compute", firstAsset.AssetType)
+		assert.Equal(t, []string{"instance-1", "instance-2"}, firstAsset.AssetNames)
+
+		// Check second asset
+		secondAsset := result.AssetMetadata.ChildAssets[1]
+		assert.Equal(t, "storage", secondAsset.AssetType)
+		assert.Equal(t, []string{"bucket-1"}, secondAsset.AssetNames)
+	})
+
+	t.Run("WhenPoolHasEmptyAssetMetadata", func(tt *testing.T) {
+		datastorePool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid-empty-assets",
+			},
+			Name:         "Test Pool Empty Assets",
+			Description:  "Test Description Empty Assets",
+			SizeInBytes:  2048,
+			State:        "active",
+			StateDetails: "running",
+			Network:      "test-network",
+			ServiceLevel: "FLEX",
+			AssetMetadata: &datamodel.AssetMetadata{
+				ChildAssets: []datamodel.ChildAsset{},
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 128,
+				Iops:            2048,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "us-central1-b",
+			},
+		}
+		accountName := "test-account"
+
+		dbPoolView := database.ConvertPoolToPoolView(datastorePool)
+		result := convertDatastorePoolToModel(dbPoolView, accountName)
+
+		assert.NotNil(t, result.AssetMetadata)
+		assert.Empty(t, result.AssetMetadata.ChildAssets)
+	})
+
+	t.Run("WhenPoolHasSingleChildAsset", func(tt *testing.T) {
+		datastorePool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid-single-asset",
+			},
+			Name:         "Test Pool Single Asset",
+			Description:  "Test Description Single Asset",
+			SizeInBytes:  4096,
+			State:        "active",
+			StateDetails: "running",
+			Network:      "test-network",
+			ServiceLevel: "FLEX",
+			AssetMetadata: &datamodel.AssetMetadata{
+				ChildAssets: []datamodel.ChildAsset{
+					{
+						AssetType:  "database",
+						AssetNames: []string{"db-1", "db-2", "db-3"},
+					},
+				},
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 256,
+				Iops:            4096,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "us-central1-b",
+			},
+		}
+		accountName := "test-account"
+
+		dbPoolView := database.ConvertPoolToPoolView(datastorePool)
+		result := convertDatastorePoolToModel(dbPoolView, accountName)
+
+		assert.NotNil(t, result.AssetMetadata)
+		assert.Len(t, result.AssetMetadata.ChildAssets, 1)
+
+		// Check single asset
+		asset := result.AssetMetadata.ChildAssets[0]
+		assert.Equal(t, "database", asset.AssetType)
+		assert.Equal(t, []string{"db-1", "db-2", "db-3"}, asset.AssetNames)
+	})
+
+	t.Run("WhenPoolHasNilAssetMetadata", func(tt *testing.T) {
+		datastorePool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid-nil-assets",
+			},
+			Name:          "Test Pool Nil Assets",
+			Description:   "Test Description Nil Assets",
+			SizeInBytes:   8192,
+			State:         "active",
+			StateDetails:  "running",
+			Network:       "test-network",
+			ServiceLevel:  "FLEX",
+			AssetMetadata: nil, // This is the key test case
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 512,
+				Iops:            8192,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "us-central1-b",
+			},
+		}
+		accountName := "test-account"
+
+		dbPoolView := database.ConvertPoolToPoolView(datastorePool)
+		result := convertDatastorePoolToModel(dbPoolView, accountName)
+
+		assert.Nil(t, result.AssetMetadata)
+	})
+}
+
 func TestCreatePool(t *testing.T) {
 	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
 		ctx, se, _, temporal := setup(tt)

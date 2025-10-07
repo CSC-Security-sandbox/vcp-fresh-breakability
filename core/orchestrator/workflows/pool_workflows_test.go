@@ -35,7 +35,20 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+// Helper function to set enableSyncPoolZIZS to true and return a cleanup function
+func setEnableSyncPoolZIZSTrue() func() {
+	originalValue := enableSyncPoolZIZS
+	enableSyncPoolZIZS = true
+	return func() {
+		enableSyncPoolZIZS = originalValue
+	}
+}
+
 func TestCreatePoolWorkflow(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -59,10 +72,19 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -128,16 +150,18 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -182,6 +206,10 @@ func TestCreatePoolWorkflow(t *testing.T) {
 
 // If On-Boarding to harvest fails pool create shouldn't be rolled back
 func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -205,10 +233,15 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -235,6 +268,10 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		DeploymentName: "test-deployment",
 	}
 	svmName := "svmName"
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
@@ -274,16 +311,18 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -346,6 +385,10 @@ func TestCreateSubnetJob_JobTypeSelection(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -418,6 +461,10 @@ func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -491,6 +538,10 @@ func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -568,6 +619,10 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -590,10 +645,19 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -684,10 +748,15 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -718,6 +787,10 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 
 func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
+		// Set enableSyncPoolZIZS to true for this test
+		cleanup := setEnableSyncPoolZIZSTrue()
+		defer cleanup()
+
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -740,10 +813,15 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
+
+		// Mock child workflow activities
+		env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+		env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 		// Set up test data
 		params := &common.CreatePoolParams{
@@ -770,6 +848,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
+		ginLoggingFeatureFlag = true
 
 		defer func() {
 			configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
@@ -829,10 +908,11 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1281,8 +1361,14 @@ func TestConfigurePSCEndpointWorkflow_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PSCActivity{})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+	env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
 
 	defer func() {
 		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
@@ -1448,7 +1534,7 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -1536,7 +1622,7 @@ func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -1664,7 +1750,7 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -1782,7 +1868,7 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -1891,6 +1977,7 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 func TestDeletePoolWorkflow(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	ginLoggingFeatureFlag = true
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 	mockHeader := &commonpb.Header{
@@ -1979,6 +2066,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	ginLoggingFeatureFlag = true
 	mockHeader := &commonpb.Header{
 		Fields: map[string]*commonpb.Payload{
 			"logParam": encodedValue,
@@ -2069,6 +2157,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 			"logParam": encodedValue,
 		},
 	}
+	ginLoggingFeatureFlag = true
 	env.SetHeader(mockHeader)
 
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
@@ -2077,6 +2166,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 	defer func() {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+		ginLoggingFeatureFlag = false
 	}()
 
 	env.RegisterActivity(&activities.CommonActivities{})
@@ -2160,9 +2250,11 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	enableMetrics = true
+	ginLoggingFeatureFlag = true
 	defer func() {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+		ginLoggingFeatureFlag = false
 	}()
 
 	env.RegisterActivity(&activities.CommonActivities{})
@@ -2245,9 +2337,11 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	enableMetrics = true
+	ginLoggingFeatureFlag = true
 	defer func() {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+		ginLoggingFeatureFlag = false
 	}()
 
 	env.RegisterActivity(&activities.CommonActivities{})
@@ -2331,9 +2425,11 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	enableMetrics = true
+	ginLoggingFeatureFlag = true
 	defer func() {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+		ginLoggingFeatureFlag = false
 	}()
 
 	env.RegisterActivity(&activities.CommonActivities{})
@@ -2426,9 +2522,11 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	enableMetrics = true
+	ginLoggingFeatureFlag = true
 	defer func() {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+		ginLoggingFeatureFlag = false
 	}()
 
 	env.RegisterActivity(&activities.CommonActivities{})
@@ -2535,6 +2633,10 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 }
 
 func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -2555,8 +2657,13 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	// Mock child workflow activities
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{}).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -2620,6 +2727,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 	t.Run("WhenCreateQoSPolicyAndApplyToSVMFails", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		ginLoggingFeatureFlag = true
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
@@ -2705,10 +2813,11 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("QoS policy creation failed"))
@@ -2725,6 +2834,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			Region:        "test-region",
 			MediatorZone:  "test-mediator-zone",
 		}, nil)
+		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("An internal error occurred."))
 		env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
 
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
@@ -2878,6 +2988,10 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 	enableMetrics = true
 	t.Run("WhenGetKmsConfigActivityReturnsNoError", func(t *testing.T) {
+		// Set enableSyncPoolZIZS to true for this test
+		cleanup := setEnableSyncPoolZIZSTrue()
+		defer cleanup()
+
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -2901,9 +3015,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+		env.RegisterWorkflow(RegisterNodeToHarvestFarmWorkflow)
+		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
-		env.RegisterActivity(&activities.PSCActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		// Set up test data
@@ -2970,10 +3087,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
@@ -2997,6 +3115,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		// Mock child workflow execution
+		env.OnWorkflow(SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.Anything).Return(nil)
 		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
 			return input.PoolID == 1 &&
 				input.CustomerProjectID == "test-account" &&
@@ -3043,8 +3162,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
-		env.RegisterActivity(&activities.PSCActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
@@ -3118,10 +3237,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
@@ -3474,10 +3594,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
@@ -3618,10 +3739,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
@@ -3761,10 +3883,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
@@ -3805,6 +3928,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -3870,6 +3997,10 @@ func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -3931,6 +4062,10 @@ func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -3954,9 +4089,16 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{}).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	ginLoggingFeatureFlag = true
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -4024,7 +4166,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
 		if pool, ok := args[0].(*datamodel.Pool); ok {
@@ -4033,6 +4175,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	}).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return("svmName", nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, "svmName").Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
@@ -4074,6 +4217,10 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -4095,10 +4242,19 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -4171,7 +4327,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
 		if pool, ok := args[0].(*datamodel.Pool); ok {
@@ -4180,6 +4336,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	}).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4220,6 +4377,10 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -4239,10 +4400,19 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -4354,6 +4524,10 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -4373,10 +4547,19 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -4484,6 +4667,10 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -4503,10 +4690,19 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -4612,6 +4808,10 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -4631,10 +4831,19 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -4753,6 +4962,10 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -4772,10 +4985,19 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -4884,6 +5106,10 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 }
 
 func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -4903,10 +5129,19 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -6616,6 +6851,10 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 }
 
 func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	// Save original SA retry policy values
 	origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout
 	origSARetryInitialInterval := SARetryInitialInterval
@@ -6662,10 +6901,19 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
@@ -6749,7 +6997,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock SavePoolWithClusterDetails to return a pool with an ID
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
@@ -6760,6 +7008,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	}).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return("svmName", nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, "svmName").Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -6801,6 +7050,10 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.AssertExpectations(t)
 }
 func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	// Save original SA retry policy values
 	origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout
 	origSARetryInitialInterval := SARetryInitialInterval
@@ -6837,8 +7090,13 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	// Mock child workflow activities
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{}).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -6916,6 +7174,10 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 }
 
 func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	// Save original SA retry policy values
 	origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout
 	origSARetryInitialInterval := SARetryInitialInterval
@@ -7016,6 +7278,10 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_PopulateRetryPolicyParamsError(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -7070,6 +7336,10 @@ func TestCreatePoolWorkflow_PopulateRetryPolicyParamsError(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -7154,6 +7424,10 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -7371,6 +7645,10 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 }
 
 func TestCreatePoolWorkflow_ServiceAccountWithDeploymentName(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
 	// Test the direct service account ID generation logic that's used in CreatePoolWorkflow
 	// This avoids all the complexity of mocking the entire workflow
 
