@@ -14,14 +14,14 @@ const (
 )
 
 var (
-	ReportName = env.GetString("BIZOPS_REPORT_NAME", "google_vsa_analytics_report")
+	reportName = env.GetString("BIZOPS_REPORT_NAME", "google_vsa_analytics_report")
 	BucketName = env.GetString("BIZOPS_BUCKET_NAME", "harvest-farm-pv-au-se1")
-	Region     = env.GetString("REGION", "au-se1")
+	region     = env.GetString("GOOGLE_REGION", "australia-southeast1")
 )
 
 func GetFilePath(date time.Time, timezone string) string {
-	filename := fmt.Sprintf("%s-%s-%s.csv", date.Format(dateLayout), ReportName, timezone)
-	return fmt.Sprintf("%s/%s", Region, filename)
+	filename := fmt.Sprintf("%s-%s-%s.csv", date.Format(dateLayout), reportName, timezone)
+	return fmt.Sprintf("%s/%s", region, filename)
 }
 
 func ValidateSinkParams(sinkParams *entity.BizopsSinkParams) error {

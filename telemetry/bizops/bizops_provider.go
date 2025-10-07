@@ -25,7 +25,7 @@ const (
 
 var (
 	googleContinents = env.GetString("GOOGLE_CONTINENTS", "")
-	region           = env.GetString("GOOGLE_REGION", "")
+	region           = env.GetString("GOOGLE_REGION", "australia-southeast1")
 	paginationLimit  = env.GetInt("BIZOPS_ACCOUNT_PAGINATION_LIMIT", 1000)
 )
 

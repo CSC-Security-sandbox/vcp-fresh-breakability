@@ -12,7 +12,7 @@ import (
 func Test_GetFilePath(t *testing.T) {
 	date := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
 	timezone := "UTC"
-	expected := fmt.Sprintf("%s/%s-%s-%s.csv", Region, date.Format(dateLayout), ReportName, timezone)
+	expected := fmt.Sprintf("%s/%s-%s-%s.csv", region, date.Format(dateLayout), reportName, timezone)
 	result := GetFilePath(date, timezone)
 	if result != expected {
 		t.Errorf("GetFilePath() = %s; want %s", result, expected)

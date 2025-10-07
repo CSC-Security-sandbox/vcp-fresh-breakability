@@ -28,9 +28,10 @@ type BizOpsReportParams struct {
 func ParseBizOpsReportParams(bizOpsReportParams *BizOpsReportParams) error {
 	var timezone string
 	switch bizOpsReportParams.TimeZone {
-	case UTC: // For UTC, no changes required
+	case UTC:
+		timezone = bizOpsReportParams.TimeZone
 	case PST:
-		bizOpsReportParams.TimeZone = "America/Los_Angeles"
+		timezone = "America/Los_Angeles"
 	default:
 		return fmt.Errorf("the time zone must be set to 'UTC' or 'PST' - received: '%s'", bizOpsReportParams.TimeZone)
 	}
