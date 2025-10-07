@@ -771,7 +771,7 @@ func getBackupVaultFromCVP(ctx context.Context, backupVaultID string, region str
 	logger := util.GetLogger(ctx)
 
 	// Get authentication token and create CVP client
-	getSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
+	getSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := cvpCreateClient(logger, getSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 
@@ -810,7 +810,7 @@ func getBackupVaultFromCVP(ctx context.Context, backupVaultID string, region str
 // GetBackupPolicyFromCVP fetches backup policy from CVP and converts it to the internal data model
 func GetBackupPolicyFromCVP(ctx context.Context, backupPolicyUUID, region, accountName string) (*datamodel.BackupPolicy, error) {
 	logger := util.GetLogger(ctx)
-	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
+	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 
@@ -895,6 +895,9 @@ func _checkIsValidImmutableBackupPolicyWithStateCheck(ctx context.Context, se da
 
 	// Skip validation if backup vault doesn't have immutable attributes configured
 	if backupVault.ImmutableAttributes == nil {
+		return nil
+	}
+	if *backupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == 0 {
 		return nil
 	}
 	immutableAttrs := backupVault.ImmutableAttributes
