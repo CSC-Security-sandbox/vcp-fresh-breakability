@@ -21,12 +21,17 @@ const (
 
 // VLMWorkflowName is the name of the workflow
 const (
-	CreateVSAClusterDeploymentWorkflowName = "vlm.CreateVSAClusterDeploymentWorkflow"
-	CreateVSASVMWorkflowName               = "vlm.CreateVSASVMWorkflow"
-	DeleteVSAClusterDeploymentWorkflowName = "vlm.DeleteVSAClusterDeploymentWorkflow"
-	UpdateVSAClusterDeploymentWorkflowName = "vlm.UpdateVSAClusterDeploymentWorkflow"
-	ValidateClusterHealthWorkflowName      = "vlm.ClusterHealthCheck"
-	ClusterPowerOpWorkflowName             = "vlm.ClusterPowerCycle"
+	CreateVSAClusterDeploymentWorkflowName  = "vlm.CreateVSAClusterDeploymentWorkflow"
+	CreateVSASVMWorkflowName                = "vlm.CreateVSASVMWorkflow"
+	DeleteVSAClusterDeploymentWorkflowName  = "vlm.DeleteVSAClusterDeploymentWorkflow"
+	UpdateVSAClusterDeploymentWorkflowName  = "vlm.UpdateVSAClusterDeploymentWorkflow"
+	ValidateClusterHealthWorkflowName       = "vlm.ClusterHealthCheck"
+	ClusterPowerOpWorkflowName              = "vlm.ClusterPowerCycle"
+	GetClusterZiZsDetailsWorkflowName       = "vlm.GetClusterZiZsDetails"
+	UpgradeVSAClusterDeploymentWorkflowName = "vlm.UpgradeVSAClusterDeploymentWorkflow"
+	ClusterPowerCycleWorkflowName           = "vlm.ClusterPowerCycle"
+	UpdateVSAMediatorWorkflowName           = "vlm.UpdateVSAMediatorWorkflow"
+	ASUPTriggerWaitWorkflowName             = "vlm.ASUPTriggerWaitWorkflow"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
 	GCP_DISK_HDB                 = "hyperdisk-balanced"
@@ -36,8 +41,12 @@ const (
 	ErrorTypeVLMClientError string = "VLMClientError"
 
 	// Cluster power operation types
-	ClusterPowerOn  string = "start"
-	ClusterPowerOff string = "stop"
+	ClusterPowerOn    string = "start"
+	ClusterPowerOff   string = "stop"
+	ClusterPowerReset string = "reset"
+
+	ZiZsComputeInstanceKey string = "compute_instance"
+	ZiZsComputeDiskKey     string = "compute_disk"
 )
 
 // TODO: Need to revisit these values for Multi HA configurations
@@ -49,6 +58,9 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	UpdateVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 120)) * time.Minute,
 	ValidateClusterHealthWorkflowName:      time.Duration(env.GetInt("VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES", 15)) * time.Minute,
 	ClusterPowerOpWorkflowName:             time.Duration(env.GetInt("VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
+	GetClusterZiZsDetailsWorkflowName:      time.Duration(env.GetInt("VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
+
+	UpdateVSAMediatorWorkflowName: time.Duration(env.GetInt("VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
 }
 
 type VLMConfig struct {
@@ -89,10 +101,12 @@ type DeploymentConfig struct {
 	VSASystemDiskConfig  map[OntapDiskType]DiskConfig `json:"vsa_system_disk_config"` // System disk configuration for VSA
 
 	// TODO: check if zone wise netconfig is required
-	NetConfig map[VSALIFType]NetworkConfig `json:"net_config"` // Network configuration for the deployment
-	GCPConfig GCPConfig                    `json:"gcpconfig"`  //GCP specific configuration
-	SPConfig  SPConfig                     `json:"spconfig"`   //Storagepool specific configuration
-	DevFlags  DevFlags                     `json:"dev_flags"`  // Development flags
+	NetConfig  map[VSALIFType]NetworkConfig `json:"net_config"`  // Network configuration for the deployment
+	GCPConfig  GCPConfig                    `json:"gcpconfig"`   //GCP specific configuration
+	SPConfig   SPConfig                     `json:"spconfig"`    //Storagepool specific configuration
+	DevFlags   DevFlags                     `json:"dev_flags"`   // Development flags
+	NTPServers []string                     `json:"ntp_servers"` // NTP servers for time synchronization
+	DNSServers []string                     `json:"dns_servers"` // DNS servers for name resolution
 }
 
 type DevFlags struct {
@@ -166,6 +180,19 @@ type VMConfig struct {
 	VSAManagementIP string                   `json:"vsa_management_ip"` // VSA management IP for the VM
 }
 
+// GCP Only: Used for ZiZs workflow
+type ResourceInformation struct {
+	GCPRI map[string][]GCPResourceInformation `json:"gcp_resource_information"`
+}
+
+// GCP Only: Used for ZiZs workflow
+type GCPResourceInformation struct {
+	SatisfiesPzi bool   `json:"satisfies_pzi"`
+	SatisfiesPzs bool   `json:"satisfies_pzs"`
+	AssetType    string `json:"asset_type"`
+	AssetLink    string `json:"asset_link"`
+}
+
 type OntapDiskType string
 
 const (
@@ -235,14 +262,15 @@ type DataAggrConfig struct {
 }
 
 type DiskConfig struct {
-	Name           string `json:"name"`
-	Size           uint64 `json:"size"`        // in GB
-	AccessMode     string `json:"access_mode"` // READ_WRITE or READ_WRITE_MANY
-	Type           string `json:"type"`        // Disk type (e.g., pd-standard, pd-ssd)
-	DiskIops       int64  `json:"disk_iops"`
-	DiskThroughput int64  `json:"disk_throughput"`
-	ResourceStatus string `json:"resource_status"` // Status of the resource
-	Zone           string `json:"zone"`            // Zone for the disk
+	Name           string        `json:"name"`
+	Size           uint64        `json:"size"`        // in GB
+	AccessMode     string        `json:"access_mode"` // READ_WRITE or READ_WRITE_MANY
+	Type           string        `json:"type"`        // Disk type (e.g., pd-standard, pd-ssd)
+	DiskIops       int64         `json:"disk_iops"`
+	DiskThroughput int64         `json:"disk_throughput"`
+	ResourceStatus string        `json:"resource_status"` // Status of the resource
+	Zone           string        `json:"zone"`            // Zone for the disk
+	GCPDiskConfig  GCPDiskConfig `json:"gcp_disk_config"` // GCP specific disk configuration
 	// TODO: Add resource status
 }
 
@@ -272,8 +300,26 @@ type UpdateVSAClusterDeploymentRequest struct {
 	OntapUpgrade     OntapUpgradeConfig `json:"ontap_upgrade"`     // ONTAP upgrade configuration
 }
 
+type UpdateMediatorRequest struct {
+	VLMConfig        VLMConfig            `json:"vlm_config"`        // VLM configuration
+	MediatorUpdate   MediatorUpdateConfig `json:"mediator_update"`   // Mediator update configuration
+	OntapCredentials OntapCredentials     `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
+}
+
+type UpdateMediatorResponse struct {
+	VLMConfig VLMConfig
+}
+
 type OntapUpgradeConfig struct {
-	OntapImageVersion string `json:"otap_image_version"`
+	OntapUpgradeTargetImageVersion    string `json:"ontap_upgrade_target_image_version"` // Image version for upgrade
+	OntapUpgradeImagePath             string `json:"ontap_upgrade_image_path"`           // Image path for upgrade
+	MediatorUpgradeTargetImageVersion string `json:"mediator_image_version"`             // Image version for mediator upgrade
+	MediatorUpgradeImagePath          string `json:"mediator_image_path"`                // Image path for mediator upgrade
+}
+
+type MediatorUpdateConfig struct {
+	MediatorImageName      string `json:"mediator_image_name"`
+	MediatorImageProjectId string `json:"mediator_image_project_id"`
 }
 
 type DeploymentUpdateStatus struct {
@@ -298,24 +344,29 @@ type VLMClientError struct {
 }
 
 type UpdateVSAClusterDeploymentResponse struct {
+	VLMConfig    VLMConfig              `json:"vlm_config"`
+	UpdateStatus DeploymentUpdateStatus `json:"update_status"`
+}
+
+type UpgradeVSAClusterDeploymentResponse struct {
 	VLMConfig    VLMConfig
-	UpdateStatus DeploymentUpdateStatus
+	OntapVersion string
 }
 
 type DeleteVSAClusterDeploymentRequest struct {
-	CloudProvider string
-	DeploymentID  string
-	ProjectID     string
+	CloudProvider string `json:"cloud_provider"`
+	DeploymentID  string `json:"deployment_id"`
+	ProjectID     string `json:"project_id"`
 }
 
 // DeployVSACluster deploys a VSA cluster using the provided deployment configuration.
 type CreateVSAClusterDeploymentRequest struct {
-	VLMConfig        VLMConfig
+	VLMConfig        VLMConfig        `json:"vlm_config"`        // VLM configuration
 	OntapCredentials OntapCredentials `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
 }
 
 type CreateVSAClusterDeploymentResponse struct {
-	VLMConfig VLMConfig
+	VLMConfig VLMConfig `json:"vlm_config"`
 }
 
 type ProvisionCloudResourcesForDataAggrWorkflowRequest struct {
@@ -344,14 +395,59 @@ type CreateAggregatesForHAPairsWorkflowResponse struct {
 
 // ValidateClusterHealthRequest represents the request for cluster health validation
 type ValidateClusterHealthRequest struct {
-	VLMConfig            VLMConfig        `json:"VLMConfig"`            // VLM configuration for the cluster
-	OntapCredentials     OntapCredentials `json:"OntapCredentials"`     // ONTAP credentials for the VSA cluster
-	TriggerASUPOnFailure bool             `json:"TriggerASUPOnFailure"` // Whether to trigger ASUP on health check failure
+	VLMConfig            VLMConfig        `json:"vlm_config"`              // VLM configuration for the cluster
+	OntapCredentials     OntapCredentials `json:"ontap_credentials"`       // ONTAP credentials for the VSA cluster
+	TriggerASUPOnFailure bool             `json:"trigger_asup_on_failure"` // Whether to trigger ASUP on health check failure
 }
 
 // ClusterPowerOpRequest represents the request for cluster power operations
 type ClusterPowerOpRequest struct {
-	VLMConfig        VLMConfig        `json:"VLMConfig"`        // VLM configuration for the cluster
-	OntapCredentials OntapCredentials `json:"OntapCredentials"` // ONTAP credentials for the VSA cluster
-	Operation        string           `json:"Operation"`        // Timeout for the operation in minutes
+	VLMConfig        VLMConfig        `json:"vlm_config"`        // VLM configuration for the cluster
+	OntapCredentials OntapCredentials `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
+	Operation        string           `json:"operation"`         // Timeout for the operation in minutes
+}
+
+type ClusterPowerOpResp struct {
+	VLMConfig VLMConfig `json:"vlm_config"`
+}
+
+// GCP only
+type GetResourceInfoReq struct {
+	ProjectID    string `json:"project_id"`
+	DeploymentID string `json:"deployment_id"`
+}
+
+// GCP only
+type GetResourceInfoResp struct {
+	ProjectID    string              `json:"project_id"`
+	DeploymentID string              `json:"deployment_id"`
+	ResourceInfo ResourceInformation `json:"resource_info"`
+}
+
+// VNVRamMemory maps GCP instance types to their corresponding NVRAM memory in GB.
+var VNVRamMemory = map[string]int{
+	"c3-standard-4":       2,
+	"c3-standard-8":       2,
+	"c3-standard-22":      5,
+	"c3-standard-44":      10,
+	"c3-standard-88":      10,
+	"c3-standard-4-lssd":  2,
+	"c3-standard-8-lssd":  2,
+	"c3-standard-22-lssd": 5,
+	"c3-standard-44-lssd": 10,
+	"c3-standard-88-lssd": 10,
+	"c4-standard-4":       2,
+	"c4-standard-8":       2,
+	"c4-standard-16":      5,
+	"c4-standard-24":      5,
+	"c4-standard-32":      5,
+	"c4-standard-48":      10,
+	"c4-standard-96":      10,
+	"c4-standard-4-lssd":  2,
+	"c4-standard-8-lssd":  2,
+	"c4-standard-16-lssd": 5,
+	"c4-standard-24-lssd": 5,
+	"c4-standard-32-lssd": 5,
+	"c4-standard-48-lssd": 10,
+	"c4-standard-96-lssd": 10,
 }
