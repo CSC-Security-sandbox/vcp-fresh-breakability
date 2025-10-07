@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -225,6 +225,27 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 
+	// Delete associated buckets
+	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultBuckets, backupVault).Get(ctx, nil)
+	if err != nil {
+		// We may fail to delete the buckets as there might be some backups which will be later deleted by Ontap GC.
+		wf.Logger.Error("Failed to delete backup vault buckets", log.Fields{
+			"error":  err,
+			"params": backupVault,
+		})
+	}
+
+	// Delete backup vault in VCP database
+	dbBackupVault := &datamodel.BackupVault{}
+	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInVCP, bvCommonParams.BackupVaultID).Get(ctx, &dbBackupVault)
+	if err != nil {
+		wf.Logger.Error("Failed to delete backup vault in VCP", log.Fields{
+			"error":  err,
+			"params": backupVault,
+		})
+		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInVCP failed: %w", err))
+	}
+
 	sdeBackupVault := &datamodel.BackupVault{}
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInSDE, bvCommonParams).Get(ctx, &sdeBackupVault)
 	if err != nil {
@@ -233,23 +254,6 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 			"params": backupVault,
 		})
 		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInSDE failed: %w", err))
-	}
-
-	// Delete associated buckets
-	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultBuckets, backupVault).Get(ctx, nil)
-	if err != nil {
-		wf.Logger.Error("Failed to delete backup vault buckets", log.Fields{
-			"error":  err,
-			"params": backupVault,
-		})
-		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultBuckets failed: %w", err))
-	}
-
-	// Delete backup vault in VCP database
-	dbBackupVault := &datamodel.BackupVault{}
-	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInVCP, bvCommonParams.BackupVaultID).Get(ctx, &dbBackupVault)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
 	}
 
 	return dbBackupVault, nil
