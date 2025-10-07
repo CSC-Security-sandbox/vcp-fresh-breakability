@@ -3,11 +3,10 @@ package log
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"strings"
+	"log/slog"
 
 	"go.opentelemetry.io/otel/trace"
-	"log/slog"
 )
 
 const (
@@ -17,12 +16,6 @@ const (
 
 type Slogger struct {
 	slogger *slog.Logger
-}
-
-type Source struct {
-	Function string `json:"function"`
-	File     string `json:"file"`
-	Line     int    `json:"line"`
 }
 
 func getSlogger(config Config) (*Slogger, error) {
@@ -54,6 +47,9 @@ func replacer(groups []string, a slog.Attr) slog.Attr {
 		a.Key = "timestamp"
 	case slog.MessageKey:
 		a.Key = "message"
+	case slog.SourceKey:
+		// Remove source location information from logs
+		return slog.Attr{}
 	}
 	return a
 }
@@ -105,32 +101,11 @@ func (s *Slogger) Infof(format string, args ...any) {
 }
 
 func (s *Slogger) Debug(format string, args ...any) {
-	source := slog.Any("sourceLocation", getSource())
-	s.slogger.Debug(format, append(args, source)...)
+	s.slogger.Debug(format, args...)
 }
 
 func (s *Slogger) Debugf(format string, args ...any) {
-	source := slog.Any("sourceLocation", getSource())
-	s.slogger.Debug(fmt.Sprintf(format, args...), source)
-}
-
-// getSource retrieves the source information (function name, file, and line number) of the caller.
-func getSource() *Source {
-	pc, file, line, ok := runtime.Caller(2)
-	if !ok {
-		return &Source{}
-	}
-	fn := runtime.FuncForPC(pc)
-	functionName := ""
-	if fn != nil {
-		parts := strings.Split(fn.Name(), "/")
-		functionName = parts[len(parts)-1]
-	}
-	return &Source{
-		Function: functionName,
-		File:     file,
-		Line:     line,
-	}
+	s.slogger.Debug(fmt.Sprintf(format, args...))
 }
 
 // InfoContext logs an informational message with context.

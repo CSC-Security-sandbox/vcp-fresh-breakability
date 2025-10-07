@@ -2,7 +2,6 @@ package processor
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	metricdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
@@ -42,63 +41,109 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 	telemetryConfig := common.LoadConfig()
 	logger.Infof("Process %s!\n", "Performance Metrics")
 
+	// Run metrics collection and processing in a goroutine
+	go func() {
+		// Create new context with correlation ID for async operation
+		asyncCtx := context.WithValue(context.Background(), middleware.CorrelationContextKey, ctx.Value(middleware.CorrelationContextKey))
+		asyncLogger := util.GetLogger(asyncCtx)
+
+		// Collect and process all metrics
+		allHydratedMetricsDataModel, allHydratedMetrics, err := mp.collectAndProcessMetrics(asyncCtx, telemetryConfig)
+		if err != nil {
+			asyncLogger.Errorf("Failed to collect and process metrics: %v", err)
+			return
+		}
+
+		// Store metrics in database
+		if mp.telemetryDatastore != nil {
+			if err := mp.telemetryDatastore.CreateHydratedMetricsBatch(asyncCtx, allHydratedMetricsDataModel, int(telemetryConfig.PushBatchSize)); err != nil {
+				asyncLogger.Errorf("Failed to insert hydrated metrics batch: %v", err)
+				return
+			}
+		} else {
+			asyncLogger.Error("TelemetryDatastore is nil, cannot store metrics")
+		}
+
+		// Deliver metrics to sink
+		asyncLogger.Infof("Starting to deliver %d metrics to sink", len(allHydratedMetrics))
+		if mp.sink != nil {
+			mp.sink.DeliverMetrics(asyncCtx, allHydratedMetrics)
+		} else {
+			asyncLogger.Error("Sink is nil, cannot deliver metrics")
+		}
+	}()
+
+	// Process raw metrics asynchronously if enabled
+	if telemetryConfig.EnableVolumeMetrics {
+		go func(ctx context.Context) {
+			metricClient := mp.googleMetricProvider.GetClient()
+			if metricClient == nil {
+				logger.Error("Metric client is nil")
+				return
+			}
+
+			asyncCtx := context.WithValue(context.Background(), middleware.CorrelationContextKey, ctx.Value(middleware.CorrelationContextKey))
+			mp.processRawMetrics(asyncCtx)
+		}(ctx)
+	}
+	return nil
+}
+
+// collectAndProcessMetrics collects metrics from all sources and aggregates them
+func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, telemetryConfig *common.TelemetryConfig) ([]datamodel.HydratedMetrics, []entity.HydratedMetric, error) {
+	logger := util.GetLogger(ctx)
+
 	// hydrated metrics data model for database storage
 	var allHydratedMetricsDataModel []datamodel.HydratedMetrics
 
 	// hydrated metrics for sink delivery
 	var allHydratedMetrics []entity.HydratedMetric
 
+	// Collect pool metrics
 	poolMetricsResult, err := collector.GetPoolMetrics(ctx, mp.vcpDatastore, telemetryConfig)
 	if err != nil {
 		logger.Error("Failed to get pool metrics", "error", err.Error())
-		return err
+		return nil, nil, err
 	}
 
+	logger.Infof("Pool metrics collected %d", len(poolMetricsResult.HydratedMetrics))
+
+	// Collect backup metrics if enabled
 	var backupMetricsResult *collector.BackupMetricsResult
 	if telemetryConfig.EnableBackupMetrics || telemetryConfig.EnableBackupBillingMetrics {
 		backupMetricsResult, err = collector.GetBackupMetrics(ctx, mp.vcpDatastore, telemetryConfig)
 		if err != nil {
 			logger.Error("Failed to get backup metrics", "error", err.Error())
-			return err
+			return nil, nil, err
 		}
 	}
+
+	// Collect volume metrics
 	volumeMetricsResult, err := collector.GetVolumeMetrics(ctx, mp.vcpDatastore, telemetryConfig, poolMetricsResult.PoolMetadataMap)
 	if err != nil {
 		logger.Error("Failed to get volume metrics", "error", err.Error())
-		return err
+		return nil, nil, err
 	}
+
+	// Aggregate backup metrics for sink delivery
 	if telemetryConfig.EnableBackupMetrics {
 		allHydratedMetrics = append(allHydratedMetrics, backupMetricsResult.HydratedMetrics...)
 	}
+
+	// Aggregate backup and volume metrics for database storage
 	if telemetryConfig.EnableBackupBillingMetrics {
 		allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, backupMetricsResult.HydratedMetricsDataModel...)
 		allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, volumeMetricsResult.HydratedMetricsDataModel...)
 	}
 
+	// Aggregate pool metrics for database storage
 	allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, poolMetricsResult.HydratedMetricsDataModel...)
 
-	if err := mp.telemetryDatastore.CreateHydratedMetricsBatch(ctx, allHydratedMetricsDataModel, int(telemetryConfig.PushBatchSize)); err != nil {
-		logger.Errorf("Failed to insert hydrated metrics batch: %v", err)
-		return err
-	}
-
+	// Aggregate pool and volume metrics for sink delivery
 	allHydratedMetrics = append(allHydratedMetrics, poolMetricsResult.HydratedMetrics...)
 	allHydratedMetrics = append(allHydratedMetrics, volumeMetricsResult.VolumeAllocatedThroughputHydratedMetrics...)
 
-	mp.sink.DeliverMetrics(ctx, allHydratedMetrics)
-	if telemetryConfig.EnableVolumeMetrics {
-		metricClient := mp.googleMetricProvider.GetClient()
-		if metricClient == nil {
-			logger.Error("Metric client is nil")
-			return fmt.Errorf("metric client is nil")
-		}
-
-		go func(ctx context.Context) {
-			asyncCtx := context.WithValue(context.Background(), middleware.CorrelationContextKey, ctx.Value(middleware.CorrelationContextKey))
-			mp.processRawMetrics(asyncCtx)
-		}(ctx)
-	}
-	return nil
+	return allHydratedMetricsDataModel, allHydratedMetrics, nil
 }
 
 func (mp *MetricsProcessor) processRawMetrics(ctx context.Context) {

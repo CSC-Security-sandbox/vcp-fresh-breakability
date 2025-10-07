@@ -64,7 +64,7 @@ func Test_ReturnsAcceptedResponseForPerformanceEndpoint(t *testing.T) {
 		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
 		jobQueue:           queue,
 	}
-	response, err := handler.V1Performance(context.Background())
+	response, err := handler.V1Performance(context.Background(), oasgenserver.V1PerformanceParams{})
 	assert.NoError(t, err)
 	assert.IsType(t, &oasgenserver.V1PerformanceAccepted{}, response)
 }
@@ -92,7 +92,7 @@ func Test_V1Performance_DBError(t *testing.T) {
 		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
 		jobQueue:           queue,
 	}
-	response, err := handler.V1Performance(context.Background())
+	response, err := handler.V1Performance(context.Background(), oasgenserver.V1PerformanceParams{})
 
 	assert.Error(t, err, "Handler should return error if DB fails")
 	assert.IsType(t, &oasgenserver.V1PerformanceInternalServerError{}, response)
@@ -120,7 +120,7 @@ func Test_V1Performance_ContextCancel(t *testing.T) {
 
 	// Context cancellation should not affect the response since we use context.WithoutCancel
 	cancel()
-	response, err := handler.V1Performance(ctx)
+	response, err := handler.V1Performance(ctx, oasgenserver.V1PerformanceParams{})
 
 	assert.NoError(t, err)
 	assert.IsType(t, &oasgenserver.V1PerformanceAccepted{}, response)
@@ -148,7 +148,7 @@ func Test_ReturnsAcceptedResponseForUsageEndpoint(t *testing.T) {
 
 	// Context cancellation should not affect the response since we use context.WithoutCancel
 	cancel()
-	response, err := handler.V1Usage(ctx)
+	response, err := handler.V1Usage(ctx, oasgenserver.V1UsageParams{})
 
 	assert.NoError(t, err)
 	assert.IsType(t, &oasgenserver.V1UsageAccepted{}, response)
@@ -174,7 +174,7 @@ func Test_V1Usage_DBError(t *testing.T) {
 		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
 		jobQueue:           queue,
 	}
-	response, err := handler.V1Usage(context.Background())
+	response, err := handler.V1Usage(context.Background(), oasgenserver.V1UsageParams{})
 
 	assert.Error(t, err, "Handler should return error if DB fails")
 	assert.IsType(t, &oasgenserver.V1UsageInternalServerError{}, response)
@@ -302,4 +302,60 @@ func Test_V1GenerateReport_ContextCancel(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.IsType(t, &oasgenserver.V1GenerateReportAccepted{}, response)
+}
+
+// Test to cover missing lines 46-47: correlation ID handling in V1Performance
+func Test_V1Performance_WithCorrelationID(t *testing.T) {
+	vcpStore := &vcpdb.MockStorage{}
+	telemetryStore, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
+	handler := Handler{
+		vcpDatastore:       vcpStore,
+		telemetryDatastore: telemetryStore,
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
+	}
+
+	// Test with correlation ID provided
+	params := oasgenserver.V1PerformanceParams{
+		XCorrelationID: oasgenserver.NewOptString("test-correlation-id-123"),
+	}
+	response, err := handler.V1Performance(context.Background(), params)
+	assert.NoError(t, err)
+	assert.IsType(t, &oasgenserver.V1PerformanceAccepted{}, response)
+}
+
+// Test to cover missing lines 84-85: correlation ID handling in V1Usage
+func Test_V1Usage_WithCorrelationID(t *testing.T) {
+	vcpStore := &vcpdb.MockStorage{}
+	telemetryStore, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	mockProc := procMock.NewMockProcessor(t)
+	mockVCPProc := &MockVCPProcessor{MockProcessor: mockProc}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc)
+	handler := Handler{
+		vcpDatastore:       vcpStore,
+		telemetryDatastore: telemetryStore,
+		metricsProcessor:   procMock.MetricsProcessor{VCPProcessor: mockVCPProc},
+		jobQueue:           queue,
+	}
+
+	// Test with correlation ID provided
+	params := oasgenserver.V1UsageParams{
+		XCorrelationID: oasgenserver.NewOptString("test-correlation-id-456"),
+	}
+	response, err := handler.V1Usage(context.Background(), params)
+	assert.NoError(t, err)
+	assert.IsType(t, &oasgenserver.V1UsageAccepted{}, response)
 }

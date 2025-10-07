@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -34,25 +37,79 @@ func NewHandler(vcpDatastore database.Storage, telemetryDatastore metricsdb.Stor
 	}
 }
 
-func (h Handler) V1Performance(ctx context.Context) (r oasgenserver.V1PerformanceRes, _ error) {
-	backgroundContext := context.WithoutCancel(ctx)
+func (h Handler) V1Performance(ctx context.Context, params oasgenserver.V1PerformanceParams) (r oasgenserver.V1PerformanceRes, _ error) {
+	logger := util.GetLogger(ctx)
+
+	// Extract correlation ID from parameters and add to context
+	correlationID := ""
+	if params.XCorrelationID.IsSet() {
+		correlationID = params.XCorrelationID.Value
+		logger.Infof("Processing performance metrics request with correlation ID: %s", correlationID)
+	} else {
+		// Generate a new correlation ID if not provided
+		correlationID = uuid.NewString()
+		logger.Infof("Processing performance metrics request with generated correlation ID: %s", correlationID)
+	}
+
+	// Add correlation ID to context for propagation
+	loggerFields := log.Fields{
+		"requestCorrelationID": correlationID,
+	}
+	// Create a logger with the correlation ID fields
+	loggerWithFields := log.NewLogger().WithFields("requestFields", loggerFields)
+
+	// Set both the logger and the fields in context for maximum compatibility
+	ctxWithCorrelation := context.WithValue(ctx, middleware.TemporalSLoggerKey, loggerFields)
+	ctxWithCorrelation = context.WithValue(ctxWithCorrelation, middleware.ContextSLoggerKey, loggerWithFields)
+	backgroundContext := context.WithoutCancel(ctxWithCorrelation)
+
 	j := jobs.NewProcessPerformanceMetrics("{}")
+	j.CorrelationID = correlationID
 	err := h.jobQueue.Enqueue(backgroundContext, j, "performance")
 	if err != nil {
+		logger.Errorf("Failed to enqueue ProcessPerformanceMetrics job with correlation ID %s: %v", correlationID, err)
 		return &oasgenserver.V1PerformanceInternalServerError{}, fmt.Errorf("failed to enqueue ProcessPerformanceMetrics job: %v", err)
 	}
+
+	logger.Infof("Successfully enqueued performance metrics job with correlation ID: %s", correlationID)
 	return &oasgenserver.V1PerformanceAccepted{}, nil
 }
 
-func (h Handler) V1Usage(ctx context.Context) (r oasgenserver.V1UsageRes, _ error) {
+func (h Handler) V1Usage(ctx context.Context, params oasgenserver.V1UsageParams) (r oasgenserver.V1UsageRes, _ error) {
 	logger := util.GetLogger(ctx)
-	backgroundContext := context.WithoutCancel(ctx)
+
+	// Extract correlation ID from parameters and add to context
+	correlationID := ""
+	if params.XCorrelationID.IsSet() {
+		correlationID = params.XCorrelationID.Value
+		logger.Infof("Processing usage metrics request with correlation ID: %s", correlationID)
+	} else {
+		// Generate a new correlation ID if not provided
+		correlationID = uuid.NewString()
+		logger.Infof("Processing usage metrics request with generated correlation ID: %s", correlationID)
+	}
+
+	// Add correlation ID to context for propagation
+	loggerFields := log.Fields{
+		"requestCorrelationID": correlationID,
+	}
+	// Create a logger with the correlation ID fields
+	loggerWithFields := log.NewLogger().WithFields("requestFields", loggerFields)
+
+	// Set both the logger and the fields in context for maximum compatibility
+	ctxWithCorrelation := context.WithValue(ctx, middleware.TemporalSLoggerKey, loggerFields)
+	ctxWithCorrelation = context.WithValue(ctxWithCorrelation, middleware.ContextSLoggerKey, loggerWithFields)
+	backgroundContext := context.WithoutCancel(ctxWithCorrelation)
+
 	j := jobs.NewProcessUsageMetrics("{}")
+	j.CorrelationID = correlationID
 	err := h.jobQueue.Enqueue(backgroundContext, j, "usage")
 	if err != nil {
-		logger.Errorf("Failed to enqueue ProcessUsageMetrics job: %v", err)
+		logger.Errorf("Failed to enqueue ProcessUsageMetrics job with correlation ID %s: %v", correlationID, err)
 		return &oasgenserver.V1UsageInternalServerError{}, fmt.Errorf("failed to enqueue ProcessUsageMetrics job: %v", err)
 	}
+
+	logger.Infof("Successfully enqueued usage metrics job with correlation ID: %s", correlationID)
 	return &oasgenserver.V1UsageAccepted{}, nil
 }
 

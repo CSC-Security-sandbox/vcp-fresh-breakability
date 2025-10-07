@@ -19,13 +19,13 @@ type Handler interface {
 	// Trigger Performance Metrics Collection.
 	//
 	// POST /v1/performance
-	V1Performance(ctx context.Context) (V1PerformanceRes, error)
+	V1Performance(ctx context.Context, params V1PerformanceParams) (V1PerformanceRes, error)
 	// V1Usage implements v1_usage operation.
 	//
 	// Trigger Usage Metrics Collection.
 	//
 	// POST /v1/usage
-	V1Usage(ctx context.Context) (V1UsageRes, error)
+	V1Usage(ctx context.Context, params V1UsageParams) (V1UsageRes, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

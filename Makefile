@@ -100,6 +100,10 @@ generate-google-proxy-client:
 generate-core-api-client:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapi --config clients/core-api/.ogenclient.yml --target clients/core-api core/core-api/api.yaml
 
+.PHONY: generate-metrics-api
+generate-metrics-api:
+	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapiserver --config telemetry/api/.ogenserver.yml --target telemetry/api/telemetry-servergen telemetry/api/metrics-api.yaml
+
 .PHONY: generate-retry-engine-wrapper
 generate-retry-engine-wrapper:
 	cd cmd/retry-engine-generator; go run main.go vcp core
@@ -176,6 +180,29 @@ build-all-binaries-prod:
 	docker cp vsa-binaries-builder-run:/src/artifacts/. ./artifacts/
 	ls artifacts
 	docker rm vsa-binaries-builder-run
+
+.PHONY: build-all-binaries-prod-on-mac
+build-all-binaries-prod-on-mac:
+	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all -t vsa-binaries-builder .
+	mkdir -p artifacts
+	docker rm -f vsa-binaries-builder-run || true
+	docker run --name vsa-binaries-builder-run \
+		-e GHVSA_PAT=$(GHVSA_PAT) \
+		-v $(GOCACHE):/go-build-cache \
+		-v $(GOMODCACHE):/go/pkg/mod \
+		-e GOCACHE=/go-build-cache \
+		-e GOMODCACHE=/go/pkg/mod \
+		vsa-binaries-builder sh -c '\
+		CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/vcp-worker ./worker/ && \
+		CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/google-proxy ./google-proxy/ && \
+		CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/core ./core && \
+		CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/telemetry ./telemetry/ && \
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/ontap-proxy ./ontap-proxy/'
+	docker cp vsa-binaries-builder-run:/src/artifacts/. ./artifacts/
+	ls artifacts
+	docker rm vsa-binaries-builder-run
+	export $(cat skaffold.env | xargs)
+	skaffold build
 
 .PHONY: clean-artifacts
 clean-artifacts:

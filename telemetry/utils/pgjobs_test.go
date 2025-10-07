@@ -1228,3 +1228,250 @@ func BenchmarkPqArray(b *testing.B) {
 		})
 	}
 }
+
+// Tests for EnqueueBatch functionality
+func TestJobQueue_EnqueueBatch_EmptyJobs(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	// Test with empty jobs slice
+	err := queue.EnqueueBatch(ctx, []Job{}, "test_queue")
+	assert.NoError(t, err)
+
+	// Verify no jobs were inserted
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs").Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count)
+}
+
+func TestJobQueue_EnqueueBatch_Success(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	// Create multiple jobs
+	jobs := []Job{
+		MockJob{ID: "job1", Data: "data1"},
+		MockJob{ID: "job2", Data: "data2"},
+		MockJob{ID: "job3", Data: "data3"},
+	}
+
+	err := queue.EnqueueBatch(ctx, jobs, "batch_queue")
+	assert.NoError(t, err)
+
+	// Verify all jobs were inserted
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ?", "batch_queue").Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, count)
+
+	// Verify job details
+	rows, err := db.Query("SELECT type_name, status, data FROM jobs WHERE queue = ? ORDER BY id", "batch_queue")
+	assert.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+
+	expectedJobs := []MockJob{
+		{ID: "job1", Data: "data1"},
+		{ID: "job2", Data: "data2"},
+		{ID: "job3", Data: "data3"},
+	}
+
+	i := 0
+	for rows.Next() {
+		var typeName, status, data string
+		err = rows.Scan(&typeName, &status, &data)
+		assert.NoError(t, err)
+		assert.Equal(t, "utils.MockJob", typeName)
+		assert.Equal(t, JOB_STATUS_SCHEDULED, status)
+
+		var jobData MockJob
+		err = json.Unmarshal([]byte(data), &jobData)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedJobs[i].ID, jobData.ID)
+		assert.Equal(t, expectedJobs[i].Data, jobData.Data)
+		i++
+	}
+	assert.Equal(t, 3, i)
+}
+
+func TestJobQueue_EnqueueBatch_MarshalError(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	// Create jobs with one that can't be marshaled
+	jobs := []Job{
+		MockJob{ID: "job1", Data: "data1"},
+		UnmarshalableJob{BadField: make(chan string)}, // This will cause marshaling error
+		MockJob{ID: "job3", Data: "data3"},
+	}
+
+	err := queue.EnqueueBatch(ctx, jobs, "batch_queue")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed marshaling job")
+
+	// Verify no jobs were inserted (transaction should rollback)
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ?", "batch_queue").Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count)
+}
+
+func TestJobQueue_EnqueueBatch_DatabaseError(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	// Close database to simulate error
+	_ = db.Close()
+
+	jobs := []Job{
+		MockJob{ID: "job1", Data: "data1"},
+		MockJob{ID: "job2", Data: "data2"},
+	}
+
+	err := queue.EnqueueBatch(ctx, jobs, "batch_queue")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to begin transaction")
+}
+
+func TestJobQueue_EnqueueBatch_TransactionCommitError(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	jobs := []Job{
+		MockJob{ID: "job1", Data: "data1"},
+	}
+
+	// Close database after creating queue to force commit error
+	_ = db.Close()
+
+	err := queue.EnqueueBatch(ctx, jobs, "batch_queue")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to begin transaction")
+}
+
+func TestJobQueue_EnqueueBatch_LargeBatch(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	// Create a large batch of jobs
+	jobs := make([]Job, 100)
+	for i := 0; i < 100; i++ {
+		jobs[i] = MockJob{ID: fmt.Sprintf("job%d", i), Data: fmt.Sprintf("data%d", i)}
+	}
+
+	err := queue.EnqueueBatch(ctx, jobs, "large_batch_queue")
+	assert.NoError(t, err)
+
+	// Verify all jobs were inserted
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ?", "large_batch_queue").Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 100, count)
+}
+
+func TestJobQueue_EnqueueBatch_MixedJobTypes(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	// Create jobs of different types
+	jobs := []Job{
+		MockJob{ID: "mock1", Data: "mock1_data"},
+		FailingJob{ID: "fail1"},
+		MockJob{ID: "mock2", Data: "mock2_data"},
+		FailingJob{ID: "fail2"},
+	}
+
+	err := queue.EnqueueBatch(ctx, jobs, "mixed_queue")
+	assert.NoError(t, err)
+
+	// Verify all jobs were inserted
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ?", "mixed_queue").Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 4, count)
+
+	// Verify job types
+	var mockCount, failCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ? AND type_name = ?", "mixed_queue", "utils.MockJob").Scan(&mockCount)
+	assert.NoError(t, err)
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ? AND type_name = ?", "mixed_queue", "utils.FailingJob").Scan(&failCount)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, mockCount)
+	assert.Equal(t, 2, failCount)
+}
+
+func TestJobQueue_EnqueueBatch_SQLiteFallback(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	// Create jobs - SQLite should use the fallback method
+	jobs := []Job{
+		MockJob{ID: "sqlite1", Data: "sqlite1_data"},
+		MockJob{ID: "sqlite2", Data: "sqlite2_data"},
+	}
+
+	err := queue.EnqueueBatch(ctx, jobs, "sqlite_queue")
+	assert.NoError(t, err)
+
+	// Verify jobs were inserted
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ?", "sqlite_queue").Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+}
+
+func TestJobQueue_EnqueueBatch_PostgresArrayError(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	queue := NewQueue(db, mockProcessor)
+	ctx := context.Background()
+
+	// Create jobs with special characters that might cause array issues
+	jobs := []Job{
+		MockJob{ID: "job\"with\"quotes", Data: "data\"with\"quotes"},
+		MockJob{ID: "job\\with\\backslashes", Data: "data\\with\\backslashes"},
+	}
+
+	err := queue.EnqueueBatch(ctx, jobs, "special_chars_queue")
+	assert.NoError(t, err)
+
+	// Verify jobs were inserted (should fallback to SQLite method)
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ?", "special_chars_queue").Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.temporal.io/sdk/temporal"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,11 +16,32 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
 )
+
+// retryTestOperation retries a test operation with exponential backoff
+func retryTestOperation(t *testing.T, maxRetries int, operation func() error) error {
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		err := operation()
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+
+		// Exponential backoff with jitter
+		if i < maxRetries-1 {
+			backoff := time.Duration(1<<uint(i)) * 100 * time.Millisecond
+			jitter := time.Duration(i*10) * time.Millisecond
+			time.Sleep(backoff + jitter)
+		}
+	}
+	return lastErr
+}
 
 func testReset(t *testing.T) {
 	waitTimeoutMinutes = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
@@ -135,7 +155,7 @@ func Test_GetTenantProject(t *testing.T) {
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
-			if !strings.Contains(err.(*temporal.ApplicationError).Error(), fmt.Sprintf("Setup/Configure Private Service Access (PSA) Peering")) {
+			if !strings.Contains(err.(*temporal.ApplicationError).Error(), "Setup/Configure Private Service Access (PSA) Peering") {
 				tt.Errorf("Unexpected error: %s", err.(*temporal.ApplicationError))
 			}
 		}
@@ -348,7 +368,7 @@ func Test_CreateTPSubnetOpInternal(t *testing.T) {
 		}
 		out, err := CreateTPSubnetOp(gService, &servicenetworking.AddSubnetworkRequest{}, tenantProjectNumber)
 		if err == nil {
-			tt.Errorf("Error expected: %s", err.Error())
+			tt.Error("Expected an error but got nothing")
 		} else {
 			if out != nil {
 				tt.Errorf("Expected nil")
@@ -2839,7 +2859,7 @@ func TestGetComputeGlobalOpStatus(t *testing.T) {
 func Test_ListAddressesWithFilter(t *testing.T) {
 	t.Run("Failure_ProjectNameEmpty", func(t *testing.T) {
 		defer testReset(t)
-		
+
 		region := "us-central1"
 		subnetName := "test-subnet"
 		deploymentID := "test-deployment"
@@ -2859,8 +2879,11 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_WithAllFilters", func(t *testing.T) {
 		defer testReset(t)
-		
-		ctx := context.Background()
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		projectName := "test-project"
 		region := "us-central1"
 		subnetName := "test-subnet"
@@ -2874,12 +2897,14 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
 			if req.URL.Path != expectedPath {
 				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
 			}
 
 			// Check filter parameters
 			filter := req.URL.Query().Get("filter")
 			if filter == "" {
 				t.Errorf("Expected filter got %s", filter)
+				return
 			}
 
 			// Return mock response
@@ -2902,20 +2927,24 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			rw.Header().Set("Content-Type", "application/json")
 			err := json.NewEncoder(rw).Encode(response)
 			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
 				return
 			}
 		}))
 		defer server.Close()
 
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
 		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
 		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+			t.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		adminService := AdminGCPService{computeService: svc}
 
 		gcpService := &GcpServices{
 			AdminGCPService: &adminService,
+			Ctx:             ctx,
 			Logger:          log.NewLogger(),
 		}
 
@@ -2928,8 +2957,11 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_WithOnlySubnetFilter", func(t *testing.T) {
 		defer testReset(t)
-		
-		ctx := context.Background()
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		projectName := "test-project"
 		region := "us-central1"
 		subnetName := "test-subnet"
@@ -2938,6 +2970,7 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
 			if req.URL.Path != expectedPath {
 				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
 			}
 
 			// Check filter parameters
@@ -2945,6 +2978,7 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedFilter := fmt.Sprintf("subnetwork=\"%s\"", subnetName)
 			if filter != expectedFilter {
 				t.Errorf("Expected filter %s, got %s", expectedFilter, filter)
+				return
 			}
 
 			// Return mock response
@@ -2962,20 +2996,24 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			rw.Header().Set("Content-Type", "application/json")
 			err := json.NewEncoder(rw).Encode(response)
 			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
 				return
 			}
 		}))
 		defer server.Close()
 
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
 		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
 		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+			t.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		adminService := AdminGCPService{computeService: svc}
 
 		gcpService := &GcpServices{
 			AdminGCPService: &adminService,
+			Ctx:             ctx,
 			Logger:          log.NewLogger(),
 		}
 
@@ -2988,8 +3026,11 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_WithOnlyDeploymentFilter", func(t *testing.T) {
 		defer testReset(t)
-		
-		ctx := context.Background()
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		projectName := "test-project"
 		region := "us-central1"
 		deploymentID := "test-deployment"
@@ -2998,6 +3039,7 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
 			if req.URL.Path != expectedPath {
 				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
 			}
 
 			// Check filter parameters
@@ -3005,6 +3047,7 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedFilter := fmt.Sprintf("labels.deployment_id=\"%s\"", deploymentID)
 			if filter != expectedFilter {
 				t.Errorf("Expected filter %s, got %s", expectedFilter, filter)
+				return
 			}
 
 			// Return mock response
@@ -3024,20 +3067,24 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			rw.Header().Set("Content-Type", "application/json")
 			err := json.NewEncoder(rw).Encode(response)
 			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
 				return
 			}
 		}))
 		defer server.Close()
 
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
 		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
 		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+			t.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		adminService := AdminGCPService{computeService: svc}
 
 		gcpService := &GcpServices{
 			AdminGCPService: &adminService,
+			Ctx:             ctx,
 			Logger:          log.NewLogger(),
 		}
 
@@ -3050,8 +3097,11 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_WithOnlyAdditionalLabels", func(t *testing.T) {
 		defer testReset(t)
-		
-		ctx := context.Background()
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		projectName := "test-project"
 		region := "us-central1"
 		additionalLabels := map[string]string{
@@ -3063,13 +3113,19 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
 			if req.URL.Path != expectedPath {
 				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
 			}
 
 			// Check filter parameters
 			filter := req.URL.Query().Get("filter")
-			expectedFilter := "labels.environment=\"test\" AND labels.team=\"platform\""
-			if filter != expectedFilter {
-				t.Errorf("Expected filter %s, got %s", expectedFilter, filter)
+			// Since map iteration order is not deterministic, check that both labels are present
+			if !strings.Contains(filter, "labels.environment=\"test\"") || !strings.Contains(filter, "labels.team=\"platform\"") {
+				t.Errorf("Expected filter to contain both labels.environment=\"test\" and labels.team=\"platform\", got %s", filter)
+				return
+			}
+			if !strings.Contains(filter, " AND ") {
+				t.Errorf("Expected filter to contain AND separator, got %s", filter)
+				return
 			}
 
 			// Return mock response
@@ -3087,20 +3143,24 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			rw.Header().Set("Content-Type", "application/json")
 			err := json.NewEncoder(rw).Encode(response)
 			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
 				return
 			}
 		}))
 		defer server.Close()
 
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
 		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
 		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+			t.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		adminService := AdminGCPService{computeService: svc}
 
 		gcpService := &GcpServices{
 			AdminGCPService: &adminService,
+			Ctx:             ctx,
 			Logger:          log.NewLogger(),
 		}
 
@@ -3108,13 +3168,18 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Len(t, *result, 1)
+		if result != nil {
+			assert.Len(t, *result, 1)
+		}
 	})
 
 	t.Run("Success_NoFilters", func(t *testing.T) {
 		defer testReset(t)
-		
-		ctx := context.Background()
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		projectName := "test-project"
 		region := "us-central1"
 
@@ -3122,12 +3187,14 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
 			if req.URL.Path != expectedPath {
 				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
 			}
 
 			// Check that no filter is applied
 			filter := req.URL.Query().Get("filter")
 			if filter != "" {
 				t.Errorf("Expected no filter, got %s", filter)
+				return
 			}
 
 			// Return mock response
@@ -3144,20 +3211,24 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			rw.Header().Set("Content-Type", "application/json")
 			err := json.NewEncoder(rw).Encode(response)
 			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
 				return
 			}
 		}))
 		defer server.Close()
 
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
 		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
 		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+			t.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		adminService := AdminGCPService{computeService: svc}
 
 		gcpService := &GcpServices{
 			AdminGCPService: &adminService,
+			Ctx:             ctx,
 			Logger:          log.NewLogger(),
 		}
 
@@ -3170,14 +3241,18 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_GlobalRegion", func(t *testing.T) {
 		defer testReset(t)
-		
-		ctx := context.Background()
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		projectName := "test-project"
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			expectedPath := fmt.Sprintf("/projects/%s/global/addresses", projectName)
 			if req.URL.Path != expectedPath {
 				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
 			}
 
 			// Return mock response
@@ -3194,20 +3269,24 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			rw.Header().Set("Content-Type", "application/json")
 			err := json.NewEncoder(rw).Encode(response)
 			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
 				return
 			}
 		}))
 		defer server.Close()
 
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
 		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
 		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+			t.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		adminService := AdminGCPService{computeService: svc}
 
 		gcpService := &GcpServices{
 			AdminGCPService: &adminService,
+			Ctx:             ctx,
 			Logger:          log.NewLogger(),
 		}
 
@@ -3220,8 +3299,11 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Success_EmptyResponse", func(t *testing.T) {
 		defer testReset(t)
-		
-		ctx := context.Background()
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		projectName := "test-project"
 		region := "us-central1"
 
@@ -3229,6 +3311,7 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
 			if req.URL.Path != expectedPath {
 				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
 			}
 
 			// Return empty response
@@ -3239,20 +3322,24 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			rw.Header().Set("Content-Type", "application/json")
 			err := json.NewEncoder(rw).Encode(response)
 			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
 				return
 			}
 		}))
 		defer server.Close()
 
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
 		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
 		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+			t.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		adminService := AdminGCPService{computeService: svc}
 
 		gcpService := &GcpServices{
 			AdminGCPService: &adminService,
+			Ctx:             ctx,
 			Logger:          log.NewLogger(),
 		}
 
@@ -3265,8 +3352,11 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 	t.Run("Error_GCPAPIError", func(t *testing.T) {
 		defer testReset(t)
-		
-		ctx := context.Background()
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		projectName := "test-project"
 		region := "us-central1"
 
@@ -3274,25 +3364,30 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
 			if req.URL.Path != expectedPath {
 				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
 			}
 
 			rw.WriteHeader(http.StatusInternalServerError)
 			_, err := rw.Write([]byte("Internal Server Error"))
 			if err != nil {
+				t.Errorf("Failed to write error response: %v", err)
 				return
 			}
 		}))
 		defer server.Close()
 
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
 		svc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
 		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
+			t.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		adminService := AdminGCPService{computeService: svc}
 
 		gcpService := &GcpServices{
 			AdminGCPService: &adminService,
+			Ctx:             ctx,
 			Logger:          log.NewLogger(),
 		}
 
@@ -3300,6 +3395,159 @@ func Test_ListAddressesWithFilter(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
+	})
+
+	t.Run("Success_WithSpecialCharactersInLabels", func(t *testing.T) {
+		defer testReset(t)
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		projectName := "test-project"
+		region := "us-central1"
+		deploymentID := "test-deployment-with-special-chars"
+		additionalLabels := map[string]string{
+			"environment": "test-env-with-dashes",
+			"team":        "platform-team_underscore",
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			expectedPath := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+			if req.URL.Path != expectedPath {
+				t.Errorf("Expected path %s, got %s", expectedPath, req.URL.Path)
+				return
+			}
+
+			// Check filter parameters
+			filter := req.URL.Query().Get("filter")
+			if filter == "" {
+				t.Errorf("Expected filter got %s", filter)
+				return
+			}
+
+			// Verify that special characters are properly escaped
+			expectedDeploymentFilter := fmt.Sprintf("labels.deployment_id=\"%s\"", deploymentID)
+			if !strings.Contains(filter, expectedDeploymentFilter) {
+				t.Errorf("Expected deployment filter %s in filter %s", expectedDeploymentFilter, filter)
+				return
+			}
+
+			// Return mock response
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-special",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+						Labels: map[string]string{
+							"deployment_id": deploymentID,
+							"environment":   additionalLabels["environment"],
+							"team":          additionalLabels["team"],
+						},
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
+				return
+			}
+		}))
+		defer server.Close()
+
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Ctx:             ctx,
+			Logger:          log.NewLogger(),
+		}
+
+		result, err := gcpService.ListAddressesWithFilter(projectName, region, "", deploymentID, additionalLabels)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+	})
+
+	t.Run("Success_WithRetryMechanism", func(t *testing.T) {
+		defer testReset(t)
+
+		// Use context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		projectName := "test-project"
+		region := "us-central1"
+		attemptCount := 0
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			attemptCount++
+
+			// Simulate transient failure on first attempt
+			if attemptCount == 1 {
+				rw.WriteHeader(http.StatusInternalServerError)
+				_, _ = rw.Write([]byte("Internal Server Error"))
+				return
+			}
+
+			// Success on retry
+			response := &compute.AddressList{
+				Items: []*compute.Address{
+					{
+						Name:        "test-address-retry",
+						Address:     "10.0.0.1",
+						AddressType: "INTERNAL",
+					},
+				},
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(rw).Encode(response)
+			if err != nil {
+				t.Errorf("Failed to encode response: %v", err)
+				return
+			}
+		}))
+		defer server.Close()
+
+		// Use consistent HTTP client timeout
+		httpClient := &http.Client{Timeout: 2 * time.Second}
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &adminService,
+			Ctx:             ctx,
+			Logger:          log.NewLogger(),
+		}
+
+		// Use retry mechanism for the test
+		var result *[]models.Address
+		err = retryTestOperation(t, 3, func() error {
+			var err error
+			result, err = gcpService.ListAddressesWithFilter(projectName, region, "", "", nil)
+			return err
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 1)
+		assert.Equal(t, 2, attemptCount) // Should have retried once
 	})
 }
 

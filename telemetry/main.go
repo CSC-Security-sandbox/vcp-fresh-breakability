@@ -31,6 +31,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -39,11 +40,13 @@ var (
 )
 
 func main() {
-	logger := log.NewLogger()
-	logger.Info("Starting Telemetry Server")
 	ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, uuid.NewString())
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+
+	logger := util.GetLogger(ctx)
+	logger.Info("Starting Telemetry Server")
+
 	// TODO SHIVVAT defer DB connection close
 	// defer cleanup(ctx)
 

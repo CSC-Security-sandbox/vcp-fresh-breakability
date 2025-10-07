@@ -95,7 +95,7 @@ func TestGoogleUsageSink_filterValidUsage(t *testing.T) {
 		// Set up mock expectations
 		ml.On("Errorf", "Skipping usage: Not mapping usage record due to missing project ID/number.",
 			"Record ID", int64(1)).Once()
-		ml.On("Errorf", "Found records that are not appropriate for billing. Not mapping them.", "Number of records: ", 1).Once()
+		ml.On("Errorf", "Found records that are not appropriate for billing. Not mapping them. Number of records: %d", 1).Once()
 
 		aggregatedRecords := []datamodel.AggregatedUsage{
 			{
@@ -121,7 +121,7 @@ func TestGoogleUsageSink_filterValidUsage(t *testing.T) {
 		// Set up mock expectations
 		ml.On("Errorf", "Skipping usage: Not mapping usage record due to missing project ID/number.",
 			"Record ID", int64(1)).Once()
-		ml.On("Errorf", "Found records that are not appropriate for billing. Not mapping them.", "Number of records: ", 1).Once()
+		ml.On("Errorf", "Found records that are not appropriate for billing. Not mapping them. Number of records: %d", 1).Once()
 
 		aggregatedRecords := []datamodel.AggregatedUsage{
 			{
@@ -587,4 +587,94 @@ func TestGoogleUsageSink_isSuccessful(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// TestGoogleUsageSink_processMetricsResults_WithErrorLogging tests error logging in processMetricsResults
+func TestGoogleUsageSink_processMetricsResults_WithErrorLogging(t *testing.T) {
+	ctx := context.Background()
+	config := common.LoadConfig()
+	mockDB := createMockDB()
+	sink := NewSink(ctx, config, mockDB)
+
+	// Set up mock logger to capture error logging
+	ml := &log.MockLogger{}
+	sink.logger = ml
+
+	customerID := "test-customer-123"
+	resourceName := "test-resource"
+
+	// Create test metric
+	googleMetric := *common.NewGoogleMetric(&datamodel.AggregatedUsage{
+		ID:               1,
+		VendorCustomerID: &customerID,
+		ResourceName:     &resourceName,
+		Quantity:         100.0,
+		State:            datamodel.Error,
+	})
+
+	// Create error results to trigger error logging (lines 137-138)
+	gcpResults := []common.MetricsResult{
+		{
+			GoogleMetric:   googleMetric,
+			Exception:      errors.New("test error"),
+			ReportResponse: nil,
+		},
+	}
+
+	// Set up mock expectations for error logging
+	ml.On("Errorf", "Google Usage Mapping with ID %d failed GoogleMetric validation: missing fields %s", int64(1), mock.AnythingOfType("string")).Maybe()
+	ml.On("Errorf", "Google Usage Mapping with ID %d failed GoogleMetric validation: missing fields %s", int64(1), "customerId").Maybe()
+	ml.On("Debugf", "Processing the Google Metric Result", "result:", mock.AnythingOfType("common.MetricsResult"), "resultCode: ", mock.AnythingOfType("string")).Once()
+	ml.On("Infof", "Updating usage information for billingRecord ID: %d, state: %s", int64(1), mock.AnythingOfType("datamodel.TrackingState")).Once()
+	ml.On("Infof", "%d metrics were successfully reported.", 0).Once()
+	ml.On("Infof", "%d metrics were not reported.", 1).Once()
+
+	// This should test the error logging paths (lines 137-138)
+	sink.processMetricsResults(ctx, gcpResults)
+
+	ml.AssertExpectations(t)
+}
+
+// TestGoogleUsageSink_processMetricsResults_WithSuccessfulLogging tests successful logging in processMetricsResults
+func TestGoogleUsageSink_processMetricsResults_WithSuccessfulLogging(t *testing.T) {
+	ctx := context.Background()
+	config := common.LoadConfig()
+	mockDB := createMockDB()
+	sink := NewSink(ctx, config, mockDB)
+
+	// Set up mock logger to capture success logging
+	ml := &log.MockLogger{}
+	sink.logger = ml
+
+	customerID := "test-customer-123"
+	resourceName := "test-resource"
+
+	// Create test metric
+	googleMetric := *common.NewGoogleMetric(&datamodel.AggregatedUsage{
+		ID:               1,
+		VendorCustomerID: &customerID,
+		ResourceName:     &resourceName,
+		Quantity:         100.0,
+		State:            datamodel.Unsubmitted,
+	})
+
+	// Create successful results to trigger success logging (line 200)
+	gcpResults := []common.MetricsResult{
+		{
+			GoogleMetric:   googleMetric,
+			Exception:      nil,
+			ReportResponse: &common.ReportResponse{}, // Good response
+		},
+	}
+
+	// Set up mock expectations for success logging
+	ml.On("Debugf", "Processing the Google Metric Result", "result:", mock.AnythingOfType("common.MetricsResult"), "resultCode: ", mock.AnythingOfType("string")).Once()
+	ml.On("Infof", "Updating usage information for billingRecord ID: %d, state: %s", int64(1), mock.AnythingOfType("datamodel.TrackingState")).Once()
+	ml.On("Infof", "%d metrics were successfully reported.", 1).Once()
+	ml.On("Infof", "%d metrics were not reported.", 0).Once()
+
+	// This should test the success logging path (line 200)
+	sink.processMetricsResults(ctx, gcpResults)
+
+	ml.AssertExpectations(t)
 }

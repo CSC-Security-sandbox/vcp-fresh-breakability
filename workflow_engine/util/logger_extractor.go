@@ -21,6 +21,9 @@ func (c apiContext) extractLogger() (log.Logger, error) {
 	if logger, ok := c.ctx.Value(middleware.ContextSLoggerKey).(log.Logger); ok {
 		return logger, nil
 	}
+	if logger, ok := c.ctx.Value(middleware.ContexMainThreadID).(log.Logger); ok {
+		return logger, nil
+	}
 
 	if loggerFields, ok := c.ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
 		// Constructing back the logger with the fields extracted from the api context
@@ -64,7 +67,6 @@ func GetLogger(ctx interface{}) log.Logger {
 	logger, err := ctxHandler.extractLogger()
 	if err != nil {
 		newLogger := log.NewLogger()
-		newLogger.Debug("failed to extract logger from context")
 		return newLogger
 	}
 	return logger

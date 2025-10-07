@@ -18,6 +18,13 @@ paths:
       summary: Trigger Performance Metrics Collection.
       description: Trigger Performance Metrics Collection
       operationId: v1_performance
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          description: Correlation ID for request tracing
+          required: false
+          schema:
+            type: string
       responses:
         "202":
           description: Metrics collection triggered
@@ -38,6 +45,13 @@ paths:
       summary: Trigger Usage Metrics Collection.
       description: Trigger Usage Metrics Collection
       operationId: v1_usage
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          description: Correlation ID for request tracing
+          required: false
+          schema:
+            type: string
       responses:
         "202":
           description: Metrics collection triggered

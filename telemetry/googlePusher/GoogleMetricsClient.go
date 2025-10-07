@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -52,26 +52,36 @@ func NewGoogleMetricsClient(ctx context.Context, rootURL string, config *common.
 	}
 }
 
-func (client *GoogleMetricsClient) ReportMetrics(metrics []common.GoogleMetric, operationStartTime, operationEndTime int64, wg *sync.WaitGroup, resultChan chan []common.MetricsResult) {
+func (client *GoogleMetricsClient) ReportMetrics(ctx context.Context, metrics []common.GoogleMetric, operationStartTime, operationEndTime int64, wg *sync.WaitGroup, resultChan chan []common.MetricsResult) {
 	defer wg.Done()
 	defer close(resultChan)
 
-	client.logger.Debugf("In Report metrics")
+	// Extract correlation ID from context for logging
+	logger := util.GetLogger(ctx)
+	correlationID := "unknown"
+	if loggerFields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
+		if corrIDStr, exists := loggerFields["requestCorrelationID"].(string); exists {
+			correlationID = corrIDStr
+		}
+	}
+
+	logger.Infof("Starting metrics reporting with correlation ID: %s, metrics count: %d", correlationID, len(metrics))
+
 	if len(metrics) == 0 {
-		client.logger.Info("No metrics to report")
+		logger.Info("No metrics to report")
 		return
 	}
 	operationsToPush := client.createOperationsForMetrics(metrics, operationStartTime, operationEndTime)
 
 	if len(operationsToPush) == 0 {
-		client.logger.Debugf("No operations to push for metrics")
+		logger.Debugf("No operations to push for metrics")
 		return
 	}
 
 	var operationBatchList [][]*Operation
 	operationMap := make(map[string]*Operation)
 
-	client.logger.Infof("Operation batch size is %d", client.config.OperationBatchSize)
+	logger.Infof("Operation batch size is %d", client.config.OperationBatchSize)
 	var tempOperationList []*Operation
 	var i int64 = 0
 
@@ -91,16 +101,18 @@ func (client *GoogleMetricsClient) ReportMetrics(metrics []common.GoogleMetric, 
 	if i != 0 && i < client.config.OperationBatchSize {
 		operationBatchList = append(operationBatchList, tempOperationList)
 	}
-	client.reportOperationList(operationBatchList, operationsToPush, operationMap, resultChan)
+	client.reportOperationList(ctx, operationBatchList, operationsToPush, operationMap, resultChan)
 }
 
-func (client *GoogleMetricsClient) reportOperationList(operationBatchList [][]*Operation, operationsToPush map[*Operation][]common.GoogleMetric, operationMap map[string]*Operation, resultChan chan []common.MetricsResult) {
+func (client *GoogleMetricsClient) reportOperationList(ctx context.Context, operationBatchList [][]*Operation, operationsToPush map[*Operation][]common.GoogleMetric, operationMap map[string]*Operation, resultChan chan []common.MetricsResult) {
+	logger := util.GetLogger(ctx)
+
 	for _, operationList := range operationBatchList {
 		var results []common.MetricsResult
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					client.logger.Errorf("Exception %v is thrown while reporting the operation list %v", r, operationList)
+					logger.Errorf("Exception %v is thrown while reporting the operation list %v", r, operationList)
 					for _, operation := range operationList {
 						for _, reportedMetric := range operationsToPush[operation] {
 							results = append(results, common.MetricsResult{
@@ -114,19 +126,19 @@ func (client *GoogleMetricsClient) reportOperationList(operationBatchList [][]*O
 				}
 			}()
 
-			client.logger.Infof("For service: %s; Google Metrics Operation list is %v", client.config.PusherServiceName, spew.Sdump(operationList))
+			// logger.Infof("For service: %s; Google Metrics Operation list is %v", client.config.PusherServiceName, spew.Sdump(operationList))
 
-			serviceControl, err := createServiceControlClient(client.config.PusherServiceProject, client.rootURL, client.logger)
+			serviceControl, err := createServiceControlClient(client.config.PusherServiceProject, client.rootURL, logger)
 			if err != nil {
-				client.logger.Errorf("Could not create Service Control Client. Error:", err)
+				logger.Errorf("Could not create Service Control Client: %v", err)
 				return
 			}
-			response, err := client.reportOperation(operationList, serviceControl, client.logger)
+			response, err := client.reportOperation(operationList, serviceControl, logger)
 			if err != nil {
-				client.logger.Errorf("Error reporting operation list: %v", err)
+				logger.Errorf("Error reporting operation list: %v", err)
 			}
 
-			client.logger.Infof("Report response: %v", response.ReportErrors)
+			logger.Infof("Report response: %v", response.ReportErrors)
 			responseWithError := &common.ReportResponse{}
 			responseWithNoError := &common.ReportResponse{}
 			if len(response.ReportErrors) != 0 {
@@ -432,8 +444,26 @@ func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric)
 	}
 	metricValue.Labels = valueLabels
 
-	client.logger.Debugf("setting metricValue as %+v", metricValue)
+	client.logger.Debugf("Created metric value - StartTime: %s, EndTime: %s, Labels: %d, Value: %v",
+		metricValue.StartTime, metricValue.EndTime, len(metricValue.Labels), getMetricValueSummary(metricValue))
 	return metricValue, nil
+}
+
+// getMetricValueSummary returns a user-friendly summary of the metric value
+func getMetricValueSummary(mv *servicecontrol.MetricValue) interface{} {
+	if mv.Int64Value != nil {
+		return *mv.Int64Value
+	}
+	if mv.DoubleValue != nil {
+		return *mv.DoubleValue
+	}
+	if mv.StringValue != nil {
+		return *mv.StringValue
+	}
+	if mv.BoolValue != nil {
+		return *mv.BoolValue
+	}
+	return "unknown"
 }
 
 func SetCommonLabels(op *Operation, consumerId, dataCenter, resourceId string, googleMetric common.GoogleMetric) error {

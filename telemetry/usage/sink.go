@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -86,7 +87,7 @@ func (s *GoogleUsageSink) filterValidUsage(aggregatedRecords []datamodel.Aggrega
 		}
 	}
 	if len(validUsage) != len(aggregatedRecords) {
-		s.logger.Errorf("Found records that are not appropriate for billing. Not mapping them.", "Number of records: ", len(aggregatedRecords)-len(validUsage))
+		s.logger.Errorf("Found records that are not appropriate for billing. Not mapping them. Number of records: %d", len(aggregatedRecords)-len(validUsage))
 	}
 	return validUsage, nil
 }
@@ -117,7 +118,7 @@ func (s *GoogleUsageSink) push(ctx context.Context, googleMetrics []common.Googl
 		go func() {
 			defer wg.Done()
 			s.logger.Debugf("Reporting First Party Google Billing Metrics", "Google Metric First Party list count: ", len(googleMetrics))
-			go s.metricClient.ReportMetrics(googleMetrics, time.Now().Unix(), time.Now().Unix(), &wg, fpResultChan)
+			go s.metricClient.ReportMetrics(ctx, googleMetrics, time.Now().Unix(), time.Now().Unix(), &wg, fpResultChan)
 			go s.processResponse(ctx, &wg, fpResultChan)
 		}()
 	} else {
@@ -128,11 +129,23 @@ func (s *GoogleUsageSink) push(ctx context.Context, googleMetrics []common.Googl
 
 func (s *GoogleUsageSink) processResponse(ctx context.Context, wg *sync.WaitGroup, resultChan chan []common.MetricsResult) {
 	defer wg.Done()
+
+	// Extract correlation ID from context for logging
+	logger := util.GetLogger(ctx)
+	correlationID := "unknown"
+	if loggerFields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
+		if corrIDStr, exists := loggerFields["requestCorrelationID"].(string); exists {
+			correlationID = corrIDStr
+		}
+	}
+
+	logger.Infof("Processing usage metrics results with correlation ID: %s", correlationID)
+
 	for result := range resultChan {
 		s.processMetricsResults(ctx, result)
 	}
 
-	s.logger.Info("Finished processing Google Usage Metrics Results")
+	logger.Info("Finished processing Google Usage Metrics Results")
 }
 
 func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults []common.MetricsResult) {
@@ -163,7 +176,7 @@ func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults 
 			billingRecord.ErrorCount = billingRecord.ErrorCount + 1
 			billingRecord.State = datamodel.Error
 		}
-		s.logger.Infof("Updating the usage information", "billingRecord", billingRecord)
+		s.logger.Infof("Updating usage information for billingRecord ID: %d, state: %s", billingRecord.ID, billingRecord.State)
 
 		// Create update map with only the fields that need to be updated
 		updates := map[string]interface{}{
@@ -177,14 +190,14 @@ func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults 
 			// JSON-encode the UUID string for JSONB storage
 			submissionJSON, err := json.Marshal(*billingRecord.Submission)
 			if err != nil {
-				s.logger.Warnf("Error marshaling submission for database update", "submission", *billingRecord.Submission, "error", err)
+				s.logger.Warnf("Error marshaling submission for database update - submission: %s, error: %v", *billingRecord.Submission, err)
 			} else {
 				updates["submission"] = string(submissionJSON)
 			}
 		}
 
 		if err := s.metricsdb.UpdateAggregatedUsage(ctx, billingRecord.ID, updates); err != nil {
-			s.logger.Warnf("Error updating usage information", "billingRecord", billingRecord, "error", err)
+			s.logger.Warnf("Error updating usage information - billingRecord ID: %d, error: %v", billingRecord.ID, err)
 		}
 	}
 }

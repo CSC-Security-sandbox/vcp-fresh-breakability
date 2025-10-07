@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"log"
 	"reflect"
 	"strings"
@@ -14,14 +13,14 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 const (
 	JOB_STATUS_SCHEDULED = "new"
 	JOB_STATUS_FINISHED  = "finished"
 	JOB_STATUS_FAILED    = "failed"
-
-	MAX_RETRY = 3
+	MAX_RETRY            = 3
 )
 
 var PollInterval = 1 * time.Second
@@ -91,6 +90,120 @@ func (j *JobQueue) Enqueue(ctx context.Context, job Job, queue string) error {
 		data,
 	); err != nil {
 		return fmt.Errorf("queue: failed inserting job: %w", err)
+	}
+
+	return nil
+}
+
+// EnqueueBatch enqueues multiple jobs in a single database transaction for better performance
+func (j *JobQueue) EnqueueBatch(ctx context.Context, jobs []Job, queue string) error {
+	if len(jobs) == 0 {
+		return nil
+	}
+
+	logger := util.GetLogger(ctx)
+	logger.Debugf("queue: batch enqueuing %d jobs to queue=%v", len(jobs), queue)
+
+	// Start a transaction for atomic batch insert
+	tx, err := j.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("queue: failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Try PostgreSQL approach first, fallback to SQLite if it fails
+	err = j.enqueueBatchPostgres(ctx, tx, jobs, queue)
+	if err != nil {
+		// If PostgreSQL approach fails, try SQLite approach
+		err = j.enqueueBatchSQLite(ctx, tx, jobs, queue)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Commit the transaction
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("queue: failed to commit batch transaction: %w", err)
+	}
+
+	logger.Debugf("queue: successfully batch enqueued %d jobs to queue=%v", len(jobs), queue)
+	return nil
+}
+
+// enqueueBatchPostgres uses PostgreSQL-specific bulk insert with arrays
+func (j *JobQueue) enqueueBatchPostgres(ctx context.Context, tx *sql.Tx, jobs []Job, queue string) error {
+	// Prepare arrays for bulk insert
+	typeNames := make([]string, len(jobs))
+	statuses := make([]string, len(jobs))
+	queues := make([]string, len(jobs))
+	dataValues := make([]string, len(jobs))
+
+	for i, job := range jobs {
+		typeNames[i] = j.typeName(job)
+		statuses[i] = JOB_STATUS_SCHEDULED
+		queues[i] = queue
+
+		data, err := json.Marshal(job)
+		if err != nil {
+			return fmt.Errorf("queue: failed marshaling job %d: %v", i, err)
+		}
+		dataValues[i] = string(data)
+	}
+
+	// Prepare PostgreSQL arrays
+	typeNamesArray, err := pqArray(typeNames)
+	if err != nil {
+		return fmt.Errorf("queue: failed to create type names array: %w", err)
+	}
+	statusesArray, err := pqArray(statuses)
+	if err != nil {
+		return fmt.Errorf("queue: failed to create statuses array: %w", err)
+	}
+	queuesArray, err := pqArray(queues)
+	if err != nil {
+		return fmt.Errorf("queue: failed to create queues array: %w", err)
+	}
+	dataValuesArray, err := pqArray(dataValues)
+	if err != nil {
+		return fmt.Errorf("queue: failed to create data values array: %w", err)
+	}
+
+	// Execute single bulk INSERT using PostgreSQL arrays
+	query := fmt.Sprintf(`
+		INSERT INTO %s (type_name, status, queue, data)
+		SELECT unnest($1::text[]), unnest($2::text[]), unnest($3::text[]), unnest($4::text[])
+	`, JobsTableName)
+
+	if _, err = tx.ExecContext(ctx, query, typeNamesArray, statusesArray, queuesArray, dataValuesArray); err != nil {
+		return fmt.Errorf("queue: failed inserting batch jobs: %w", err)
+	}
+
+	return nil
+}
+
+// enqueueBatchSQLite uses SQLite-compatible individual inserts
+func (j *JobQueue) enqueueBatchSQLite(ctx context.Context, tx *sql.Tx, jobs []Job, queue string) error {
+	query := fmt.Sprintf(`
+		INSERT INTO %s (type_name, status, queue, data) VALUES (?, ?, ?, ?)
+	`, JobsTableName)
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("queue: failed to prepare statement: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+
+	for i, job := range jobs {
+		typeName := j.typeName(job)
+		data, err := json.Marshal(job)
+		if err != nil {
+			return fmt.Errorf("queue: failed marshaling job %d: %v", i, err)
+		}
+
+		if _, err = stmt.ExecContext(ctx, typeName, JOB_STATUS_SCHEDULED, queue, data); err != nil {
+			return fmt.Errorf("queue: failed inserting job %d: %w", i, err)
+		}
 	}
 
 	return nil
@@ -179,7 +292,7 @@ func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 		return err
 	}
 	// execute job
-	err = loadedJob.Perform(j.processor, int32(job.Attempt))
+	err = loadedJob.Perform(j.processor, job.Attempt)
 	if err != nil {
 		// TODO: add retry handling and save error to job row
 		_, err = tx.ExecContext(ctx, `UPDATE `+JobsTableName+` SET status = $1, finished_at = clock_timestamp(), error = $3 WHERE id = $2`, JOB_STATUS_FAILED, job.ID, err.Error())

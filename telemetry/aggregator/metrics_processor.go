@@ -107,16 +107,15 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 			logger.Error("Failed to list hydrated metrics", "error", err.Error())
 			return err
 		}
-
-		logger.Debugf("Fetched metrics for aggregation", "total_metrics:", len(metrics), "aggregation_type:", jobDef.AggregationType)
-
+		logger.Debugf("Fetched %d metrics for aggregation - ResourceType: %s, MeasuredType: %s",
+			len(metrics), key.ResourceType.String(), key.MeasuredType.String())
 		// Group metrics by resource
 		resourceGroups := p.groupMetricsByResource(metrics)
 
 		// Process each resource group
-		for resourceKey, resourceMetrics := range resourceGroups {
-			if err := p.processMetricsWithJobDef(ctx, resourceKey, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, &aggregatedRecords, &aggregatedUsageForDB); err != nil {
-				logger.Errorf("Failed to process metrics for resource key %s : %v", resourceKey, err)
+		for resourceIdentifier, resourceMetrics := range resourceGroups {
+			if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, &aggregatedRecords, &aggregatedUsageForDB); err != nil {
+				logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
 				continue
 			}
 		}
@@ -580,6 +579,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		AggregationType:        string(jobDef.AggregationType),
 	}
 
+	logger.Debugf("Processing metrics for resource %s and customer id %s with aggregation type %s and %s", resourceKey.ResourceName, resourceKey.ConsumerID, jobDef.AggregationType, aggregated)
 	// Format labels for better readability
 	labelsInfo := "none"
 	if resourceData != nil && len(resourceData.Labels) > 0 {

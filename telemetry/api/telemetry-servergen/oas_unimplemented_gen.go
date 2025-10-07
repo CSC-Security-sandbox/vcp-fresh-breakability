@@ -27,7 +27,7 @@ func (UnimplementedHandler) V1GenerateReport(ctx context.Context, req OptGenerat
 // Trigger Performance Metrics Collection.
 //
 // POST /v1/performance
-func (UnimplementedHandler) V1Performance(ctx context.Context) (r V1PerformanceRes, _ error) {
+func (UnimplementedHandler) V1Performance(ctx context.Context, params V1PerformanceParams) (r V1PerformanceRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -36,7 +36,7 @@ func (UnimplementedHandler) V1Performance(ctx context.Context) (r V1PerformanceR
 // Trigger Usage Metrics Collection.
 //
 // POST /v1/usage
-func (UnimplementedHandler) V1Usage(ctx context.Context) (r V1UsageRes, _ error) {
+func (UnimplementedHandler) V1Usage(ctx context.Context, params V1UsageParams) (r V1UsageRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

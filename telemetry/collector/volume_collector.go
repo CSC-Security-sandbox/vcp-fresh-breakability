@@ -84,7 +84,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 				volumeAllocatedThroughputMetric = setupHydratedMetric(now, volumeMetadata, metadata.VolumeAllocatedThroughput, *poolThroughput)
 				volumeAllocatedThroughputMetrics = append(volumeAllocatedThroughputMetrics, volumeAllocatedThroughputMetric)
 			} else {
-				logger.Warnf("Pool metadata missing for PoolID %s (volume %s)", volume.PoolID, volume.UUID)
+				logger.Warnf("Pool metadata missing for PoolID %d (volume %s)", volume.PoolID, volume.UUID)
 			}
 		}
 

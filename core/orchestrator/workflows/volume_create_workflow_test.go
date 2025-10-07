@@ -770,7 +770,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyScheduleErro
 		},
 		Name: "backup-policy-name",
 	}, nil)
-	s.env.OnActivity(volumeCreateActivity.CreateBackupPolicySchedule, mock.Anything, mock.Anything).Return(errors.New("failed to create backup policy schedule"))
+	s.env.OnActivity(volumeCreateActivity.CreateBackupPolicySchedule, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to create backup policy schedule"))
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInVCP, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 

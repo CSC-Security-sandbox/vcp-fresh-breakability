@@ -2,6 +2,8 @@ package performance
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -48,7 +51,7 @@ func (s *GoogleSink) DeliverMetrics(ctx context.Context, hydratedMetrics []entit
 		s.logger.Infof("Skipped invalid metrics. Invalid Metric Count %d", invalidMetricCount)
 	}
 
-	s.push(validMetrics)
+	s.push(ctx, validMetrics)
 	validMetricsCount = len(validMetrics)
 	return validMetricsCount
 }
@@ -68,7 +71,7 @@ func (s *GoogleSink) FilterAndConvertToGoogleMetrics(metrics []entity.HydratedMe
 		if s.isValidHydratedMetric(m, &warnings) {
 			validMetrics = append(validMetrics, googleMetric)
 		} else {
-			s.logger.Infof("Ignoring invalid metric", "Metric: ", m, "Warnings: ", strings.Join(warnings, "; "))
+			s.logger.Infof("Ignoring invalid metric: %v, Warnings: %s", m, strings.Join(warnings, "; "))
 		}
 	}
 	return validMetrics
@@ -99,10 +102,68 @@ func (s *GoogleSink) isValidHydratedMetric(metric entity.HydratedMetric, warning
 	return isValid
 }
 
+// formatMetricForLogging formats a GoogleMetric in a user-friendly way for logging
+func formatMetricForLogging(metric common.GoogleMetric) string {
+	switch metric.GetType() {
+	case common.HydratedMetric:
+		hydratedMetric, err := metric.GetAsHydratedMetric()
+		if err != nil {
+			return fmt.Sprintf("HydratedMetric (error: %v)", err)
+		}
+
+		resourceName := "unknown"
+		if hydratedMetric.Metadata.ResourceName != nil {
+			resourceName = *hydratedMetric.Metadata.ResourceName
+		}
+
+		accountName := "unknown"
+		if hydratedMetric.Metadata.AccountName != nil {
+			accountName = *hydratedMetric.Metadata.AccountName
+		}
+
+		regionName := "unknown"
+		if hydratedMetric.Metadata.RegionName != nil {
+			regionName = *hydratedMetric.Metadata.RegionName
+		}
+
+		timestamp := hydratedMetric.Timestamp.ToTime().Format(time.RFC3339)
+
+		return fmt.Sprintf("Resource: %s, Type: %s, MeasuredType: %s, Quantity: %.2f, Account: %s, Region: %s, Timestamp: %s",
+			resourceName, hydratedMetric.Metadata.ResourceType, hydratedMetric.MeasuredType, hydratedMetric.Quantity, accountName, regionName, timestamp)
+
+	case common.BillingMetric:
+		billingMetric, err := metric.GetAsUsageBillingMetric()
+		if err != nil {
+			return fmt.Sprintf("BillingMetric (error: %v)", err)
+		}
+
+		resourceName := "unknown"
+		if billingMetric.ResourceName != nil {
+			resourceName = *billingMetric.ResourceName
+		}
+
+		customerID := "unknown"
+		if billingMetric.VendorCustomerID != nil {
+			customerID = *billingMetric.VendorCustomerID
+		}
+
+		regionName := "unknown"
+		if billingMetric.RegionName != nil {
+			regionName = *billingMetric.RegionName
+		}
+
+		return fmt.Sprintf("Resource: %s, Type: %s, MeasuredType: %s, Quantity: %.2f, CustomerID: %s, Region: %s, AggregationType: %s",
+			resourceName, billingMetric.ResourceType, billingMetric.MeasuredType, billingMetric.Quantity, customerID, regionName, billingMetric.AggregationType)
+
+	default:
+		return fmt.Sprintf("Unknown metric type: %d", metric.GetType())
+	}
+}
+
 // push sends the given lists of first-party and third-party Google metrics.
 // Parameters:
 // - googleMetricList: The list of Google metrics to send.
-func (s *GoogleSink) push(googleMetricList []common.GoogleMetric) {
+func (s *GoogleSink) push(ctx context.Context, googleMetricList []common.GoogleMetric) {
 	wg := sync.WaitGroup{}
 	resultChan := make(chan []common.MetricsResult, 200)
 
@@ -111,8 +172,8 @@ func (s *GoogleSink) push(googleMetricList []common.GoogleMetric) {
 		go func() {
 			defer wg.Done()
 			s.logger.Debugf("Reporting First Party Google Metrics, Google Metric First Party list count: %d", len(googleMetricList))
-			go s.metricClient.ReportMetrics(googleMetricList, time.Now().Unix(), time.Now().Unix(), &wg, resultChan)
-			go s.processResponse(&wg, resultChan)
+			go s.metricClient.ReportMetrics(ctx, googleMetricList, time.Now().Unix(), time.Now().Unix(), &wg, resultChan)
+			go s.processResponse(ctx, &wg, resultChan)
 		}()
 	} else {
 		s.logger.Warn("google metrics not found, hence not reporting anything.")
@@ -125,13 +186,25 @@ func (s *GoogleSink) push(googleMetricList []common.GoogleMetric) {
 // Parameters:
 // - wg: WaitGroup to wait for the goroutines to finish.
 // - resultChan: The channel to receive the results.
-func (s *GoogleSink) processResponse(wg *sync.WaitGroup, resultChan chan []common.MetricsResult) {
+func (s *GoogleSink) processResponse(ctx context.Context, wg *sync.WaitGroup, resultChan chan []common.MetricsResult) {
 	defer wg.Done()
+
+	// Extract correlation ID from context for logging
+	logger := util.GetLogger(ctx)
+	correlationID := "unknown"
+	if loggerFields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
+		if corrIDStr, exists := loggerFields["requestCorrelationID"].(string); exists {
+			correlationID = corrIDStr
+		}
+	}
+
+	logger.Infof("Processing performance metrics results with correlation ID: %s", correlationID)
+
 	for result := range resultChan {
 		s.processAndFilterMetricsResults(result)
 	}
 
-	s.logger.Info("Finished processing Google Performance Metrics Results")
+	logger.Info("Finished processing Google Performance Metrics Results")
 }
 
 // processAndFilterMetricsResults - Process and Filter Metrics Result
@@ -145,31 +218,40 @@ func (s *GoogleSink) processAndFilterMetricsResults(results []common.MetricsResu
 	for _, result := range results {
 		id, err := result.GoogleMetric.GetCustomerId()
 		if err != nil {
-			s.logger.Warnf("An error occurred while getting the Customer ID for:", "GoogleMetric:",
-				result.GoogleMetric, "error:", err)
+			s.logger.Warnf("Failed to get Customer ID for GoogleMetric: %v, error: %v", result.GoogleMetric, err)
 			continue
 		}
 
 		if result.Exception != nil {
 			resultCode := common.GetCode(&result)
+			metricInfo := formatMetricForLogging(result.GoogleMetric)
 
 			switch {
 			case strings.Contains(resultCode, HTTPForbiddenError), strings.Contains(resultCode, HTTPNotFoundError):
-				s.logger.Warnf("Result with Exception and status code 403 or 404:", "Result - ",
-					result.GoogleMetric, "OperationId:", result.OperationID, "OperationName:", result.OperationName,
-					"Project Id:", id, "Exception:", result.ReportResponse)
+				s.logger.Debugf("Performance metrics delivery failed with %s error - %s, OperationId: %s, OperationName: %s, ProjectId: %s, Exception: %v",
+					resultCode, metricInfo, result.OperationID, result.OperationName, id, getCodeResponse(result.ReportResponse))
 			default:
-				s.logger.Errorf("Result with Exception:", "Result - ", result.GoogleMetric,
-					"OperationId:", result.OperationID, "OperationName:", result.OperationName, "Project Id:",
-					id, "Exception:", result.ReportResponse)
+				s.logger.Debugf("Performance metrics delivery failed with exception - %s, OperationId: %s, OperationName: %s, ProjectId: %s, Exception: %v",
+					metricInfo, result.OperationID, result.OperationName, id, result.GetException().Error())
 			}
 		} else if result.ReportResponse != nil && result.ReportResponse.ReportErrors != nil && len(result.ReportResponse.ReportErrors) > 0 {
-			s.logger.Error("Result with Error:", "Result - ", result.GoogleMetric, "OperationId:",
-				result.OperationID, "OperationName:", result.OperationName, "Project Id:", id, "Exception:", result.ReportResponse)
+			metricInfo := formatMetricForLogging(result.GoogleMetric)
+			s.logger.Debugf("Performance metrics delivery failed with report errors - %s, OperationId: %s, OperationName: %s, ProjectId: %s, ReportErrors: %v",
+				metricInfo, result.OperationID, result.OperationName, id, getCodeResponse(result.ReportResponse))
 		} else {
 			goodResults = append(goodResults, result)
 		}
 	}
 
 	s.logger.Infof("%d metrics were successfully reported.", len(goodResults))
+}
+
+func getCodeResponse(response *common.ReportResponse) string {
+	if response == nil {
+		return "unknown"
+	}
+	if len(response.ReportErrors) == 0 {
+		return "200"
+	}
+	return strconv.FormatInt(response.ReportErrors[0].Status.Code, 10)
 }

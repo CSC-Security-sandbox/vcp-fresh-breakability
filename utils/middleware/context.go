@@ -13,4 +13,5 @@ const (
 	RequestCorrelationID  ContextString = "requestCorrelationID"
 	RequestID             ContextString = "requestID"
 	AuthorizationToken    ContextString = "Authorization"
+	ContexMainThreadID    ContextString = "mainThread"
 )

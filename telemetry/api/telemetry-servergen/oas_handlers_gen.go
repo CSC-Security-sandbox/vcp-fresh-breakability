@@ -8,15 +8,16 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.opentelemetry.io/otel/trace"
+
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/otelogen"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type codeRecorder struct {
@@ -85,7 +86,7 @@ func (s *Server) handleV1GenerateReportRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -103,9 +104,7 @@ func (s *Server) handleV1GenerateReportRequest(args [0]string, argsEscaped bool,
 			ID:   "v1_generateReport",
 		}
 	)
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeV1GenerateReportRequest(r)
+	request, close, err := s.decodeV1GenerateReportRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -129,7 +128,6 @@ func (s *Server) handleV1GenerateReportRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "Trigger BizOps Report Generation.",
 			OperationID:      "v1_generateReport",
 			Body:             request,
-			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -237,7 +235,7 @@ func (s *Server) handleV1PerformanceRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -249,10 +247,22 @@ func (s *Server) handleV1PerformanceRequest(args [0]string, argsEscaped bool, w 
 
 			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
 		}
-		err error
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1PerformanceOperation,
+			ID:   "v1_performance",
+		}
 	)
-
-	var rawBody []byte
+	params, err := decodeV1PerformanceParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var response V1PerformanceRes
 	if m := s.cfg.Middleware; m != nil {
@@ -262,14 +272,18 @@ func (s *Server) handleV1PerformanceRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "Trigger Performance Metrics Collection.",
 			OperationID:      "v1_performance",
 			Body:             nil,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "X-Correlation-Id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = V1PerformanceParams
 			Response = V1PerformanceRes
 		)
 		response, err = middleware.HookMiddleware[
@@ -279,14 +293,14 @@ func (s *Server) handleV1PerformanceRequest(args [0]string, argsEscaped bool, w 
 		](
 			m,
 			mreq,
-			nil,
+			unpackV1PerformanceParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.V1Performance(ctx)
+				response, err = s.h.V1Performance(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.V1Performance(ctx)
+		response, err = s.h.V1Performance(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -370,7 +384,7 @@ func (s *Server) handleV1UsageRequest(args [0]string, argsEscaped bool, w http.R
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -382,10 +396,22 @@ func (s *Server) handleV1UsageRequest(args [0]string, argsEscaped bool, w http.R
 
 			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
 		}
-		err error
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1UsageOperation,
+			ID:   "v1_usage",
+		}
 	)
-
-	var rawBody []byte
+	params, err := decodeV1UsageParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var response V1UsageRes
 	if m := s.cfg.Middleware; m != nil {
@@ -395,14 +421,18 @@ func (s *Server) handleV1UsageRequest(args [0]string, argsEscaped bool, w http.R
 			OperationSummary: "Trigger Usage Metrics Collection.",
 			OperationID:      "v1_usage",
 			Body:             nil,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "X-Correlation-Id",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = V1UsageParams
 			Response = V1UsageRes
 		)
 		response, err = middleware.HookMiddleware[
@@ -412,14 +442,14 @@ func (s *Server) handleV1UsageRequest(args [0]string, argsEscaped bool, w http.R
 		](
 			m,
 			mreq,
-			nil,
+			unpackV1UsageParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.V1Usage(ctx)
+				response, err = s.h.V1Usage(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.V1Usage(ctx)
+		response, err = s.h.V1Usage(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {

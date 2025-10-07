@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/iterator"
 	metric "google.golang.org/genproto/googleapis/api/metric"
@@ -571,6 +572,168 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_ErrorFromGetTenantProjects
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get tenant projects")
 	assert.Contains(t, err.Error(), "database connection failed")
+
+	mockTenantProvider.AssertExpectations(t)
+}
+
+func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_WithCorrelationID(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+
+	projects := []string{"project1"}
+	correlationID := "test-correlation-id-123"
+
+	// Create context with correlation ID in logger fields
+	loggerFields := log.Fields{
+		"requestCorrelationID": correlationID,
+	}
+	ctxWithCorrelationID := context.WithValue(ctx, middleware.TemporalSLoggerKey, loggerFields)
+
+	// Mock tenant project provider
+	mockTenantProvider := new(MockTenantProjectProvider)
+	mockTenantProvider.On("GetTenantProjects", ctxWithCorrelationID, logger).Return(projects, nil)
+
+	// Create test job queue
+	jobQueue, cleanup := setupTestJobQueue(t)
+	defer cleanup()
+
+	provider := &GoogleVolumeMetricsProvider{
+		tenantProjectProvider: mockTenantProvider,
+		jobQueue:              jobQueue,
+	}
+
+	err := provider.GetVolumeMetrics(ctxWithCorrelationID, logger)
+	assert.NoError(t, err)
+
+	mockTenantProvider.AssertExpectations(t)
+
+	// Verify that the job was enqueued with correlation ID
+	// We can verify this by checking the job queue contains the job
+	// This indirectly tests that the correlation ID was extracted and used
+}
+
+func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_WithInvalidCorrelationID(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+
+	projects := []string{"project1"}
+
+	// Create context with invalid correlation ID (not a string)
+	loggerFields := log.Fields{
+		"requestCorrelationID": 12345, // Non-string value
+	}
+	ctxWithInvalidCorrelationID := context.WithValue(ctx, middleware.TemporalSLoggerKey, loggerFields)
+
+	// Mock tenant project provider
+	mockTenantProvider := new(MockTenantProjectProvider)
+	mockTenantProvider.On("GetTenantProjects", ctxWithInvalidCorrelationID, logger).Return(projects, nil)
+
+	// Create test job queue
+	jobQueue, cleanup := setupTestJobQueue(t)
+	defer cleanup()
+
+	provider := &GoogleVolumeMetricsProvider{
+		tenantProjectProvider: mockTenantProvider,
+		jobQueue:              jobQueue,
+	}
+
+	err := provider.GetVolumeMetrics(ctxWithInvalidCorrelationID, logger)
+	assert.NoError(t, err)
+
+	mockTenantProvider.AssertExpectations(t)
+}
+
+func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_WithoutCorrelationID(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+
+	projects := []string{"project1"}
+
+	// Create context with logger fields but no correlation ID
+	loggerFields := log.Fields{
+		"someOtherField": "value",
+	}
+	ctxWithoutCorrelationID := context.WithValue(ctx, middleware.TemporalSLoggerKey, loggerFields)
+
+	// Mock tenant project provider
+	mockTenantProvider := new(MockTenantProjectProvider)
+	mockTenantProvider.On("GetTenantProjects", ctxWithoutCorrelationID, logger).Return(projects, nil)
+
+	// Create test job queue
+	jobQueue, cleanup := setupTestJobQueue(t)
+	defer cleanup()
+
+	provider := &GoogleVolumeMetricsProvider{
+		tenantProjectProvider: mockTenantProvider,
+		jobQueue:              jobQueue,
+	}
+
+	err := provider.GetVolumeMetrics(ctxWithoutCorrelationID, logger)
+	assert.NoError(t, err)
+
+	mockTenantProvider.AssertExpectations(t)
+}
+
+func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_WithoutLoggerFields(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+
+	projects := []string{"project1"}
+
+	// Create context without logger fields (different context value type)
+	ctxWithoutLoggerFields := context.WithValue(ctx, middleware.TemporalSLoggerKey, "not-a-fields-object")
+
+	// Mock tenant project provider
+	mockTenantProvider := new(MockTenantProjectProvider)
+	mockTenantProvider.On("GetTenantProjects", ctxWithoutLoggerFields, logger).Return(projects, nil)
+
+	// Create test job queue
+	jobQueue, cleanup := setupTestJobQueue(t)
+	defer cleanup()
+
+	provider := &GoogleVolumeMetricsProvider{
+		tenantProjectProvider: mockTenantProvider,
+		jobQueue:              jobQueue,
+	}
+
+	err := provider.GetVolumeMetrics(ctxWithoutLoggerFields, logger)
+	assert.NoError(t, err)
+
+	mockTenantProvider.AssertExpectations(t)
+}
+
+// Test to cover missing line 64: EnqueueBatch error handling
+func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_EnqueueBatchError(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+
+	projects := []string{"project1"}
+
+	// Mock tenant project provider
+	mockTenantProvider := new(MockTenantProjectProvider)
+	mockTenantProvider.On("GetTenantProjects", ctx, logger).Return(projects, nil)
+
+	// Create a test job queue with a broken database connection
+	// This will cause EnqueueBatch to fail
+	gormDB, err := database.SetupTestDB()
+	require.NoError(t, err)
+
+	sqlDB, err := gormDB.DB()
+	require.NoError(t, err)
+
+	// Close the database connection to cause EnqueueBatch to fail
+	_ = sqlDB.Close()
+
+	jobQueue := utils.NewQueue(sqlDB, nil)
+
+	provider := &GoogleVolumeMetricsProvider{
+		tenantProjectProvider: mockTenantProvider,
+	}
+	provider.SetJobQueue(jobQueue)
+
+	err = provider.GetVolumeMetrics(ctx, logger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "queue: failed to begin transaction")
 
 	mockTenantProvider.AssertExpectations(t)
 }

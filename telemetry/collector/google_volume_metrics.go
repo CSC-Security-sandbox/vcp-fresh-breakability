@@ -1,15 +1,18 @@
 package collector
 
 import (
-	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	"context"
 	"errors"
 	"fmt"
+
+	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
@@ -29,15 +32,42 @@ func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logg
 		return fmt.Errorf("failed to get tenant projects: %v", err)
 	}
 	logger.Infof("Got projects: %v", projects)
-	for _, projectID := range projects {
-		j := jobs.NewCollectMetrics(projectID)
-		err := g.jobQueue.Enqueue(ctx, j, "collection")
-		if err != nil {
-			logger.Errorf("Failed to enqueue CollectMetrics job: %v", err)
-			return err
+
+	// Extract correlation ID from context for propagation to jobs
+	correlationID := ""
+	if loggerFields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
+		if corrIDStr, exists := loggerFields["requestCorrelationID"].(string); exists {
+			correlationID = corrIDStr
 		}
 	}
-	return err
+
+	// Prepare all jobs for batch enqueuing
+	var jobsToEnqueue []utils.Job
+	for _, projectID := range projects {
+		j := jobs.NewCollectMetrics(projectID)
+		if correlationID != "" {
+			j.CorrelationID = correlationID
+		}
+		jobsToEnqueue = append(jobsToEnqueue, j)
+	}
+
+	// Batch enqueue all jobs
+	if len(jobsToEnqueue) > 0 {
+		if correlationID != "" {
+			logger.Infof("Batch enqueueing %d CollectMetrics jobs with correlation ID: %s", len(jobsToEnqueue), correlationID)
+		} else {
+			logger.Infof("Batch enqueueing %d CollectMetrics jobs", len(jobsToEnqueue))
+		}
+
+		err = g.jobQueue.EnqueueBatch(ctx, jobsToEnqueue, "collection")
+		if err != nil {
+			logger.Errorf("Failed to batch enqueue CollectMetrics jobs: %v", err)
+			return err
+		}
+		logger.Infof("Successfully batch enqueued %d CollectMetrics jobs", len(jobsToEnqueue))
+	}
+
+	return nil
 }
 
 func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error) {

@@ -38,6 +38,18 @@ func (s *LoggerExtractorTestSuite) TestGetLoggerFromAPIContextNoLogger() {
 	s.EqualError(err, "no logger found in api context")
 }
 
+func (s *LoggerExtractorTestSuite) TestGetLoggerFromAPIContextWithMainThreadID() {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContexMainThreadID, mockLogger)
+
+	apiCtx := apiContext{ctx: ctx}
+	logger, err := apiCtx.extractLogger()
+	s.NoError(err)
+	s.NotNil(logger)
+	s.Equal(mockLogger, logger)
+}
+
 func (s *LoggerExtractorTestSuite) TestGetLoggerFromWorkflowContext() {
 	env := s.NewTestWorkflowEnvironment()
 	env.ExecuteWorkflow(s.CheckNoLoggerInWorkflowContext)
