@@ -110,6 +110,7 @@ type Provider interface {
 	UpdateQoSGroupPolicy(params UpdateQoSGroupPolicyParams) error
 	CreateExportPolicy(params *ExportPolicy) error
 	UpdateExportPolicyRules(params UpdateExportPolicyRulesParams) error
+	DeleteExportPolicy(params *ExportPolicy) error
 	CreateSecurityLogForwarding(params CreateSecurityLogForwardingParams) (*CreateSecurityLogForwardingResponse, error)
 	GetSecurityLogForwarding(params GetSecurityLogForwardingParams) error
 	UpdateSecurityAudit(params UpdateSecurityAuditParams) (*SecurityAudit, error)

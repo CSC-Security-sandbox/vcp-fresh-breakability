@@ -160,6 +160,14 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	if volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil &&
+		len(volume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules) > 0 {
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteExportPolicy, &volume, &node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
 	if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
 		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroups, volume, node).Get(ctx, nil)
 		if err != nil {

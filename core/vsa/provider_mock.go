@@ -1501,6 +1501,52 @@ func (_c *MockProvider_DeleteEkmConfig_Call) RunAndReturn(run func(DeleteKmsConf
 	return _c
 }
 
+// DeleteExportPolicy provides a mock function with given fields: params
+func (_m *MockProvider) DeleteExportPolicy(params *ExportPolicy) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteExportPolicy")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*ExportPolicy) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_DeleteExportPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteExportPolicy'
+type MockProvider_DeleteExportPolicy_Call struct {
+	*mock.Call
+}
+
+// DeleteExportPolicy is a helper method to define mock.On call
+//   - params *ExportPolicy
+func (_e *MockProvider_Expecter) DeleteExportPolicy(params interface{}) *MockProvider_DeleteExportPolicy_Call {
+	return &MockProvider_DeleteExportPolicy_Call{Call: _e.mock.On("DeleteExportPolicy", params)}
+}
+
+func (_c *MockProvider_DeleteExportPolicy_Call) Run(run func(params *ExportPolicy)) *MockProvider_DeleteExportPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*ExportPolicy))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteExportPolicy_Call) Return(_a0 error) *MockProvider_DeleteExportPolicy_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_DeleteExportPolicy_Call) RunAndReturn(run func(*ExportPolicy) error) *MockProvider_DeleteExportPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteFlexCacheVolume provides a mock function with given fields: volumeUUID, name
 func (_m *MockProvider) DeleteFlexCacheVolume(volumeUUID string, name string) (*OntapAsyncResponse, error) {
 	ret := _m.Called(volumeUUID, name)

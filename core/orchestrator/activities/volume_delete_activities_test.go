@@ -2017,3 +2017,340 @@ func TestDeleteIgroupsFromBlockProperties_IgroupWithNilIgroup(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
+
+func TestDeleteExportPolicy_Success(t *testing.T) {
+	// Arrange
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		Name:      "test-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+				},
+			},
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	expectedExportPolicy := &vsa.ExportPolicy{
+		ExportPolicyName: "test-export-policy",
+		SvmName:          "test-svm",
+	}
+
+	mockProvider.On("DeleteExportPolicy", expectedExportPolicy).Return(nil)
+
+	// Act
+	err := activity.DeleteExportPolicy(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteExportPolicy_SkipsWhenExportPolicyNameIsEmpty(t *testing.T) {
+	// Arrange
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		Name:      "test-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "", // Empty export policy name
+				},
+			},
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	// Act
+	err := activity.DeleteExportPolicy(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err) // Should skip deletion and return no error
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteExportPolicy_GetProviderByNodeFailure(t *testing.T) {
+	// Arrange
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	expectedError := errors.New("failed to get provider")
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		Name:      "test-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+				},
+			},
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	// Act
+	err := activity.DeleteExportPolicy(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get provider")
+}
+
+func TestDeleteExportPolicy_DeleteExportPolicyFailure(t *testing.T) {
+	// Arrange
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		Name:      "test-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+				},
+			},
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	expectedExportPolicy := &vsa.ExportPolicy{
+		ExportPolicyName: "test-export-policy",
+		SvmName:          "test-svm",
+	}
+
+	expectedError := errors.New("failed to delete export policy")
+	mockProvider.On("DeleteExportPolicy", expectedExportPolicy).Return(expectedError)
+
+	// Act
+	err := activity.DeleteExportPolicy(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete export policy")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteExportPolicy_ExportPolicyNotFound(t *testing.T) {
+	// Arrange
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		Name:      "test-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+				},
+			},
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	expectedExportPolicy := &vsa.ExportPolicy{
+		ExportPolicyName: "test-export-policy",
+		SvmName:          "test-svm",
+	}
+
+	notFoundError := utilErrors.NewNotFoundErr("export policy", nil)
+	mockProvider.On("DeleteExportPolicy", expectedExportPolicy).Return(notFoundError)
+
+	// Act
+	err := activity.DeleteExportPolicy(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err) // Should skip deletion and return no error when export policy is not found
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteExportPolicy_NilVolumeAttributes(t *testing.T) {
+	// Arrange
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		Name:      "test-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: nil, // Nil volume attributes
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	// Act & Assert
+	// This should panic because volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName will cause a nil pointer dereference
+	assert.Panics(t, func() {
+		_ = activity.DeleteExportPolicy(ctx, volume, node)
+	})
+}
+
+func TestDeleteExportPolicy_NilFileProperties(t *testing.T) {
+	// Arrange
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		Name:      "test-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: nil, // Nil file properties
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	// Act & Assert
+	// This should panic because volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName will cause a nil pointer dereference
+	assert.Panics(t, func() {
+		_ = activity.DeleteExportPolicy(ctx, volume, node)
+	})
+}
+
+func TestDeleteExportPolicy_NilExportPolicy(t *testing.T) {
+	// Arrange
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		Name:      "test-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: nil, // Nil export policy
+			},
+		},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	// Act & Assert
+	// This should panic because volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName will cause a nil pointer dereference
+	assert.Panics(t, func() {
+		_ = activity.DeleteExportPolicy(ctx, volume, node)
+	})
+}

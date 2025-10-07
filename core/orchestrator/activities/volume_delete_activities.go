@@ -263,3 +263,32 @@ func (vda VolumeDeleteActivity) DeleteIgroups(ctx context.Context, volume *datam
 	}
 	return nil
 }
+
+func (vda VolumeDeleteActivity) DeleteExportPolicy(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName == "" {
+		logger.Warnf("Volume %s has no export policy, skipping deletion", volume.Name)
+		return nil
+	}
+	exportPolicyName := volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
+	vsaExportPolicy := &vsa.ExportPolicy{
+		ExportPolicyName: exportPolicyName,
+		SvmName:          volume.Svm.Name,
+	}
+	err = provider.DeleteExportPolicy(vsaExportPolicy)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Warnf("Export policy %s not found for volume %s, skipping deletion", exportPolicyName, volume.Name)
+			return nil
+		}
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Export policy %s deleted successfully for volume %s", exportPolicyName, volume.Name)
+	return nil
+}

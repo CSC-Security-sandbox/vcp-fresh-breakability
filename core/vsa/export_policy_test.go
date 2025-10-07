@@ -1773,3 +1773,83 @@ func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
 }
 
 var originalGetOntapClientFunc = getOntapClientFunc
+
+func TestDeleteExportPolicy_Success(t *testing.T) {
+	mockNASClient := new(MockNASClient)
+	mockRESTClient := &MockRESTClientForNAS{
+		nasClient: mockNASClient,
+	}
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockRESTClient, nil
+	}
+
+	rc := &OntapRestProvider{}
+
+	exportPolicy := &ExportPolicy{
+		ExportPolicyName: "test-policy",
+		SvmName:          "testSVM",
+	}
+
+	mockNASClient.On("ExportPolicyDelete", mock.MatchedBy(func(params *ontapRest.ExportPolicyDeleteParams) bool {
+		return params.Name == exportPolicy.ExportPolicyName && params.SvmName == exportPolicy.SvmName
+	})).Return(nil)
+
+	err := rc.DeleteExportPolicy(exportPolicy)
+
+	assert.NoError(t, err)
+	mockNASClient.AssertExpectations(t)
+}
+
+func TestDeleteExportPolicy_GetClientFailure(t *testing.T) {
+	originalGetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+	expectedError := errors.New("failed to get client")
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return nil, expectedError
+	}
+
+	rc := &OntapRestProvider{}
+
+	exportPolicy := &ExportPolicy{
+		ExportPolicyName: "test-policy",
+		SvmName:          "testSVM",
+	}
+
+	err := rc.DeleteExportPolicy(exportPolicy)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get ONTAP client")
+	assert.Contains(t, err.Error(), expectedError.Error())
+}
+
+func TestDeleteExportPolicy_DeleteFailure(t *testing.T) {
+	mockNASClient := new(MockNASClient)
+	mockRESTClient := &MockRESTClientForNAS{
+		nasClient: mockNASClient,
+	}
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockRESTClient, nil
+	}
+
+	rc := &OntapRestProvider{}
+
+	exportPolicy := &ExportPolicy{
+		ExportPolicyName: "test-policy",
+		SvmName:          "testSVM",
+	}
+
+	expectedError := errors.New("delete failed")
+	mockNASClient.On("ExportPolicyDelete", mock.MatchedBy(func(params *ontapRest.ExportPolicyDeleteParams) bool {
+		return params.Name == exportPolicy.ExportPolicyName && params.SvmName == exportPolicy.SvmName
+	})).Return(expectedError)
+
+	err := rc.DeleteExportPolicy(exportPolicy)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete export policy test-policy")
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockNASClient.AssertExpectations(t)
+}

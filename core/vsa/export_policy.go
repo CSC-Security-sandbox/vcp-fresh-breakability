@@ -164,3 +164,18 @@ func (rc *OntapRestProvider) UpdateExportPolicyRules(params UpdateExportPolicyRu
 	}
 	return nil
 }
+
+func (rc *OntapRestProvider) DeleteExportPolicy(params *ExportPolicy) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return fmt.Errorf("failed to get ONTAP client: %w", err)
+	}
+	err = client.NAS().ExportPolicyDelete(&ontapRest.ExportPolicyDeleteParams{
+		Name:    params.ExportPolicyName,
+		SvmName: params.SvmName,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete export policy %s: %w", params.ExportPolicyName, err)
+	}
+	return nil
+}
