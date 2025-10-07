@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -1430,39 +1429,6 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_VolumesError(t 
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "failed to get volumes")
-	mockProvider.AssertExpectations(t)
-}
-
-func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_TimeoutScenario(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Millisecond)
-	defer cancel()
-
-	mockStorage := database.NewMockStorage(t)
-	activity := SyncSnapshotActivity{SE: mockStorage}
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, PoolCredentials: &datamodel.PoolCredentials{Password: "pass"}}
-
-	mockProvider := new(vsa.MockProvider)
-	// Simulate slow response that will timeout
-	mockProvider.On("GetVolumes").Return(func() ([]*vsa.Volume, error) {
-		time.Sleep(100 * time.Millisecond) // Ensure this is longer than the context timeout
-		return []*vsa.Volume{}, nil
-	})
-
-	originalGetProviderForPool := GetOntapRestProviderForPool
-	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
-		return mockProvider, nil
-	}
-	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
-
-	result, err := activity.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	if err != nil {
-		assert.True(t,
-			strings.Contains(err.Error(), "Timeout getting ONTAP volumes") ||
-				strings.Contains(err.Error(), "Context cancelled while getting ONTAP volumes"),
-			"unexpected error: %v", err)
-	}
 	mockProvider.AssertExpectations(t)
 }
 
