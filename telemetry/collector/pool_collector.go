@@ -25,7 +25,7 @@ type PoolMetricsResult struct {
 }
 
 // GetPoolMetrics retrieves metrics for all pools from the database and returns them in a structured result.
-func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig) (*PoolMetricsResult, error) {
+func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, timestamp time.Time) (*PoolMetricsResult, error) {
 	logger := util.GetLogger(ctx)
 	pools, err := vcpDB.ListPools(ctx, nil)
 	if err != nil {
@@ -47,6 +47,10 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 
 	// Iterate over all pools and generate metrics
 	for _, pool := range pools {
+		if pool.Account == nil || pool.PoolAttributes == nil {
+			logger.Warnf("Skipping pool %s (ID: %d) as it has no associated account or pool attributes", pool.Name, pool.ID)
+			continue
+		}
 		// Assemble metadata for the pool
 		poolMetadata := assemblePoolMetadata(pool, config)
 
@@ -54,14 +58,13 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 		poolMetadataMap[pool.ID] = poolMetadata
 
 		// Create a metric for the pool
-		now := time.Now()
-		metric := setupHydratedMetric(now, poolMetadata, metadata.PoolAllocatedSize, float64(pool.SizeInBytes))
+		metric := setupHydratedMetric(timestamp, poolMetadata, metadata.PoolAllocatedSize, float64(pool.SizeInBytes))
 		metrics = append(metrics, metric)
-		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, now, float64(pool.SizeInBytes)))
+		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, timestamp, float64(pool.SizeInBytes)))
 
-		metric = setupHydratedMetric(now, poolMetadata, metadata.AllocatedUsed, float64(pool.QuotaInBytes))
+		metric = setupHydratedMetric(timestamp, poolMetadata, metadata.AllocatedUsed, float64(pool.QuotaInBytes))
 		metrics = append(metrics, metric)
-		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, now, float64(pool.QuotaInBytes)))
+		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, timestamp, float64(pool.QuotaInBytes)))
 	}
 
 	// Return the structured result

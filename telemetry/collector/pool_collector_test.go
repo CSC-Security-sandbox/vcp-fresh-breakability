@@ -64,7 +64,7 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 
 	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.HydratedMetrics, 2)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
@@ -157,7 +157,7 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 
 	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.HydratedMetrics, 4)          // Should have 4 metrics: 2 pools * 2 metric types each
@@ -213,7 +213,7 @@ func Test_GetPoolMetrics_EmptyPools(t *testing.T) {
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	m.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.Error(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
@@ -226,7 +226,7 @@ func Test_GetPoolMetrics_ListPoolsError(t *testing.T) {
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	m.On("ListPools", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.Error(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
@@ -346,7 +346,7 @@ func TestGetPoolMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 
 	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -424,7 +424,7 @@ func Test_GetPoolMetrics_WithThroughputAndMetadataMap(t *testing.T) {
 
 	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -455,10 +455,7 @@ func Test_GetPoolMetrics_MultiplePoolsWithDifferentThroughput(t *testing.T) {
 	pools := []*datamodel.PoolView{
 		{
 			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   100,
-					UUID: "pool-uuid-1",
-				},
+				BaseModel:      datamodel.BaseModel{ID: 100, UUID: "pool-uuid-1"},
 				Name:           "Pool1",
 				SizeInBytes:    1000,
 				UsedBytes:      300,
@@ -476,10 +473,7 @@ func Test_GetPoolMetrics_MultiplePoolsWithDifferentThroughput(t *testing.T) {
 		},
 		{
 			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   200,
-					UUID: "pool-uuid-2",
-				},
+				BaseModel:      datamodel.BaseModel{ID: 200, UUID: "pool-uuid-2"},
 				Name:           "Pool2",
 				SizeInBytes:    2000,
 				UsedBytes:      800,
@@ -499,7 +493,7 @@ func Test_GetPoolMetrics_MultiplePoolsWithDifferentThroughput(t *testing.T) {
 
 	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -554,7 +548,7 @@ func Test_GetPoolMetrics_ZeroThroughput(t *testing.T) {
 
 	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -602,7 +596,7 @@ func Test_GetPoolMetrics_IncludesThroughputAndResourceID(t *testing.T) {
 
 	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
 
-	result, err := GetPoolMetrics(ctx, m, config)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.HydratedMetrics, 2)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
@@ -674,4 +668,41 @@ func Test_AssemblePoolMetadata_WithThroughputAndResourceID(t *testing.T) {
 	assert.Equal(t, 1000.0, *result.Throughput, "Throughput should match")
 	assert.NotNil(t, result.ResourceID, "ResourceID should be set")
 	assert.Equal(t, int64(123), *result.ResourceID, "ResourceID should match")
+}
+
+func Test_GetPoolMetrics_NilPoolAttributes(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	// Pool with nil PoolAttributes
+	pools := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 123, UUID: "pool-uuid-1"},
+				Name:           "Pool1",
+				SizeInBytes:    1000,
+				DeploymentName: "test-deployment",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: 1},
+					Name:      "Account1",
+				},
+				PoolAttributes: nil, // This should trigger the skip condition
+			},
+			QuotaInBytes: 500,
+		},
+	}
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Should be empty since pool was skipped due to nil PoolAttributes
+	assert.Len(t, result.HydratedMetrics, 0)
+	assert.Len(t, result.HydratedMetricsDataModel, 0)
+	assert.Len(t, result.PoolMetadataMap, 0)
+
+	m.AssertExpectations(t)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
@@ -25,7 +26,7 @@ func (m *MockVCPProcessor) ProcessUsageMetrics(ctx context.Context) error {
 	return nil
 }
 
-func (m *MockVCPProcessor) CollectMetrics(ctx context.Context, projectId string) error {
+func (m *MockVCPProcessor) CollectMetrics(ctx context.Context, projectId string, timestamp time.Time) error {
 	return nil
 }
 

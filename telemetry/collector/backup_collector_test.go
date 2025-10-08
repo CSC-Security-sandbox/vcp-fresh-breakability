@@ -33,13 +33,9 @@ func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 
-	var backups []*datamodel.Backup
-	backups = append(
-		backups,
-		&datamodel.Backup{
-			BaseModel: datamodel.BaseModel{
-				UUID: "backup-uuid-1",
-			},
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
 			Name:                    "Backup1",
 			VolumeUUID:              "volume-uuid-1",
 			LatestLogicalBackupSize: 1024,
@@ -48,11 +44,11 @@ func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 				VolumeName:        "Volume1",
 			},
 		},
-	)
+	}
 
 	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
 
-	result, err := GetBackupMetrics(ctx, m, config)
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.HydratedMetrics, 1)
@@ -109,7 +105,7 @@ func Test_GetBackupMetrics_MultipleBackups(t *testing.T) {
 
 	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
 
-	result, err := GetBackupMetrics(ctx, m, config)
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.HydratedMetrics, 2)
@@ -148,7 +144,7 @@ func Test_GetBackupMetrics_EmptyBackups(t *testing.T) {
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return([]*datamodel.Backup{}, nil)
 
-	result, err := GetBackupMetrics(ctx, m, config)
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
@@ -161,7 +157,7 @@ func Test_GetBackupMetrics_GetBackupLogicalSizeMetricsError(t *testing.T) {
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(nil, assert.AnError)
 
-	result, err := GetBackupMetrics(ctx, m, config)
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.Error(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
@@ -185,7 +181,7 @@ func Test_GetBackupMetrics_NilAttributes(t *testing.T) {
 
 	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
 
-	result, err := GetBackupMetrics(ctx, m, config)
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	// With nil attributes, the backup should be skipped entirely
@@ -230,7 +226,7 @@ func Test_GetBackupMetrics_MixedValidAndNilAttributes(t *testing.T) {
 
 	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
 
-	result, err := GetBackupMetrics(ctx, m, config)
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	// Only 2 valid backups should be processed (the one with nil attributes should be skipped)
@@ -352,7 +348,7 @@ func TestGetBackupMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 
 	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
 
-	result, err := GetBackupMetrics(ctx, m, config)
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 

@@ -249,13 +249,13 @@ func TestCollectVolumeMetrics(t *testing.T) {
 			},
 		}
 
-		expectedMetric1 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp)
-		expectedMetric2 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp2)
-		expectedMetric3 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp3)
+		expectedMetric1 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp, time.Now())
+		expectedMetric2 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp2, time.Now())
+		expectedMetric3 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp3, time.Now())
 		expected := []datamodel.HydratedMetrics{expectedMetric1, expectedMetric2, expectedMetric3}
-		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything).Return(expected, nil)
+		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything, mock.Anything).Return(expected, nil)
 
-		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1")
+		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1", time.Now())
 		assert.NoError(t, err)
 		assert.Equal(t, expected, results)
 		assert.Equal(t, 1.0, results[0].Quantity)
@@ -338,13 +338,13 @@ func TestCollectVolumeMetrics(t *testing.T) {
 			},
 		}
 
-		expectedMetric1 := setupHydratedMetrics(metadata.AllocatedSize, metadata.VolumeReplicationRelationship, "consumer1", mockResp)
-		expectedMetric2 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp2)
-		expectedMetric3 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp3)
+		expectedMetric1 := setupHydratedMetrics(metadata.AllocatedSize, metadata.VolumeReplicationRelationship, "consumer1", mockResp, time.Now())
+		expectedMetric2 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp2, time.Now())
+		expectedMetric3 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp3, time.Now())
 		expected := []datamodel.HydratedMetrics{expectedMetric1, expectedMetric2, expectedMetric3}
-		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything).Return(expected, nil)
+		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything, mock.Anything).Return(expected, nil)
 
-		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1")
+		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1", time.Now())
 		assert.NoError(t, err)
 		assert.Equal(t, expected, results)
 		assert.Equal(t, 1.0, results[0].Quantity)
@@ -355,9 +355,9 @@ func TestCollectVolumeMetrics(t *testing.T) {
 
 	t.Run("returns error from provider", func(t *testing.T) {
 		mockProvider := new(MockVolumeMetricsProvider)
-		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything).Return([]datamodel.HydratedMetrics(nil), fmt.Errorf("fail"))
+		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything, mock.Anything).Return([]datamodel.HydratedMetrics(nil), fmt.Errorf("fail"))
 
-		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1")
+		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1", time.Now())
 		assert.Error(t, err)
 		assert.Nil(t, results)
 		mockProvider.AssertExpectations(t)
@@ -368,9 +368,9 @@ func TestCollectVolumeMetrics_ProviderReturnsEmpty(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewLogger()
 	mockProvider := new(MockVolumeMetricsProvider)
-	mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything).Return([]datamodel.HydratedMetrics{}, nil)
+	mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything, mock.Anything).Return([]datamodel.HydratedMetrics{}, nil)
 
-	results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1")
+	results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1", time.Now())
 	assert.NoError(t, err)
 	assert.Empty(t, results)
 	mockProvider.AssertExpectations(t)
@@ -425,7 +425,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success(t *testing.T) {
 		},
 	}
 
-	results, err := provider.CollectProjectMetrics(ctx, logger, "project1")
+	results, err := provider.CollectProjectMetrics(ctx, logger, "project1", time.Now())
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Equal(t, metadata.MeasuredType("LOGICAL_SIZE"), results[0].MeasuredType)
@@ -468,7 +468,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_EmptyPoints(t *testing.T) 
 		},
 	}
 
-	results, err := provider.CollectProjectMetrics(ctx, logger, "project1")
+	results, err := provider.CollectProjectMetrics(ctx, logger, "project1", time.Now())
 	assert.NoError(t, err)
 	assert.Empty(t, results) // Should be empty since no valid data points
 	mockClient.AssertExpectations(t)
@@ -493,7 +493,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success_NoProjects(t *test
 		jobQueue:              jobQueue,
 	}
 
-	err := provider.GetVolumeMetrics(ctx, logger)
+	err := provider.GetVolumeMetrics(ctx, logger, time.Now())
 	assert.NoError(t, err)
 
 	mockTenantProvider.AssertExpectations(t)
@@ -518,7 +518,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success_SingleProject(t *t
 		jobQueue:              jobQueue,
 	}
 
-	err := provider.GetVolumeMetrics(ctx, logger)
+	err := provider.GetVolumeMetrics(ctx, logger, time.Now())
 	assert.NoError(t, err)
 
 	mockTenantProvider.AssertExpectations(t)
@@ -543,7 +543,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success_MultipleProjects(t
 		jobQueue:              jobQueue,
 	}
 
-	err := provider.GetVolumeMetrics(ctx, logger)
+	err := provider.GetVolumeMetrics(ctx, logger, time.Now())
 	assert.NoError(t, err)
 
 	mockTenantProvider.AssertExpectations(t)
@@ -568,7 +568,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_ErrorFromGetTenantProjects
 		jobQueue:              jobQueue,
 	}
 
-	err := provider.GetVolumeMetrics(ctx, logger)
+	err := provider.GetVolumeMetrics(ctx, logger, time.Now())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get tenant projects")
 	assert.Contains(t, err.Error(), "database connection failed")
@@ -602,7 +602,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_WithCorrelationID(t *testi
 		jobQueue:              jobQueue,
 	}
 
-	err := provider.GetVolumeMetrics(ctxWithCorrelationID, logger)
+	err := provider.GetVolumeMetrics(ctxWithCorrelationID, logger, time.Now())
 	assert.NoError(t, err)
 
 	mockTenantProvider.AssertExpectations(t)
@@ -637,7 +637,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_WithInvalidCorrelationID(t
 		jobQueue:              jobQueue,
 	}
 
-	err := provider.GetVolumeMetrics(ctxWithInvalidCorrelationID, logger)
+	err := provider.GetVolumeMetrics(ctxWithInvalidCorrelationID, logger, time.Now())
 	assert.NoError(t, err)
 
 	mockTenantProvider.AssertExpectations(t)
@@ -668,7 +668,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_WithoutCorrelationID(t *te
 		jobQueue:              jobQueue,
 	}
 
-	err := provider.GetVolumeMetrics(ctxWithoutCorrelationID, logger)
+	err := provider.GetVolumeMetrics(ctxWithoutCorrelationID, logger, time.Now())
 	assert.NoError(t, err)
 
 	mockTenantProvider.AssertExpectations(t)
@@ -696,7 +696,7 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_WithoutLoggerFields(t *tes
 		jobQueue:              jobQueue,
 	}
 
-	err := provider.GetVolumeMetrics(ctxWithoutLoggerFields, logger)
+	err := provider.GetVolumeMetrics(ctxWithoutLoggerFields, logger, time.Now())
 	assert.NoError(t, err)
 
 	mockTenantProvider.AssertExpectations(t)
@@ -731,9 +731,44 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_EnqueueBatchError(t *testi
 	}
 	provider.SetJobQueue(jobQueue)
 
-	err = provider.GetVolumeMetrics(ctx, logger)
+	err = provider.GetVolumeMetrics(ctx, logger, time.Now())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "queue: failed to begin transaction")
 
 	mockTenantProvider.AssertExpectations(t)
+}
+
+// Test for collectVolumeMetrics function to ensure line 140 is covered
+func TestCollectVolumeMetrics_DirectCall(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+	timestamp := time.Now()
+
+	t.Run("successful call to provider", func(t *testing.T) {
+		mockProvider := new(MockVolumeMetricsProvider)
+
+		// Mock the GetVolumeMetrics call (line 140)
+		mockProvider.On("GetVolumeMetrics", ctx, logger, timestamp).Return(nil)
+
+		// Call collectVolumeMetrics function directly to cover line 140
+		err := collectVolumeMetrics(ctx, logger, mockProvider, timestamp)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("provider returns error", func(t *testing.T) {
+		mockProvider := new(MockVolumeMetricsProvider)
+		expectedError := errors.New("provider error")
+
+		// Mock the GetVolumeMetrics call to return error (line 140)
+		mockProvider.On("GetVolumeMetrics", ctx, logger, timestamp).Return(expectedError)
+
+		// Call collectVolumeMetrics function directly to cover line 140
+		err := collectVolumeMetrics(ctx, logger, mockProvider, timestamp)
+
+		assert.Error(t, err)
+		assert.Equal(t, expectedError, err)
+		mockProvider.AssertExpectations(t)
+	})
 }

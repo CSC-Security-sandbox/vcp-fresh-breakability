@@ -34,8 +34,8 @@ func (w *MetricClientWrapper) IsNil() bool {
 }
 
 type VolumeMetricsProvider interface {
-	GetVolumeMetrics(context.Context, log.Logger) error
-	CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error)
+	GetVolumeMetrics(context.Context, log.Logger, time.Time) error
+	CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string, timestamp time.Time) ([]datamodel.HydratedMetrics, error)
 	GetClient() MonitoringClient
 	SetJobQueue(q *utils.JobQueue)
 	RefreshTimeWindow()

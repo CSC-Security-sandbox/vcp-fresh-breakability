@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -26,7 +27,7 @@ func (g *GoogleTenantProjectProvider) GetTenantProjects(ctx context.Context, log
 	return GetTenantProject(ctx, logger, g.vcpDatastore)
 }
 
-func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logger log.Logger) error {
+func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logger log.Logger, timestamp time.Time) error {
 	projects, err := g.tenantProjectProvider.GetTenantProjects(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to get tenant projects: %v", err)
@@ -44,7 +45,7 @@ func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logg
 	// Prepare all jobs for batch enqueuing
 	var jobsToEnqueue []utils.Job
 	for _, projectID := range projects {
-		j := jobs.NewCollectMetrics(projectID)
+		j := jobs.NewCollectMetrics(projectID, timestamp)
 		if correlationID != "" {
 			j.CorrelationID = correlationID
 		}
@@ -70,7 +71,7 @@ func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logg
 	return nil
 }
 
-func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error) {
+func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string, timestamp time.Time) ([]datamodel.HydratedMetrics, error) {
 	var projectResults []datamodel.HydratedMetrics
 	projectName := fmt.Sprintf("projects/%s", projectID)
 	telemetryConfig := common.LoadConfig()
@@ -115,7 +116,7 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				continue
 			}
 			resourceType := metadata.CombinedKeyResourceTypeMeasuredTypeMap[metric.Metric].ResourceType
-			metrics := setupHydratedMetrics(measuredType, resourceType, projectID, resp)
+			metrics := setupHydratedMetrics(measuredType, resourceType, projectID, resp, timestamp)
 			projectResults = append(projectResults, metrics)
 		}
 	}
@@ -135,13 +136,13 @@ func GetTenantProject(ctx context.Context, logger log.Logger, vcpDatastore datab
 	return projects, nil
 }
 
-func collectVolumeMetrics(ctx context.Context, logger log.Logger, provider VolumeMetricsProvider) error {
-	return provider.GetVolumeMetrics(ctx, logger)
+func collectVolumeMetrics(ctx context.Context, logger log.Logger, provider VolumeMetricsProvider, timestamp time.Time) error {
+	return provider.GetVolumeMetrics(ctx, logger, timestamp)
 }
 
-func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resp *monitoringpb.TimeSeries) datamodel.HydratedMetrics {
+func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resp *monitoringpb.TimeSeries, timestamp time.Time) datamodel.HydratedMetrics {
 	hydrateMetrics := datamodel.HydratedMetrics{
-		MetricTimestamp: resp.Points[0].Interval.EndTime.AsTime(),
+		MetricTimestamp: timestamp,
 		MeasuredType:    measuredType,
 		ConsumerID:      resp.Metric.Labels["project"],
 		ResourceType:    resourceType,

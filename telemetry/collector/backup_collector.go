@@ -25,7 +25,7 @@ type BackupMetricsResult struct {
 }
 
 // GetBackupMetrics retrieves backup logical size metrics from the database and returns them in a structured result.
-func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig) (*BackupMetricsResult, error) {
+func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, timestamp time.Time) (*BackupMetricsResult, error) {
 	logger := util.GetLogger(ctx)
 	backups, err := vcpDB.GetBackupLogicalSizeMetrics(ctx)
 	if err != nil {
@@ -52,15 +52,14 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		backupMetadata := assembleBackupMetadata(backup, config)
 
 		// Create a metric for the backup logical size
-		now := time.Now()
-		metric := setupHydratedMetric(now, backupMetadata, metadata.BackupLogicalSize, float64(backup.LatestLogicalBackupSize))
+		metric := setupHydratedMetric(timestamp, backupMetadata, metadata.BackupLogicalSize, float64(backup.LatestLogicalBackupSize))
 		metrics = append(metrics, metric)
 		// Get account identifier from backup attributes
 		accountName := ""
 		if backup.Attributes != nil {
 			accountName = backup.Attributes.AccountIdentifier
 		}
-		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, now, float64(backup.LatestLogicalBackupSize)))
+		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)))
 	}
 
 	// Return the structured result

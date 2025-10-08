@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"time"
 )
 
 type CollectMetrics struct {
@@ -17,9 +17,27 @@ type CollectMetrics struct {
 	CorrelationID string `json:"correlation_id,omitempty"`
 }
 
-func NewCollectMetrics(data string) *CollectMetrics {
+type CollectMetricsPayload struct {
+	ProjectID string    `json:"project_id"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+func NewCollectMetrics(projectID string, timestamp time.Time) *CollectMetrics {
+	payload := CollectMetricsPayload{
+		ProjectID: projectID,
+		Timestamp: timestamp,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		// In case of marshal error, fallback to just using projectID
+		return &CollectMetrics{
+			Data: projectID,
+		}
+	}
+
 	return &CollectMetrics{
-		Data: data,
+		Data: string(jsonData),
 	}
 }
 
@@ -46,8 +64,17 @@ func (e CollectMetrics) Perform(p interface{}, attempt int32) error {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Processing collect metrics job with correlation ID: %s, attempt: %d, project: %s", e.CorrelationID, attempt, e.Data)
 
-	// e.Data contains the project ID directly, no need to unmarshal
-	err := proc.CollectMetrics(ctx, e.Data)
+	// Try to parse as JSON first
+	var payload CollectMetricsPayload
+	err := json.Unmarshal([]byte(e.Data), &payload)
+	if err != nil {
+		logger.Errorf("Failed to Unmarshal Job Data with correlation ID %s for project %s: %v", e.CorrelationID, payload.ProjectID, err)
+		return err
+	} else {
+		// Use projectID from parsed payload
+		err = proc.CollectMetrics(ctx, payload.ProjectID, payload.Timestamp)
+	}
+
 	if err != nil {
 		if e.CorrelationID != "" {
 			logger := util.GetLogger(ctx)
@@ -65,9 +92,10 @@ func (e CollectMetrics) Perform(p interface{}, attempt int32) error {
 }
 
 func (e CollectMetrics) Load(data string) (utils.Job, error) {
-	var job CollectMetrics
-	if err := json.Unmarshal([]byte(data), &job); err != nil {
-		return CollectMetrics{}, err
+	var cm CollectMetrics
+	err := json.Unmarshal([]byte(data), &cm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal CollectMetrics: %v", err)
 	}
-	return job, nil
+	return cm, nil
 }

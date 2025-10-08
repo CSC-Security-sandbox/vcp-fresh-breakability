@@ -3,12 +3,13 @@
 package collector
 
 import (
-	context "context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
+	"context"
+	"time"
 
 	monitoringpb "cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
-	mock "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/mock"
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -17,23 +18,23 @@ type MockVolumeMetricsProvider struct {
 	mock.Mock
 }
 
-func (_m *MockVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logger log.Logger) error {
-	ret := _m.Called(ctx, logger)
+func (_m *MockVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logger log.Logger, timestamp time.Time) error {
+	ret := _m.Called(ctx, logger, timestamp)
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, log.Logger) error); ok {
-		r0 = rf(ctx, logger)
+	if rf, ok := ret.Get(0).(func(context.Context, log.Logger, time.Time) error); ok {
+		r0 = rf(ctx, logger, timestamp)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-func (_m *MockVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error) {
-	ret := _m.Called(ctx, logger, projectID)
+func (_m *MockVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string, timestamp time.Time) ([]datamodel.HydratedMetrics, error) {
+	ret := _m.Called(ctx, logger, projectID, timestamp)
 	var r0 []datamodel.HydratedMetrics
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, log.Logger, string) ([]datamodel.HydratedMetrics, error)); ok {
-		return rf(ctx, logger, projectID)
+	if rf, ok := ret.Get(0).(func(context.Context, log.Logger, string, time.Time) ([]datamodel.HydratedMetrics, error)); ok {
+		return rf(ctx, logger, projectID, timestamp)
 	}
 	if ret.Get(0) != nil {
 		r0 = ret.Get(0).([]datamodel.HydratedMetrics)

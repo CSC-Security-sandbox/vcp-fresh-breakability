@@ -619,7 +619,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsEnabledValidCli
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	originalFunc := collector.CollectVolumeMetrics
-	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) error {
+	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
 		return nil
 	}
 	defer func() {
@@ -679,7 +679,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsError(t 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 	originalFunc := collector.CollectVolumeMetrics
-	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) error {
+	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
 		return errors.New("collect volume metrics error")
 	}
 	defer func() {
@@ -743,7 +743,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsError(t
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("database error"))
 
 	originalFunc := collector.CollectVolumeMetrics
-	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) error {
+	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
 		return nil
 	}
 	defer func() {
@@ -847,7 +847,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 	t.Setenv("ENABLE_VOLUME_METRICS", "true")
 
 	originalFunc := collector.CollectVolumeMetrics
-	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) error {
+	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
 		return nil
 	}
 	defer func() {
@@ -907,7 +907,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 
 	originalFunc := collector.CollectVolumeMetrics
-	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) error {
+	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
 		return errors.New("collection failed")
 	}
 	defer func() {
@@ -971,7 +971,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 
 	originalFunc := collector.CollectVolumeMetrics
-	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider) error {
+	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
 		return nil
 	}
 	defer func() {
@@ -1420,11 +1420,11 @@ func TestCollectMetrics_Success(t *testing.T) {
 			ResourceName: "test-volume-1",
 		},
 	}
-	mockProvider.On("CollectProjectMetrics", ctx, mock.Anything, "project-123").Return(metrics, nil)
+	mockProvider.On("CollectProjectMetrics", ctx, mock.Anything, "project-123", mock.AnythingOfType("time.Time")).Return(metrics, nil)
 	telemetryStore.On("CreateHydratedMetricsBatch", ctx, metrics, mock.AnythingOfType("int")).Return(nil)
 
 	mp := &MetricsProcessor{telemetryDatastore: telemetryStore, googleMetricProvider: mockProvider}
-	err := mp.CollectMetrics(ctx, "project-123")
+	err := mp.CollectMetrics(ctx, "project-123", time.Now())
 	assert.NoError(t, err)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", ctx, metrics, mock.AnythingOfType("int"))
 }
@@ -1433,10 +1433,10 @@ func TestCollectMetrics_CollectProjectMetricsError(t *testing.T) {
 	ctx := context.Background()
 	telemetryStore := &metricdb.MockStorage{}
 	mockProvider := &collector.MockVolumeMetricsProvider{}
-	mockProvider.On("CollectProjectMetrics", ctx, mock.Anything, "project-err").Return(nil, errors.New("collect error"))
+	mockProvider.On("CollectProjectMetrics", ctx, mock.Anything, "project-err", mock.AnythingOfType("time.Time")).Return(nil, errors.New("collect error"))
 
 	mp := &MetricsProcessor{telemetryDatastore: telemetryStore, googleMetricProvider: mockProvider}
-	err := mp.CollectMetrics(ctx, "project-err")
+	err := mp.CollectMetrics(ctx, "project-err", time.Now())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "collect error")
 	telemetryStore.AssertNotCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
@@ -1457,11 +1457,11 @@ func TestCollectMetrics_CreateHydratedMetricsBatchError(t *testing.T) {
 			ResourceType: metadata.Volume,
 			ResourceName: "test-volume-1",
 		}}
-	mockProvider.On("CollectProjectMetrics", ctx, mock.Anything, "project-batch-err").Return(metrics, nil)
+	mockProvider.On("CollectProjectMetrics", ctx, mock.Anything, "project-batch-err", mock.AnythingOfType("time.Time")).Return(metrics, nil)
 	telemetryStore.On("CreateHydratedMetricsBatch", ctx, metrics, mock.AnythingOfType("int")).Return(errors.New("db error"))
 
 	mp := &MetricsProcessor{telemetryDatastore: telemetryStore, googleMetricProvider: mockProvider}
-	err := mp.CollectMetrics(ctx, "project-batch-err")
+	err := mp.CollectMetrics(ctx, "project-batch-err", time.Now())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "db error")
 }
@@ -1471,11 +1471,11 @@ func TestCollectMetrics_EmptyMetricsSlice(t *testing.T) {
 	telemetryStore := &metricdb.MockStorage{}
 	mockProvider := &collector.MockVolumeMetricsProvider{}
 	var metrics []metricsdm.HydratedMetrics
-	mockProvider.On("CollectProjectMetrics", ctx, mock.Anything, "project-empty").Return(metrics, nil)
+	mockProvider.On("CollectProjectMetrics", ctx, mock.Anything, "project-empty", mock.AnythingOfType("time.Time")).Return(metrics, nil)
 	telemetryStore.On("CreateHydratedMetricsBatch", ctx, metrics, mock.AnythingOfType("int")).Return(nil)
 
 	mp := &MetricsProcessor{telemetryDatastore: telemetryStore, googleMetricProvider: mockProvider}
-	err := mp.CollectMetrics(ctx, "project-empty")
+	err := mp.CollectMetrics(ctx, "project-empty", time.Now())
 	assert.NoError(t, err)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", ctx, metrics, mock.AnythingOfType("int"))
 }

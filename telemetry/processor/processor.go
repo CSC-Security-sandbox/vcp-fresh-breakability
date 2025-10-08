@@ -40,7 +40,7 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 	logger := util.GetLogger(ctx)
 	telemetryConfig := common.LoadConfig()
 	logger.Infof("Process %s!\n", "Performance Metrics")
-
+	currentTimestamp := time.Now().Truncate(time.Minute)
 	// Run metrics collection and processing in a goroutine
 	go func() {
 		// Create new context with correlation ID for async operation
@@ -48,7 +48,7 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 		asyncLogger := util.GetLogger(asyncCtx)
 
 		// Collect and process all metrics
-		allHydratedMetricsDataModel, allHydratedMetrics, err := mp.collectAndProcessMetrics(asyncCtx, telemetryConfig)
+		allHydratedMetricsDataModel, allHydratedMetrics, err := mp.collectAndProcessMetrics(asyncCtx, telemetryConfig, currentTimestamp)
 		if err != nil {
 			asyncLogger.Errorf("Failed to collect and process metrics: %v", err)
 			return
@@ -83,14 +83,14 @@ func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error
 			}
 
 			asyncCtx := context.WithValue(context.Background(), middleware.CorrelationContextKey, ctx.Value(middleware.CorrelationContextKey))
-			mp.processRawMetrics(asyncCtx)
+			mp.processRawMetrics(asyncCtx, currentTimestamp)
 		}(ctx)
 	}
 	return nil
 }
 
 // collectAndProcessMetrics collects metrics from all sources and aggregates them
-func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, telemetryConfig *common.TelemetryConfig) ([]datamodel.HydratedMetrics, []entity.HydratedMetric, error) {
+func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, telemetryConfig *common.TelemetryConfig, timestamp time.Time) ([]datamodel.HydratedMetrics, []entity.HydratedMetric, error) {
 	logger := util.GetLogger(ctx)
 
 	// hydrated metrics data model for database storage
@@ -100,7 +100,7 @@ func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, teleme
 	var allHydratedMetrics []entity.HydratedMetric
 
 	// Collect pool metrics
-	poolMetricsResult, err := collector.GetPoolMetrics(ctx, mp.vcpDatastore, telemetryConfig)
+	poolMetricsResult, err := collector.GetPoolMetrics(ctx, mp.vcpDatastore, telemetryConfig, timestamp)
 	if err != nil {
 		logger.Error("Failed to get pool metrics", "error", err.Error())
 		return nil, nil, err
@@ -111,7 +111,7 @@ func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, teleme
 	// Collect backup metrics if enabled
 	var backupMetricsResult *collector.BackupMetricsResult
 	if telemetryConfig.EnableBackupMetrics || telemetryConfig.EnableBackupBillingMetrics {
-		backupMetricsResult, err = collector.GetBackupMetrics(ctx, mp.vcpDatastore, telemetryConfig)
+		backupMetricsResult, err = collector.GetBackupMetrics(ctx, mp.vcpDatastore, telemetryConfig, timestamp)
 		if err != nil {
 			logger.Error("Failed to get backup metrics", "error", err.Error())
 			return nil, nil, err
@@ -119,7 +119,7 @@ func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, teleme
 	}
 
 	// Collect volume metrics
-	volumeMetricsResult, err := collector.GetVolumeMetrics(ctx, mp.vcpDatastore, telemetryConfig, poolMetricsResult.PoolMetadataMap)
+	volumeMetricsResult, err := collector.GetVolumeMetrics(ctx, mp.vcpDatastore, telemetryConfig, poolMetricsResult.PoolMetadataMap, timestamp)
 	if err != nil {
 		logger.Error("Failed to get volume metrics", "error", err.Error())
 		return nil, nil, err
@@ -146,11 +146,11 @@ func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, teleme
 	return allHydratedMetricsDataModel, allHydratedMetrics, nil
 }
 
-func (mp *MetricsProcessor) processRawMetrics(ctx context.Context) {
+func (mp *MetricsProcessor) processRawMetrics(ctx context.Context, timestamp time.Time) {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Processing Raw Metrics")
 	mp.googleMetricProvider.RefreshTimeWindow()
-	err := collector.CollectVolumeMetrics(ctx, logger, mp.googleMetricProvider)
+	err := collector.CollectVolumeMetrics(ctx, logger, mp.googleMetricProvider, timestamp)
 	if err != nil {
 		logger.Errorf("CollectRawMetrics failed: %v", err)
 		return
@@ -169,10 +169,10 @@ func (mp *MetricsProcessor) ProcessUsageMetrics(ctx context.Context) error {
 	return nil
 }
 
-func (mp *MetricsProcessor) CollectMetrics(ctx context.Context, projectId string) error {
+func (mp *MetricsProcessor) CollectMetrics(ctx context.Context, projectId string, timestamp time.Time) error {
 	telemetryConfig := common.LoadConfig()
 	logger := util.GetLogger(ctx)
-	results, err := mp.googleMetricProvider.CollectProjectMetrics(ctx, logger, projectId)
+	results, err := mp.googleMetricProvider.CollectProjectMetrics(ctx, logger, projectId, timestamp)
 	if err != nil {
 		logger.Error("Failed to get project metrics", "error", err.Error())
 		return err

@@ -26,7 +26,7 @@ type VolumeMetricsResult struct {
 }
 
 // GetVolumeMetrics retrieves volume allocated size metrics for volumes with backup data from the database and returns them in a structured result.
-func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, poolMetadataMap map[int64]metadata.ResourceMetadata) (*VolumeMetricsResult, error) {
+func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, poolMetadataMap map[int64]metadata.ResourceMetadata, timestamp time.Time) (*VolumeMetricsResult, error) {
 	logger := util.GetLogger(ctx)
 	volumes, err := vcpDB.ListVolumesWithAccounts(ctx)
 	if err != nil {
@@ -49,7 +49,6 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		var volumeAllocatedThroughputMetric entity.HydratedMetric
 		// Assemble metadata for the volume
 		volumeMetadata := assembleVolumeMetadata(volume, config)
-		now := time.Now()
 
 		// Validate volume attributes before processing
 		if volume.UUID == "" {
@@ -70,7 +69,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		}
 
 		if volume.Throughput != 0 {
-			volumeAllocatedThroughputMetric = setupHydratedMetric(now, volumeMetadata, metadata.VolumeAllocatedThroughput, float64(volume.Throughput))
+			volumeAllocatedThroughputMetric = setupHydratedMetric(timestamp, volumeMetadata, metadata.VolumeAllocatedThroughput, float64(volume.Throughput))
 			volumeAllocatedThroughputMetrics = append(volumeAllocatedThroughputMetrics, volumeAllocatedThroughputMetric)
 		} else {
 			var poolThroughput *float64
@@ -81,7 +80,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 					poolThroughput = nillable.ToPointer(0.0)
 				}
 
-				volumeAllocatedThroughputMetric = setupHydratedMetric(now, volumeMetadata, metadata.VolumeAllocatedThroughput, *poolThroughput)
+				volumeAllocatedThroughputMetric = setupHydratedMetric(timestamp, volumeMetadata, metadata.VolumeAllocatedThroughput, *poolThroughput)
 				volumeAllocatedThroughputMetrics = append(volumeAllocatedThroughputMetrics, volumeAllocatedThroughputMetric)
 			} else {
 				logger.Warnf("Pool metadata missing for PoolID %d (volume %s)", volume.PoolID, volume.UUID)
@@ -97,7 +96,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		allocatedSize := volume.SizeInBytes
 
 		if config.EnableBackupBillingMetrics {
-			metric := setupHydratedMetric(now, volumeMetadata, metadata.BackupVolumeAllocatedSize, float64(allocatedSize))
+			metric := setupHydratedMetric(timestamp, volumeMetadata, metadata.BackupVolumeAllocatedSize, float64(allocatedSize))
 			metrics = append(metrics, metric)
 
 			// Use actual account name from the preloaded account
@@ -105,7 +104,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			if volume.Account != nil {
 				accountName = volume.Account.Name
 			}
-			hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, now, float64(allocatedSize)))
+			hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)))
 		}
 	}
 

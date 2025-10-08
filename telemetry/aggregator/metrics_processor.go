@@ -222,8 +222,19 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context) error {
 
 		// Process current batch
 		for _, pool := range pools {
-			// Extract and limit labels
-			limitedLabels := p.limitLabels(pool.PoolAttributes.Labels)
+			// Skip pools with nil Account to prevent panic
+			if pool.Account == nil {
+				logger.Warnf("Skipping pool %s (%s) due to nil Account relationship", pool.Name, pool.UUID)
+				continue
+			}
+
+			// Extract and limit labels (handle nil PoolAttributes)
+			var limitedLabels Labels
+			if pool.PoolAttributes != nil && pool.PoolAttributes.Labels != nil {
+				limitedLabels = p.limitLabels(pool.PoolAttributes.Labels)
+			} else {
+				limitedLabels = make(Labels)
+			}
 
 			poolResourceData := ResourceData{
 				UUID:      pool.UUID,
@@ -287,8 +298,23 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context) error {
 
 		// Process current batch
 		for _, volume := range volumes {
-			// Extract and limit labels
-			limitedLabels := p.limitLabels(volume.VolumeAttributes.Labels)
+			// Skip volumes with nil Account or Pool to prevent panic
+			if volume.Account == nil {
+				logger.Warnf("Skipping volume %s (%s) due to nil Account relationship", volume.Name, volume.UUID)
+				continue
+			}
+			if volume.Pool == nil {
+				logger.Warnf("Skipping volume %s (%s) due to nil Pool relationship", volume.Name, volume.UUID)
+				continue
+			}
+
+			// Extract and limit labels (handle nil VolumeAttributes)
+			var limitedLabels Labels
+			if volume.VolumeAttributes != nil && volume.VolumeAttributes.Labels != nil {
+				limitedLabels = p.limitLabels(volume.VolumeAttributes.Labels)
+			} else {
+				limitedLabels = make(Labels)
+			}
 
 			volumeResourceData := ResourceData{
 				UUID:      volume.UUID,

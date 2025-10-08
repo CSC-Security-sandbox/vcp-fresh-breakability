@@ -56,7 +56,7 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -128,7 +128,7 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -172,7 +172,7 @@ func Test_GetVolumeMetrics_EmptyVolumes(t *testing.T) {
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 	m.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
@@ -186,7 +186,7 @@ func Test_GetVolumeMetrics_ListVolumesWithAccountsError(t *testing.T) {
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(nil, assert.AnError)
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.Error(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
@@ -232,7 +232,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -288,7 +288,7 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -349,7 +349,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -407,7 +407,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -465,7 +465,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -523,7 +523,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -604,7 +604,7 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -675,7 +675,7 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -734,7 +734,7 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -784,7 +784,7 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
-	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
