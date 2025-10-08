@@ -142,12 +142,22 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// If the volume was never created in ontap, there will be no delete job to wait for
+	// If the volume was never created in ontap or the volume was deleted synchronously, there will be no delete job to wait for
 	if flexCacheResult.DeleteJobResponse != nil {
 		err = workflows.WaitForONTAPJob(ctx, flexCacheResult.DeleteJobResponse, node, time.Minute*10)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to delete FlexCache volume: %w", err))
 		}
+	}
+
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSVMPeeringInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteClusterPeerInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteVolume, &dbVolume).Get(ctx, nil)

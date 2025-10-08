@@ -281,10 +281,12 @@ const (
 	ErrDeletingFlexCacheVolume   = 10003
 
 	// Peering specific errors (11000-11999 range)
-	ErrClusterPeerError   = 11000
-	ErrClusterPeerTimeout = 11001
-	ErrSVMPeerError       = 11002
-	ErrSVMPeerTimeout     = 11003
+	ErrClusterPeerError    = 11000
+	ErrClusterPeerTimeout  = 11001
+	ErrSVMPeerError        = 11002
+	ErrSVMPeerTimeout      = 11003
+	ErrDeletingClusterPeer = 11004
+	ErrDeletingSVMPeer     = 11005
 
 	// Backup specific errors (12000-12999 range)
 	ErrImmutableValidationWithUpdatingBackupPolicy = 12001

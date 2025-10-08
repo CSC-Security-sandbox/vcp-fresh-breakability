@@ -172,4 +172,19 @@ func TestDeleteFlexCacheVolume(t *testing.T) {
 		assert.Nil(tt, resp)
 		assert.Contains(tt, err.Error(), errMsg)
 	})
+
+	t.Run("WhenNoJobAcceptedReturned", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		// Return nil accepted
+		mockStorage.EXPECT().FlexCacheVolumeDelete(mock.Anything).Return(nil, nil)
+
+		resp, err := rc.DeleteFlexCacheVolume("uuid", "name")
+		assert.Nil(tt, resp)
+		assert.Nil(tt, err)
+	})
 }

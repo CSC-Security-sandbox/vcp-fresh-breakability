@@ -1641,7 +1641,6 @@ func TestUnmountVolume(t *testing.T) {
 		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
 		mockClient.EXPECT().Storage().Return(mockStorage)
 		mockStorage.EXPECT().VolumeUnmount(mock.Anything).Return(accepted, nil)
-		mockClient.EXPECT().Poll("").Return(nil)
 
 		resp, err := rc.UnmountVolume(volumeUUID)
 
@@ -1680,24 +1679,19 @@ func TestUnmountVolume(t *testing.T) {
 		assert.Contains(tt, err.Error(), errMsg)
 	})
 
-	t.Run("WhenPollingError", func(tt *testing.T) {
+	t.Run("WhenNilJobReturned", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		rc := &OntapRestProvider{}
 
-		accepted := &ontaprest.JobAccepted{JobUUID: "job-uuid-123"}
-		pollErr := errors.New("polling failed")
-
 		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
 		mockClient.EXPECT().Storage().Return(mockStorage)
-		mockStorage.EXPECT().VolumeUnmount(mock.Anything).Return(accepted, nil)
-		mockClient.EXPECT().Poll("job-uuid-123").Return(pollErr)
+		mockStorage.EXPECT().VolumeUnmount(mock.Anything).Return(nil, nil)
 
 		resp, err := rc.UnmountVolume("testUUID")
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 		assert.Nil(tt, resp)
-		assert.Equal(tt, pollErr, err)
 
 		mockStorage.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)

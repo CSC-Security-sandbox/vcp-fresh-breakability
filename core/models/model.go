@@ -6,6 +6,7 @@ import (
 
 const (
 	LifeCycleStateCreating                     = "CREATING"
+	LifeCycleStatePreparing                    = "PREPARING"
 	LifeCycleStateOngoing                      = "ONGOING"
 	LifeCycleStateReverting                    = "REVERTING"
 	LifeCycleStateUndeleting                   = "UNDELETING"

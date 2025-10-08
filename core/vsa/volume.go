@@ -157,14 +157,11 @@ func (rc *OntapRestProvider) UnmountVolume(volumeUUID string) (*OntapAsyncRespon
 		return nil, err
 	}
 
-	// Poll the job if it exists
 	if jobAccepted != nil {
-		if err = client.Poll(jobAccepted.JobUUID); err != nil {
-			return nil, err
-		}
+		return &OntapAsyncResponse{JobUUID: jobAccepted.JobUUID}, nil
 	}
 
-	return &OntapAsyncResponse{JobUUID: jobAccepted.JobUUID}, nil
+	return nil, nil
 }
 
 func (rc *OntapRestProvider) MountVolume(params MountVolumeParams) (*OntapAsyncResponse, error) {

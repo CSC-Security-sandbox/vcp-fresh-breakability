@@ -54,7 +54,7 @@ func (rc *OntapRestProvider) DeleteFlexCacheVolume(volumeUUID, name string) (*On
 		return nil, err
 	}
 
-	job, err := client.Storage().FlexCacheVolumeDelete(&ontapRest.FlexCacheVolumeDeleteParams{
+	jobAccepted, err := client.Storage().FlexCacheVolumeDelete(&ontapRest.FlexCacheVolumeDeleteParams{
 		UUID: volumeUUID,
 		Name: name,
 	})
@@ -62,5 +62,9 @@ func (rc *OntapRestProvider) DeleteFlexCacheVolume(volumeUUID, name string) (*On
 		return nil, err
 	}
 
-	return &OntapAsyncResponse{JobUUID: job.JobUUID}, nil
+	if jobAccepted != nil {
+		return &OntapAsyncResponse{JobUUID: jobAccepted.JobUUID}, nil
+	}
+
+	return nil, nil
 }

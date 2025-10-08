@@ -34,7 +34,7 @@ func (a FlexCacheVolumeDeleteActivity) UnmountVolumeInOntapActivity(ctx context.
 	}
 
 	result.UnmountJobResponse = response
-	logger.Debugf("FlexCache volume unmount job for volume with UUID %s started successfully", volume.UUID)
+	logger.Debugf("FlexCache volume unmount job for volume with UUID %s initiated successfully", volume.UUID)
 
 	return result, nil
 }
@@ -61,7 +61,63 @@ func (a FlexCacheVolumeDeleteActivity) DeleteFlexCacheVolumeInOntapActivity(ctx 
 	}
 
 	result.DeleteJobResponse = response
-	logger.Debugf("FlexCache volume delete job for volume with UUID %s started successfully", volume.UUID)
+	logger.Debugf("FlexCache volume delete job for volume with UUID %s initiated successfully", volume.UUID)
+
+	return result, nil
+}
+
+func (a FlexCacheVolumeDeleteActivity) DeleteSVMPeeringInOntapActivity(ctx context.Context, result *flexcache.DeleteFlexCacheResult) (*flexcache.DeleteFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	volume := result.DBVolume
+	node := result.Node
+
+	provider, err := hyperscalerGetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if volume.SvmPeerUUID != nil {
+		err = provider.DeleteSVMPeer(*volume.SvmPeerUUID, false)
+		if err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDeletingSVMPeer, err)
+		}
+
+		updates := map[string]interface{}{
+			"svm_peer_uuid": nil,
+		}
+		if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+		logger.Debugf("SVM peering with UUID %s deleted successfully", *volume.SvmPeerUUID)
+	}
+
+	return result, nil
+}
+
+func (a FlexCacheVolumeDeleteActivity) DeleteClusterPeerInOntapActivity(ctx context.Context, result *flexcache.DeleteFlexCacheResult) (*flexcache.DeleteFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	volume := result.DBVolume
+	node := result.Node
+
+	provider, err := hyperscalerGetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if volume.ClusterPeerUUID != nil {
+		err = provider.DeleteClusterPeer(*volume.ClusterPeerUUID)
+		if err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDeletingClusterPeer, err)
+		}
+
+		updates := map[string]interface{}{
+			"cluster_peer_uuid": nil,
+		}
+		if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+		logger.Debugf("Cluster peering with UUID %s deleted successfully", *volume.ClusterPeerUUID)
+	}
 
 	return result, nil
 }

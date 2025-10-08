@@ -176,6 +176,17 @@ func TestFlexCacheVolumeDelete(t *testing.T) {
 		assert.NotNil(tt, job)
 	})
 
+	t.Run("WhenFlexCacheUUIDIsPassedAndDeletedResponse", func(tt *testing.T) {
+		transport := &mockTransport{
+			response: &storage.FlexcacheDeleteOK{},
+		}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		job, err := client.FlexCacheVolumeDelete(&FlexCacheVolumeDeleteParams{UUID: "someUUID"})
+		assert.NoError(tt, err)
+		assert.Nil(tt, job)
+	})
+
 	t.Run("WhenFlexCacheNameIsPassed", func(tt *testing.T) {
 		transport := &mockTransport{
 			response: &storage.FlexcacheDeleteCollectionAccepted{

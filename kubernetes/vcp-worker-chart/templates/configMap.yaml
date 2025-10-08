@@ -50,6 +50,8 @@ data:
   GCP_CONSUMER_MGMT_ENDPOINT_URL: {{$.Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{$.Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
   LOCAL_REGION: {{$.Values.workerConfig.localRegion | quote }}
+  AGGREGATE_NAME: {{$.Values.workerConfig.aggregateName | quote }}
+  VSA_IC_LIF_IPSPACE: {{$.Values.workerConfig.vsaIcLifIpspace | quote }}
   VSA_NODE_USERNAME: {{$.Values.workerConfig.vsaNodeUsername | quote }}
   GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: {{$.Values.workerConfig.gcpHydrateAuthServiceAccount | quote }}
   GCP_HYDRATE_BASE_URL: {{$.Values.workerConfig.gcpHydrateBaseUrl | quote }}

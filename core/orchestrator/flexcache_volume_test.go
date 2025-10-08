@@ -119,8 +119,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Equal(tt, volume.Description, "Some description")
 		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
 		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
-		assert.Equal(tt, volume.LifeCycleState, "CREATING")
-		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
+		assert.Equal(tt, volume.LifeCycleState, "PREPARING")
 	})
 
 	t.Run("GetOrCreateAccount_Error", func(tt *testing.T) {
@@ -493,8 +492,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Equal(tt, volume.Description, "Some description")
 		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
 		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
-		assert.Equal(tt, volume.LifeCycleState, "CREATING")
-		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
+		assert.Equal(tt, volume.LifeCycleState, "PREPARING")
 	})
 
 	t.Run("Success_WithFileProperties_NoExportPolicy", func(tt *testing.T) {
@@ -504,16 +502,16 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 
 		params := &common.CreateVolumeParams{
-			AccountName:    "test_account",
-			Region:         "test_region",
-			Name:           "test_volume",
-			VendorID:       "test_vendor",
-			QuotaInBytes:   minQuotaInBytesPool,
-			Protocols:      []string{"NFS"},
-			Description:    "Some description",
-			DisplayName:    "Some display name",
-			PoolID:         "test-pool-uuid",
-			CreationToken:  "test-creation-token",
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
 			FileProperties: &models.FileProperties{
 				// No ExportPolicy set
 			},
@@ -548,8 +546,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Equal(tt, volume.Description, "Some description")
 		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
 		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
-		assert.Equal(tt, volume.LifeCycleState, "CREATING")
-		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
+		assert.Equal(tt, volume.LifeCycleState, "PREPARING")
 	})
 }
 

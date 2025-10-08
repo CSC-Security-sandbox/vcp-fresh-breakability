@@ -49,7 +49,8 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 			// This is volume restore case
 			volume.State = models.LifeCycleStateRestoring
 			volume.StateDetails = models.LifeCycleStateRestoringDetails
-		} else {
+		} else if volume.State == "" {
+			// Normal volume creation case
 			volume.State = models.LifeCycleStateCreating
 			volume.StateDetails = models.LifeCycleStateCreatingDetails
 		}

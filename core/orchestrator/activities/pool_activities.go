@@ -131,8 +131,6 @@ type InternalVSANetwork struct {
 }
 
 const (
-	AggregateName = "aggr1"
-
 	FirewallPriority        = 1000
 	IngressTrafficDirection = "INGRESS"
 
@@ -173,6 +171,7 @@ var (
 	clusterSerialNumberPrefix = env.GetString("CLUSTER_SERIAL_NUMBER_PREFIX", "935")
 	Region                    = env.GetString("LOCAL_REGION", "")
 	regionMapJson             = env.GetString("REGION_NUMBER_MAP", `{"africa-south1": "01","asia-east1": "02","asia-east2": "03","asia-northeast1": "04","asia-northeast2": "05","asia-northeast3": "06","asia-south1": "07","asia-south2": "08","asia-southeast1": "09","asia-southeast2": "10","australia-southeast1": "11","australia-southeast2": "12","europe-central2": "13","europe-north1": "14","europe-north2": "15","europe-southwest1": "16","europe-west1": "17","europe-west10": "18","europe-west12": "19","europe-west2": "20","europe-west3": "21","europe-west4": "22","europe-west6": "23","europe-west8": "24","europe-west9": "25","me-central1": "26","me-central2": "27","me-west1": "28","northamerica-northeast1": "29","northamerica-northeast2": "30","northamerica-south1": "31","southamerica-east1": "32","southamerica-west1": "33","us-central1": "34","us-east1": "35","us-east4": "36","us-east5": "37","us-south1": "38","us-west1": "39","us-west2": "40","us-west3": "41","us-west4": "42"}`)
+	AggregateName             = env.GetString("AGGREGATE_NAME", "aggr1")
 
 	MgmtFirewallSourceRanges = env.GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
 	RsmFirewallSourceRanges  = env.GetString("RSM_FIREWALL_SOURCE_RANGES", "")

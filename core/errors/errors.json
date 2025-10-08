@@ -1487,6 +1487,18 @@
     "retriable": false,
     "http_code": 408
   },
+  "11004": {
+    "description": "Error deleting cluster peer",
+    "message": "Error deleting cluster peer",
+    "retriable": false,
+    "http_code": 400
+  },
+  "11005": {
+    "description": "Error deleting SVM peer",
+    "message": "Error deleting SVM peer",
+    "retriable": false,
+    "http_code": 400
+  },
   "12001": {
     "description": "Immutable backup validation failed due to backup policy update",
     "message": "Error while creating immutable backup when backup policy is in updating state",

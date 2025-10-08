@@ -769,7 +769,7 @@ func (rc *OntapRestProvider) ReverseVolumeReplication(volRep *VolumeReplication)
 			return nil, err
 		}
 	}
-	
+
 	return &SnapmirrorDestination{}, nil
 }
 

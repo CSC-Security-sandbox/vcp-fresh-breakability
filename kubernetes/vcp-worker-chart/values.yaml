@@ -67,6 +67,8 @@ workerConfig:
   gcpConsumerMgmtEndpointUrl: "autopush-netapp.sandbox.googleapis.com"
   gcpServiceNetworkingEndpointUrl: "netapp-tst-autopush-endpoint.appspot.com"
   localRegion: "australia-southeast1"
+  aggregateName: "aggr1"
+  vsaIcLifIpspace: "Gcnv"
   vsaNodeUsername: "admin"
   vsaNodePassword: ""
   objectStoreProvider: "gcp"

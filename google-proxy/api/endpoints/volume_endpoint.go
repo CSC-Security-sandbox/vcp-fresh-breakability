@@ -165,7 +165,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateCreating {
+	if volume.LifeCycleState == models.LifeCycleStateCreating || volume.LifeCycleState == models.LifeCycleStatePreparing {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,

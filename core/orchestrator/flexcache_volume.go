@@ -63,6 +63,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		PoolID:      pool.ID,
 		SvmID:       svm.ID,
 		Pool:        dbPool,
+		State:       models.LifeCycleStatePreparing,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CreationToken:  params.CreationToken,
 			Protocols:      params.Protocols,

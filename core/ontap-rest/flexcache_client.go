@@ -32,7 +32,7 @@ func (sc *storageClient) FlexCacheVolumeCreate(params *FlexCacheVolumeCreatePara
 // FlexCacheVolumeDelete invokes pkg/ontap-rest/client/storage/Client.FlexcacheDelete to delete Volume
 func (sc *storageClient) FlexCacheVolumeDelete(params *FlexCacheVolumeDeleteParams) (*JobAccepted, error) {
 	if params.UUID != "" {
-		_, accepted, err := sc.api.FlexcacheDelete(flexCacheVolumeDeleteParamsToONTAP(params), nil)
+		deleted, accepted, err := sc.api.FlexcacheDelete(flexCacheVolumeDeleteParamsToONTAP(params), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -41,6 +41,10 @@ func (sc *storageClient) FlexCacheVolumeDelete(params *FlexCacheVolumeDeletePara
 			return &JobAccepted{
 				JobUUID: string(*accepted.Payload.Job.UUID),
 			}, nil
+		}
+
+		if deleted != nil {
+			return nil, nil
 		}
 	}
 
