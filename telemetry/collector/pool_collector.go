@@ -80,7 +80,11 @@ func assemblePoolMetadata(pool *datamodel.PoolView, config *common.TelemetryConf
 	met.SetResourceUUID(pool.UUID)
 	met.SetResourceName(pool.Name)
 	met.SetResourceDisplayName(pool.Name)
-	met.SetResourceType(metadata.VolumePool)
+	if pool.PoolAttributes.IsRegionalHA {
+		met.SetResourceType(metadata.VolumePoolRegionalHA)
+	} else {
+		met.SetResourceType(metadata.VolumePool)
+	}
 	met.SetSizeInBytes(pool.SizeInBytes)
 	met.SetRegionName(config.RegionName)
 	if pool.Account != nil {

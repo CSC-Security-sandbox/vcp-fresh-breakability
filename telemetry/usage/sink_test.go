@@ -14,7 +14,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 // createMockDB creates a mock database for testing
@@ -54,12 +53,14 @@ func TestGoogleUsageSink_filterValidUsage(t *testing.T) {
 				VendorCustomerID: &customerID,
 				MeasuredType:     metadata.LogicalSize,
 				Quantity:         100.0,
+				IsBillable:       true,
 			},
 			{
 				ID:               2,
 				VendorCustomerID: &customerID,
 				MeasuredType:     metadata.AllocatedSize,
 				Quantity:         200.0,
+				IsBillable:       true,
 			},
 		}
 
@@ -69,23 +70,6 @@ func TestGoogleUsageSink_filterValidUsage(t *testing.T) {
 		assert.Len(t, validUsage, 2)
 		assert.Equal(t, int64(1), validUsage[0].ID)
 		assert.Equal(t, int64(2), validUsage[1].ID)
-	})
-
-	t.Run("Usage record with missing ID", func(t *testing.T) {
-		aggregatedRecords := []datamodel.AggregatedUsage{
-			{
-				ID:               0, // Missing ID
-				VendorCustomerID: &customerID,
-				MeasuredType:     metadata.LogicalSize,
-				Quantity:         100.0,
-			},
-		}
-
-		validUsage, err := sink.filterValidUsage(aggregatedRecords)
-
-		assert.Error(t, err)
-		assert.Nil(t, validUsage)
-		assert.Contains(t, err.Error(), "attempted mapping aggregated usage with unset id")
 	})
 
 	t.Run("Usage record with missing customer ID", func(t *testing.T) {
@@ -103,6 +87,7 @@ func TestGoogleUsageSink_filterValidUsage(t *testing.T) {
 				VendorCustomerID: nil, // Missing customer ID
 				MeasuredType:     metadata.LogicalSize,
 				Quantity:         100.0,
+				IsBillable:       true,
 			},
 		}
 
@@ -129,6 +114,7 @@ func TestGoogleUsageSink_filterValidUsage(t *testing.T) {
 				VendorCustomerID: &emptyCustomerID, // Empty customer ID
 				MeasuredType:     metadata.LogicalSize,
 				Quantity:         100.0,
+				IsBillable:       true,
 			},
 		}
 
@@ -338,6 +324,7 @@ func TestGoogleUsageSink_DeliverMetrics(t *testing.T) {
 				ResourceType:     metadata.Volume,
 				AggregationStart: time.Now(),
 				AggregationEnd:   time.Now().Add(time.Hour),
+				IsBillable:       true,
 			},
 		}
 
@@ -345,23 +332,6 @@ func TestGoogleUsageSink_DeliverMetrics(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, 1, mappedUsage)
-	})
-
-	t.Run("Deliver metrics with validation errors", func(t *testing.T) {
-		aggregatedRecords := []datamodel.AggregatedUsage{
-			{
-				ID:               0, // Invalid ID
-				VendorCustomerID: nillable.ToPointer("test-customer"),
-				MeasuredType:     metadata.LogicalSize,
-				Quantity:         100.0,
-			},
-		}
-
-		mappedUsage, err := sink.DeliverMetrics(ctx, aggregatedRecords)
-
-		assert.Error(t, err)
-		assert.Equal(t, 0, mappedUsage)
-		assert.Contains(t, err.Error(), "attempted mapping aggregated usage with unset id")
 	})
 }
 
@@ -379,16 +349,31 @@ func TestGoogleUsageSink_DeliverMetrics_WithDroppedRecords(t *testing.T) {
 			ID:               1,
 			VendorCustomerID: &customerID,
 			Quantity:         100.0,
+			IsBillable:       true,
+			MeasuredType:     metadata.LogicalSize,
+			ResourceType:     metadata.Volume,
+			AggregationStart: time.Now(),
+			AggregationEnd:   time.Now().Add(time.Hour),
 		},
 		{
 			ID:               2,
 			VendorCustomerID: nil, // This will be dropped as invalid
 			Quantity:         200.0,
+			IsBillable:       true,
+			MeasuredType:     metadata.LogicalSize,
+			ResourceType:     metadata.Volume,
+			AggregationStart: time.Now(),
+			AggregationEnd:   time.Now().Add(time.Hour),
 		},
 		{
 			ID:               3,
 			VendorCustomerID: &customerID,
 			Quantity:         300.0,
+			IsBillable:       true,
+			MeasuredType:     metadata.LogicalSize,
+			ResourceType:     metadata.Volume,
+			AggregationStart: time.Now(),
+			AggregationEnd:   time.Now().Add(time.Hour),
 		},
 	}
 

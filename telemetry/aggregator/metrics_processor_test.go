@@ -290,8 +290,7 @@ func TestProcessMetricsWithJobDef_UnsupportedAggregation(t *testing.T) {
 
 	// Test with unsupported aggregation type
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	var aggregatedUsageForDB []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, jobDef, now.Add(-1*time.Hour), now, &aggregatedRecords, &aggregatedUsageForDB)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, jobDef, now.Add(-1*time.Hour), now, &aggregatedRecords)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported job type")
 
@@ -415,12 +414,11 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 	t.Run("EmptyMetrics", func(t *testing.T) {
 		// Test with no metrics
 		var aggregatedRecords []datamodel2.AggregatedUsage
-		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, []datamodel2.HydratedMetrics{},
-			common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+			common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, &aggregatedRecords)
 		assert.NoError(t, err)
 		// No DB call should be made, but record should be collected for batch
-		assert.Len(t, aggregatedUsageForDB, 0) // No metrics means no aggregated records
+		assert.Len(t, aggregatedRecords, 0) // No metrics means no aggregated records
 		mockDB.AssertNotCalled(t, "CreateAggregatedUsage")
 	})
 
@@ -428,67 +426,62 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 		// With batch saving, individual CreateAggregatedUsage calls are no longer made
 		// Test with Integral aggregation
 		var aggregatedRecords []datamodel2.AggregatedUsage
-		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+			common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, &aggregatedRecords)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
-		assert.Len(t, aggregatedUsageForDB, 1)
-		assert.Equal(t, string(common.IntegralAggregation), aggregatedUsageForDB[0].AggregationType)
-		assert.Equal(t, customerID, *aggregatedUsageForDB[0].VendorCustomerID)
-		assert.Equal(t, resourceName, *aggregatedUsageForDB[0].ResourceName)
+		assert.Len(t, aggregatedRecords, 1)
+		assert.Equal(t, string(common.IntegralAggregation), aggregatedRecords[0].AggregationType)
+		assert.Equal(t, customerID, *aggregatedRecords[0].VendorCustomerID)
+		assert.Equal(t, resourceName, *aggregatedRecords[0].ResourceName)
 	})
 
 	t.Run("CounterAggregation", func(t *testing.T) {
 		// With batch saving, test the collected record instead
 		var aggregatedRecords []datamodel2.AggregatedUsage
-		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+			common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, &aggregatedRecords)
 		assert.NoError(t, err)
 		// Verify that the record was collected and has LastCounterValue set
-		assert.Len(t, aggregatedUsageForDB, 1)
-		assert.Equal(t, string(common.CounterAggregation), aggregatedUsageForDB[0].AggregationType)
-		assert.NotNil(t, aggregatedUsageForDB[0].LastCounterValue)
-		assert.Equal(t, 200.0, *aggregatedUsageForDB[0].LastCounterValue)
+		assert.Len(t, aggregatedRecords, 1)
+		assert.Equal(t, string(common.CounterAggregation), aggregatedRecords[0].AggregationType)
+		assert.NotNil(t, aggregatedRecords[0].LastCounterValue)
+		assert.Equal(t, 200.0, *aggregatedRecords[0].LastCounterValue)
 	})
 
 	t.Run("SumAggregation", func(t *testing.T) {
 		// With batch saving, test the collected record instead
 		var aggregatedRecords []datamodel2.AggregatedUsage
-		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+			common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
-		assert.Len(t, aggregatedUsageForDB, 1)
-		assert.Equal(t, string(common.SumAggregation), aggregatedUsageForDB[0].AggregationType)
-		assert.Equal(t, resourceName, *aggregatedUsageForDB[0].ResourceName)
+		assert.Len(t, aggregatedRecords, 1)
+		assert.Equal(t, string(common.SumAggregation), aggregatedRecords[0].AggregationType)
+		assert.Equal(t, resourceName, *aggregatedRecords[0].ResourceName)
 	})
 
 	t.Run("FirstAggregation", func(t *testing.T) {
 		// With batch saving, test the collected record instead
 		var aggregatedRecords []datamodel2.AggregatedUsage
-		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+			common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, &aggregatedRecords)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
-		assert.Len(t, aggregatedUsageForDB, 1)
-		assert.Equal(t, string(common.FirstAggregation), aggregatedUsageForDB[0].AggregationType)
-		assert.Equal(t, resourceName, *aggregatedUsageForDB[0].ResourceName)
+		assert.Len(t, aggregatedRecords, 1)
+		assert.Equal(t, string(common.FirstAggregation), aggregatedRecords[0].AggregationType)
+		assert.Equal(t, resourceName, *aggregatedRecords[0].ResourceName)
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
 		// With batch saving, the function just collects records
 		// Database errors will occur during batch save, not here
 		var aggregatedRecords []datamodel2.AggregatedUsage
-		var aggregatedUsageForDB []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-			common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+			common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords)
 		assert.NoError(t, err) // No error in collection phase
 		// Verify that the record was collected for batch saving
-		assert.Len(t, aggregatedUsageForDB, 1)
+		assert.Len(t, aggregatedRecords, 1)
 	})
 }
 
@@ -548,6 +541,11 @@ func TestProcessMetricsSuccess(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Once()
 
+	// Setup DeliverMetrics expectation for the usage sink
+	mockSink.On("DeliverMetrics", mock.Anything, mock.MatchedBy(func(metrics []datamodel2.AggregatedUsage) bool {
+		return len(metrics) == 1 && !metrics[0].IsBillable
+	})).Return(1, nil).Once()
+
 	// Call ProcessMetrics
 	err := processor.ProcessBillingMetrics(ctx, now)
 	assert.NoError(t, err)
@@ -555,6 +553,7 @@ func TestProcessMetricsSuccess(t *testing.T) {
 	// Verify expectations
 	mockDB.AssertExpectations(t)
 	vcpDB.AssertExpectations(t)
+	mockSink.AssertExpectations(t)
 }
 
 // TestProcessMetricsWithJobDefErrors tests error scenarios in processMetricsWithJobDef
@@ -998,14 +997,13 @@ func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 
 	// With batch saving, we collect records first, then check billability
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	var aggregatedUsageForDB []datamodel2.AggregatedUsage
 	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics,
-		common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+		common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, &aggregatedRecords)
 
 	assert.NoError(t, err)
 	// With batch approach, records are collected regardless of billability
 	// Billability is determined during the creation phase
-	assert.Len(t, aggregatedUsageForDB, 1)
+	assert.Len(t, aggregatedRecords, 1)
 }
 
 // TestNewBillingProvider tests the NewBillingProvider constructor
@@ -1696,10 +1694,9 @@ func TestProcessMetricsWithJobDef_MissingResourceData(t *testing.T) {
 
 	// Don't add to resourceCollection to trigger missing resource check
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	var aggregatedUsageForDB []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, poolResourceID, poolMetrics, jobDef, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+	err := processor.processMetricsWithJobDef(ctx, poolResourceID, poolMetrics, jobDef, startTime, now, &aggregatedRecords)
 	assert.NoError(t, err)
-	assert.Len(t, aggregatedUsageForDB, 1)
+	assert.Len(t, aggregatedRecords, 1)
 	// Should create record with empty labels when pool data is missing
 
 	// Test missing volume resource data (lines 307-308)
@@ -1725,12 +1722,12 @@ func TestProcessMetricsWithJobDef_MissingResourceData(t *testing.T) {
 
 	// Reset slices
 	aggregatedRecords = []datamodel2.AggregatedUsage{}
-	aggregatedUsageForDB = []datamodel2.AggregatedUsage{}
+	aggregatedRecords = []datamodel2.AggregatedUsage{}
 
 	// Don't add to resourceCollection to trigger missing resource check
-	err = processor.processMetricsWithJobDef(ctx, volumeResourceID, volumeMetrics, jobDef, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+	err = processor.processMetricsWithJobDef(ctx, volumeResourceID, volumeMetrics, jobDef, startTime, now, &aggregatedRecords)
 	assert.NoError(t, err)
-	assert.Len(t, aggregatedUsageForDB, 1)
+	assert.Len(t, aggregatedRecords, 1)
 	// Should create record with empty labels when volume data is missing
 
 	// Test unknown resource type (line 316)
@@ -1756,14 +1753,14 @@ func TestProcessMetricsWithJobDef_MissingResourceData(t *testing.T) {
 
 	// Reset slices
 	aggregatedRecords = []datamodel2.AggregatedUsage{}
-	aggregatedUsageForDB = []datamodel2.AggregatedUsage{}
+	aggregatedRecords = []datamodel2.AggregatedUsage{}
 
 	// This should hit the default case in getResourceDataForAggregationUsage (line 316)
-	err = processor.processMetricsWithJobDef(ctx, unknownResourceID, unknownMetrics, jobDef, startTime, now, &aggregatedRecords, &aggregatedUsageForDB)
+	err = processor.processMetricsWithJobDef(ctx, unknownResourceID, unknownMetrics, jobDef, startTime, now, &aggregatedRecords)
 	assert.NoError(t, err)
-	assert.Len(t, aggregatedUsageForDB, 1)
+	assert.Len(t, aggregatedRecords, 1)
 	// Should create record with empty labels for unknown resource type
-	assert.Equal(t, "unknown-resource", *aggregatedUsageForDB[0].ResourceName)
+	assert.Equal(t, "unknown-resource", *aggregatedRecords[0].ResourceName)
 }
 
 // TestProcessBillingMetrics_FetchDataNilSafety tests the nil safety checks in fetchPoolData and fetchVolumeData

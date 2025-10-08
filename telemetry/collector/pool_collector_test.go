@@ -16,6 +16,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
+// Helper function to safely dereference float64 pointer
+func derefFloat64(ptr *float64) float64 {
+	if ptr == nil {
+		return 0
+	}
+	return *ptr
+}
+
 type mockStorage struct {
 	mock.Mock
 	database.Storage
@@ -705,4 +713,348 @@ func Test_GetPoolMetrics_NilPoolAttributes(t *testing.T) {
 	assert.Len(t, result.PoolMetadataMap, 0)
 
 	m.AssertExpectations(t)
+}
+
+// Test_GetPoolMetrics_RegionalHAPool tests the resource type mapping for regional HA pools
+func Test_GetPoolMetrics_RegionalHAPool(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-central1"}
+
+	pools := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid-regional-ha",
+				},
+				Name:           "RegionalHAPool",
+				SizeInBytes:    2000000,
+				UsedBytes:      1000000,
+				DeploymentName: "regional-deployment-1",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						UUID: "account-uuid-regional",
+					},
+					Name: "RegionalAccount",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 250,
+					IsRegionalHA:    true, // This should map to VolumePoolRegionalHA
+				},
+			},
+			Throughput:   250.0,
+			QuotaInBytes: 1500000,
+		},
+	}
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Verify metrics were created
+	assert.Len(t, result.HydratedMetrics, 2)
+	assert.Len(t, result.HydratedMetricsDataModel, 2)
+	assert.Len(t, result.PoolMetadataMap, 1)
+
+	// Check that the resource type is correctly set to VolumePoolRegionalHA
+	poolMetadata := result.PoolMetadataMap[1]
+	assert.Equal(t, metadata.VolumePoolRegionalHA, poolMetadata.ResourceType)
+
+	// Verify throughput is properly set
+	assert.Equal(t, float64(250), *poolMetadata.Throughput)
+
+	// Check hydrated metrics have correct resource type
+	assert.Equal(t, metadata.VolumePoolRegionalHA, result.HydratedMetricsDataModel[0].ResourceType)
+	assert.Equal(t, metadata.VolumePoolRegionalHA, result.HydratedMetricsDataModel[1].ResourceType)
+
+	// Verify specific metric values
+	assert.Equal(t, metadata.PoolAllocatedSize, result.HydratedMetrics[0].MeasuredType)
+	assert.Equal(t, float64(2000000), result.HydratedMetrics[0].Quantity)
+	assert.Equal(t, metadata.AllocatedUsed, result.HydratedMetrics[1].MeasuredType)
+	assert.Equal(t, float64(1500000), result.HydratedMetrics[1].Quantity)
+
+	m.AssertExpectations(t)
+}
+
+// Test_GetPoolMetrics_ZonalPool tests the resource type mapping for regular (zonal) pools
+func Test_GetPoolMetrics_ZonalPool(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-west1"}
+
+	pools := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   2,
+					UUID: "pool-uuid-zonal",
+				},
+				Name:           "ZonalPool",
+				SizeInBytes:    1500000,
+				UsedBytes:      750000,
+				DeploymentName: "zonal-deployment-1",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						UUID: "account-uuid-zonal",
+					},
+					Name: "ZonalAccount",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 150,
+					IsRegionalHA:    false, // This should map to VolumePool
+				},
+			},
+			Throughput:   150.0,
+			QuotaInBytes: 900000,
+		},
+	}
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Verify metrics were created
+	assert.Len(t, result.HydratedMetrics, 2)
+	assert.Len(t, result.HydratedMetricsDataModel, 2)
+	assert.Len(t, result.PoolMetadataMap, 1)
+
+	// Check that the resource type is correctly set to VolumePool (regular zonal)
+	poolMetadata := result.PoolMetadataMap[2]
+	assert.Equal(t, metadata.VolumePool, poolMetadata.ResourceType)
+
+	// Verify throughput is properly set
+	assert.Equal(t, float64(150), *poolMetadata.Throughput)
+
+	// Check hydrated metrics have correct resource type
+	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[0].ResourceType)
+	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[1].ResourceType)
+
+	m.AssertExpectations(t)
+}
+
+// Test_GetPoolMetrics_MixedPoolTypes tests both regional HA and zonal pools in the same call
+func Test_GetPoolMetrics_MixedPoolTypes(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "europe-west1"}
+
+	pools := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid-regional-mixed",
+				},
+				Name:           "RegionalPool",
+				SizeInBytes:    3000000,
+				UsedBytes:      1500000,
+				DeploymentName: "mixed-deployment-1",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						UUID: "account-uuid-mixed-1",
+					},
+					Name: "MixedAccount1",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 300,
+					IsRegionalHA:    true,
+				},
+			},
+			Throughput:   300.0,
+			QuotaInBytes: 2000000,
+		},
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   2,
+					UUID: "pool-uuid-zonal-mixed",
+				},
+				Name:           "ZonalPool",
+				SizeInBytes:    2000000,
+				UsedBytes:      1000000,
+				DeploymentName: "mixed-deployment-2",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						UUID: "account-uuid-mixed-2",
+					},
+					Name: "MixedAccount2",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 200,
+					IsRegionalHA:    false,
+				},
+			},
+			Throughput:   200.0,
+			QuotaInBytes: 1200000,
+		},
+	}
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Verify metrics were created for both pools
+	assert.Len(t, result.HydratedMetrics, 4)          // 2 metrics per pool
+	assert.Len(t, result.HydratedMetricsDataModel, 4) // 2 hydrated metrics per pool
+	assert.Len(t, result.PoolMetadataMap, 2)          // 2 pools
+
+	// Check first pool (Regional HA)
+	regionalPoolMetadata := result.PoolMetadataMap[1]
+	assert.Equal(t, metadata.VolumePoolRegionalHA, regionalPoolMetadata.ResourceType)
+	assert.Equal(t, float64(300), *regionalPoolMetadata.Throughput)
+
+	// Check second pool (Zonal)
+	zonalPoolMetadata := result.PoolMetadataMap[2]
+	assert.Equal(t, metadata.VolumePool, zonalPoolMetadata.ResourceType)
+	assert.Equal(t, float64(200), *zonalPoolMetadata.Throughput)
+
+	// Verify the hydrated metrics have correct resource types
+	// First two metrics should be for Regional HA pool
+	assert.Equal(t, metadata.VolumePoolRegionalHA, result.HydratedMetricsDataModel[0].ResourceType)
+	assert.Equal(t, metadata.VolumePoolRegionalHA, result.HydratedMetricsDataModel[1].ResourceType)
+
+	// Last two metrics should be for Zonal pool
+	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[2].ResourceType)
+	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[3].ResourceType)
+
+	m.AssertExpectations(t)
+}
+
+// Test_AssemblePoolMetadata_RegionalHA tests assemblePoolMetadata function for regional HA pools
+func Test_AssemblePoolMetadata_RegionalHA(t *testing.T) {
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   123,
+				UUID: "test-pool-uuid-regional",
+			},
+			Name:           "TestRegionalPool",
+			SizeInBytes:    5000000,
+			DeploymentName: "test-deployment-regional",
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-account-uuid-regional",
+				},
+				Name: "TestRegionalAccount",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 400,
+				IsRegionalHA:    true,
+			},
+		},
+		Throughput: 400.0,
+	}
+
+	config := &common.TelemetryConfig{
+		RegionName: "asia-southeast1",
+	}
+
+	resourceMetadata := assemblePoolMetadata(pool, config)
+
+	// Verify all fields are properly set
+	assert.Equal(t, "test-pool-uuid-regional", derefString(resourceMetadata.ResourceUUID))
+	assert.Equal(t, metadata.VolumePoolRegionalHA, resourceMetadata.ResourceType) // Should be Regional HA
+	assert.Equal(t, int64(5000000), derefInt64(resourceMetadata.SizeInBytes))
+	assert.Equal(t, "asia-southeast1", derefString(resourceMetadata.RegionName))
+	assert.Equal(t, "TestRegionalPool", derefString(resourceMetadata.ResourceName))
+	assert.Equal(t, "TestRegionalPool", derefString(resourceMetadata.ResourceDisplayName))
+	assert.Equal(t, "TestRegionalAccount", derefString(resourceMetadata.AccountName))
+	assert.Equal(t, "test-deployment-regional", derefString(resourceMetadata.DeploymentName))
+	assert.Equal(t, float64(400), derefFloat64(resourceMetadata.Throughput))
+	assert.Equal(t, int64(123), derefInt64(resourceMetadata.ResourceID))
+}
+
+// Test_AssemblePoolMetadata_Zonal tests assemblePoolMetadata function for zonal pools
+func Test_AssemblePoolMetadata_Zonal(t *testing.T) {
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   456,
+				UUID: "test-pool-uuid-zonal",
+			},
+			Name:           "TestZonalPool",
+			SizeInBytes:    3000000,
+			DeploymentName: "test-deployment-zonal",
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-account-uuid-zonal",
+				},
+				Name: "TestZonalAccount",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				IsRegionalHA:    false,
+			},
+		},
+		Throughput: 100.0,
+	}
+
+	config := &common.TelemetryConfig{
+		RegionName: "us-east1",
+	}
+
+	resourceMetadata := assemblePoolMetadata(pool, config)
+
+	// Verify all fields are properly set
+	assert.Equal(t, "test-pool-uuid-zonal", derefString(resourceMetadata.ResourceUUID))
+	assert.Equal(t, metadata.VolumePool, resourceMetadata.ResourceType) // Should be regular VolumePool
+	assert.Equal(t, int64(3000000), derefInt64(resourceMetadata.SizeInBytes))
+	assert.Equal(t, "us-east1", derefString(resourceMetadata.RegionName))
+	assert.Equal(t, "TestZonalPool", derefString(resourceMetadata.ResourceName))
+	assert.Equal(t, "TestZonalPool", derefString(resourceMetadata.ResourceDisplayName))
+	assert.Equal(t, "TestZonalAccount", derefString(resourceMetadata.AccountName))
+	assert.Equal(t, "test-deployment-zonal", derefString(resourceMetadata.DeploymentName))
+	assert.Equal(t, float64(100), derefFloat64(resourceMetadata.Throughput))
+	assert.Equal(t, int64(456), derefInt64(resourceMetadata.ResourceID))
+}
+
+// Test_AssemblePoolMetadata_ThroughputEdgeCases tests throughput handling edge cases
+func Test_AssemblePoolMetadata_ThroughputEdgeCases(t *testing.T) {
+	testCases := []struct {
+		name            string
+		throughputMibps int64
+		expectedValue   float64
+	}{
+		{"Zero Throughput", 0, 0.0},
+		{"Small Throughput", 10, 10.0},
+		{"Large Throughput", 10000, 10000.0},
+		{"Negative Throughput", -50, -50.0}, // Edge case that might occur
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pool := &datamodel.PoolView{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "test-pool-uuid",
+					},
+					Name:           "TestPool",
+					SizeInBytes:    1000000,
+					DeploymentName: "test-deployment",
+					Account: &datamodel.Account{
+						Name: "TestAccount",
+					},
+					PoolAttributes: &datamodel.PoolAttributes{
+						ThroughputMibps: tc.throughputMibps,
+						IsRegionalHA:    false,
+					},
+				},
+			}
+
+			config := &common.TelemetryConfig{RegionName: "us-west1"}
+
+			resourceMetadata := assemblePoolMetadata(pool, config)
+
+			assert.Equal(t, tc.expectedValue, derefFloat64(resourceMetadata.Throughput),
+				"Throughput should be correctly converted from int64 to float64")
+		})
+	}
 }

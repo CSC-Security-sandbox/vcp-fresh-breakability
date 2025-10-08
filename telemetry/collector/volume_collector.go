@@ -68,8 +68,19 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			continue
 		}
 
+		// Handle case for zonal and regional volumes for VolumeAllocatedThroughput metric
+		var resourceType metadata.ResourceType
+		if poolMeta, ok := poolMetadataMap[volume.PoolID]; ok {
+			if poolMeta.ResourceType == metadata.VolumePoolRegionalHA {
+				resourceType = metadata.VolumeRegionalHA
+			} else {
+				resourceType = metadata.Volume
+			}
+		}
+
 		if volume.Throughput != 0 {
 			volumeAllocatedThroughputMetric = setupHydratedMetric(timestamp, volumeMetadata, metadata.VolumeAllocatedThroughput, float64(volume.Throughput))
+			volumeAllocatedThroughputMetric.Metadata.ResourceType = resourceType
 			volumeAllocatedThroughputMetrics = append(volumeAllocatedThroughputMetrics, volumeAllocatedThroughputMetric)
 		} else {
 			var poolThroughput *float64
@@ -81,6 +92,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 				}
 
 				volumeAllocatedThroughputMetric = setupHydratedMetric(timestamp, volumeMetadata, metadata.VolumeAllocatedThroughput, *poolThroughput)
+				volumeAllocatedThroughputMetric.Metadata.ResourceType = resourceType
 				volumeAllocatedThroughputMetrics = append(volumeAllocatedThroughputMetrics, volumeAllocatedThroughputMetric)
 			} else {
 				logger.Warnf("Pool metadata missing for PoolID %d (volume %s)", volume.PoolID, volume.UUID)

@@ -29,7 +29,15 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 		AggregationType: IntegralAggregation,
 		IsBillable:      false,
 	},
+	{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.AllocatedSize}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      false,
+	},
 	{ResourceType: metadata.Volume, MeasuredType: metadata.LogicalSize}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      false,
+	},
+	{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.LogicalSize}: {
 		AggregationType: IntegralAggregation,
 		IsBillable:      false,
 	},
@@ -42,7 +50,15 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 		AggregationType: IntegralAggregation,
 		IsBillable:      false,
 	},
+	{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolAllocatedSize}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      false,
+	},
 	{ResourceType: metadata.VolumePool, MeasuredType: metadata.AllocatedUsed}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      false,
+	},
+	{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.AllocatedUsed}: {
 		AggregationType: IntegralAggregation,
 		IsBillable:      false,
 	},

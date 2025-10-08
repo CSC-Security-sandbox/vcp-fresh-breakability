@@ -12,7 +12,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -79,8 +78,14 @@ func (s *GoogleUsageSink) filterValidUsage(aggregatedRecords []datamodel.Aggrega
 	validUsage := make([]datamodel.AggregatedUsage, 0, len(aggregatedRecords))
 	for _, usage := range aggregatedRecords {
 		u := usage
+		if !u.IsBillable {
+			s.logger.Debugf("Skipping usage: Not mapping usage record as it is non-billable usage.",
+				"Record ID", u.ID)
+			continue
+		}
 		if u.ID == 0 {
-			return nil, errors.New("attempted mapping aggregated usage with unset id")
+			s.logger.Errorf("Skipping usage: Not mapping usage record due to unset id.", "Record ID", u.ID)
+			continue
 		}
 		if s.isValid(u) {
 			validUsage = append(validUsage, u)

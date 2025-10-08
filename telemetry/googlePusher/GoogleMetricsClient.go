@@ -573,9 +573,9 @@ func (client *GoogleMetricsClient) GetMetricName(metric common.GoogleMetric) (st
 
 		var metricsName string
 		switch resourceType {
-		case metadata.VolumePool:
+		case metadata.VolumePool, metadata.VolumePoolRegionalHA:
 			metricsName = metadata.MetricsNamePrefixPoolFirstParty + nameAndKeyLabel.Left
-		case metadata.Volume:
+		case metadata.Volume, metadata.VolumeRegionalHA:
 			metricsName = metadata.MetricsNamePrefixVolumeFirstParty + nameAndKeyLabel.Left
 		default:
 			return "", fmt.Errorf("unrecognized resource type: %s", resourceType)
