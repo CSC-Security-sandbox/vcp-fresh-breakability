@@ -1,9 +1,37 @@
-global:
-  environment: gcp
-
 enabled: true
+serviceAccountName: ontap-proxy
 replicaCount: 1
 
+# Global configuration (required for image registry helpers)
+global:
+  primaryImageRegistry: ghcr.io
+  primaryImageRegistryPath: vcp-vsa-control-plane
+  secondaryImageRegistry: "europe-north1-docker.pkg.dev/gcnv-artifact-registry-nonprod"
+  secondaryImageRegistryPath: "vcp-container-images-us"
+  useTags: false
+  chartPrimaryImageRegistry: ""
+  chartSecondaryImageRegistry: ""
+  environment: gcp
+  hyperscaler: gcp
+
+# Logging configuration
+loggerLevel: "info"
+
+# Resource configuration
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 150Mi
+
+# Service configuration
+service:
+  type: ClusterIP
+  appPort: 8080
+
+# Images configuration
 images:
   ontapProxy:
     name: ontap-proxy
@@ -12,9 +40,8 @@ images:
     secondary: false
     pullPolicy: IfNotPresent
 
-service:
-  type: ClusterIP
-  appPort: 8080
+# Secret Manager configuration
+secretManagerEnabled: false
 
 coreApi:
   host: ""
@@ -28,11 +55,11 @@ cache:
 podAffinity:
   enabled: true
 
-# Environment configuration
 config:
   env: "production"
   port: "8080"
 
+# GCP Authentication Configuration
 gcp:
   projectId: ""
   region: ""
@@ -47,13 +74,8 @@ gcp:
   jwkUrl: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"
   jwkTimeoutSeconds: 10
   certCache:
-    expirationMinutes: 120
-    sleepRetryIntervalSeconds: 5
+      expirationMinutes: 120
+      sleepRetryIntervalSeconds: 5
 
-resources:
-  limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 250m
-    memory: 256Mi
+serviceAccountAnnotations:
+  "iam.gke.io/gcp-service-account": vcp-ci@gcnv-artifact-registry-nonprod.iam.gserviceaccount.com

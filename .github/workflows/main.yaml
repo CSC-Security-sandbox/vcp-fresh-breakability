@@ -47,7 +47,7 @@ jobs:
   common:
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v29
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
     steps:
       - name: Checkout codes
@@ -80,7 +80,7 @@ jobs:
   unit_tests:
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
       options: --user root
 
     steps:
@@ -110,7 +110,7 @@ jobs:
     needs: unit_tests
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
       options: --user root
 
     steps:
@@ -137,7 +137,7 @@ jobs:
     needs: unit_tests
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
       options: --user root
 
     steps:
@@ -216,7 +216,7 @@ jobs:
     name: Verify build
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
       options: --user root
     permissions:
       contents: read

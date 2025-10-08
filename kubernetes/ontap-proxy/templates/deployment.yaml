@@ -22,19 +22,13 @@ spec:
       {{- if and .Values.podAffinity.enabled (eq .Values.global.environment "gcp") }}
       topologySpreadConstraints:
         - maxSkew: 1
-          minDomains: 3
           topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
               {{- include "ontap-proxy.podSelectorLabels" . | nindent 14 }}
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: DoNotSchedule
-          labelSelector:
-            matchLabels:
-              {{- include "ontap-proxy.podSelectorLabels" . | nindent 14 }}
       {{- end }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
       containers:
         - name: ontap-proxy
           {{- if .Values.images.ontapProxy.secondary }}
@@ -43,11 +37,21 @@ spec:
           image: "{{- include "containerImage" (list . (dict "name" "ontapProxy" "secondary" false)) | trim -}}"
           {{- end }}
           imagePullPolicy: {{ .Values.images.ontapProxy.pullPolicy }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
           ports:
             - containerPort: {{ .Values.service.appPort }}
-              name: http
           envFrom:
             - configMapRef:
-                name: ontap-proxy-config
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+                name: ontap-proxy-service-env-config
+            - secretRef:
+                name: ontap-proxy-service-env-secret
+          volumeMounts:
+            - name: env-config-volume
+              mountPath: /etc/config
+              readOnly: true

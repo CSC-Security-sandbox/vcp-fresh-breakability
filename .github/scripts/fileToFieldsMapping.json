@@ -20,6 +20,14 @@
     "yamlPath": ["version", "appVersion"]
   },
   {
+    "filePath": "kubernetes/ontap-proxy/Chart.yaml",
+    "yamlPath": ["version", "appVersion"]
+  },
+  {
+    "filePath": "kubernetes/ontap-proxy/values.yaml",
+    "yamlPath": ["images.ontapProxy.tag", "images.ontapProxy.digest"]
+  },
+  {
     "filePath": "kubernetes/vcp-worker-chart/values.yaml",
     "yamlPath": ["images.vcpWorker.tag", "images.vcpWorker.digest"]
   },

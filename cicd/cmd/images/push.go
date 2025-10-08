@@ -35,7 +35,7 @@ func PushImages(registry string) error {
 	imagesConfig := GetImagesConfig()
 
 	// List of images to process
-	images := []string{"google-proxy", "core", "vcp-db-migrate", "vcp-worker", "telemetry", "vcp-cloudrun-deployer"}
+	images := []string{"google-proxy", "core", "vcp-db-migrate", "vcp-worker", "telemetry", "vcp-cloudrun-deployer","ontap-proxy"}
 	log.Printf("Images to process: %v\n", images)
 
 	// WaitGroup to manage concurrency

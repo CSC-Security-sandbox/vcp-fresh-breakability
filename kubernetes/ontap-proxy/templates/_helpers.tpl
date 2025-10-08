@@ -1,10 +1,3 @@
-{{/*
-Helper function to generate pod selector labels for ontap-proxy.
-*/}}
-{{- define "ontap-proxy.podSelectorLabels" -}}
-app: {{ .Chart.Name | quote }}
-{{- end -}}
-
 {{- define "imageRegistryFullPath" -}}
 {{- if eq .Values.global.primaryImageRegistryPath "" }}
 {{ .Values.global.chartPrimaryImageRegistry | default .Values.global.primaryImageRegistry }}
@@ -48,3 +41,28 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- $key = regexReplaceAll "^_" $key "" -}}
 {{- upper $key -}}
 {{- end -}}
+
+{{- define "ontap_proxy.generateConfigMapData" -}}
+{{- $globalConfig := .Values.global -}}
+{{- $hyperscaler := .Values.global.hyperscaler | lower -}}
+
+{{- if hasKey $globalConfig $hyperscaler }}
+{{- range $key, $value := index $globalConfig $hyperscaler }}
+{{- if or (not (hasKey $hyperscaler)) (not (hasKey (index $hyperscaler) $key)) (eq (index (index $hyperscaler) $key) "") }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- else }}
+{{ include "toCapitalUnderscore" $key }}: {{ index (index $hyperscaler) $key | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- range $key, $value := $globalConfig }}
+{{- if not (eq $key $hyperscaler) }}
+{{- if or (not (hasKey $key)) (eq (index $key) "") }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- else }}
+{{ include "toCapitalUnderscore" $key }}: {{ index $key | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

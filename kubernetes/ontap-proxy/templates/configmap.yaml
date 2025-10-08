@@ -1,10 +1,19 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ontap-proxy-config
+  name: ontap-proxy-service-env-config
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
   labels:
     app: {{ .Chart.Name }}
 data:
+  # Logging configuration
+  LOGGER_LEVEL: {{ .Values.loggerLevel | quote }}
+  
+  # Secret Manager configuration
+  SECRET_MANAGER_ENABLED: {{ .Values.secretManagerEnabled | quote }}
+
+  # Environment Configuration
   PORT: {{ .Values.config.port | quote }}
   ENV: {{ .Values.config.env | default "production" | quote }}
   CORE_API_HOST: {{ .Values.coreApi.host | quote }}
@@ -14,9 +23,13 @@ data:
   SECRET_MANAGER_PROJECT_ID: {{ .Values.gcp.secretManager.projectId | quote }}
   REGION: {{ .Values.gcp.region | quote }}
   CA_POOL_NAME: {{ .Values.gcp.caPool.name | quote }}
+
+  # GCP Authentication Configuration
   GCP_AUTH_ACCEPTED_SERVICE_ACCOUNTS: {{ .Values.gcp.auth.acceptedServiceAccounts | quote }}
   GCP_SERVICE_URL: {{ .Values.gcp.serviceUrl | quote }}
   JWK_KIDS_URL: {{ .Values.gcp.jwkUrl | default "https://www.googleapis.com/service_accounts/v1/metadata/x509/" | quote }}
+
+  # Certificate Cache Configuration
   CERT_CACHE_EXPIRATION_MINUTES: {{ .Values.gcp.certCache.expirationMinutes | default "120" | quote }}
   CERT_CACHE_SLEEP_RETRY_INTERVAL_SECONDS: {{ .Values.gcp.certCache.sleepRetryIntervalSeconds | default "5" | quote }}
   JWK_TIMEOUT_SECONDS: {{ .Values.gcp.jwkTimeoutSeconds | default "10" | quote }}

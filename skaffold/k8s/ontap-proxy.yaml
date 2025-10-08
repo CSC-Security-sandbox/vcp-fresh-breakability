@@ -48,7 +48,6 @@ spec:
               value: "443"
             - name: ENV
               value: "local"
-
           resources:
             limits:
               cpu: 500m
