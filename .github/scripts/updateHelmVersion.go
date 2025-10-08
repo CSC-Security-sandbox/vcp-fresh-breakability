@@ -24,6 +24,7 @@ var digestYAMLPathToKey = map[string]string{
 	".images.vcpWorker.digest":         "vcp_worker_digest_gcp",
 	".images.telemetryDeployer.digest": "telemetry_deployer_digest_gcp",
 	".images.telemetry.digest":         "telemetry_digest_gcp",
+	".images.ontapProxy.digest":        "ontap_proxy_digest_gcp",
 }
 
 func readDigestsFromFile(filePath string) (map[string]string, error) {
