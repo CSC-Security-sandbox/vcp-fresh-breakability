@@ -24,7 +24,14 @@ spec:
       {{- if and .Values.podAffinity.enabled (eq .Values.environment "gcp") }}
       topologySpreadConstraints:
         - maxSkew: 1
+          minDomains: 3
           topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "core.podSelectorLabels" . | nindent 16 }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
