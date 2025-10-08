@@ -1,0 +1,65 @@
+name: Security Scan
+
+on:
+  workflow_dispatch:
+
+
+permissions:
+  packages: write
+  contents: read
+  id-token: write
+  actions: read
+  security-events: write
+
+
+jobs:
+  security_scan_pre:
+    name: Obtain PR details
+    runs-on: [self-hosted,linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v30
+      options: --user root
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Generating image tag for security scanning 
+        run: |
+          echo "IMAGE_TAG=branch.${PR_NUMBER}.$(git log -1 --format=%H | cut -c  1-10)" >> $GITHUB_ENV
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+      - name: Fetching changed files
+        id: changed_files
+        run: |
+          images=(core google-proxy vcp-db-migrate vcp-worker telemetry vcp-cloudrun-deployer)
+          changed_files=($(git diff  main --name-only | awk -F "/" '{print $1}'| uniq))
+          final_changed_file=""
+          for image in ${images[*]}; do
+              for changed_file in ${changed_files[*]}; do
+                  if [[ "${image}" == "${changed_file}" ]]; then
+                    if [[ -z ${final_changed_file} ]]; then
+                      final_changed_file="${changed_file},"
+                    else
+                      final_changed_file="${final_changed_file}${changed_file},"
+                    fi 
+                  fi
+              done
+          done
+          final_changed_file=${final_changed_file%,}
+          echo "CHANGED_FILES=${final_changed_file}" >> $GITHUB_ENV
+        shell: bash -e {0}
+    outputs:
+      IMAGE_TAG: ${{ env.IMAGE_TAG }}
+      CHANGED_FILES: ${{ env.CHANGED_FILES }}
+  build_and_scan:
+    uses: ./.github/workflows/build_common.yaml
+    secrets: inherit
+    with:
+      tag: ${{ needs.security_scan_pre.outputs.IMAGE_TAG }}
+      create_release: false
+      send_slack_notification: false
+      pr_base_branch: ${{ github.event.pull_request.base.ref }}
+      images_to_build: ${{ needs.security_scan_pre.outputs.CHANGED_FILES }}
+    needs: security_scan_pre
+
