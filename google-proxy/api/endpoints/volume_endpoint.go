@@ -965,11 +965,15 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) {
 			res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
 			for _, ipAddress := range volume.IPAddresses {
-				res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
-					IpAddress:    gcpgenserver.NewOptString(ipAddress),
-					Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaNFSV3),
-					Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName),
-				})
+				for _, protocol := range volume.ProtocolTypes {
+					if utils.IsFilesProtocol(protocol) {
+						res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
+							IpAddress:    gcpgenserver.NewOptString(ipAddress),
+							Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1beta(protocol)),
+							Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName, protocol),
+						})
+					}
+				}
 			}
 		}
 	}
@@ -1106,8 +1110,11 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	return res
 }
 
-func getFilesMountInstructions(ipAddress string, junctionPath string, fileDir string) gcpgenserver.OptString {
-	instructions := fmt.Sprintf(`Mount Instructions for NFSv3
+func getFilesMountInstructions(ipAddress string, junctionPath string, fileDir string, protocol string) gcpgenserver.OptString {
+	var instructions string
+	switch protocol {
+	case string(gcpgenserver.ProtocolsV1betaNFSV3):
+		instructions = fmt.Sprintf(`Mount Instructions for NFSv3
 Setting up your instance
 1. Open an SSH client and connect to your instance.
 2. Install the nfs client on your instance.
@@ -1122,6 +1129,25 @@ $sudo mkdir %s
 $sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp %s:%s %s
 3. Repeat the above two steps for future mount targets.
 Note. Please use mount options appropriate for your specific workloads when known.`, fileDir, fileDir, ipAddress, junctionPath, fileDir)
+	case string(gcpgenserver.ProtocolsV1betaNFSV4):
+		instructions = fmt.Sprintf(`Mount Instructions for NFSv4
+Setting up your instance
+1. Open an SSH client and connect to your instance.
+2. Install the nfs client on your instance.
+On Red Hat Enterprise Linux or SuSE Linux instance:
+$sudo yum install -y nfs-utils
+On an Ubuntu or Debian instance:
+$sudo apt-get install nfs-common
+Mounting your volume for NFSv4
+1. Create a new directory on your instance, such as %s:
+$sudo mkdir %s
+2. Mount your volume using the example command below:
+$sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=4.1,tcp %s:%s %s
+3. Repeat the above two steps for future mount targets.
+Note. Please use mount options appropriate for your specific workloads when known.`, fileDir, fileDir, ipAddress, junctionPath, fileDir)
+		// Future: Add SMB and other protocols here
+		// case string(gcpgenserver.ProtocolsV1betaSMB):
+	}
 	return gcpgenserver.NewOptString(instructions)
 }
 

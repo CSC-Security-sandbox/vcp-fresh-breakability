@@ -1112,3 +1112,8 @@ func _getSourceSnapshotPathFromBackup(backup *datamodel.Backup) string {
 		backup.Attributes.VolumeName,
 		RenameSnapshotName(backup.Attributes.SnapshotName))
 }
+
+// IsFilesProtocol checks if the protocol is NFSv3 or NFSv4 or SMB
+func IsFilesProtocol(protocolName string) bool {
+	return protocolName == string(gcpgenserver.ProtocolsV1betaNFSV3) || protocolName == string(gcpgenserver.ProtocolsV1betaNFSV4) || protocolName == string(gcpgenserver.ProtocolsV1betaSMB)
+}

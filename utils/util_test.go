@@ -2972,6 +2972,47 @@ func TestGetSourceSnapshotPathFromBackup(t *testing.T) {
 	}
 }
 
+func TestIsFilesProtocol(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "NFSv3 protocol",
+			input:    string(gcpgenserver.ProtocolsV1betaNFSV3),
+			expected: true,
+		},
+		{
+			name:     "NFSv4 protocol",
+			input:    string(gcpgenserver.ProtocolsV1betaNFSV4),
+			expected: true,
+		},
+		{
+			name:     "SMB protocol",
+			input:    string(gcpgenserver.ProtocolsV1betaSMB),
+			expected: true,
+		},
+		{
+			name:     "Unknown protocol",
+			input:    "iscsi",
+			expected: false,
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsFilesProtocol(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 // Helper function to create string pointers for testing
 func stringPtr(s string) *string {
 	return &s

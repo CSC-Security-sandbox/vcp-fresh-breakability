@@ -2516,7 +2516,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.True(tt, result.Network.IsSet(), "Network should be set for non-empty string")
 		assert.Equal(tt, "network-123", result.Network.Value)
 	})
-	
+
 	t.Run("ConvertVolumeV1betaCVPToModelWithCacheParams", func(tt *testing.T) {
 		// Test that non-empty PeerIPAddresses slice is properly set in the result
 		cacheParams := &cvpmodels.FlexCacheV1beta{
@@ -4519,8 +4519,8 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Len(t, out.MountPoints, 2)
 		assert.Equal(t, "10.72.177.17", out.MountPoints[0].IpAddress.Value)
 		assert.Equal(t, "10.72.177.18", out.MountPoints[1].IpAddress.Value)
-		assert.Equal(t, getFilesMountInstructions("10.72.177.17", vol.FileProperties.JunctionPath, "/"+vol.DisplayName), out.MountPoints[0].Instructions)
-		assert.Equal(t, getFilesMountInstructions("10.72.177.18", vol.FileProperties.JunctionPath, "/"+vol.DisplayName), out.MountPoints[1].Instructions)
+		assert.Equal(t, getFilesMountInstructions("10.72.177.17", vol.FileProperties.JunctionPath, "/"+vol.DisplayName, "NFSV3"), out.MountPoints[0].Instructions)
+		assert.Equal(t, getFilesMountInstructions("10.72.177.18", vol.FileProperties.JunctionPath, "/"+vol.DisplayName, "NFSV3"), out.MountPoints[1].Instructions)
 	})
 
 	t.Run("WithLargeCapacityTrue_NoConstituentCount", func(t *testing.T) {
@@ -6992,5 +6992,352 @@ func TestPrepareUpdateVolumeParams_SnapshotDirectory(t *testing.T) {
 		result, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.NoError(tt, err)
 		assert.Nil(tt, result.SnapshotDirectoryAccess)
+	})
+}
+
+// TestGetFilesMountInstructions tests the getFilesMountInstructions function with different protocols
+func TestGetFilesMountInstructions(t *testing.T) {
+	t.Run("NFSv3_Protocol_ShouldReturnNFSv3Instructions", func(tt *testing.T) {
+		ipAddress := "192.168.1.100"
+		junctionPath := "/testvolume"
+		fileDir := "/testvolume"
+		protocol := "NFSV3"
+
+		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol)
+
+		assert.True(tt, result.IsSet())
+		instructions := result.Value
+		assert.Contains(tt, instructions, "Mount Instructions for NFSv3")
+		assert.Contains(tt, instructions, "vers=3")
+		assert.Contains(tt, instructions, ipAddress)
+		assert.Contains(tt, instructions, junctionPath)
+		assert.Contains(tt, instructions, fileDir)
+		assert.Contains(tt, instructions, "sudo mkdir "+fileDir)
+		assert.Contains(tt, instructions, fmt.Sprintf("sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp %s:%s %s", ipAddress, junctionPath, fileDir))
+	})
+
+	t.Run("NFSv4_Protocol_ShouldReturnNFSv4Instructions", func(tt *testing.T) {
+		ipAddress := "10.0.0.50"
+		junctionPath := "/vol1"
+		fileDir := "/myvolume"
+		protocol := "NFSV4"
+
+		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol)
+
+		assert.True(tt, result.IsSet())
+		instructions := result.Value
+		assert.Contains(tt, instructions, "Mount Instructions for NFSv4")
+		assert.Contains(tt, instructions, "vers=4.1")
+		assert.Contains(tt, instructions, ipAddress)
+		assert.Contains(tt, instructions, junctionPath)
+		assert.Contains(tt, instructions, fileDir)
+		assert.Contains(tt, instructions, "sudo mkdir "+fileDir)
+		assert.Contains(tt, instructions, fmt.Sprintf("sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=4.1,tcp %s:%s %s", ipAddress, junctionPath, fileDir))
+	})
+
+	t.Run("UnknownProtocol_ShouldReturnEmptyInstructions", func(tt *testing.T) {
+		ipAddress := "192.168.1.100"
+		junctionPath := "/testvolume"
+		fileDir := "/testvolume"
+		protocol := "SMB" // Unsupported protocol
+
+		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol)
+
+		assert.True(tt, result.IsSet())
+		instructions := result.Value
+		assert.Empty(tt, instructions) // Should be empty for unsupported protocol
+	})
+
+	t.Run("EmptyParameters_ShouldHandleGracefully", func(tt *testing.T) {
+		result := getFilesMountInstructions("", "", "", "NFSV3")
+
+		assert.True(tt, result.IsSet())
+		instructions := result.Value
+		assert.Contains(tt, instructions, "Mount Instructions for NFSv3")
+		// Should still contain the basic structure even with empty parameters
+	})
+}
+
+// TestConvertModelToVCPVolume_NFSMountPoints tests the NFS mount points functionality
+func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
+	t.Run("NFSv3_SingleProtocol_ShouldCreateMountPoints", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "testvolume",
+			CreationToken:  "test-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddresses:    []string{"192.168.1.100"},
+			ProtocolTypes:  []string{"NFSV3"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/testvolume",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							NFSv4:          false,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.NotNil(tt, result.MountPoints)
+		assert.Len(tt, result.MountPoints, 1)
+		assert.Equal(tt, "192.168.1.100", result.MountPoints[0].IpAddress.Value)
+		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV3, result.MountPoints[0].Protocol.Value)
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv3")
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=3")
+	})
+
+	t.Run("NFSv4_SingleProtocol_ShouldCreateMountPoints", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "testvolume",
+			CreationToken:  "test-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddresses:    []string{"10.0.0.50"},
+			ProtocolTypes:  []string{"NFSV4"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/vol1",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "READ_ONLY",
+							NFSv3:          false,
+							NFSv4:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.NotNil(tt, result.MountPoints)
+		assert.Len(tt, result.MountPoints, 1)
+		assert.Equal(tt, "10.0.0.50", result.MountPoints[0].IpAddress.Value)
+		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV4, result.MountPoints[0].Protocol.Value)
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv4")
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=4.1")
+	})
+
+	t.Run("MultipleProtocols_NFSv3AndNFSv4_ShouldCreateMultipleMountPoints", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "dualprotocol",
+			CreationToken:  "dual-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddresses:    []string{"192.168.1.100"},
+			ProtocolTypes:  []string{"NFSV3", "NFSV4"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/dualprotocol",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "dual-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							NFSv4:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.NotNil(tt, result.MountPoints)
+		assert.Len(tt, result.MountPoints, 2) // Should have 2 mount points for each protocol
+
+		// Verify first mount point (NFSv3)
+		assert.Equal(tt, "192.168.1.100", result.MountPoints[0].IpAddress.Value)
+		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV3, result.MountPoints[0].Protocol.Value)
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv3")
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=3")
+
+		// Verify second mount point (NFSv4)
+		assert.Equal(tt, "192.168.1.100", result.MountPoints[1].IpAddress.Value)
+		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV4, result.MountPoints[1].Protocol.Value)
+		assert.Contains(tt, result.MountPoints[1].Instructions.Value, "Mount Instructions for NFSv4")
+		assert.Contains(tt, result.MountPoints[1].Instructions.Value, "vers=4.1")
+	})
+
+	t.Run("MultipleIPAddressesAndProtocols_ShouldCreateAllCombinations", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "multiip",
+			CreationToken:  "multi-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddresses:    []string{"192.168.1.100", "192.168.1.101"},
+			ProtocolTypes:  []string{"NFSV3", "NFSV4"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/multiip",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "multi-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							NFSv4:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.NotNil(tt, result.MountPoints)
+		assert.Len(tt, result.MountPoints, 4) // 2 IPs × 2 protocols = 4 mount points
+
+		// Verify all combinations exist
+		ipAddresses := []string{"192.168.1.100", "192.168.1.101"}
+		protocols := []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3, gcpgenserver.ProtocolsV1betaNFSV4}
+
+		mountPointsMap := make(map[string]map[gcpgenserver.ProtocolsV1beta]bool)
+		for _, ip := range ipAddresses {
+			mountPointsMap[ip] = make(map[gcpgenserver.ProtocolsV1beta]bool)
+		}
+
+		for _, mp := range result.MountPoints {
+			mountPointsMap[mp.IpAddress.Value][mp.Protocol.Value] = true
+		}
+
+		for _, ip := range ipAddresses {
+			for _, protocol := range protocols {
+				assert.True(tt, mountPointsMap[ip][protocol], "Missing mount point for IP %s and protocol %s", ip, protocol)
+			}
+		}
+	})
+
+	t.Run("UnsupportedProtocol_ShouldNotCreateMountPoints", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "randomvolume",
+			CreationToken:  "random-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddresses:    []string{"192.168.1.100"},
+			ProtocolTypes:  []string{"PROTOCOL_UNSPECIFIED"}, // Unsupported protocol for mount points
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/randomvolume",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "random-policy",
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+		assert.Empty(tt, result.MountPoints) // No mount points for unsupported protocol
+	})
+
+	t.Run("MixedProtocols_OnlySupportedShouldCreateMountPoints", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "mixedvolume",
+			CreationToken:  "mixed-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddresses:    []string{"192.168.1.100"},
+			ProtocolTypes:  []string{"NFSV3", "SMB", "NFSV4", "PROTOCOL_UNSPECIFIED"}, // Mix of supported and unsupported
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/mixedvolume",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "mixed-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							NFSv4:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.NotNil(tt, result.MountPoints)
+		assert.Len(tt, result.MountPoints, 3) // Only NFSv3 and NFSv4 should create mount points
+
+		protocols := make(map[gcpgenserver.ProtocolsV1beta]bool)
+		for _, mp := range result.MountPoints {
+			protocols[mp.Protocol.Value] = true
+		}
+
+		assert.True(tt, protocols[gcpgenserver.ProtocolsV1betaNFSV3])
+		assert.True(tt, protocols[gcpgenserver.ProtocolsV1betaNFSV4])
+		assert.True(tt, protocols[gcpgenserver.ProtocolsV1betaSMB])
+	})
+
+	t.Run("VolumeNotReady_ShouldNotCreateMountPoints", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "notready",
+			CreationToken:  "notready-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateCREATING), // Not READY
+			IPAddresses:    []string{"192.168.1.100"},
+			ProtocolTypes:  []string{"NFSV3"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/notready",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "notready-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.Empty(tt, result.MountPoints) // No mount points when volume is not ready
+	})
+
+	t.Run("NoIPAddresses_ShouldNotCreateMountPoints", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "noips",
+			CreationToken:  "noips-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddresses:    []string{}, // Empty IP addresses
+			ProtocolTypes:  []string{"NFSV3"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/noips",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "noips-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.Empty(tt, result.MountPoints) // No mount points without IP addresses
 	})
 }
