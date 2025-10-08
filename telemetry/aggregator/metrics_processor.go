@@ -18,6 +18,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+var (
+	unifiedServiceType = "unified"
+)
+
 type ResourceKey struct {
 	ResourceType   metadata.ResourceType
 	ResourceName   string
@@ -577,6 +581,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		ErrorMessage:           nil,
 		IsBillable:             common.IsBillableMetric(ctx, metrics[0].ResourceType, metrics[0].MeasuredType),
 		AggregationType:        string(jobDef.AggregationType),
+		ServiceLevel:           unifiedServiceType,
 	}
 
 	logger.Debugf("Processing metrics for resource %s and customer id %s with aggregation type %s and %s", resourceKey.ResourceName, resourceKey.ConsumerID, jobDef.AggregationType, aggregated)

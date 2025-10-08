@@ -18,7 +18,7 @@ continent VARCHAR (255) NOT NULL
 `
 	insertGoogleContinent = `insert into gcp_continents values ($1, $2);`
 
-	aggregatedUsageConstrained = `create  temp table aggregated_usage_constrained
+	aggregatedUsageConstrained = `create temp table aggregated_usage_constrained
        as
  select
  	id,
@@ -39,19 +39,20 @@ continent VARCHAR (255) NOT NULL
  	aggregated_usages
  where
  	id is not null and
- 	aggregation_start >= $1 and aggregation_end <= $2 and
+ 	aggregation_start >= $1::timestamp at time zone 'UTC' and 
+ 	aggregation_end <= $2::timestamp at time zone 'UTC' and
  	(region_name = $3 or region_name = '') and
  	vendor_customer_id is not null and
  	resource_uuid is not null and
  	measured_type is not null and
  	quantity is not null and
  	resource_type in ('VOLUME', 'VOLUME_POOL', 'VOLUME_REPLICATION_RELATIONSHIP', 'CBS') and
-    measured_type in ('XREGION_REPLICATION_TOTAL_TRANSFER_BYTES', 'ALLOCATED_USED', 'POOL_ALLOCATED_SIZE') and
+    measured_type in ('XREGION_REPLICATION_TOTAL_TRANSFER_BYTES', 'ALLOCATED_USED', 'POOL_ALLOCATED_SIZE', 'ALLOCATED_SIZE', 'LOGICAL_SIZE') and
  	service_level is not null
  ;
  `
 
-	usageStatistics = `create  temp table usage_statistics
+	usageStatistics = `create temp table usage_statistics
  as
  select
  	count(distinct resource_uuid) as resource_count,
@@ -121,7 +122,7 @@ continent VARCHAR (255) NOT NULL
 	   destination_region;
 	`
 
-	poolUsageCalculated = `create  temp table pool_usage_calculated
+	poolUsageCalculated = `create temp table pool_usage_calculated
  as
  select
  	account_id,
