@@ -22,6 +22,7 @@ type RegisterNodeToHarvestFarmWorkflowInput struct {
 	AccountID         int64
 	DeploymentName    string
 	PoolName          string
+	IsRegionalHA      bool
 }
 
 type registerNodeToHarvestFarmWorkflow struct {

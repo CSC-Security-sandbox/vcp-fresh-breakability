@@ -226,7 +226,7 @@ func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, par
 			BaseModel:     datamodel.BaseModel{UUID: uuid.New().String()},
 			NodeID:        params.Node1.ID,
 			NodeGroupID:   group1.ID,
-			HarvestConfig: renderHarvestConfig(*params.Node1, group1Port, params.CustomerProject, group1.LeaseName, params.TenantProject, params.DeploymentName, params.PoolName),
+			HarvestConfig: renderHarvestConfig(*params.Node1, group1Port, group1.LeaseName, params),
 			NodeGroup:     &group1,
 		}
 		if err := tx.Create(mapping1).Error; err != nil {
@@ -246,7 +246,7 @@ func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, par
 			BaseModel:     datamodel.BaseModel{UUID: uuid.New().String()},
 			NodeID:        params.Node2.ID,
 			NodeGroupID:   group2.ID,
-			HarvestConfig: renderHarvestConfig(*params.Node2, group2Port, params.CustomerProject, group2.LeaseName, params.TenantProject, params.DeploymentName, params.PoolName),
+			HarvestConfig: renderHarvestConfig(*params.Node2, group2Port, group2.LeaseName, params),
 			NodeGroup:     &group2,
 		}
 		if err := tx.Create(mapping2).Error; err != nil {
@@ -262,7 +262,7 @@ func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, par
 	return mappings, nil
 }
 
-func renderHarvestConfig(node datamodel.Node, port, customerProject, leaseName string, tenantProject string, deploymentName string, poolName string) *datamodel.HarvestConfig {
+func renderHarvestConfig(node datamodel.Node, port string, leaseName string, params datamodel.NodeGroupAssignmentParams) *datamodel.HarvestConfig {
 	return &datamodel.HarvestConfig{
 		PORT:                port,
 		SERVICE_CONTROL_URL: env.GetString("SERVICE_CONTROL_URL", "https://servicecontrol.googleapis.com"),
@@ -273,12 +273,13 @@ func renderHarvestConfig(node datamodel.Node, port, customerProject, leaseName s
 		AUTH_STYLE:          "basic",
 		USERNAME:            vsaNodeUserName,
 		PASSWORD:            "", // Password info shouldn't be updated in DataBase
-		PROJECT:             customerProject,
+		PROJECT:             params.CustomerProject,
 		LEASE_NAME:          leaseName,
 		FILE_NAME:           fmt.Sprintf("harvest-%d.yaml", node.ID),
-		TENANT_PROJECT:      tenantProject,
-		DEPLOYMENT_NAME:     deploymentName,
-		POOL_NAME:           poolName,
+		TENANT_PROJECT:      params.TenantProject,
+		DEPLOYMENT_NAME:     params.DeploymentName,
+		POOL_NAME:           params.PoolName,
+		IS_REGIONAL_HA:      params.IsRegionalHA,
 	}
 }
 

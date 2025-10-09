@@ -141,6 +141,9 @@ func collectVolumeMetrics(ctx context.Context, logger log.Logger, provider Volum
 }
 
 func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resp *monitoringpb.TimeSeries, timestamp time.Time) datamodel.HydratedMetrics {
+	if resp.Metric.Labels["is_regional_ha"] == "true" {
+		resourceType = metadata.VolumeRegionalHA
+	}
 	hydrateMetrics := datamodel.HydratedMetrics{
 		MetricTimestamp: timestamp,
 		MeasuredType:    measuredType,

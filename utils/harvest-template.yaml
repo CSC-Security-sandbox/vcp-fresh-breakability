@@ -137,6 +137,7 @@ Pollers:
       - tenant_project: {{.TENANT_PROJECT}}
       - deployment_name: {{.DEPLOYMENT_NAME}}
       - pool_name: {{.POOL_NAME}}
+      - is_regional_ha : {{.IS_REGIONAL_HA}}
     use_insecure_tls: true  # Disable TLS verification when connecting to ONTAP cluster
     exporters:
       - service_control

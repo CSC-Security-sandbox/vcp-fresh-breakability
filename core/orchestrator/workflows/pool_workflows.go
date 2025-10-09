@@ -481,6 +481,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			AccountID:         dbPool.AccountID,
 			DeploymentName:    dbPool.DeploymentName,
 			PoolName:          dbPool.Name,
+			IsRegionalHA:      dbPool.PoolAttributes != nil && dbPool.PoolAttributes.IsRegionalHA,
 		}
 
 		ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{

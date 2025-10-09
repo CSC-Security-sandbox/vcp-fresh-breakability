@@ -43,6 +43,7 @@ type RegisterNodeToHarvestFarmInput struct {
 	TenantProjectID   string
 	DeploymentName    string
 	PoolName          string
+	IsRegionalHA      bool
 }
 
 // RegisterNodeToHarvestFarmOutput holds the output for the next activity
@@ -86,6 +87,7 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 		TenantProject:    input.TenantProjectID,
 		DeploymentName:   input.DeploymentName,
 		PoolName:         input.PoolName,
+		IsRegionalHA:     input.IsRegionalHA,
 	})
 	if err != nil {
 		logger.Errorf("Failed to assign nodes to groups for pool ID %d: %v", input.PoolID, err)

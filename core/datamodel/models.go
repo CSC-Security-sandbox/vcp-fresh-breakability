@@ -780,6 +780,7 @@ type HarvestConfig struct {
 	TENANT_PROJECT      string
 	DEPLOYMENT_NAME     string
 	POOL_NAME           string
+	IS_REGIONAL_HA      bool
 }
 
 // NodeNodeGroupMap represents the mapping between a node and a node group
@@ -821,6 +822,7 @@ type NodeGroupAssignmentParams struct {
 	TenantProject    string // Adding this for future extensibility
 	DeploymentName   string
 	PoolName         string
+	IsRegionalHA     bool
 }
 
 type AutoTieringConfig struct {

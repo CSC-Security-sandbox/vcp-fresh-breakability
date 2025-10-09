@@ -186,7 +186,8 @@ func TestCollectVolumeMetrics(t *testing.T) {
 			},
 			Metric: &metric.Metric{
 				Labels: map[string]string{
-					"volume": "test-volume-1",
+					"volume":         "test-volume-1",
+					"is_regional_ha": "true",
 				},
 			},
 			Points: []*monitoringpb.Point{
