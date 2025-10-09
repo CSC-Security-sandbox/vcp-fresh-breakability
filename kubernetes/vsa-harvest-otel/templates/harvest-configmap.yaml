@@ -8,6 +8,7 @@ metadata:
 data:
   ENABLE_VOLUME_ONLINE: {{ .Values.harvestConfig.enableVolumeOnline | quote }}
   ENABLE_VOLUME_METRICS: {{ .Values.harvestConfig.enableVolumeMetrics | quote }}
+  ENABLE_POOL_METRICS: {{ .Values.harvestConfig.enablePoolMetrics | quote }}
   ENABLE_BACKUP_METRICS: {{ .Values.harvestConfig.enableBackupMetrics | quote }}
   ENABLE_REPLICATION_METRICS: {{ .Values.harvestConfig.enableReplicationMetrics | quote }}
   CORE_API_BASE_URL: {{ .Values.harvestConfig.coreApiBaseUrl | quote }}

@@ -97,6 +97,7 @@ mode: deployment
 harvestConfig:
   enableVolumeOnline: "false"
   enableVolumeMetrics: "false"
+  enablePoolMetrics: "false"
   enableBackupMetrics: "false"
   enableBackupBillingMetrics: "false"
   enableReplicationMetrics: "false"
