@@ -401,8 +401,9 @@ func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
 	return volumes, nil
 }
 
+// ListVolumesWithPagination retrieves volumes with pagination support including deleted volumes
 func (d *DataStoreRepository) ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
-	return _listVolumesWithDetailsPagination(d.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
+	return _listVolumesWithDetailsPagination(d.db.ApplyFilter(conditions).Unscoped().GORM().WithContext(ctx), pagination)
 }
 
 func _listVolumesWithDetailsPagination(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {

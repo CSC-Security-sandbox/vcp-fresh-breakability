@@ -250,11 +250,11 @@ func (re *retryEngine) ListPools(ctx context.Context, filter *dbutils.Filter) ([
 	return var0, err
 }
 
-func (re *retryEngine) ListPoolsWithPagination(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error) {
+func (re *retryEngine) ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error) {
 	var var0 []*datamodel.PoolView
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.ListPoolsWithPagination(ctx, filter, pagination)
+		var0, err = re.dataStore.ListPoolsWithPagination(ctx, conditions, pagination)
 		if err != nil {
 			re.logError("ListPoolsWithPagination", err)
 			if !dbutils.IsTransientErr(err) {

@@ -47,7 +47,8 @@ type (
 		DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 		GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 		ListPools(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.PoolView, error)
-		ListPoolsWithPagination(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error)
+		// ListPoolsWithPagination includes deleted pools as well, it's using unscoped for fetching all pools.
+		ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error)
 		ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error)
 		ListPoolUUIDsPaginated(ctx context.Context, filter *dbutils.Filter, offset, limit int) ([]*PoolIdentifier, error)
 		ListPendingResourceDeletions(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error)
@@ -77,6 +78,7 @@ type (
 		DeleteVolumeAndChildResources(ctx context.Context, volumeUUID string) (*datamodel.Volume, error)
 		UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error)
 		ListVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)
+		// ListVolumesWithPagination retrieves volumes with pagination support including deleted volumes
 		ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error)
 		GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
 		GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)

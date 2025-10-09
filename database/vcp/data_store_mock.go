@@ -9126,9 +9126,9 @@ func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
-// ListPoolsWithPagination provides a mock function with given fields: ctx, filter, pagination
-func (_m *MockDataStore) ListPoolsWithPagination(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination) ([]*datamodel.PoolView, error) {
-	ret := _m.Called(ctx, filter, pagination)
+// ListPoolsWithPagination provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockDataStore) ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.PoolView, error) {
+	ret := _m.Called(ctx, conditions, pagination)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPoolsWithPagination")
@@ -9136,19 +9136,19 @@ func (_m *MockDataStore) ListPoolsWithPagination(ctx context.Context, filter *ut
 
 	var r0 []*datamodel.PoolView
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, *utils.Pagination) ([]*datamodel.PoolView, error)); ok {
-		return rf(ctx, filter, pagination)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.PoolView, error)); ok {
+		return rf(ctx, conditions, pagination)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, *utils.Pagination) []*datamodel.PoolView); ok {
-		r0 = rf(ctx, filter, pagination)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.PoolView); ok {
+		r0 = rf(ctx, conditions, pagination)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*datamodel.PoolView)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter, *utils.Pagination) error); ok {
-		r1 = rf(ctx, filter, pagination)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -9163,15 +9163,15 @@ type MockDataStore_ListPoolsWithPagination_Call struct {
 
 // ListPoolsWithPagination is a helper method to define mock.On call
 //   - ctx context.Context
-//   - filter *utils.Filter
+//   - conditions [][]interface{}
 //   - pagination *utils.Pagination
-func (_e *MockDataStore_Expecter) ListPoolsWithPagination(ctx interface{}, filter interface{}, pagination interface{}) *MockDataStore_ListPoolsWithPagination_Call {
-	return &MockDataStore_ListPoolsWithPagination_Call{Call: _e.mock.On("ListPoolsWithPagination", ctx, filter, pagination)}
+func (_e *MockDataStore_Expecter) ListPoolsWithPagination(ctx interface{}, conditions interface{}, pagination interface{}) *MockDataStore_ListPoolsWithPagination_Call {
+	return &MockDataStore_ListPoolsWithPagination_Call{Call: _e.mock.On("ListPoolsWithPagination", ctx, conditions, pagination)}
 }
 
-func (_c *MockDataStore_ListPoolsWithPagination_Call) Run(run func(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination)) *MockDataStore_ListPoolsWithPagination_Call {
+func (_c *MockDataStore_ListPoolsWithPagination_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockDataStore_ListPoolsWithPagination_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*utils.Filter), args[2].(*utils.Pagination))
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
 	})
 	return _c
 }
@@ -9181,7 +9181,7 @@ func (_c *MockDataStore_ListPoolsWithPagination_Call) Return(_a0 []*datamodel.Po
 	return _c
 }
 
-func (_c *MockDataStore_ListPoolsWithPagination_Call) RunAndReturn(run func(context.Context, *utils.Filter, *utils.Pagination) ([]*datamodel.PoolView, error)) *MockDataStore_ListPoolsWithPagination_Call {
+func (_c *MockDataStore_ListPoolsWithPagination_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.PoolView, error)) *MockDataStore_ListPoolsWithPagination_Call {
 	_c.Call.Return(run)
 	return _c
 }

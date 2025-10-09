@@ -265,14 +265,9 @@ func (d *DataStoreRepository) ListPools(ctx context.Context, filter *utils2.Filt
 	return listPoolWithDetails(d.db.GORM().WithContext(ctx))
 }
 
-func (d *DataStoreRepository) ListPoolsWithPagination(ctx context.Context, filter *utils2.Filter, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
-	if filter != nil {
-		if filter.ShouldIncludeDeleted() {
-			return listPoolWithDetailsPagination(d.db.ApplyFilter(filter.Apply()).Unscoped().GORM().WithContext(ctx), pagination)
-		}
-		return listPoolWithDetailsPagination(d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx), pagination)
-	}
-	return listPoolWithDetailsPagination(d.db.GORM().WithContext(ctx), pagination)
+// ListPoolsWithPagination retrieves pools with pagination support including deleted pools
+func (d *DataStoreRepository) ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
+	return listPoolWithDetailsPagination(d.db.ApplyFilter(conditions).Unscoped().GORM().WithContext(ctx), pagination)
 }
 
 func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error) {
@@ -587,14 +582,14 @@ func (d *DataStoreRepository) GetPoolsCount(ctx context.Context, filter *utils2.
 
 	var count int64
 	var err error
-	
+
 	// Only apply deleted_at filter when not including deleted records
 	if filter == nil || !filter.ShouldIncludeDeleted() {
 		err = db.Model(&datamodel.Pool{}).Where("deleted_at IS NULL").Count(&count).Error
 	} else {
 		err = db.Model(&datamodel.Pool{}).Count(&count).Error
 	}
-	
+
 	if err != nil {
 		return 0, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

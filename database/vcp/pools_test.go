@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 	"time"
 
@@ -2283,55 +2282,105 @@ func TestDataStoreRepository_GetPoolsCount_ErrorHandling(t *testing.T) {
 	assert.Equal(t, int64(0), count)
 }
 
-func TestListPoolsWithPagination(t *testing.T) {
-	store := setup(t)
-	pools, _ := createDBPools(t, store)
+func TestListPoolsWithPagination_Cases(t *testing.T) {
+	t.Run("WhenNoPoolsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
 
-	// Add more pools for pagination
-	for i := 3; i <= 5; i++ {
-		pool := &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: fmt.Sprintf("test-pool-uuid%d", i)},
-			Name:           fmt.Sprintf("test_pool_%d", i),
-			AccountID:      pools[0].AccountID,
-			DeploymentName: fmt.Sprintf("dep%d", i),
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		conditions := [][]interface{}{
+			{"account_id", "=", 999}, // Non-existent account ID
 		}
-		err := store.db.Create(pool).Error()
-		assert.NoError(t, err)
-	}
+		pagination := &utils.Pagination{Limit: 10, Offset: 0}
+		pools, err := store.ListPoolsWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Equal(tt, 0, len(pools))
+	})
 
-	// Page 1, size 2
-	pagination := &utils.Pagination{Limit: 2, Offset: 0}
-	result, err := store.ListPoolsWithPagination(context.Background(), nil, pagination)
-	assert.NoError(t, err)
-	assert.Len(t, result, 2)
-	assert.Equal(t, "test_pool_1", result[0].Name)
-	assert.Equal(t, "test_pool_2", result[1].Name)
+	t.Run("WhenPaginationIsNil", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
 
-	// Page 2, size 2
-	pagination = &utils.Pagination{Limit: 2, Offset: 2}
-	result, err = store.ListPoolsWithPagination(context.Background(), nil, pagination)
-	assert.NoError(t, err)
-	assert.Len(t, result, 2)
-	assert.Equal(t, "test_pool_3", result[0].Name)
-	assert.Equal(t, "test_pool_4", result[1].Name)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
 
-	// Page 3, size 2 (should have only one pool left)
-	pagination = &utils.Pagination{Limit: 2, Offset: 4}
-	result, err = store.ListPoolsWithPagination(context.Background(), nil, pagination)
-	assert.NoError(t, err)
-	assert.Len(t, result, 1)
-	assert.Equal(t, "test_pool_5", result[0].Name)
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
 
-	// Page beyond last (should be empty)
-	pagination = &utils.Pagination{Limit: 2, Offset: 6}
-	result, err = store.ListPoolsWithPagination(context.Background(), nil, pagination)
-	assert.NoError(t, err)
-	assert.Len(t, result, 0)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
 
-	// No pools case
-	storeEmpty := setup(t)
-	pagination = &utils.Pagination{Limit: 1, Offset: 2}
-	result, err = storeEmpty.ListPoolsWithPagination(context.Background(), nil, pagination)
-	assert.NoError(t, err)
-	assert.Len(t, result, 0)
+		conditions := [][]interface{}{
+			{"account_id", "=", account.ID},
+		}
+
+		result, err := store.ListPoolsWithPagination(context.Background(), conditions, nil)
+		assert.NoError(tt, err)
+		assert.Equal(tt, 1, len(result))
+	})
+
+	t.Run("WhenDeletedPoolsAreIncluded", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		// Create 2 pools, one deleted
+		pool1 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+			Name:           "test_pool_1",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "deployment-1",
+		}
+		assert.NoError(tt, store.db.Create(pool1).Error())
+
+		pool2 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2", DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}},
+			Name:           "test_pool_2",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "deployment-2",
+		}
+		assert.NoError(tt, store.db.Create(pool2).Error())
+
+		// Use Unscoped filter to include deleted pools
+		conditions := [][]interface{}{
+			{"account_id = ?", account.ID},
+		}
+		pagination := &utils.Pagination{Limit: 10, Offset: 0}
+		result, err := store.ListPoolsWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Equal(tt, 2, len(result), "Expected 2 pools including deleted, got %v", len(result))
+		var foundDeleted bool
+		for _, p := range result {
+			if p.Name == "test_pool_2" && p.DeletedAt.Valid {
+				foundDeleted = true
+			}
+		}
+		assert.True(tt, foundDeleted, "Expected deleted pool to be present in result set")
+	})
 }

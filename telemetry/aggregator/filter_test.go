@@ -92,7 +92,7 @@ func TestCreateFilterWithConditions(t *testing.T) {
 	config := &common.TelemetryConfig{}
 	mockDB := &MockMetricsStorage{}
 	processor := &BillingProvider{
-		metricsdb: mockDB,
+		metricsDB: mockDB,
 		config:    config,
 	}
 	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -165,7 +165,7 @@ func TestCreateComplexFilter(t *testing.T) {
 	config := &common.TelemetryConfig{}
 	mockDB := &MockMetricsStorage{}
 	processor := &BillingProvider{
-		metricsdb: mockDB,
+		metricsDB: mockDB,
 		config:    config,
 	}
 	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
