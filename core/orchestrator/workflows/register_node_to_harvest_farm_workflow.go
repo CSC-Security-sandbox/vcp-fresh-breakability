@@ -107,6 +107,7 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 			TenantProjectID:   input.TenantProjectID,
 			DeploymentName:    input.DeploymentName,
 			PoolName:          input.PoolName,
+			IsRegionalHA:      input.IsRegionalHA,
 		}).Get(ctx, &nodeMappings)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
