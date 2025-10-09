@@ -188,3 +188,122 @@ func TestDeleteFlexCacheVolume(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 }
+
+func TestUpdateFlexCacheVolume(t *testing.T) {
+	t.Run("getOntapClientFuncError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(t)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		params := UpdateFlexCacheVolumeParams{
+			UUID: "uuid",
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, errors.New("client error"))
+
+		err := rc.UpdateFlexCacheVolume(params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "client error")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("FlexCacheVolumeModifyError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(t)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		params := UpdateFlexCacheVolumeParams{
+			UUID: "uuid",
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeModify(mock.Anything).Return(true, nil, errors.New("FlexCacheVolumeModify error"))
+
+		err := rc.UpdateFlexCacheVolume(params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "FlexCacheVolumeModify error")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("FlexCacheVolumeModify_job_submitted", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		params := UpdateFlexCacheVolumeParams{
+			UUID: "uuid",
+		}
+
+		jobUUID := "jobUUID"
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeModify(mock.Anything).Return(false, &ontaprest.JobAccepted{
+			JobUUID: jobUUID,
+		}, nil)
+		mockClient.EXPECT().Poll(jobUUID).Return(nil)
+
+		err := rc.UpdateFlexCacheVolume(params)
+		assert.NoError(tt, err)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("FlexCacheVolumeModify_job_polling_error", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		params := UpdateFlexCacheVolumeParams{
+			UUID: "uuid",
+		}
+
+		jobUUID := "jobUUID"
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeModify(mock.Anything).Return(false, &ontaprest.JobAccepted{
+			JobUUID: jobUUID,
+		}, nil)
+		mockClient.EXPECT().Poll(jobUUID).Return(errors.New("polling error"))
+
+		err := rc.UpdateFlexCacheVolume(params)
+		assert.Error(tt, err)
+		assert.Contains(t, err.Error(), "polling error")
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(t)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		params := UpdateFlexCacheVolumeParams{
+			UUID: "uuid",
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeModify(mock.Anything).Return(true, nil, nil)
+
+		err := rc.UpdateFlexCacheVolume(params)
+
+		assert.NoError(t, err)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+}

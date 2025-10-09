@@ -118,6 +118,9 @@ ao := workflow.ActivityOptions{
 - `ValidateVolumeUpdate`: Validates update parameters
 - `ApplyVolumeChanges`: Applies configuration changes
 
+**FlexCacheVolumeUpdateActivity** (`flexcache_activities.UpdateFlexCacheVolumeInONTAP`):
+- `UpdateFlexCacheVolume`: Updates FlexCache volume in VSA cluster
+
 #### Execution Flow
 
 1. **Validation**: Validate update parameters

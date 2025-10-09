@@ -33,6 +33,7 @@ type StorageClient interface {
 	VolumeGet(params *VolumeGetParams) (*Volume, error)
 	VolumeCollectionGet(params *VolumeCollectionGetParams, ucbf UserCallbackFunc[[]*Volume]) error
 	VolumeModify(params *VolumeModifyParams) (bool, *JobAccepted, error)
+	FlexCacheVolumeModify(params *FlexcacheModifyParams) (bool, *JobAccepted, error)
 	VolumeCreate(params *VolumeCreateParams) (*Volume, *JobAccepted, error)
 	FlexCacheVolumeCreate(params *FlexCacheVolumeCreateParams) (*Flexcache, *JobAccepted, error)
 	VolumeDelete(params *VolumeDeleteParams) error

@@ -1090,6 +1090,53 @@ type FlexcacheModifyParams struct {
 	CifsChangeNotifyEnabled    *bool
 }
 
+func flexCacheModifyParamsToONTAP(params *FlexcacheModifyParams) *storage.FlexcacheModifyParams {
+	otParams := storage.NewFlexcacheModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	flexCache := &models.Flexcache{}
+
+	// Atime scrub
+	if params.AtimeScrubEnabled != nil || params.AtimeScrubPeriod != nil {
+		flexCache.AtimeScrub = &models.FlexcacheInlineAtimeScrub{
+			Enabled: params.AtimeScrubEnabled,
+			Period:  params.AtimeScrubPeriod,
+		}
+	}
+
+	// CIFS change notify
+	if params.CifsChangeNotifyEnabled != nil {
+		flexCache.CifsChangeNotify = &models.FlexcacheInlineCifsChangeNotify{
+			Enabled: params.CifsChangeNotifyEnabled,
+		}
+	}
+
+	// Writeback
+	if params.WritebackEnabled != nil {
+		flexCache.Writeback = &models.FlexcacheInlineWriteback{
+			Enabled: params.WritebackEnabled,
+		}
+	}
+	
+	// Prepopulate
+	if len(params.PrepopulateDirPaths) > 0 ||
+		len(params.PrepopulateExcludeDirPaths) > 0 ||
+		params.PrepopulateRecurse != nil {
+		flexCache.Prepopulate = &models.FlexcacheInlinePrepopulate{
+			DirPaths:        params.PrepopulateDirPaths,
+			ExcludeDirPaths: params.PrepopulateExcludeDirPaths,
+			Recurse:         params.PrepopulateRecurse,
+		}
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetInfo(flexCache)
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
+}
+
 // VolumeMovementParams is the param struct which is a part of VolumeModifyParams
 type VolumeMovementParams struct {
 	VolumeMovementDestinationAggregate *VolumeMovementDestinationAggregate

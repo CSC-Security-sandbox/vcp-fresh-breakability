@@ -13,6 +13,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -22,6 +23,8 @@ var (
 	prepareFieldsForUpdate        = getUpdatedFieldsFromParams
 	HostGroupsUpdateDiffForVolume = _hostGroupsUpdateDiffForVolume
 	getHostGroup                  = _getHostGroup
+	applyFlexCacheParameters      = _applyFlexCacheParameters
+	flexCacheEnabled              = env.GetBool("FLEXCACHE_ENABLED", false)
 )
 
 type VolumeUpdateActivity struct {
@@ -431,7 +434,66 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 	updates["state"] = models.LifeCycleStateREADY
 	updates["state_details"] = models.LifeCycleStateAvailableDetails
 
+	if applyFlexCacheParameters(volume, params) {
+		updates["cache_parameters"] = volume.CacheParameters
+	}
+
 	return updates, nil
+}
+
+func _applyFlexCacheParameters(volume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+	if !flexCacheEnabled {
+		return false
+	}
+	if volume == nil || volume.CacheParameters == nil ||
+		params == nil || params.CacheParameters == nil || params.CacheParameters.CacheConfig == nil {
+		return false
+	}
+
+	src := params.CacheParameters.CacheConfig
+	if volume.CacheParameters.CacheConfig == nil {
+		volume.CacheParameters.CacheConfig = &datamodel.CacheConfig{}
+	}
+	dst := volume.CacheParameters.CacheConfig
+	changed := false
+
+	// update only when provided and value differs.
+	if src.WritebackEnabled != nil && (dst.WritebackEnabled == nil || *dst.WritebackEnabled != *src.WritebackEnabled) {
+		dst.WritebackEnabled = src.WritebackEnabled
+		changed = true
+	}
+	if src.AtimeScrubEnabled != nil && (dst.AtimeScrubEnabled == nil || *dst.AtimeScrubEnabled != *src.AtimeScrubEnabled) {
+		dst.AtimeScrubEnabled = src.AtimeScrubEnabled
+		changed = true
+	}
+	if src.AtimeScrubDays != nil && (dst.AtimeScrubDays == nil || *dst.AtimeScrubDays != *src.AtimeScrubDays) {
+		dst.AtimeScrubDays = src.AtimeScrubDays
+		changed = true
+	}
+	if src.CifsChangeNotifyEnabled != nil && (dst.CifsChangeNotifyEnabled == nil || *dst.CifsChangeNotifyEnabled != *src.CifsChangeNotifyEnabled) {
+		dst.CifsChangeNotifyEnabled = src.CifsChangeNotifyEnabled
+		changed = true
+	}
+
+	if src.PrePopulate != nil {
+		if dst.PrePopulate == nil {
+			dst.PrePopulate = &datamodel.CachePrePopulate{}
+		}
+		if src.PrePopulate.Recursion != nil && (dst.PrePopulate.Recursion == nil || *dst.PrePopulate.Recursion != *src.PrePopulate.Recursion) {
+			dst.PrePopulate.Recursion = src.PrePopulate.Recursion
+			changed = true
+		}
+		if src.PrePopulate.PathList != nil {
+			dst.PrePopulate.PathList = src.PrePopulate.PathList
+			changed = true
+		}
+		if src.PrePopulate.ExcludePathList != nil {
+			dst.PrePopulate.ExcludePathList = src.PrePopulate.ExcludePathList
+			changed = true
+		}
+	}
+
+	return changed
 }
 
 func _getHostGroup(se database.Storage, ctx context.Context, uuid string, accountId int64) (*datamodel.HostGroup, error) {

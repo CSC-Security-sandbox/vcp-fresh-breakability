@@ -5180,6 +5180,52 @@ func (_c *MockProvider_UpdateJSwapMode_Call) RunAndReturn(run func(string, JSWAP
 	return _c
 }
 
+// UpdateFlexCacheVolume provides a mock function with given fields: params
+func (_m *MockProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateFlexCacheVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(UpdateFlexCacheVolumeParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateFlexCacheVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFlexCacheVolume'
+type MockProvider_UpdateFlexCacheVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateFlexCacheVolume is a helper method to define mock.On call
+//   - params UpdateFlexCacheVolumeParams
+func (_e *MockProvider_Expecter) UpdateFlexCacheVolume(params interface{}) *MockProvider_UpdateFlexCacheVolume_Call {
+	return &MockProvider_UpdateFlexCacheVolume_Call{Call: _e.mock.On("UpdateFlexCacheVolume", params)}
+}
+
+func (_c *MockProvider_UpdateFlexCacheVolume_Call) Run(run func(params UpdateFlexCacheVolumeParams)) *MockProvider_UpdateFlexCacheVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(UpdateFlexCacheVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateFlexCacheVolume_Call) Return(_a0 error) *MockProvider_UpdateFlexCacheVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateFlexCacheVolume_Call) RunAndReturn(run func(UpdateFlexCacheVolumeParams) error) *MockProvider_UpdateFlexCacheVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateQoSGroupPolicy provides a mock function with given fields: params
 func (_m *MockProvider) UpdateQoSGroupPolicy(params UpdateQoSGroupPolicyParams) error {
 	ret := _m.Called(params)

@@ -1463,6 +1463,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "10004": {
+    "description": "Error updating FlexCache volume",
+    "message": "Error updating FlexCache volume",
+    "retriable": false,
+    "http_code": 400
+  },
   "11000": {
     "description": "Error during cluster peering",
     "message": "Error during cluster peering",

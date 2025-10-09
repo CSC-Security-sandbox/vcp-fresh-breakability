@@ -11753,6 +11753,11 @@ func (s *VolumeUpdateV1beta) SetFake() {
 			s.Description.SetFake()
 		}
 	}
+	{
+		{
+			s.CacheParameters.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

@@ -68,3 +68,43 @@ func (rc *OntapRestProvider) DeleteFlexCacheVolume(volumeUUID, name string) (*On
 
 	return nil, nil
 }
+
+// UpdateFlexCacheVolume updates a FlexCache volume by calling the ONTAP REST Client
+func (rc *OntapRestProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+
+	flexCacheVolumeUpdateParams := &ontapRest.FlexcacheModifyParams{
+		BaseParams:                 ontapRest.BaseParams{},
+		UUID:                       params.UUID,
+		PrepopulateExcludeDirPaths: params.PrepopulateExcludeDirPaths,
+		PrepopulateDirPaths:        params.PrepopulateDirPaths,
+		PrepopulateRecurse:         params.IsRecursionEnabled,
+		WritebackEnabled:           params.WritebackEnabled,
+		RelativeSizeEnabled:        params.RelativeSizeEnabled,
+		RelativeSizePercentage:     params.RelativeSizePercentage,
+		AtimeScrubEnabled:          params.AtimeScrubEnabled,
+		AtimeScrubPeriod:           params.AtimeScrubPeriod,
+		CifsChangeNotifyEnabled:    params.CifsChangeNotifyEnabled,
+	}
+
+	success, job, err := client.Storage().FlexCacheVolumeModify(flexCacheVolumeUpdateParams)
+	if err != nil {
+		return err
+	}
+
+	if success {
+		return nil
+	}
+
+	// Poll the job if it exists
+	if job != nil {
+		if err = client.Poll(job.JobUUID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

@@ -21288,7 +21288,8 @@ type VolumeUpdateV1beta struct {
 	// Uuid v4 used to identify the pool.
 	PoolId OptNilString `json:"poolId"`
 	// Description of the volume.
-	Description OptNilString `json:"description"`
+	Description     OptNilString       `json:"description"`
+	CacheParameters OptFlexCacheV1beta `json:"cacheParameters"`
 }
 
 // GetQuotaInBytes returns the value of QuotaInBytes.
@@ -21376,6 +21377,11 @@ func (s *VolumeUpdateV1beta) GetDescription() OptNilString {
 	return s.Description
 }
 
+// GetCacheParameters returns the value of CacheParameters.
+func (s *VolumeUpdateV1beta) GetCacheParameters() OptFlexCacheV1beta {
+	return s.CacheParameters
+}
+
 // SetQuotaInBytes sets the value of QuotaInBytes.
 func (s *VolumeUpdateV1beta) SetQuotaInBytes(val OptNilFloat64) {
 	s.QuotaInBytes = val
@@ -21459,6 +21465,11 @@ func (s *VolumeUpdateV1beta) SetPoolId(val OptNilString) {
 // SetDescription sets the value of Description.
 func (s *VolumeUpdateV1beta) SetDescription(val OptNilString) {
 	s.Description = val
+}
+
+// SetCacheParameters sets the value of CacheParameters.
+func (s *VolumeUpdateV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
+	s.CacheParameters = val
 }
 
 // JSON dictionary of resource labels to allow linking of billing labels to a volume.

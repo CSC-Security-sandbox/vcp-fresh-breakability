@@ -376,6 +376,71 @@ func (_c *MockStorageClient_FlexCacheVolumeDelete_Call) RunAndReturn(run func(*F
 	return _c
 }
 
+// FlexCacheVolumeModify provides a mock function with given fields: params
+func (_m *MockStorageClient) FlexCacheVolumeModify(params *FlexcacheModifyParams) (bool, *JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FlexCacheVolumeModify")
+	}
+
+	var r0 bool
+	var r1 *JobAccepted
+	var r2 error
+	if rf, ok := ret.Get(0).(func(*FlexcacheModifyParams) (bool, *JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*FlexcacheModifyParams) bool); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(*FlexcacheModifyParams) *JobAccepted); ok {
+		r1 = rf(params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(*FlexcacheModifyParams) error); ok {
+		r2 = rf(params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockStorageClient_FlexCacheVolumeModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FlexCacheVolumeModify'
+type MockStorageClient_FlexCacheVolumeModify_Call struct {
+	*mock.Call
+}
+
+// FlexCacheVolumeModify is a helper method to define mock.On call
+//   - params *FlexcacheModifyParams
+func (_e *MockStorageClient_Expecter) FlexCacheVolumeModify(params interface{}) *MockStorageClient_FlexCacheVolumeModify_Call {
+	return &MockStorageClient_FlexCacheVolumeModify_Call{Call: _e.mock.On("FlexCacheVolumeModify", params)}
+}
+
+func (_c *MockStorageClient_FlexCacheVolumeModify_Call) Run(run func(params *FlexcacheModifyParams)) *MockStorageClient_FlexCacheVolumeModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*FlexcacheModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_FlexCacheVolumeModify_Call) Return(_a0 bool, _a1 *JobAccepted, _a2 error) *MockStorageClient_FlexCacheVolumeModify_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockStorageClient_FlexCacheVolumeModify_Call) RunAndReturn(run func(*FlexcacheModifyParams) (bool, *JobAccepted, error)) *MockStorageClient_FlexCacheVolumeModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // QoSPolicyGroupCreate provides a mock function with given fields: params
 func (_m *MockStorageClient) QoSPolicyGroupCreate(params *QoSPolicyGroupCreateParams) (*QosPolicy, *JobAccepted, error) {
 	ret := _m.Called(params)

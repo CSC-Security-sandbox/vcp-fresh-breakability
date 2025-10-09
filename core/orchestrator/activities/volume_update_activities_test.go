@@ -1086,6 +1086,137 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 	}
 }
 
+func TestGetUpdatedFieldsFromParams_FlexCacheUpdate(t *testing.T) {
+	writebackEnabled := true
+
+	volume := &datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{},
+		CacheParameters: &datamodel.CacheParameters{
+			PeerClusterName: "old-peer-cluster",
+			PeerSvmName:     "old-peer-svm",
+			PeerVolumeName:  "old-peer-volume",
+			CacheConfig: &datamodel.CacheConfig{
+				WritebackEnabled: &writebackEnabled,
+			},
+		},
+	}
+	params := &common.UpdateVolumeParams{}
+
+	applyFlexCacheParameters = func(volume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+		return true
+	}
+	defer func() { applyFlexCacheParameters = _applyFlexCacheParameters }()
+	fields, err := getUpdatedFieldsFromParams(context.Background(), nil, volume, params)
+	assert.NoError(t, err)
+	assert.NotNil(t, fields)
+	assert.Contains(t, fields, "cache_parameters")
+
+	cacheParams, ok := fields["cache_parameters"].(*datamodel.CacheParameters)
+	assert.True(t, ok)
+	assert.Equal(t, "old-peer-cluster", cacheParams.PeerClusterName)
+	assert.Equal(t, "old-peer-svm", cacheParams.PeerSvmName)
+	assert.Equal(t, "old-peer-volume", cacheParams.PeerVolumeName)
+	assert.NotNil(t, cacheParams.CacheConfig)
+	assert.NotNil(t, cacheParams.CacheConfig.WritebackEnabled)
+	assert.Equal(t, writebackEnabled, *cacheParams.CacheConfig.WritebackEnabled)
+}
+
+func TestApplyFlexCacheParameters(t *testing.T) {
+	flexCacheEnabled = true
+	tests := []struct {
+		name           string
+		volume         *datamodel.Volume
+		params         *common.UpdateVolumeParams
+		expectModified bool
+	}{
+		{
+			name: "NoCacheParameters_NoModification",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{},
+			},
+			params:         &common.UpdateVolumeParams{},
+			expectModified: false,
+		},
+		{
+			name: "CacheParameters_NoPeerInfo_NoModification",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{},
+				CacheParameters:  &datamodel.CacheParameters{},
+			},
+			params:         &common.UpdateVolumeParams{},
+			expectModified: false,
+		},
+		{
+			name: "CacheParameters_WithPeerInfo_Modification",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{},
+				CacheParameters: &datamodel.CacheParameters{
+					PeerClusterName: "peer-cluster",
+					PeerSvmName:     "peer-svm",
+					PeerVolumeName:  "peer-volume",
+					CacheConfig: &datamodel.CacheConfig{
+						WritebackEnabled: nil,
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					PeerClusterName: "peer-cluster",
+					PeerSvmName:     "peer-svm",
+					PeerVolumeName:  "peer-volume",
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled:        func(b bool) *bool { return &b }(true),
+						AtimeScrubEnabled:       func(b bool) *bool { return &b }(true),
+						AtimeScrubDays:          func(b int16) *int16 { return &b }(5),
+						CifsChangeNotifyEnabled: func(b bool) *bool { return &b }(true),
+						PrePopulate: &models.CachePrePopulate{
+							Recursion:       func(b bool) *bool { return &b }(true),
+							PathList:        []string{"/vol1/folder1", "/vol1/folder2"},
+							ExcludePathList: []string{"/vol1/folder1", "/vol1/folder2"},
+						},
+					},
+				},
+			},
+			expectModified: true,
+		},
+		{
+			name: "CacheParameters_WithPeerInfo_CacheConfigNilWriteback_NoModification",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{},
+				CacheParameters: &datamodel.CacheParameters{
+					PeerClusterName: "peer-cluster",
+					PeerSvmName:     "peer-svm",
+					PeerVolumeName:  "peer-volume",
+					CacheConfig: &datamodel.CacheConfig{
+						WritebackEnabled: nil,
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					PeerClusterName: "peer-cluster",
+					PeerSvmName:     "peer-svm",
+					PeerVolumeName:  "peer-volume",
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nil,
+					},
+				},
+			},
+			expectModified: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalVolume := *tt.volume // Make a copy of the original volume
+			modified := applyFlexCacheParameters(tt.volume, tt.params)
+			assert.Equal(t, tt.expectModified, modified)
+			if !tt.expectModified {
+				assert.Equal(t, originalVolume, *tt.volume, "Volume should not be modified")
+			}
+		})
+	}
+}
+
 func TestDeleteLunIGroupMap(t *testing.T) {
 	tests := []struct {
 		name          string

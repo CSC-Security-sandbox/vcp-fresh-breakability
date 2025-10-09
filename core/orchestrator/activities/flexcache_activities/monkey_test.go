@@ -2,7 +2,7 @@ package flexcache_activities
 
 import (
 	"testing"
-	
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -12,10 +12,12 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 
 	hyperscalerGetProviderByNode = mm.hyperscalerGetProviderByNode
 	utilGetLogger = mm.utilGetLogger
+	verifyAndGetFlexCacheUpdateParams = mm.verifyAndGetFlexCacheUpdateParams
 
 	t.Cleanup(func() {
 		hyperscalerGetProviderByNode = hyperscaler.GetProviderByNode
 		utilGetLogger = util.GetLogger
+		verifyAndGetFlexCacheUpdateParams = _verifyAndGetFlexCacheUpdateParams
 	})
 
 	return mm

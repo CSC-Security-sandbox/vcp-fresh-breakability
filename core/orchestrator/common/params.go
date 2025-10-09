@@ -174,6 +174,7 @@ type UpdateVolumeParams struct {
 	BackupSchedule          string
 	CorrelationID           string
 	SnapshotDirectoryAccess *bool
+	CacheParameters         *models.CacheParameters
 }
 
 type CreateLunMapParams struct {

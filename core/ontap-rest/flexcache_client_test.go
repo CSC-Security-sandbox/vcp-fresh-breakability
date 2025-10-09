@@ -202,3 +202,45 @@ func TestFlexCacheVolumeDelete(t *testing.T) {
 		assert.NotNil(tt, job)
 	})
 }
+
+func TestFlexCacheVolumeModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("internal server error")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.FlexCacheVolumeModify(&FlexcacheModifyParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.False(tt, response)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenRESTCall_ReturnsFlexCacheModifyOK", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.FlexcacheModifyOK{
+			Payload: &models.FlexcacheJobLinkResponse{
+				Records: []*models.Flexcache{},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.FlexCacheVolumeModify(&FlexcacheModifyParams{})
+		assert.True(tt, response)
+		assert.Nil(tt, job)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("WhenRESTCall_ReturnsFlexCacheModifyAccepted", func(tt *testing.T) {
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.FlexcacheModifyAccepted{
+			Payload: &models.FlexcacheJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.FlexCacheVolumeModify(&FlexcacheModifyParams{})
+		assert.NoError(tt, err)
+		assert.False(tt, response)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, jobUUID, job.JobUUID)
+	})
+}

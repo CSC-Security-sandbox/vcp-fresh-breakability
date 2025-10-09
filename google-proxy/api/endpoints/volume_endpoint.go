@@ -776,6 +776,47 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		param.SnapshotDirectoryAccess = &req.SnapshotDirectory.Value
 	}
 
+	if req.CacheParameters.IsSet() {
+		reqCacheProperties, _ := req.CacheParameters.Get()
+		// Handle CacheConfig if present
+		if reqCacheProperties.CacheConfig.IsSet() {
+			cacheConfig, _ := reqCacheProperties.CacheConfig.Get()
+			if param.CacheParameters == nil {
+				param.CacheParameters = &models.CacheParameters{}
+			}
+			param.CacheParameters.CacheConfig = &models.CacheConfig{}
+
+			if cacheConfig.WritebackEnabled.IsSet() {
+				param.CacheParameters.CacheConfig.WritebackEnabled = &cacheConfig.WritebackEnabled.Value
+			}
+			if cacheConfig.AtimeScrubDays.IsSet() {
+				param.CacheParameters.CacheConfig.AtimeScrubDays = &cacheConfig.AtimeScrubDays.Value
+			}
+			if cacheConfig.AtimeScrubEnabled.IsSet() {
+				param.CacheParameters.CacheConfig.AtimeScrubEnabled = &cacheConfig.AtimeScrubEnabled.Value
+			}
+			if cacheConfig.CifsChangeNotifyEnabled.IsSet() {
+				param.CacheParameters.CacheConfig.CifsChangeNotifyEnabled = &cacheConfig.CifsChangeNotifyEnabled.Value
+			}
+
+			// Handle PrePopulate if present
+			if cacheConfig.PrePopulate.IsSet() {
+				prePopulate, _ := cacheConfig.PrePopulate.Get()
+				param.CacheParameters.CacheConfig.PrePopulate = &models.CachePrePopulate{}
+
+				if prePopulate.PathList.IsSet() {
+					param.CacheParameters.CacheConfig.PrePopulate.PathList = prePopulate.PathList.Value
+				}
+				if prePopulate.ExcludePathList.IsSet() {
+					param.CacheParameters.CacheConfig.PrePopulate.ExcludePathList = prePopulate.ExcludePathList.Value
+				}
+				if prePopulate.Recursion.IsSet() {
+					param.CacheParameters.CacheConfig.PrePopulate.Recursion = &prePopulate.Recursion.Value
+				}
+			}
+		}
+	}
+
 	return param, nil
 }
 

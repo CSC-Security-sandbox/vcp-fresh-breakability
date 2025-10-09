@@ -393,6 +393,19 @@ type UpdateVolumeParams struct {
 	SnapshotDirectoryAccess *bool
 }
 
+type UpdateFlexCacheVolumeParams struct {
+	UUID                       string
+	PrepopulateDirPaths        []*string
+	PrepopulateExcludeDirPaths []*string
+	IsRecursionEnabled         *bool
+	WritebackEnabled           *bool
+	RelativeSizeEnabled        *bool
+	RelativeSizePercentage     *int16
+	AtimeScrubEnabled          *bool
+	AtimeScrubPeriod           *int16
+	CifsChangeNotifyEnabled    *bool
+}
+
 // RevertVolumeParams describes parameters supplied to Provider.RevertVolume
 type RevertVolumeParams struct {
 	VolumeID        string

@@ -7341,3 +7341,123 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.Empty(tt, result.MountPoints) // No mount points without IP addresses
 	})
 }
+
+func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
+	param := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber:  "test-project",
+		LocationId:     "us-central1",
+		VolumeId:       "test-volume",
+		XCorrelationID: gcpgenserver.NewOptString("test-corr-id"),
+	}
+	region := "us-central1"
+
+	t.Run("CacheParameters_WhenSet_ShouldMapCorrectly", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			CacheParameters: gcpgenserver.OptFlexCacheV1beta{
+				Value: gcpgenserver.FlexCacheV1beta{
+					PeerVolumeName:  "peer-vol-1",
+					PeerClusterName: "peer-cluster-1",
+					PeerSvmName:     "peer-svm-1",
+					PeerIpAddresses: []string{
+						"1.1.1.1",
+						"2.2.2.2",
+					},
+					CacheConfig: gcpgenserver.OptFlexCacheConfigV1beta{
+						Value: gcpgenserver.FlexCacheConfigV1beta{
+							PrePopulate: gcpgenserver.OptFlexCachePrePopulateV1beta{
+								Value: gcpgenserver.FlexCachePrePopulateV1beta{
+									PathList: gcpgenserver.OptNilStringArray{
+										Value: []string{"/path1", "/path2"},
+										Set:   true,
+										Null:  false,
+									},
+									ExcludePathList: gcpgenserver.OptNilStringArray{
+										Value: []string{"/exclude1", "/exclude2"},
+										Set:   true,
+										Null:  false,
+									},
+									Recursion: gcpgenserver.OptNilBool{
+										Value: true,
+										Set:   true,
+										Null:  false,
+									},
+								},
+								Set: true,
+							},
+							WritebackEnabled: gcpgenserver.OptNilBool{
+								Value: true,
+								Set:   true,
+								Null:  false,
+							},
+							AtimeScrubEnabled: gcpgenserver.OptNilBool{
+								Value: true,
+								Set:   true,
+								Null:  false,
+							},
+							AtimeScrubDays: gcpgenserver.OptNilInt16{
+								Value: 5,
+								Set:   true,
+								Null:  false,
+							},
+							CifsChangeNotifyEnabled: gcpgenserver.OptNilBool{
+								Value: true,
+								Set:   true,
+								Null:  false,
+							},
+						},
+						Set: true,
+					},
+				},
+				Set: true,
+			},
+		}
+		result, err := _prepareUpdateVolumeParams(req, param, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, result.CacheParameters.CacheConfig)
+		assert.Equal(t, int16(5), *result.CacheParameters.CacheConfig.AtimeScrubDays)
+		assert.True(t, *result.CacheParameters.CacheConfig.AtimeScrubEnabled)
+		assert.True(t, *result.CacheParameters.CacheConfig.CifsChangeNotifyEnabled)
+		assert.True(t, *result.CacheParameters.CacheConfig.WritebackEnabled)
+		assert.NotNil(t, result.CacheParameters.CacheConfig.PrePopulate)
+		assert.True(t, *result.CacheParameters.CacheConfig.PrePopulate.Recursion)
+		assert.Equal(t, []string{"/path1", "/path2"}, result.CacheParameters.CacheConfig.PrePopulate.PathList)
+		assert.Equal(t, []string{"/exclude1", "/exclude2"}, result.CacheParameters.CacheConfig.PrePopulate.ExcludePathList)
+	})
+
+	t.Run("CacheParameters_WhenSet_Partial_values", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			CacheParameters: gcpgenserver.OptFlexCacheV1beta{
+				Value: gcpgenserver.FlexCacheV1beta{
+					PeerVolumeName:  "peer-vol-1",
+					PeerClusterName: "peer-cluster-1",
+					PeerSvmName:     "peer-svm-1",
+					PeerIpAddresses: []string{
+						"1.1.1.1",
+						"2.2.2.2",
+					},
+					CacheConfig: gcpgenserver.OptFlexCacheConfigV1beta{
+						Value: gcpgenserver.FlexCacheConfigV1beta{
+							WritebackEnabled: gcpgenserver.OptNilBool{
+								Value: true,
+								Set:   true,
+								Null:  false,
+							},
+							CifsChangeNotifyEnabled: gcpgenserver.OptNilBool{
+								Value: true,
+								Set:   true,
+								Null:  false,
+							},
+						},
+						Set: true,
+					},
+				},
+				Set: true,
+			},
+		}
+		result, err := _prepareUpdateVolumeParams(req, param, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, result.CacheParameters.CacheConfig)
+		assert.True(t, *result.CacheParameters.CacheConfig.CifsChangeNotifyEnabled)
+		assert.True(t, *result.CacheParameters.CacheConfig.WritebackEnabled)
+	})
+}

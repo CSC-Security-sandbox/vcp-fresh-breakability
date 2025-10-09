@@ -2093,3 +2093,146 @@ func TestIgroupCreateParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "", *otParams.Info.Comment)
 	})
 }
+
+func TestFlexCacheModifyParamsToONTAP(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
+	int16Ptr := func(i int16) *int16 { return &i }
+	strPtr := func(s string) *string { return &s }
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		ot := flexCacheModifyParamsToONTAP(nil)
+		assert.NotNil(tt, ot)
+		assert.Empty(tt, ot.UUID)
+		assert.Nil(tt, ot.Info)
+	})
+
+	t.Run("WhenOnlyUUIDSet_ThenUUIDIsSetAndInfoNil", func(tt *testing.T) {
+		p := &FlexcacheModifyParams{UUID: "fc-uuid-1"}
+		ot := flexCacheModifyParamsToONTAP(p)
+		assert.Equal(tt, "fc-uuid-1", ot.UUID)
+	})
+
+	t.Run("WhenPrepopulateFieldsSet_ThenPrepopulateStructSet", func(tt *testing.T) {
+		dir1, dir2 := strPtr("/a"), strPtr("/b")
+		ex1 := strPtr("/a/tmp")
+		rec := boolPtr(true)
+		p := &FlexcacheModifyParams{
+			UUID:                       "fc-prepop",
+			PrepopulateDirPaths:        []*string{dir1, dir2},
+			PrepopulateExcludeDirPaths: []*string{ex1},
+			PrepopulateRecurse:         rec,
+		}
+		ot := flexCacheModifyParamsToONTAP(p)
+		assert.Equal(tt, "fc-prepop", ot.UUID)
+		if assert.NotNil(tt, ot.Info) && assert.NotNil(tt, ot.Info.Prepopulate) {
+			assert.Len(tt, ot.Info.Prepopulate.DirPaths, 2)
+			assert.Equal(tt, *dir1, *ot.Info.Prepopulate.DirPaths[0])
+			assert.Equal(tt, *dir2, *ot.Info.Prepopulate.DirPaths[1])
+			assert.Len(tt, ot.Info.Prepopulate.ExcludeDirPaths, 1)
+			assert.Equal(tt, *ex1, *ot.Info.Prepopulate.ExcludeDirPaths[0])
+			assert.Equal(tt, rec, ot.Info.Prepopulate.Recurse)
+		}
+		assert.Nil(tt, ot.Info.Writeback)
+		assert.Nil(tt, ot.Info.AtimeScrub)
+		assert.Nil(tt, ot.Info.CifsChangeNotify)
+		assert.Nil(tt, ot.Info.RelativeSize)
+	})
+
+	t.Run("WhenAtimeScrubFieldsSet_ThenAtimeScrubStructSetOnly", func(tt *testing.T) {
+		en := boolPtr(true)
+		period := int16Ptr(12)
+		p := &FlexcacheModifyParams{
+			UUID:              "fc-atime",
+			AtimeScrubEnabled: en,
+			AtimeScrubPeriod:  period,
+		}
+		ot := flexCacheModifyParamsToONTAP(p)
+		assert.Equal(tt, "fc-atime", ot.UUID)
+		if assert.NotNil(tt, ot.Info) && assert.NotNil(tt, ot.Info.AtimeScrub) {
+			assert.Equal(tt, en, ot.Info.AtimeScrub.Enabled)
+			assert.Equal(tt, period, ot.Info.AtimeScrub.Period)
+		}
+		assert.Nil(tt, ot.Info.Prepopulate)
+		assert.Nil(tt, ot.Info.Writeback)
+		assert.Nil(tt, ot.Info.CifsChangeNotify)
+		assert.Nil(tt, ot.Info.RelativeSize)
+	})
+
+	t.Run("WhenWritebackEnabledSet_ThenWritebackStructSet", func(tt *testing.T) {
+		wb := boolPtr(true)
+		p := &FlexcacheModifyParams{
+			UUID:             "fc-wb",
+			WritebackEnabled: wb,
+		}
+		ot := flexCacheModifyParamsToONTAP(p)
+		assert.Equal(tt, "fc-wb", ot.UUID)
+		if assert.NotNil(tt, ot.Info) && assert.NotNil(tt, ot.Info.Writeback) {
+			assert.Equal(tt, wb, ot.Info.Writeback.Enabled)
+		}
+		assert.Nil(tt, ot.Info.AtimeScrub)
+		assert.Nil(tt, ot.Info.CifsChangeNotify)
+		assert.Nil(tt, ot.Info.RelativeSize)
+	})
+
+	t.Run("WhenCifsChangeNotifyEnabledSet_ThenNotifyStructSet", func(tt *testing.T) {
+		n := boolPtr(true)
+		p := &FlexcacheModifyParams{
+			UUID:                    "fc-cifs",
+			CifsChangeNotifyEnabled: n,
+		}
+		ot := flexCacheModifyParamsToONTAP(p)
+		assert.Equal(tt, "fc-cifs", ot.UUID)
+		if assert.NotNil(tt, ot.Info) && assert.NotNil(tt, ot.Info.CifsChangeNotify) {
+			assert.Equal(tt, n, ot.Info.CifsChangeNotify.Enabled)
+		}
+		assert.Nil(tt, ot.Info.AtimeScrub)
+		assert.Nil(tt, ot.Info.Writeback)
+		assert.Nil(tt, ot.Info.RelativeSize)
+	})
+
+	t.Run("WhenMultipleFieldsSet_ThenAllCorrespondingStructsSet", func(tt *testing.T) {
+		wb := boolPtr(true)
+		atimeEn := boolPtr(true)
+		atimePeriod := int16Ptr(7)
+		rsEn := boolPtr(true)
+		rsPct := int16Ptr(42)
+		cn := boolPtr(false)
+		dir := strPtr("/data")
+		ex := strPtr("/data/tmp")
+		rec := boolPtr(false)
+
+		p := &FlexcacheModifyParams{
+			UUID:                       "fc-multi",
+			WritebackEnabled:           wb,
+			AtimeScrubEnabled:          atimeEn,
+			AtimeScrubPeriod:           atimePeriod,
+			RelativeSizeEnabled:        rsEn,
+			RelativeSizePercentage:     rsPct,
+			CifsChangeNotifyEnabled:    cn,
+			PrepopulateDirPaths:        []*string{dir},
+			PrepopulateExcludeDirPaths: []*string{ex},
+			PrepopulateRecurse:         rec,
+		}
+
+		ot := flexCacheModifyParamsToONTAP(p)
+		assert.Equal(tt, "fc-multi", ot.UUID)
+		if assert.NotNil(tt, ot.Info) {
+			if assert.NotNil(tt, ot.Info.Writeback) {
+				assert.Equal(tt, wb, ot.Info.Writeback.Enabled)
+			}
+			if assert.NotNil(tt, ot.Info.AtimeScrub) {
+				assert.Equal(tt, atimeEn, ot.Info.AtimeScrub.Enabled)
+				assert.Equal(tt, atimePeriod, ot.Info.AtimeScrub.Period)
+			}
+			if assert.NotNil(tt, ot.Info.CifsChangeNotify) {
+				assert.Equal(tt, cn, ot.Info.CifsChangeNotify.Enabled)
+			}
+			if assert.NotNil(tt, ot.Info.Prepopulate) {
+				assert.Len(tt, ot.Info.Prepopulate.DirPaths, 1)
+				assert.Equal(tt, *dir, *ot.Info.Prepopulate.DirPaths[0])
+				assert.Len(tt, ot.Info.Prepopulate.ExcludeDirPaths, 1)
+				assert.Equal(tt, *ex, *ot.Info.Prepopulate.ExcludeDirPaths[0])
+				assert.Equal(tt, rec, ot.Info.Prepopulate.Recurse)
+			}
+		}
+	})
+}

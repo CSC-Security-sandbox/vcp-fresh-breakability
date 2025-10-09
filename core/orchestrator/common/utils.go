@@ -34,6 +34,19 @@ func CreateJunctionPath(token string) string {
 	return junctionPath
 }
 
+// ConvertStringSliceToPointerSlice converts []string to []*string
+func ConvertStringSliceToPointerSlice(slice []string) []*string {
+	if slice == nil {
+		return nil
+	}
+	result := make([]*string, len(slice))
+	for i, s := range slice {
+		str := s
+		result[i] = &str
+	}
+	return result
+}
+
 func ValidateBackupPolicyRetentionLimits(backupPolicyParams *BackupPolicyParams, retentionPolicyParams *BackupRetentionPolicyParams) error {
 	// Check if any backup type is immutable
 	isDailyImmutable := retentionPolicyParams.IsDailyBackupImmutable != nil && *retentionPolicyParams.IsDailyBackupImmutable

@@ -867,3 +867,58 @@ func TestCheckIfBackupIsImmutable(t *testing.T) {
 		assert.True(t, result) // Should return true when schedule tag is nil
 	})
 }
+
+func TestConvertStringSliceToPointerSlice(t *testing.T) {
+	t.Run("nil input returns nil", func(t *testing.T) {
+		var in []string
+		out := ConvertStringSliceToPointerSlice(in)
+		assert.Nil(t, out)
+	})
+
+	t.Run("empty slice returns empty non-nil slice", func(t *testing.T) {
+		out := ConvertStringSliceToPointerSlice([]string{})
+		assert.NotNil(t, out)
+		assert.Len(t, out, 0)
+	})
+
+	t.Run("typical slice values and pointer uniqueness", func(t *testing.T) {
+		in := []string{"alpha", "beta", "gamma"}
+		out := ConvertStringSliceToPointerSlice(in)
+		assert.Len(t, out, len(in))
+		seen := make(map[*string]struct{}, len(out))
+		for i, p := range out {
+			assert.NotNil(t, p, "pointer at %d is nil", i)
+			assert.Equal(t, in[i], *p)
+			_, exists := seen[p]
+			assert.False(t, exists, "duplicate pointer address at %d", i)
+			seen[p] = struct{}{}
+		}
+	})
+
+	t.Run("duplicate string values produce distinct pointers", func(t *testing.T) {
+		in := []string{"dup", "dup"}
+		out := ConvertStringSliceToPointerSlice(in)
+		assert.Len(t, out, 2)
+		assert.Equal(t, "dup", *out[0])
+		assert.Equal(t, "dup", *out[1])
+		assert.NotSame(t, out[0], out[1])
+	})
+
+	t.Run("source mutation does not affect converted pointers", func(t *testing.T) {
+		in := []string{"one", "two"}
+		out := ConvertStringSliceToPointerSlice(in)
+		first := *out[0]
+		second := *out[1]
+		in[0] = "changed"
+		in[1] = "modified"
+		assert.Equal(t, first, *out[0])
+		assert.Equal(t, second, *out[1])
+	})
+
+	t.Run("single element slice", func(t *testing.T) {
+		in := []string{"solo"}
+		out := ConvertStringSliceToPointerSlice(in)
+		assert.Len(t, out, 1)
+		assert.Equal(t, "solo", *out[0])
+	})
+}

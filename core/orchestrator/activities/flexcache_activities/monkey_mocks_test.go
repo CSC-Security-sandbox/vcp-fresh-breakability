@@ -5,8 +5,13 @@ package flexcache_activities
 import (
 	context "context"
 
-	mock "github.com/stretchr/testify/mock"
+	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+
 	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+
+	mock "github.com/stretchr/testify/mock"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 
@@ -129,6 +134,65 @@ func (_c *monkeyMock_utilGetLogger_Call) Return(_a0 log.Logger) *monkeyMock_util
 }
 
 func (_c *monkeyMock_utilGetLogger_Call) RunAndReturn(run func(interface{}) log.Logger) *monkeyMock_utilGetLogger_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// verifyAndGetFlexCacheUpdateParams provides a mock function with given fields: volume, params
+func (_m *monkeyMock) verifyAndGetFlexCacheUpdateParams(volume *datamodel.Volume, params *common.UpdateVolumeParams) (*vsa.UpdateFlexCacheVolumeParams, error) {
+	ret := _m.Called(volume, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for verifyAndGetFlexCacheUpdateParams")
+	}
+
+	var r0 *vsa.UpdateFlexCacheVolumeParams
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*datamodel.Volume, *common.UpdateVolumeParams) (*vsa.UpdateFlexCacheVolumeParams, error)); ok {
+		return rf(volume, params)
+	}
+	if rf, ok := ret.Get(0).(func(*datamodel.Volume, *common.UpdateVolumeParams) *vsa.UpdateFlexCacheVolumeParams); ok {
+		r0 = rf(volume, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*vsa.UpdateFlexCacheVolumeParams)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*datamodel.Volume, *common.UpdateVolumeParams) error); ok {
+		r1 = rf(volume, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_verifyAndGetFlexCacheUpdateParams_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'verifyAndGetFlexCacheUpdateParams'
+type monkeyMock_verifyAndGetFlexCacheUpdateParams_Call struct {
+	*mock.Call
+}
+
+// verifyAndGetFlexCacheUpdateParams is a helper method to define mock.On call
+//   - volume *datamodel.Volume
+//   - params *common.UpdateVolumeParams
+func (_e *monkeyMock_Expecter) verifyAndGetFlexCacheUpdateParams(volume interface{}, params interface{}) *monkeyMock_verifyAndGetFlexCacheUpdateParams_Call {
+	return &monkeyMock_verifyAndGetFlexCacheUpdateParams_Call{Call: _e.mock.On("verifyAndGetFlexCacheUpdateParams", volume, params)}
+}
+
+func (_c *monkeyMock_verifyAndGetFlexCacheUpdateParams_Call) Run(run func(volume *datamodel.Volume, params *common.UpdateVolumeParams)) *monkeyMock_verifyAndGetFlexCacheUpdateParams_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*datamodel.Volume), args[1].(*common.UpdateVolumeParams))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_verifyAndGetFlexCacheUpdateParams_Call) Return(_a0 *vsa.UpdateFlexCacheVolumeParams, _a1 error) *monkeyMock_verifyAndGetFlexCacheUpdateParams_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_verifyAndGetFlexCacheUpdateParams_Call) RunAndReturn(run func(*datamodel.Volume, *common.UpdateVolumeParams) (*vsa.UpdateFlexCacheVolumeParams, error)) *monkeyMock_verifyAndGetFlexCacheUpdateParams_Call {
 	_c.Call.Return(run)
 	return _c
 }

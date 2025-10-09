@@ -7,6 +7,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -26,6 +27,11 @@ type volumeUpdateWorkflow struct {
 
 // Enforcing the WorkflowInterface on volumeUpdateWorkflow
 var _ WorkflowInterface = &volumeUpdateWorkflow{}
+var (
+	convertCacheParameters    = _convertCacheParameters
+	flexCacheEnabled          = env.GetBool("FLEXCACHE_ENABLED", false)
+	isUpdateFlexCacheRequired = _isUpdateFlexCacheRequired
+)
 
 // UpdateVolumeWorkflow Update Volume Workflow process volume related requests from a customer.
 func UpdateVolumeWorkflow(ctx workflow.Context, params *common.UpdateVolumeParams, volume *datamodel.Volume) error {
@@ -88,6 +94,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	volume := args[1].(*datamodel.Volume)
 	updateActivity := &activities.VolumeUpdateActivity{}
 	deleteActivity := &activities.VolumeDeleteActivity{}
+	flexCacheUpdateActivity := &flexcache_activities.FlexCacheVolumeUpdateActivity{}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -166,6 +173,16 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if isUpdateRequired(volResponse, params, volume) {
 		rollbackManager.AddActivity(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse, volume), node)
 		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInONTAP, volume, params, node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
+	if isUpdateFlexCacheRequired(volume, params) {
+		rollbackManager.AddActivity(flexCacheUpdateActivity.UpdateFlexCacheVolumeInONTAP, volume,
+			getUpdateParamsForRollback(volResponse, volume), node)
+		err = workflow.ExecuteActivity(ctx, flexCacheUpdateActivity.UpdateFlexCacheVolumeInONTAP, volume,
+			params, node).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -500,6 +517,102 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 	return false
 }
 
+func _isUpdateFlexCacheRequired(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+	// TODO: Refactor this and _applyFlexCacheUpdateParams to a common location.
+	// feature is disabled
+	if !flexCacheEnabled {
+		return false
+	}
+	// No incoming FlexCache intent
+	if params == nil || params.CacheParameters == nil || params.CacheParameters.CacheConfig == nil {
+		return false
+	}
+	inCfg := params.CacheParameters.CacheConfig
+
+	// Not a FlexCache volume (cannot add via update)
+	if existingVolume == nil || existingVolume.CacheParameters == nil {
+		return false
+	}
+
+	// Existing FlexCache params but missing config: treat as add
+	if existingVolume.CacheParameters.CacheConfig == nil {
+		return true
+	}
+	exCfg := existingVolume.CacheParameters.CacheConfig
+
+	// Compare fields, ignoring nils in input
+	changedBool := func(in, ex *bool) bool {
+		if in == nil {
+			return false
+		}
+		return ex == nil || *in != *ex
+	}
+	changedInt := func(in, ex *int16) bool {
+		if in == nil {
+			return false
+		}
+		return ex == nil || *in != *ex
+	}
+
+	if changedBool(inCfg.WritebackEnabled, exCfg.WritebackEnabled) ||
+		changedBool(inCfg.AtimeScrubEnabled, exCfg.AtimeScrubEnabled) ||
+		changedInt(inCfg.AtimeScrubDays, exCfg.AtimeScrubDays) ||
+		changedBool(inCfg.CifsChangeNotifyEnabled, exCfg.CifsChangeNotifyEnabled) {
+		return true
+	}
+
+	// PrePopulate diff handling
+	pp := inCfg.PrePopulate
+	if pp == nil {
+		return false
+	}
+	exPP := exCfg.PrePopulate
+
+	// Adding new PrePopulate section
+	if exPP == nil {
+		if pp.Recursion != nil || pp.PathList != nil || pp.ExcludePathList != nil {
+			return true
+		}
+		return false
+	}
+
+	if changedBool(pp.Recursion, exPP.Recursion) {
+		return true
+	}
+
+	sliceChanged := func(in, ex []string) bool {
+		if in == nil {
+			return false
+		}
+		if len(in) == 0 {
+			return len(ex) != 0
+		}
+
+		// Set comparison (order ignored, duplicates not distinguished).
+		inSet := make(map[string]struct{}, len(in))
+		for _, v := range in {
+			inSet[v] = struct{}{}
+		}
+		exSet := make(map[string]struct{}, len(ex))
+		for _, v := range ex {
+			exSet[v] = struct{}{}
+		}
+
+		if len(inSet) != len(exSet) {
+			return true
+		}
+		for v := range inSet {
+			if _, ok := exSet[v]; !ok {
+				return true
+			}
+		}
+		return false
+	}
+
+	return sliceChanged(pp.PathList, exPP.PathList) ||
+		sliceChanged(pp.ExcludePathList, exPP.ExcludePathList)
+}
+
 func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse, existingVolume *datamodel.Volume) *common.UpdateVolumeParams {
 	params := &common.UpdateVolumeParams{
 		// Set the necessary parameters for rolling back the volume update
@@ -522,7 +635,46 @@ func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse, existingVolume 
 		}
 	}
 
+	if existingVolume.CacheParameters != nil {
+		params.CacheParameters = convertCacheParameters(existingVolume.CacheParameters)
+	}
+
 	return params
+}
+
+func _convertCacheParameters(src *datamodel.CacheParameters) *models.CacheParameters {
+	if src == nil {
+		return nil
+	}
+
+	dst := &models.CacheParameters{
+		PeerVolumeName:        src.PeerVolumeName,
+		PeerClusterName:       src.PeerClusterName,
+		PeerSvmName:           src.PeerSvmName,
+		PeerIPAddresses:       src.PeerIpAddresses, // ensure field name matches models
+		CacheState:            src.CacheState,
+		CacheStateDetails:     src.CacheStateDetails,
+		CacheStateDetailsCode: src.CacheStateDetailsCode,
+	}
+
+	if src.CacheConfig != nil {
+		cc := &models.CacheConfig{
+			WritebackEnabled:        src.CacheConfig.WritebackEnabled,
+			AtimeScrubEnabled:       src.CacheConfig.AtimeScrubEnabled,
+			AtimeScrubDays:          src.CacheConfig.AtimeScrubDays,
+			CifsChangeNotifyEnabled: src.CacheConfig.CifsChangeNotifyEnabled,
+		}
+		if src.CacheConfig.PrePopulate != nil {
+			cc.PrePopulate = &models.CachePrePopulate{
+				PathList:        src.CacheConfig.PrePopulate.PathList,
+				ExcludePathList: src.CacheConfig.PrePopulate.ExcludePathList,
+				Recursion:       src.CacheConfig.PrePopulate.Recursion,
+			}
+		}
+		dst.CacheConfig = cc
+	}
+
+	return dst
 }
 
 // getUpdatedExportPolicy converts models.ExportPolicy to datamodel.ExportPolicy

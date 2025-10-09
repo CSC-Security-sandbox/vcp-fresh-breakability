@@ -64,3 +64,19 @@ func (sc *storageClient) FlexCacheVolumeDelete(params *FlexCacheVolumeDeletePara
 
 	return nil, errors.New("unexpected response from server while deleting FlexCache volume")
 }
+
+// FlexCacheVolumeModify invokes FlexcacheModify to modify FlexCache volume
+func (sc *storageClient) FlexCacheVolumeModify(params *FlexcacheModifyParams) (bool, *JobAccepted, error) {
+	okResponse, acceptedResponse, err := sc.api.FlexcacheModify(flexCacheModifyParamsToONTAP(params), nil)
+	if err != nil {
+		return false, nil, err
+	}
+	if okResponse != nil {
+		return true, nil, nil
+	}
+
+	job := &JobAccepted{
+		JobUUID: string(*acceptedResponse.Payload.Job.UUID),
+	}
+	return false, job, nil
+}

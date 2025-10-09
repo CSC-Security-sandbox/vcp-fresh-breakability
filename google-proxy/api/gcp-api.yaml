@@ -7961,6 +7961,8 @@ components:
           description: Description of the volume
           nullable: true
           example: My Volume description
+        cacheParameters:
+          $ref: '#/components/schemas/FlexCache_v1beta'
     SnapshotPolicy_v1beta:
       title: SnapshotPolicy
       type: object

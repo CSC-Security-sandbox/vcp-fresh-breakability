@@ -52001,9 +52001,15 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 			s.Description.Encode(e)
 		}
 	}
+	{
+		if s.CacheParameters.Set {
+			e.FieldStart("cacheParameters")
+			s.CacheParameters.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [17]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [18]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -52021,6 +52027,7 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [17]string{
 	14: "labels",
 	15: "poolId",
 	16: "description",
+	17: "cacheParameters",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -52212,6 +52219,16 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "cacheParameters":
+			if err := func() error {
+				s.CacheParameters.Reset()
+				if err := s.CacheParameters.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cacheParameters\"")
 			}
 		default:
 			return d.Skip()

@@ -3,20 +3,23 @@
 Covers file (NFS/SMB future) & block (iSCSI) volumes, CRUD semantics, special operations (revert), cloning (snapshot/backup), internal flows, and LRO lifecycle.
 
 ## Endpoints
+
 Base Prefix: `/v1beta/projects/{projectNumber}/locations/{locationId}`
 
-| Operation | Method & Path | LRO | Notes |
-|-----------|---------------|-----|------|
-| List | GET /volumes?poolId=&includeDeleted=&includePolicies=&includeSmbShareSettings= | No | Optional filters |
-| Create | POST /volumes | Yes (202) | Empty, from snapshot, or from backup |
-| Bulk Get | POST /getMultipleVolumes | No | Body: VolumeIdList_v1beta |
-| Describe | GET /volumes/{volumeId} | No | volumeId = UUID |
-| Update | PUT /volumes/{volumeId} | Yes (202/204) | Resize, policy, tiering, export/host group changes |
-| Delete | DELETE /volumes/{volumeId} | Yes (202/204) | Optional deleteAssociatedBackups flag |
-| Revert | POST /volumes/{volumeId}/Revert | Yes (202/204) | Revert to snapshotId |
+| Operation | Method & Path | LRO | Notes                                                          |
+|-----------|---------------|-----|----------------------------------------------------------------|
+| List | GET /volumes?poolId=&includeDeleted=&includePolicies=&includeSmbShareSettings= | No | Optional filters                                               |
+| Create | POST /volumes | Yes (202) | Empty, from snapshot, or from backup                           |
+| Bulk Get | POST /getMultipleVolumes | No | Body: VolumeIdList_v1beta                                      |
+| Describe | GET /volumes/{volumeId} | No | volumeId = UUID                                                |
+| Update | PUT /volumes/{volumeId} | Yes (202/204) | Resize, policy, tiering, export/host group changes, cacheParameters |
+| Delete | DELETE /volumes/{volumeId} | Yes (202/204) | Optional deleteAssociatedBackups flag                          |
+| Revert | POST /volumes/{volumeId}/Revert | Yes (202/204) | Revert to snapshotId                                           |
 
 ## Create Volume
+
 Request (empty new NFS volume):
+
 ```json
 {
   "resourceId": "logs-vol",
@@ -29,7 +32,9 @@ Request (empty new NFS volume):
   "labels": {"env": "dev"}
 }
 ```
+
 Clone from snapshot:
+
 ```json
 {
   "resourceId": "clone-vol",
@@ -39,7 +44,9 @@ Clone from snapshot:
   "quotaInBytes": 214748364800
 }
 ```
+
 Block (iSCSI) with host groups:
+
 ```json
 {
   "resourceId": "db-lun",
@@ -49,12 +56,15 @@ Block (iSCSI) with host groups:
   "blockProperties": {"hostGroupIds": ["<hg-uuid>"], "osType": "LINUX"}
 }
 ```
+
 Response (202 Operation):
+
 ```json
 {"done": false, "name": "/v1beta/projects/123/locations/us-east1/operations/<op-uuid>"}
 ```
 
 ## Describe Volume (200)
+
 ```json
 {
   "volumeId": "49b96a2f-...",
@@ -71,28 +81,36 @@ Response (202 Operation):
 ```
 
 ## Update Volume
+
 Partial example:
+
 ```json
 {
   "quotaInBytes": 214748364800,
   "tieringPolicy": {"tierAction": "ENABLED", "coolingThresholdDays": 40},
-  "exportPolicy": {"rules": [{"ruleIndex":1,"allowedClients":"10.0.0.0/24","accessType":"READ_WRITE"}]}
+  "exportPolicy": {"rules": [{"ruleIndex":1,"allowedClients":"10.0.0.0/24","accessType":"READ_WRITE"}]},
+  "cacheParameters": {"peerVolumeName": "vol1", "peerClusterName": "peer_cluster_name_1", "peerSvmName": "peer_svm_1", "cacheConfig": {"prePopulate": {"recursion": false}}, "peerIpAddresses": ["1.1.1.1", "2.2.2.2"]}
 }
 ```
 
 ## Revert Volume
+
 ```json
 {"snapshotId": "<snapshot-uuid>"}
 ```
+
 Returns LRO (202). Final state returns updated volume (READY) with reset data to snapshot point.
 
 ## Delete Volume
+
 Optional body:
+
 ```json
 {"deleteAssociatedBackups": false}
 ```
 
 ## Internal Create Flow
+
 1. google-proxy validates + builds `CreateVolumeParams`.
 2. Orchestrator `_createVolume`:
    - Account & Pool lookup, zone compatibility.
@@ -110,16 +128,20 @@ Optional body:
 4. Operation polling returns terminal representation.
 
 ## Internal Update Flow
+
 - Validate new size (no shrink below used + snapReserve). HostGroup updates remap iSCSI LUNs. Tiering & policies applied via ONTAP + DB update.
 
 ## Delete Flow
+
 - If body flag deleteAssociatedBackups=true (future extension) orchestrator will cascade; otherwise verifies no active replication (if implemented) then marks DELETING and runs workflow for ONTAP destroy & DB state.
 
 ## Revert Flow
+
 - Validates snapshot belongs to volume and snapshotState READY.
 - Executes ONTAP revert (disruptive) → refresh metrics → READY.
 
 ## LRO Lifecycle Table
+
 | Phase | DB State | Notes |
 |-------|----------|-------|
 | Insert | CREATING | Row + Job NEW |
@@ -128,6 +150,7 @@ Optional body:
 | Failure | ERROR | Job ERROR, Operation done=true + error |
 
 ## Sequence Diagram (Create)
+
 ```plantuml
 @startuml
 actor Client
@@ -155,6 +178,7 @@ GP -> Client: done=true + volume JSON
 ```
 
 ## Polling Example
+
 ```bash
 OPERATION_ID=<operation-uuid>
 PROJECT_NUMBER=<project-number>
@@ -164,9 +188,11 @@ curl -sS -H "Authorization: Bearer $(gcloud auth print-access-token)" \
 ```
 
 ## Idempotency
+
 - Duplicate create with same name in same zone while original CREATING returns existing job.
 
 ## Error Mapping (Examples)
+
 | Scenario | HTTP | Message |
 |----------|------|---------|
 | Pool zone mismatch | 409 | Volume zone does not match pool's primary zone |
@@ -175,10 +201,12 @@ curl -sS -H "Authorization: Bearer $(gcloud auth print-access-token)" \
 | Invalid shrink | 422 | Cannot decrease size below usage |
 
 ## Observability
+
 Metrics: `volume_create_duration_seconds`, `volume_state_transitions_total`.
 Logs: correlationId + volume UUID.
 
 ## Troubleshooting
+
 | Symptom | Check | Action |
 |---------|-------|--------|
 | LRO stuck | Job + workflow history | Inspect failing activity; retry or delete volume |
