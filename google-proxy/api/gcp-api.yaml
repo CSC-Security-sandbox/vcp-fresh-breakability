@@ -5945,7 +5945,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/StateUpdate_v1beta'
         - required:
-            - resourceID
+            - resourceId
             - resourceType
           type: object
           properties:
@@ -5963,8 +5963,8 @@ components:
                 - KmsConfig
                 - BackupPolicy
                 - HostGroup
-            resourceID:
-              title: resourceID
+            resourceId:
+              title: resourceId
               type: string
               description: The UUID of the resource
               nullable: false

@@ -15731,6 +15731,8 @@ func (s *PoolInternalV1betaStoragePoolState) Decode(d *jx.Decoder) error {
 		*s = PoolInternalV1betaStoragePoolStateDELETING
 	case PoolInternalV1betaStoragePoolStateERROR:
 		*s = PoolInternalV1betaStoragePoolStateERROR
+	case PoolInternalV1betaStoragePoolStateDEGRADED:
+		*s = PoolInternalV1betaStoragePoolStateDEGRADED
 	default:
 		*s = PoolInternalV1betaStoragePoolState(v)
 	}
@@ -17170,6 +17172,8 @@ func (s *PoolV1betaStoragePoolState) Decode(d *jx.Decoder) error {
 		*s = PoolV1betaStoragePoolStateDELETING
 	case PoolV1betaStoragePoolStateERROR:
 		*s = PoolV1betaStoragePoolStateERROR
+	case PoolV1betaStoragePoolStateDEGRADED:
+		*s = PoolV1betaStoragePoolStateDEGRADED
 	default:
 		*s = PoolV1betaStoragePoolState(v)
 	}
@@ -18998,8 +19002,8 @@ func (s *ResourceStateUpdateV1beta) encodeFields(e *jx.Encoder) {
 		s.ResourceType.Encode(e)
 	}
 	{
-		e.FieldStart("resourceID")
-		e.Str(s.ResourceID)
+		e.FieldStart("resourceId")
+		e.Str(s.ResourceId)
 	}
 	{
 		if s.ParentResourceType.Set {
@@ -19018,7 +19022,7 @@ func (s *ResourceStateUpdateV1beta) encodeFields(e *jx.Encoder) {
 var jsonFieldsNameOfResourceStateUpdateV1beta = [5]string{
 	0: "state",
 	1: "resourceType",
-	2: "resourceID",
+	2: "resourceId",
 	3: "parentResourceType",
 	4: "parentResourceID",
 }
@@ -19052,17 +19056,17 @@ func (s *ResourceStateUpdateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resourceType\"")
 			}
-		case "resourceID":
+		case "resourceId":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
-				s.ResourceID = string(v)
+				s.ResourceId = string(v)
 				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"resourceID\"")
+				return errors.Wrap(err, "decode field \"resourceId\"")
 			}
 		case "parentResourceType":
 			if err := func() error {

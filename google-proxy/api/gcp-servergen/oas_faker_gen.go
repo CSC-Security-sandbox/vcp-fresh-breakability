@@ -4136,7 +4136,7 @@ func (s *ResourceStateUpdateV1beta) SetFake() {
 	}
 	{
 		{
-			s.ResourceID = "string"
+			s.ResourceId = "string"
 		}
 	}
 	{

@@ -11449,7 +11449,8 @@ type PoolInternalV1beta struct {
 	AvailableThroughputMibps OptNilFloat64 `json:"availableThroughputMibps"`
 	// Number of volumes in a pool.
 	NumberOfVolumes OptNilInt32 `json:"numberOfVolumes"`
-	// The current lifecycle state of the resource.
+	// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex
+	// UNIFIED pools.
 	StoragePoolState OptPoolInternalV1betaStoragePoolState `json:"storagePoolState"`
 	// Details about the current lifecycle state.
 	StoragePoolStateDetails OptString `json:"storagePoolStateDetails"`
@@ -12097,7 +12098,8 @@ func (s *PoolInternalV1betaServiceLevel) UnmarshalText(data []byte) error {
 	}
 }
 
-// The current lifecycle state of the resource.
+// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex
+// UNIFIED pools.
 type PoolInternalV1betaStoragePoolState string
 
 const (
@@ -12110,6 +12112,7 @@ const (
 	PoolInternalV1betaStoragePoolStateDELETED          PoolInternalV1betaStoragePoolState = "DELETED"
 	PoolInternalV1betaStoragePoolStateDELETING         PoolInternalV1betaStoragePoolState = "DELETING"
 	PoolInternalV1betaStoragePoolStateERROR            PoolInternalV1betaStoragePoolState = "ERROR"
+	PoolInternalV1betaStoragePoolStateDEGRADED         PoolInternalV1betaStoragePoolState = "DEGRADED"
 )
 
 // AllValues returns all PoolInternalV1betaStoragePoolState values.
@@ -12124,6 +12127,7 @@ func (PoolInternalV1betaStoragePoolState) AllValues() []PoolInternalV1betaStorag
 		PoolInternalV1betaStoragePoolStateDELETED,
 		PoolInternalV1betaStoragePoolStateDELETING,
 		PoolInternalV1betaStoragePoolStateERROR,
+		PoolInternalV1betaStoragePoolStateDEGRADED,
 	}
 }
 
@@ -12147,6 +12151,8 @@ func (s PoolInternalV1betaStoragePoolState) MarshalText() ([]byte, error) {
 	case PoolInternalV1betaStoragePoolStateDELETING:
 		return []byte(s), nil
 	case PoolInternalV1betaStoragePoolStateERROR:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateDEGRADED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -12182,6 +12188,9 @@ func (s *PoolInternalV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolInternalV1betaStoragePoolStateERROR:
 		*s = PoolInternalV1betaStoragePoolStateERROR
+		return nil
+	case PoolInternalV1betaStoragePoolStateDEGRADED:
+		*s = PoolInternalV1betaStoragePoolStateDEGRADED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12444,7 +12453,8 @@ type PoolV1beta struct {
 	AvailableThroughputMibps OptNilFloat64 `json:"availableThroughputMibps"`
 	// Number of volumes in a pool.
 	NumberOfVolumes OptNilInt32 `json:"numberOfVolumes"`
-	// The current lifecycle state of the resource.
+	// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex
+	// UNIFIED pools.
 	StoragePoolState OptPoolV1betaStoragePoolState `json:"storagePoolState"`
 	// Details about the current lifecycle state.
 	StoragePoolStateDetails OptString `json:"storagePoolStateDetails"`
@@ -13068,7 +13078,8 @@ func (s *PoolV1betaServiceLevel) UnmarshalText(data []byte) error {
 	}
 }
 
-// The current lifecycle state of the resource.
+// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex
+// UNIFIED pools.
 type PoolV1betaStoragePoolState string
 
 const (
@@ -13081,6 +13092,7 @@ const (
 	PoolV1betaStoragePoolStateDELETED          PoolV1betaStoragePoolState = "DELETED"
 	PoolV1betaStoragePoolStateDELETING         PoolV1betaStoragePoolState = "DELETING"
 	PoolV1betaStoragePoolStateERROR            PoolV1betaStoragePoolState = "ERROR"
+	PoolV1betaStoragePoolStateDEGRADED         PoolV1betaStoragePoolState = "DEGRADED"
 )
 
 // AllValues returns all PoolV1betaStoragePoolState values.
@@ -13095,6 +13107,7 @@ func (PoolV1betaStoragePoolState) AllValues() []PoolV1betaStoragePoolState {
 		PoolV1betaStoragePoolStateDELETED,
 		PoolV1betaStoragePoolStateDELETING,
 		PoolV1betaStoragePoolStateERROR,
+		PoolV1betaStoragePoolStateDEGRADED,
 	}
 }
 
@@ -13118,6 +13131,8 @@ func (s PoolV1betaStoragePoolState) MarshalText() ([]byte, error) {
 	case PoolV1betaStoragePoolStateDELETING:
 		return []byte(s), nil
 	case PoolV1betaStoragePoolStateERROR:
+		return []byte(s), nil
+	case PoolV1betaStoragePoolStateDEGRADED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -13153,6 +13168,9 @@ func (s *PoolV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolV1betaStoragePoolStateERROR:
 		*s = PoolV1betaStoragePoolStateERROR
+		return nil
+	case PoolV1betaStoragePoolStateDEGRADED:
+		*s = PoolV1betaStoragePoolStateDEGRADED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -14314,7 +14332,7 @@ type ResourceStateUpdateV1beta struct {
 	// Resource type be updated.
 	ResourceType ResourceStateUpdateV1betaResourceType `json:"resourceType"`
 	// The UUID of the resource.
-	ResourceID string `json:"resourceID"`
+	ResourceId string `json:"resourceId"`
 	// Parent resource Type.
 	ParentResourceType OptNilResourceStateUpdateV1betaParentResourceType `json:"parentResourceType"`
 	// The UUID of the parent resource.
@@ -14331,9 +14349,9 @@ func (s *ResourceStateUpdateV1beta) GetResourceType() ResourceStateUpdateV1betaR
 	return s.ResourceType
 }
 
-// GetResourceID returns the value of ResourceID.
-func (s *ResourceStateUpdateV1beta) GetResourceID() string {
-	return s.ResourceID
+// GetResourceId returns the value of ResourceId.
+func (s *ResourceStateUpdateV1beta) GetResourceId() string {
+	return s.ResourceId
 }
 
 // GetParentResourceType returns the value of ParentResourceType.
@@ -14356,9 +14374,9 @@ func (s *ResourceStateUpdateV1beta) SetResourceType(val ResourceStateUpdateV1bet
 	s.ResourceType = val
 }
 
-// SetResourceID sets the value of ResourceID.
-func (s *ResourceStateUpdateV1beta) SetResourceID(val string) {
-	s.ResourceID = val
+// SetResourceId sets the value of ResourceId.
+func (s *ResourceStateUpdateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
 }
 
 // SetParentResourceType sets the value of ParentResourceType.

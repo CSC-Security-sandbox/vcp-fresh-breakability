@@ -5373,6 +5373,8 @@ func (s PoolInternalV1betaStoragePoolState) Validate() error {
 		return nil
 	case "ERROR":
 		return nil
+	case "DEGRADED":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -5995,6 +5997,8 @@ func (s PoolV1betaStoragePoolState) Validate() error {
 	case "DELETING":
 		return nil
 	case "ERROR":
+		return nil
+	case "DEGRADED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
