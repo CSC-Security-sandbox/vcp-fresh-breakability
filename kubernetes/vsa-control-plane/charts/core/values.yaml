@@ -21,6 +21,15 @@ requiredTakeoverReasons:
   - "Default"
 jobPollingMaxDuration: 25 # seconds
 jobPollingInterval: 3 # seconds
+caName: "vsa-intermediate-us-e4"
+caPoolName: "us-e4-vsa-npd-pool"
+caPoolDeployedProjectId: "163019662857"
+vsaDeployedDnsName: "us-e4.vsa"
+vsaManagedZone: "us-e4-vsa"
+vsaSecretCacheCleanupIntervalHours: "24"
+vsaSecretAuthCacheExpirationHours: 24
+privateKeyBits: 4096
+
 
 images:
   core:
