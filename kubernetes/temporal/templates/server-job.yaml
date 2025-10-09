@@ -1,4 +1,4 @@
-{{- if $.Values.server.enabled }}{{- if or $.Values.schema.createDatabase.enabled $.Values.schema.setup.enabled $.Values.schema.update.enabled }}
+{{- if or $.Values.schema.createDatabase.enabled $.Values.schema.setup.enabled $.Values.schema.update.enabled }}
 {{- range $store := (list "default" "visibility") }}
 ---
 apiVersion: batch/v1
@@ -168,6 +168,8 @@ spec:
             - name: TEMPORAL_ADDRESS
               {{- if and (hasKey $.Values.server "internalFrontend") $.Values.server.internalFrontend.enabled }}
               value: {{ include "temporal.fullname" $ }}-internal-frontend.{{ $.Release.Namespace }}.svc:{{ $.Values.server.internalFrontend.service.port }}
+              {{- else if $.Values.server.frontend.ingress.enabled }}
+              value: "{{ index $.Values.server.frontend.ingress.hosts 0 }}"
               {{- else }}
               value: "{{ include "temporal.fullname" $ }}-frontend.{{ $.Release.Namespace }}.svc:{{ $.Values.server.frontend.service.port }}"
               {{- end }}
@@ -207,4 +209,4 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 {{- end }}
-{{- end -}}{{- end -}}
+{{- end -}}
