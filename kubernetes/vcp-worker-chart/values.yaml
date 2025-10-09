@@ -127,7 +127,7 @@ workerConfig:
   fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
   vsaImageName: "r9-17-1pxn-919-op-gcnv"
   # this will be removed after AGA
-  vsaFilesImageName: "r9-18-1xn-250722-0000"
+  vsaFilesImageName: "r9-18-1xn-251008-0400"
   vsaImageProject: ""
   vsaMediatorImageProject: ""
   vsaInstanceTypeOverride: false

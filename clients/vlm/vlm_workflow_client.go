@@ -38,6 +38,7 @@ var (
 )
 
 const VLMCloudProvider = "gcp"
+const AccountName = "AccountName"
 
 // getRetryErrorPatterns returns the list of error patterns that trigger delete and retry operations
 func getRetryErrorPatterns() []string {
@@ -386,7 +387,10 @@ func (vlmManager *VSAClientWorkflowManager) GetClusterZiZsDetails(ctx workflow.C
 
 	// Extract account ID from project ID (assuming project ID contains account info)
 	// If project ID doesn't contain account info, we'll use a default account
-	accountId := req.ProjectID // Using project ID as account identifier
+	var accountId string
+	if ctx.Value(AccountName) != nil {
+		accountId = ctx.Value(AccountName).(string)
+	}
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[GetClusterZiZsDetailsWorkflowName]; ok {
@@ -517,7 +521,7 @@ func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.C
 	accountId := validateClusterHealthRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
-	if timeout, ok := WorkflowExecutionTimeoutMap[ValidateClusterHealthWorkflowName]; ok {
+	if timeout, ok := WorkflowExecutionTimeoutMap[ClusterHealthCheckWorkflowName]; ok {
 		workflowExecutionTimeout = timeout
 	}
 
@@ -548,7 +552,7 @@ func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.C
 	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
 	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, validateClusterHealthRequest.VLMConfig.Deployment.DeploymentID)
 
-	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, ValidateClusterHealthWorkflowName, validateClusterHealthRequest).Get(childWorkflowContxt, nil)
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, ClusterHealthCheckWorkflowName, validateClusterHealthRequest).Get(childWorkflowContxt, nil)
 	if err != nil {
 		vlmErrorHandler := NewVLMErrorHandler()
 		handledErr := vlmErrorHandler.HandleVLMError(err)
@@ -569,7 +573,7 @@ func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context,
 	accountId := clusterPowerOpRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
-	if timeout, ok := WorkflowExecutionTimeoutMap[ClusterPowerOpWorkflowName]; ok {
+	if timeout, ok := WorkflowExecutionTimeoutMap[ClusterPowerCycleWorkflowName]; ok {
 		workflowExecutionTimeout = timeout
 	}
 
@@ -600,7 +604,7 @@ func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context,
 	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
 	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, clusterPowerOpRequest.VLMConfig.Deployment.DeploymentID)
 
-	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, ClusterPowerOpWorkflowName, clusterPowerOpRequest).Get(childWorkflowContxt, nil)
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, ClusterPowerCycleWorkflowName, clusterPowerOpRequest).Get(childWorkflowContxt, nil)
 	if err != nil {
 		vlmErrorHandler := NewVLMErrorHandler()
 		handledErr := vlmErrorHandler.HandleVLMError(err)

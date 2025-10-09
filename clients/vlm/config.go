@@ -23,14 +23,16 @@ const (
 const (
 	CreateVSAClusterDeploymentWorkflowName  = "vlm.CreateVSAClusterDeploymentWorkflow"
 	CreateVSASVMWorkflowName                = "vlm.CreateVSASVMWorkflow"
+	ModifyVSASVMWorkflowName                = "vlm.ModifyVSASVMWorkflow"
 	DeleteVSAClusterDeploymentWorkflowName  = "vlm.DeleteVSAClusterDeploymentWorkflow"
 	UpdateVSAClusterDeploymentWorkflowName  = "vlm.UpdateVSAClusterDeploymentWorkflow"
-	ValidateClusterHealthWorkflowName       = "vlm.ClusterHealthCheck"
-	ClusterPowerOpWorkflowName              = "vlm.ClusterPowerCycle"
-	GetClusterZiZsDetailsWorkflowName       = "vlm.GetClusterZiZsDetails"
 	UpgradeVSAClusterDeploymentWorkflowName = "vlm.UpgradeVSAClusterDeploymentWorkflow"
 	ClusterPowerCycleWorkflowName           = "vlm.ClusterPowerCycle"
+	ClusterHealthCheckWorkflowName          = "vlm.ClusterHealthCheck"
+	GetClusterZiZsDetailsWorkflowName       = "vlm.GetClusterZiZsDetails"
 	UpdateVSAMediatorWorkflowName           = "vlm.UpdateVSAMediatorWorkflow"
+	CreateVSAExpertModeUserWorkflowName     = "vlm.CreateVSAExpertModeUserWorkflow"
+	UpdateLicenseWorkflowName               = "vlm.UpdateLicenseWorkflow"
 	ASUPTriggerWaitWorkflowName             = "vlm.ASUPTriggerWaitWorkflow"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
@@ -40,7 +42,6 @@ const (
 	ErrorTypeVLMError       string = "VLMError"
 	ErrorTypeVLMClientError string = "VLMClientError"
 
-	// Cluster power operation types
 	ClusterPowerOn    string = "start"
 	ClusterPowerOff   string = "stop"
 	ClusterPowerReset string = "reset"
@@ -51,21 +52,24 @@ const (
 
 // TODO: Need to revisit these values for Multi HA configurations
 var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Duration{
-	"DefaultWorkflowExecutionTimeout":      temporal.GetWorkflowGlobalTimeout(),
-	CreateVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
-	CreateVSASVMWorkflowName:               time.Duration(env.GetInt("VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
-	DeleteVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 20)) * time.Minute,
-	UpdateVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 120)) * time.Minute,
-	ValidateClusterHealthWorkflowName:      time.Duration(env.GetInt("VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES", 15)) * time.Minute,
-	ClusterPowerOpWorkflowName:             time.Duration(env.GetInt("VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
-	GetClusterZiZsDetailsWorkflowName:      time.Duration(env.GetInt("VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
-
-	UpdateVSAMediatorWorkflowName: time.Duration(env.GetInt("VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
+	"DefaultWorkflowExecutionTimeout":       temporal.GetWorkflowGlobalTimeout(),
+	CreateVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
+	CreateVSASVMWorkflowName:                time.Duration(env.GetInt("VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
+	ModifyVSASVMWorkflowName:                10 * time.Minute,
+	DeleteVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 20)) * time.Minute,
+	UpdateVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 120)) * time.Minute,
+	UpgradeVSAClusterDeploymentWorkflowName: 300 * time.Minute,
+	ClusterPowerCycleWorkflowName:           time.Duration(env.GetInt("VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
+	ClusterHealthCheckWorkflowName:          time.Duration(env.GetInt("VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES", 15)) * time.Minute,
+	GetClusterZiZsDetailsWorkflowName:       time.Duration(env.GetInt("VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
+	UpdateVSAMediatorWorkflowName:           time.Duration(env.GetInt("VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
+	UpdateLicenseWorkflowName:               10 * time.Minute,
 }
 
 type VLMConfig struct {
 	Cloud      CloudConfig          `json:"cloud"`
 	Deployment DeploymentConfig     `json:"deployment"`
+	Upgrade    OntapUpgradeConfig   `json:"upgrade"`
 	VsaCluster VsaClusterConfig     `json:"vsa_cluster"`
 	DataAggr   []DataAggrConfig     `json:"data_aggr"`
 	Svm        map[string]SvmConfig `json:"svm"`
@@ -115,6 +119,7 @@ type DevFlags struct {
 	EnablePremiumTierData bool `json:"enable_premium_tier_data"` // Enable Premium Tier for data NIC
 	DisableGVNIC          bool
 	EnableNfsV3Support    bool `json:"enable_nfs_v3_support"` // Enable NFS v3 support
+	EnableIlbSupport      bool `json:"enable_ilb_support"`    // Enable ILB support
 }
 
 type GCPConfig struct {
@@ -160,24 +165,54 @@ type OntapCredentials struct {
 	AdminPassword string           `json:"admin_password"` // Password for ONTAP
 }
 
+// Will be revisted during multi svm support
+type GCPILBHaResources struct {
+	ForwardingRule  string `json:"forwarding_rule"`   // Forwarding rule for ILB
+	BackendService  string `json:"backend_service"`   // Backend service for ILB
+	HealthCheck     string `json:"health_check"`      // Health check for ILB
+	HealthCheckPort int32  `json:"health_check_port"` // Health check port for ILB
+}
+
+type OntapExpertModeUserConfig struct {
+	VLMConfig                 VLMConfig        `json:"vlm_config"`                    // VLM configuration for expert mode
+	OntapCredentials          OntapCredentials `json:"ontap_credentials"`             // ONTAP credentials for expert mode
+	ExpertModeUserCredentials OntapCredentials `json:"expert_mode_credentials"`       // expert mode credentials
+	Username                  string           `json:"username,omitempty"`            // expert mode username
+	AuthenticationType        string           `json:"authentication_type,omitempty"` // "password" or "certificate", default is password
+}
+
+type GCPILBVmResources struct {
+	Negs string `json:"negs"` // Neg name where the vm is attached
+}
+
+type AdditionalVmResources struct {
+	GCPILBVmResources GCPILBVmResources `json:"gcp_ilb_vm_resources"` // Stores gcp ilb vm resources
+}
+
+type AdditionalHaResources struct {
+	GCPILBHaResources GCPILBHaResources `json:"gcp_ilb_ha_resources"` // Stores gcp ilb resources
+}
+
 type HAPair struct {
-	VM1      VMConfig `json:"vm1"`
-	VM2      VMConfig `json:"vm2"`
-	Mediator VMConfig `json:"mediator"` // Added
+	VM1                   VMConfig              `json:"vm1"`
+	VM2                   VMConfig              `json:"vm2"`
+	Mediator              VMConfig              `json:"mediator"`                // Added
+	AdditionalHaResources AdditionalHaResources `json:"additional_ha_resources"` // Added
 }
 
 type VMConfig struct {
-	Region          string                   `json:"region"`    // Added
-	Zone            string                   `json:"zone"`      // Added
-	Name            string                   `json:"name"`      // Name of the VM
-	HostName        string                   `json:"host_name"` // Available during cluster create.
-	SerialNumber    string                   `json:"serial_number"`
-	NodeIndex       int                      `json:"node_index"` // Added
-	IsMediator      bool                     `json:"is_mediator"`
-	SystemLIFs      map[VSALIFType]LIFConfig `json:"lifs"`              // List of IPs for the VM
-	SystemDisks     []DiskConfig             `json:"system_disks"`      // List of system disks for the VM
-	DataDisks       []DiskConfig             `json:"data_disks"`        // List of data disks for the VM
-	VSAManagementIP string                   `json:"vsa_management_ip"` // VSA management IP for the VM
+	Region                string                   `json:"region"`    // Added
+	Zone                  string                   `json:"zone"`      // Added
+	Name                  string                   `json:"name"`      // Name of the VM
+	HostName              string                   `json:"host_name"` // Available during cluster create.
+	SerialNumber          string                   `json:"serial_number"`
+	NodeIndex             int                      `json:"node_index"` // Added
+	IsMediator            bool                     `json:"is_mediator"`
+	SystemLIFs            map[VSALIFType]LIFConfig `json:"lifs"`                    // List of IPs for the VM
+	SystemDisks           []DiskConfig             `json:"system_disks"`            // List of system disks for the VM
+	DataDisks             []DiskConfig             `json:"data_disks"`              // List of data disks for the VM
+	VSAManagementIP       string                   `json:"vsa_management_ip"`       // VSA management IP for the VM
+	AdditionalVmResources AdditionalVmResources    `json:"additional_vm_resources"` // additional resources
 }
 
 // GCP Only: Used for ZiZs workflow
@@ -216,6 +251,7 @@ const (
 	LIFTypeSan              VSALIFType = "san"
 	LIFTypeNas              VSALIFType = "nas"
 	LIFTypeMediator         VSALIFType = "mediator"
+	LIFTypeIlbNas           VSALIFType = "ilbnas"
 )
 
 type LIFConfig struct {
@@ -291,6 +327,16 @@ type CreateSVMResponse struct {
 	VLMConfig VLMConfig `json:"vlm_config"`
 }
 
+type ModifySVMRequest struct {
+	VLMConfig        VLMConfig        `json:"vlm_config"`
+	Name             string           `json:"name"`              // SVM name
+	OntapCredentials OntapCredentials `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
+}
+
+type ModifySVMResponse struct {
+	VLMConfig VLMConfig `json:"vlm_config"`
+}
+
 type UpdateVSAClusterDeploymentRequest struct {
 	VLMConfig        VLMConfig          `json:"vlm_config"`        // VLM configuration
 	NumHAPair        int                `json:"num_ha_pair"`       // Number of HA pairs to be created
@@ -298,6 +344,7 @@ type UpdateVSAClusterDeploymentRequest struct {
 	OntapCredentials OntapCredentials   `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
 	NewInstanceType  string             `json:"new_instance_type"` // Instance type for the storage pool
 	OntapUpgrade     OntapUpgradeConfig `json:"ontap_upgrade"`     // ONTAP upgrade configuration
+	ITCRecovery      bool               `json:"itc_recovery"`      // Flag to indicate if this is a recovery operation (ITC)
 }
 
 type UpdateMediatorRequest struct {
@@ -307,14 +354,13 @@ type UpdateMediatorRequest struct {
 }
 
 type UpdateMediatorResponse struct {
-	VLMConfig VLMConfig
+	VLMConfig VLMConfig `json:"vlm_config"`
 }
 
 type OntapUpgradeConfig struct {
-	OntapUpgradeTargetImageVersion    string `json:"ontap_upgrade_target_image_version"` // Image version for upgrade
-	OntapUpgradeImagePath             string `json:"ontap_upgrade_image_path"`           // Image path for upgrade
-	MediatorUpgradeTargetImageVersion string `json:"mediator_image_version"`             // Image version for mediator upgrade
-	MediatorUpgradeImagePath          string `json:"mediator_image_path"`                // Image path for mediator upgrade
+	SkipOntapImageVersionMatch     bool   `json:"skip_ontap_image_version_match"`     // Skip Image version match for upgrade
+	OntapUpgradeTargetImageVersion string `json:"ontap_upgrade_target_image_version"` // Image version for upgrade
+	OntapUpgradeImagePath          string `json:"ontap_upgrade_image_path"`           // Image path for upgrade
 }
 
 type MediatorUpdateConfig struct {
@@ -349,8 +395,9 @@ type UpdateVSAClusterDeploymentResponse struct {
 }
 
 type UpgradeVSAClusterDeploymentResponse struct {
-	VLMConfig    VLMConfig
-	OntapVersion string
+	VLMConfig     VLMConfig              `json:"vlm_config"`
+	UpgradeStatus DeploymentUpdateStatus `json:"upgrade_status"`
+	OntapVersion  string                 `json:"ontap_version"`
 }
 
 type DeleteVSAClusterDeploymentRequest struct {
@@ -363,48 +410,30 @@ type DeleteVSAClusterDeploymentRequest struct {
 type CreateVSAClusterDeploymentRequest struct {
 	VLMConfig        VLMConfig        `json:"vlm_config"`        // VLM configuration
 	OntapCredentials OntapCredentials `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
+	OntapLicense     OntapLicense     `json:"ontap_license"`
 }
 
 type CreateVSAClusterDeploymentResponse struct {
 	VLMConfig VLMConfig `json:"vlm_config"`
 }
 
-type ProvisionCloudResourcesForDataAggrWorkflowRequest struct {
-	Cloud      CloudConfig
-	Deployment DeploymentConfig
+type AsupReq struct {
+	VLMConfig        VLMConfig        `json:"vlm_config"`
+	OntapCredentials OntapCredentials `json:"ontap_credentials"`
+	Message          string           `json:"message"`
+	VmConfig         VMConfig         `json:"vm_config"`
 }
 
-type ProvisionCloudResourcesForDataAggrWorkflowResponse struct {
-	Cloud      CloudConfig
-	Deployment DeploymentConfig
-}
-
-type CreateAggregatesForHAPairsWorkflowRequest struct {
-	Cloud            CloudConfig
-	Deployment       DeploymentConfig
-	DataAggr         []DataAggrConfig
-	VsaCluster       VsaClusterConfig
-	OntapCredentials OntapCredentials
-}
-type CreateAggregatesForHAPairsWorkflowResponse struct {
-	Cloud      CloudConfig
-	Deployment DeploymentConfig
-	DataAggr   []DataAggrConfig
-	VsaCluster VsaClusterConfig
-}
-
-// ValidateClusterHealthRequest represents the request for cluster health validation
 type ValidateClusterHealthRequest struct {
-	VLMConfig            VLMConfig        `json:"vlm_config"`              // VLM configuration for the cluster
-	OntapCredentials     OntapCredentials `json:"ontap_credentials"`       // ONTAP credentials for the VSA cluster
-	TriggerASUPOnFailure bool             `json:"trigger_asup_on_failure"` // Whether to trigger ASUP on health check failure
+	VLMConfig            VLMConfig        `json:"vlm_config"`
+	OntapCredentials     OntapCredentials `json:"ontap_credentials"`
+	TriggerASUPOnFailure bool             `json:"trigger_asup_on_failure"`
 }
 
-// ClusterPowerOpRequest represents the request for cluster power operations
 type ClusterPowerOpRequest struct {
-	VLMConfig        VLMConfig        `json:"vlm_config"`        // VLM configuration for the cluster
-	OntapCredentials OntapCredentials `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
-	Operation        string           `json:"operation"`         // Timeout for the operation in minutes
+	VLMConfig        VLMConfig        `json:"vlm_config"`
+	OntapCredentials OntapCredentials `json:"ontap_credentials"`
+	Operation        string           `json:"operation"`
 }
 
 type ClusterPowerOpResp struct {
@@ -424,30 +453,12 @@ type GetResourceInfoResp struct {
 	ResourceInfo ResourceInformation `json:"resource_info"`
 }
 
-// VNVRamMemory maps GCP instance types to their corresponding NVRAM memory in GB.
-var VNVRamMemory = map[string]int{
-	"c3-standard-4":       2,
-	"c3-standard-8":       2,
-	"c3-standard-22":      5,
-	"c3-standard-44":      10,
-	"c3-standard-88":      10,
-	"c3-standard-4-lssd":  2,
-	"c3-standard-8-lssd":  2,
-	"c3-standard-22-lssd": 5,
-	"c3-standard-44-lssd": 10,
-	"c3-standard-88-lssd": 10,
-	"c4-standard-4":       2,
-	"c4-standard-8":       2,
-	"c4-standard-16":      5,
-	"c4-standard-24":      5,
-	"c4-standard-32":      5,
-	"c4-standard-48":      10,
-	"c4-standard-96":      10,
-	"c4-standard-4-lssd":  2,
-	"c4-standard-8-lssd":  2,
-	"c4-standard-16-lssd": 5,
-	"c4-standard-24-lssd": 5,
-	"c4-standard-32-lssd": 5,
-	"c4-standard-48-lssd": 10,
-	"c4-standard-96-lssd": 10,
+type OntapLicense struct {
+	SecretUri []string `json:"secret_uri"`
+}
+
+type UpdateLicenseRequest struct {
+	OntapLicense     OntapLicense     `json:"ontap_license"`
+	OntapCredentials OntapCredentials `json:"ontap_credentials"`
+	VSAManagementIP  string           `json:"vsa_management_ip"` // VSA management IP for the VM
 }

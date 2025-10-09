@@ -55,7 +55,7 @@ var (
 	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
 
 	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "r9-17-1pxn-919-op-gcnv")
-	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
+	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-251008-0400")
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "r9-17-1pxn-250924-0317-mediator-debian-12")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 
@@ -1787,7 +1787,7 @@ func (wf *syncPoolComplianceForPoolWorkflow) Run(ctx workflow.Context, args ...i
 		ProjectID:    fetchResult.VLMConfig.Deployment.GCPConfig.ProjectID,
 		DeploymentID: fetchResult.VLMConfig.Deployment.DeploymentID,
 	}
-
+	ctx = workflow.WithValue(ctx, "AccountName", fetchResult.AccountName)
 	// Call VLM workflow to get compliance data
 	vlmClient := GetNewVSAClientWorkflowManager()
 	complianceResponse, err := vlmClient.GetClusterZiZsDetails(ctx, req)

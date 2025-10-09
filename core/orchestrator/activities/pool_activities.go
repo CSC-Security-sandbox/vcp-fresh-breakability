@@ -2412,10 +2412,15 @@ func (a *PoolActivity) FetchPoolData(ctx context.Context, input FetchPoolDataAct
 
 	logger.Info("Pool data fetch completed successfully", "poolUUID", input.PoolUUID)
 
+	var accountName string
+	if poolView.Account != nil {
+		accountName = poolView.Account.Name
+	}
 	return &FetchPoolDataActivityOutput{
-		PoolUUID:  input.PoolUUID,
-		VLMConfig: vlmConfig,
-		Success:   true,
+		PoolUUID:    input.PoolUUID,
+		VLMConfig:   vlmConfig,
+		Success:     true,
+		AccountName: accountName,
 	}, nil
 }
 
@@ -2470,10 +2475,11 @@ type FetchPoolDataActivityInput struct {
 
 // FetchPoolDataActivityOutput represents the output for fetching pool data
 type FetchPoolDataActivityOutput struct {
-	PoolUUID  string        `json:"pool_uuid"`
-	VLMConfig vlm.VLMConfig `json:"vlm_config"`
-	Success   bool          `json:"success"`
-	Error     string        `json:"error,omitempty"`
+	PoolUUID    string        `json:"pool_uuid"`
+	VLMConfig   vlm.VLMConfig `json:"vlm_config"`
+	Success     bool          `json:"success"`
+	Error       string        `json:"error,omitempty"`
+	AccountName string        `json:"account_name"`
 }
 
 // UpdatePoolComplianceActivityInput represents the input for updating pool compliance

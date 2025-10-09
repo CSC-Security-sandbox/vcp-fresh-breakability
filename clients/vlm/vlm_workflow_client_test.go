@@ -2202,7 +2202,7 @@ func TestValidateClusterHealth(t *testing.T) {
 		func(ctx workflow.Context, request *ValidateClusterHealthRequest) error {
 			return nil
 		},
-		workflow.RegisterOptions{Name: ValidateClusterHealthWorkflowName},
+		workflow.RegisterOptions{Name: ClusterHealthCheckWorkflowName},
 	)
 
 	validateClusterHealthRequest := &ValidateClusterHealthRequest{
@@ -2245,7 +2245,7 @@ func TestValidateClusterHealth_Error(t *testing.T) {
 		func(ctx workflow.Context, request *ValidateClusterHealthRequest) error {
 			return errors.New("cluster health validation failed")
 		},
-		workflow.RegisterOptions{Name: ValidateClusterHealthWorkflowName},
+		workflow.RegisterOptions{Name: ClusterHealthCheckWorkflowName},
 	)
 
 	validateClusterHealthRequest := &ValidateClusterHealthRequest{
@@ -2317,7 +2317,7 @@ func TestValidateClusterHealth_FileProtocolSupport(t *testing.T) {
 		func(ctx workflow.Context, request *ValidateClusterHealthRequest) error {
 			return nil
 		},
-		workflow.RegisterOptions{Name: ValidateClusterHealthWorkflowName},
+		workflow.RegisterOptions{Name: ClusterHealthCheckWorkflowName},
 	)
 
 	validateClusterHealthRequest := &ValidateClusterHealthRequest{
@@ -2400,7 +2400,7 @@ func TestValidateClusterHealth_WithCredentials(t *testing.T) {
 		func(ctx workflow.Context, request *ValidateClusterHealthRequest) error {
 			return nil
 		},
-		workflow.RegisterOptions{Name: ValidateClusterHealthWorkflowName},
+		workflow.RegisterOptions{Name: ClusterHealthCheckWorkflowName},
 	)
 
 	validateClusterHealthRequest := &ValidateClusterHealthRequest{
@@ -2443,7 +2443,7 @@ func TestClusterPowerOp(t *testing.T) {
 		func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
 			return nil
 		},
-		workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+		workflow.RegisterOptions{Name: ClusterPowerCycleWorkflowName},
 	)
 
 	clusterPowerOpRequest := &ClusterPowerOpRequest{
@@ -2486,7 +2486,7 @@ func TestClusterPowerOp_Error(t *testing.T) {
 		func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
 			return errors.New("power operation failed")
 		},
-		workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+		workflow.RegisterOptions{Name: ClusterPowerCycleWorkflowName},
 	)
 
 	clusterPowerOpRequest := &ClusterPowerOpRequest{
@@ -2559,7 +2559,7 @@ func TestClusterPowerOp_FileProtocolSupport(t *testing.T) {
 		func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
 			return nil
 		},
-		workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+		workflow.RegisterOptions{Name: ClusterPowerCycleWorkflowName},
 	)
 
 	clusterPowerOpRequest := &ClusterPowerOpRequest{
@@ -2647,7 +2647,7 @@ func TestClusterPowerOp_DifferentOperations(t *testing.T) {
 				func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
 					return nil
 				},
-				workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+				workflow.RegisterOptions{Name: ClusterPowerCycleWorkflowName},
 			)
 
 			clusterPowerOpRequest := &ClusterPowerOpRequest{
@@ -2692,7 +2692,7 @@ func TestClusterPowerOp_WithCredentials(t *testing.T) {
 		func(ctx workflow.Context, request *ClusterPowerOpRequest) error {
 			return nil
 		},
-		workflow.RegisterOptions{Name: ClusterPowerOpWorkflowName},
+		workflow.RegisterOptions{Name: ClusterPowerCycleWorkflowName},
 	)
 
 	clusterPowerOpRequest := &ClusterPowerOpRequest{
