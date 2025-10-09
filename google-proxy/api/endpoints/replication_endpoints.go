@@ -304,12 +304,17 @@ func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenser
 			replicationResp.Source = gcpgenserver.NewOptReplicationVolumeInformationV1beta(*conv)
 		}
 	}
+	var lastTransferTime time.Time
+	if replication.TransferStats != nil && replication.TransferStats.LastTransferEndTime != nil {
+		lastTransferTime = time.Time(*replication.TransferStats.LastTransferEndTime)
+	}
 	if replication.TransferStats != nil {
 		replicationResp.TransferStats = gcpgenserver.NewOptTransferStatsV1beta(gcpgenserver.TransferStatsV1beta{
 			TotalTransferBytes:    gcpgenserver.NewOptFloat64(replication.TransferStats.TotalTransferBytes),
 			TotalTransferTimeSecs: gcpgenserver.NewOptFloat64(replication.TransferStats.TotalTransferTimeSecs),
 			LastTransferSize:      gcpgenserver.NewOptFloat64(replication.TransferStats.LastTransferSize),
 			LastTransferError:     gcpgenserver.NewOptString(replication.TransferStats.LastTransferError),
+			LastTransferEndTime:   gcpgenserver.NewOptDateTime(lastTransferTime),
 			LastTransferDuration:  gcpgenserver.NewOptFloat64(replication.TransferStats.LastTransferDuration),
 			TotalProgress:         gcpgenserver.NewOptFloat64(replication.TransferStats.TotalProgress),
 			LagTime:               gcpgenserver.NewOptFloat64(replication.TransferStats.LagTime),

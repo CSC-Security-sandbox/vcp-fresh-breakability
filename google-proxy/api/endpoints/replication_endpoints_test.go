@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
@@ -494,6 +496,19 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			VolumeName: "volume-name",
 			VolumeID:   "volume-id",
 		}
+		timestamp := strfmt.DateTime(time.Unix(1627847261, 0))
+
+		transferState := models.TransferStatsV1beta{
+			LagTime:               1234,
+			LastTransferDuration:  2134,
+			LastTransferEndTime:   &timestamp,
+			LastTransferError:     "",
+			LastTransferSize:      1234,
+			ProgressLastUpdated:   nil,
+			TotalProgress:         1234,
+			TotalTransferBytes:    1234,
+			TotalTransferTimeSecs: 1234,
+		}
 		mockResponse := &replications.V1betaGetMultipleReplicationsOK{
 			Payload: &replications.V1betaGetMultipleReplicationsOKBody{
 				Replications: []*models.ReplicationV1beta{
@@ -502,6 +517,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 						ReplicationID:   "replication-id-1",
 						Description:     &description,
 						Destination:     &destination,
+						TransferStats:   &transferState,
 					},
 				},
 			},
