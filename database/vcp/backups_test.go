@@ -2903,3 +2903,136 @@ func findBackupByVolumeUUID(backups []*datamodel.Backup, volumeUUID string) *dat
 	}
 	return nil
 }
+
+func TestUpdateBackupConstituentCountFromVolumeUpdatesConstituentCountSuccessfully(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	lvCount := int32(5)
+	// Create a volume with LargeVolumeAttributes
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+			LargeVolumeConstituentCount: &lvCount,
+		},
+	}
+	err = store.db.Create(volume).Error()
+	assert.NoError(t, err)
+
+	// Create a backup
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
+		Attributes: &datamodel.BackupAttributes{
+			Protocols: []string{"nfsv3"},
+		},
+	}
+	err = store.db.Create(backup).Error()
+	assert.NoError(t, err)
+
+	// Call the method
+	updatedBackup, err := store.UpdateBackupConstituentCountFromVolume(context.Background(), backup, volume)
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedBackup)
+	assert.NotNil(t, updatedBackup.Attributes)
+	assert.Equal(t, int32(5), updatedBackup.Attributes.ConstituentCountOfBackup)
+}
+
+func TestUpdateBackupConstituentCountFromVolumeHandlesNilLargeVolumeAttributes(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	// Create a volume without LargeVolumeAttributes
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+	}
+	err = store.db.Create(volume).Error()
+	assert.NoError(t, err)
+
+	// Create a backup
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
+		Attributes: &datamodel.BackupAttributes{
+			Protocols: []string{"nfsv3"},
+		},
+	}
+	err = store.db.Create(backup).Error()
+	assert.NoError(t, err)
+
+	// Call the method
+	updatedBackup, err := store.UpdateBackupConstituentCountFromVolume(context.Background(), backup, volume)
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedBackup)
+	assert.NotNil(t, updatedBackup.Attributes)
+	assert.Equal(t, int32(0), updatedBackup.Attributes.ConstituentCountOfBackup)
+}
+
+func TestUpdateBackupConstituentCountFromVolumeReturnsErrorWhenBackupNotFound(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	// Create a volume
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+	}
+	err = store.db.Create(volume).Error()
+	assert.NoError(t, err)
+
+	// Call the method with a non-existent backup
+	_, err = store.UpdateBackupConstituentCountFromVolume(context.Background(), &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "non-existent-backup"}, Attributes: &datamodel.BackupAttributes{Protocols: []string{"nfsv3"}}}, volume)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestUpdateBackupConstituentCountFromVolumeReturnsErrorOnTransactionFailure(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	// Create a volume
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+	}
+	err = store.db.Create(volume).Error()
+	assert.NoError(t, err)
+
+	// Create a backup
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
+		Attributes: &datamodel.BackupAttributes{
+			Protocols: []string{"nfsv3"},
+		},
+	}
+	err = store.db.Create(backup).Error()
+	assert.NoError(t, err)
+
+	// Simulate transaction failure
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+
+	_, err = store.UpdateBackupConstituentCountFromVolume(context.Background(), backup, volume)
+	assert.Error(t, err)
+}

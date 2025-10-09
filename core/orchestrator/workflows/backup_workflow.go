@@ -48,7 +48,6 @@ const (
 	BackupComment        = "VCP-Backup"
 	BackupMaxWaitTimeCap = 15 * time.Minute   // Maximum wait time cap
 	adcWorkflowTimeout   = 7 * 24 * time.Hour // 7 days timeout to accommodate 6-day max sleep + buffer
-
 )
 
 // CreateBackupWorkflow  process backup related requests from a customer.
@@ -63,10 +62,56 @@ func CreateBackupWorkflow(ctx workflow.Context, params *commonparams.CreateBacku
 	if err != nil {
 		return nil, err
 	}
-	_, customErr := backupWf.Run(ctx, backup, backupVault, volume)
+	_, customErr := backupWf.Run(ctx, backup, backupVault, volume, params)
 
 	if customErr != nil {
+		if workflow.IsContinueAsNewError(customErr.OriginalErr) {
+			return nil, customErr
+		}
 		err2 := backupWf.Revert(ctx, backup, volume, customErr.OriginalErr.Error())
+		if err2 != nil {
+			backupWf.Logger.Errorf("Failed to execute rollback for workflow %s: %v", backupWf.ID, err2)
+		}
+		backupWf.Status = WorkflowStatusFailed
+		err2 = backupWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		if err2 != nil {
+			backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
+		}
+		return nil, customErr
+	}
+	backupWf.Status = WorkflowStatusCompleted
+	err2 := backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err2 != nil {
+		backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
+		return nil, ConvertToVSAError(err2)
+	}
+	return nil, nil
+}
+
+// CreateBackupWorkflowWithContext process backup with context for continuation
+func CreateBackupWorkflowWithContext(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, params *commonparams.CreateBackupParams) (interface{}, error) {
+	backupWf := new(BackupCreateWorkflow)
+
+	// Setup workflow
+	if err := backupWf.Setup(ctx, params); err != nil {
+		return nil, err
+	}
+
+	backupWf.Status = WorkflowStatusRunning
+	err := backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_, customErr := backupWf.RunBackupCreateWithContext(ctx, backupActivitiesContext, params)
+
+	if customErr != nil {
+		// Check if the error is a ContinueAsNewError - if so, don't call revert
+		if workflow.IsContinueAsNewError(customErr.OriginalErr) {
+			return nil, customErr
+		}
+
+		err2 := backupWf.Revert(ctx, backupActivitiesContext.BackupWorkflowInit.Backup, backupActivitiesContext.BackupWorkflowInit.Volume, customErr.OriginalErr.Error())
 		if err2 != nil {
 			backupWf.Logger.Errorf("Failed to execute rollback for workflow %s: %v", backupWf.ID, err2)
 		}
@@ -115,6 +160,11 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 
+	params := args[3].(*commonparams.CreateBackupParams)
+	return wf.RunBackupCreateWithContext(ctx, backupActivitiesContext, params)
+}
+
+func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, params *commonparams.CreateBackupParams) (interface{}, *vsaerrors.CustomError) {
 	backupActivity := &activities.BackupActivity{}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -132,97 +182,95 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	// Check if this is a continuation workflow
+	info := workflow.GetInfo(ctx)
+	isContinuation := info.ContinuedExecutionRunID != ""
 
-	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, backupActivitiesContext.BackupWorkflowInit.Volume.PoolID).Get(ctx, &dbNodes)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.Password, SecretID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.SecretID, DeploymentName: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.DeploymentName, CertificateID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.CertificateID, AuthType: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.AuthType})
-	backupActivitiesContext.Node = node
-	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SourceVolumeZone = backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolAttributes.PrimaryZone
-	// Prepare object store details
-	err = workflow.ExecuteActivity(ctx, backupActivity.PrepareObjectStoreActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Get or create object store
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetOrCreateObjectStoreActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Prepare snapmirror paths
-	err = workflow.ExecuteActivity(ctx, backupActivity.PrepareSnapmirrorActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Create snapmirror relationship
-	err = workflow.ExecuteActivity(ctx, backupActivity.CreateSnapmirrorRelationshipActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Creating snapshot in DB
-	err = workflow.ExecuteActivity(ctx, backupActivity.CreatingSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	defer func() {
-		// Update snapshot details in DB
-		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-		if err != nil {
-			util.GetLogger(ctx).Errorf("Failed to Update Snapshot State: %v", err)
-		}
-	}()
-
-	// Create snapshot
-	err = workflow.ExecuteActivity(ctx, backupActivity.CreateSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	rollbackManager := commonparams.NewRollbackManager()
-	// Only add rollback activity if the required fields are not nil
-	if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes != nil &&
-		backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes != nil {
-		rollbackManager.AddActivity(backupActivity.DeleteBackupSnapshot, node, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
-	}
-
-	// Transfer snapshot
-	err = workflow.ExecuteActivity(ctx, backupActivity.TransferSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Poll for transfer completion
-	done := false
-	waitTime := Wait
-	for !done {
-		err = workflow.ExecuteActivity(ctx, backupActivity.CheckTransferStatusActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if isContinuation {
+		wf.Logger.Info("Resuming backup workflow from continuation",
+			"workflowID", wf.ID,
+			"continuedFromRunID", info.OriginalRunID,
+			"snapshotName", backupActivitiesContext.SnapshotName,
+			"transferStatus", backupActivitiesContext.TransferStatus)
+	} else {
+		var dbNodes []*datamodel.Node
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, backupActivitiesContext.BackupWorkflowInit.Volume.PoolID).Get(ctx, &dbNodes)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 
-		switch backupActivitiesContext.TransferStatus {
-		case activities.SmStatusTransferring:
-			err := workflow.Sleep(ctx, waitTime) // Wait before polling again with exponential backoff
+		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.Password, SecretID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.SecretID, DeploymentName: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.DeploymentName, CertificateID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.CertificateID, AuthType: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.AuthType})
+		backupActivitiesContext.Node = node
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SourceVolumeZone = backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolAttributes.PrimaryZone
+		// Prepare object store details
+		err = workflow.ExecuteActivity(ctx, backupActivity.PrepareObjectStoreActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Get or create object store
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetOrCreateObjectStoreActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Prepare snapmirror paths
+		err = workflow.ExecuteActivity(ctx, backupActivity.PrepareSnapmirrorActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Create snapmirror relationship
+		err = workflow.ExecuteActivity(ctx, backupActivity.CreateSnapmirrorRelationshipActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Creating snapshot in DB
+		err = workflow.ExecuteActivity(ctx, backupActivity.CreatingSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		defer func() {
+			// Update snapshot details in DB
+			err = workflow.ExecuteActivity(ctx, backupActivity.UpdateSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 			if err != nil {
-				return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err))
+				util.GetLogger(ctx).Errorf("Failed to Update Snapshot State: %v", err)
 			}
-			// Exponential backoff: double the wait time, but cap it at maxWaitTime
-			waitTime = time.Duration(float64(waitTime) * 2)
-			if waitTime > BackupMaxWaitTimeCap {
-				waitTime = BackupMaxWaitTimeCap
-			}
-		case activities.SmStatusSuccess:
-			done = true
-		case activities.SmStatusFailed:
-			return nil, ConvertToVSAError(fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", backupActivitiesContext.SnapshotName, backupActivitiesContext.TransferStatus))
+		}()
+
+		// Create snapshot
+		err = workflow.ExecuteActivity(ctx, backupActivity.CreateSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		rollbackManager := commonparams.NewRollbackManager()
+		// Only add rollback activity if the required fields are not nil
+		if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes != nil &&
+			backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes != nil {
+			rollbackManager.AddActivity(backupActivity.DeleteBackupSnapshot, node, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
+		}
+
+		// Transfer snapshot
+		err = workflow.ExecuteActivity(ctx, backupActivity.TransferSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
+	// Poll for transfer completion with event history monitoring and ContinueAsNew capability
+	err = wf.PollTransferStatusWithContinueAsNew(ctx, backupActivitiesContext, params)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
+	// Update ConstituentCount for a backup from Volume
+	if backupActivitiesContext.BackupWorkflowInit.Volume.LargeVolumeAttributes != nil && backupActivitiesContext.BackupWorkflowInit.Volume.LargeVolumeAttributes.LargeCapacity {
+		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateConstituentCountForBackup, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
 		}
 	}
 
@@ -314,6 +362,11 @@ func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.B
 		return err
 	}
 	return nil
+}
+
+// PollTransferStatusWithContinueAsNew polls transfer status with automatic ContinueAsNew when history limits are reached
+func (wf *BackupCreateWorkflow) PollTransferStatusWithContinueAsNew(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, params *commonparams.CreateBackupParams) error {
+	return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, CreateBackupWorkflowWithContext, backupActivitiesContext, params)
 }
 
 func getBucketDetailsForBucket(backupVault *datamodel.BackupVault, bucketName string) (*datamodel.BucketDetails, error) {

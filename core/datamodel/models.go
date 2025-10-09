@@ -732,6 +732,7 @@ type BackupAttributes struct {
 	DeleteInitiated                bool      `json:"delete_initiated"`
 	ObjectStoreUUID                string    `json:"object_store_uuid"`
 	SourceVolumeZone               string    `json:"source_volume_zone"`
+	ConstituentCountOfBackup       int32     `json:"constituent_count_of_backup"`
 }
 
 func (b *BackupAttributes) Scan(value interface{}) error {

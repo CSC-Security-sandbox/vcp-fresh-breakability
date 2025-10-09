@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"strconv"
 	"time"
 
@@ -35,6 +36,8 @@ const (
 	StatusQueryName            = "status"
 	RestoreStartToCloseTimeout = 6 * 24 * time.Hour // 6 days
 	pollDBJobWaitTimeSecond    = 30
+	initialPollInterval        = 5 * time.Second
+	maxPollInterval            = 15 * time.Minute
 )
 
 var (
@@ -304,4 +307,89 @@ func PollOnDBJob(ctx workflow.Context, jobUUID string, timeout time.Duration) er
 			return fmt.Errorf("failed to sleep while waiting for db job %s: %w", jobUUID, err)
 		}
 	}
+}
+
+func PollTransferStatusWithContinueAsNewCommon(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, continueAsNewFunc interface{}, continueAsNewArgs ...interface{}) error {
+	backupActivity := &activities.BackupActivity{}
+
+	// Set up activity options with retry policy
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	done := false
+	waitTime := initialPollInterval // Start with 5 seconds
+	pollCount := 0
+	logger := util.GetLogger(ctx)
+
+	for !done {
+		pollCount++
+
+		// Get current event history count
+		info := workflow.GetInfo(ctx)
+		eventHistoryCount := info.GetCurrentHistoryLength()
+
+		// Create input for the polling activity
+		pollInput := &activities.PollTransferStatusInput{
+			BackupActivitiesContext: backupActivitiesContext,
+			Node:                    backupActivitiesContext.Node,
+			SnapmirrorRelationship:  backupActivitiesContext.SnapmirrorRelationship,
+			SnapshotName:            backupActivitiesContext.SnapshotName, // This will be empty for restore, which is fine
+			EventHistoryCount:       eventHistoryCount,
+			NextWaitTime:            waitTime,
+		}
+
+		currentTime := workflow.Now(ctx)
+
+		// Execute the polling activity
+		var pollOutput *activities.PollTransferStatusOutput
+		err = workflow.ExecuteActivity(ctx, backupActivity.PollTransferStatusWithHistoryCheckActivity, pollInput, currentTime).Get(ctx, &pollOutput)
+		if err != nil {
+			return err
+		}
+
+		// Update context with the result
+		backupActivitiesContext = pollOutput.BackupActivitiesContext
+
+		// Check if we should continue as new
+		if pollOutput.ShouldContinueAsNew {
+			logger.Info("Triggering ContinueAsNew due to event history limits",
+				"reason", pollOutput.ContinueAsNewReason,
+				"eventHistoryCount", eventHistoryCount,
+				"pollCount", pollCount)
+			return workflow.NewContinueAsNewError(ctx, continueAsNewFunc, continueAsNewArgs...)
+		}
+
+		// Check if transfer is complete
+		if pollOutput.TransferComplete {
+			done = true
+			logger.Info("Transfer completed successfully", "snapshotName", backupActivitiesContext.SnapshotName)
+		} else {
+			// Transfer still in progress, sleep with exponential backoff
+			err = workflow.Sleep(ctx, waitTime)
+			if err != nil {
+				return fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err)
+			}
+
+			// Exponential backoff: double the wait time, but cap it at maxWaitTime
+			waitTime = time.Duration(float64(waitTime) * 2)
+			if waitTime > maxPollInterval { // Cap at 15 minutes
+				waitTime = maxPollInterval
+			}
+		}
+	}
+
+	return nil
 }

@@ -5214,3 +5214,734 @@ func TestIsLatestBackupAnyStateActivity_NotLatest(t *testing.T) {
 	assert.Equal(t, expectedIsLatest, isLatest)
 	mockStorage.AssertExpectations(t)
 }
+
+func TestUpdateConstituentCountForBackup_LargeVolume_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}}
+	volume := &datamodel.Volume{
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{LargeCapacity: true},
+	}
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	mockStorage.On("UpdateBackupConstituentCountFromVolume", ctx, backup, volume).Return(backup, nil)
+
+	result, err := activity.UpdateConstituentCountForBackup(ctx, backupActivitiesContext)
+
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateConstituentCountForBackup_NonLargeVolume_SkipsUpdate(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}}
+	volume := &datamodel.Volume{
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{LargeCapacity: false},
+	}
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	result, err := activity.UpdateConstituentCountForBackup(ctx, backupActivitiesContext)
+
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertNotCalled(t, "UpdateBackupConstituentCountFromVolume")
+}
+
+func TestUpdateConstituentCountForBackup_NilLargeVolumeAttributes_SkipsUpdate(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}}
+	volume := &datamodel.Volume{LargeVolumeAttributes: nil}
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	result, err := activity.UpdateConstituentCountForBackup(ctx, backupActivitiesContext)
+
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertNotCalled(t, "UpdateBackupConstituentCountFromVolume")
+}
+
+func TestUpdateConstituentCountForBackup_UpdateFails_ReturnsError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}}
+	volume := &datamodel.Volume{
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{LargeCapacity: true},
+	}
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+	}
+
+	mockStorage.On("UpdateBackupConstituentCountFromVolume", ctx, backup, volume).Return(nil, errors.New("update failed"))
+
+	result, err := activity.UpdateConstituentCountForBackup(ctx, backupActivitiesContext)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "update failed")
+	mockStorage.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_Success tests successful transfer completion
+func TestPollTransferStatusWithHistoryCheckActivity_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := 1000
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	status := activities.SmStatusSuccess
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(&ontap_rest.SnapmirrorTransfer{
+		SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+			State: &status,
+		},
+	}, nil)
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.True(t, result.TransferComplete)
+	assert.False(t, result.ShouldContinueAsNew)
+	assert.Equal(t, "", result.ContinueAsNewReason)
+	assert.Equal(t, nextWaitTime, result.NextWaitTime)
+	assert.Equal(t, activities.SmStatusSuccess, result.BackupActivitiesContext.TransferStatus)
+	assert.NotEmpty(t, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
+	mockProvider.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_Transferring tests transfer still in progress
+func TestPollTransferStatusWithHistoryCheckActivity_Transferring(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := 1000
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	status := activities.SmStatusTransferring
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(&ontap_rest.SnapmirrorTransfer{
+		SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+			State: &status,
+		},
+	}, nil)
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.False(t, result.TransferComplete)
+	assert.False(t, result.ShouldContinueAsNew)
+	assert.Equal(t, "", result.ContinueAsNewReason)
+	assert.Equal(t, nextWaitTime, result.NextWaitTime)
+	assert.Equal(t, activities.SmStatusTransferring, result.BackupActivitiesContext.TransferStatus)
+	assert.Empty(t, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
+	mockProvider.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_Failed tests transfer failure
+func TestPollTransferStatusWithHistoryCheckActivity_Failed(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := 1000
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	status := activities.SmStatusFailed
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(&ontap_rest.SnapmirrorTransfer{
+		SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+			State: &status,
+		},
+	}, nil)
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Snapmirror transfer failed with status: failed")
+	mockProvider.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitReached tests ContinueAsNew when event history limit is reached
+func TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitReached(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := activities.EventHistorySafetyThreshold // Exactly at the threshold
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	status := activities.SmStatusTransferring
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(&ontap_rest.SnapmirrorTransfer{
+		SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+			State: &status,
+		},
+	}, nil)
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.False(t, result.TransferComplete)
+	assert.True(t, result.ShouldContinueAsNew)
+	assert.Equal(t, "Event history limit reached", result.ContinueAsNewReason)
+	assert.Equal(t, nextWaitTime, result.NextWaitTime)
+	assert.Equal(t, activities.SmStatusTransferring, result.BackupActivitiesContext.TransferStatus)
+	mockProvider.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitExceeded tests ContinueAsNew when event history limit is exceeded
+func TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitExceeded(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := activities.EventHistorySafetyThreshold + 1000 // Exceeds the threshold
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	status := activities.SmStatusTransferring
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(&ontap_rest.SnapmirrorTransfer{
+		SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+			State: &status,
+		},
+	}, nil)
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.False(t, result.TransferComplete)
+	assert.True(t, result.ShouldContinueAsNew)
+	assert.Equal(t, "Event history limit reached", result.ContinueAsNewReason)
+	assert.Equal(t, nextWaitTime, result.NextWaitTime)
+	assert.Equal(t, activities.SmStatusTransferring, result.BackupActivitiesContext.TransferStatus)
+	mockProvider.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_SuccessWithEventHistoryLimit tests successful transfer with event history limit reached
+func TestPollTransferStatusWithHistoryCheckActivity_SuccessWithEventHistoryLimit(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := activities.EventHistorySafetyThreshold + 1000 // Exceeds the threshold
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	status := activities.SmStatusSuccess
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(&ontap_rest.SnapmirrorTransfer{
+		SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+			State: &status,
+		},
+	}, nil)
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.True(t, result.TransferComplete)
+	assert.True(t, result.ShouldContinueAsNew)
+	assert.Equal(t, "Event history limit reached", result.ContinueAsNewReason)
+	assert.Equal(t, nextWaitTime, result.NextWaitTime)
+	assert.Equal(t, activities.SmStatusSuccess, result.BackupActivitiesContext.TransferStatus)
+	assert.NotEmpty(t, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
+	mockProvider.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_GetSnapmirrorTransferStatusFailure tests error from GetSnapmirrorTransferStatus
+func TestPollTransferStatusWithHistoryCheckActivity_GetSnapmirrorTransferStatusFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := 1000
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(nil, errors.New("status check failed"))
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "status check failed")
+	mockProvider.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_ProviderError tests error from GetProviderByNode
+func TestPollTransferStatusWithHistoryCheckActivity_ProviderError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider error")
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := 1000
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "provider error")
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_UnknownStatus tests unknown transfer status
+func TestPollTransferStatusWithHistoryCheckActivity_UnknownStatus(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := 1000
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	status := "unknown_status"
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(&ontap_rest.SnapmirrorTransfer{
+		SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+			State: &status,
+		},
+	}, nil)
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Snapmirror transfer failed with status: unknown_status")
+	mockProvider.AssertExpectations(t)
+}
+
+// TestPollTransferStatusWithHistoryCheckActivity_NilResponse tests nil response from provider
+func TestPollTransferStatusWithHistoryCheckActivity_NilResponse(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: &datamodel.BackupAttributes{},
+	}
+
+	node := &models.Node{}
+	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{
+		UUID: "sm-uuid",
+	}
+	snapshotName := "test-snapshot"
+	eventHistoryCount := 1000
+	nextWaitTime := 30 * time.Second
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+		},
+		Node: node,
+	}
+
+	input := &activities.PollTransferStatusInput{
+		BackupActivitiesContext: backupActivitiesContext,
+		Node:                    node,
+		SnapmirrorRelationship:  snapmirrorRelationship,
+		SnapshotName:            snapshotName,
+		EventHistoryCount:       eventHistoryCount,
+		NextWaitTime:            nextWaitTime,
+	}
+
+	// Return nil response (which should be treated as success according to the original function)
+	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(nil, nil)
+
+	// Act
+	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.True(t, result.TransferComplete)
+	assert.False(t, result.ShouldContinueAsNew)
+	assert.Equal(t, "", result.ContinueAsNewReason)
+	assert.Equal(t, nextWaitTime, result.NextWaitTime)
+	assert.Equal(t, activities.SmStatusSuccess, result.BackupActivitiesContext.TransferStatus)
+	assert.NotEmpty(t, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
+	mockProvider.AssertExpectations(t)
+}

@@ -225,6 +225,7 @@ type (
 		DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
 		UpdateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error
+		UpdateBackupConstituentCountFromVolume(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) (*datamodel.Backup, error)
 		FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)

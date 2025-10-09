@@ -25,6 +25,7 @@ const (
 	Daily               = "daily"
 	Weekly              = "weekly"
 	Monthly             = "monthly"
+	OntapFgVolumeStyle  = "flexgroup"
 )
 
 func (d *DataStoreRepository) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
@@ -595,4 +596,38 @@ func (d *DataStoreRepository) GetLatestBackupsGroupedByVolumeUUID(ctx context.Co
 		return nil, err
 	}
 	return latestBackups, nil
+}
+
+func (d *DataStoreRepository) UpdateBackupConstituentCountFromVolume(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) (*datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+	dbBackup, err := getBackupWithDetails(tx, &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: backup.UUID}})
+	if err != nil {
+		return nil, err
+	}
+
+	lvCount := int32(0)
+	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
+		lvCount = *volume.LargeVolumeAttributes.LargeVolumeConstituentCount
+	}
+
+	backup.Attributes.ConstituentCountOfBackup = lvCount
+	backup.Attributes.OntapVolumeStyle = OntapFgVolumeStyle
+
+	// Prepare update fields
+	updateFields := datamodel.Backup{
+		Description: backup.Description,
+		Attributes:  backup.Attributes,
+	}
+
+	err = tx.Model(&dbBackup).Updates(updateFields).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return dbBackup, nil
 }

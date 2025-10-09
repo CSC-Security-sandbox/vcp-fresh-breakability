@@ -3459,6 +3459,26 @@ func (re *retryEngine) UpdateBackupFields(ctx context.Context, backupUUID string
 	return err
 }
 
+func (re *retryEngine) UpdateBackupConstituentCountFromVolume(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) (*datamodel.Backup, error) {
+	var var0 *datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateBackupConstituentCountFromVolume(ctx, backup, volume)
+		if err != nil {
+			re.logError("UpdateBackupConstituentCountFromVolume", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	var var0 *datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {

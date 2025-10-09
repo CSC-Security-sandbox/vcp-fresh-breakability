@@ -32,6 +32,12 @@ var (
 	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
 )
 
+// EventHistorySafetyThreshold is the threshold for triggering ContinueAsNew
+// this is basically number of workflow event logs, every workflow has max 50100 events. so we made 45000 as a threshold for backup. and when we reach this limit, we create a new workflow and continue the execution from there.
+const (
+	EventHistorySafetyThreshold = 45000
+)
+
 type BackupActivity struct {
 	SE database.Storage
 }
@@ -59,6 +65,25 @@ type BackupActivitiesContext struct {
 	TransferStatus         string
 	DbSnapshot             *datamodel.Snapshot
 	ObjStoreSnapshot       *vsa.SmObjectStoreEndpointSnapshot
+}
+
+// PollTransferStatusInput represents the input for the polling activity
+type PollTransferStatusInput struct {
+	BackupActivitiesContext *BackupActivitiesContext
+	Node                    *models.Node
+	SnapmirrorRelationship  *commonparams.SnapmirrorRelationship
+	SnapshotName            string
+	EventHistoryCount       int
+	NextWaitTime            time.Duration
+}
+
+// PollTransferStatusOutput represents the output of the polling activity
+type PollTransferStatusOutput struct {
+	BackupActivitiesContext *BackupActivitiesContext
+	TransferComplete        bool
+	ShouldContinueAsNew     bool
+	ContinueAsNewReason     string
+	NextWaitTime            time.Duration
 }
 
 func (a BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
@@ -400,6 +425,25 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 	}
 
 	logger.Debugf("Successfully updated backup size fields for backup %s and volume %s", backup.UUID, volumeUUID)
+	return backupActivitiesContext, nil
+}
+
+// UpdateConstituentCountForBackup updates constituent count for large volume backups
+func (b *BackupActivity) UpdateConstituentCountForBackup(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	if backupActivitiesContext.BackupWorkflowInit.Volume.LargeVolumeAttributes == nil || !backupActivitiesContext.BackupWorkflowInit.Volume.LargeVolumeAttributes.LargeCapacity {
+		// No need to update constituent count for non-large volumes
+		return backupActivitiesContext, nil
+	}
+
+	logger := util.GetLogger(ctx)
+	backup := backupActivitiesContext.BackupWorkflowInit.Backup
+	volume := backupActivitiesContext.BackupWorkflowInit.Volume
+
+	_, err := b.SE.UpdateBackupConstituentCountFromVolume(ctx, backup, volume)
+	if err != nil {
+		logger.Errorf("Failed to update Constituent count for a backup")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	return backupActivitiesContext, nil
 }
 
@@ -1066,4 +1110,51 @@ func (b *BackupActivity) IsLatestBackupAnyStateActivity(ctx context.Context, bac
 	}
 
 	return isLatest, nil
+}
+
+// PollTransferStatusWithHistoryCheckActivity polls transfer status with event history monitoring and ContinueAsNew capability
+// This activity combines CheckTransferStatusActivity with event history limit checking
+// and triggers ContinueAsNew when history limits are reached
+func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.Context, input *PollTransferStatusInput, currentTime time.Time) (*PollTransferStatusOutput, error) {
+	logger := util.GetLogger(ctx)
+
+	// Check transfer status using existing GetSnapmirrorTransferStatus logic
+	// This works for both backup and restore workflows
+	status, err := b.GetSnapmirrorTransferStatus(ctx, input.Node, input.SnapmirrorRelationship.UUID, input.SnapshotName)
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("Polled snapmirror transfer status", "snapshotName", input.SnapshotName, "status", status)
+
+	// Update the context with the new status
+	input.BackupActivitiesContext.TransferStatus = status
+
+	// Check if we need to trigger ContinueAsNew based on event history
+	shouldContinueAsNew := false
+	continueAsNewReason := ""
+
+	// Check if event history limit is reached
+	if input.EventHistoryCount >= EventHistorySafetyThreshold {
+		shouldContinueAsNew = true
+		continueAsNewReason = "Event history limit reached"
+	}
+
+	// Check if transfer is complete
+	transferComplete := false
+	switch status {
+	case SmStatusSuccess:
+		input.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime = currentTime.String()
+		transferComplete = true
+		logger.Info("Transfer completed successfully", "snapshotName", input.SnapshotName)
+	case SmStatusFailed:
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", input.SnapshotName, status))
+	}
+
+	return &PollTransferStatusOutput{
+		BackupActivitiesContext: input.BackupActivitiesContext,
+		TransferComplete:        transferComplete,
+		ShouldContinueAsNew:     shouldContinueAsNew,
+		ContinueAsNewReason:     continueAsNewReason,
+		NextWaitTime:            input.NextWaitTime,
+	}, nil
 }

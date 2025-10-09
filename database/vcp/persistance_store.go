@@ -1198,3 +1198,7 @@ func (s *PersistenceStore) GetResourcesCount(ctx context.Context) (int64, error)
 func (s *PersistenceStore) DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error {
 	return s.dataStore.DeleteServiceAccount(ctx, serviceAccount)
 }
+
+func (s *PersistenceStore) UpdateBackupConstituentCountFromVolume(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) (*datamodel.Backup, error) {
+	return s.dataStore.UpdateBackupConstituentCountFromVolume(ctx, backup, volume)
+}

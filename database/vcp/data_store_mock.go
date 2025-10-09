@@ -9955,6 +9955,66 @@ func (_c *MockDataStore_UpdateBackup_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// UpdateBackupConstituentCountFromVolume provides a mock function with given fields: ctx, backup, volume
+func (_m *MockDataStore) UpdateBackupConstituentCountFromVolume(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) (*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backup, volume)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupConstituentCountFromVolume")
+	}
+
+	var r0 *datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Backup, *datamodel.Volume) (*datamodel.Backup, error)); ok {
+		return rf(ctx, backup, volume)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Backup, *datamodel.Volume) *datamodel.Backup); ok {
+		r0 = rf(ctx, backup, volume)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Backup, *datamodel.Volume) error); ok {
+		r1 = rf(ctx, backup, volume)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdateBackupConstituentCountFromVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupConstituentCountFromVolume'
+type MockDataStore_UpdateBackupConstituentCountFromVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupConstituentCountFromVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backup *datamodel.Backup
+//   - volume *datamodel.Volume
+func (_e *MockDataStore_Expecter) UpdateBackupConstituentCountFromVolume(ctx interface{}, backup interface{}, volume interface{}) *MockDataStore_UpdateBackupConstituentCountFromVolume_Call {
+	return &MockDataStore_UpdateBackupConstituentCountFromVolume_Call{Call: _e.mock.On("UpdateBackupConstituentCountFromVolume", ctx, backup, volume)}
+}
+
+func (_c *MockDataStore_UpdateBackupConstituentCountFromVolume_Call) Run(run func(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume)) *MockDataStore_UpdateBackupConstituentCountFromVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Backup), args[2].(*datamodel.Volume))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupConstituentCountFromVolume_Call) Return(_a0 *datamodel.Backup, _a1 error) *MockDataStore_UpdateBackupConstituentCountFromVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupConstituentCountFromVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Backup, *datamodel.Volume) (*datamodel.Backup, error)) *MockDataStore_UpdateBackupConstituentCountFromVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateBackupFields provides a mock function with given fields: ctx, backupUUID, updates
 func (_m *MockDataStore) UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error {
 	ret := _m.Called(ctx, backupUUID, updates)

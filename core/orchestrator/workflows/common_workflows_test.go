@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -687,4 +689,339 @@ func TestPopulateRetryPolicyParamsTimeoutSelection(t *testing.T) {
 // Helper function to create a pointer to bool
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+// TestPollTransferStatusWithContinueAsNewCommon tests the PollTransferStatusWithContinueAsNewCommon function
+func TestPollTransferStatusWithContinueAsNewCommon(t *testing.T) {
+	// Save original environment variables
+	origStartToCloseTimeout := StartToCloseTimeout
+	origRetryInterval := RetryInterval
+	origRetryMaxAttempts := RetryMaxAttempts
+	origRetryMaxInterval := RetryMaxInterval
+	origRetryBackoff := RetryBackoff
+
+	defer func() {
+		StartToCloseTimeout = origStartToCloseTimeout
+		RetryInterval = origRetryInterval
+		RetryMaxAttempts = origRetryMaxAttempts
+		RetryMaxInterval = origRetryMaxInterval
+		RetryBackoff = origRetryBackoff
+	}()
+
+	// Set test environment variables
+	StartToCloseTimeout = "25m"
+	RetryInterval = "5s"
+	RetryMaxAttempts = 3
+	RetryMaxInterval = "5m"
+	RetryBackoff = "2.0"
+
+	t.Run("WhenSuccessTransferCompletesImmediately", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Mock the polling activity to return transfer complete immediately
+		// Use mock.Anything for context since it's a complex type
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(&activities.PollTransferStatusOutput{
+				BackupActivitiesContext: backupActivitiesContext,
+				TransferComplete:        true,
+				ShouldContinueAsNew:     false,
+				ContinueAsNewReason:     "",
+				NextWaitTime:            5 * time.Second,
+			}, nil)
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify no error occurred
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenSuccessContinueAsNewTriggered", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Mock the polling activity to trigger ContinueAsNew
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(&activities.PollTransferStatusOutput{
+				BackupActivitiesContext: backupActivitiesContext,
+				TransferComplete:        false,
+				ShouldContinueAsNew:     true,
+				ContinueAsNewReason:     "Event history limit reached",
+				NextWaitTime:            5 * time.Second,
+			}, nil)
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify ContinueAsNewError was returned
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "continue as new")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenErrorPollingActivityFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Mock the polling activity to return an error
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(nil, errors.New("polling activity failed"))
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify error was returned
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "polling activity failed")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenErrorRetryPolicyConfigurationFails", func(t *testing.T) {
+		// Set invalid retry policy configuration
+		StartToCloseTimeout = "invalid-duration"
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify error was returned due to invalid retry policy
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid duration")
+	})
+
+	t.Run("WhenSuccessExponentialBackoffBehavior", func(t *testing.T) {
+		// Reset environment variables for this test
+		StartToCloseTimeout = "25m"
+		RetryInterval = "5s"
+		RetryMaxAttempts = 3
+		RetryMaxInterval = "5m"
+		RetryBackoff = "2.0"
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Track the wait times passed to the activity
+		var waitTimes []time.Duration
+		callCount := 0
+
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Run(func(args mock.Arguments) {
+				callCount++
+				input := args.Get(1).(*activities.PollTransferStatusInput)
+				waitTimes = append(waitTimes, input.NextWaitTime)
+			}).
+			Return(func(ctx context.Context, input *activities.PollTransferStatusInput, currentTime time.Time) (*activities.PollTransferStatusOutput, error) {
+				if callCount < 3 {
+					// First two calls: transfer in progress
+					return &activities.PollTransferStatusOutput{
+						BackupActivitiesContext: backupActivitiesContext,
+						TransferComplete:        false,
+						ShouldContinueAsNew:     false,
+						ContinueAsNewReason:     "",
+						NextWaitTime:            input.NextWaitTime,
+					}, nil
+				}
+				// Third call: transfer complete
+				return &activities.PollTransferStatusOutput{
+					BackupActivitiesContext: backupActivitiesContext,
+					TransferComplete:        true,
+					ShouldContinueAsNew:     false,
+					ContinueAsNewReason:     "",
+					NextWaitTime:            input.NextWaitTime,
+				}, nil
+			})
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify no error occurred and exponential backoff was applied
+		assert.NoError(t, env.GetWorkflowError())
+		assert.Equal(t, 3, callCount)
+
+		// Verify exponential backoff: 5s -> 10s -> 20s
+		assert.Equal(t, 3, len(waitTimes))
+		if len(waitTimes) >= 3 { // Ensure the slice has enough elements
+			assert.Equal(t, 5*time.Second, waitTimes[0])
+			assert.Equal(t, 10*time.Second, waitTimes[1])
+			assert.Equal(t, 20*time.Second, waitTimes[2])
+		}
+
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenSuccessContextUpdatedCorrectly", func(t *testing.T) {
+		// Reset environment variables for this test
+		StartToCloseTimeout = "25m"
+		RetryInterval = "5s"
+		RetryMaxAttempts = 3
+		RetryMaxInterval = "5m"
+		RetryBackoff = "2.0"
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		originalContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		updatedContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName:   "test-snapshot",
+			TransferStatus: "success",
+		}
+
+		// Mock the polling activity to return updated context
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(&activities.PollTransferStatusOutput{
+				BackupActivitiesContext: updatedContext,
+				TransferComplete:        true,
+				ShouldContinueAsNew:     false,
+				ContinueAsNewReason:     "",
+				NextWaitTime:            5 * time.Second,
+			}, nil)
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, originalContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify no error occurred
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenSuccessActivityOptionsConfiguredCorrectly", func(t *testing.T) {
+		// Reset environment variables for this test
+		StartToCloseTimeout = "25m"
+		RetryInterval = "5s"
+		RetryMaxAttempts = 3
+		RetryMaxInterval = "5m"
+		RetryBackoff = "2.0"
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Mock the polling activity
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(&activities.PollTransferStatusOutput{
+				BackupActivitiesContext: backupActivitiesContext,
+				TransferComplete:        true,
+				ShouldContinueAsNew:     false,
+				ContinueAsNewReason:     "",
+				NextWaitTime:            5 * time.Second,
+			}, nil)
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify no error occurred
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
 }
