@@ -49,6 +49,7 @@ spec:
             - "--service-account-name={{ .Values.telemetryDeployer.serviceAccount | default "svc-sde-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com" }}"
             - "--max-instances={{ .Values.telemetryDeployer.maxInstances | default "5" }}"
             - "--min-instances={{ .Values.telemetryDeployer.minInstances | default 0 }}"
+            - "--vpc-connector={{ .Values.telemetryDeployer.vpcConnector | default "" }}"
           {{- if .Values.images.telemetryDeployer.secondary }}
           image: "{{ include "containerImage" (list . (dict "name" "telemetryDeployer" "secondary" true)) | trim }}"
           {{- else }}

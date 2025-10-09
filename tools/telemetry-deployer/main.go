@@ -28,6 +28,7 @@ type DeploymentConfig struct {
 	ServiceAccountName string
 	Network            string
 	Subnetwork         string
+	VPCConnector       string
 	CloudSQLInstances  []string // List of Cloud SQL instance connection names
 }
 
@@ -40,6 +41,7 @@ func main() {
 		region             = flag.String("region", "", "GCP region")
 		network            = flag.String("network", "", "Network name")
 		subnet             = flag.String("subnet", "cloud-run", "Subnetwork name")
+		vpcConnector       = flag.String("vpc-connector", "projects/netapp-au-se1-autopush-sde-tst/locations/australia-southeast1/connectors/db-connector", "VPC Access connector")
 		minInstances       = flag.Int64("min-instances", 0, "Minimum number of instances")
 		maxInstances       = flag.Int64("max-instances", 5, "Maximum number of instances (0 for no limit)")
 		envVarsFlag        = flag.String("env-vars", "", "Environment variables in format KEY1=VALUE1,KEY2=VALUE2")
@@ -79,6 +81,7 @@ func main() {
 		ServiceAccountName: *serviceAccountName,
 		Network:            *network,
 		Subnetwork:         *subnet,
+		VPCConnector:       *vpcConnector,
 		CloudSQLInstances:  sqlInstances,
 	}
 
@@ -204,16 +207,23 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 			MinInstanceCount: config.MinInstances,
 			MaxInstanceCount: config.MaxInstances,
 		},
-		VpcAccess: &cloudrun.GoogleCloudRunV2VpcAccess{
-			NetworkInterfaces: []*cloudrun.GoogleCloudRunV2NetworkInterface{
-				{
-					Network:    config.Network,
-					Subnetwork: config.Subnetwork,
-				},
-			},
-		},
 		ServiceAccount: config.ServiceAccountName,
 	}
+	// Configure VPC access
+	vpcAccess := &cloudrun.GoogleCloudRunV2VpcAccess{}
+	if config.VPCConnector != "" {
+		vpcAccess.Connector = config.VPCConnector
+	} else if config.Subnetwork != "" {
+		vpcAccess.NetworkInterfaces = append(vpcAccess.NetworkInterfaces,
+			&cloudrun.GoogleCloudRunV2NetworkInterface{
+				Network:    config.Network,
+				Subnetwork: config.Subnetwork,
+			})
+	} else {
+		log.Printf("No VPC connector or subnet specified in config")
+		return fmt.Errorf("either Subnetwork or VPC Connector must be specified")
+	}
+	template.VpcAccess = vpcAccess
 
 	// Add Cloud SQL volumes if instances are specified
 	// This configures the Cloud SQL connector to provide secure database connections
