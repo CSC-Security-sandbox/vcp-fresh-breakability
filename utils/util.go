@@ -1117,3 +1117,11 @@ func _getSourceSnapshotPathFromBackup(backup *datamodel.Backup) string {
 func IsFilesProtocol(protocolName string) bool {
 	return protocolName == string(gcpgenserver.ProtocolsV1betaNFSV3) || protocolName == string(gcpgenserver.ProtocolsV1betaNFSV4) || protocolName == string(gcpgenserver.ProtocolsV1betaSMB)
 }
+
+func GetNLFSecretPath() string {
+	secretUri := ""
+	if env.NLFLicenseSecretPath != "" && env.SecretManagerProjectID != "" {
+		secretUri = fmt.Sprintf("projects/%s/secrets/%s", env.SecretManagerProjectID, env.NLFLicenseSecretPath)
+	}
+	return secretUri
+}

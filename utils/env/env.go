@@ -314,6 +314,8 @@ var (
 	IcNetworkIpRange   = GetString("IC_NETWORK_IP_RANGE", "198.18.32.0/20")
 
 	WorkerTaskQueue = GetString("WORKER_TASK_QUEUE", "customer-workflows")
+
+	NLFLicenseSecretPath = GetString("NLF_LICENSE_SECRET_PATH", "")
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges

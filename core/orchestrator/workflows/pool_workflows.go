@@ -1392,6 +1392,14 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 	}
 	createVSAClusterDeploymentRequest.VLMConfig = vlmConfig
 	createVSAClusterDeploymentRequest.OntapCredentials = ontapCredentials
+
+	// send empty secretUri if license secret path or project id is not provided -> VLM will use default legacy license
+	secretUri := utils.GetNLFSecretPath()
+	if secretUri != "" {
+		createVSAClusterDeploymentRequest.OntapLicense = vlm.OntapLicense{
+			SecretUri: []string{secretUri},
+		}
+	}
 }
 
 func prepareCreateSVMRequest(createSVMRequest *vlm.CreateSVMRequest, svmName string, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials) {

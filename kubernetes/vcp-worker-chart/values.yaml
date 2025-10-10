@@ -236,6 +236,10 @@ workerConfig:
   disableVsaCleanupOnVlmFailure: false
   orphanJobProcessingEnabled: true
 
+
+  # NLF License configuration
+  nlfLicenseSecretPath: "" # Format to be followed: <secret-name>/versions/<secret-version>
+
   # Database configuration
   database:
     type: "postgres"

@@ -3017,3 +3017,30 @@ func TestIsFilesProtocol(t *testing.T) {
 func stringPtr(s string) *string {
 	return &s
 }
+
+func TestGetNLFSecretPath(t *testing.T) {
+	// Save original values and restore after test
+	origNLF := env.NLFLicenseSecretPath
+	origProject := env.SecretManagerProjectID
+	defer func() {
+		env.NLFLicenseSecretPath = origNLF
+		env.SecretManagerProjectID = origProject
+	}()
+
+	// Case: both env vars set
+	env.NLFLicenseSecretPath = "nlf-secret"
+	env.SecretManagerProjectID = "test-project"
+	expected := "projects/test-project/secrets/nlf-secret"
+	actual := GetNLFSecretPath()
+	assert.Equal(t, expected, actual)
+
+	// Case: one env var empty
+	env.NLFLicenseSecretPath = ""
+	actual = GetNLFSecretPath()
+	assert.Equal(t, "", actual)
+
+	env.NLFLicenseSecretPath = "nlf-secret"
+	env.SecretManagerProjectID = ""
+	actual = GetNLFSecretPath()
+	assert.Equal(t, "", actual)
+}
