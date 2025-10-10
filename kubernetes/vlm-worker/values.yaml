@@ -25,8 +25,8 @@ serviceAccount:
 images:
   vlmWorker:
     name: vlm-worker
-    tag: "R9.17.1PxN_7807126"
-    digest: "sha256:3f41a3c577fe229dc967d95bc748405956275d0b19a5ae89e0421a8c9c5ac508"
+    tag: "R9.17.1Px_7825887"
+    digest: "sha256:a1f1f3a9283a3ad5779069b8656b37e28219c125cb162314b837c80e7c6a1531"
     secondary: true
     pullPolicy: IfNotPresent
 

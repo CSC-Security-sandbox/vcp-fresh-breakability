@@ -14,8 +14,8 @@
       "mediator_zone": ""
     },
     "images": {
-      "vsa_image_name": "r9-17-1pxn-919-op-gcnv",
-      "mediator_image_name": "r9-17-1pxn-250924-0317-mediator-debian-12"
+      "vsa_image_name": "x-9-17-1p1-gcnv",
+      "mediator_image_name": "cvo-mediator-x-9-17-1p1"
     },
     "tags": "",
     "labels": {},
