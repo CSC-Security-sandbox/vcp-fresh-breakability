@@ -292,7 +292,18 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 		log.Printf("Service update completed successfully\n")
 	}
 
-	printCloudRunServiceInfo(existingService)
+	if existingService == nil {
+		// Fetch the newly created service details
+		existingService, err = client.Projects.Locations.Services.Get(
+			fmt.Sprintf("%s/services/%s", parent, config.ServiceName),
+		).Do()
+		if err != nil {
+			log.Printf("Warning: Failed to get service info after deployment: %v\n", err)
+		}
+	}
+	if existingService != nil {
+		printCloudRunServiceInfo(existingService)
+	}
 
 	// Update traffic to route 100% to latest revision
 	log.Printf("Updating traffic to latest revision\n")
