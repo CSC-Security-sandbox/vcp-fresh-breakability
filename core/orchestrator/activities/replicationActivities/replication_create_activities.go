@@ -134,8 +134,9 @@ func (a *VolumeReplicationCreateActivity) AcceptClusterPeering(ctx context.Conte
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 
 	accpetClusterPeerParams := &googleproxyclient.V1betaInternalAcceptClusterPeerParams{
-		ProjectNumber: *result.DstProjectNumber,
-		LocationId:    result.Event.DestinationLocationID,
+		ProjectNumber:  *result.DstProjectNumber,
+		LocationId:     result.Event.DestinationLocationID,
+		XCorrelationID: googleproxyclient.NewOptString(*result.Event.XCorrelationID),
 	}
 
 	expiryTime := time.Now().Add(time.Minute * 10)
@@ -222,9 +223,10 @@ func DescribeVolume(ctx context.Context, result *replication.CreateReplicationRe
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 
 	createVolumeParams := &googleproxyclient.V1betaInternalDescribeVolumeParams{
-		ProjectNumber: *result.DstProjectNumber,
-		LocationId:    result.Event.DestinationLocationID,
-		VolumeId:      result.DstVolume.VolumeId.Value,
+		ProjectNumber:  *result.DstProjectNumber,
+		LocationId:     result.Event.DestinationLocationID,
+		VolumeId:       result.DstVolume.VolumeId.Value,
+		XCorrelationID: googleproxyclient.NewOptString(*result.Event.XCorrelationID),
 	}
 
 	res, err := googleProxyClient.Invoker.V1betaInternalDescribeVolume(ctx, *createVolumeParams)

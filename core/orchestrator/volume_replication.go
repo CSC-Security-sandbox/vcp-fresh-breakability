@@ -252,10 +252,12 @@ func _stopReplicationInternal(ctx context.Context, se database.Storage, temporal
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeStopVolumeReplicationInternal),
-		State:        string(models.JobsStateNEW),
-		ResourceName: replicationDb.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeStopVolumeReplicationInternal),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  replicationDb.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: replicationDb.UUID,
 			PoolUUID:     replicationDb.Volume.Pool.UUID,
@@ -334,10 +336,12 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeStopVolumeReplication),
-		State:        string(models.JobsStateNEW),
-		ResourceName: event.ReplicationModel.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeStopVolumeReplication),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  event.ReplicationModel.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: event.ReplicationModel.UUID,
 			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
@@ -527,10 +531,12 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeCreateVolumeReplication),
-		State:        string(models.JobsStateNEW),
-		ResourceName: dbRepl.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeCreateVolumeReplication),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  dbRepl.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: dbRepl.UUID,
 			PoolUUID:     srcVolume.Pool.UUID,
@@ -851,9 +857,9 @@ func _getActiveReplicationJobs(ctx context.Context, basePath string, token strin
 
 	logger.Debug(
 		"cvp geActiveReplicationJobs",
-		commonparams.String("destBasePath", basePath),
-		commonparams.String("projectNumber", projectNumber),
-		commonparams.String("locationID", locationID),
+		"destBasePath", basePath,
+		"projectNumber", projectNumber,
+		"locationID", locationID,
 	)
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, token, logger)
@@ -952,10 +958,12 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeReleaseVolumeReplicationInternal),
-		State:        string(models.JobsStateNEW),
-		ResourceName: dbVolumeReplication.Uri,
-		AccountID:    sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
+		Type:          string(models.JobTypeReleaseVolumeReplicationInternal),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  dbVolumeReplication.Uri,
+		AccountID:     sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: dbVolumeReplication.UUID,
 			PoolUUID:     dbVolumeReplication.Volume.Pool.UUID,
@@ -1212,10 +1220,12 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeResumeVolumeReplication),
-		State:        string(models.JobsStateNEW),
-		ResourceName: event.ReplicationModel.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeResumeVolumeReplication),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  event.ReplicationModel.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: event.ReplicationModel.UUID,
 			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
@@ -1300,10 +1310,12 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdateVolumeReplication),
-		State:        string(models.JobsStateNEW),
-		ResourceName: event.ReplicationModel.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeUpdateVolumeReplication),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  event.ReplicationModel.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: event.ReplicationModel.UUID,
 			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
@@ -1378,10 +1390,12 @@ func _resumeReplicationInternal(ctx context.Context, se database.Storage, tempor
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeResumeVolumeReplicationInternal),
-		State:        string(models.JobsStateNEW),
-		ResourceName: replicationDb.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeResumeVolumeReplicationInternal),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  replicationDb.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: replicationDb.UUID,
 			PoolUUID:     replicationDb.Volume.Pool.UUID,
@@ -1457,10 +1471,12 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeDeleteVolumeReplicationInternal),
-		State:        string(models.JobsStateNEW),
-		ResourceName: dbVolumeReplication.Uri,
-		AccountID:    sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
+		Type:          string(models.JobTypeDeleteVolumeReplicationInternal),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  dbVolumeReplication.Uri,
+		AccountID:     sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: dbVolumeReplication.UUID,
 			PoolUUID:     dbVolumeReplication.Volume.Pool.UUID,
@@ -1556,10 +1572,12 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeDeleteVolumeReplication),
-		State:        string(models.JobsStateNEW),
-		ResourceName: event.ReplicationModel.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeDeleteVolumeReplication),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  event.ReplicationModel.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: event.ReplicationModel.UUID,
 			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
@@ -1655,10 +1673,12 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeSyncVolumeReplication),
-		State:        string(models.JobsStateNEW),
-		ResourceName: event.ReplicationModel.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeSyncVolumeReplication),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  event.ReplicationModel.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: event.ReplicationModel.UUID,
 			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
@@ -1734,10 +1754,12 @@ func _reverseReplicationInternal(ctx context.Context, se database.Storage, tempo
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeReverseVolumeReplicationInternal),
-		State:        string(models.JobsStateNEW),
-		ResourceName: replicationDb.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeReverseVolumeReplicationInternal),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  replicationDb.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: replicationDb.UUID,
 			PoolUUID:     replicationDb.Volume.Pool.UUID,
@@ -1815,10 +1837,12 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeReverseResumeVolumeReplication),
-		State:        string(models.JobsStateNEW),
-		ResourceName: event.ReplicationModel.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeReverseResumeVolumeReplication),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  event.ReplicationModel.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: event.ReplicationModel.UUID,
 			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,

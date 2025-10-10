@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilError "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -380,6 +380,7 @@ func (a *ReverseVolumeReplicationActivity) MountReplicationAfterReverse(ctx cont
 		ProjectNumber:       *result.SrcProjectNumber,
 		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
 		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.Event.XCorrelationID),
 	}
 
 	res, err := googleProxyClient.Invoker.V1betaInternalMountVolumeReplication(ctx, *createVolumeParams)

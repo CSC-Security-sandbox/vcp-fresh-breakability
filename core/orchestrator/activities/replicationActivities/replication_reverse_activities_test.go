@@ -15,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -307,7 +306,7 @@ func TestDescribeRemoteJobOnsrc(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -350,7 +349,7 @@ func TestDescribeRemoteJobOnsrc(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -392,7 +391,7 @@ func TestDescribeRemoteJobOnsrc(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -437,7 +436,7 @@ func TestDescribeRemoteJobReverseOnDst(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -480,7 +479,7 @@ func TestDescribeRemoteJobReverseOnDst(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -522,7 +521,7 @@ func TestDescribeRemoteJobReverseOnDst(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -567,7 +566,7 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -633,7 +632,7 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -740,7 +739,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -809,7 +808,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -869,7 +868,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -929,7 +928,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -989,7 +988,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1049,7 +1048,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1109,7 +1108,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1169,7 +1168,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
 
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1331,7 +1330,7 @@ func TestCleanupOldReplication(t *testing.T) {
 		}
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1386,7 +1385,7 @@ func TestCleanupOldReplication(t *testing.T) {
 		}
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1430,7 +1429,7 @@ func TestCleanupOldReplication(t *testing.T) {
 		}
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1477,7 +1476,7 @@ func TestCleanupOldReplication(t *testing.T) {
 		}
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1524,7 +1523,7 @@ func TestCleanupOldReplication(t *testing.T) {
 		}
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1571,7 +1570,7 @@ func TestCleanupOldReplication(t *testing.T) {
 		}
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1618,7 +1617,7 @@ func TestCleanupOldReplication(t *testing.T) {
 		}
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockClient
 		}
 
@@ -1644,6 +1643,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -1653,6 +1653,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -1666,13 +1667,14 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 		res := &googleproxyclient.InternalJobV1beta{
 			JobUuid: googleproxyclient.NewOptString("job-uuid"),
@@ -1695,6 +1697,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -1704,6 +1707,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -1717,7 +1721,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -1725,6 +1729,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		badRequestResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationBadRequest{
@@ -1750,6 +1755,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -1759,6 +1765,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -1772,7 +1779,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -1780,6 +1787,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		unauthorizedResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationUnauthorized{
@@ -1805,6 +1813,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -1814,6 +1823,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -1827,7 +1837,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -1835,6 +1845,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		forbiddenResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationForbidden{
@@ -1860,6 +1871,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -1869,6 +1881,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -1882,7 +1895,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -1890,6 +1903,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		notFoundResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationNotFound{
@@ -1915,6 +1929,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -1924,6 +1939,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -1937,7 +1953,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -1945,6 +1961,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		conflictResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationConflict{
@@ -1970,6 +1987,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -1979,6 +1997,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -1992,7 +2011,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -2000,6 +2019,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		methodNotAllowedResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationMethodNotAllowed{
@@ -2025,6 +2045,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -2034,6 +2055,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -2047,7 +2069,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -2055,6 +2077,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		unprocessableEntityResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationUnprocessableEntity{
@@ -2080,6 +2103,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -2089,6 +2113,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -2102,7 +2127,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -2110,6 +2135,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		serverErrorResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationInternalServerError{
@@ -2135,6 +2161,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		srcProj := "projSrc"
 		srcPath := "srcPath"
 		srcToken := "srcToken"
+		xCorrelationID := "test-correlation-id"
 		replicationResult := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -2144,6 +2171,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 							SourceReplicationUUID: "replication-uuid",
 						},
 					},
+					XCorrelationID: &xCorrelationID,
 				},
 			},
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
@@ -2157,7 +2185,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger logger.Logger) *googleproxyclient.ProxyClient {
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 
@@ -2165,6 +2193,7 @@ func TestMountReplicationAfterReverse(t *testing.T) {
 			ProjectNumber:       srcProj,
 			LocationId:          "us-central1",
 			VolumeReplicationId: "replication-uuid",
+			XCorrelationID:      googleproxyclient.NewOptString("test-correlation-id"),
 		}
 
 		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(nil, errors.New("connection error"))

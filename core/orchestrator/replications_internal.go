@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -53,10 +54,12 @@ func _getMultipleReplicationsInternal(ctx context.Context, se database.Storage, 
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeRefreshVolumeReplicationInternal),
-		State:        string(models.JobsStateNEW),
-		ResourceName: "Replication Sync",
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeRefreshVolumeReplicationInternal),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  "Replication Sync",
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils2.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils2.GetRequestIDFromContext(ctx),
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -109,10 +112,15 @@ func _performMountCheck(ctx context.Context, se database.Storage, temporal clien
 		return nil, err
 	}
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeMountCheck),
-		State:        string(models.JobsStateNEW),
-		ResourceName: replicationUUID,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeMountCheck),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  replicationUUID,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils2.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils2.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: replicationUUID,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -189,6 +197,11 @@ func updateVolumeReplicationAttributes(ctx context.Context, se database.Storage,
 		ResourceName: params.VolumeReplicationId,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 		WorkflowID:   "UpdateVolumeReplicationAttributes-" + params.VolumeReplicationId + "-" + uuid.New().String(),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: params.VolumeReplicationId,
+		},
+		CorrelationID: utils2.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils2.GetRequestIDFromContext(ctx),
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -205,7 +218,7 @@ func updateVolumeReplicationAttributes(ctx context.Context, se database.Storage,
 			}
 		}
 	}()
-	
+
 	// Configure workflow options
 	workflowOptions := client.StartWorkflowOptions{
 		TaskQueue:             workflowengine.CustomerTaskQueue,

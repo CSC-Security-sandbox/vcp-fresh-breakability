@@ -95,7 +95,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	}
 	if *event.CreateReplicationParams.ReplicationSchedule == models.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED {
 		typeErr := errors.NewVCPError(errors.ErrWorkflowConfigurationError, errors.New("replicationSchedule is UNSPECIFIED"))
-		logger.Error("replicationSchedule is UNSPECIFIED", common.Error(typeErr))
+		logger.Error("replicationSchedule is UNSPECIFIED", "error", typeErr)
 		return nil, typeErr
 	}
 
@@ -106,14 +106,14 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	if event.CreateReplicationParams.Labels != nil {
 		err := validateLabels(event.CreateReplicationParams.Labels)
 		if err != nil {
-			logger.Error("validateLabels error", common.Error(err))
+			logger.Error("validateLabels error", "error", err)
 			return nil, err
 		}
 	}
 
 	token, err := InternalUtilGetSignedToken(event.SourceProjectNumber)
 	if err != nil {
-		logger.Error("Get Signed Token Error", common.Error(err))
+		logger.Error("Get Signed Token Error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
 	}
 
@@ -122,7 +122,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		// if remoteProject is not the same as the projectNumber, we need to get a new token for the remote project
 		dstToken, err = InternalUtilGetSignedToken(event.DestinationProjectNumber)
 		if err != nil {
-			logger.Error("Get Signed Token Error For Remote Project", common.Error(err))
+			logger.Error("Get Signed Token Error For Remote Project", "error", err)
 			return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
 		}
 	}
@@ -134,18 +134,18 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	}
 	srcBasePath, err := InternalUtilGetPairedRegionURI(sourceRegion)
 	if err != nil {
-		logger.Error("Get Paired Source Region Uri error", common.Error(err))
+		logger.Error("Get Paired Source Region Uri error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
 	}
 
 	destRegion, _, parseError := InternalParseRegionAndZone(event.DestinationLocationID)
 	if parseError != nil {
-		logger.Error("Parse Destination Location Error", common.Error(errors.New(parseError.Error())))
+		logger.Error("Parse Destination Location Error", "error", errors.New(parseError.Error()))
 		return nil, errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
 	}
 	destBasePath, err := InternalUtilGetPairedRegionURI(destRegion)
 	if err != nil {
-		logger.Error("Get Paired Destination Region Uri error", common.Error(err))
+		logger.Error("Get Paired Destination Region Uri error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
 	}
 	event.DestinationRegion = destRegion
@@ -166,7 +166,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 
 	err = validateReplicationResourceId(ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, se)
 	if err != nil {
-		logger.Error("Replication resourceId error", common.Error(err))
+		logger.Error("Replication resourceId error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrValidateCreateResourceIdInUse, err)
 	}
 
@@ -182,32 +182,32 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 
 	err = validateStoragePoolUri(*event.CreateReplicationParams.DestinationVolumeParameters.StoragePool)
 	if err != nil {
-		logger.Error("validateStoragePoolUri error", common.Error(err))
+		logger.Error("validateStoragePoolUri error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrValidateStoragePoolUri, err)
 	}
 
 	destPool, err := getDestinationPool(ctx, destBasePath, dstToken, event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName)
 	if err != nil {
-		logger.Error("getDestinationPool error", common.Error(err))
+		logger.Error("getDestinationPool error", "error", err)
 		return nil, err
 	}
 
 	if isPoolInTransitionState(destPool) {
 		typeErr := errors.NewVCPError(errors.ErrValidateDestinationPoolTransitioning, errors.New("Destination pool is in transition state"))
-		logger.Error("Destination pool is in transition state, Please try after some time", common.Error(typeErr))
+		logger.Error("Destination pool is in transition state, Please try after some time", "error", typeErr)
 		return nil, typeErr
 	}
 	if !isPoolHealthy(destPool) {
 		typeErr := errors.NewVCPError(
 			errors.ErrValidateDestinationStoragePoolState, errors.New("Destination pool is in unhealthy state, Please try after some time"))
-		logger.Error("Destination pool is in unhealthy state, Please try after some time", common.Error(typeErr))
+		logger.Error("Destination pool is in unhealthy state, Please try after some time", "error", typeErr)
 		return nil, typeErr
 	}
 
 	bytesNeeded := float64(event.SourceVolume.SizeInBytes) + destPool.AllocatedBytes.Value
 	if bytesNeeded > destPool.SizeInBytes {
 		typeErr := errors.NewVCPError(errors.ErrDestPoolSize, errors.New("Volume exceeds destination pool size"))
-		logger.Error("Volume exceeds destination pool size", common.Error(typeErr))
+		logger.Error("Volume exceeds destination pool size", "error", typeErr)
 		return nil, typeErr
 	}
 
@@ -216,21 +216,21 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 
 	if (tieringPolicy != nil && !tieringPolicy.TierAction.IsNull()) && !destPool.AllowAutoTiering.IsNull() && !destPool.AllowAutoTiering.Value {
 		typeErr := errors.NewVCPError(errors.ErrDestPoolTieringPolicyMismatch, errors.New("Auto tiering is not enabled on the destination pool"))
-		logger.Error("Auto tiering is not enabled on the destination pool", common.Error(typeErr))
+		logger.Error("Auto tiering is not enabled on the destination pool", "error", typeErr)
 		return nil, typeErr
 	}
 
 	if tieringPolicy != nil && !tieringPolicy.CoolingThresholdDays.IsNull() {
 		if tieringPolicy.CoolingThresholdDays.Value < int32(minCoolingThresholdDays) || tieringPolicy.CoolingThresholdDays.Value > int32(maxCoolingThresholdDays) {
 			typeErr := errors.NewVCPError(errors.ErrDestVolumeTieringThresholdOutOfRange, errors.New("Coolness threshold days should be in between 2 and 183"))
-			logger.Error("Coolness threshold days should be in between 2 and 183", common.Error(typeErr))
+			logger.Error("Coolness threshold days should be in between 2 and 183", "error", typeErr)
 			return nil, typeErr
 		}
 	}
 
 	if event.SourceVolume.Pool.ServiceLevel != string(destPool.ServiceLevel) {
 		typeErr := errors.NewVCPError(errors.ErrServiceLevelMismatch, errors.New("Service level on source volume and destination pool do not match"))
-		logger.Error("Service level on source volume and destination pool do not match", common.Error(typeErr))
+		logger.Error("Service level on source volume and destination pool do not match", "error", typeErr)
 		return nil, typeErr
 	}
 
@@ -244,14 +244,14 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		serviceLevel := event.SourceVolume.Pool.ServiceLevel
 		callbackToken, err := InternalUtilGetCallbackToken()
 		if err != nil {
-			logger.Error("Get callback token error", common.Error(err))
+			logger.Error("Get callback token error", "error", err)
 			return nil, errors.NewVCPError(errors.ErrGetSignedCallbackToken, err)
 		}
 
 		replicationQuotaLimit, err := getQuotaLimit(ctx, logger, event.DestinationLocationID, event.DestinationProjectNumber, callbackToken, common.ResourceTypeReplication)
 		if err != nil {
 			println(err.Error())
-			logger.Error("Get replication quota limit error", common.Error(err))
+			logger.Error("Get replication quota limit error", "error", err)
 			return nil, errors.NewVCPError(errors.ErrGetReplicationQuotaLimitInternal, err)
 		}
 		destReplicationCount, err := internalGetReplicationCount(ctx, destBasePath, event.DestinationProjectNumber, event.DestinationLocationID, "", dstToken, string(storageClass), string(serviceLevel))
@@ -264,7 +264,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 
 		destVolumeQuotaLimit, err := getQuotaLimit(ctx, logger, event.DestinationLocationID, event.DestinationProjectNumber, callbackToken, common.ResourceTypeVolume)
 		if err != nil {
-			logger.Error("Get volume quota limit error", common.Error(err))
+			logger.Error("Get volume quota limit error", "error", err)
 			return nil, errors.NewVCPError(errors.ErrGetVolumeQuotaLimitInternal, err)
 		}
 		destVolumeCount, err := internalGetVolumeCount(ctx, destBasePath, event.DestinationProjectNumber, event.DestinationLocationID, "", dstToken, string(storageClass), string(serviceLevel))
@@ -286,26 +286,26 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	}
 	destVolume, err := getVolume(ctx, destBasePath, dstToken, event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, destVolumeID)
 	if err != nil {
-		if err.Error() != "volume not found" {
-			logger.Error("getDestinationVolume error", common.Error(err))
+		if !utilErrors.IsNotFoundErr(err) {
+			logger.Error("getDestinationVolume error", "error", err)
 			return nil, errors.NewVCPError(errors.ErrValidateGetVolumeReplicationCreation, err)
 		}
 	}
 	if destVolume.ResourceId != "" {
 		if destVolume.CreationToken.Value == destShareName {
 			typeErr := errors.NewVCPError(errors.ErrGetVolumeCreateTokenInUseRemoteShareName, errors.New("RemoteShareName already Exists"))
-			logger.Error("RemoteShareName already Exists", common.Error(typeErr))
+			logger.Error("RemoteShareName already Exists", "error", typeErr)
 			return nil, typeErr
 		}
 
 		typeErr := errors.NewVCPError(errors.ErrGetVolumeCreateTokenInUseRemoteResourceID, errors.New("RemoteResourceID already Exists"))
-		logger.Error("RemoteResourceID already Exists", common.Error(typeErr))
+		logger.Error("RemoteResourceID already Exists", "error", typeErr)
 		return nil, typeErr
 	}
 
 	expectedDbReplication, err := createReplicationObjects(event, event.DestinationLocationID, sourceRegion, destRegion)
 	if err != nil {
-		logger.Error("create dummy replication error", common.Error(err))
+		logger.Error("create dummy replication error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrValidateCreateDummyReplication, err)
 	}
 
@@ -346,7 +346,7 @@ func _getVolume(ctx context.Context, basePath string, token string, locationID s
 			return vol, nil
 		}
 	}
-	return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+	return googleproxyclient.VolumeV1beta{}, utilErrors.NewNotFoundErr("Volume", &volumeResourceId)
 }
 
 func _internalGetReplicationCount(ctx context.Context, basePath string, projectNumber string, locationID string, poolID string, jwt string, storageClass, serviceLevel string) (int, error) {
@@ -386,10 +386,10 @@ func _getDestinationPool(ctx context.Context, destBasePath string, token string,
 
 	logger.Debug(
 		"getDestinationPool",
-		common.String("destBasePath", destBasePath),
-		common.String("projectNumber", projectNumber),
-		common.String("remoteLocationID", remoteLocationID),
-		common.String("name", name),
+		"destBasePath", destBasePath,
+		"projectNumber", projectNumber,
+		"remoteLocationID", remoteLocationID,
+		"name", name,
 	)
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(destBasePath, token, logger)
@@ -426,10 +426,10 @@ func _getReplicationJobs(ctx context.Context, basePath string, token string, loc
 
 	logger.Debug(
 		"getReplicationJobs",
-		common.String("destBasePath", basePath),
-		common.String("projectNumber", projectNumber),
-		common.String("locationID", locationID),
-		common.String("poolId", poolId),
+		"destBasePath", basePath,
+		"projectNumber", projectNumber,
+		"locationID", locationID,
+		"poolId", poolId,
 	)
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, token, logger)
@@ -544,7 +544,7 @@ func _replicationJobInProcess(ctx context.Context, srcProjectNumber string, dest
 	if srcBasePath != "" {
 		srcJobs, err := getReplicationJobs(ctx, srcBasePath, srcToken, srcLocationID, srcProjectNumber, correlationId, srcPoolId)
 		if err != nil {
-			logger.Error("ListCvpReplicationJobsInProcessing source error", common.Error(err))
+			logger.Error("ListCvpReplicationJobsInProcessing source error", "error", err)
 			return errors.NewVCPError(errors.ErrGetLocalReplicationJobs, err)
 		}
 		if len(srcJobs) > 0 {
@@ -559,7 +559,7 @@ func _replicationJobInProcess(ctx context.Context, srcProjectNumber string, dest
 	if destBasePath != "" {
 		destJobs, err := getReplicationJobs(ctx, destBasePath, destToken, destLocationId, destProjectNumber, correlationId, dstPoolId)
 		if err != nil {
-			logger.Error("ListCvpReplicationJobsInProcessing destination error", common.Error(err))
+			logger.Error("ListCvpReplicationJobsInProcessing destination error", "error", err)
 			return errors.NewVCPError(errors.ErrGetRemoteReplicationJobs, err)
 		}
 		if len(destJobs) > 0 {
@@ -611,14 +611,14 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 		return errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
 	}
 	if len(replicationDb) == 0 {
-		logger.Error("Replication not found in database", common.String("ccfeURI", ccfeURI))
+		logger.Error("Replication not found in database", "ccfeURI", ccfeURI)
 		return utilErrors.NewUserInputValidationErr("No replication found for the given URI")
 	}
 	replication := replicationDb[0]
 
 	remoteProject, err := utilsParseProjectNumberFromURI(replication.RemoteUri)
 	if err != nil {
-		logger.Error("Parse Remote URI Error", common.Error(err))
+		logger.Error("Parse Remote URI Error", "error", err)
 		return errors.NewVCPError(errors.ErrProjectParsingError, err)
 	}
 
@@ -629,7 +629,7 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 
 	srcToken, err := InternalUtilGetSignedToken(event.SourceProjectNumber)
 	if err != nil {
-		logger.Error("Get Signed Token Error", common.Error(err))
+		logger.Error("Get Signed Token Error", "error", err)
 		return errors.NewVCPError(errors.ErrGetSignedToken, err)
 	}
 
@@ -638,7 +638,7 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 		// if remoteProject is not the same as the projectNumber, we need to get a new token for the remote project
 		dstToken, err = InternalUtilGetSignedToken(event.DestinationProjectNumber)
 		if err != nil {
-			logger.Error("Get Signed Token Error For Remote Project", common.Error(err))
+			logger.Error("Get Signed Token Error For Remote Project", "error", err)
 			return errors.NewVCPError(errors.ErrGetSignedToken, err)
 		}
 	}
@@ -651,19 +651,19 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 
 	srcBasePath, err := InternalUtilGetPairedRegionURI(sourceRegion)
 	if err != nil {
-		logger.Error("Get Paired Source Region Uri error", common.Error(err))
+		logger.Error("Get Paired Source Region Uri error", "error", err)
 		return errors.NewVCPError(errors.ErrGetSrcBasePath, err)
 	}
 
 	destRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
 	if parseError != nil {
-		logger.Error("Parse Destination Location Error", common.Error(errors.New(parseError.Error())))
+		logger.Error("Parse Destination Location Error", "error", errors.New(parseError.Error()))
 		return errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
 	}
 
 	dstBasePath, err := InternalUtilGetPairedRegionURI(destRegion)
 	if err != nil {
-		logger.Error("Get Paired Destination Region Uri error", common.Error(err))
+		logger.Error("Get Paired Destination Region Uri error", "error", err)
 		return errors.NewVCPError(errors.ErrGetDstBasePath, err)
 	}
 
@@ -687,7 +687,7 @@ func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEv
 	logger := util.GetLogger(ctx)
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
-		logger.Error("getReplication error", common.Error(err))
+		logger.Error("getReplication error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 
@@ -706,7 +706,7 @@ func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent)
 	logger := util.GetLogger(ctx)
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
-		logger.Error("getReplication error", common.Error(err))
+		logger.Error("getReplication error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 
@@ -731,7 +731,7 @@ func _verifyDstReplicationReverse(ctx context.Context, event *ReverseReplication
 	logger := util.GetLogger(ctx)
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
-		logger.Error("getReplication error", common.Error(err))
+		logger.Error("getReplication error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 
@@ -761,7 +761,7 @@ func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEve
 
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
-		logger.Error("getReplication error", common.Error(err))
+		logger.Error("getReplication error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 
@@ -780,8 +780,8 @@ func _verifyDstVolume(ctx context.Context, attributes *datamodel.ReplicationDeta
 		srcVolume, err = describeVolume(ctx, srcBasePath, srcToken, attributes.SourceLocation, srcProjectNumber, correlationId, attributes.SourceVolumeUUID)
 	}
 	if err != nil {
-		if err.Error() != "volume not found" {
-			logger.Error("getSourceVolume error", common.Error(err))
+		if !utilErrors.IsNotFoundErr(err) {
+			logger.Error("getSourceVolume error", "error", err)
 			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrDescribingVolume, err)
 		}
 		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrVolumeNotFound, err)
@@ -793,8 +793,8 @@ func _verifyDstVolume(ctx context.Context, attributes *datamodel.ReplicationDeta
 		dstVolume, err = describeVolume(ctx, destBasePath, dstToken, attributes.DestinationLocation, dstProjectNumber, correlationId, attributes.DestinationVolumeUUID)
 	}
 	if err != nil {
-		if err.Error() != "volume not found" {
-			logger.Error("getDestinationVolume error", common.Error(err))
+		if !utilErrors.IsNotFoundErr(err) {
+			logger.Error("getDestinationVolume error", "error", err)
 			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrDescribingVolume, err)
 		}
 		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrVolumeNotFound, err)
@@ -851,16 +851,17 @@ func _getReplication(ctx context.Context, basePath string, projectNumber string,
 
 	logger.Debug(
 		"get destination replication",
-		common.String("basePath", basePath),
-		common.String("projectNumber", projectNumber),
-		common.String("locationID", locationID),
-		common.String("volumeReplicationID", volumeReplicationID),
+		"basePath", basePath,
+		"projectNumber", projectNumber,
+		"locationID", locationID,
+		"volumeReplicationID", volumeReplicationID,
 	)
 	payloadError := &models.Error{Code: float64(404), Message: fmt.Sprintf("Error fetching replication - Replication %s not found", volumeReplicationID)}
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwt, logger)
 	params := &googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-		ProjectNumber: projectNumber,
-		LocationId:    locationID,
+		ProjectNumber:  projectNumber,
+		LocationId:     locationID,
+		XCorrelationID: googleproxyclient.NewOptString(utils.GetCoRelationIDFromContext(ctx)),
 	}
 	body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{volumeReplicationID}}
 	response, err := googleProxyClient.Invoker.V1betaGetMultipleReplicationsInternal(ctx, &body, *params)
@@ -922,24 +923,24 @@ func _verifyDstReplication(ctx context.Context, event *DeleteReplicationEvent) (
 	logger := util.GetLogger(ctx)
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
-		logger.Error("getReplication error", common.Error(err))
+		logger.Error("getReplication error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 
 	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateMIRRORED {
-		logger.Error("Replication in mirrored state", common.Error(err))
+		logger.Error("Replication in mirrored state", "error", err)
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Destination replication is in mirror_state: %v expected_mirror_state: %v", models.ReplicationV1betaMirrorStateMIRRORED, models.ReplicationV1betaMirrorStateSTOPPED))
 	}
 
 	// Check if replication is in valid state
 	if *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateSTOPPED && *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateUNINITIALIZED {
-		logger.Error("Replication should be in PREPARING or STOPPED state before deleting", common.Error(err))
+		logger.Error("Replication should be in PREPARING or STOPPED state before deleting", "error", err)
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Expected mirror state: %v or %v", models.ReplicationV1betaMirrorStatePREPARING, models.ReplicationV1betaMirrorStateSTOPPED))
 	}
 
 	// Edge Case where mirrorState is uninitialized but data is being transferred and state is PENDING_SVM_PEERING.
 	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
-		logger.Error("Replication needs to be in stopped state", common.Error(err))
+		logger.Error("Replication needs to be in stopped state", "error", err)
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
 	}
 
@@ -950,7 +951,7 @@ func _verifyDstReplicationSync(ctx context.Context, event *ResumeReplicationEven
 	logger := util.GetLogger(ctx)
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
-		logger.Error("getReplication error", common.Error(err))
+		logger.Error("getReplication error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 	if *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateMIRRORED {

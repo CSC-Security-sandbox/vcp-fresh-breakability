@@ -665,7 +665,7 @@ func Test_getVolume(t *testing.T) {
 		vol, err := _getVolume(ctx, basePath, token, locationID, projectNumber, xCorrelationID, volumeResourceId)
 		assert.Error(t, err)
 		assert.Equal(t, "", vol.ResourceId)
-		assert.Contains(t, err.Error(), "volume not found")
+		assert.Contains(t, err.Error(), "Volume 'vol-1' not found")
 	})
 
 	t.Run("Returns error when Invoker returns error", func(t *testing.T) {
@@ -778,7 +778,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		origGetVolume := getVolume
 		getVolume = func(ctx context.Context, basePath, token, locationID, projectNumber string, xCorrelationID *string, volumeResourceId string) (googleproxyclient.VolumeV1beta, error) {
-			return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+			return googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", &volumeResourceId)
 		}
 		defer func() { getVolume = origGetVolume }()
 
@@ -1846,7 +1846,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
 		// Mock destination volume not found (which is expected)
-		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol_2").Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol_2").Return(googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", &[]string{"vol_2"}[0])).Once()
 
 		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region-1", "region-2").Return(nil, errors.New("create replication objects error")).Once()
 
@@ -1956,7 +1956,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
 		// Mock destination volume not found (which is expected)
-		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", &event.SourceVolume.Name)).Once()
 
 		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region-1", "region-2").Return(&datamodel.VolumeReplication{Uri: "uri"}, nil).Once()
 
@@ -2021,7 +2021,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
 		// Mock destination volume not found (which is expected)
-		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", &event.SourceVolume.Name)).Once()
 
 		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region-1", "region-2").Return(&datamodel.VolumeReplication{Uri: "uri"}, nil).Once()
 
@@ -2085,7 +2085,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 
 		// Mock destination volume not found (which is expected)
-		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", &event.SourceVolume.Name)).Once()
 
 		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region-1", "region-1").Return(&datamodel.VolumeReplication{Uri: "uri"}, nil).Once()
 
@@ -2631,9 +2631,9 @@ func TestVerifyDstVolume(t *testing.T) {
 			describeVolume = _describeVolume
 		}()
 		ctx := context.Background()
-		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotFound, errors.New("volume not found"))
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotFound, errors.NewNotFoundErr("Volume", &[]string{"vol-1"}[0]))
 		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
-			return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+			return googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", &[]string{"vol-1"}[0])
 		}
 		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.Error(tt, err)
@@ -2645,13 +2645,13 @@ func TestVerifyDstVolume(t *testing.T) {
 		}()
 		ctx := context.Background()
 		count := 0
-		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotFound, errors.New("volume not found"))
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrVolumeNotFound, errors.NewNotFoundErr("Volume", &[]string{"vol-1"}[0]))
 		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
 			if count == 0 {
 				count = count + 1
 				return googleproxyclient.VolumeV1beta{}, nil
 			}
-			return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+			return googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", &[]string{"vol-1"}[0])
 		}
 		_, _, err := _verifyDstVolume(ctx, event.ReplicationModel.ReplicationAttributes, "srcPath", "dstPath", "srcToken", "dstToken", "srcProject", "dstProject", &correlationId, false)
 		assert.Error(tt, err)
