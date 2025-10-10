@@ -150,6 +150,10 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		}
 	}
 
+	if err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteExportPolicy, &flexCacheResult.DBVolume, &flexCacheResult.Node).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSVMPeeringInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
