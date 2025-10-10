@@ -1,30 +1,34 @@
+{{- range $mapping := $.Values.ontapVersionVlmImageMappings }}
+    {{- $versionName := $mapping.ontapVersion }}
+    {{- $version := ($versionName | lower | replace "." "-") }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.app.name }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ $.Values.app.name }}-{{ $version }}
+  namespace: {{ $.Release.Namespace }}
   labels:
-    app: {{ .Values.app.name }}
+    app: {{ $.Values.app.name }}-{{ $version }}
 spec:
-  replicas: {{ .Values.app.replicas }}
+  replicas: {{ $.Values.app.replicas }}
   selector:
     matchLabels:
-      app: {{ .Values.app.name }}
+      app: {{ $.Values.app.name }}-{{ $version }}
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}
-      {{- with .Values.podAnnotations }}
+        app: {{ $.Values.app.name }}-{{ $version }}
+      {{- with $.Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ $.Values.serviceAccount.name }}
       {{- with $.Values.initContainers }}
       initContainers:
-        {{- toYaml .| nindent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if and .Values.podAffinity.enabled (eq .Values.global.environment "gcp") }}
+      {{- if and $.Values.podAffinity.enabled (eq $.Values.global.environment "gcp") }}
       topologySpreadConstraints:
         - maxSkew: 1
           minDomains: 3
@@ -32,31 +36,33 @@ spec:
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
-              {{- include "vlm-worker.podSelectorLabels" . | nindent 14 }}
+              app: {{ $.Values.app.name }}-{{ $version }}
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
-              {{- include "vlm-worker.podSelectorLabels" . | nindent 14 }}
+              app: {{ $.Values.app.name }}-{{ $version }}
       {{- end }}
       containers:
-        - name: {{ .Values.app.name }}
-          {{- if .Values.images.vlmWorker.secondary }}
-          image: "{{- include "containerImage" (list . (dict "name" "vlmWorker" "secondary" true)) | trim -}}"
+        - name: {{ $.Values.app.name }}-{{ $version }}
+          {{- if $mapping.secondary }}
+          image: "{{- include "containerImage" (list $ (dict "secondary" true "vlmImageName" $mapping.vlmImageName "vlmImageTag" $mapping.vlmImageTag "vlmImageDigest" $mapping.vlmImageDigest )) | trim -}}"
           {{- else }}
-          image: "{{- include "containerImage" (list . (dict "name" "vlmWorker" "secondary" false)) | trim -}}"
+          image: "{{- include "containerImage" (list $ (dict "secondary" false "vlmImageName" $mapping.vlmImageName "vlmImageTag" $mapping.vlmImageTag "vlmImageDigest" $mapping.vlmImageDigest )) | trim -}}"
           {{- end }}
-          imagePullPolicy: {{ .Values.images.vlmWorker.pullPolicy }}
+          imagePullPolicy: {{ $mapping.pullPolicy }}
           resources:
             limits:
-              cpu: {{ .Values.resources.limits.cpu }}
-              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ $.Values.resources.limits.cpu }}
+              memory: {{ $.Values.resources.limits.memory }}
             requests:
-              cpu: {{ .Values.resources.requests.cpu }}
-              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ $.Values.resources.requests.cpu }}
+              memory: {{ $.Values.resources.requests.memory }}
           envFrom:
             - configMapRef:
-                name: {{ include "vlm-worker.configMapName" . }}
+                name: {{ include "vlm-worker.configMapName" (list $ $version) }}
             - secretRef:
-                name: {{ include "vlm-worker.secretName" . }}
+                name: {{ include "vlm-worker.secretName" $ }}
+---
+{{- end }}

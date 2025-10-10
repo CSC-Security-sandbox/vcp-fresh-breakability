@@ -21,27 +21,27 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- define "containerImage" -}}
     {{- $context := index . 0 -}}
     {{- $args := index . 1 -}}
-    {{- $imageValueName := index $args "name" -}}
-    {{- $imageConfig := index $context.Values.images $imageValueName -}}
-    {{- $imageName := $imageConfig.name -}}
-    {{- $imageTag := $imageConfig.tag -}}
-    {{- $imageDigest := $imageConfig.digest -}}
+    {{- $imageName := index $args "vlmImageName" -}}
+    {{- $vlmImageDigest := index $args "vlmImageDigest" -}}
+    {{- $vlmImageTag := index $args "vlmImageTag" -}}
     {{- $isSecondary := index $args "secondary" -}}
     {{- $registry := ternary (include "secondImageRegistryFullPath" $context) (include "imageRegistryFullPath" $context) $isSecondary -}}
     {{- if $context.Values.global.useTags -}}
-        {{- $finaltag := toString $imageTag | default (toString $context.Chart.Version) -}}
-        {{- printf "%s/%s:%s" $registry $imageName $finaltag -}}
+        {{- printf "%s/%s:%s" $registry $imageName $vlmImageTag -}}
     {{- else -}}
-        {{- printf "%s/%s@%s" $registry $imageName $imageDigest -}}
+        {{- printf "%s/%s@%s" $registry $imageName $vlmImageDigest -}}
     {{- end -}}
 {{- end -}}
 
 
 {{/*
-Helper function to generate the configMap name by appending "-config" to the app name.
+Helper function to generate the configMap name by appending version and "-config" to the app name.
+Usage: include "vlm-worker.configMapName" (list $ $version)
 */}}
 {{- define "vlm-worker.configMapName" -}}
-    {{- printf "%s-config" .Values.app.name -}}
+    {{- $context := index . 0 -}}
+    {{- $version := index . 1 -}}
+    {{- printf "%s-%s-config" $context.Values.app.name $version -}}
 {{- end -}}
 
 {{/*
@@ -56,13 +56,4 @@ Helper function to generate the secret name by appending "-secret" to the app na
 */}}
 {{- define "vlm-worker.secretName" -}}
 {{- printf "%s-secret" .Values.app.name -}}
-{{- end -}}
-
-Helper function to generate pod selector labels for vlm-worker.
-*/}}
-{{/*
-Helper function to generate pod selector labels for vlm-worker.
-*/}}
-{{- define "vlm-worker.podSelectorLabels" -}}
-app: {{ .Values.app.name | quote }}
 {{- end -}}
