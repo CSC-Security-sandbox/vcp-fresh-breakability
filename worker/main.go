@@ -266,6 +266,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(replicationWorkflows.UpdateVolumeReplicationAttributesWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateVolumeInReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.CreateBackupWorkflowWithContext)
+	worker.RegisterWorkflow(workflows.RestoreBackupWorkflowWithContext)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})

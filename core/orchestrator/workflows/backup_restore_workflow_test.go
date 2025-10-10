@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"testing"
 	"time"
 
@@ -164,7 +165,23 @@ func (s *BackupRestoreWorkflowTestSuite) setupCommonMocks(volume *datamodel.Volu
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:      &datamodel.Backup{},
+				BackupVault: &datamodel.BackupVault{},
+				Volume:      volume,
+			},
+			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapshotName: "test-backup",
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "test-snapmirror-uuid",
+			},
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
 	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
@@ -1036,6 +1053,139 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+
+	// Assertions
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+// Test for RestoreBackupWorkflowWithContext function
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_Success() {
+	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
+
+	// Create backup activities context
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node: &models.Node{EndpointAddress: "127.0.0.1"},
+		SnapmirrorRelationship: &common.SnapmirrorRelationship{
+			UUID: "test-snapmirror-uuid",
+		},
+		TransferStatus: activities.SmStatusSuccess,
+	}
+
+	// Register common activities and mocks
+	s.registerCommonActivities()
+	s.setupCommonMocks(volume)
+
+	// Execute workflow with context
+	s.env.ExecuteWorkflow(RestoreBackupWorkflowWithContext, backupActivitiesContext, params, hostParams, volCreateResponse)
+
+	// Assertions
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+// Test for RestoreBackupWorkflowWithContext with setup failure
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_SetupFailure() {
+	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
+
+	// Create backup activities context
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+	}
+
+	// Create activity instances
+	commonActivity := &activities.CommonActivities{}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity)
+
+	// Mock UpdateJobStatus to fail
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(errors.New("setup failed"))
+
+	// Execute workflow with context
+	s.env.ExecuteWorkflow(RestoreBackupWorkflowWithContext, backupActivitiesContext, params, hostParams, volCreateResponse)
+
+	// Assertions
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "setup failed")
+}
+
+// Test for RestoreBackupWorkflowWithContext with run failure
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_RunFailure() {
+	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
+
+	// Create backup activities context
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+	}
+
+	// Create activity instances
+	commonActivity := &activities.CommonActivities{}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity)
+
+	// Track UpdateJobStatus calls to verify error handling
+	var jobStatusCalls []string
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		job := args.Get(1).(*datamodel.Job)
+		jobStatusCalls = append(jobStatusCalls, job.State)
+	}).Return(nil)
+
+	// Mock GetNode to fail with non-retryable error
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("get node failed", "GetNodeFailure", nil))
+
+	// Execute workflow with context
+	s.env.ExecuteWorkflow(RestoreBackupWorkflowWithContext, backupActivitiesContext, params, hostParams, volCreateResponse)
+
+	// Assertions
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+
+	// Verify that the workflow attempted to update job status to ERROR
+	assert.Contains(s.T(), jobStatusCalls, "PROCESSING")
+	assert.Contains(s.T(), jobStatusCalls, "ERROR")
+}
+
+// Test for RestoreBackupWorkflowWithContext with continuation scenario
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_ContinuationScenario() {
+	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
+
+	// Create backup activities context with continuation data
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+		SnapshotName: "test-backup",
+		SnapmirrorRelationship: &common.SnapmirrorRelationship{
+			UUID: "test-snapmirror-uuid",
+		},
+		TransferStatus: activities.SmStatusSuccess,
+	}
+
+	// Register common activities and mocks
+	s.registerCommonActivities()
+	s.setupCommonMocks(volume)
+
+	// Execute workflow with context
+	s.env.ExecuteWorkflow(RestoreBackupWorkflowWithContext, backupActivitiesContext, params, hostParams, volCreateResponse)
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())

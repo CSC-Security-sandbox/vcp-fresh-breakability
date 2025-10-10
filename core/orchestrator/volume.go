@@ -52,11 +52,12 @@ var (
 	validateDeleteVolumeParams   = _validateDeleteVolumeParams
 	updateVolumeStatus           = _updateVolumeStatus
 
-	envIsLocalEnv         = env.IsLocalEnv
-	cvpCreateClient       = cvp.CreateClient
-	GetBackupVaultFromCVP = getBackupVaultFromCVP
-	enableAutoPoolScaling = env.GetBool("ENABLE_AUTO_POOL_SCALING", true)
-	autoPoolScalingLimits = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":246,\"max_volume_count\":495},\"c3-standard-16-lssd\":{\"min_volume_count\":496,\"max_volume_count\":995}}")
+	envIsLocalEnv                                   = env.IsLocalEnv
+	cvpCreateClient                                 = cvp.CreateClient
+	GetBackupVaultFromCVP                           = getBackupVaultFromCVP
+	enableAutoPoolScaling                           = env.GetBool("ENABLE_AUTO_POOL_SCALING", true)
+	autoPoolScalingLimits                           = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":246,\"max_volume_count\":495},\"c3-standard-16-lssd\":{\"min_volume_count\":496,\"max_volume_count\":995}}")
+	verifyBackupRestoreCompatibilityForLargeVolumes = _verifyBackupRestoreCompatibilityForLargeVolumes
 )
 
 const (
@@ -313,6 +314,8 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if err != nil {
 			return nil, "", err
 		}
+
+		// TODO: restore SDE Backup to VCP - need to fetch the details from sde db and store it will bucket details in case if the record is not found in VCP DB
 		backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
 		if err != nil {
 			return nil, "", err
@@ -322,6 +325,11 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if volumeObj.SizeInBytes < requiredVolumeSize {
 			logger.Error("The volume size is too small for the selected backup")
 			return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("Restored Volume size should be greater than or equal to the logical size of the backup : %d bytes", requiredVolumeSize))
+		}
+
+		params, err = verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
+		if err != nil {
+			return nil, "", err
 		}
 	}
 
@@ -2119,4 +2127,35 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 
 	logger.Infof("Triggered instance upgrade for pool: %s", pool.Name)
 	return
+}
+
+// for Large Volume creation, we store CV count for auto-provision volumes and customer given CV count. from volume we fetch the CV and store
+// in backup at the time of backup Creation, so for large volume backups, we will have CV count in backup attributes.
+// case 1 : Customer created volume with CV and took backup -> proceed with restore wihout CV, we have to pass backup CV to Volume.
+// case 2: Customer  created volume with CV and took backup -> proceed with restore with CV, we have to validate backup CV and customer provided CV matches, then proceed with restore.
+// case 3: Customer created volume without CV and took backup -> proceed with restore without CV, we have to pass backup CV to Volume.
+// case 4: Customer created volume without CV and took backup -> proceed with restore with CV, we have to validate backup CV and customer provided CV matches, then proceed with restore.
+func _verifyBackupRestoreCompatibilityForLargeVolumes(backup *datamodel.Backup, params *common.CreateVolumeParams) (*common.CreateVolumeParams, error) {
+	if params.LargeCapacity && backup.Attributes.OntapVolumeStyle != "flexgroup" {
+		return nil, customerrors.NewUserInputValidationErr("Cannot restore a large capacity volume from a backup that is not a large volume backup")
+	}
+
+	if backup.Attributes.OntapVolumeStyle != "flexgroup" {
+		return params, nil
+	}
+
+	if params.BackupPath != "" && params.LargeCapacity && params.LargeVolumeConstituentCount == 0 {
+		params.LargeVolumeConstituentCount = backup.Attributes.ConstituentCountOfBackup
+		return params, nil
+	}
+
+	// Handle large volume backup cases
+	backupConstituentCount := backup.Attributes.ConstituentCountOfBackup
+	customerConstituentCount := params.LargeVolumeConstituentCount
+
+	// Customer provided count
+	if customerConstituentCount > 0 && customerConstituentCount != backupConstituentCount {
+		return nil, customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent count provided (%d) does not match with that of backup (%d)", customerConstituentCount, backupConstituentCount))
+	}
+	return params, nil
 }

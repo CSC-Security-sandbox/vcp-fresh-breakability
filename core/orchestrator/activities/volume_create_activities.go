@@ -159,7 +159,9 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 
 	if utils.IsFileProtocolSupported(volume.Account.Name) && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
 		params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
-		params.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
+		if params.VolumeType != VolumeTypeDP {
+			params.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
+		}
 	}
 
 	if volume.AutoTieringEnabled && volume.AutoTieringPolicy != nil {

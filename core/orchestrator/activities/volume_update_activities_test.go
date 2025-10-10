@@ -3354,3 +3354,331 @@ func TestUpdateVolumeInONTAP_WithSnapshotDirectoryAccess_Success(t *testing.T) {
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
+
+func TestUpdateVolumeJunctionpath_SANProtocols_Success(t *testing.T) {
+	// Test case: When volume has SAN protocols, function should return early without calling provider
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			Protocols:    []string{utils.ProtocolISCSI}, // SAN protocol
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test/junction/path",
+			},
+		},
+	}
+	node := &models.Node{}
+
+	// Should return nil immediately without calling any provider methods
+	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	assert.NoError(t, err)
+}
+
+func TestUpdateVolumeJunctionpath_NASProtocols_Success(t *testing.T) {
+	// Test case: When volume has NAS protocols, function should call provider to update junction path
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			Protocols:    []string{utils.ProtocolNFSv3}, // NAS protocol
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test/junction/path",
+			},
+		},
+	}
+	node := &models.Node{}
+
+	// Mock the UpdateVolume call
+	expectedParams := vsa.UpdateVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: &volume.VolumeAttributes.FileProperties.JunctionPath,
+	}
+	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
+
+	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateVolumeJunctionpath_MixedProtocols_Success(t *testing.T) {
+	// Test case: When volume has mixed protocols (not all SAN), function should call provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			Protocols:    []string{utils.ProtocolNFSv3, utils.ProtocolISCSI}, // Mixed protocols
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test/junction/path",
+			},
+		},
+	}
+	node := &models.Node{}
+
+	// Mock the UpdateVolume call
+	expectedParams := vsa.UpdateVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: &volume.VolumeAttributes.FileProperties.JunctionPath,
+	}
+	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
+
+	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateVolumeJunctionpath_EmptyProtocols_Success(t *testing.T) {
+	// Test case: When volume has empty protocols, function should call provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			Protocols:    []string{}, // Empty protocols
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test/junction/path",
+			},
+		},
+	}
+	node := &models.Node{}
+
+	// Mock the UpdateVolume call
+	expectedParams := vsa.UpdateVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: &volume.VolumeAttributes.FileProperties.JunctionPath,
+	}
+	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
+
+	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateVolumeJunctionpath_GetProviderByNodeError(t *testing.T) {
+	// Test case: When GetProviderByNode returns an error, function should return wrapped error
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	expectedError := errors.New("provider error")
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			Protocols:    []string{utils.ProtocolNFSv3},
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test/junction/path",
+			},
+		},
+	}
+	node := &models.Node{}
+
+	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "provider error")
+}
+
+func TestUpdateVolumeJunctionpath_UpdateVolumeError(t *testing.T) {
+	// Test case: When UpdateVolume returns an error, function should return the error
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			Protocols:    []string{utils.ProtocolNFSv3},
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test/junction/path",
+			},
+		},
+	}
+	node := &models.Node{}
+
+	expectedError := errors.New("update volume error")
+	expectedParams := vsa.UpdateVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: &volume.VolumeAttributes.FileProperties.JunctionPath,
+	}
+	mockProvider.On("UpdateVolume", expectedParams).Return(expectedError)
+
+	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateVolumeJunctionpath_NilVolumeAttributes(t *testing.T) {
+	// Test case: When volume has nil VolumeAttributes, function should handle gracefully
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name:             "test-volume",
+		VolumeAttributes: nil, // Nil VolumeAttributes
+	}
+	node := &models.Node{}
+
+	// This should panic or handle gracefully - depending on implementation
+	// The function will panic when trying to access volume.VolumeAttributes.Protocols
+	assert.Panics(t, func() {
+		err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+		if err != nil {
+			return
+		}
+	})
+}
+
+func TestUpdateVolumeJunctionpath_NilFileProperties(t *testing.T) {
+	// Test case: When volume has nil FileProperties, function should handle gracefully
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "uuid-123",
+			Protocols:      []string{utils.ProtocolNFSv3},
+			FileProperties: nil, // Nil FileProperties
+		},
+	}
+	node := &models.Node{}
+
+	// This should panic when trying to access volume.VolumeAttributes.FileProperties.JunctionPath
+	assert.Panics(t, func() {
+		err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+		if err != nil {
+			return
+		}
+	})
+}
+
+func TestUpdateVolumeJunctionpath_AllNASProtocols_Success(t *testing.T) {
+	// Test case: When volume has all NAS protocols, function should call provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			Protocols:    []string{utils.ProtocolNFS, utils.ProtocolNFSv3, utils.ProtocolNFSv4, utils.ProtocolSMB}, // All NAS protocols
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test/junction/path",
+			},
+		},
+	}
+	node := &models.Node{}
+
+	// Mock the UpdateVolume call
+	expectedParams := vsa.UpdateVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: &volume.VolumeAttributes.FileProperties.JunctionPath,
+	}
+	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
+
+	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateVolumeJunctionpath_InvalidProtocols_Success(t *testing.T) {
+	// Test case: When volume has invalid protocols, function should call provider (since IsSanProtocols returns false for invalid protocols)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			Protocols:    []string{"INVALID_PROTOCOL"}, // Invalid protocol
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test/junction/path",
+			},
+		},
+	}
+	node := &models.Node{}
+
+	// Mock the UpdateVolume call
+	expectedParams := vsa.UpdateVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: &volume.VolumeAttributes.FileProperties.JunctionPath,
+	}
+	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
+
+	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}

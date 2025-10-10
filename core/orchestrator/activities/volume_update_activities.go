@@ -86,6 +86,21 @@ func updateVolume(ctx context.Context, provider vsa.Provider, params vsa.UpdateV
 	return nil
 }
 
+func (a *VolumeUpdateActivity) UpdateVolumeJunctionpath(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	if utils.IsSanProtocols(volume.VolumeAttributes.Protocols) {
+		return nil
+	}
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return updateVolume(ctx, provider, vsa.UpdateVolumeParams{
+		UUID:         volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: &volume.VolumeAttributes.FileProperties.JunctionPath,
+	})
+}
+
 // GetVolumeFromONTAP retrieves the volume from ONTAP
 func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)

@@ -54,6 +54,48 @@ func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumePara
 	var customErr *vsaerrors.CustomError
 	_, customErr = restoreWf.Run(ctx, volume, params, backupVault, backup, hostParams, volCreateResponse)
 	if customErr != nil {
+		// Check if the error is a ContinueAsNewError - if so, don't call revert
+		if workflow.IsContinueAsNewError(customErr.OriginalErr) {
+			return nil, customErr
+		}
+		log.Errorf("RestoreBackupWorkflow completed with error: %v", customErr.OriginalErr.Error())
+		restoreWf.Status = WorkflowStatusFailed
+		err2 := restoreWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		if err2 != nil {
+			log.Errorf("Failed to update job status to Done with error for RestoreBackupWorkflow: %v", err2)
+			return nil, err2
+		}
+		return nil, customErr
+	}
+	restoreWf.Status = WorkflowStatusCompleted
+	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err != nil {
+		log.Errorf("Failed to update job status to Done for RestoreBackupWorkflow: %v", err)
+	}
+	return nil, err
+}
+
+func RestoreBackupWorkflowWithContext(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, params *common.CreateVolumeParams, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+	log := util.GetLogger(ctx)
+	restoreWf := new(restoreBackupWorkflow)
+	err := restoreWf.Setup(ctx, params)
+	if err != nil {
+		log.Errorf("Failed to setup RestoreBackupWorkflow: %v", err)
+		return nil, err
+	}
+	restoreWf.Status = WorkflowStatusRunning
+	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		log.Errorf("Failed to update job status to Processing for RestoreBackupWorkflow: %v", err)
+		return nil, err
+	}
+	var customErr *vsaerrors.CustomError
+	_, customErr = restoreWf.RunWithContext(ctx, backupActivitiesContext, params, hostParams, volCreateResponse)
+	if customErr != nil {
+		// Check if the error is a ContinueAsNewError - if so, don't call revert
+		if workflow.IsContinueAsNewError(customErr.OriginalErr) {
+			return nil, customErr
+		}
 		log.Errorf("RestoreBackupWorkflow completed with error: %v", customErr.OriginalErr.Error())
 		restoreWf.Status = WorkflowStatusFailed
 		err2 := restoreWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
@@ -91,13 +133,23 @@ func (wf *restoreBackupWorkflow) Setup(ctx workflow.Context, input interface{}) 
 }
 
 func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
-	log := util.GetLogger(ctx)
-	dbVolume := args[0].(*datamodel.Volume)
 	createVolumeParams := args[1].(*common.CreateVolumeParams)
-	backupVault := args[2].(*datamodel.BackupVault)
-	backup := args[3].(*datamodel.Backup)
 	hostParams := args[4].([]*common.HostParams)
 	volCreateResponse := args[5].(*vsa.VolumeResponse)
+
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      args[3].(*datamodel.Backup),
+			BackupVault: args[2].(*datamodel.BackupVault),
+			Volume:      args[0].(*datamodel.Volume),
+		},
+	}
+
+	return wf.RunWithContext(ctx, backupActivitiesContext, createVolumeParams, hostParams, volCreateResponse)
+}
+
+func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, createVolumeParams *common.CreateVolumeParams, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse) (interface{}, *vsaerrors.CustomError) {
+	log := util.GetLogger(ctx)
 	isRestoreFromBackup := createVolumeParams.BackupPath != ""
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var volumeUpdateActivity *activities.VolumeUpdateActivity
@@ -118,122 +170,100 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	rollbackManager := common.NewRollbackManager()
-
-	// No need to defer rollback manager cleanup here, as it will be handled by the workflow engine
 	defer func() {
 		// just a placeholder for rollback manager cleanup
+		if err != nil && workflow.IsContinueAsNewError(err) {
+			// Don't execute rollback for ContinueAsNew - let the new execution handle it
+			return
+		}
 		disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 		rollbackManager.ExecuteRollback(disconnectedCtx, err)
 	}()
 
-	// Execute VPC pool restoration activity to handle cross-project permissions
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CrossPoolOrVPCRestorationActivity, dbVolume.Pool, backup).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	rollbackManager.AddActivity(activities.VolumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, dbVolume.Pool, backup)
+	info := workflow.GetInfo(ctx)
+	isContinuation := info.ContinuedExecutionRunID != ""
 
-	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
-
-	// Post-provisioning child workflow
-	preWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre, dbVolume.Account.Name)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	var preUpdatedVolume *datamodel.Volume
-	err = workflow.ExecuteChildWorkflow(ctx, preWorkflowFunc, dbVolume, node).Get(ctx, &preUpdatedVolume)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Update the dbVolume with any changes from the pre-workflow
-	if preUpdatedVolume != nil {
-		dbVolume = preUpdatedVolume
-	}
-
-	objStore := &common.CloudTarget{}
-	backupActivity := &activities.BackupActivity{}
-	var smDestinationPath string
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, dbVolume).Get(ctx, &smDestinationPath)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	var smSourcePath string
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathForRestoreActivity, backupVault, backup).Get(ctx, &smSourcePath)
-	log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
-	log.Debugf("\nsmSourcePath: %v", smSourcePath)
-
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	snapmirrorRelationship := &common.SnapmirrorRelationship{}
-	SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
-		SourcePath:      smSourcePath,
-		DestinationPath: smDestinationPath,
-		SourceUUID:      &backup.Attributes.EndpointUUID,
-		IsRestore:       true,
-	}
-
-	objStoreName, err := activities.GetObjStoreNameFromBackup(backupVault, backup)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	bucketDetails, err := activities.GetBucketDetailsFromBackup(backupVault, backup)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	bucketName := bucketDetails.BucketName
-
-	err = workflow.Sleep(ctx, 60*time.Second)
-	if err != nil {
-		return nil, ConvertToVSAError(fmt.Errorf("failed to sleep before starting snapmirror restore: %w", err))
-	}
-	err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetOrCreateObjectStore, node, objStoreName, bucketName).Get(ctx, &objStore)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorGetOrCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, "").Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	done := false
-	var status string
-	waitTime := Wait
-	for !done {
-		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetSnapmirrorTransferStatus, node, snapmirrorRelationship.UUID, "").Get(ctx, &status)
+	if isContinuation {
+		wf.Logger.Info("Resuming backup workflow from continuation",
+			"workflowID", wf.ID,
+			"continuedFromRunID", info.OriginalRunID,
+			"snapshotName", backupActivitiesContext.SnapshotName,
+			"transferStatus", backupActivitiesContext.TransferStatus)
+	} else {
+		// Execute VPC pool restoration activity to handle cross-project permissions
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CrossPoolOrVPCRestorationActivity, backupActivitiesContext.BackupWorkflowInit.Volume.Pool, backupActivitiesContext.BackupWorkflowInit.Backup).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		switch status {
-		case activities.SmStatusTransferring:
-			err := workflow.Sleep(ctx, waitTime) // Wait before polling again with exponential backoff
-			if err != nil {
-				return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err))
-			}
-			// Exponential backoff: double the wait time, but cap it at maxWaitTime
-			waitTime = time.Duration(float64(waitTime) * 2)
-			if waitTime > BackupMaxWaitTimeCap {
-				waitTime = BackupMaxWaitTimeCap
-			}
-		case activities.SmStatusSuccess:
-			log.Debugf("Snapmirror transfer completed successfully")
-			done = true
-		case activities.SmStatusFailed:
-			return nil, ConvertToVSAError(fmt.Errorf("snapmirror transfer failed for restore with status: %s", status))
+		rollbackManager.AddActivity(activities.VolumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, backupActivitiesContext.BackupWorkflowInit.Volume.Pool, backupActivitiesContext.BackupWorkflowInit.Backup)
+
+		var dbNodes []*datamodel.Node
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &backupActivitiesContext.BackupWorkflowInit.Volume.Pool.ID).Get(ctx, &dbNodes)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
 		}
+
+		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.Password, SecretID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.SecretID, DeploymentName: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.DeploymentName, CertificateID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.CertificateID, AuthType: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.AuthType})
+		backupActivitiesContext.Node = node
+
+		objStore := &common.CloudTarget{}
+		backupActivity := &activities.BackupActivity{}
+		var smDestinationPath string
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, &smDestinationPath)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		var smSourcePath string
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathForRestoreActivity, backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup).Get(ctx, &smSourcePath)
+		log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
+		log.Debugf("\nsmSourcePath: %v", smSourcePath)
+
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		snapmirrorRelationship := &common.SnapmirrorRelationship{}
+		SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
+			SourcePath:      smSourcePath,
+			DestinationPath: smDestinationPath,
+			SourceUUID:      &backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.EndpointUUID,
+			IsRestore:       true,
+		}
+
+		objStoreName, err := activities.GetObjStoreNameFromBackup(backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		backupActivitiesContext.ObjStoreName = objStoreName
+
+		bucketDetails, err := activities.GetBucketDetailsFromBackup(backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		bucketName := bucketDetails.BucketName
+
+		err = workflow.Sleep(ctx, 60*time.Second)
+		if err != nil {
+			return nil, ConvertToVSAError(fmt.Errorf("failed to sleep before starting snapmirror restore: %w", err))
+		}
+		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetOrCreateObjectStore, node, objStoreName, bucketName).Get(ctx, &objStore)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorGetOrCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, "").Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		backupActivitiesContext.SnapmirrorRelationship = snapmirrorRelationship
+	}
+
+	err = wf.PollTransferStatusWithContinueAsNew(ctx, backupActivitiesContext, createVolumeParams, hostParams, volCreateResponse)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
 	}
 
 	volResponse := &vsa.VolumeResponse{}
@@ -242,57 +272,68 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		if errors.Is(ctx.Err(), workflow.ErrCanceled) {
 			return nil, ConvertToVSAError(err)
 		}
-		err = workflow.ExecuteActivity(ctx, volumeUpdateActivity.GetVolumeFromONTAP, dbVolume, node, true).Get(ctx, &volResponse)
+		err = workflow.ExecuteActivity(ctx, volumeUpdateActivity.GetVolumeFromONTAP, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node, true).Get(ctx, &volResponse)
 		if err != nil {
 			log.Debugf("Get Volume from Ontap error : %s", err.Error())
 			return nil, ConvertToVSAError(err)
 		}
 		if volResponse.Type == VolumeStateRW {
-			log.Debugf("Volume %s is available as RW in ONTAP", dbVolume.UUID)
+			log.Debugf("Volume %s is available as RW in ONTAP", backupActivitiesContext.BackupWorkflowInit.Volume.UUID)
 			volumeTypeUpdateDone = true
 		} else if volResponse.Type == VolumeStateDP || volResponse.Type == VolumeStateLS {
-			log.Debugf("Volume %s is still DP/LS and not available as RW in ONTAP", dbVolume.UUID)
+			log.Debugf("Volume %s is still DP/LS and not available as RW in ONTAP", backupActivitiesContext.BackupWorkflowInit.Volume.UUID)
 			err := workflow.Sleep(ctx, WaitForRestore) // Wait before polling again
 			if err != nil {
 				return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during volume availability polling: %w", err))
 			}
 		} else {
-			log.Debugf("Type of volume %s is not correct. Current state in ONTAP is: %s", dbVolume.UUID, volResponse.Type)
-			return nil, ConvertToVSAError(fmt.Errorf("failed to move the volume type of volume  %s to RW ", dbVolume.UUID))
+			log.Debugf("Type of volume %s is not correct. Current state in ONTAP is: %s", backupActivitiesContext.BackupWorkflowInit.Volume.UUID, volResponse.Type)
+			return nil, ConvertToVSAError(fmt.Errorf("failed to move the volume type of volume  %s to RW ", backupActivitiesContext.BackupWorkflowInit.Volume.UUID))
 		}
 	}
 
 	// Post-provisioning child workflow
-	postWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
+	postWorkflowFunc, err := selectVolumeChildWorkflow(backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols, PhasePost, backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	var updatedVolume *datamodel.Volume
-	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, false).Get(ctx, &updatedVolume)
+	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node, hostParams, volCreateResponse, isRestoreFromBackup, false).Get(ctx, &updatedVolume)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
 	// Update the dbVolume with the changes from the child workflow
 	if updatedVolume != nil {
-		dbVolume = updatedVolume
+		backupActivitiesContext.BackupWorkflowInit.Volume = updatedVolume
 	}
-	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
+	backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
 
-	var ontapAsyncResponse *vsa.OntapAsyncResponse
-	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteObjectStoreForCrossVPC, dbVolume.Pool, backup, node, objStoreName).Get(ctx, &ontapAsyncResponse)
+	err = workflow.ExecuteActivity(ctx, volumeUpdateActivity.UpdateVolumeJunctionpath, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+
+	var ontapAsyncResponse *vsa.OntapAsyncResponse
+	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteObjectStoreForCrossVPC, backupActivitiesContext.BackupWorkflowInit.Volume.Pool, backupActivitiesContext.BackupWorkflowInit.Backup, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName).Get(ctx, &ontapAsyncResponse)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	err = WaitForONTAPJob(ctx, ontapAsyncResponse, backupActivitiesContext.Node, time.Minute*10)
 	if err != nil {
 		return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
 	}
 
-	err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, &dbVolume).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, &backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-
+	// No need to defer rollback manager cleanup here, as it will be handled by the workflow engine
 	return nil, ConvertToVSAError(err)
+}
+
+// PollTransferStatusWithContinueAsNew polls transfer status with automatic ContinueAsNew when history limits are reached
+// This function is specifically designed for backup restore workflows
+func (wf *restoreBackupWorkflow) PollTransferStatusWithContinueAsNew(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, params *common.CreateVolumeParams, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse) error {
+	return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, RestoreBackupWorkflowWithContext, backupActivitiesContext, params, hostParams, volCreateResponse)
 }
