@@ -1164,6 +1164,40 @@ func (s *Error) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *EstablishPeeringRequestV1beta) SetFake() {
+	{
+		{
+			s.PeerClusterName = "string"
+		}
+	}
+	{
+		{
+			s.PeerSvmName = "string"
+		}
+	}
+	{
+		{
+			s.PeerVolumeName = "string"
+		}
+	}
+	{
+		{
+			s.PeerIpAddresses.SetFake()
+		}
+	}
+	{
+		{
+			s.PeeringCommandExpiryTime.SetFake()
+		}
+	}
+	{
+		{
+			s.Passphrase.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *ExportPolicyV1beta) SetFake() {
 	{
 		{
@@ -6682,6 +6716,78 @@ func (s *V1betaEncryptVolumesUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaEncryptVolumesUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishVolumePeeringBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishVolumePeeringBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishVolumePeeringConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishVolumePeeringConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishVolumePeeringForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishVolumePeeringForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishVolumePeeringInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishVolumePeeringInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishVolumePeeringNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishVolumePeeringNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishVolumePeeringTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishVolumePeeringTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishVolumePeeringUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishVolumePeeringUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishVolumePeeringUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishVolumePeeringUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

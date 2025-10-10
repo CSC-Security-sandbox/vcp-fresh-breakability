@@ -2,12 +2,13 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -502,16 +503,16 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
+			AccountName:    "test_account",
+			Region:         "test_region",
+			Name:           "test_volume",
+			VendorID:       "test_vendor",
+			QuotaInBytes:   minQuotaInBytesPool,
+			Protocols:      []string{"NFS"},
+			Description:    "Some description",
+			DisplayName:    "Some display name",
+			PoolID:         "test-pool-uuid",
+			CreationToken:  "test-creation-token",
 			FileProperties: &models.FileProperties{
 				// No ExportPolicy set
 			},
@@ -574,4 +575,172 @@ func TestOrchestrator_CreateFlexCacheVolume(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "vol", vol.DisplayName)
 	assert.Equal(t, "job-id", jobID)
+}
+
+func Test_EstablishVolumePeering(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	params := &common.EstablishVolumePeeringParams{
+		AccountName:     "account",
+		Region:          "region",
+		Zone:            "zone",
+		Name:            "test_volume",
+		PeerClusterName: "peer-cluster",
+		PeerAddresses:   []string{"1.1.1.1", "2.2.2.2"},
+		ExpiryTime:      time.Now().Add(time.Hour),
+		PeerSvmName:     "peer-svm",
+		PeerVolumeName:  "peer-volume",
+		Passphrase:      "passphrase",
+	}
+
+	volumeParams := &common.CreateVolumeParams{
+		AccountName: params.AccountName,
+		Region:      params.Region,
+		Name:        params.Name,
+		Zone:        params.Zone,
+		CacheParameters: &models.CacheParameters{
+			PeerClusterName: params.PeerClusterName,
+			PeerSvmName:     params.PeerSvmName,
+			PeerVolumeName:  params.PeerVolumeName,
+			PeerIPAddresses: params.PeerAddresses,
+			PeerExpiryTime:  &params.ExpiryTime,
+			Passphrase:      &params.Passphrase,
+		},
+	}
+
+	dbAccount := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		Name:      "test_account",
+	}
+	dbPool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test_pool",
+		VendorID:  "vendor-id",
+	}
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test_volume",
+		Account:   dbAccount,
+		AccountID: dbAccount.ID,
+		Pool:      dbPool,
+		PoolID:    dbPool.ID,
+	}
+	t.Run("GetVolume_Error", func(tt *testing.T) {
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(t)
+		mockLogger := log.NewMockLogger(t)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(nil, assert.AnError)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+
+		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+	})
+
+	t.Run("GetOrCreateAccount_Error", func(tt *testing.T) {
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(t)
+		mockLogger := log.NewMockLogger(t)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(dbVolume, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+	})
+
+	t.Run("CreateJob_Error", func(tt *testing.T) {
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(t)
+		mockLogger := log.NewMockLogger(t)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(dbVolume, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(dbAccount, nil)
+		mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		mockLogger.EXPECT().Errorf("Failed to create job in database, error: %v", assert.AnError)
+
+		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+	})
+
+	t.Run("WorkflowsExecuteWorkflowSequentially_Error", func(tt *testing.T) {
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(t)
+		mockLogger := log.NewMockLogger(t)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(dbVolume, nil)
+		mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{WorkflowID: "wf-id"}, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(dbAccount, nil)
+		mm.EXPECT().workflowsExecuteWorkflowSequentially(
+			temporal, ctx, mock.Anything,
+			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume) error"),
+			mock.Anything, volumeParams, dbVolume).Return(assert.AnError)
+		mockLogger.EXPECT().Errorf("Failed to start establish volume peering workflow, error: %v", assert.AnError)
+
+		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+	})
+
+	t.Run("Success", func(tt *testing.T) {
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(t)
+		mockLogger := log.NewMockLogger(t)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(dbVolume, nil)
+		mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{WorkflowID: "wf-id"}, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(dbAccount, nil)
+		mm.EXPECT().workflowsExecuteWorkflowSequentially(
+			temporal, ctx, mock.Anything,
+			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume) error"),
+			mock.Anything, volumeParams, dbVolume).Return(nil)
+		origConvert := convertDatastoreVolumeToModel
+		convertDatastoreVolumeToModel = func(_ *datamodel.Volume, _ *[]string) *models.Volume {
+			return &models.Volume{BaseModel: models.BaseModel{UUID: "vol-uuid"}}
+		}
+		defer func() { convertDatastoreVolumeToModel = origConvert }()
+		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, vol)
+		assert.Equal(tt, "vol-uuid", vol.UUID)
+	})
+}
+
+func TestConvertEstablishVolumePeeringParams(t *testing.T) {
+	t.Run("Mappings", func(t *testing.T) {
+		expiry := time.Now().Add(90 * time.Minute).UTC()
+		src := &common.EstablishVolumePeeringParams{
+			AccountName:     "acct",
+			Region:          "region-1",
+			Zone:            "zone-a",
+			Name:            "vol-name",
+			PeerSvmName:     "peer-svm",
+			PeerVolumeName:  "peer-vol",
+			PeerClusterName: "peer-cluster",
+			PeerAddresses:   []string{"10.0.0.1", "10.0.0.2"},
+			ExpiryTime:      expiry,
+		}
+
+		out := convertEstablishVolumePeeringParamsToCreateVolumeParams(src)
+		assert.NotNil(t, out)
+		assert.Equal(t, src.Name, out.Name)
+		assert.Equal(t, src.AccountName, out.AccountName)
+		assert.Equal(t, src.Region, out.Region)
+		assert.Equal(t, src.Zone, out.Zone)
+		if assert.NotNil(t, out.CacheParameters) {
+			cp := out.CacheParameters
+			assert.Equal(t, src.PeerSvmName, cp.PeerSvmName)
+			assert.Equal(t, src.PeerVolumeName, cp.PeerVolumeName)
+			assert.Equal(t, src.PeerClusterName, cp.PeerClusterName)
+			assert.Equal(t, src.PeerAddresses, cp.PeerIPAddresses)
+			assert.NotNil(t, cp.PeerExpiryTime)
+			assert.Equal(t, expiry, *cp.PeerExpiryTime)
+		}
+	})
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
@@ -7459,5 +7460,125 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 		assert.NotNil(t, result.CacheParameters.CacheConfig)
 		assert.True(t, *result.CacheParameters.CacheConfig.CifsChangeNotifyEnabled)
 		assert.True(t, *result.CacheParameters.CacheConfig.WritebackEnabled)
+	})
+}
+
+func TestV1betaEstablishVolumePeering(t *testing.T) {
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	mockParseAndValidateRegionAndZone := func(region string) (string, string, *gcpgenserver.Error) {
+		return "test-region", "test-location", nil
+	}
+	utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	t.Run("feature disabled returns 403 bad request", func(t *testing.T) {
+		orig := flexCacheEnabled
+		flexCacheEnabled = false
+		defer func() { flexCacheEnabled = orig }()
+
+		h := Handler{} // Orchestrator not needed; early return path
+		ctx := context.Background()
+
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{}
+		params := gcpgenserver.V1betaEstablishVolumePeeringParams{
+			ProjectNumber:    "1234567890",
+			LocationId:       "us-central1-a",
+			VolumeResourceId: "validresource",
+		}
+
+		res, err := h.V1betaEstablishVolumePeering(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*gcpgenserver.V1betaEstablishVolumePeeringForbidden)
+		require.True(t, ok, "expected bad request response type")
+		require.Equal(t, float64(403), badReq.Code)
+		require.Contains(t, badReq.Message, "FlexCache feature is currently not enabled")
+	})
+
+	t.Run("orchestrator internal error returns InternalServerError response and error", func(t *testing.T) {
+		orig := flexCacheEnabled
+		flexCacheEnabled = true
+		defer func() { flexCacheEnabled = orig }()
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		h := Handler{
+			Orchestrator: mockOrch,
+		}
+		ctx := context.Background()
+
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerClusterName: "peerCluster",
+			PeerSvmName:     "peerSvm",
+			PeerVolumeName:  "peerVol",
+			Passphrase:      gcpgenserver.NewOptNilString("securePassphrase"),
+		}
+		params := gcpgenserver.V1betaEstablishVolumePeeringParams{
+			ProjectNumber:    "1234567890",
+			LocationId:       "us-central1-a",
+			VolumeResourceId: "validresource",
+		}
+
+		internalErr := fmt.Errorf("orchestrator failure")
+		mockOrch.
+			On("EstablishFlexCacheVolumePeering", mock.Anything, mock.AnythingOfType("*common.EstablishVolumePeeringParams")).
+			Return(nil, internalErr)
+
+		res, err := h.V1betaEstablishVolumePeering(ctx, req, params)
+		require.Error(t, err)
+		require.Equal(t, internalErr, err)
+
+		_, ok := res.(*gcpgenserver.V1betaEstablishVolumePeeringInternalServerError)
+		require.True(t, ok, "expected internal server error response type")
+	})
+
+	t.Run("ValidEstablishPeering", func(tt *testing.T) {
+		orig := flexCacheEnabled
+		flexCacheEnabled = true
+		defer func() { flexCacheEnabled = orig }()
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		params := gcpgenserver.V1betaEstablishVolumePeeringParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume_id",
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerClusterName: "peer-cluster",
+			PeerSvmName:     "peer-svm",
+			PeerVolumeName:  "peer-volume",
+			PeerIpAddresses: gcpgenserver.NewOptNilStringArray([]string{"1.1.1.1",
+				"2.2.2.2"}),
+			PeeringCommandExpiryTime: gcpgenserver.NewOptNilDateTime(time.Now().Add(1 * time.Hour)),
+			Passphrase:               gcpgenserver.NewOptNilString("secure-passphrase"),
+		}
+
+		pass := "secure-passphrase"
+		expiry := time.Now().Add(1 * time.Hour)
+
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+			CacheParameters: &models.CacheParameters{
+				PeerClusterName: "peer-cluster",
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+				PeerIPAddresses: []string{"1.1.1.1", "2.2.2.2"},
+				PeerExpiryTime:  &expiry,
+				PeeringCommand:  "establish",
+				Passphrase:      &pass,
+			},
+		}
+		mockOrch.
+			On("EstablishFlexCacheVolumePeering", mock.Anything, mock.AnythingOfType("*common.EstablishVolumePeeringParams")).
+			Return(volume, nil)
+
+		result, err := handler.V1betaEstablishVolumePeering(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.NotNil(tt, op)
+		assert.NotNil(tt, op.Response)
 	})
 }

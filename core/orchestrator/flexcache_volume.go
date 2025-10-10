@@ -24,6 +24,7 @@ var (
 	utilGetLogger                        = util.GetLogger
 	utilsGetLocationFromVendorID         = utils.GetLocationFromVendorID
 	workflowsExecuteWorkflowSequentially = workflows.ExecuteWorkflowSequentially
+	establishFlexCacheVolumePeering      = _establishFlexCacheVolumePeering
 )
 
 func (o *Orchestrator) CreateFlexCacheVolume(ctx context.Context, params *common.CreateVolumeParams) (*models.Volume, string, error) {
@@ -159,4 +160,77 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		return nil, "", err
 	}
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
+}
+
+func (o *Orchestrator) EstablishFlexCacheVolumePeering(ctx context.Context, params *common.EstablishVolumePeeringParams) (*models.Volume, error) {
+	return establishFlexCacheVolumePeering(ctx, o.storage, o.temporal, params)
+}
+
+// TODO: Initial happy-path bootstrap for establish volume peering; Potentially changes in future
+func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, error) {
+	logger := utilGetLogger(ctx)
+	dbVolume, err := se.GetVolume(ctx, params.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, err
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeFlexCacheEstablishPeering),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create job in database, error: %v", err)
+		return nil, err
+	}
+
+	err = workflowsExecuteWorkflowSequentially(
+		temporal,
+		ctx,
+		client.StartWorkflowOptions{
+			TaskQueue: workflowengine.CustomerTaskQueue,
+			ID:        createdJob.WorkflowID,
+		},
+		flexcache_workflows.CreateFlexCacheWorkflow, // Reusing create flexCache workflow for now and will modify later create workflow as needed
+		workflow.ChildWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			WorkflowID:            createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		convertEstablishVolumePeeringParamsToCreateVolumeParams(params),
+		dbVolume,
+	)
+	if err != nil {
+		logger.Errorf("Failed to start establish volume peering workflow, error: %v", err)
+		return nil, err
+	}
+
+	return convertDatastoreVolumeToModel(dbVolume, nil), nil
+}
+
+func convertEstablishVolumePeeringParamsToCreateVolumeParams(params *common.EstablishVolumePeeringParams) *common.CreateVolumeParams {
+	return &common.CreateVolumeParams{
+		Name:        params.Name,
+		AccountName: params.AccountName,
+		Region:      params.Region,
+		Zone:        params.Zone,
+		CacheParameters: &models.CacheParameters{
+			PeerSvmName:     params.PeerSvmName,
+			PeerVolumeName:  params.PeerVolumeName,
+			PeerClusterName: params.PeerClusterName,
+			PeerIPAddresses: params.PeerAddresses,
+			PeerExpiryTime:  &params.ExpiryTime,
+			Passphrase:      &params.Passphrase,
+		},
+	}
 }

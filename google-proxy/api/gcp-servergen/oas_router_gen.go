@@ -1828,6 +1828,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												return
 											}
 
+										case 'e': // Prefix: "establishPeering"
+
+											if l := len("establishPeering"); len(elem) >= l && elem[0:l] == "establishPeering" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaEstablishVolumePeeringRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
 										case 'g': // Prefix: "getMultiple"
 
 											if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
@@ -4132,6 +4156,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													r.summary = "Revert a volume to a snapshot"
 													r.operationID = "v1beta_revertVolume"
 													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/Revert"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+
+										case 'e': // Prefix: "establishPeering"
+
+											if l := len("establishPeering"); len(elem) >= l && elem[0:l] == "establishPeering" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaEstablishVolumePeeringOperation
+													r.summary = "Establish peering for a flexcache volume"
+													r.operationID = "v1beta_establishVolumePeering"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/establishPeering"
 													r.args = args
 													r.count = 3
 													return r, true

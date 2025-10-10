@@ -2028,6 +2028,66 @@ func (_c *MockHandler_V1betaEncryptVolumes_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// V1betaEstablishVolumePeering provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaEstablishVolumePeering(ctx context.Context, req *EstablishPeeringRequestV1beta, params V1betaEstablishVolumePeeringParams) (V1betaEstablishVolumePeeringRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaEstablishVolumePeering")
+	}
+
+	var r0 V1betaEstablishVolumePeeringRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *EstablishPeeringRequestV1beta, V1betaEstablishVolumePeeringParams) (V1betaEstablishVolumePeeringRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *EstablishPeeringRequestV1beta, V1betaEstablishVolumePeeringParams) V1betaEstablishVolumePeeringRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaEstablishVolumePeeringRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *EstablishPeeringRequestV1beta, V1betaEstablishVolumePeeringParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaEstablishVolumePeering_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaEstablishVolumePeering'
+type MockHandler_V1betaEstablishVolumePeering_Call struct {
+	*mock.Call
+}
+
+// V1betaEstablishVolumePeering is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *EstablishPeeringRequestV1beta
+//   - params V1betaEstablishVolumePeeringParams
+func (_e *MockHandler_Expecter) V1betaEstablishVolumePeering(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaEstablishVolumePeering_Call {
+	return &MockHandler_V1betaEstablishVolumePeering_Call{Call: _e.mock.On("V1betaEstablishVolumePeering", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaEstablishVolumePeering_Call) Run(run func(ctx context.Context, req *EstablishPeeringRequestV1beta, params V1betaEstablishVolumePeeringParams)) *MockHandler_V1betaEstablishVolumePeering_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*EstablishPeeringRequestV1beta), args[2].(V1betaEstablishVolumePeeringParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaEstablishVolumePeering_Call) Return(_a0 V1betaEstablishVolumePeeringRes, _a1 error) *MockHandler_V1betaEstablishVolumePeering_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaEstablishVolumePeering_Call) RunAndReturn(run func(context.Context, *EstablishPeeringRequestV1beta, V1betaEstablishVolumePeeringParams) (V1betaEstablishVolumePeeringRes, error)) *MockHandler_V1betaEstablishVolumePeering_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaFinishProjectEvent provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaFinishProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error) {
 	ret := _m.Called(ctx, req, params)

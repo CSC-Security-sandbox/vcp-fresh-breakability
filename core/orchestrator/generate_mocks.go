@@ -27,6 +27,7 @@ type monkeyMethods interface {
 
 	// FlexCache specific methods
 	createFlexCacheVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error)
+	establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, error)
 
 	// Volume replication methods
 	getAccountWithName(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error)

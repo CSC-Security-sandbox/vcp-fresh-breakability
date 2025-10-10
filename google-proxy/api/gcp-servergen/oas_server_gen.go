@@ -215,6 +215,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes
 	V1betaEncryptVolumes(ctx context.Context, params V1betaEncryptVolumesParams) (V1betaEncryptVolumesRes, error)
+	// V1betaEstablishVolumePeering implements v1beta_establishVolumePeering operation.
+	//
+	// Establishes peering for a flexcache (cache) volume in the specified project and location.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/establishPeering
+	V1betaEstablishVolumePeering(ctx context.Context, req *EstablishPeeringRequestV1beta, params V1betaEstablishVolumePeeringParams) (V1betaEstablishVolumePeeringRes, error)
 	// V1betaFinishProjectEvent implements v1beta_finishProjectEvent operation.
 	//
 	// Finishes the project state for a 1P account based on the path parameter and project state value.

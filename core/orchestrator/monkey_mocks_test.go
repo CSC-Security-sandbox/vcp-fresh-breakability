@@ -207,6 +207,67 @@ func (_c *monkeyMock_envIsLocalEnv_Call) RunAndReturn(run func() bool) *monkeyMo
 	return _c
 }
 
+// establishFlexCacheVolumePeering provides a mock function with given fields: ctx, se, temporal, params
+func (_m *monkeyMock) establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, error) {
+	ret := _m.Called(ctx, se, temporal, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for establishFlexCacheVolumePeering")
+	}
+
+	var r0 *models.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) (*models.Volume, error)); ok {
+		return rf(ctx, se, temporal, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) *models.Volume); ok {
+		r0 = rf(ctx, se, temporal, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) error); ok {
+		r1 = rf(ctx, se, temporal, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_establishFlexCacheVolumePeering_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'establishFlexCacheVolumePeering'
+type monkeyMock_establishFlexCacheVolumePeering_Call struct {
+	*mock.Call
+}
+
+// establishFlexCacheVolumePeering is a helper method to define mock.On call
+//   - ctx context.Context
+//   - se database.Storage
+//   - temporal client.Client
+//   - params *common.EstablishVolumePeeringParams
+func (_e *monkeyMock_Expecter) establishFlexCacheVolumePeering(ctx interface{}, se interface{}, temporal interface{}, params interface{}) *monkeyMock_establishFlexCacheVolumePeering_Call {
+	return &monkeyMock_establishFlexCacheVolumePeering_Call{Call: _e.mock.On("establishFlexCacheVolumePeering", ctx, se, temporal, params)}
+}
+
+func (_c *monkeyMock_establishFlexCacheVolumePeering_Call) Run(run func(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams)) *monkeyMock_establishFlexCacheVolumePeering_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(database.Storage), args[2].(client.Client), args[3].(*common.EstablishVolumePeeringParams))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_establishFlexCacheVolumePeering_Call) Return(_a0 *models.Volume, _a1 error) *monkeyMock_establishFlexCacheVolumePeering_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_establishFlexCacheVolumePeering_Call) RunAndReturn(run func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) (*models.Volume, error)) *monkeyMock_establishFlexCacheVolumePeering_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // getAccountWithName provides a mock function with given fields: ctx, se, accountName
 func (_m *monkeyMock) getAccountWithName(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 	ret := _m.Called(ctx, se, accountName)

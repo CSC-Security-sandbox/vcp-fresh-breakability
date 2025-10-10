@@ -634,3 +634,16 @@ type VolumeUpdateEventParams struct {
 	Local         ProjectInfo
 	Remote        ProjectInfo
 }
+
+type EstablishVolumePeeringParams struct {
+	AccountName     string
+	Region          string
+	Zone            string
+	Name            string
+	PeerClusterName string
+	PeerAddresses   []string
+	ExpiryTime      time.Time
+	PeerSvmName     string
+	PeerVolumeName  string
+	Passphrase      string
+}

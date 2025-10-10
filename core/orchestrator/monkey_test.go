@@ -22,6 +22,7 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 	workflowsExecuteWorkflowSequentially = mm.workflowsExecuteWorkflowSequentially
 
 	createFlexCacheVolume = mm.createFlexCacheVolume
+	establishFlexCacheVolumePeering = mm.establishFlexCacheVolumePeering
 
 	// Volume replication methods
 	getAccountWithName = mm.getAccountWithName
@@ -41,6 +42,7 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 		workflowsExecuteWorkflowSequentially = workflows.ExecuteWorkflowSequentially
 
 		createFlexCacheVolume = _createFlexCacheVolume
+		establishFlexCacheVolumePeering = _establishFlexCacheVolumePeering
 
 		// Volume replication methods
 		getAccountWithName = _getAccountWithName

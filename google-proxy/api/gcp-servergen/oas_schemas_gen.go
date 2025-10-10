@@ -2946,6 +2946,83 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// Parameters to establish peering for a FlexCache / hybrid replication relationship.
+// Ref: #/components/schemas/EstablishPeeringRequest_v1beta
+type EstablishPeeringRequestV1beta struct {
+	// Name of source (origin) cluster to peer with the destination.
+	PeerClusterName string `json:"peerClusterName"`
+	// Name of source SVM (vserver) to peer with the destination SVM.
+	PeerSvmName string `json:"peerSvmName"`
+	// Name of source (origin) volume.
+	PeerVolumeName string `json:"peerVolumeName"`
+	// List of source intercluster LIF IP addresses.
+	PeerIpAddresses OptNilStringArray `json:"peerIpAddresses"`
+	// Expiry time for the peer acceptance command.
+	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
+	// Passphrase used for cluster peer authentication if required.
+	Passphrase OptNilString `json:"passphrase"`
+}
+
+// GetPeerClusterName returns the value of PeerClusterName.
+func (s *EstablishPeeringRequestV1beta) GetPeerClusterName() string {
+	return s.PeerClusterName
+}
+
+// GetPeerSvmName returns the value of PeerSvmName.
+func (s *EstablishPeeringRequestV1beta) GetPeerSvmName() string {
+	return s.PeerSvmName
+}
+
+// GetPeerVolumeName returns the value of PeerVolumeName.
+func (s *EstablishPeeringRequestV1beta) GetPeerVolumeName() string {
+	return s.PeerVolumeName
+}
+
+// GetPeerIpAddresses returns the value of PeerIpAddresses.
+func (s *EstablishPeeringRequestV1beta) GetPeerIpAddresses() OptNilStringArray {
+	return s.PeerIpAddresses
+}
+
+// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
+func (s *EstablishPeeringRequestV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
+	return s.PeeringCommandExpiryTime
+}
+
+// GetPassphrase returns the value of Passphrase.
+func (s *EstablishPeeringRequestV1beta) GetPassphrase() OptNilString {
+	return s.Passphrase
+}
+
+// SetPeerClusterName sets the value of PeerClusterName.
+func (s *EstablishPeeringRequestV1beta) SetPeerClusterName(val string) {
+	s.PeerClusterName = val
+}
+
+// SetPeerSvmName sets the value of PeerSvmName.
+func (s *EstablishPeeringRequestV1beta) SetPeerSvmName(val string) {
+	s.PeerSvmName = val
+}
+
+// SetPeerVolumeName sets the value of PeerVolumeName.
+func (s *EstablishPeeringRequestV1beta) SetPeerVolumeName(val string) {
+	s.PeerVolumeName = val
+}
+
+// SetPeerIpAddresses sets the value of PeerIpAddresses.
+func (s *EstablishPeeringRequestV1beta) SetPeerIpAddresses(val OptNilStringArray) {
+	s.PeerIpAddresses = val
+}
+
+// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
+func (s *EstablishPeeringRequestV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
+	s.PeeringCommandExpiryTime = val
+}
+
+// SetPassphrase sets the value of Passphrase.
+func (s *EstablishPeeringRequestV1beta) SetPassphrase(val OptNilString) {
+	s.Passphrase = val
+}
+
 // Export policy for a NAS volume.
 // Ref: #/components/schemas/ExportPolicy_v1beta
 type ExportPolicyV1beta struct {
@@ -5836,6 +5913,7 @@ func (*OperationV1beta) v1betaDeleteSnapshotRes()                            {}
 func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
 func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
+func (*OperationV1beta) v1betaEstablishVolumePeeringRes()                    {}
 func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
 func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()          {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
@@ -16645,6 +16723,38 @@ func (*V1betaEncryptVolumesUnauthorized) v1betaEncryptVolumesRes() {}
 type V1betaEncryptVolumesUnprocessableEntity Error
 
 func (*V1betaEncryptVolumesUnprocessableEntity) v1betaEncryptVolumesRes() {}
+
+type V1betaEstablishVolumePeeringBadRequest Error
+
+func (*V1betaEstablishVolumePeeringBadRequest) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringConflict Error
+
+func (*V1betaEstablishVolumePeeringConflict) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringForbidden Error
+
+func (*V1betaEstablishVolumePeeringForbidden) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringInternalServerError Error
+
+func (*V1betaEstablishVolumePeeringInternalServerError) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringNotFound Error
+
+func (*V1betaEstablishVolumePeeringNotFound) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringTooManyRequests Error
+
+func (*V1betaEstablishVolumePeeringTooManyRequests) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringUnauthorized Error
+
+func (*V1betaEstablishVolumePeeringUnauthorized) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringUnprocessableEntity Error
+
+func (*V1betaEstablishVolumePeeringUnprocessableEntity) v1betaEstablishVolumePeeringRes() {}
 
 type V1betaFinishProjectEventAccepted OperationV1beta
 

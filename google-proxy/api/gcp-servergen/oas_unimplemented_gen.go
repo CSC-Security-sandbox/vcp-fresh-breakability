@@ -319,6 +319,15 @@ func (UnimplementedHandler) V1betaEncryptVolumes(ctx context.Context, params V1b
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaEstablishVolumePeering implements v1beta_establishVolumePeering operation.
+//
+// Establishes peering for a flexcache (cache) volume in the specified project and location.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/establishPeering
+func (UnimplementedHandler) V1betaEstablishVolumePeering(ctx context.Context, req *EstablishPeeringRequestV1beta, params V1betaEstablishVolumePeeringParams) (r V1betaEstablishVolumePeeringRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaFinishProjectEvent implements v1beta_finishProjectEvent operation.
 //
 // Finishes the project state for a 1P account based on the path parameter and project state value.

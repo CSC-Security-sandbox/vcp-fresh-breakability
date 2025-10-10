@@ -38,19 +38,20 @@ import (
 const maxConstituentVolumesPerAggregate = 200
 
 var (
-	numOfLvHAPairs               = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
-	volumeRefreshIntervalMinutes = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
-	maxThinClonesPerPool         = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
-	minQuotaInBytesVolume        = utils.MinQuotaInBytesVolumeForVolume
-	maxQuotaInBytesVolume        = utils.MaxQuotaInBytesVolumeForVolume
-	createVolume                 = _createVolume
-	revertVolume                 = _revertVolume
-	validateCreateVolumeParams   = _validateCreateVolumeParams
-	getIPAddressForVolume        = _getIPAddressForVolume
-	updateVolume                 = _updateVolume
-	deleteVolume                 = _deleteVolume
-	validateDeleteVolumeParams   = _validateDeleteVolumeParams
-	updateVolumeStatus           = _updateVolumeStatus
+	numOfLvHAPairs                = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
+	volumeRefreshIntervalMinutes  = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
+	maxThinClonesPerPool          = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
+	minQuotaInBytesVolume         = utils.MinQuotaInBytesVolumeForVolume
+	maxQuotaInBytesVolume         = utils.MaxQuotaInBytesVolumeForVolume
+	createVolume                  = _createVolume
+	revertVolume                  = _revertVolume
+	validateCreateVolumeParams    = _validateCreateVolumeParams
+	getIPAddressForVolume         = _getIPAddressForVolume
+	updateVolume                  = _updateVolume
+	deleteVolume                  = _deleteVolume
+	validateDeleteVolumeParams    = _validateDeleteVolumeParams
+	updateVolumeStatus            = _updateVolumeStatus
+	convertDatastoreVolumeToModel = _convertDatastoreVolumeToModel
 
 	envIsLocalEnv                                   = env.IsLocalEnv
 	cvpCreateClient                                 = cvp.CreateClient
@@ -1131,7 +1132,7 @@ func _validateDeleteVolumeParams(ctx context.Context, se database.Storage, volum
 	return nil
 }
 
-func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]string) *models.Volume {
+func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]string) *models.Volume {
 	res := &models.Volume{
 		BaseModel: models.BaseModel{
 			UUID:      volume.UUID,

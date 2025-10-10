@@ -1266,6 +1266,88 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/establishPeering:
+    post:
+      operationId: v1beta_establishVolumePeering
+      summary: Establish peering for a flexcache volume
+      description: Establishes peering for a flexcache (cache) volume in the specified project and location.
+      tags:
+        - volumes
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        required: true
+        description: The required parameters to establish peering for a flexcache volume.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EstablishPeeringRequest_v1beta'
+      responses:
+        '202':
+          description: Peering is being established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              examples:
+                establishingPeering:
+                  summary: Peering initiation
+                  value:
+                    done: false
+                    name: /v1beta/projects/123456789/locations/us-central1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                    response:
+                      volumeId: 49b96a2f-4a38-6fa4-2cc6-f598ef2f8a0e
+                      resourceId: big-data
+                      created: '2025-01-29T09:10:30.384Z'
+                      creationToken: suddenly-distinguished-feynman
+                      volumeState: READY
+                      volumeStateDetails: Available for use
+                      serviceLevel: EXTREME
+                      securityStyle: UNIX
+                      unixPermissions: '0755'
+                      usedBytes: 38786062792785
+                      quotaInBytes: 50000000000000
+                      kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
+                      labels:
+                        someKey: SomeValue
+                        someKey2: SomeValue2
+                      cacheParameters:
+                        cacheState: PENDING_CLUSTER_PEERING
+                        peerVolumeName: volume_myvolname
+                        peerClusterName: my-cluster-name
+                        peerSvmName: svm_560a3f3cb4d345f18297decc3a5988bc
+                        peerIpAddresses:
+                          - "101.102.103.104"
+                          - "101.102.103.105"
+                        commandExpiryTime: '2025-04-20T16:21:01Z'
+                        command: cluster peer create -peer-addrs 192.140.112.101,192.140.112.102 -initial-allowed-vserver-peers svm_560a3f3cb4d345f18297decc3a5988bc
+                        passphrase: loremIpsum
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups:
     get:
       operationId: v1beta_listBackups
@@ -8529,6 +8611,55 @@ components:
           - ACCESS_BASED_ENUMERATION
           - CONTINUOUSLY_AVAILABLE
       x-omitempty: false
+    EstablishPeeringRequest_v1beta:
+      title: EstablishPeeringRequest
+      type: object
+      description: Parameters to establish peering for a FlexCache / hybrid replication relationship.
+      required:
+        - peerClusterName
+        - peerSvmName
+        - peerVolumeName
+      properties:
+        peerClusterName:
+          title: peerClusterName
+          type: string
+          description: Name of source (origin) cluster to peer with the destination.
+          maxLength: 44
+          example: my-cluster-name
+        peerSvmName:
+          title: peerSvmName
+          type: string
+          description: Name of source SVM (vserver) to peer with the destination SVM.
+          example: svm_560a3f3cb4d345f18297decc3a5988bc
+        peerVolumeName:
+          title: peerVolumeName
+          type: string
+          description: Name of source (origin) volume.
+          example: volume_myvolname
+        peerIpAddresses:
+          title: peerIpAddresses
+          type: array
+          description: List of source intercluster LIF IP addresses.
+          nullable: true
+          items:
+            type: string
+            pattern: "^[0-9]{1,3}(\\.[0-9]{1,3}){3}$"
+          example:
+            - 10.9.8.7
+            - 124.124.124.124
+        peeringCommandExpiryTime:
+          title: peeringCommandExpiryTime
+          type: string
+          format: date-time
+          description: Expiry time for the peer acceptance command.
+          nullable: true
+          example: "2024-04-20T16:21:01+01:00"
+        passphrase:
+          title: passphrase
+          # Optional if cluster peer already authenticated.
+          type: string
+          description: Passphrase used for cluster peer authentication if required.
+          nullable: true
     HybridReplicationParameters_v1beta:
       title: HybridReplicationParameters
       required:

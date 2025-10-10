@@ -2083,3 +2083,60 @@ func validateBackupScheduleCron(cronExpression string) error {
 
 	return nil
 }
+
+func (h Handler) V1betaEstablishVolumePeering(ctx context.Context, req *gcpgenserver.EstablishPeeringRequestV1beta,
+	params gcpgenserver.V1betaEstablishVolumePeeringParams) (gcpgenserver.V1betaEstablishVolumePeeringRes, error) {
+	if !flexCacheEnabled {
+		return &gcpgenserver.V1betaEstablishVolumePeeringForbidden{
+			Code:    403,
+			Message: "FlexCache feature is currently not enabled.",
+		}, nil
+	}
+
+	var peerAddrs []string
+	if v, ok := req.PeerIpAddresses.Get(); ok {
+		peerAddrs = v
+	}
+
+	var expiry time.Time
+	if t, ok := req.PeeringCommandExpiryTime.Get(); ok {
+		expiry = t
+	}
+
+	region, zone, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaEstablishVolumePeeringBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	peeringParams := &common.EstablishVolumePeeringParams{
+		AccountName:     params.ProjectNumber,
+		Region:          region,
+		Zone:            zone,
+		Name:            params.VolumeResourceId,
+		PeerClusterName: req.PeerClusterName,
+		PeerAddresses:   peerAddrs,
+		ExpiryTime:      expiry,
+		PeerSvmName:     req.PeerSvmName,
+		PeerVolumeName:  req.PeerVolumeName,
+		Passphrase:      req.Passphrase.Value,
+	}
+
+	volume, err := h.Orchestrator.EstablishFlexCacheVolumePeering(ctx, peeringParams)
+	if err != nil {
+		return &gcpgenserver.V1betaEstablishVolumePeeringInternalServerError{}, err
+	}
+
+	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
+	if err != nil {
+		return nil, err
+	}
+
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.OptString{},
+		Response: resp,
+		Done:     gcpgenserver.OptBool{},
+	}, nil
+}

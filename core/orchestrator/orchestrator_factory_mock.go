@@ -1743,6 +1743,65 @@ func (_c *MockOrchestratorFactory_DescribePool_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// EstablishFlexCacheVolumePeering provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) EstablishFlexCacheVolumePeering(ctx context.Context, params *common.EstablishVolumePeeringParams) (*models.Volume, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EstablishFlexCacheVolumePeering")
+	}
+
+	var r0 *models.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.EstablishVolumePeeringParams) (*models.Volume, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.EstablishVolumePeeringParams) *models.Volume); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.EstablishVolumePeeringParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EstablishFlexCacheVolumePeering'
+type MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call struct {
+	*mock.Call
+}
+
+// EstablishFlexCacheVolumePeering is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.EstablishVolumePeeringParams
+func (_e *MockOrchestratorFactory_Expecter) EstablishFlexCacheVolumePeering(ctx interface{}, params interface{}) *MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call {
+	return &MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call{Call: _e.mock.On("EstablishFlexCacheVolumePeering", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call) Run(run func(ctx context.Context, params *common.EstablishVolumePeeringParams)) *MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.EstablishVolumePeeringParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call) Return(_a0 *models.Volume, _a1 error) *MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call) RunAndReturn(run func(context.Context, *common.EstablishVolumePeeringParams) (*models.Volume, error)) *MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAccount provides a mock function with given fields: ctx, accountName
 func (_m *MockOrchestratorFactory) GetAccount(ctx context.Context, accountName string) (*datamodel.Account, error) {
 	ret := _m.Called(ctx, accountName)

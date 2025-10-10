@@ -133,6 +133,10 @@ type V1betaEncryptVolumesRes interface {
 	v1betaEncryptVolumesRes()
 }
 
+type V1betaEstablishVolumePeeringRes interface {
+	v1betaEstablishVolumePeeringRes()
+}
+
 type V1betaFinishProjectEventRes interface {
 	v1betaFinishProjectEventRes()
 }
