@@ -37,13 +37,18 @@ func (rc *OntapRestProvider) AreAllNodeUpAndRunning() (bool, error) {
 }
 
 func (rc *OntapRestProvider) GetNodes() ([]*Node, error) {
-	var resultNodes []*Node
-	// Call the NodesGet method with proper parameters
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
 		return nil, err
 	}
-	err = client.Cluster().NodesGet(&ontapRest.NodesGetParams{
+	return rc.GetNodesWithClient(client)
+}
+
+// GetNodesWithClient gets nodes using a provided REST client to avoid creating a new connection
+func (rc *OntapRestProvider) GetNodesWithClient(client ontapRest.RESTClient) ([]*Node, error) {
+	var resultNodes []*Node
+	// Call the NodesGet method with proper parameters using the provided client
+	err := client.Cluster().NodesGet(&ontapRest.NodesGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"name", "uuid", "state"},
 		},

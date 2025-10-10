@@ -143,7 +143,7 @@ func TestIMTPContext_RunUnit(t *testing.T) {
 			return "completed", nil
 		}
 
-		// applyDefaults() will overwrite Timeout to 30 seconds  
+		// applyDefaults() will overwrite Timeout to 30 seconds
 		options := UnitOptions{Retries: 0}
 		result := imtpCtx.RunUnit(unitFunc, options)
 
@@ -505,15 +505,15 @@ func TestInMemoTasksProcessor_processTask(t *testing.T) {
 
 		taskFunc := func(imtpCtx interface{}, inputs ...interface{}) {
 			ctx := imtpCtx.(*IMTPContext)
-			
+
 			unitFunc := func(ctx context.Context, inputs ...interface{}) (interface{}, error) {
 				// Check if context is already cancelled
 				select {
 				case <-ctx.Done():
 					return nil, ctx.Err()
 				default:
-					// Sleep for longer than task timeout
-					time.Sleep(time.Millisecond * 25)
+					// Sleep for much longer than task timeout to ensure timeout
+					time.Sleep(time.Second * 2)
 					return "completed", nil
 				}
 			}
@@ -524,14 +524,16 @@ func TestInMemoTasksProcessor_processTask(t *testing.T) {
 		task := taskWrapper{
 			id:       "test_task",
 			taskFunc: taskFunc,
-			ctx:      TaskCtx{Timeout: time.Millisecond * 20},
+			ctx:      TaskCtx{Timeout: time.Millisecond * 50},
 			inputs:   []interface{}{"test_input"},
 		}
 
 		unitResults, err := processor.processTask(task)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "task timeout exceeded")
+		if err != nil {
+			assert.Contains(t, err.Error(), "task timeout exceeded")
+		}
 		assert.NotNil(t, unitResults) // Should return partial results
 	})
 }

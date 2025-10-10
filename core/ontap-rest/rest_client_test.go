@@ -444,3 +444,292 @@ func Test_getAPICallCertificate(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+// Test cases for FastConnection functionality
+func TestNewClient_WithFastConnection(t *testing.T) {
+	hostMap := map[string]string{}
+	hostMap["localhost"] = "10.0.0.1"
+	hostMap["localhost2"] = "10.0.0.2"
+	params := RESTClientParams{
+		Hosts:                       hostMap,
+		Host:                        "10.0.0.1",
+		Password:                    log.Secret("secret"),
+		InsecureSkipVerify:          true,
+		Trace:                       log.NewLogger().(*log.Slogger),
+		CertificateBasedAuthEnabled: false,
+		FastConnection:              true, // Enable fast connection
+	}
+
+	defer func() {
+		FastTestConnection = fastTestConnection // Reset to original after test
+	}()
+
+	t.Run("FastConnection success on first host", func(t *testing.T) {
+		FastTestConnection = func(rc *OntapRestClient) error {
+			return nil
+		}
+
+		cl, err := NewClient(params)
+		assert.NoError(t, err)
+		assert.NotNil(t, cl)
+		// Since Go maps have no guaranteed iteration order, either host could be selected first
+		selectedHost := cl.Host()
+		assert.Contains(t, []string{"10.0.0.1", "10.0.0.2"}, selectedHost)
+	})
+
+	t.Run("FastConnection fails on first host, succeeds on second", func(t *testing.T) {
+		callCount := 0
+		FastTestConnection = func(rc *OntapRestClient) error {
+			callCount++
+			if callCount == 1 {
+				return errors.New("connection failed")
+			}
+			return nil
+		}
+
+		cl, err := NewClient(params)
+		assert.NoError(t, err)
+		assert.NotNil(t, cl)
+		assert.Equal(t, 2, callCount)
+		// Should succeed with second host
+		assert.Contains(t, []string{"10.0.0.1", "10.0.0.2"}, cl.Host())
+	})
+
+	t.Run("FastConnection fails on all hosts", func(t *testing.T) {
+		FastTestConnection = func(rc *OntapRestClient) error {
+			return errors.New("fast connection failed")
+		}
+
+		cl, err := NewClient(params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "fast connection failed")
+		assert.NotNil(t, cl) // Should return last tried client
+	})
+}
+
+func TestNewClient_FastConnection_vs_RegularConnection(t *testing.T) {
+	hostMap := map[string]string{}
+	hostMap["localhost"] = "10.0.0.1"
+
+	baseParams := RESTClientParams{
+		Hosts:                       hostMap,
+		Host:                        "10.0.0.1",
+		Password:                    log.Secret("secret"),
+		InsecureSkipVerify:          true,
+		Trace:                       log.NewLogger().(*log.Slogger),
+		CertificateBasedAuthEnabled: false,
+	}
+
+	defer func() {
+		TestConnection = testConnection // Reset to original after test
+		FastTestConnection = fastTestConnection
+	}()
+
+	t.Run("Regular connection used when FastConnection is false", func(t *testing.T) {
+		regularConnectionCalled := false
+		fastConnectionCalled := false
+
+		TestConnection = func(rc *OntapRestClient) error {
+			regularConnectionCalled = true
+			return nil
+		}
+		FastTestConnection = func(rc *OntapRestClient) error {
+			fastConnectionCalled = true
+			return nil
+		}
+
+		params := baseParams
+		params.FastConnection = false
+
+		cl, err := NewClient(params)
+		assert.NoError(t, err)
+		assert.NotNil(t, cl)
+		assert.True(t, regularConnectionCalled)
+		assert.False(t, fastConnectionCalled)
+	})
+
+	t.Run("Fast connection used when FastConnection is true", func(t *testing.T) {
+		regularConnectionCalled := false
+		fastConnectionCalled := false
+
+		TestConnection = func(rc *OntapRestClient) error {
+			regularConnectionCalled = true
+			return nil
+		}
+		FastTestConnection = func(rc *OntapRestClient) error {
+			fastConnectionCalled = true
+			return nil
+		}
+
+		params := baseParams
+		params.FastConnection = true
+
+		cl, err := NewClient(params)
+		assert.NoError(t, err)
+		assert.NotNil(t, cl)
+		assert.False(t, regularConnectionCalled)
+		assert.True(t, fastConnectionCalled)
+	})
+}
+
+func TestFastTestConnection(t *testing.T) {
+	t.Run("fastTestConnection with nil cluster client", func(t *testing.T) {
+		rc := &OntapRestClient{
+			cluster: nil,
+		}
+
+		err := fastTestConnection(rc)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cluster client not initialized")
+	})
+
+	t.Run("fastTestConnection with nil cluster api", func(t *testing.T) {
+		rc := &OntapRestClient{
+			cluster: &clusterClient{
+				api: nil,
+			},
+		}
+
+		err := fastTestConnection(rc)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cluster client not initialized")
+	})
+
+	t.Run("fastTestConnection success", func(t *testing.T) {
+		// Mock the cluster API call by overriding the function
+		originalFastTestConnection := FastTestConnection
+		defer func() {
+			FastTestConnection = originalFastTestConnection
+		}()
+
+		FastTestConnection = func(rc *OntapRestClient) error {
+			return nil
+		}
+
+		// Create a minimal valid client
+		hostMap := map[string]string{"localhost": "10.0.0.1"}
+		params := RESTClientParams{
+			Hosts:              hostMap,
+			Host:               "10.0.0.1",
+			Password:           log.Secret("secret"),
+			InsecureSkipVerify: true,
+			Trace:              log.NewLogger().(*log.Slogger),
+			FastConnection:     true,
+		}
+
+		rc := &OntapRestClient{params: params}
+
+		err := FastTestConnection(rc)
+		assert.NoError(t, err)
+	})
+
+	t.Run("fastTestConnection error", func(t *testing.T) {
+		// Mock the cluster API call by overriding the function
+		originalFastTestConnection := FastTestConnection
+		defer func() {
+			FastTestConnection = originalFastTestConnection
+		}()
+
+		FastTestConnection = func(rc *OntapRestClient) error {
+			return errors.New("connection timeout")
+		}
+
+		// Create a minimal valid client
+		hostMap := map[string]string{"localhost": "10.0.0.1"}
+		params := RESTClientParams{
+			Hosts:              hostMap,
+			Host:               "10.0.0.1",
+			Password:           log.Secret("secret"),
+			InsecureSkipVerify: true,
+			Trace:              log.NewLogger().(*log.Slogger),
+			FastConnection:     true,
+		}
+
+		rc := &OntapRestClient{params: params}
+
+		err := FastTestConnection(rc)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "connection timeout")
+	})
+}
+
+func TestRegularTestConnection(t *testing.T) {
+	t.Run("testConnection with nil cluster client", func(t *testing.T) {
+		rc := &OntapRestClient{
+			cluster: nil,
+		}
+
+		err := testConnection(rc)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cluster client not initialized")
+	})
+
+	t.Run("testConnection with nil cluster api", func(t *testing.T) {
+		rc := &OntapRestClient{
+			cluster: &clusterClient{
+				api: nil,
+			},
+		}
+
+		err := testConnection(rc)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cluster client not initialized")
+	})
+
+	t.Run("testConnection success", func(t *testing.T) {
+		// Mock the cluster API call by overriding the function
+		originalTestConnection := TestConnection
+		defer func() {
+			TestConnection = originalTestConnection
+		}()
+
+		TestConnection = func(rc *OntapRestClient) error {
+			return nil
+		}
+
+		// Create a minimal valid client
+		hostMap := map[string]string{"localhost": "10.0.0.1"}
+		params := RESTClientParams{
+			Hosts:              hostMap,
+			Host:               "10.0.0.1",
+			Password:           log.Secret("secret"),
+			InsecureSkipVerify: true,
+			Trace:              log.NewLogger().(*log.Slogger),
+			FastConnection:     false,
+		}
+
+		rc := &OntapRestClient{params: params}
+
+		err := TestConnection(rc)
+		assert.NoError(t, err)
+	})
+
+	t.Run("testConnection error", func(t *testing.T) {
+		// Mock the cluster API call by overriding the function
+		originalTestConnection := TestConnection
+		defer func() {
+			TestConnection = originalTestConnection
+		}()
+
+		TestConnection = func(rc *OntapRestClient) error {
+			return errors.New("cluster unavailable")
+		}
+
+		// Create a minimal valid client
+		hostMap := map[string]string{"localhost": "10.0.0.1"}
+		params := RESTClientParams{
+			Hosts:              hostMap,
+			Host:               "10.0.0.1",
+			Password:           log.Secret("secret"),
+			InsecureSkipVerify: true,
+			Trace:              log.NewLogger().(*log.Slogger),
+			FastConnection:     false,
+		}
+
+		rc := &OntapRestClient{params: params}
+
+		err := TestConnection(rc)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cluster unavailable")
+	})
+}

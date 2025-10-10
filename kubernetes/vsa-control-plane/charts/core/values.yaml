@@ -30,7 +30,6 @@ vsaSecretCacheCleanupIntervalHours: "24"
 vsaSecretAuthCacheExpirationHours: 24
 privateKeyBits: 4096
 
-
 images:
   core:
     name: core
@@ -120,8 +119,8 @@ telemetryDeployer:
   bizopsBucketName: "harvest-farm-pv-au-se1"
   resources:
     limits:
-      cpu: 1000m
-      memory: 512Mi
+      cpu: 1
+      memory: 1Gi
     requests:
       cpu: 100m
       memory: 128Mi

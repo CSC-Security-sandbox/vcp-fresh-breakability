@@ -60,6 +60,7 @@ type RESTClientParams struct {
 	Certificate                 *models.Certificate
 	InsecureSkipVerify          bool
 	CertificateBasedAuthEnabled bool
+	FastConnection              bool // When true, bypasses retries and uses shorter timeout for test connections
 	// Trace & Ctx fields are not serializable to JSON because of being an interface.
 	// Hence, explicitly including JSON tags to nullify the fields. This is to avoid
 	// JSON serialization error during temporal activity execution.
@@ -69,7 +70,8 @@ type RESTClientParams struct {
 
 var (
 	ontapRestLogVerbose = env.GetBool("ONTAP_REST_LOG_VERBOSE", false)
-	TestConnection      = testConnection // Allow overriding for testing purposes
+	TestConnection      = testConnection     // Allow overriding for testing purposes
+	FastTestConnection  = fastTestConnection // Fast test connection with no retries
 )
 
 var (
@@ -155,12 +157,22 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 			security:                  &securityClient{api: &api.Security},
 			nameServices:              &nameServicesClient{api: &api.NameServices},
 		}
-		if err := TestConnection(rc); err == nil {
-			return rc, nil
+		if params.FastConnection {
+			if err := FastTestConnection(rc); err == nil {
+				return rc, nil
+			} else {
+				lastErr = err
+				rClient = rc
+				continue
+			}
 		} else {
-			lastErr = err
-			rClient = rc
-			continue
+			if err := TestConnection(rc); err == nil {
+				return rc, nil
+			} else {
+				lastErr = err
+				rClient = rc
+				continue
+			}
 		}
 	}
 	if lastErr != nil {
@@ -177,6 +189,22 @@ func testConnection(rc *OntapRestClient) error {
 		return fmt.Errorf("cluster client not initialized")
 	}
 	_, err := rc.cluster.api.ClusterGet(cluster.NewClusterGetParams().WithFields([]string{"version"}), nil)
+	return err
+}
+
+// fastTestConnection tries a simple API call with a short timeout and no retries
+func fastTestConnection(rc *OntapRestClient) error {
+	if rc.cluster == nil || rc.cluster.api == nil {
+		return fmt.Errorf("cluster client not initialized")
+	}
+
+	// Create a context with 3-second timeout
+	ctx, cancel := context.WithTimeout(rc.params.Ctx, 3*time.Second)
+	defer cancel()
+
+	// Try to get cluster info with timeout
+	params := cluster.NewClusterGetParams().WithFields([]string{"version"}).WithContext(ctx)
+	_, err := rc.cluster.api.ClusterGet(params, nil)
 	return err
 }
 

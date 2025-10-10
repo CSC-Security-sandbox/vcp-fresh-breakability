@@ -40,6 +40,7 @@ var (
 	snapmirrorRegExp = regexp.MustCompile(`^snapmirror\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_.*$`)
 
 	GetOntapRestProviderForPool           = _getOntapRestProviderForPool
+	GetOntapRestProviderForPoolFastConn   = _getOntapRestProviderForPoolFastConn
 	filterOntapVolumesAndSnapshots        = _filterOntapVolumesAndSnapshots
 	processSnapshotSync                   = _processSnapshotSync
 	syncDeletedSnapshotsToDatabase        = _syncDeletedSnapshotsToDatabase
@@ -330,6 +331,41 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to get provider by node: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return provider, nil
+}
+
+func _getOntapRestProviderForPoolFastConn(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+	logger := util.GetLogger(ctx)
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, err)
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	if len(nodes) == 0 {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("no nodes found for pool %s", pool.UUID))
+	}
+
+	if pool.PoolCredentials == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %s", pool.UUID))
+	}
+
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:          nodes,
+		Password:       pool.PoolCredentials.Password,
+		SecretID:       pool.PoolCredentials.SecretID,
+		CertificateID:  pool.PoolCredentials.CertificateID,
+		DeploymentName: pool.DeploymentName,
+		AuthType:       pool.PoolCredentials.AuthType,
+	})
+
+	provider, err := hyperscaler.GetProviderByNodeWithFastConnection(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to get provider by node with fast connection: %v", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return provider, nil

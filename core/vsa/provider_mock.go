@@ -966,6 +966,63 @@ func (_c *MockProvider_CreateQoSGroupPolicy_Call) RunAndReturn(run func(CreateQo
 	return _c
 }
 
+// CreateRESTClient provides a mock function with no fields
+func (_m *MockProvider) CreateRESTClient() (ontap_rest.RESTClient, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateRESTClient")
+	}
+
+	var r0 ontap_rest.RESTClient
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (ontap_rest.RESTClient, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() ontap_rest.RESTClient); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(ontap_rest.RESTClient)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateRESTClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateRESTClient'
+type MockProvider_CreateRESTClient_Call struct {
+	*mock.Call
+}
+
+// CreateRESTClient is a helper method to define mock.On call
+func (_e *MockProvider_Expecter) CreateRESTClient() *MockProvider_CreateRESTClient_Call {
+	return &MockProvider_CreateRESTClient_Call{Call: _e.mock.On("CreateRESTClient")}
+}
+
+func (_c *MockProvider_CreateRESTClient_Call) Run(run func()) *MockProvider_CreateRESTClient_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateRESTClient_Call) Return(_a0 ontap_rest.RESTClient, _a1 error) *MockProvider_CreateRESTClient_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateRESTClient_Call) RunAndReturn(run func() (ontap_rest.RESTClient, error)) *MockProvider_CreateRESTClient_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSVM provides a mock function with given fields: params
 func (_m *MockProvider) CreateSVM(params CreateSvmParams) (*ProviderResponse, error) {
 	ret := _m.Called(params)
@@ -2126,6 +2183,64 @@ func (_c *MockProvider_GetClusterHealthStatus_Call) RunAndReturn(run func() (*Cl
 	return _c
 }
 
+// GetClusterHealthStatusWithClient provides a mock function with given fields: client
+func (_m *MockProvider) GetClusterHealthStatusWithClient(client ontap_rest.RESTClient) (*ClusterHealthStatusResponse, error) {
+	ret := _m.Called(client)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterHealthStatusWithClient")
+	}
+
+	var r0 *ClusterHealthStatusResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(ontap_rest.RESTClient) (*ClusterHealthStatusResponse, error)); ok {
+		return rf(client)
+	}
+	if rf, ok := ret.Get(0).(func(ontap_rest.RESTClient) *ClusterHealthStatusResponse); ok {
+		r0 = rf(client)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ClusterHealthStatusResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(ontap_rest.RESTClient) error); ok {
+		r1 = rf(client)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetClusterHealthStatusWithClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterHealthStatusWithClient'
+type MockProvider_GetClusterHealthStatusWithClient_Call struct {
+	*mock.Call
+}
+
+// GetClusterHealthStatusWithClient is a helper method to define mock.On call
+//   - client ontap_rest.RESTClient
+func (_e *MockProvider_Expecter) GetClusterHealthStatusWithClient(client interface{}) *MockProvider_GetClusterHealthStatusWithClient_Call {
+	return &MockProvider_GetClusterHealthStatusWithClient_Call{Call: _e.mock.On("GetClusterHealthStatusWithClient", client)}
+}
+
+func (_c *MockProvider_GetClusterHealthStatusWithClient_Call) Run(run func(client ontap_rest.RESTClient)) *MockProvider_GetClusterHealthStatusWithClient_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ontap_rest.RESTClient))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetClusterHealthStatusWithClient_Call) Return(_a0 *ClusterHealthStatusResponse, _a1 error) *MockProvider_GetClusterHealthStatusWithClient_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetClusterHealthStatusWithClient_Call) RunAndReturn(run func(ontap_rest.RESTClient) (*ClusterHealthStatusResponse, error)) *MockProvider_GetClusterHealthStatusWithClient_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetClusterPeer provides a mock function with given fields: clusterPeerUUID
 func (_m *MockProvider) GetClusterPeer(clusterPeerUUID string) (*ClusterPeer, error) {
 	ret := _m.Called(clusterPeerUUID)
@@ -2353,6 +2468,64 @@ func (_c *MockProvider_GetNodes_Call) Return(_a0 []*Node, _a1 error) *MockProvid
 }
 
 func (_c *MockProvider_GetNodes_Call) RunAndReturn(run func() ([]*Node, error)) *MockProvider_GetNodes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetNodesWithClient provides a mock function with given fields: client
+func (_m *MockProvider) GetNodesWithClient(client ontap_rest.RESTClient) ([]*Node, error) {
+	ret := _m.Called(client)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNodesWithClient")
+	}
+
+	var r0 []*Node
+	var r1 error
+	if rf, ok := ret.Get(0).(func(ontap_rest.RESTClient) ([]*Node, error)); ok {
+		return rf(client)
+	}
+	if rf, ok := ret.Get(0).(func(ontap_rest.RESTClient) []*Node); ok {
+		r0 = rf(client)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Node)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(ontap_rest.RESTClient) error); ok {
+		r1 = rf(client)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetNodesWithClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNodesWithClient'
+type MockProvider_GetNodesWithClient_Call struct {
+	*mock.Call
+}
+
+// GetNodesWithClient is a helper method to define mock.On call
+//   - client ontap_rest.RESTClient
+func (_e *MockProvider_Expecter) GetNodesWithClient(client interface{}) *MockProvider_GetNodesWithClient_Call {
+	return &MockProvider_GetNodesWithClient_Call{Call: _e.mock.On("GetNodesWithClient", client)}
+}
+
+func (_c *MockProvider_GetNodesWithClient_Call) Run(run func(client ontap_rest.RESTClient)) *MockProvider_GetNodesWithClient_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ontap_rest.RESTClient))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetNodesWithClient_Call) Return(_a0 []*Node, _a1 error) *MockProvider_GetNodesWithClient_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetNodesWithClient_Call) RunAndReturn(run func(ontap_rest.RESTClient) ([]*Node, error)) *MockProvider_GetNodesWithClient_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4973,6 +5146,63 @@ func (_c *MockProvider_TriggerTakeoverCheck_Call) RunAndReturn(run func(string) 
 	return _c
 }
 
+// TriggerTakeoverCheckWithClient provides a mock function with given fields: targetNodeUUID, client
+func (_m *MockProvider) TriggerTakeoverCheckWithClient(targetNodeUUID string, client ontap_rest.RESTClient) (bool, error) {
+	ret := _m.Called(targetNodeUUID, client)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TriggerTakeoverCheckWithClient")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, ontap_rest.RESTClient) (bool, error)); ok {
+		return rf(targetNodeUUID, client)
+	}
+	if rf, ok := ret.Get(0).(func(string, ontap_rest.RESTClient) bool); ok {
+		r0 = rf(targetNodeUUID, client)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, ontap_rest.RESTClient) error); ok {
+		r1 = rf(targetNodeUUID, client)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_TriggerTakeoverCheckWithClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TriggerTakeoverCheckWithClient'
+type MockProvider_TriggerTakeoverCheckWithClient_Call struct {
+	*mock.Call
+}
+
+// TriggerTakeoverCheckWithClient is a helper method to define mock.On call
+//   - targetNodeUUID string
+//   - client ontap_rest.RESTClient
+func (_e *MockProvider_Expecter) TriggerTakeoverCheckWithClient(targetNodeUUID interface{}, client interface{}) *MockProvider_TriggerTakeoverCheckWithClient_Call {
+	return &MockProvider_TriggerTakeoverCheckWithClient_Call{Call: _e.mock.On("TriggerTakeoverCheckWithClient", targetNodeUUID, client)}
+}
+
+func (_c *MockProvider_TriggerTakeoverCheckWithClient_Call) Run(run func(targetNodeUUID string, client ontap_rest.RESTClient)) *MockProvider_TriggerTakeoverCheckWithClient_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(ontap_rest.RESTClient))
+	})
+	return _c
+}
+
+func (_c *MockProvider_TriggerTakeoverCheckWithClient_Call) Return(_a0 bool, _a1 error) *MockProvider_TriggerTakeoverCheckWithClient_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_TriggerTakeoverCheckWithClient_Call) RunAndReturn(run func(string, ontap_rest.RESTClient) (bool, error)) *MockProvider_TriggerTakeoverCheckWithClient_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UnmountVolume provides a mock function with given fields: volumeUUID
 func (_m *MockProvider) UnmountVolume(volumeUUID string) (*OntapAsyncResponse, error) {
 	ret := _m.Called(volumeUUID)
@@ -5123,6 +5353,52 @@ func (_c *MockProvider_UpdateExportPolicyRules_Call) RunAndReturn(run func(Updat
 	return _c
 }
 
+// UpdateFlexCacheVolume provides a mock function with given fields: params
+func (_m *MockProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateFlexCacheVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(UpdateFlexCacheVolumeParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateFlexCacheVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFlexCacheVolume'
+type MockProvider_UpdateFlexCacheVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateFlexCacheVolume is a helper method to define mock.On call
+//   - params UpdateFlexCacheVolumeParams
+func (_e *MockProvider_Expecter) UpdateFlexCacheVolume(params interface{}) *MockProvider_UpdateFlexCacheVolume_Call {
+	return &MockProvider_UpdateFlexCacheVolume_Call{Call: _e.mock.On("UpdateFlexCacheVolume", params)}
+}
+
+func (_c *MockProvider_UpdateFlexCacheVolume_Call) Run(run func(params UpdateFlexCacheVolumeParams)) *MockProvider_UpdateFlexCacheVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(UpdateFlexCacheVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateFlexCacheVolume_Call) Return(_a0 error) *MockProvider_UpdateFlexCacheVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateFlexCacheVolume_Call) RunAndReturn(run func(UpdateFlexCacheVolumeParams) error) *MockProvider_UpdateFlexCacheVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateJSwapMode provides a mock function with given fields: targetNodeUUID, backingType
 func (_m *MockProvider) UpdateJSwapMode(targetNodeUUID string, backingType JSWAPBackingType) (bool, error) {
 	ret := _m.Called(targetNodeUUID, backingType)
@@ -5180,48 +5456,60 @@ func (_c *MockProvider_UpdateJSwapMode_Call) RunAndReturn(run func(string, JSWAP
 	return _c
 }
 
-// UpdateFlexCacheVolume provides a mock function with given fields: params
-func (_m *MockProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) error {
-	ret := _m.Called(params)
+// UpdateJSwapModeWithClient provides a mock function with given fields: targetNodeUUID, backingType, client
+func (_m *MockProvider) UpdateJSwapModeWithClient(targetNodeUUID string, backingType JSWAPBackingType, client ontap_rest.RESTClient) (bool, error) {
+	ret := _m.Called(targetNodeUUID, backingType, client)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateFlexCacheVolume")
+		panic("no return value specified for UpdateJSwapModeWithClient")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(UpdateFlexCacheVolumeParams) error); ok {
-		r0 = rf(params)
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, JSWAPBackingType, ontap_rest.RESTClient) (bool, error)); ok {
+		return rf(targetNodeUUID, backingType, client)
+	}
+	if rf, ok := ret.Get(0).(func(string, JSWAPBackingType, ontap_rest.RESTClient) bool); ok {
+		r0 = rf(targetNodeUUID, backingType, client)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(string, JSWAPBackingType, ontap_rest.RESTClient) error); ok {
+		r1 = rf(targetNodeUUID, backingType, client)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
-// MockProvider_UpdateFlexCacheVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFlexCacheVolume'
-type MockProvider_UpdateFlexCacheVolume_Call struct {
+// MockProvider_UpdateJSwapModeWithClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateJSwapModeWithClient'
+type MockProvider_UpdateJSwapModeWithClient_Call struct {
 	*mock.Call
 }
 
-// UpdateFlexCacheVolume is a helper method to define mock.On call
-//   - params UpdateFlexCacheVolumeParams
-func (_e *MockProvider_Expecter) UpdateFlexCacheVolume(params interface{}) *MockProvider_UpdateFlexCacheVolume_Call {
-	return &MockProvider_UpdateFlexCacheVolume_Call{Call: _e.mock.On("UpdateFlexCacheVolume", params)}
+// UpdateJSwapModeWithClient is a helper method to define mock.On call
+//   - targetNodeUUID string
+//   - backingType JSWAPBackingType
+//   - client ontap_rest.RESTClient
+func (_e *MockProvider_Expecter) UpdateJSwapModeWithClient(targetNodeUUID interface{}, backingType interface{}, client interface{}) *MockProvider_UpdateJSwapModeWithClient_Call {
+	return &MockProvider_UpdateJSwapModeWithClient_Call{Call: _e.mock.On("UpdateJSwapModeWithClient", targetNodeUUID, backingType, client)}
 }
 
-func (_c *MockProvider_UpdateFlexCacheVolume_Call) Run(run func(params UpdateFlexCacheVolumeParams)) *MockProvider_UpdateFlexCacheVolume_Call {
+func (_c *MockProvider_UpdateJSwapModeWithClient_Call) Run(run func(targetNodeUUID string, backingType JSWAPBackingType, client ontap_rest.RESTClient)) *MockProvider_UpdateJSwapModeWithClient_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(UpdateFlexCacheVolumeParams))
+		run(args[0].(string), args[1].(JSWAPBackingType), args[2].(ontap_rest.RESTClient))
 	})
 	return _c
 }
 
-func (_c *MockProvider_UpdateFlexCacheVolume_Call) Return(_a0 error) *MockProvider_UpdateFlexCacheVolume_Call {
-	_c.Call.Return(_a0)
+func (_c *MockProvider_UpdateJSwapModeWithClient_Call) Return(_a0 bool, _a1 error) *MockProvider_UpdateJSwapModeWithClient_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockProvider_UpdateFlexCacheVolume_Call) RunAndReturn(run func(UpdateFlexCacheVolumeParams) error) *MockProvider_UpdateFlexCacheVolume_Call {
+func (_c *MockProvider_UpdateJSwapModeWithClient_Call) RunAndReturn(run func(string, JSWAPBackingType, ontap_rest.RESTClient) (bool, error)) *MockProvider_UpdateJSwapModeWithClient_Call {
 	_c.Call.Return(run)
 	return _c
 }

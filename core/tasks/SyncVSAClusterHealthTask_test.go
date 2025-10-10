@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/inmemotasksprocessor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -886,6 +887,7 @@ func TestGetClusterHealthStatusUnit(t *testing.T) {
 	t.Run("GetClusterHealthStatusUnit with valid inputs", func(t *testing.T) {
 		// Arrange
 		mockProvider := vsa.NewMockProvider(t)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 		ctx := context.Background()
 		// Add correlation ID to context
 		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, "test-correlation-id")
@@ -904,10 +906,10 @@ func TestGetClusterHealthStatusUnit(t *testing.T) {
 			NumRecords: 1,
 		}
 
-		mockProvider.On("GetClusterHealthStatus").Return(expectedResponse, nil)
+		mockProvider.On("GetClusterHealthStatusWithClient", mockRESTClient).Return(expectedResponse, nil)
 
-		// Act - Pass context as first parameter, then mockProvider, poolUUID, and context again
-		result, err := GetClusterHealthStatusUnit(ctx, mockProvider, poolUUID, ctx)
+		// Act - Pass context, mockProvider, poolUUID, mockRESTClient, and context again
+		result, err := GetClusterHealthStatusUnit(ctx, mockProvider, poolUUID, mockRESTClient, ctx)
 
 		// Assert
 		assert.NoError(t, err)
@@ -918,6 +920,7 @@ func TestGetClusterHealthStatusUnit(t *testing.T) {
 	t.Run("GetClusterHealthStatusUnit with provider error", func(t *testing.T) {
 		// Arrange
 		mockProvider := vsa.NewMockProvider(t)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 		ctx := context.Background()
 		// Add correlation ID to context
 		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, "test-correlation-id")
@@ -926,10 +929,10 @@ func TestGetClusterHealthStatusUnit(t *testing.T) {
 
 		poolUUID := "test-pool-uuid"
 
-		mockProvider.On("GetClusterHealthStatus").Return(nil, errors.New("cluster health error"))
+		mockProvider.On("GetClusterHealthStatusWithClient", mockRESTClient).Return(nil, errors.New("cluster health error"))
 
 		// Act
-		result, err := GetClusterHealthStatusUnit(ctx, mockProvider, poolUUID, ctx)
+		result, err := GetClusterHealthStatusUnit(ctx, mockProvider, poolUUID, mockRESTClient, ctx)
 
 		// Assert
 		assert.Error(t, err)
@@ -946,7 +949,7 @@ func TestGetClusterHealthStatusUnit(t *testing.T) {
 		logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 		ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, logger)
 
-		// Act - Test insufficient parameters (less than 3, after context)
+		// Act - Test insufficient parameters (less than 4, after context)
 		result, err := GetClusterHealthStatusUnit(ctx, "only-one-param", "only-two-params")
 
 		// Assert
@@ -960,6 +963,7 @@ func TestJSwapUnit(t *testing.T) {
 	t.Run("JSwapUnit with successful operation", func(t *testing.T) {
 		// Arrange
 		mockProvider := vsa.NewMockProvider(t)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 		ctx := context.Background()
 		// Add correlation ID to context
 		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, "test-correlation-id")
@@ -969,10 +973,10 @@ func TestJSwapUnit(t *testing.T) {
 		nodeUUID := "test-node-uuid"
 		backingType := vsa.JSWAPBackingTypeEphemeralDisk
 
-		mockProvider.On("UpdateJSwapMode", nodeUUID, backingType).Return(true, nil)
+		mockProvider.On("UpdateJSwapModeWithClient", nodeUUID, backingType, mockRESTClient).Return(true, nil)
 
-		// Act - Pass context, then mockProvider, nodeUUID, backingType, and context again
-		result, err := JSwapUnit(ctx, mockProvider, nodeUUID, backingType, ctx)
+		// Act - Pass context, then mockProvider, nodeUUID, backingType, mockRESTClient, and context again
+		result, err := JSwapUnit(ctx, mockProvider, nodeUUID, backingType, mockRESTClient, ctx)
 
 		// Assert
 		assert.NoError(t, err)
@@ -983,6 +987,7 @@ func TestJSwapUnit(t *testing.T) {
 	t.Run("JSwapUnit with provider error", func(t *testing.T) {
 		// Arrange
 		mockProvider := vsa.NewMockProvider(t)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 		ctx := context.Background()
 		// Add correlation ID to context
 		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, "test-correlation-id")
@@ -992,10 +997,10 @@ func TestJSwapUnit(t *testing.T) {
 		nodeUUID := "test-node-uuid"
 		backingType := vsa.JSWAPBackingTypeEphemeralMemory
 
-		mockProvider.On("UpdateJSwapMode", nodeUUID, backingType).Return(false, errors.New("jswap failed"))
+		mockProvider.On("UpdateJSwapModeWithClient", nodeUUID, backingType, mockRESTClient).Return(false, errors.New("jswap failed"))
 
-		// Act - Pass context, then mockProvider, nodeUUID, backingType, and context again
-		result, err := JSwapUnit(ctx, mockProvider, nodeUUID, backingType, ctx)
+		// Act - Pass context, then mockProvider, nodeUUID, backingType, mockRESTClient, and context again
+		result, err := JSwapUnit(ctx, mockProvider, nodeUUID, backingType, mockRESTClient, ctx)
 
 		// Assert
 		assert.Error(t, err)
@@ -1007,6 +1012,7 @@ func TestJSwapUnit(t *testing.T) {
 	t.Run("JSwapUnit with unsuccessful operation", func(t *testing.T) {
 		// Arrange
 		mockProvider := vsa.NewMockProvider(t)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 		ctx := context.Background()
 		// Add correlation ID to context
 		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, "test-correlation-id")
@@ -1016,10 +1022,10 @@ func TestJSwapUnit(t *testing.T) {
 		nodeUUID := "test-node-uuid"
 		backingType := vsa.JSWAPBackingTypeEphemeralDisk
 
-		mockProvider.On("UpdateJSwapMode", nodeUUID, backingType).Return(false, nil)
+		mockProvider.On("UpdateJSwapModeWithClient", nodeUUID, backingType, mockRESTClient).Return(false, nil)
 
-		// Act - Pass context, then mockProvider, nodeUUID, backingType, and context again
-		result, err := JSwapUnit(ctx, mockProvider, nodeUUID, backingType, ctx)
+		// Act - Pass context, then mockProvider, nodeUUID, backingType, mockRESTClient, and context again
+		result, err := JSwapUnit(ctx, mockProvider, nodeUUID, backingType, mockRESTClient, ctx)
 
 		// Assert
 		assert.Error(t, err)
@@ -1036,7 +1042,7 @@ func TestJSwapUnit(t *testing.T) {
 		logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 		ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, logger)
 
-		// Act - Test insufficient parameters (less than 4, after context)
+		// Act - Test insufficient parameters (less than 5, after context)
 		result, err := JSwapUnit(ctx, "param1", "param2", "param3")
 
 		// Assert
@@ -1133,26 +1139,30 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 		// Create mock VSA provider
 		mockProvider := new(vsa.MockProvider)
 
+		// Mock REST client creation
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+
 		// Mock nodes for TriggerTakeoverCheck
 		vsaNodes := []*vsa.Node{
 			{ExternalUUID: "node-1"},
 			{ExternalUUID: "node-2"},
 		}
-		mockProvider.On("GetNodes").Return(vsaNodes, nil)
-		mockProvider.On("TriggerTakeoverCheck", "node-1").Return(true, nil)
-		mockProvider.On("TriggerTakeoverCheck", "node-2").Return(true, nil)
+		mockProvider.On("GetNodesWithClient", mock.Anything).Return(vsaNodes, nil)
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node-1", mock.Anything).Return(true, nil)
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node-2", mock.Anything).Return(true, nil)
 
-		mockProvider.On("GetClusterHealthStatus").Return(clusterHealthResponse, nil)
+		mockProvider.On("GetClusterHealthStatusWithClient", mock.Anything).Return(clusterHealthResponse, nil)
 
 		mockStorage.On("GetPool", mock.Anything, mock.Anything, mock.Anything).Return(poolView, nil)
 		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.Anything).Return(pools, nil)
 		mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return(nodes, nil)
 		// Note: UpdatePoolFields expectation removed as pool is already READY and no state change should occur due to optimization
 
-		// Patch hyperscaler.GetProviderByNode to return mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch hyperscaler.GetProviderByNodeWithFastConnection to return mock provider
+		originalGetProviderByNodeWithFastConnection := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection }()
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1568,14 +1578,15 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 		// Patch PerformJSwapToDisk to avoid context issues
 		originalPerformJSwapToDisk := PerformJSwapToDisk
 		defer func() { PerformJSwapToDisk = originalPerformJSwapToDisk }()
-		PerformJSwapToDisk = func(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context) {
+		PerformJSwapToDisk = func(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient) {
 			// Mock implementation that just calls updatePoolState
 			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails) // Ignore error in test mock
 		}
 
-		// Create background context for the updated function signature
+		// Create background context for the updated function signature and mock REST client
 		bgCtx := context.Background()
-		ExecuteJSwapAction(imtpCtx, JSwapActionToDisk, clusterHealth, mockProvider, mockStorage, poolIdentifier, logger, correlationID, bgCtx)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
+		ExecuteJSwapAction(imtpCtx, JSwapActionToDisk, clusterHealth, mockProvider, mockStorage, poolIdentifier, logger, correlationID, bgCtx, mockRESTClient)
 
 		mockStorage.AssertExpectations(t)
 	})
@@ -1612,14 +1623,15 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 		// Patch PerformJSwapToMemory to avoid context issues
 		originalPerformJSwapToMemory := PerformJSwapToMemory
 		defer func() { PerformJSwapToMemory = originalPerformJSwapToMemory }()
-		PerformJSwapToMemory = func(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context) {
+		PerformJSwapToMemory = func(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient) {
 			// Mock implementation that just calls updatePoolState
 			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails) // Ignore error in test mock
 		}
 
-		// Create background context for the updated function signature
+		// Create background context for the updated function signature and mock REST client
 		bgCtx := context.Background()
-		ExecuteJSwapAction(imtpCtx, JSwapActionToMemory, clusterHealth, mockProvider, mockStorage, poolIdentifier, logger, correlationID, bgCtx)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
+		ExecuteJSwapAction(imtpCtx, JSwapActionToMemory, clusterHealth, mockProvider, mockStorage, poolIdentifier, logger, correlationID, bgCtx, mockRESTClient)
 
 		mockStorage.AssertExpectations(t)
 	})
@@ -1650,9 +1662,10 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 		clusterHealth := &vsa.ClusterHealthStatusResponse{}
 		mockProvider := new(vsa.MockProvider)
 
-		// Create background context for the updated function signature
+		// Create background context for the updated function signature and mock REST client
 		bgCtx := context.Background()
-		ExecuteJSwapAction(imtpCtx, JSwapActionNone, clusterHealth, mockProvider, mockStorage, poolIdentifier, logger, correlationID, bgCtx)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
+		ExecuteJSwapAction(imtpCtx, JSwapActionNone, clusterHealth, mockProvider, mockStorage, poolIdentifier, logger, correlationID, bgCtx, mockRESTClient)
 
 		mockStorage.AssertExpectations(t)
 	})
@@ -1703,7 +1716,7 @@ func TestGetClusterHealthStatusUnit_ErrorCases(t *testing.T) {
 		logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 		ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, logger)
 
-		result, err := GetClusterHealthStatusUnit(ctx, nil, nil) // Only 2 parameters instead of 3
+		result, err := GetClusterHealthStatusUnit(ctx, nil, nil) // Only 2 parameters instead of 4
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "insufficient parameters for GetClusterHealthStatusUnit")
 		assert.Nil(t, result)
@@ -1711,6 +1724,7 @@ func TestGetClusterHealthStatusUnit_ErrorCases(t *testing.T) {
 
 	t.Run("provider error", func(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 		ctx := context.Background()
 		// Add correlation ID to context
 		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, "test-correlation-id")
@@ -1719,9 +1733,9 @@ func TestGetClusterHealthStatusUnit_ErrorCases(t *testing.T) {
 
 		poolUUID := "pool-1"
 
-		mockProvider.On("GetClusterHealthStatus").Return(nil, errors.New("provider error"))
+		mockProvider.On("GetClusterHealthStatusWithClient", mockRESTClient).Return(nil, errors.New("provider error"))
 
-		result, err := GetClusterHealthStatusUnit(ctx, mockProvider, poolUUID, ctx)
+		result, err := GetClusterHealthStatusUnit(ctx, mockProvider, poolUUID, mockRESTClient, ctx)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get cluster health status")
 		assert.Nil(t, result)
@@ -1804,6 +1818,7 @@ func TestTriggerTakeoverCheckUnit(t *testing.T) {
 
 	t.Run("Success - triggers takeover check for all nodes", func(t *testing.T) {
 		mockProvider := &vsa.MockProvider{}
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 
 		// Mock cluster nodes
 		nodes := []*vsa.Node{
@@ -1811,27 +1826,32 @@ func TestTriggerTakeoverCheckUnit(t *testing.T) {
 			{ExternalUUID: "node2-uuid"},
 		}
 
-		// Mock GetNodes
-		mockProvider.On("GetNodes").Return(nodes, nil)
+		// Mock GetNodesWithClient
+		mockProvider.On("GetNodesWithClient", mockRESTClient).Return(nodes, nil)
 
-		// Mock successful takeover check for each node
-		mockProvider.On("TriggerTakeoverCheck", "node1-uuid").Return(true, nil)
-		mockProvider.On("TriggerTakeoverCheck", "node2-uuid").Return(true, nil)
+		// Mock takeover check - since the implementation returns immediately on first success,
+		// we can't guarantee both will be called due to parallel execution.
+		// We'll mock both but only require at least one to be called.
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node1-uuid", mockRESTClient).Return(true, nil).Maybe()
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node2-uuid", mockRESTClient).Return(true, nil).Maybe()
 
-		result, err := TriggerTakeoverCheckUnit(ctx, mockProvider, poolUUID, ctx)
+		result, err := TriggerTakeoverCheckUnit(ctx, mockProvider, poolUUID, mockRESTClient, ctx)
 
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
-		mockProvider.AssertExpectations(t)
+
+		// Only assert the GetNodes call since takeover checks may not all be called due to early return
+		mockProvider.AssertCalled(t, "GetNodesWithClient", mockRESTClient)
 	})
 
 	t.Run("Error - GetNodes fails", func(t *testing.T) {
 		mockProvider := &vsa.MockProvider{}
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 
-		// Mock GetNodes failure
-		mockProvider.On("GetNodes").Return(nil, errors.New("get nodes error"))
+		// Mock GetNodesWithClient failure
+		mockProvider.On("GetNodesWithClient", mockRESTClient).Return(nil, errors.New("get nodes error"))
 
-		result, err := TriggerTakeoverCheckUnit(ctx, mockProvider, poolUUID, ctx)
+		result, err := TriggerTakeoverCheckUnit(ctx, mockProvider, poolUUID, mockRESTClient, ctx)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -1841,6 +1861,7 @@ func TestTriggerTakeoverCheckUnit(t *testing.T) {
 
 	t.Run("Warning - TriggerTakeoverCheck fails for one node but continues", func(t *testing.T) {
 		mockProvider := &vsa.MockProvider{}
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
 
 		// Mock cluster nodes
 		nodes := []*vsa.Node{
@@ -1848,19 +1869,44 @@ func TestTriggerTakeoverCheckUnit(t *testing.T) {
 			{ExternalUUID: "node2-uuid"},
 		}
 
-		// Mock GetNodes
-		mockProvider.On("GetNodes").Return(nodes, nil)
+		// Mock GetNodesWithClient
+		mockProvider.On("GetNodesWithClient", mockRESTClient).Return(nodes, nil)
 
-		// Mock successful takeover check for first node
-		mockProvider.On("TriggerTakeoverCheck", "node1-uuid").Return(true, nil)
-		// Mock failure for second node - but function continues
-		mockProvider.On("TriggerTakeoverCheck", "node2-uuid").Return(false, errors.New("takeover check failed"))
+		// Mock successful takeover check for first node - this will cause early return
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node1-uuid", mockRESTClient).Return(true, nil).Maybe()
+		// Mock failure for second node - may not be called due to early return
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node2-uuid", mockRESTClient).Return(false, errors.New("takeover check failed")).Maybe()
 
-		result, err := TriggerTakeoverCheckUnit(ctx, mockProvider, poolUUID, ctx)
+		result, err := TriggerTakeoverCheckUnit(ctx, mockProvider, poolUUID, mockRESTClient, ctx)
 
-		// Function should still succeed even if one node fails
+		// Function should still succeed when at least one node succeeds
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
+		mockProvider.AssertCalled(t, "GetNodesWithClient", mockRESTClient)
+	})
+
+	t.Run("All nodes checked when none succeed", func(t *testing.T) {
+		mockProvider := &vsa.MockProvider{}
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
+
+		// Mock cluster nodes
+		nodes := []*vsa.Node{
+			{ExternalUUID: "node1-uuid"},
+			{ExternalUUID: "node2-uuid"},
+		}
+
+		// Mock GetNodesWithClient
+		mockProvider.On("GetNodesWithClient", mockRESTClient).Return(nodes, nil)
+
+		// Mock all nodes return false - this ensures all nodes are checked
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node1-uuid", mockRESTClient).Return(false, nil)
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node2-uuid", mockRESTClient).Return(false, nil)
+
+		result, err := TriggerTakeoverCheckUnit(ctx, mockProvider, poolUUID, mockRESTClient, ctx)
+
+		// Function should return false when no nodes succeed
+		assert.NoError(t, err)
+		assert.Equal(t, false, result)
 		mockProvider.AssertExpectations(t)
 	})
 

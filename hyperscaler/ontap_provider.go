@@ -26,6 +26,7 @@ import (
 )
 
 var GetProviderByNode = _getProviderByNode
+var GetProviderByNodeWithFastConnection = _getProviderByNodeWithFastConnection
 
 func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 	if node.AuthType == env.USER_CERTIFICATE {
@@ -70,6 +71,54 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 		Hosts:              node.EndpointAddressesToHostNameMap,
 		Password:           password,
 		InsecureSkipVerify: true,
+	}), nil
+}
+
+func _getProviderByNodeWithFastConnection(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	if node.AuthType == env.USER_CERTIFICATE {
+		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, node.CertificateID)
+		if err != nil {
+			util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
+			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
+		}
+
+		return vsa.NewProvider(ctx, vsa.ProviderDetails{
+			Hosts: node.EndpointAddressesToHostNameMap,
+			Certificate: &vsa.Certificate{
+				SignedCertificate:        certificate.SignedCertificate,
+				InterMediateCertificates: certificate.InterMediateCertificates,
+				CommonName:               certificate.CommonName,
+				PrivateKey:               certificate.PrivateKey,
+			},
+			InsecureSkipVerify: false,
+			FastConnection:     true, // Enable fast connection for quick health checks
+		}), nil
+	}
+
+	var password string
+	if node.AuthType == env.USERNAME_PWD_SEC_MGR {
+		secret, err := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
+		if err != nil {
+			util.GetLogger(ctx).Errorf("Failed to get password for node %s: %v", node.Name, err)
+			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
+		}
+		password = secret
+	} else {
+		password = node.Password
+	}
+	// if ipAddress in empty, populate it with the node's endpoint address
+	if len(node.EndpointAddressesToHostNameMap) == 0 {
+		if node.EndpointAddress == "" {
+			return nil, errors.NewVCPError(errors.ErrVSAClusterNodeIPAddressNotFound, errors2.New("node endpoint address is empty"))
+		}
+		node.EndpointAddressesToHostNameMap[node.EndpointAddress] = node.EndpointAddress
+	}
+
+	return vsa.NewProvider(ctx, vsa.ProviderDetails{
+		Hosts:              node.EndpointAddressesToHostNameMap,
+		Password:           password,
+		InsecureSkipVerify: true,
+		FastConnection:     true, // Enable fast connection for quick health checks
 	}), nil
 }
 

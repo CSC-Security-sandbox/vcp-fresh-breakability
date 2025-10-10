@@ -27,6 +27,7 @@ type Provider interface {
 	GetAggregateByName(name string) (*Aggregate, error)
 	UpdateAggregate(params UpdateAggregateParams) error
 	GetNodes() ([]*Node, error)
+	GetNodesWithClient(client ontapRest.RESTClient) ([]*Node, error)
 	GetNodeByName(name string) (*Node, error)
 	CreateSVM(params CreateSvmParams) (*ProviderResponse, error)
 	CreateDataLIF(params CreateLifParams) (*Lif, error)
@@ -118,8 +119,12 @@ type Provider interface {
 	GetSecurityAudit() (*SecurityAudit, error)
 	EnableAutoVolOfflineCronForGCPKMS() error
 	GetClusterHealthStatus() (*ClusterHealthStatusResponse, error)
+	GetClusterHealthStatusWithClient(client ontapRest.RESTClient) (*ClusterHealthStatusResponse, error)
 	TriggerTakeoverCheck(targetNodeUUID string) (bool, error)
+	TriggerTakeoverCheckWithClient(targetNodeUUID string, client ontapRest.RESTClient) (bool, error)
 	UpdateJSwapMode(targetNodeUUID string, backingType JSWAPBackingType) (bool, error)
+	UpdateJSwapModeWithClient(targetNodeUUID string, backingType JSWAPBackingType, client ontapRest.RESTClient) (bool, error)
+	CreateRESTClient() (ontapRest.RESTClient, error)
 }
 
 type OntapRestProvider struct {
@@ -137,6 +142,7 @@ func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvid
 			Hosts:              provider.Hosts,
 			Host:               provider.IPAddress,
 			InsecureSkipVerify: provider.InsecureSkipVerify,
+			FastConnection:     provider.FastConnection,
 			Trace:              logger,
 			Ctx:                ctx,
 		},
@@ -155,4 +161,9 @@ func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvid
 		ontapRestProvider.ClientParams.CertificateBasedAuthEnabled = false
 	}
 	return ontapRestProvider
+}
+
+// CreateRESTClient creates a new ONTAP REST client that can be reused across multiple API calls
+func (rc *OntapRestProvider) CreateRESTClient() (ontapRest.RESTClient, error) {
+	return getOntapClientFunc(rc.ClientParams)
 }

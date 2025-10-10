@@ -19,6 +19,7 @@ type ProviderDetails struct {
 	Protocol           string            `json:"protocol"`
 	InsecureSkipVerify bool              `json:"insecureSkipVerify"`
 	Certificate        *Certificate      `json:"certificate"`
+	FastConnection     bool              `json:"fastConnection"` // When true, bypasses retries and uses shorter timeout for test connections
 }
 
 type Certificate struct {

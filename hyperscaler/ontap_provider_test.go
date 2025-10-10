@@ -1370,3 +1370,131 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func Test_GetProviderByNodeWithFastConnection(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node1",
+			CertificateID:                  "cert-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		defer func() { GetCertificateFromCacheOrSecretManager = origGetCert }()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certID string) (*models.Certificate, error) {
+			return &models.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+			}, nil
+		}
+
+		provider, err := GetProviderByNodeWithFastConnection(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
+
+	t.Run("USER_CERTIFICATE get certificate error", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node1",
+			CertificateID:                  "cert-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		defer func() { GetCertificateFromCacheOrSecretManager = origGetCert }()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certID string) (*models.Certificate, error) {
+			return nil, fmt.Errorf("certificate not found")
+		}
+
+		provider, err := GetProviderByNodeWithFastConnection(ctx, node)
+		assert.Error(t, err)
+		assert.Nil(t, provider)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node1",
+			SecretID:                       "secret-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       env.USERNAME_PWD_SEC_MGR,
+		}
+
+		origGetPassword := GetPasswordFromCacheOrSecretManager
+		defer func() { GetPasswordFromCacheOrSecretManager = origGetPassword }()
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "password123", nil
+		}
+
+		provider, err := GetProviderByNodeWithFastConnection(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR get password error", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node1",
+			SecretID:                       "secret-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       env.USERNAME_PWD_SEC_MGR,
+		}
+
+		origGetPassword := GetPasswordFromCacheOrSecretManager
+		defer func() { GetPasswordFromCacheOrSecretManager = origGetPassword }()
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "", fmt.Errorf("secret not found")
+		}
+
+		provider, err := GetProviderByNodeWithFastConnection(ctx, node)
+		assert.Error(t, err)
+		assert.Nil(t, provider)
+	})
+
+	t.Run("USERNAME_PWD auth type with password", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node1",
+			Password:                       "password123",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       env.USERNAME_PWD, // Different auth type that uses password directly
+		}
+
+		provider, err := GetProviderByNodeWithFastConnection(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
+
+	t.Run("empty endpoint addresses map with endpoint address", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node1",
+			Password:                       "password123",
+			EndpointAddress:                "192.168.1.1",
+			EndpointAddressesToHostNameMap: map[string]string{}, // Empty map
+			AuthType:                       env.USERNAME_PWD,
+		}
+
+		provider, err := GetProviderByNodeWithFastConnection(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+		// Check that the endpoint address was added to the map
+		assert.Equal(t, "192.168.1.1", node.EndpointAddressesToHostNameMap["192.168.1.1"])
+	})
+
+	t.Run("empty endpoint addresses map and empty endpoint address", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node1",
+			Password:                       "password123",
+			EndpointAddress:                "",                  // Empty endpoint address
+			EndpointAddressesToHostNameMap: map[string]string{}, // Empty map
+			AuthType:                       env.USERNAME_PWD,
+		}
+
+		provider, err := GetProviderByNodeWithFastConnection(ctx, node)
+		assert.Error(t, err)
+		assert.Nil(t, provider)
+	})
+}

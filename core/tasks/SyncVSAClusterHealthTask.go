@@ -8,6 +8,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/inmemotasksprocessor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -135,7 +136,9 @@ func _syncVSAClusterHealthTask(imtpCtx interface{}, inputs ...interface{}) {
 	bgCtx = context.WithValue(bgCtx, middleware.TemporalSLoggerKey, loggerFields)
 	logger := util.GetLogger(bgCtx)
 
-	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Processing pool %s", correlationID, poolIdentifier.UUID) // Get VSA Provider
+	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Processing pool %s", correlationID, poolIdentifier.UUID)
+
+	// Get VSA Provider
 	providerResult := ctx.RunUnit(GetVSAProviderUnit, inmemotasksprocessor.UnitOptions{}, poolIdentifier, se, bgCtx)
 	if providerResult.Err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to get VSA Provider: %v", correlationID, poolIdentifier.UUID, providerResult.Err)
@@ -143,15 +146,23 @@ func _syncVSAClusterHealthTask(imtpCtx interface{}, inputs ...interface{}) {
 	}
 	provider := providerResult.Result.(vsa.Provider)
 
+	// Create a single REST client for this task to reuse across all ONTAP API calls
+	ontapClient, err := provider.CreateRESTClient()
+	if err != nil {
+		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to create ONTAP REST client: %v", correlationID, poolIdentifier.UUID, err)
+		return
+	}
+	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Created reusable ONTAP REST client", correlationID, poolIdentifier.UUID)
+
 	// Trigger takeover check for all nodes to refresh takeover_check status
-	takeoverCheckResult := ctx.RunUnit(TriggerTakeoverCheckUnit, inmemotasksprocessor.UnitOptions{}, provider, poolIdentifier.UUID, bgCtx)
+	takeoverCheckResult := ctx.RunUnit(TriggerTakeoverCheckUnit, inmemotasksprocessor.UnitOptions{}, provider, poolIdentifier.UUID, ontapClient, bgCtx)
 	if takeoverCheckResult.Err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to trigger takeover check: %v", correlationID, poolIdentifier.UUID, takeoverCheckResult.Err)
 		return
 	}
 
 	// Get cluster health status
-	clusterHealthResult := ctx.RunUnit(GetClusterHealthStatusUnit, inmemotasksprocessor.UnitOptions{}, provider, poolIdentifier.UUID, bgCtx)
+	clusterHealthResult := ctx.RunUnit(GetClusterHealthStatusUnit, inmemotasksprocessor.UnitOptions{}, provider, poolIdentifier.UUID, ontapClient, bgCtx)
 	if clusterHealthResult.Err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to get cluster health status: %v", correlationID, poolIdentifier.UUID, clusterHealthResult.Err)
 		return
@@ -160,7 +171,7 @@ func _syncVSAClusterHealthTask(imtpCtx interface{}, inputs ...interface{}) {
 
 	// Determine and execute JSWAP action
 	jswapAction := determineJSwapAction(clusterHealth, poolIdentifier.UUID, logger, correlationID)
-	executeJSwapAction(ctx, jswapAction, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx)
+	executeJSwapAction(ctx, jswapAction, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient)
 
 	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Task completed", correlationID, poolIdentifier.UUID)
 }
@@ -279,12 +290,12 @@ func shouldJSwapToMemoryForTakeoverPossible(nodes []vsa.NodeHealthStatus, poolUU
 
 // executeJSwapAction executes the determined JSWAP action and updates pool state accordingly
 func executeJSwapAction(ctx *inmemotasksprocessor.IMTPContext, action JSwapAction, clusterHealth *vsa.ClusterHealthStatusResponse,
-	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context) {
+	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient) {
 	switch action {
 	case JSwapActionToDisk:
-		performJSwapToDisk(ctx, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx)
+		performJSwapToDisk(ctx, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient)
 	case JSwapActionToMemory:
-		performJSwapToMemory(ctx, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx)
+		performJSwapToMemory(ctx, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient)
 	case JSwapActionNone:
 		updatePoolToReadyState(se, poolIdentifier, logger, correlationID)
 	}
@@ -292,13 +303,13 @@ func executeJSwapAction(ctx *inmemotasksprocessor.IMTPContext, action JSwapActio
 
 // performJSwapToDisk performs JSWAP to ephemeral_disk and updates pool to DEGRADED state
 func performJSwapToDisk(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse,
-	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context) {
+	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient) {
 	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Executing JSWAP to ephemeral_disk", correlationID, poolIdentifier.UUID)
 
 	jswapCount := 0
 	for _, node := range clusterHealth.Records {
 		if node.NVLog != nil && node.NVLog.BackingType == string(vsa.JSWAPBackingTypeEphemeralMemory) {
-			jswapResult := ctx.RunUnit(JSwapUnit, inmemotasksprocessor.UnitOptions{}, provider, node.UUID, vsa.JSWAPBackingTypeEphemeralDisk, bgCtx)
+			jswapResult := ctx.RunUnit(JSwapUnit, inmemotasksprocessor.UnitOptions{}, provider, node.UUID, vsa.JSWAPBackingTypeEphemeralDisk, ontapClient, bgCtx)
 			if jswapResult.Err != nil {
 				logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to disk failed for node %s: %v", correlationID, poolIdentifier.UUID, node.UUID, jswapResult.Err)
 			} else {
@@ -319,13 +330,13 @@ func performJSwapToDisk(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vs
 
 // performJSwapToMemory performs JSWAP to ephemeral_memory and updates pool to READY state
 func performJSwapToMemory(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse,
-	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context) {
+	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient) {
 	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Executing JSWAP to ephemeral_memory", correlationID, poolIdentifier.UUID)
 
 	jswapCount := 0
 	for _, node := range clusterHealth.Records {
 		if node.NVLog != nil && node.NVLog.BackingType == string(vsa.JSWAPBackingTypeEphemeralDisk) {
-			jswapResult := ctx.RunUnit(JSwapUnit, inmemotasksprocessor.UnitOptions{}, provider, node.UUID, vsa.JSWAPBackingTypeEphemeralMemory, bgCtx)
+			jswapResult := ctx.RunUnit(JSwapUnit, inmemotasksprocessor.UnitOptions{}, provider, node.UUID, vsa.JSWAPBackingTypeEphemeralMemory, ontapClient, bgCtx)
 			if jswapResult.Err != nil {
 				logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to memory failed for node %s: %v", correlationID, poolIdentifier.UUID, node.UUID, jswapResult.Err)
 			} else {
@@ -447,7 +458,7 @@ func _getVSAProviderUnit(ctx context.Context, inputs ...interface{}) (interface{
 	}
 
 	pool := database.ConvertPoolViewToPool(poolView)
-	provider, err := backgroundactivities.GetOntapRestProviderForPool(contextWithCorrelationID, se, pool)
+	provider, err := backgroundactivities.GetOntapRestProviderForPoolFastConn(contextWithCorrelationID, se, pool)
 	if err != nil || provider == nil {
 		return nil, fmt.Errorf("failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)
 	}
@@ -457,13 +468,14 @@ func _getVSAProviderUnit(ctx context.Context, inputs ...interface{}) (interface{
 
 // _triggerTakeoverCheckUnit triggers takeover check for all nodes in the cluster
 func _triggerTakeoverCheckUnit(ctx context.Context, inputs ...interface{}) (interface{}, error) {
-	if len(inputs) < 3 {
+	if len(inputs) < 4 {
 		return nil, fmt.Errorf("insufficient parameters for TriggerTakeoverCheckUnit")
 	}
 
 	provider := inputs[0].(vsa.Provider)
 	poolUUID := inputs[1].(string)
-	contextWithCorrelationID := inputs[2].(context.Context)
+	ontapClient := inputs[2].(ontapRest.RESTClient)
+	contextWithCorrelationID := inputs[3].(context.Context)
 
 	logger := util.GetLogger(contextWithCorrelationID)
 
@@ -472,40 +484,55 @@ func _triggerTakeoverCheckUnit(ctx context.Context, inputs ...interface{}) (inte
 
 	logger.Infof("[TriggerTakeoverCheckUnit] CorrelationID: %s - Triggering takeover check for all nodes in pool: %s", correlationID, poolUUID)
 
-	nodes, err := provider.GetNodes()
+	nodes, err := provider.GetNodesWithClient(ontapClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nodes for pool %s: %v", poolUUID, err)
 	}
 
-	// Trigger takeover check for each node
-	for _, node := range nodes {
-		logger.Infof("[TriggerTakeoverCheckUnit] CorrelationID: %s - Triggering takeover check for node %s in pool %s", correlationID, node.ExternalUUID, poolUUID)
-		success, err := provider.TriggerTakeoverCheck(node.ExternalUUID)
-		if err != nil {
-			logger.Errorf("[TriggerTakeoverCheckUnit] CorrelationID: %s - Failed to trigger takeover check for node %s: %v", correlationID, node.ExternalUUID, err)
-			// Continue with other nodes even if one fails
-			continue
-		}
+	type result struct {
+		nodeUUID string
+		success  bool
+		err      error
+	}
 
-		if !success {
-			logger.Warnf("[TriggerTakeoverCheckUnit] CorrelationID: %s - Takeover check for node %s did not complete successfully", correlationID, node.ExternalUUID)
+	results := make(chan result, len(nodes))
+
+	for _, node := range nodes {
+		go func(nodeUUID string) {
+			logger.Infof("[TriggerTakeoverCheckUnit] CorrelationID: %s - Triggering takeover check for node %s in pool %s", correlationID, nodeUUID, poolUUID)
+			success, err := provider.TriggerTakeoverCheckWithClient(nodeUUID, ontapClient)
+			results <- result{nodeUUID: nodeUUID, success: success, err: err}
+		}(node.ExternalUUID)
+	}
+
+	completedNodes := 0
+	for completedNodes < len(nodes) {
+		res := <-results
+		completedNodes++
+
+		if res.err != nil {
+			logger.Errorf("[TriggerTakeoverCheckUnit] CorrelationID: %s - Failed to trigger takeover check for node %s: %v", correlationID, res.nodeUUID, res.err)
+		} else if res.success {
+			logger.Infof("[TriggerTakeoverCheckUnit] CorrelationID: %s - Successfully triggered takeover check for node %s - returning immediately", correlationID, res.nodeUUID)
+			return true, nil
 		} else {
-			logger.Infof("[TriggerTakeoverCheckUnit] CorrelationID: %s - Successfully triggered takeover check for node %s", correlationID, node.ExternalUUID)
+			logger.Warnf("[TriggerTakeoverCheckUnit] CorrelationID: %s - Takeover check for node %s did not complete successfully", correlationID, res.nodeUUID)
 		}
 	}
 
-	return true, nil
+	return false, nil
 }
 
 // _getClusterHealthStatusUnit gets the consolidated cluster health status from the provider
 func _getClusterHealthStatusUnit(ctx context.Context, inputs ...interface{}) (interface{}, error) {
-	if len(inputs) < 3 {
+	if len(inputs) < 4 {
 		return nil, fmt.Errorf("insufficient parameters for GetClusterHealthStatusUnit")
 	}
 
 	provider := inputs[0].(vsa.Provider)
 	poolUUID := inputs[1].(string)
-	contextWithCorrelationID := inputs[2].(context.Context)
+	ontapClient := inputs[2].(ontapRest.RESTClient)
+	contextWithCorrelationID := inputs[3].(context.Context)
 
 	logger := util.GetLogger(contextWithCorrelationID)
 
@@ -514,7 +541,7 @@ func _getClusterHealthStatusUnit(ctx context.Context, inputs ...interface{}) (in
 
 	logger.Infof("[GetClusterHealthStatusUnit] CorrelationID: %s - Getting consolidated cluster health status for pool: %s", correlationID, poolUUID)
 
-	clusterHealthResponse, err := provider.GetClusterHealthStatus()
+	clusterHealthResponse, err := provider.GetClusterHealthStatusWithClient(ontapClient)
 	if err != nil {
 		return nil, fmt.Errorf("[GetClusterHealthStatusUnit] CorrelationID: %s - failed to get cluster health status for pool %s: %v", correlationID, poolUUID, err)
 	}
@@ -524,14 +551,15 @@ func _getClusterHealthStatusUnit(ctx context.Context, inputs ...interface{}) (in
 
 // _jSwapUnit performs JSWAP operation on a specific node
 func _jSwapUnit(ctx context.Context, inputs ...interface{}) (interface{}, error) {
-	if len(inputs) < 4 {
+	if len(inputs) < 5 {
 		return nil, fmt.Errorf("insufficient parameters for JSwapUnit")
 	}
 
 	provider := inputs[0].(vsa.Provider)
 	nodeUUID := inputs[1].(string)
 	backingType := inputs[2].(vsa.JSWAPBackingType)
-	contextWithCorrelationID := inputs[3].(context.Context)
+	ontapClient := inputs[3].(ontapRest.RESTClient)
+	contextWithCorrelationID := inputs[4].(context.Context)
 
 	logger := util.GetLogger(contextWithCorrelationID)
 
@@ -540,7 +568,7 @@ func _jSwapUnit(ctx context.Context, inputs ...interface{}) (interface{}, error)
 
 	logger.Infof("[JSwapUnit] CorrelationID: %s - Performing JSWAP operation for node %s to backing type %s", correlationID, nodeUUID, backingType)
 
-	success, err := provider.UpdateJSwapMode(nodeUUID, backingType)
+	success, err := provider.UpdateJSwapModeWithClient(nodeUUID, backingType, ontapClient)
 	if err != nil {
 		return nil, fmt.Errorf("[JSwapUnit] CorrelationID: %s - failed to perform JSWAP for node %s to backing type %s: %v", correlationID, nodeUUID, backingType, err)
 	}

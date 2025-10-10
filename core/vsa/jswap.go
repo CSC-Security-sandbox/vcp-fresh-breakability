@@ -40,11 +40,15 @@ func (rc *OntapRestProvider) GetClusterHealthStatus() (*ClusterHealthStatusRespo
 	if err != nil {
 		return nil, err
 	}
+	return rc.GetClusterHealthStatusWithClient(client)
+}
 
+// GetClusterHealthStatusWithClient retrieves consolidated cluster health information using a provided REST client
+func (rc *OntapRestProvider) GetClusterHealthStatusWithClient(client ontapRest.RESTClient) (*ClusterHealthStatusResponse, error) {
 	var resultNodes []NodeHealthStatus
 
 	// Single API call to get all required fields
-	err = client.Cluster().NodesGet(&ontapRest.NodesGetParams{
+	err := client.Cluster().NodesGet(&ontapRest.NodesGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"name", "uuid", "ha.takeover", "ha.takeover_check", "nvlog"},
 		},
@@ -122,7 +126,11 @@ func (rc *OntapRestProvider) TriggerTakeoverCheck(targetNodeUUID string) (bool, 
 	if err != nil {
 		return false, err
 	}
+	return rc.TriggerTakeoverCheckWithClient(targetNodeUUID, client)
+}
 
+// TriggerTakeoverCheckWithClient triggers a takeover check for a specific node using a provided REST client
+func (rc *OntapRestProvider) TriggerTakeoverCheckWithClient(targetNodeUUID string, client ontapRest.RESTClient) (bool, error) {
 	// Use the NodeModifyParams with action=takeover_check
 	updateParams := &ontapRest.NodeModifyParams{
 		UUID:   targetNodeUUID,
@@ -146,7 +154,11 @@ func (rc *OntapRestProvider) UpdateJSwapMode(targetNodeUUID string, backingType 
 	if err != nil {
 		return false, err
 	}
+	return rc.UpdateJSwapModeWithClient(targetNodeUUID, backingType, client)
+}
 
+// UpdateJSwapModeWithClient updates the JSWAP backing type for a specific node using a provided REST client
+func (rc *OntapRestProvider) UpdateJSwapModeWithClient(targetNodeUUID string, backingType JSWAPBackingType, client ontapRest.RESTClient) (bool, error) {
 	updateParams := &ontapRest.NodeModifyParams{
 		UUID: targetNodeUUID,
 		Body: &ontapRest.NodeModifyBody{

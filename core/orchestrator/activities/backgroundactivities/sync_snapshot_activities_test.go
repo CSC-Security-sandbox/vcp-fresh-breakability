@@ -1711,3 +1711,126 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_SuccessfulExecution(t *tes
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
+
+func TestGetOntapRestProviderForPoolFastConn(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("GetOntapRestProviderForPoolFastConn_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "abcd",
+			},
+		}
+		node := &datamodel.Node{
+			EndpointAddress: "1.2.3.4",
+		}
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{node}, nil)
+
+		// Patch hyperscaler functions to return a mock provider
+		originalGetProviderByNodeWithFastConnection := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection }()
+		mockProvider := new(vsa.MockProvider)
+
+		// Fast connection should succeed
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		provider, err := GetOntapRestProviderForPoolFastConn(ctx, mockStorage, pool)
+		assert.NoError(t, err)
+		assert.Equal(t, mockProvider, provider)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetOntapRestProviderForPoolFastConn_PoolNotFoundError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, gorm.ErrRecordNotFound)
+		provider, err := GetOntapRestProviderForPoolFastConn(ctx, mockStorage, pool)
+		assert.Nil(t, provider)
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetOntapRestProviderForPoolFastConn_CouldNotGetNodes", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, errors.New("could not get nodes"))
+		provider, err := GetOntapRestProviderForPoolFastConn(ctx, mockStorage, pool)
+		assert.Nil(t, provider)
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetOntapRestProviderForPoolFastConn_NoNodesFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{}, nil)
+		provider, err := GetOntapRestProviderForPoolFastConn(ctx, mockStorage, pool)
+		assert.Nil(t, provider)
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(tt)
+		if !strings.Contains(vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "no nodes found for pool") {
+			t.Errorf("expected error %v, got %v", "no nodes found for pool", err)
+		}
+	})
+
+	t.Run("GetOntapRestProviderForPoolFastConn_NoCredentials", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		node := &datamodel.Node{
+			EndpointAddress: "test-endpoint",
+		}
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{node}, nil)
+		provider, err := GetOntapRestProviderForPoolFastConn(ctx, mockStorage, pool)
+
+		assert.Nil(t, provider)
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(tt)
+		if !strings.Contains(vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "pool credentials not found for pool") {
+			t.Errorf("expected error %v, got %v", "pool credentials not found for pool", err)
+		}
+	})
+
+	t.Run("GetOntapRestProviderForPoolFastConn_FastConnectionFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "abcd",
+			},
+		}
+		node := &datamodel.Node{
+			EndpointAddress: "1.2.3.4",
+		}
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{node}, nil)
+
+		// Mock that fast connection fails
+		originalGetProviderByNodeWithFastConnection := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() {
+			hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection
+		}()
+
+		callCount := 0
+
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			callCount++
+			// Fast connection should fail
+			return nil, errors.New("fast connection failed")
+		}
+
+		provider, err := GetOntapRestProviderForPoolFastConn(ctx, mockStorage, pool)
+		assert.Error(t, err)
+		assert.Nil(t, provider)
+		assert.Equal(t, 1, callCount, "Should only try fast connection once")
+		assert.Contains(t, err.Error(), "fast connection failed")
+		mockStorage.AssertExpectations(t)
+	})
+}
