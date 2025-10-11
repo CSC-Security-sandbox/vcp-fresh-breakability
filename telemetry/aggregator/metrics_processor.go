@@ -580,7 +580,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		AggregationEnd:         end,
 		MeasuredType:           metrics[0].MeasuredType,
 		ResourceType:           metrics[0].ResourceType,
-		Quantity:               quantity,
+		Quantity:               BytesToMiB(quantity),
 		ResourceName:           &metrics[0].ResourceName,
 		RegionName:             &metrics[0].Location,
 		LastCounterValue:       lastCounterValue,
@@ -649,4 +649,10 @@ func (p *BillingProvider) getUnsentGoogleUsages(ctx context.Context, maxRetries 
 	}
 
 	return allRecords, nil
+}
+
+// BytesToMiB converts bytes to MiB (Mebibytes)
+func BytesToMiB(bytes float64) float64 {
+	const bytesInMiB = 1024 * 1024 // 1024^2
+	return bytes / float64(bytesInMiB)
 }
