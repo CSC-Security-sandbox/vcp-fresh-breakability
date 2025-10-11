@@ -19193,9 +19193,9 @@ func (s *ResourceStateUpdateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.ParentResourceID.Set {
-			e.FieldStart("parentResourceID")
-			s.ParentResourceID.Encode(e)
+		if s.ParentResourceId.Set {
+			e.FieldStart("parentResourceId")
+			s.ParentResourceId.Encode(e)
 		}
 	}
 }
@@ -19205,7 +19205,7 @@ var jsonFieldsNameOfResourceStateUpdateV1beta = [5]string{
 	1: "resourceType",
 	2: "resourceId",
 	3: "parentResourceType",
-	4: "parentResourceID",
+	4: "parentResourceId",
 }
 
 // Decode decodes ResourceStateUpdateV1beta from json.
@@ -19259,15 +19259,15 @@ func (s *ResourceStateUpdateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"parentResourceType\"")
 			}
-		case "parentResourceID":
+		case "parentResourceId":
 			if err := func() error {
-				s.ParentResourceID.Reset()
-				if err := s.ParentResourceID.Decode(d); err != nil {
+				s.ParentResourceId.Reset()
+				if err := s.ParentResourceId.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"parentResourceID\"")
+				return errors.Wrap(err, "decode field \"parentResourceId\"")
 			}
 		default:
 			return d.Skip()

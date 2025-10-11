@@ -4180,7 +4180,7 @@ func (s *ResourceStateUpdateV1beta) SetFake() {
 	}
 	{
 		{
-			s.ParentResourceID.SetFake()
+			s.ParentResourceId.SetFake()
 		}
 	}
 }

@@ -6059,8 +6059,8 @@ components:
               example: Volume
               enum:
                 - Volume
-            parentResourceID:
-              title: parentResourceID
+            parentResourceId:
+              title: parentResourceId
               type: string
               description: The UUID of the parent resource
               nullable: true

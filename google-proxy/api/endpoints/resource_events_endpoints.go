@@ -130,7 +130,7 @@ func (h Handler) V1betaResourceStateUpdate(ctx context.Context, req *gcpgenserve
 		State:              string(req.State),
 		ResourceType:       string(req.ResourceType),
 		ResourceId:         req.ResourceId,
-		ParentResourceID:   req.ParentResourceID.Value,
+		ParentResourceID:   req.ParentResourceId.Value,
 		ParentResourceType: string(req.ParentResourceType.Value),
 	}
 	job, err := h.Orchestrator.UpdateResourceState(ctx, reqParams)

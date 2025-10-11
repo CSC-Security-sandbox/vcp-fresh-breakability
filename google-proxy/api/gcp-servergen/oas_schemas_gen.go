@@ -14414,7 +14414,7 @@ type ResourceStateUpdateV1beta struct {
 	// Parent resource Type.
 	ParentResourceType OptNilResourceStateUpdateV1betaParentResourceType `json:"parentResourceType"`
 	// The UUID of the parent resource.
-	ParentResourceID OptNilString `json:"parentResourceID"`
+	ParentResourceId OptNilString `json:"parentResourceId"`
 }
 
 // GetState returns the value of State.
@@ -14437,9 +14437,9 @@ func (s *ResourceStateUpdateV1beta) GetParentResourceType() OptNilResourceStateU
 	return s.ParentResourceType
 }
 
-// GetParentResourceID returns the value of ParentResourceID.
-func (s *ResourceStateUpdateV1beta) GetParentResourceID() OptNilString {
-	return s.ParentResourceID
+// GetParentResourceId returns the value of ParentResourceId.
+func (s *ResourceStateUpdateV1beta) GetParentResourceId() OptNilString {
+	return s.ParentResourceId
 }
 
 // SetState sets the value of State.
@@ -14462,9 +14462,9 @@ func (s *ResourceStateUpdateV1beta) SetParentResourceType(val OptNilResourceStat
 	s.ParentResourceType = val
 }
 
-// SetParentResourceID sets the value of ParentResourceID.
-func (s *ResourceStateUpdateV1beta) SetParentResourceID(val OptNilString) {
-	s.ParentResourceID = val
+// SetParentResourceId sets the value of ParentResourceId.
+func (s *ResourceStateUpdateV1beta) SetParentResourceId(val OptNilString) {
+	s.ParentResourceId = val
 }
 
 // Parent resource Type.
