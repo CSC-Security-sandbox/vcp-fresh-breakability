@@ -46,8 +46,21 @@ continent VARCHAR (255) NOT NULL
  	resource_uuid is not null and
  	measured_type is not null and
  	quantity is not null and
- 	resource_type in ('VOLUME', 'VOLUME_POOL', 'VOLUME_REPLICATION_RELATIONSHIP', 'CBS') and
-    measured_type in ('XREGION_REPLICATION_TOTAL_TRANSFER_BYTES', 'ALLOCATED_USED', 'POOL_ALLOCATED_SIZE', 'ALLOCATED_SIZE', 'LOGICAL_SIZE') and
+ 	resource_type in (
+     'VOLUME', 
+     'VOLUME_POOL', 
+     'VOLUME_REPLICATION_RELATIONSHIP', 
+     'VOLUME_REGIONAL_HA',
+     'VOLUME_POOL_REGIONAL_HA',
+     'CBS',
+     ) and
+    measured_type in (
+     'XREGION_REPLICATION_TOTAL_TRANSFER_BYTES', 
+     'ALLOCATED_USED', 
+     'POOL_ALLOCATED_SIZE', 
+     'ALLOCATED_SIZE', 
+     'LOGICAL_SIZE',
+     ) and
  	service_level is not null
  ;
  `
@@ -134,13 +147,13 @@ continent VARCHAR (255) NOT NULL
  	replication_type,
  	sum(hourly_allocated_quantity) / 1024 as total_allocated_gibh,
  	case
- 		when resource_type in ('VOLUME')  then sum(hourly_logical_quantity) / 1024 / 86400*3600
- 		when resource_type in ('VOLUME_POOL') then sum(hourly_pool_logical_quantity) / 1024 / 86400*3600
+ 		when resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA')  then sum(hourly_logical_quantity) / 1024 / 86400*3600
+ 		when resource_type in ('VOLUME_POOL', 'VOLUME_POOL_REGIONAL_HA') then sum(hourly_pool_logical_quantity) / 1024 / 86400*3600
  		else '0'
  	end as total_avg_gib_used,
  	case
- 		when resource_type in ('VOLUME') then sum(hourly_logical_quantity) / 1024
- 		when resource_type in ('VOLUME_POOL') then sum(hourly_pool_logical_quantity) / 1024
+ 		when resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') then sum(hourly_logical_quantity) / 1024
+ 		when resource_type in ('VOLUME_POOL', 'VOLUME_POOL_REGIONAL_HA') then sum(hourly_pool_logical_quantity) / 1024
  		else '0'
  	end as total_gibh_used,
  	sum(hourly_transfer_bytes) / 1024 as total_transfer_bytes_crr,
@@ -202,19 +215,23 @@ continent VARCHAR (255) NOT NULL
  		else 'TRUE'
  	end as is_active,
  	case
- 		when puc.resource_type in ('VOLUME_POOL') then us.resource_count
+ 		when puc.resource_type in ('VOLUME_POOL', 'VOLUME_POOL_REGIONAL_HA') then us.resource_count
  		else 0
  	end as num_pools,
      case
- 		when puc.resource_type in ('VOLUME') then us.resource_count
+ 		when puc.resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') then us.resource_count
  		else 0
  	end as num_volums,
      $1 as report_start,
      $2 as report_end,
  	case
- 		when puc.resource_type = 'VOLUME_POOL' then 'netapp.googleapis.com/pool/Allocation/Flex/unified'
+ 		when puc.resource_type = 'VOLUME_POOL' then 'netapp.googleapis.com/pool/Allocation/Flex/Zonal/Unified'
  	    
- 	    when puc.resource_type = 'VOLUME' then 'netapp.googleapis.com/volume/Allocation/Flex/unified'
+ 	    when puc.resource_type = 'VOLUME_POOL_REGIONAL_HA' then 'netapp.googleapis.com/pool/Allocation/Flex/Regional/Unified'
+ 	    
+ 	    when puc.resource_type = 'VOLUME' then 'netapp.googleapis.com/volume/Allocation/Flex/Zonal/Unified'
+ 	    
+ 	    when puc.resource_type = 'VOLUME_REGIONAL_HA' then 'netapp.googleapis.com/volume/Allocation/Flex/Regional/Unified'
  	    
  	    when puc.resource_type in ('VOLUME_REPLICATION_RELATIONSHIP') then ''
  		else 'N/A'
@@ -235,16 +252,16 @@ continent VARCHAR (255) NOT NULL
  	    when puc.resource_type = 'VOLUME_REPLICATION_RELATIONSHIP' and puc.replication_type = 'ExternalMigration' then 'Onprem Migration'
  	    when puc.resource_type = 'VOLUME_REPLICATION_RELATIONSHIP' and puc.replication_type = 'ExternalDisasterRecovery' then 'Onprem Replication'
  	    when puc.resource_type in ('VOLUME_REPLICATION_RELATIONSHIP', 'SDS_VOLUME_REPLICATION_RELATIONSHIP') then 'Cross Region Replication'
- 	    when puc.resource_type in ('VOLUME') and (puc.destination_region is not NULL and puc.destination_region != '') then 'Backup'
- 		when puc.resource_type in ('VOLUME') then 'Volume'
- 		when puc.resource_type in ('VOLUME_POOL') then 'Pool'
+ 	    when puc.resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') and (puc.destination_region is not NULL and puc.destination_region != '') then 'Backup'
+ 		when puc.resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') then 'Volume'
+ 		when puc.resource_type in ('VOLUME_POOL', 'VOLUME_POOL_REGIONAL_HA') then 'Pool'
  		else puc.resource_type
  	end as Resource_Type,
     case
         when puc.volume_style = 'FLEXVOL' and puc.resource_type = 'VOLUME' then 'RegularVolume'
         when puc.volume_style = 'FLEXGROUP' and puc.resource_type = 'VOLUME' then 'LargeVolume'
         when puc.volume_style = 'FLEXCACHE' and puc.resource_type = 'VOLUME' then 'CacheVolume'
-        when puc.resource_type in ('VOLUME') then 'RegularVolume'
+        when puc.resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') then 'RegularVolume'
         else puc.volume_style
     end as Volume_Type,
      $3 as region,
@@ -253,8 +270,8 @@ continent VARCHAR (255) NOT NULL
  	gc.source_continent as crr_source_continent,
  	gc.destination_continent as crr_dest_continent,
  	puc.total_transfer_bytes_crr as total_bytes_transferred_crr_gib,
- 	max(case when puc.resource_type in ('VOLUME_POOL') then puc.total_allocated_gibh else 0 end) as total_pool_allocated_gibh,
- 	max(case when puc.resource_type in ('VOLUME') then puc.total_avg_gib_used else 0 end) as total_avg_gib_used,
+ 	max(case when puc.resource_type in ('VOLUME_POOL', 'VOLUME_POOL_REGIONAL_HA') then puc.total_allocated_gibh else 0 end) as total_pool_allocated_gibh,
+ 	max(case when puc.resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') then puc.total_avg_gib_used else 0 end) as total_avg_gib_used,
  	puc.backup_total_gibh_used as total_backup_gibh,
  	puc.backup_enabled_volume_allocated_size_total_gibh as total_backup_management_usage_gibh,
  	puc.cross_region_backup_transferred_bytes as total_cross_region_backup_transferred_gib,
