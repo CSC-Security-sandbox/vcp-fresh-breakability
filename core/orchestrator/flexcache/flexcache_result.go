@@ -7,11 +7,25 @@ import (
 )
 
 type CreateFlexCacheResult struct {
-	DBVolume       *datamodel.Volume
-	Node           *models.Node
-	ClusterPeer    *vsa.ClusterPeer
-	SVMPeer        *vsa.SvmPeer
-	VolumeResponse *vsa.VolumeResponse
+	DBVolume        *datamodel.Volume
+	Node            *models.Node
+	ClusterPeer     *vsa.ClusterPeer
+	SVMPeer         *vsa.SvmPeer
+	VolumeResponse  *vsa.VolumeResponse
+	JobInput        *JobActivityInput
+	ActiveJobType   models.JobType
+	ErrorTrackingID int
+	ErrorMessage    string
+}
+
+type JobActivityInput struct {
+	ResourceName  string
+	ResourceUUID  string
+	AccountID     int64
+	CorrelationID string
+	RequestID     string
+	WorkflowID    string
+	Metadata      map[string]interface{}
 }
 
 type DeleteFlexCacheResult struct {

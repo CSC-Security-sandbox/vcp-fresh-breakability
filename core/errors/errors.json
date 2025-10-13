@@ -1511,6 +1511,18 @@
     "retriable": false,
     "http_code": 400
   },
+  "11006": {
+    "description": "Cluster peering job failed",
+    "message": "Cluster peering job failed",
+    "retriable": false,
+    "http_code": 408
+  },
+  "11007": {
+    "description": "Internal peering job failed",
+    "message": "Internal peering job failed",
+    "retriable": false,
+    "http_code": 408
+  },
   "12001": {
     "description": "Immutable backup validation failed due to backup policy update",
     "message": "Error while creating immutable backup when backup policy is in updating state",

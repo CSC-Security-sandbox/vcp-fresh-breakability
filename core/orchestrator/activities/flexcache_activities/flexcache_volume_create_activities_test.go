@@ -9,9 +9,11 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -19,6 +21,37 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
+
+func makeResult(vol *datamodel.Volume, workflowID string) *flexcache.CreateFlexCacheResult {
+	return &flexcache.CreateFlexCacheResult{
+		DBVolume: vol,
+		JobInput: &flexcache.JobActivityInput{
+			ResourceUUID: vol.UUID,
+			ResourceName: vol.Name,
+			WorkflowID:   workflowID,
+			AccountID:    vol.AccountID,
+		},
+	}
+}
+
+func minimalJob(uuid string, state string) *datamodel.Job {
+	return &datamodel.Job{
+		WorkflowID: "wf-id",
+		BaseModel:  datamodel.BaseModel{UUID: uuid},
+		State:      state,
+	}
+}
+
+func allowAnyLogs(logger *log.MockLogger) {
+	logger.On("Debugf", mock.Anything, mock.Anything).Maybe()
+	logger.On("Debugf", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Debugf", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Errorf", mock.Anything, mock.Anything).Maybe()
+	logger.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Warnf", mock.Anything, mock.Anything).Maybe()
+	logger.On("Warnf", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Debug", mock.Anything).Maybe()
+}
 
 func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T) {
 	dbVolume := &datamodel.Volume{
@@ -161,7 +194,7 @@ func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForClusterPeering(t 
 				PeerSvmName:     "peer-svm",
 				PeerVolumeName:  "peer-volume",
 				PeerClusterName: "peer-cluster",
-				CacheState:      models.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED,
+				CacheState:      cvpModels.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED,
 			},
 			VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{}},
 		}
@@ -197,8 +230,8 @@ func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForClusterPeering(t 
 		assert.Equal(tt, externalUUID, *res.DBVolume.ClusterPeerUUID)
 		assert.NotNil(tt, res.DBVolume.CacheParameters.Command)
 		assert.Contains(tt, *res.DBVolume.CacheParameters.Command, "cluster peer create")
-		assert.Equal(tt, models.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING, res.DBVolume.CacheParameters.CacheState)
-		assert.Equal(tt, models.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED, res.DBVolume.CacheParameters.PreviousCacheState)
+		assert.Equal(tt, cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING, res.DBVolume.CacheParameters.CacheState)
+		assert.Equal(tt, cvpModels.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED, res.DBVolume.CacheParameters.PreviousCacheState)
 	})
 
 	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
@@ -435,8 +468,8 @@ func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForSVMPeeringActivit
 			CacheParameters: &datamodel.CacheParameters{
 				PeerSvmName:           "peer-svm",
 				PeerClusterName:       "peer-cluster",
-				CacheState:            models.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING,
-				PreviousCacheState:    models.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED,
+				CacheState:            cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING,
+				PreviousCacheState:    cvpModels.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED,
 				Passphrase:            &pass,
 				Command:               nillable.ToPointer("old command"),
 				CommandExpiryTime:     &expiry,
@@ -469,8 +502,8 @@ func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForSVMPeeringActivit
 		assert.Nil(tt, updated.DBVolume.CacheParameters.CommandExpiryTime)
 		assert.NotNil(tt, updated.DBVolume.CacheParameters.Command)
 		assert.Equal(tt, "vserver peer accept -vserver peer-svm -peer-vserver local-svm", *updated.DBVolume.CacheParameters.Command)
-		assert.Equal(tt, models.FlexCacheV1betaCacheStatePENDINGSVMPEERING, updated.DBVolume.CacheParameters.CacheState)
-		assert.Equal(tt, models.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING, updated.DBVolume.CacheParameters.PreviousCacheState)
+		assert.Equal(tt, cvpModels.FlexCacheV1betaCacheStatePENDINGSVMPEERING, updated.DBVolume.CacheParameters.CacheState)
+		assert.Equal(tt, cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING, updated.DBVolume.CacheParameters.PreviousCacheState)
 		assert.Equal(tt, coremodels.WaitingForSVMPeeringCode, updated.DBVolume.CacheParameters.CacheStateDetailsCode)
 		assert.Equal(tt, coremodels.WaitingForSVMPeering, updated.DBVolume.CacheParameters.CacheStateDetails)
 		mockStorage.AssertExpectations(tt)
@@ -711,4 +744,490 @@ func TestFlexCacheVolumeCreateActivity_UpdateVolumeDetailsOnErrorActivity(t *tes
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
+}
+
+func TestCompleteFlexCacheCreateJobActivity(t *testing.T) {
+	ctx := context.Background()
+	act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(t)}
+
+	t.Run("MissingWorkflowID", func(tt *testing.T) {
+		ctx := context.Background()
+
+		job, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
+			JobInput: &flexcache.JobActivityInput{
+				WorkflowID:   "",
+				ResourceName: "test-vol",
+			},
+		})
+
+		assert.Nil(tt, job)
+		assert.Error(tt, err)
+	})
+	t.Run("GetJobError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act.SE = mockStorage
+		mockStorage.On("GetJob", ctx, "wf-err").Return(nil, assert.AnError).Once()
+		job, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
+			JobInput: &flexcache.JobActivityInput{
+				WorkflowID:   "wf-err",
+				ResourceName: "wf-err",
+			},
+		})
+		assert.Nil(tt, job)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("JobNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act.SE = mockStorage
+		mockStorage.On("GetJob", ctx, "wf-missing").Return(nil, nil).Once()
+		job, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
+			JobInput: &flexcache.JobActivityInput{
+				WorkflowID:   "wf-missing",
+				ResourceName: "wf-missing",
+			},
+		})
+		assert.Nil(tt, job)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AlreadyDone", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act.SE = mockStorage
+		j := minimalJob("job-done", string(models.JobsStateDONE))
+		mockStorage.On("GetJob", ctx, "wf-done").Return(j, nil).Once()
+		result, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
+			JobInput: &flexcache.JobActivityInput{
+				WorkflowID:   "wf-done",
+				ResourceName: "wf-done",
+			},
+		})
+		assert.NoError(tt, err)
+		assert.Empty(tt, result.ErrorMessage)
+		assert.Equal(tt, 0, result.ErrorTrackingID)
+	})
+
+	t.Run("AlreadyError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act.SE = mockStorage
+		j := minimalJob("job-err", string(models.JobsStateERROR))
+		mockStorage.On("GetJob", ctx, "wf-err2").Return(j, nil).Once()
+		result, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
+			JobInput: &flexcache.JobActivityInput{
+				WorkflowID:   "wf-err2",
+				ResourceName: "wf-err2",
+			},
+		})
+		assert.NoError(tt, err)
+		assert.Empty(tt, result.ErrorMessage)
+		assert.Equal(tt, 0, result.ErrorTrackingID)
+	})
+
+	t.Run("CompleteProcessing", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act.SE = mockStorage
+		j := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-proc"},
+			State:        string(models.JobsStatePROCESSING),
+			WorkflowID:   "wf-proc",
+			TrackingID:   11,
+			ErrorDetails: "ed",
+		}
+		mockStorage.On("GetJob", ctx, "wf-proc").Return(j, nil).Once()
+		mockStorage.On("UpdateJob", ctx, j.UUID, string(models.JobsStateDONE), j.TrackingID, j.ErrorDetails).Return(nil).Once()
+		result, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
+			JobInput: &flexcache.JobActivityInput{
+				WorkflowID:   "wf-proc",
+				ResourceName: "wf-proc",
+			},
+		})
+		assert.NoError(tt, err)
+		assert.Empty(tt, result.ErrorMessage)
+		assert.Equal(tt, 0, result.ErrorTrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestCreatePeeringJobActivity(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "res-peering"},
+		Name:      "res-peering",
+		AccountID: 0,
+	}
+	result := makeResult(vol, "wf-peering")
+
+	t.Run("ExistingProcessingReturns", func(tt *testing.T) {
+		existing := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "j1"}, State: string(models.JobsStatePROCESSING), Type: string(models.JobTypeFlexCacheEstablishPeering)}
+		mockStorage.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, existing.Type).Return(existing, nil).Once()
+		res, err := act.CreatePeeringJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Empty(tt, res.ErrorMessage)
+		assert.Equal(tt, 0, res.ErrorTrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ExistingDoneReturns", func(tt *testing.T) {
+		existing := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "j2"}, State: string(models.JobsStateDONE), Type: string(models.JobTypeFlexCacheEstablishPeering)}
+		mockStorage.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, existing.Type).Return(existing, nil).Once()
+		res, err := act.CreatePeeringJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Empty(tt, res.ErrorMessage)
+		assert.Equal(tt, 0, res.ErrorTrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateNewSuccess", func(tt *testing.T) {
+		mockStorage.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, string(models.JobTypeFlexCacheEstablishPeering)).Return(nil, errors.New("nf")).Once()
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(j *datamodel.Job) bool {
+			return j.Type == string(models.JobTypeFlexCacheEstablishPeering) && j.State == string(models.JobsStatePROCESSING)
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "created"}, Type: string(models.JobTypeFlexCacheEstablishPeering), State: string(models.JobsStatePROCESSING)}, nil).Once()
+
+		res, err := act.CreatePeeringJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Empty(tt, res.ErrorMessage)
+		assert.Equal(tt, 0, res.ErrorTrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateFails", func(tt *testing.T) {
+		mockStorage.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, string(models.JobTypeFlexCacheEstablishPeering)).Return(nil, errors.New("nf2")).Once()
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, assert.AnError).Once()
+		job, err := act.CreatePeeringJobActivity(ctx, result)
+		assert.Nil(tt, job)
+		assert.Error(tt, err)
+	})
+}
+
+func TestCompletePeeringJobActivity(t *testing.T) {
+	t.Run("CompletesProcessingJob", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "res-uuid"},
+			CacheParameters: &datamodel.CacheParameters{
+				CacheState: cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING,
+			},
+		}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume: vol,
+			JobInput: &flexcache.JobActivityInput{
+				ResourceUUID: vol.UUID,
+			},
+		}
+
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "jp2"},
+			Type:         string(coremodels.JobTypeFlexCacheEstablishPeering),
+			State:        string(coremodels.JobsStatePROCESSING),
+			TrackingID:   0,
+			ErrorDetails: "",
+		}
+
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, job.Type).Return(job, nil).Once()
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(coremodels.JobsStateDONE), job.TrackingID, job.ErrorDetails).Return(nil).Once()
+
+		err := act.CompletePeeringJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(coremodels.JobsStateDONE), job.State)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestStartInternalJobActivity(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "res-internal"},
+		Svm:       &datamodel.Svm{Name: "svm-name"},
+		Account:   &datamodel.Account{Name: "account-name"},
+		CacheParameters: &datamodel.CacheParameters{
+			PeerSvmName:     "peer-svm",
+			PeerVolumeName:  "peer-volume",
+			PeerClusterName: "peer-cluster",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{},
+		},
+	}
+	result := makeResult(vol, "wf-peering")
+
+	t.Run("ExistingProcessingReturns", func(tt *testing.T) {
+		existing := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "i1"}, State: string(models.JobsStatePROCESSING), Type: string(models.JobTypeFlexCacheInternalPeering)}
+		mockStorage.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, existing.Type).Return(existing, nil).Once()
+		res, err := act.StartInternalJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Empty(tt, res.ErrorMessage)
+		assert.Equal(tt, 0, res.ErrorTrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateInternalSuccess", func(tt *testing.T) {
+		mockStorage.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, string(models.JobTypeFlexCacheInternalPeering)).Return(nil, errors.New("nf")).Once()
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(j *datamodel.Job) bool {
+			return j.Type == string(models.JobTypeFlexCacheInternalPeering) && j.IsAdminJob
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "int-created"}, Type: string(models.JobTypeFlexCacheInternalPeering), State: string(models.JobsStatePROCESSING)}, nil).Once()
+		res, err := act.StartInternalJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Empty(tt, res.ErrorMessage)
+		assert.Equal(tt, 0, res.ErrorTrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestCompleteInternalJobActivity(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "res-internal"},
+		Svm:       &datamodel.Svm{Name: "svm-name"},
+		Account:   &datamodel.Account{Name: "account-name"},
+		CacheParameters: &datamodel.CacheParameters{
+			PeerSvmName:     "peer-svm",
+			PeerVolumeName:  "peer-volume",
+			PeerClusterName: "peer-cluster",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{},
+		},
+	}
+	result := makeResult(vol, "wf-peering")
+	jobType := string(models.JobTypeFlexCacheInternalPeering)
+
+	t.Run("NotPeeredKeepsProcessing", func(tt *testing.T) {
+		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "ic1"}, Type: jobType, State: string(models.JobsStatePROCESSING)}
+		err := act.CompleteInternalJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStatePROCESSING), job.State)
+	})
+
+	t.Run("PeeredCompletes", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "res-internal"},
+			Name:      "res-internal",
+			CacheParameters: &datamodel.CacheParameters{
+				CacheState: cvpModels.FlexCacheV1betaCacheStatePEERED,
+			},
+		}
+		result := makeResult(vol, "wf-internal")
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "ic2"},
+			Type:         string(coremodels.JobTypeFlexCacheInternalPeering),
+			State:        string(coremodels.JobsStatePROCESSING),
+			TrackingID:   0,
+			ErrorDetails: "",
+		}
+		mockStorage.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, job.Type).Return(job, nil).Once()
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(coremodels.JobsStateDONE), job.TrackingID, job.ErrorDetails).Return(nil).Once()
+
+		err := act.CompleteInternalJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(coremodels.JobsStateDONE), job.State)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestFailJobActivity(t *testing.T) {
+	t.Run("GetJobError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		resUUID := "res-fail"
+		jobType := string(coremodels.JobTypeFlexCacheEstablishPeering)
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: resUUID}},
+			ActiveJobType: coremodels.JobTypeFlexCacheEstablishPeering,
+		}
+		mockStorage.On("GetJobByResourceUUID", ctx, resUUID, jobType).Return(nil, assert.AnError).Once()
+
+		err := act.FailJobActivity(ctx, result)
+		assert.Error(tt, err)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("JobNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+		resUUID := "res-fail"
+		jobType := string(models.JobTypeFlexCacheEstablishPeering)
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: resUUID}},
+			ActiveJobType: models.JobTypeFlexCacheEstablishPeering,
+		}
+
+		mockStorage.On("GetJobByResourceUUID", ctx, resUUID, jobType).Return(nil, nil).Once()
+
+		err := act.FailJobActivity(ctx, result)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AlreadyDoneNoOp", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+		resUUID := "res-fail"
+		jobType := string(models.JobTypeFlexCacheEstablishPeering)
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: resUUID}},
+			ActiveJobType: models.JobTypeFlexCacheEstablishPeering,
+		}
+
+		j := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "f1"}, Type: jobType, State: string(models.JobsStateDONE)}
+		mockStorage.On("GetJobByResourceUUID", ctx, resUUID, jobType).Return(j, nil).Once()
+
+		err := act.FailJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AlreadyErrorNoOp", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+		resUUID := "res-fail"
+		jobType := string(models.JobTypeFlexCacheEstablishPeering)
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: resUUID}},
+			ActiveJobType: models.JobTypeFlexCacheEstablishPeering,
+		}
+
+		j := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "f2"}, Type: jobType, State: string(models.JobsStateERROR)}
+		mockStorage.On("GetJobByResourceUUID", ctx, resUUID, jobType).Return(j, nil).Once()
+
+		err := act.FailJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("FailProcessingExplicit", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+		resUUID := "res-fail"
+		jobType := string(models.JobTypeFlexCacheEstablishPeering)
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:        &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: resUUID}},
+			ActiveJobType:   models.JobTypeFlexCacheEstablishPeering,
+			ErrorTrackingID: 999,
+			ErrorMessage:    "boom",
+		}
+
+		j := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "f3"}, Type: jobType, State: string(models.JobsStatePROCESSING)}
+		mockStorage.On("GetJobByResourceUUID", ctx, resUUID, jobType).Return(j, nil).Once()
+		mockStorage.On("UpdateJob", ctx, j.UUID, string(models.JobsStateERROR), 999, "boom").Return(nil).Once()
+
+		err := act.FailJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("FailProcessingImplicitDefaults", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+		resUUID := "res-fail"
+		jobType := string(models.JobTypeFlexCacheEstablishPeering)
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: resUUID}},
+			ActiveJobType: models.JobTypeFlexCacheEstablishPeering,
+		}
+
+		j := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "f4"},
+			Type:         jobType,
+			State:        string(models.JobsStatePROCESSING),
+			TrackingID:   77,
+			ErrorDetails: "prev",
+		}
+		mockStorage.On("GetJobByResourceUUID", ctx, resUUID, jobType).Return(j, nil).Once()
+		mockStorage.On("UpdateJob", ctx, j.UUID, string(models.JobsStateERROR), j.TrackingID, j.ErrorDetails).Return(nil).Once()
+
+		err := act.FailJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestCompleteJobInternalPaths(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+	t.Run("InvalidOptions", func(tt *testing.T) {
+		_, err := act.completeJob(ctx, completeJobOpts{
+			GetErrCode: vsaerrors.ErrInternalPeeringJobFailed,
+		})
+		assert.Error(tt, err)
+	})
+
+	t.Run("UpdateFails", func(tt *testing.T) {
+		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "cj2"}, Type: string(models.JobTypeFlexCacheInternalPeering), State: string(models.JobsStatePROCESSING)}
+		mockStorage.On("GetJobByResourceUUID", ctx, "res-y", job.Type).Return(job, nil).Once()
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateDONE), job.TrackingID, job.ErrorDetails).Return(assert.AnError).Once()
+		res, err := act.completeJob(ctx, completeJobOpts{
+			ResourceUUID:  "res-y",
+			JobType:       job.Type,
+			GetErrCode:    vsaerrors.ErrInternalPeeringJobFailed,
+			UpdateErrCode: vsaerrors.ErrInternalPeeringJobFailed,
+		})
+		assert.Nil(tt, res)
+		assert.Error(tt, err)
+	})
+}
+
+func TestMapJobTypeToError(t *testing.T) {
+	assert.Equal(t, vsaerrors.ErrEstablishPeeringJobFailed, mapJobTypeToError(string(models.JobTypeFlexCacheEstablishPeering)))
+	assert.Equal(t, vsaerrors.ErrInternalPeeringJobFailed, mapJobTypeToError(string(models.JobTypeFlexCacheInternalPeering)))
+	assert.Equal(t, vsaerrors.ErrCreatingFlexCacheVolume, mapJobTypeToError(string(models.JobTypeFlexCacheCreateVolume)))
+	assert.Equal(t, vsaerrors.ErrInternalPeeringJobFailed, mapJobTypeToError("unknown"))
+}
+
+func TestLoggingPatchedForJobActivities(t *testing.T) {
+	// Smoke test ensuring logger patch infra does not panic
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "res-peering"},
+		Svm:       &datamodel.Svm{Name: "svm-name"},
+		Account:   &datamodel.Account{Name: "account-name"},
+		CacheParameters: &datamodel.CacheParameters{
+			PeerSvmName:     "peer-svm",
+			PeerVolumeName:  "peer-volume",
+			PeerClusterName: "peer-cluster",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{},
+		},
+	}
+	result := makeResult(vol, "wf-id")
+
+	mm := newMonkeyMockAndPatch(t)
+	logger := log.NewMockLogger(t)
+	mm.EXPECT().utilGetLogger(ctx).Return(logger)
+	allowAnyLogs(logger)
+
+	mockStorage.On("GetJob", ctx, "wf-id").Return(minimalJob("u1", string(models.JobsStateDONE)), nil).Once()
+	_, _ = act.CompleteFlexCacheCreateJobActivity(ctx, result)
 }

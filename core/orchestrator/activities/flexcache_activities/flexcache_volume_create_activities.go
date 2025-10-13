@@ -2,13 +2,15 @@ package flexcache_activities
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/go-openapi/strfmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -27,6 +29,14 @@ var (
 	utilGetLogger                = util.GetLogger
 	hyperscalerGetProviderByNode = hyperscaler.GetProviderByNode
 )
+
+type completeJobOpts struct {
+	WorkflowID    string
+	ResourceUUID  string
+	JobType       string
+	GetErrCode    int
+	UpdateErrCode int
+}
 
 // CreateFlexCacheVolumeInOntapActivity creates a FlexCache volume in ONTAP
 func (a FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
@@ -124,7 +134,7 @@ func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForClusterPeeringAct
 	volume.CacheParameters.Command = &peerCommand
 	volume.CacheParameters.CacheStateDetailsCode = coremodels.WaitingForClusterPeeringCode
 	volume.CacheParameters.CacheStateDetails = coremodels.WaitingForClusterPeering
-	a.setCacheStates(result, models.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING)
+	a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING)
 
 	updates := map[string]interface{}{
 		"cache_parameters":  volume.CacheParameters,
@@ -198,7 +208,7 @@ func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForSVMPeeringActivit
 	cacheParams.Command = &peerCommand
 	cacheParams.CacheStateDetailsCode = coremodels.WaitingForSVMPeeringCode
 	cacheParams.CacheStateDetails = coremodels.WaitingForSVMPeering
-	a.setCacheStates(result, models.FlexCacheV1betaCacheStatePENDINGSVMPEERING)
+	a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePENDINGSVMPEERING)
 
 	updates := map[string]interface{}{
 		"cache_parameters": volume.CacheParameters,
@@ -242,7 +252,7 @@ func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeDetailsActivity(ctx 
 	volume.CacheParameters.CommandExpiryTime = nil
 	volume.CacheParameters.Passphrase = nil
 	volume.VolumeAttributes.ExternalUUID = result.VolumeResponse.ExternalUUID
-	a.setCacheStates(result, models.FlexCacheV1betaCacheStatePEERED)
+	a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePEERED)
 
 	updates := map[string]interface{}{
 		"cache_parameters":  volume.CacheParameters,
@@ -296,4 +306,271 @@ func (a FlexCacheVolumeCreateActivity) shouldSetErrorState(result *flexcache.Cre
 	}
 
 	return true
+}
+
+// CompleteFlexCacheCreateJobActivity finds and completes an existing FlexCache create job if it exists.
+func (a FlexCacheVolumeCreateActivity) CompleteFlexCacheCreateJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	input := result.JobInput
+	logger.Debugf("Completing existing FlexCache create job for resource: %s (%s)", input.ResourceName, input.WorkflowID)
+
+	if input.WorkflowID == "" {
+		logger.Errorf("no existing FlexCache create job found for resource %s: missing workflowID", input.ResourceName)
+		return nil, vsaerrors.NewVCPError(
+			vsaerrors.ErrCreatingFlexCacheVolume,
+			fmt.Errorf("no existing FlexCache create job found for resource %s", input.ResourceName),
+		)
+	}
+
+	_, err := a.completeJob(ctx, completeJobOpts{
+		WorkflowID:    input.WorkflowID,
+		GetErrCode:    vsaerrors.ErrCreatingFlexCacheVolume,
+		UpdateErrCode: vsaerrors.ErrCreatingFlexCacheVolume,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// CreatePeeringJobActivity creates a job for peering establishment.
+// It starts immediately and remains PROCESSING until the system reaches PENDING_CLUSTER_PEERING.
+func (a FlexCacheVolumeCreateActivity) CreatePeeringJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	input := result.JobInput
+	logger.Debugf("Creating establish peering job for resource: %s (%s)", input.ResourceName, input.ResourceUUID)
+
+	if existing, err := a.SE.GetJobByResourceUUID(ctx, input.ResourceUUID, string(coremodels.JobTypeFlexCacheEstablishPeering)); err == nil && existing != nil {
+		if existing.State == string(coremodels.JobsStatePROCESSING) ||
+			existing.State == string(coremodels.JobsStateDONE) ||
+			existing.State == string(coremodels.JobsStateERROR) {
+			logger.Debugf("Peering job already exists for %s (state=%s)", input.ResourceUUID, existing.State)
+			return result, nil
+		}
+	}
+
+	job := &datamodel.Job{
+		Type:          string(coremodels.JobTypeFlexCacheEstablishPeering),
+		State:         string(coremodels.JobsStatePROCESSING),
+		ResourceName:  input.ResourceName,
+		AccountID:     sql.NullInt64{Int64: input.AccountID, Valid: true},
+		CorrelationID: input.CorrelationID,
+		RequestID:     input.RequestID,
+		WorkflowID:    input.WorkflowID,
+		ScheduledAt:   time.Now(),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: input.ResourceUUID,
+		},
+	}
+
+	createdJob, err := a.SE.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create peering job: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrEstablishPeeringJobFailed, err)
+	}
+
+	logger.Debugf("Created peering job: %s", createdJob.UUID)
+	return result, nil
+}
+
+// CompletePeeringJobActivity completes the peering job when we reach PENDING_CLUSTER_PEERING.
+func (a FlexCacheVolumeCreateActivity) CompletePeeringJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
+	logger := utilGetLogger(ctx)
+	resourceUUID := result.DBVolume.UUID
+	observedCacheState := result.DBVolume.CacheParameters.CacheState
+	target := cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING
+
+	if observedCacheState != target {
+		logger.Debugf("Peering job for %s remains PROCESSING; waiting for state=%s (observed=%s)",
+			resourceUUID, target, observedCacheState)
+		return nil
+	}
+
+	_, err := a.completeJob(ctx, completeJobOpts{
+		ResourceUUID:  resourceUUID,
+		JobType:       string(coremodels.JobTypeFlexCacheEstablishPeering),
+		GetErrCode:    vsaerrors.ErrDescribingJobNotFound,
+		UpdateErrCode: vsaerrors.ErrEstablishPeeringJobFailed,
+	})
+	return err
+}
+
+// StartInternalJobActivity creates and starts the internal monitoring job
+func (a FlexCacheVolumeCreateActivity) StartInternalJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	input := result.JobInput
+	logger.Debugf("Starting internal job for resource: %s (%s)", input.ResourceName, input.ResourceUUID)
+
+	if existing, err := a.SE.GetJobByResourceUUID(ctx, input.ResourceUUID, string(coremodels.JobTypeFlexCacheInternalPeering)); err == nil && existing != nil {
+		if existing.State == string(coremodels.JobsStatePROCESSING) ||
+			existing.State == string(coremodels.JobsStateDONE) ||
+			existing.State == string(coremodels.JobsStateERROR) {
+			logger.Debugf("Internal job already exists for %s (state=%s)", input.ResourceUUID, existing.State)
+			return result, nil
+		}
+	}
+
+	job := &datamodel.Job{
+		Type:          string(coremodels.JobTypeFlexCacheInternalPeering),
+		State:         string(coremodels.JobsStatePROCESSING),
+		ResourceName:  input.ResourceName,
+		AccountID:     sql.NullInt64{Int64: input.AccountID, Valid: true},
+		CorrelationID: input.CorrelationID,
+		RequestID:     input.RequestID,
+		WorkflowID:    input.WorkflowID,
+		ScheduledAt:   time.Now(),
+		IsAdminJob:    true,
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: input.ResourceUUID,
+		},
+	}
+
+	createdJob, err := a.SE.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create internal job: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalPeeringJobFailed, err)
+	}
+
+	logger.Debugf("Started internal job: %s", createdJob.UUID)
+	return result, nil
+}
+
+// CompleteInternalJobActivity completes the internal job once volume creation succeeds.
+func (a FlexCacheVolumeCreateActivity) CompleteInternalJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
+	logger := utilGetLogger(ctx)
+	resourceUUID := result.DBVolume.UUID
+	observedCacheState := result.DBVolume.CacheParameters.CacheState
+	target := cvpModels.FlexCacheV1betaCacheStatePEERED
+
+	if observedCacheState != target {
+		logger.Debugf("Peering job for %s remains PROCESSING; waiting for state=%s (observed=%s)",
+			resourceUUID, target, observedCacheState)
+		return nil
+	}
+
+	_, err := a.completeJob(ctx, completeJobOpts{
+		ResourceUUID:  resourceUUID,
+		JobType:       string(coremodels.JobTypeFlexCacheInternalPeering),
+		GetErrCode:    vsaerrors.ErrDescribingJobNotFound,
+		UpdateErrCode: vsaerrors.ErrInternalPeeringJobFailed,
+	})
+	return err
+}
+
+// FailJobActivity marks the specified job as ERROR.
+func (a FlexCacheVolumeCreateActivity) FailJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
+	logger := utilGetLogger(ctx)
+
+	resourceUUID := result.DBVolume.UUID
+	jobType := string(result.ActiveJobType)
+	trackingID := result.ErrorTrackingID
+	errorDetails := result.ErrorMessage
+
+	logger.Warnf("Failing job for resource=%s type=%s", resourceUUID, jobType)
+
+	job, err := a.SE.GetJobByResourceUUID(ctx, resourceUUID, jobType)
+	if err != nil {
+		logger.Errorf("FailJobActivity: unable to get job for resource=%s type=%s: %v", resourceUUID, jobType, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDescribingJobNotFound, err)
+	}
+	if job == nil {
+		logger.Errorf("FailJobActivity: job not found for resource=%s type=%s", resourceUUID, jobType)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDescribingJobNotFound,
+			fmt.Errorf("job not found for resource=%s type=%s", resourceUUID, jobType))
+	}
+
+	switch job.State {
+	case string(coremodels.JobsStateDONE):
+		logger.Debugf("FailJobActivity: job %s is already DONE; not failing", job.UUID)
+		return nil
+	case string(coremodels.JobsStateERROR):
+		logger.Debugf("FailJobActivity: job %s already in ERROR; no-op", job.UUID)
+		return nil
+	}
+
+	// Default to existing values if none provided, to avoid blanking info.
+	if trackingID == 0 {
+		trackingID = job.TrackingID
+	}
+	if errorDetails == "" {
+		if job.ErrorDetails != "" {
+			errorDetails = job.ErrorDetails
+		} else {
+			errorDetails = "unspecified error"
+		}
+	}
+
+	if err := a.SE.UpdateJob(ctx, job.UUID, string(coremodels.JobsStateERROR), trackingID, errorDetails); err != nil {
+		logger.Errorf("FailJobActivity: failed to update job %s to ERROR: %v", job.UUID, err)
+		return vsaerrors.NewVCPError(mapJobTypeToError(jobType), err)
+	}
+
+	logger.Warnf("FailJobActivity: job %s marked ERROR (type=%s; trackingID=%d)", job.UUID, jobType, trackingID)
+	return nil
+}
+
+// completeJob is an internal helper to complete a job based on various criteria.
+func (a FlexCacheVolumeCreateActivity) completeJob(ctx context.Context, opts completeJobOpts) (*datamodel.Job, error) {
+	logger := utilGetLogger(ctx)
+
+	var (
+		job *datamodel.Job
+		err error
+	)
+
+	// Fetch the job by workflowID or resourceUUID+jobType
+	switch {
+	case opts.WorkflowID != "":
+		job, err = a.SE.GetJob(ctx, opts.WorkflowID)
+	case opts.ResourceUUID != "" && opts.JobType != "":
+		job, err = a.SE.GetJobByResourceUUID(ctx, opts.ResourceUUID, opts.JobType)
+	default:
+		logger.Errorf("invalid completeJob options: missing job identifiers")
+		return nil, vsaerrors.NewVCPError(opts.GetErrCode, fmt.Errorf("invalid completeJob options: missing identifiers"))
+	}
+
+	if err != nil {
+		logger.Errorf("failed to get job: %v", err)
+		return nil, vsaerrors.NewVCPError(opts.GetErrCode, err)
+	}
+	if job == nil {
+		logger.Errorf("job not found")
+		return nil, vsaerrors.NewVCPError(opts.GetErrCode, fmt.Errorf("job not found"))
+	}
+
+	// Idempotent short-circuit
+	switch job.State {
+	case string(coremodels.JobsStateDONE):
+		logger.Debugf("job already completed: %s", job.UUID)
+		return job, nil
+	case string(coremodels.JobsStateERROR):
+		logger.Debugf("job is in error state: %s", job.UUID)
+		return job, nil
+	}
+
+	// Mark as DONE
+	if err := a.SE.UpdateJob(ctx, job.UUID, string(coremodels.JobsStateDONE), job.TrackingID, job.ErrorDetails); err != nil {
+		logger.Errorf("failed to mark job %s as completed: %v", job.UUID, err)
+		return nil, vsaerrors.NewVCPError(opts.UpdateErrCode, err)
+	}
+	job.State = string(coremodels.JobsStateDONE)
+	logger.Debugf("marked job as completed: %s", job.UUID)
+
+	return job, nil
+}
+
+// mapJobTypeToError maps job types to the closest VCP error code for reporting.
+func mapJobTypeToError(jobType string) int {
+	switch jobType {
+	case string(coremodels.JobTypeFlexCacheEstablishPeering):
+		return vsaerrors.ErrEstablishPeeringJobFailed
+	case string(coremodels.JobTypeFlexCacheInternalPeering):
+		return vsaerrors.ErrInternalPeeringJobFailed
+	case string(coremodels.JobTypeFlexCacheCreateVolume):
+		return vsaerrors.ErrCreatingFlexCacheVolume
+	default:
+		// Fallback to a generic error code
+		return vsaerrors.ErrInternalPeeringJobFailed
+	}
 }

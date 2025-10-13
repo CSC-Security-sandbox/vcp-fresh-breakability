@@ -2,6 +2,7 @@ package flexcache_workflows
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -43,37 +44,45 @@ type flexCacheCreateWorkflow struct {
 var _ workflows.WorkflowInterface = &flexCacheCreateWorkflow{}
 
 // CreateFlexCacheWorkflow Volume Workflow process volume related requests from a customer.
-func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume) error {
+func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume) (retErr error) {
 	log := util.GetLogger(ctx)
 	flexCacheWf := new(flexCacheCreateWorkflow)
-	err := flexCacheWf.Setup(ctx, params)
-	if err != nil {
+	// Guard to detect whether we entered Run.
+	enteredRun := false
+
+	// Defer to catch panics and pre-Run failures, so we don’t leave the job stuck in PROCESSING.
+	defer func() {
+		if r := recover(); r != nil {
+			// Panic before Run or during Run. If it was during Run,
+			// Run’s own defer should handle job failure; we only handle pre-Run here.
+			log.Errorf("panic in CreateFlexCacheWorkflow: %v", r)
+			if !enteredRun {
+				_ = flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), fmt.Errorf("panic: %v", r))
+			}
+			retErr = fmt.Errorf("panic: %v", r)
+		}
+	}()
+
+	if err := flexCacheWf.Setup(ctx, params); err != nil {
 		log.Errorf("Failed to setup CreateFlexCacheWorkflow: %v", err)
 		return err
 	}
 	flexCacheWf.Status = workflows.WorkflowStatusRunning
-	err = flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
-	if err != nil {
+	if err := flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil); err != nil {
 		log.Errorf("Failed to update job status to Processing for CreateFlexCacheWorkflow: %v", err)
 		return err
 	}
+
+	// Hand-off job failure to Run’s defer.
+	enteredRun = true
 	_, customErr := flexCacheWf.Run(ctx, volume, params)
 	if customErr != nil {
 		log.Errorf("CreateFlexCacheWorkflow completed with error: %v", customErr)
 		flexCacheWf.Status = workflows.WorkflowStatusFailed
-		err2 := flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
-		if err2 != nil {
-			log.Errorf("Failed to update job status to Done with error for CreateFlexCacheWorkflow: %v", err2)
-			return err2
-		}
 		return customErr
 	}
 	flexCacheWf.Status = workflows.WorkflowStatusCompleted
-	err = flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-	if err != nil {
-		log.Errorf("Failed to update job status to Done for CreateFlexCacheWorkflow: %v", err)
-	}
-	return err
+	return nil
 }
 
 func (wf *flexCacheCreateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -113,72 +122,148 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	wfInfo := workflow.GetInfo(ctx)
 	flexcacheResult := flexcache.CreateFlexCacheResult{
-		DBVolume: dbVolume,
+		DBVolume:      dbVolume,
+		ActiveJobType: models.JobTypeFlexCacheCreateVolume,
+		JobInput: &flexcache.JobActivityInput{
+			ResourceName: dbVolume.Name,
+			ResourceUUID: dbVolume.UUID,
+			AccountID:    dbVolume.AccountID,
+			WorkflowID:   wfInfo.WorkflowExecution.ID,
+			Metadata: map[string]interface{}{
+				"poolID": dbVolume.Pool.ID,
+			},
+		},
 	}
 
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			updateStateDetailsAndCode(&flexcacheResult, workflows.ConvertToVSAError(err))
-			err2 := workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateVolumeDetailsOnErrorActivity, &flexcacheResult).Get(ctx, nil)
-			if err2 != nil {
+			vsaErr := workflows.ConvertToVSAError(err)
+			updateStateDetailsAndCode(&flexcacheResult, vsaErr)
+			if err2 := workflow.ExecuteActivity(
+				ctx,
+				flexCacheVolumeCreateActivity.UpdateVolumeDetailsOnErrorActivity,
+				&flexcacheResult,
+			).Get(ctx, nil); err2 != nil {
 				log.Errorf("Failed to update cache parameters in DB: %v", err2)
 			}
+
+			if flexcacheResult.ActiveJobType != "" {
+				flexcacheResult.ErrorTrackingID = vsaErr.TrackingID
+				flexcacheResult.ErrorMessage = vsaErr.Error()
+				_ = workflow.ExecuteActivity(
+					ctx,
+					flexCacheVolumeCreateActivity.FailJobActivity,
+					&flexcacheResult,
+				).Get(ctx, nil)
+			}
+
+			// Execute rollback in disconnected context
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}
 	}()
 
+	// Active job helpers
+	setActiveJob := func(jobType models.JobType) {
+		flexcacheResult.ActiveJobType = jobType
+	}
+
+	clearActiveJob := func() {
+		flexcacheResult.ActiveJobType = ""
+	}
+
+	// CCFE compatibility: Handle create job
+	if err = workflow.ExecuteActivity(
+		ctx,
+		flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity,
+		&flexcacheResult,
+	).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	clearActiveJob()
+
+	// CCFE compatibility: Establish Peering job
+	if err = workflow.ExecuteActivity(
+		ctx,
+		flexCacheVolumeCreateActivity.CreatePeeringJobActivity,
+		&flexcacheResult,
+	).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	setActiveJob(coremodels.JobTypeFlexCacheEstablishPeering)
+
+	// Fetch nodes needed for FlexCache creation
 	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	flexcacheResult.Node = hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
+	flexcacheResult.Node = hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:          dbNodes,
+		Password:       dbVolume.Pool.PoolCredentials.Password,
+		SecretID:       dbVolume.Pool.PoolCredentials.SecretID,
+		DeploymentName: dbVolume.Pool.DeploymentName,
+		CertificateID:  dbVolume.Pool.PoolCredentials.CertificateID,
+		AuthType:       dbVolume.Pool.PoolCredentials.AuthType,
+	})
 
-	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+
+	// CCFE compatibility: Complete peering job
+	if err = workflow.ExecuteActivity(
+		ctx,
+		flexCacheVolumeCreateActivity.CompletePeeringJobActivity,
+		&flexcacheResult,
+	).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	clearActiveJob()
+
+	// CCFE compatibility: Internal job
+	if err = workflow.ExecuteActivity(
+		ctx,
+		flexCacheVolumeCreateActivity.StartInternalJobActivity,
+		&flexcacheResult,
+	).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	setActiveJob(models.JobTypeFlexCacheInternalPeering)
 
 	clusterPeerWaitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
-	err = workflow.ExecuteActivity(clusterPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(clusterPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		if temporal.IsTimeoutError(err) {
 			err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerTimeout, err))
 		}
-
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateSVMPeeringInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateSVMPeeringInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	svmPeerWaitCtx := getWaitContext(ctx, nil)
-	err = workflow.ExecuteActivity(svmPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(svmPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		if temporal.IsTimeoutError(err) {
 			err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSVMPeerTimeout, err))
 		}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
@@ -186,10 +271,19 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeDetailsActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeDetailsActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+
+	// CCFE compatibility: Complete internal job
+	if err = workflow.ExecuteActivity(
+		ctx,
+		flexCacheVolumeCreateActivity.CompleteInternalJobActivity,
+		&flexcacheResult,
+	).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	clearActiveJob()
 
 	return nil, nil
 }
