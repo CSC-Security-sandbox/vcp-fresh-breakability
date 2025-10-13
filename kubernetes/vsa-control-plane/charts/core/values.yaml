@@ -160,6 +160,7 @@ vsaManagedZone: "us-e4-vsa"
 vsaSecretCacheCleanupIntervalHours: "24"
 vsaSecretAuthCacheExpirationHours: 24
 privateKeyBits: 4096
+secretManagerProjectId: ""
 
 images:
   core:

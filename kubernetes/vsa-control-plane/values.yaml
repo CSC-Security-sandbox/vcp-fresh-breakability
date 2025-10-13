@@ -14,6 +14,20 @@ global:
   environment: gcp
   hyperscaler: gcp
   workloadIdentityEnabled: false
+  enableBackgroundTask: true
+  requiredTakeoverReasons:
+    - "reason1"
+  jobPollingMaxDuration: 25 # seconds
+  jobPollingInterval: 3 # seconds
+  caName: "caName"
+  caPoolName: "caPoolName"
+  caPoolDeployedProjectId: "caPoolDeployedProjectId"
+  vsaDeployedDnsName: "vsaDeployedDnsName"
+  vsaManagedZone: "vsaManagedZone"
+  vsaSecretCacheCleanupIntervalHours: 24
+  vsaSecretAuthCacheExpirationHours: 24
+  privateKeyBits: 4099
+  secretManagerProjectId: "secretManagerProjectId"
   #NOTE: Adding key values to below coreConfig will be used in creating configmaps for both core and google-proxy as we wanted core config to get reflected in google-proxy as well, override of keys between services can be done by adding key values under resp. service values' overrideCoreConfig tag
   coreConfig:
     gcp: {}

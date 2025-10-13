@@ -89,9 +89,9 @@ Helper function to check if a key should be excluded from processing
 {{- end -}}
 
 {{- define "core.generateConfigMapData" -}}
-{{- $globalConfig := .Values.global.coreConfig -}}
-{{- $overrideConfig := .Values.overrideCoreConfig -}}
-{{- $hyperscaler := .Values.global.hyperscaler | lower -}}
+{{- $globalConfig := .Values.global.coreConfig | default dict -}}
+{{- $overrideConfig := .Values.overrideCoreConfig | default dict -}}
+{{- $hyperscaler := .Values.global.hyperscaler | default "gcp" | lower -}}
 
 {{/* Process global.coreConfig values */}}
 {{- if hasKey $globalConfig $hyperscaler }}
@@ -130,12 +130,59 @@ Helper function to check if a key should be excluded from processing
 {{- end }}
 {{- end }}
 
-{{/* Process all other values from values.yaml */}}
+{{/* Collect all keys that were processed from global config to avoid duplicates */}}
+{{- $processedKeys := list -}}
+{{- if hasKey $globalConfig $hyperscaler }}
+{{- range $key, $value := index $globalConfig $hyperscaler }}
+{{- $processedKeys = append $processedKeys $key -}}
+{{- end }}
+{{- end }}
+{{- range $key, $value := $globalConfig }}
+{{- if not (eq $key $hyperscaler) }}
+{{- $processedKeys = append $processedKeys $key -}}
+{{- end }}
+{{- end }}
+
+{{/* Process global values that are not in coreConfig */}}
+{{- if .Values.global }}
+{{- range $key, $value := .Values.global }}
+{{- if and (not (eq $key "coreConfig")) (not (eq $key "hyperscaler")) }}
+{{- $shouldExclude := include "core.shouldExcludeKey" $key }}
+{{- if not (eq $shouldExclude "true") }}
+{{- if not (kindIs "invalid" $value) }}
+{{- if not (has $key $processedKeys) }}
+{{- include "core.processValue" (dict "key" $key "value" $value) }}
+{{- $processedKeys = append $processedKeys $key -}}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* Process values from core section if it exists (when running core chart directly with overrides) */}}
+{{- if hasKey .Values "core" }}
+{{- range $key, $value := .Values.core }}
+{{- $shouldExclude := include "core.shouldExcludeKey" $key }}
+{{- if not (eq $shouldExclude "true") }}
+{{- if not (kindIs "invalid" $value) }}
+{{- if not (has $key $processedKeys) }}
+{{- include "core.processValue" (dict "key" $key "value" $value) }}
+{{- $processedKeys = append $processedKeys $key -}}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* Process all other values from values.yaml, but skip already processed keys */}}
 {{- range $key, $value := .Values }}
 {{- $shouldExclude := include "core.shouldExcludeKey" $key }}
 {{- if not (eq $shouldExclude "true") }}
-{{- if $value }}
+{{- if not (kindIs "invalid" $value) }}
+{{- if not (has $key $processedKeys) }}
 {{- include "core.processValue" (dict "key" $key "value" $value) }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
