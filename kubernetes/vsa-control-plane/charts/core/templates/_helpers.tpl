@@ -50,11 +50,50 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- upper $key -}}
 {{- end -}}
 
+{{/*
+Helper function to process a value and convert it to appropriate format
+*/}}
+{{- define "core.processValue" -}}
+{{- $key := index . "key" -}}
+{{- $value := index . "value" -}}
+{{- if kindIs "slice" $value }}
+{{- if eq $key "requiredTakeoverReasons" }}
+{{ include "toCapitalUnderscore" $key }}: {{ join "," $value | quote }}
+{{- else }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | toJson | quote }}
+{{- end }}
+{{- else if kindIs "map" $value }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | toJson | quote }}
+{{- else if kindIs "bool" $value }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- else if kindIs "float64" $value }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- else if kindIs "int" $value }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- else }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Helper function to check if a key should be excluded from processing
+*/}}
+{{- define "core.shouldExcludeKey" -}}
+{{- $key := . -}}
+{{- $excludedKeys := list "images" "service" "database" "resources" "telemetryDeployer" "serviceAccountAnnotations" "externalSecrets" "podAffinity" "global" "overrideCoreConfig" -}}
+{{- if has $key $excludedKeys }}
+{{- true -}}
+{{- else }}
+{{- false -}}
+{{- end }}
+{{- end -}}
+
 {{- define "core.generateConfigMapData" -}}
 {{- $globalConfig := .Values.global.coreConfig -}}
 {{- $overrideConfig := .Values.overrideCoreConfig -}}
 {{- $hyperscaler := .Values.global.hyperscaler | lower -}}
 
+{{/* Process global.coreConfig values */}}
 {{- if hasKey $globalConfig $hyperscaler }}
 {{- range $key, $value := index $globalConfig $hyperscaler }}
 {{- if or (not (hasKey $overrideConfig $hyperscaler)) (not (hasKey (index $overrideConfig $hyperscaler) $key)) (eq (index (index $overrideConfig $hyperscaler) $key) "") }}
@@ -91,13 +130,13 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- end }}
 {{- end }}
 
-{{- if .Values.requiredTakeoverReasons }}
-REQUIRED_TAKEOVER_REASONS: {{ join "," .Values.requiredTakeoverReasons | quote }}
+{{/* Process all other values from values.yaml */}}
+{{- range $key, $value := .Values }}
+{{- $shouldExclude := include "core.shouldExcludeKey" $key }}
+{{- if not (eq $shouldExclude "true") }}
+{{- if $value }}
+{{- include "core.processValue" (dict "key" $key "value" $value) }}
 {{- end }}
-{{- if .Values.jobPollingMaxDuration }}
-JOB_POLLING_MAX_DURATION: {{ .Values.jobPollingMaxDuration | quote }}
 {{- end }}
-{{- if .Values.jobPollingInterval }}
-JOB_POLLING_INTERVAL: {{ .Values.jobPollingInterval | quote }}
 {{- end }}
 {{- end -}}
