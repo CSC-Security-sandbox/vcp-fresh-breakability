@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	finishProjectCVPJobRetryMaxAttempts           = env.GetInt("FINISH_PROJECT_CVP_CLIENT_RETRY_MAX_ATTEMPTS", 10)
+	finishProjectCVPJobRetryMaxAttempts           = env.GetInt("FINISH_PROJECT_CVP_CLIENT_RETRY_MAX_ATTEMPTS", 20)
 	finishProjectInitialRetryIntervalForCVPClient = env.GetString("FINISH_PROJECT_CVP_CLIENT_RETRY_INTERVAL", "30s")
 	finishProjectBackoffCoefficientForCVPClient   = env.GetFloat64("FINISH_PROJECT_CVP_CLIENT_BACKOFF_COEFFICIENT", 1.0)
 	hardDeleteResources                           = env.GetBool("HARD_DELETE_RESOURCES", false)
@@ -36,30 +36,41 @@ type finishProjectEventDeleteStateWorkflow struct {
 func FinishProjectEventDeleteStateWorkflow(ctx workflow.Context, params *common.FinishProjectEventParams) (interface{}, error) {
 	log := util.GetLogger(ctx)
 	finishProjectEventWorkflow := new(finishProjectEventDeleteStateWorkflow)
+	var errRun *vsaerrors.CustomError
+
 	err := finishProjectEventWorkflow.Setup(ctx, params)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	finishProjectEventWorkflow.Status = WorkflowStatusRunning
-	err = finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+		errRun = ConvertToVSAError(err)
+		return nil, errRun
 	}
 
 	defer func() {
-		if err != nil {
+		if errRun != nil {
 			finishProjectEventWorkflow.Status = WorkflowStatusFailed
-			err = finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+			err := finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
+			if err != nil {
+				log.Errorf("finishProjectEventDeleteStateWorkflow failed to update job status: %v", err)
+			}
 		} else {
 			finishProjectEventWorkflow.Status = WorkflowStatusCompleted
-			err = finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err := finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			if err != nil {
+				log.Errorf("finishProjectEventDeleteStateWorkflow failed to update job status: %v", err)
+			}
 		}
 	}()
 
-	_, errRun := finishProjectEventWorkflow.Run(ctx, params)
+	finishProjectEventWorkflow.Status = WorkflowStatusRunning
+	err = finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		errRun = ConvertToVSAError(err)
+		return nil, errRun
+	}
+
+	_, errRun = finishProjectEventWorkflow.Run(ctx, params)
 	if errRun != nil {
 		log.Errorf("finishProjectEventDeleteStateWorkflow completed with error: %v", errRun)
-		return nil, ConvertToVSAError(errRun)
+		return nil, errRun
 	}
 	log.Infof("finishProjectEventDeleteStateWorkflow completed successfully")
 	return nil, nil
