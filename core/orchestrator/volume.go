@@ -413,6 +413,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			WorkflowID:            createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		params,
 		dbVolume,

@@ -81,6 +81,14 @@ global:
     finishProjectBackoffCoefficient: "1.0"
     localRegion: ""
     coreApiClientTransportSchema: "https"
+    # Below variable is to be enabled when DB rollback is required
+    enableDbRollback: "false"
+    # Database rollback step configuration
+    # Set to number of steps to rollback, 0 means no rollback
+    vcpDbPreRollbackSteps: "0"
+    vcpDbPostRollbackSteps: "0"
+    metricsDbPreRollbackSteps: "0"
+    metricsDbPostRollbackSteps: "0"
     # Make sure to update the regionNumberMap if new regions are added. In both Google proxy and vcp-worker-chart
     regionNumberMap:
       africa-south1: "01"

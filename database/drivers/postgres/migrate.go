@@ -18,13 +18,29 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+)
+
+var (
+	VcpDbPreRollbackSteps      = env.GetInt("VCP_DB_PRE_ROLLBACK_STEPS", 0)
+	VcpDbPostRollbackSteps     = env.GetInt("VCP_DB_POST_ROLLBACK_STEPS", 0)
+	MetricsDbPreRollbackSteps  = env.GetInt("METRICS_DB_PRE_ROLLBACK_STEPS", 0)
+	MetricsDbPostRollbackSteps = env.GetInt("METRICS_DB_POST_ROLLBACK_STEPS", 0)
+)
+
+type DatabaseType string
+
+const (
+	VcpDatabase     DatabaseType = "vcp"
+	MetricsDatabase DatabaseType = "metrics"
 )
 
 type Migrator struct {
 	Models       []interface{}
 	Logger       log.Logger
 	MigrationsFS embed.FS
+	DbType       DatabaseType
 }
 
 func (m *Migrator) Migrate(db *gormwrapper.Wrapper, ctx context.Context) error {
@@ -140,6 +156,20 @@ func (m *Migrator) postMigrationFixes(ctx context.Context) error {
 }
 
 func (m *Migrator) Rollback(db *gormwrapper.Wrapper, ctx context.Context) error {
+	// Run post-rollback SQL files
+	if err := m.runPostRollback(db, ctx); err != nil {
+		return fmt.Errorf("post-rollback SQL files failed: %w", err)
+	}
+
+	// Run pre-rollback SQL files
+	if err := m.runPreRollback(db, ctx); err != nil {
+		return fmt.Errorf("pre-rollback SQL files failed: %w", err)
+	}
+
+	return nil
+}
+
+func (m *Migrator) runPreRollback(db *gormwrapper.Wrapper, ctx context.Context) error {
 	sqlDB, err := db.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get sql.DB: %w", err)
@@ -167,19 +197,92 @@ func (m *Migrator) Rollback(db *gormwrapper.Wrapper, ctx context.Context) error 
 	}
 
 	if errors.Is(err, migrate.ErrNilVersion) {
-		m.Logger.InfoContext(ctx, "No migrations to rollback - database is at initial version")
+		m.Logger.InfoContext(ctx, "No pre-migrations to rollback - database is at initial version")
 		return nil
 	}
 
-	m.Logger.InfoContext(ctx, fmt.Sprintf("Current migration version: %d (dirty: %v)", version, dirty))
+	m.Logger.InfoContext(ctx, fmt.Sprintf("Current pre-migration version: %d (dirty: %v)", version, dirty))
 
-	// Rollback one step
-	if err := sqlMig.Steps(-1); err != nil {
-		return fmt.Errorf("failed to rollback migration: %w", err)
+	// Determine the number of rollback steps based on the database type
+	var steps int
+	if m.DbType == VcpDatabase {
+		steps = VcpDbPreRollbackSteps
+	} else if m.DbType == MetricsDatabase {
+		steps = MetricsDbPreRollbackSteps
 	}
-	// Get new version after rollback
-	newVersion, _, _ := sqlMig.Version()
-	m.Logger.InfoContext(ctx, fmt.Sprintf("Successfully rolled back to version %d", newVersion))
+
+	// If steps is 0, skip rollback
+	if steps == 0 {
+		m.Logger.InfoContext(ctx, "Rollback steps set to 0, skipping pre-migration rollback")
+		return nil
+	}
+
+	// Rollback the specified number of steps (negative value for rolling back)
+	if err := sqlMig.Steps(-steps); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to rollback pre-migration: %w", err)
+	}
+
+	m.Logger.InfoContext(ctx, fmt.Sprintf("Successfully executed pre-migration rollback (%d steps)", steps))
+	return nil
+}
+
+func (m *Migrator) runPostRollback(db *gormwrapper.Wrapper, ctx context.Context) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get sql.DB: %w", err)
+	}
+
+	// Use the same schema_migrations table as post-migrations
+	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{
+		MigrationsTable: "schema_migrations_post",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create migration driver: %w", err)
+	}
+
+	source, err := iofs.New(m.MigrationsFS, "migrations/post")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
+	}
+
+	mig, err := migrate.NewWithInstance("iofs", source, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrator: %w", err)
+	}
+
+	// Check if there are any migrations to rollback
+	version, dirty, err := mig.Version()
+	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {
+		return fmt.Errorf("failed to get current migration version: %w", err)
+	}
+
+	if errors.Is(err, migrate.ErrNilVersion) {
+		m.Logger.InfoContext(ctx, "No post-migrations to rollback - database is at initial version")
+		return nil
+	}
+
+	m.Logger.InfoContext(ctx, fmt.Sprintf("Current post-migration version: %d (dirty: %v)", version, dirty))
+
+	// Determine the number of rollback steps based on database type
+	var steps int
+	if m.DbType == VcpDatabase {
+		steps = VcpDbPostRollbackSteps
+	} else if m.DbType == MetricsDatabase {
+		steps = MetricsDbPostRollbackSteps
+	}
+
+	// If steps is 0, skip rollback
+	if steps == 0 {
+		m.Logger.InfoContext(ctx, "Rollback steps set to 0, skipping post-migration rollback")
+		return nil
+	}
+
+	// Rollback the specified number of steps (negative value for rolling back)
+	if err := mig.Steps(-steps); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to rollback post-migration: %w", err)
+	}
+
+	m.Logger.InfoContext(ctx, fmt.Sprintf("Successfully executed post-migration rollback (%d steps)", steps))
 	return nil
 }
 

@@ -126,10 +126,18 @@ spec:
           command: ["/vcp-db-migrate"]
           args:
             {{- if .Values.msiEnabled | default false }}
-            - "--migrate"
-            - "--admin-msi-user=$(MSI_USER)"
+            {{- if eq (.Values.global.coreConfig.enableDbRollback | default "false") "true" }}
+            - "--rollback"
             {{- else }}
             - "--migrate"
+            {{- end }}
+            - "--admin-msi-user=$(MSI_USER)"
+            {{- else }}
+            {{- if eq (.Values.global.coreConfig.enableDbRollback | default "false") "true" }}
+            - "--rollback"
+            {{- else }}
+            - "--migrate"
+            {{- end }}
             - "--admin-user=$(DB_ADMIN_USERNAME)"
             - "--admin-pass=$(DB_ADMIN_PASSWORD)"
             {{- end }}
@@ -203,6 +211,15 @@ spec:
               value: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
             - name: METRICS_ENABLED
               value: {{ .Values.metricsEnabled | quote }}
+            # Database rollback step configuration
+            - name: VCP_DB_PRE_ROLLBACK_STEPS
+              value: {{ .Values.global.coreConfig.vcpDbPreRollbackSteps | default "0" | quote }}
+            - name: VCP_DB_POST_ROLLBACK_STEPS
+              value: {{ .Values.global.coreConfig.vcpDbPostRollbackSteps | default "0" | quote }}
+            - name: METRICS_DB_PRE_ROLLBACK_STEPS
+              value: {{ .Values.global.coreConfig.metricsDbPreRollbackSteps | default "0" | quote }}
+            - name: METRICS_DB_POST_ROLLBACK_STEPS
+              value: {{ .Values.global.coreConfig.metricsDbPostRollbackSteps | default "0" | quote }}
           resources:
             limits:
               cpu: {{ .Values.resources.limits.cpu }}

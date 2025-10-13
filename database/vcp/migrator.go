@@ -36,6 +36,7 @@ func newMigrator(config dbutils.DbConfig, logger log.Logger) (MigratorInterface,
 			Logger:       logger,
 			Models:       getVcpModels(),
 			MigrationsFS: migrationsFS,
+			DbType:       postgres.VcpDatabase,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)

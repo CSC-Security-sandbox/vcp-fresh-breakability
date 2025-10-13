@@ -36,6 +36,7 @@ func newMigrator(config dbutils.DbConfig, logger log.Logger) (MigratorInterface,
 			Logger:       logger,
 			Models:       getMetricModels(),
 			MigrationsFS: migrationsFS,
+			DbType:       postgres.MetricsDatabase,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
