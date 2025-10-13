@@ -1,0 +1,1 @@
+-- no rollback script is required for this migration
