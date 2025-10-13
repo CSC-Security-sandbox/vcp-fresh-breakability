@@ -780,60 +780,72 @@ func TestRetrierOnCodes(t *testing.T) {
 	httpCode := 429
 	t.Run("RetriesOnRetryCode", func(t *testing.T) {
 		attempts := 0
-		fn := func() (bool, error) {
+		fn := func() error {
 			attempts++
-			return false, &errs.CustomError{
+			return &errs.CustomError{
 				OriginalErr: errors.New("some error"),
 				HttpCode:    &httpCode,
 			}
 		}
-		RetrierOnCodes(mockLogger, fn, []int{429}, 2, time.Millisecond)
+		err := RetrierOnCodes(mockLogger, fn, []int{429}, 2, time.Millisecond)
 		if attempts != 2 {
 			t.Errorf("expected 2 attempts, got %d", attempts)
+		}
+		if err == nil {
+			t.Error("expected error to be returned")
 		}
 	})
 
 	t.Run("StopsOnNonRetryableError", func(t *testing.T) {
 		attempts := 0
 		httpCode := 500
-		fn := func() (bool, error) {
+		fn := func() error {
 			attempts++
-			return false, &errs.CustomError{
+			return &errs.CustomError{
 				OriginalErr: errors.New("some error"),
 				HttpCode:    &httpCode,
 			}
 		}
-		RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
+		err := RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
 		if attempts != 1 {
 			t.Errorf("expected 1 attempt, got %d", attempts)
+		}
+		if err == nil {
+			t.Error("expected error to be returned")
 		}
 	})
 
 	t.Run("ReturnsOnNoError", func(t *testing.T) {
 		attempts := 0
-		fn := func() (bool, error) {
+		fn := func() error {
 			attempts++
-			return false, nil
+			return nil
 		}
-		RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
+		err := RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
 		if attempts != 1 {
 			t.Errorf("expected 1 attempt, got %d", attempts)
+		}
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
 		}
 	})
 
 	t.Run("StopsOnStopRetry", func(t *testing.T) {
 		attempts := 0
 		httpCode := 429
-		fn := func() (bool, error) {
+		fn := func() error {
 			attempts++
-			return true, &errs.CustomError{
+			return &errs.CustomError{
 				OriginalErr: errors.New("some error"),
 				HttpCode:    &httpCode,
 			}
 		}
-		RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
-		if attempts != 1 {
+		err := RetrierOnCodes(mockLogger, fn, []int{429}, 3, time.Millisecond)
+		if attempts != 3 {
 			t.Errorf("expected 1 attempt, got %d", attempts)
+		}
+		if err == nil {
+			t.Errorf("expected no error, got %v", err)
 		}
 	})
 }

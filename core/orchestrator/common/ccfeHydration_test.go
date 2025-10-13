@@ -666,6 +666,20 @@ func TestHydrateToCffe(t *testing.T) {
 		_ = _hydrateToCffe(ctx, mockLogger, testBody, testURL, testMethod, testToken)
 		assert.GreaterOrEqual(tt, retryCount, 1)
 	})
+	t.Run("Getting400Error", func(tt *testing.T) {
+		retryCount := 0
+		doHydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			retryCount++
+			httpCode := 400
+			return &errs.CustomError{
+				OriginalErr: errors.New("some error"),
+				HttpCode:    &httpCode,
+			}
+		}
+		err := _hydrateToCffe(ctx, mockLogger, testBody, testURL, testMethod, testToken)
+		assert.GreaterOrEqual(tt, retryCount, 1)
+		assert.Equal(tt, "some error", err.(*errs.CustomError).OriginalErr.Error())
+	})
 
 	t.Run("WhenDoHydrateToCffeReturnsNil", func(tt *testing.T) {
 		doHydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {

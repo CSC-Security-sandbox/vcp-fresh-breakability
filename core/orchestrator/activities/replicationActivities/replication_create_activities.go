@@ -258,7 +258,7 @@ func (a *VolumeReplicationCreateActivity) HydrateDestinationVolume(ctx context.C
 		err := hydrateVolume(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber, result.DstPool.ResourceId)
 		if err != nil {
 			logger.Errorf("Failed to hydrate destination volume: %v", err)
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrHydrateVolumeCreate, err)
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrHydrateVolumeCreate, err))
 		}
 	}
 	return result, nil

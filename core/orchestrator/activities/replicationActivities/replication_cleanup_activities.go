@@ -274,7 +274,7 @@ func (a *CleanupVolumeReplicationActivity) DeHydrateDestinationVolumeReplication
 		err = deHydrateVolumeReplication(ctx, convertVolumeReplicationV1BetaToVolumeModel(result.Event.ReplicationModel.Name, remoteLocation, remoteVolume), remoteProject)
 		if err != nil {
 			if !vsaerrors.IsNotFoundErr(err) {
-				return nil, errors.NewVCPError(errors.ErrDeHydrateVolumeReplication, err)
+				return nil, errors.WrapAsNonRetryableTemporalApplicationError(errors.NewVCPError(errors.ErrDeHydrateVolumeReplication, err))
 			}
 		}
 	}
@@ -329,7 +329,7 @@ func (a *CleanupVolumeReplicationActivity) DeHydrateDestinationVolumeForCleanup(
 	if hydrationEnabled {
 		err := deHydrateVolume(ctx, convertVolumeV1BetaToVolumeModelForCleanup(*result.DstVolume, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation), *result.DstProjectNumber)
 		if err != nil {
-			return nil, errors.NewVCPError(errors.ErrDeHydrateVolume, err)
+			return nil, errors.WrapAsNonRetryableTemporalApplicationError(errors.NewVCPError(errors.ErrDeHydrateVolume, err))
 		}
 	}
 	return result, nil

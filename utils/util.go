@@ -67,6 +67,7 @@ var (
 	ConvertToGcpResourceName        = _convertToGcpResourceName
 	CheckForGcpNamingConvention     = _checkForGcpNamingConvention
 	ParseProjectNumberFromURI       = _parseProjectNumberFromURI
+	quotaLimitExceededRegex         = regexp.MustCompile(`^Quota limit`)
 	sleep                           = _sleep
 	exponentialBackOffErrors        = []int{429}
 	maxExpBackOffDelay              = time.Duration(80) * time.Second
@@ -443,7 +444,7 @@ func _sleep(retryDelay time.Duration, err error, attempt int) {
 }
 
 // RetrierOnCodes retries the function fn on specific HTTP error codes.
-func RetrierOnCodes(logger log.Logger, fn func() (bool, error), retryCodes []int, maxRetries int, retryDelay time.Duration) {
+func RetrierOnCodes(logger log.Logger, fn func() error, retryCodes []int, maxRetries int, retryDelay time.Duration) error {
 	shouldSleep := false
 	var err error
 	for i := 0; i < maxRetries; i++ {
@@ -452,30 +453,46 @@ func RetrierOnCodes(logger log.Logger, fn func() (bool, error), retryCodes []int
 			logger.Debug("Retrying function", "attempt", i+1)
 		}
 		shouldSleep = true
-		var stopRetry bool
-		stopRetry, err = fn()
-		if err != nil && !stopRetry {
-			_, httpcode := err.(*errs.CustomError).GetHttpCode()
+		err = fn()
+		if err != nil {
+			customErr := err.(*errs.CustomError)
+			_, httpcode := customErr.GetHttpCode()
+			// Get original error message once
+			originalErrMsg := ""
+			if customErr.OriginalErr != nil {
+				originalErrMsg = customErr.OriginalErr.Error()
+			}
+
+			if httpcode == 429 {
+				quotaLimitExceededMatch := quotaLimitExceededRegex.FindStringSubmatch(err.(*errs.CustomError).GetMessage())
+				if quotaLimitExceededMatch != nil {
+					return err
+				}
+			}
+
 			if ContainsInt(retryCodes, httpcode) {
-				logger.Errorf("Got an retryable error code while calling server %v: attemp %d", err, i+1)
+				logger.Errorf("Got a retryable error code while calling server: %s, attempt: %d, httpCode: %d, originalError: %s", err.Error(), i+1, httpcode, originalErrMsg)
 				continue
 			}
-			innerErr := err.(*errs.CustomError).Unwrap()
+
+			innerErr := customErr.Unwrap()
 			if innerErr != nil {
 				if goerrors.Is(innerErr, syscall.ECONNREFUSED) || goerrors.Is(innerErr, syscall.ETIMEDOUT) {
-					logger.Warnf("Got an error while calling server %v: attemp %d", err, i+1)
+					logger.Warnf("Got a connection error while calling server: %s, attempt: %d, originalError: %s", err.Error(), i+1, originalErrMsg)
 					continue
 				}
 				if neterror, ok := innerErr.(net.Error); ok && neterror.Timeout() {
-					logger.Warnf("Got an timeout while calling server %v: attemp %d", err, i+1)
+					logger.Warnf("Got a timeout error while calling server: %s, attempt: %d, originalError: %s", err.Error(), i+1, originalErrMsg)
 					continue
 				}
 			}
-			logger.Errorf("Got a non-retryable error while calling server %v: attempt %d", err, i+1)
-			break
+
+			logger.Errorf("Got a non-retryable error while calling server: %s, attempt: %d, httpCode: %d, originalError: %s", err.Error(), i+1, httpcode, originalErrMsg)
+			return err
 		}
-		return
+		return err
 	}
+	return err
 }
 
 func _convertBytesToGib(bytes float64) int64 {

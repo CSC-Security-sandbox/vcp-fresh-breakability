@@ -1397,6 +1397,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "6216": {
+    "description": "Hydrate Volume Replication Create Error",
+    "message": "Failed to hydrate volume Replication creation",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

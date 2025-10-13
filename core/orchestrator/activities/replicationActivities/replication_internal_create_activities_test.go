@@ -216,7 +216,7 @@ func TestHydrateReplicationCreate(t *testing.T) {
 		err := activity.HydrateReplicationCreate(ctx, replication, accountName)
 
 		assert.Error(t, err)
-		assert.Equal(t, "hydration error", err.Error())
+		assert.Contains(t, err.Error(), "Failed to hydrate volume Replication creation")
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {

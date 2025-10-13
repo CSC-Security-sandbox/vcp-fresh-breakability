@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -41,7 +40,6 @@ var (
 	HydrateRetryErrors             = []int{409, 429, 500, 503, 504}
 	baseUri                        = env.GetString("GCP_HYDRATE_BASE_URL", "")
 	batchSize                      = env.GetInt("GCP_HYDRATE_BATCH_SIZE", 10)
-	quotaLimitExceededRegex        = regexp.MustCompile(`^Quota limit`)
 	ApiHydrateMaxRetries           = max(1, env.GetInt("API_HYDRATE_MAX_RETRIES", 10))
 	ApiHydrateRetryDelay           = time.Duration(env.GetInt("API_HYDRATE_RETRY_DELAY", 5)) * time.Second
 	jsonMarshal                    = json.Marshal
@@ -282,20 +280,15 @@ func _createHydrateCreateObject(request models.Request) models.GcpHydrateCreate 
 
 func _hydrateToCffe(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
 	var err error
-	utils.RetrierOnCodes(logger, func() (bool, error) {
+	retryErr := utils.RetrierOnCodes(logger, func() error {
 		err = doHydrateToCffe(ctx, logger, v, url, method, token)
-		if err != nil {
-			_, httpcode := err.(*errs.CustomError).GetHttpCode()
-			if httpcode == 429 {
-				quotaLimitExceededMatch := quotaLimitExceededRegex.FindStringSubmatch(err.(*errs.CustomError).GetMessage())
-				if quotaLimitExceededMatch != nil {
-					return true, err
-				}
-			}
-		}
-		return false, err
+		return err
 	}, HydrateRetryErrors, ApiHydrateMaxRetries, ApiHydrateRetryDelay)
-	return nil
+
+	if retryErr != nil {
+		return retryErr
+	}
+	return err
 }
 
 func _doHydrateToCffe(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {

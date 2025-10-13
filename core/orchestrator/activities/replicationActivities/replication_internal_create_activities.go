@@ -99,7 +99,7 @@ func (a *InternalVolumeReplicationActivity) HydrateReplicationCreate(ctx context
 		err := HydrateVolumeReplication(ctx, convertReplicationDbModelToDataModel(replicationDb), accountName)
 		if err != nil {
 			util.GetLogger(ctx).Error("Error hydrating replication create", "error", err)
-			return err
+			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrHydrateVolumeReplicationCreate, err))
 		}
 	}
 	return nil
