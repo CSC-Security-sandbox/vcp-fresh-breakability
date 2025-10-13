@@ -747,6 +747,12 @@ func (b *BackupAttributes) Value() (driver.Value, error) {
 	return json.Marshal(b)
 }
 
+type BackupMetadata struct {
+	BaseModel
+	VolumeUUID string `json:"volume_uuid" gorm:"type:text"`
+	Labels     *JSONB `json:"labels" gorm:"type:jsonb"`
+}
+
 type ADC struct {
 	Id         int64  `gorm:"column:id;primaryKey"`
 	Name       string `gorm:"column:name;not null;unique"`

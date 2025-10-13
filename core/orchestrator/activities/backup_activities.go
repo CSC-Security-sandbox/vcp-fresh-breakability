@@ -1158,3 +1158,110 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 		NextWaitTime:            input.NextWaitTime,
 	}, nil
 }
+
+// CreateBackupMetadataIfFirstBackupActivity creates a BackupMetadata entry if this is the first backup for the volume
+func (b *BackupActivity) CreateBackupMetadataIfFirstBackupActivity(ctx context.Context, volume *datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+
+	// Get all backups for this volume
+	backups, err := b.SE.GetBackupsByVolumeUUID(ctx, volume.UUID)
+	if err != nil {
+		logger.Errorf("Failed to get backups for volume %s: %v", volume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Check if this is the first backup (count should be 1 since we just created one)
+	if len(backups) == 1 {
+		logger.Infof("This is the first backup for volume %s, creating BackupMetadata entry", volume.UUID)
+
+		// Extract labels from volume
+		var labels *datamodel.JSONB
+		if volume.VolumeAttributes != nil && volume.VolumeAttributes.Labels != nil {
+			labels = volume.VolumeAttributes.Labels
+		} else {
+			// If no labels exist, create empty JSONB
+			labels = &datamodel.JSONB{}
+		}
+
+		// Create BackupMetadata entry with volume labels
+		backupMetadata := &datamodel.BackupMetadata{
+			VolumeUUID: volume.UUID,
+			Labels:     labels,
+		}
+
+		_, err := b.SE.CreateBackupMetadata(ctx, backupMetadata)
+		if err != nil {
+			logger.Errorf("Failed to create BackupMetadata for volume %s: %v", volume.UUID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		logger.Infof("Successfully created BackupMetadata entry for volume %s with labels", volume.UUID)
+	} else {
+		logger.Infof("Volume %s already has %d backups, skipping BackupMetadata creation", volume.UUID, len(backups))
+	}
+
+	return nil
+}
+
+// DeleteBackupMetadataIfLastBackupActivity deletes a BackupMetadata entry if this is the last backup for the volume
+func (b *BackupActivity) DeleteBackupMetadataIfLastBackupActivity(ctx context.Context, volumeUUID string) error {
+	logger := util.GetLogger(ctx)
+
+	// Get all backups for this volume
+	backups, err := b.SE.GetBackupsByVolumeUUID(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to get backups for volume %s: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Check if this is the last backup (count should be 0 since we just deleted one)
+	if len(backups) == 0 {
+		logger.Infof("This was the last backup for volume %s, deleting BackupMetadata entry", volumeUUID)
+
+		// Delete BackupMetadata entry
+		err := b.SE.DeleteBackupMetadata(ctx, volumeUUID)
+		if err != nil {
+			logger.Errorf("Failed to delete BackupMetadata for volume %s: %v", volumeUUID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		logger.Infof("Successfully deleted BackupMetadata entry for volume %s", volumeUUID)
+	} else {
+		logger.Infof("Volume %s still has %d backups, keeping BackupMetadata entry", volumeUUID, len(backups))
+	}
+
+	return nil
+}
+
+// UpdateBackupMetadataIfExistsActivity updates BackupMetadata labels if an entry exists for the volume
+func (b *BackupActivity) UpdateBackupMetadataIfExistsActivity(ctx context.Context, volume *datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+
+	// Check if BackupMetadata entry exists for this volume
+	backupMetadata, err := b.SE.GetBackupMetadataByVolumeUUID(ctx, volume.UUID)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			// No BackupMetadata entry exists yet - this is expected if no backups have been created
+			logger.Infof("No BackupMetadata entry found for volume %s - will be created when first backup is made", volume.UUID)
+			return nil
+		}
+		logger.Errorf("Failed to get BackupMetadata for volume %s: %v", volume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Update the labels in the existing BackupMetadata entry
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.Labels != nil {
+		backupMetadata.Labels = volume.VolumeAttributes.Labels
+	} else {
+		// If no labels exist, set to empty JSONB
+		backupMetadata.Labels = &datamodel.JSONB{}
+	}
+	_, err = b.SE.UpdateBackupMetadata(ctx, backupMetadata)
+	if err != nil {
+		logger.Errorf("Failed to update BackupMetadata for volume %s: %v", volume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully updated BackupMetadata labels for volume %s", volume.UUID)
+	return nil
+}

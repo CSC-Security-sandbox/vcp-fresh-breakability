@@ -399,6 +399,14 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Update BackupMetadata labels if an entry exists for this volume
+	backupActivity := &activities.BackupActivity{}
+	metadataErr := workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupMetadataIfExistsActivity, volume).Get(ctx, nil)
+	if metadataErr != nil {
+		// Log the error but don't fail the entire volume update workflow
+		log.Errorf("Failed to update BackupMetadata for volume %s: %v", volume.UUID, metadataErr)
+	}
+
 	return nil, ConvertToVSAError(err)
 }
 

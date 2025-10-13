@@ -27,6 +27,7 @@ func getVcpModels() []interface{} {
 		&datamodel.AdminJobSpec{},
 		&datamodel.Backup{},
 		&datamodel.BackupPolicy{},
+		&datamodel.BackupMetadata{},
 		&datamodel.NodeNodeGroupMap{},
 		&datamodel.NodeGroup{},
 		&datamodel.PendingResourceDeletions{},

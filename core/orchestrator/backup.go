@@ -93,10 +93,12 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	workflowStarted := false
 	stateUpdated := false
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeCreateBackup),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.BackupName,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeCreateBackup),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.BackupName,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
@@ -212,10 +214,12 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 
 	// Create a job for the update operation
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdateBackup),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.BackupUUID,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeUpdateBackup),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.BackupUUID,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
@@ -423,10 +427,12 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	backup.StateDetails = models.LifeCycleStateDeletingDetails
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeDeleteBackup),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.BackupUUID,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeDeleteBackup),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.BackupUUID,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

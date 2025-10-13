@@ -334,6 +334,13 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		wf.Logger.Errorf("Failed to hydrate asset location metadata to CCFE for the backup %s: %v", backupActivitiesContext.BackupWorkflowInit.Backup.Name, err)
 	}
 
+	// Create BackupMetadata entry if this is the first backup for the volume
+	err = workflow.ExecuteActivity(ctx, backupActivity.CreateBackupMetadataIfFirstBackupActivity, backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, nil)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to create BackupMetadata for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.UUID, err)
+	}
+
 	return backupActivitiesContext, nil
 }
 
@@ -639,6 +646,13 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, dbBackup).Get(ctx, nil)
 	if snapshotErr != nil {
 		workflow.GetLogger(ctx).Error("Failed to delete snapshot from database", "error", snapshotErr)
+	}
+
+	// Delete BackupMetadata entry if this was the last backup for the volume
+	metadataErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupMetadataIfLastBackupActivity, dbBackup.VolumeUUID).Get(ctx, nil)
+	if metadataErr != nil {
+		// Log the error but don't fail the entire backup deletion workflow
+		wf.Logger.Errorf("Failed to delete BackupMetadata for volume %s: %v", dbBackup.VolumeUUID, metadataErr)
 	}
 
 	return nil, ConvertToVSAError(err)

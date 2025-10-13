@@ -5945,3 +5945,422 @@ func TestPollTransferStatusWithHistoryCheckActivity_NilResponse(t *testing.T) {
 	assert.NotEmpty(t, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
 	mockProvider.AssertExpectations(t)
 }
+
+func TestCreateBackupMetadataIfFirstBackupActivity_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Arrange
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Labels: &datamodel.JSONB{"env": "test", "team": "backend"},
+		},
+	}
+
+	// Mock: GetBackupsByVolumeUUID returns 1 backup (first backup)
+	backups := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}},
+	}
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volume.UUID).Return(backups, nil)
+
+	// Mock: CreateBackupMetadata
+	expectedBackupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volume.UUID,
+		Labels:     volume.VolumeAttributes.Labels,
+	}
+	mockStorage.On("CreateBackupMetadata", ctx, mock.MatchedBy(func(bm *datamodel.BackupMetadata) bool {
+		return bm.VolumeUUID == volume.UUID && bm.Labels != nil
+	})).Return(expectedBackupMetadata, nil)
+
+	// Act
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+
+	// Assert
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateBackupMetadataIfFirstBackupActivity_NotFirstBackup(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Labels: &datamodel.JSONB{"env": "test", "team": "backend"},
+		},
+	}
+
+	// Mock: GetBackupsByVolumeUUID returns 2 backups (not first backup)
+	backups := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"}},
+		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid-2"}},
+	}
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volume.UUID).Return(backups, nil)
+
+	// Act
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+
+	// Assert
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateBackupMetadataIfFirstBackupActivity_NoLabels(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Labels: nil, // No labels
+		},
+	}
+
+	// Mock: GetBackupsByVolumeUUID returns 1 backup (first backup)
+	backups := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}},
+	}
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volume.UUID).Return(backups, nil)
+
+	// Mock: CreateBackupMetadata with empty JSONB
+	mockStorage.On("CreateBackupMetadata", ctx, mock.MatchedBy(func(bm *datamodel.BackupMetadata) bool {
+		return bm.VolumeUUID == volume.UUID && bm.Labels != nil
+	})).Return(&datamodel.BackupMetadata{}, nil)
+
+	// Act
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+
+	// Assert
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateBackupMetadataIfFirstBackupActivity_GetBackupsError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+	}
+
+	// Mock: GetBackupsByVolumeUUID returns error
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volume.UUID).Return(nil, errors.New("database error"))
+
+	// Act
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+
+	// Assert
+	assert.Error(t, err)
+	assertErrContainsOriginal(t, err, "database error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateBackupMetadataIfFirstBackupActivity_CreateBackupMetadataError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Labels: &datamodel.JSONB{"env": "test"},
+		},
+	}
+
+	// Mock: GetBackupsByVolumeUUID returns 1 backup (first backup)
+	backups := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}},
+	}
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volume.UUID).Return(backups, nil)
+
+	// Mock: CreateBackupMetadata returns error
+	mockStorage.On("CreateBackupMetadata", ctx, mock.Anything).Return(nil, errors.New("create error"))
+
+	// Act
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+
+	// Assert
+	assert.Error(t, err)
+	assertErrContainsOriginal(t, err, "create error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteBackupMetadataIfLastBackupActivity_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+
+	// Mock: GetBackupsByVolumeUUID returns 0 backups (last backup)
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volumeUUID).Return([]*datamodel.Backup{}, nil)
+
+	// Mock: DeleteBackupMetadata
+	mockStorage.On("DeleteBackupMetadata", ctx, volumeUUID).Return(nil)
+
+	// Act
+	err := activity.DeleteBackupMetadataIfLastBackupActivity(ctx, volumeUUID)
+
+	// Assert
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteBackupMetadataIfLastBackupActivity_NotLastBackup(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+
+	// Mock: GetBackupsByVolumeUUID returns 1 backup (not last backup)
+	backups := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}},
+	}
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volumeUUID).Return(backups, nil)
+
+	// Act
+	err := activity.DeleteBackupMetadataIfLastBackupActivity(ctx, volumeUUID)
+
+	// Assert
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteBackupMetadataIfLastBackupActivity_GetBackupsError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+
+	// Mock: GetBackupsByVolumeUUID returns error
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volumeUUID).Return(nil, errors.New("database error"))
+
+	// Act
+	err := activity.DeleteBackupMetadataIfLastBackupActivity(ctx, volumeUUID)
+
+	// Assert
+	assert.Error(t, err)
+	assertErrContainsOriginal(t, err, "database error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteBackupMetadataIfLastBackupActivity_DeleteError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+
+	// Mock: GetBackupsByVolumeUUID returns 0 backups (last backup)
+	mockStorage.On("GetBackupsByVolumeUUID", ctx, volumeUUID).Return([]*datamodel.Backup{}, nil)
+
+	// Mock: DeleteBackupMetadata returns error
+	mockStorage.On("DeleteBackupMetadata", ctx, volumeUUID).Return(errors.New("delete error"))
+
+	// Act
+	err := activity.DeleteBackupMetadataIfLastBackupActivity(ctx, volumeUUID)
+
+	// Assert
+	assert.Error(t, err)
+	assertErrContainsOriginal(t, err, "delete error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupMetadataIfExistsActivity_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Labels: &datamodel.JSONB{"env": "test", "team": "backend"},
+		},
+	}
+
+	existingBackupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volume.UUID,
+		Labels:     &datamodel.JSONB{"old": "labels"},
+	}
+
+	// Mock: GetBackupMetadataByVolumeUUID returns existing metadata
+	mockStorage.On("GetBackupMetadataByVolumeUUID", ctx, volume.UUID).Return(existingBackupMetadata, nil)
+
+	// Mock: UpdateBackupMetadata
+	updatedBackupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volume.UUID,
+		Labels:     volume.VolumeAttributes.Labels,
+	}
+	mockStorage.On("UpdateBackupMetadata", ctx, mock.MatchedBy(func(bm *datamodel.BackupMetadata) bool {
+		return bm.VolumeUUID == volume.UUID && bm.Labels != nil
+	})).Return(updatedBackupMetadata, nil)
+
+	// Act
+	err := activity.UpdateBackupMetadataIfExistsActivity(ctx, volume)
+
+	// Assert
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupMetadataIfExistsActivity_NotFound(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Labels: &datamodel.JSONB{"env": "test"},
+		},
+	}
+
+	// Mock: GetBackupMetadataByVolumeUUID returns NotFound error
+	mockStorage.On("GetBackupMetadataByVolumeUUID", ctx, volume.UUID).Return(nil, utilerrors.NewNotFoundErr("BackupMetadata", &volume.UUID))
+
+	// Act
+	err := activity.UpdateBackupMetadataIfExistsActivity(ctx, volume)
+
+	// Assert
+	assert.Nil(t, err) // Should not return error for NotFound
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupMetadataIfExistsActivity_GetBackupMetadataError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+	}
+
+	// Mock: GetBackupMetadataByVolumeUUID returns error
+	mockStorage.On("GetBackupMetadataByVolumeUUID", ctx, volume.UUID).Return(nil, errors.New("database error"))
+
+	// Act
+	err := activity.UpdateBackupMetadataIfExistsActivity(ctx, volume)
+
+	// Assert
+	assert.Error(t, err)
+	assertErrContainsOriginal(t, err, "database error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupMetadataIfExistsActivity_UpdateError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Labels: &datamodel.JSONB{"env": "test"},
+		},
+	}
+
+	existingBackupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volume.UUID,
+		Labels:     &datamodel.JSONB{"old": "labels"},
+	}
+
+	// Mock: GetBackupMetadataByVolumeUUID returns existing metadata
+	mockStorage.On("GetBackupMetadataByVolumeUUID", ctx, volume.UUID).Return(existingBackupMetadata, nil)
+
+	// Mock: UpdateBackupMetadata returns error
+	mockStorage.On("UpdateBackupMetadata", ctx, mock.Anything).Return(nil, errors.New("update error"))
+
+	// Act
+	err := activity.UpdateBackupMetadataIfExistsActivity(ctx, volume)
+
+	// Assert
+	assert.Error(t, err)
+	assertErrContainsOriginal(t, err, "update error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupMetadataIfExistsActivity_NilVolumeAttributes(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: nil, // VolumeAttributes is nil
+	}
+
+	existingBackupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volume.UUID,
+		Labels:     &datamodel.JSONB{"old": "labels"},
+	}
+
+	// Mock: GetBackupMetadataByVolumeUUID returns existing metadata
+	mockStorage.On("GetBackupMetadataByVolumeUUID", ctx, volume.UUID).Return(existingBackupMetadata, nil)
+
+	// Mock: UpdateBackupMetadata with empty JSONB labels
+	mockStorage.On("UpdateBackupMetadata", ctx, mock.MatchedBy(func(bm *datamodel.BackupMetadata) bool {
+		return bm.VolumeUUID == volume.UUID && bm.Labels != nil
+	})).Return(existingBackupMetadata, nil)
+
+	// Act
+	err := activity.UpdateBackupMetadataIfExistsActivity(ctx, volume)
+
+	// Assert
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupMetadataIfExistsActivity_NilLabels(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Labels: nil, // Labels is nil
+		},
+	}
+
+	existingBackupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volume.UUID,
+		Labels:     &datamodel.JSONB{"old": "labels"},
+	}
+
+	// Mock: GetBackupMetadataByVolumeUUID returns existing metadata
+	mockStorage.On("GetBackupMetadataByVolumeUUID", ctx, volume.UUID).Return(existingBackupMetadata, nil)
+
+	// Mock: UpdateBackupMetadata with empty JSONB labels
+	mockStorage.On("UpdateBackupMetadata", ctx, mock.MatchedBy(func(bm *datamodel.BackupMetadata) bool {
+		return bm.VolumeUUID == volume.UUID && bm.Labels != nil
+	})).Return(existingBackupMetadata, nil)
+
+	// Act
+	err := activity.UpdateBackupMetadataIfExistsActivity(ctx, volume)
+
+	// Assert
+	assert.Nil(t, err)
+	mockStorage.AssertExpectations(t)
+}

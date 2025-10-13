@@ -849,6 +849,65 @@ func (_c *MockStorage_CreateBackup_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// CreateBackupMetadata provides a mock function with given fields: ctx, backupMetadata
+func (_m *MockStorage) CreateBackupMetadata(ctx context.Context, backupMetadata *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error) {
+	ret := _m.Called(ctx, backupMetadata)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBackupMetadata")
+	}
+
+	var r0 *datamodel.BackupMetadata
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error)); ok {
+		return rf(ctx, backupMetadata)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupMetadata) *datamodel.BackupMetadata); ok {
+		r0 = rf(ctx, backupMetadata)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupMetadata)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupMetadata) error); ok {
+		r1 = rf(ctx, backupMetadata)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateBackupMetadata_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupMetadata'
+type MockStorage_CreateBackupMetadata_Call struct {
+	*mock.Call
+}
+
+// CreateBackupMetadata is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupMetadata *datamodel.BackupMetadata
+func (_e *MockStorage_Expecter) CreateBackupMetadata(ctx interface{}, backupMetadata interface{}) *MockStorage_CreateBackupMetadata_Call {
+	return &MockStorage_CreateBackupMetadata_Call{Call: _e.mock.On("CreateBackupMetadata", ctx, backupMetadata)}
+}
+
+func (_c *MockStorage_CreateBackupMetadata_Call) Run(run func(ctx context.Context, backupMetadata *datamodel.BackupMetadata)) *MockStorage_CreateBackupMetadata_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BackupMetadata))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateBackupMetadata_Call) Return(_a0 *datamodel.BackupMetadata, _a1 error) *MockStorage_CreateBackupMetadata_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateBackupMetadata_Call) RunAndReturn(run func(context.Context, *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error)) *MockStorage_CreateBackupMetadata_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateBackupPolicyEntryInVCP provides a mock function with given fields: ctx, backupPolicy
 func (_m *MockStorage) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	ret := _m.Called(ctx, backupPolicy)
@@ -2064,6 +2123,53 @@ func (_c *MockStorage_DeleteBackup_Call) Return(_a0 *datamodel.Backup, _a1 error
 }
 
 func (_c *MockStorage_DeleteBackup_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Backup, error)) *MockStorage_DeleteBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteBackupMetadata provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockStorage) DeleteBackupMetadata(ctx context.Context, volumeUUID string) error {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteBackupMetadata")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_DeleteBackupMetadata_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBackupMetadata'
+type MockStorage_DeleteBackupMetadata_Call struct {
+	*mock.Call
+}
+
+// DeleteBackupMetadata is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockStorage_Expecter) DeleteBackupMetadata(ctx interface{}, volumeUUID interface{}) *MockStorage_DeleteBackupMetadata_Call {
+	return &MockStorage_DeleteBackupMetadata_Call{Call: _e.mock.On("DeleteBackupMetadata", ctx, volumeUUID)}
+}
+
+func (_c *MockStorage_DeleteBackupMetadata_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockStorage_DeleteBackupMetadata_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteBackupMetadata_Call) Return(_a0 error) *MockStorage_DeleteBackupMetadata_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_DeleteBackupMetadata_Call) RunAndReturn(run func(context.Context, string) error) *MockStorage_DeleteBackupMetadata_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4257,6 +4363,65 @@ func (_c *MockStorage_GetBackupLogicalSizeMetrics_Call) Return(_a0 []*datamodel.
 }
 
 func (_c *MockStorage_GetBackupLogicalSizeMetrics_Call) RunAndReturn(run func(context.Context) ([]*datamodel.Backup, error)) *MockStorage_GetBackupLogicalSizeMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupMetadataByVolumeUUID provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockStorage) GetBackupMetadataByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.BackupMetadata, error) {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupMetadataByVolumeUUID")
+	}
+
+	var r0 *datamodel.BackupMetadata
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.BackupMetadata, error)); ok {
+		return rf(ctx, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.BackupMetadata); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupMetadata)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupMetadataByVolumeUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupMetadataByVolumeUUID'
+type MockStorage_GetBackupMetadataByVolumeUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupMetadataByVolumeUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockStorage_Expecter) GetBackupMetadataByVolumeUUID(ctx interface{}, volumeUUID interface{}) *MockStorage_GetBackupMetadataByVolumeUUID_Call {
+	return &MockStorage_GetBackupMetadataByVolumeUUID_Call{Call: _e.mock.On("GetBackupMetadataByVolumeUUID", ctx, volumeUUID)}
+}
+
+func (_c *MockStorage_GetBackupMetadataByVolumeUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockStorage_GetBackupMetadataByVolumeUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupMetadataByVolumeUUID_Call) Return(_a0 *datamodel.BackupMetadata, _a1 error) *MockStorage_GetBackupMetadataByVolumeUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupMetadataByVolumeUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.BackupMetadata, error)) *MockStorage_GetBackupMetadataByVolumeUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -10430,6 +10595,65 @@ func (_c *MockStorage_UpdateBackupLatestLogicalBackupSizeByVolume_Call) Return(_
 }
 
 func (_c *MockStorage_UpdateBackupLatestLogicalBackupSizeByVolume_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupMetadata provides a mock function with given fields: ctx, backupMetadata
+func (_m *MockStorage) UpdateBackupMetadata(ctx context.Context, backupMetadata *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error) {
+	ret := _m.Called(ctx, backupMetadata)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupMetadata")
+	}
+
+	var r0 *datamodel.BackupMetadata
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error)); ok {
+		return rf(ctx, backupMetadata)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupMetadata) *datamodel.BackupMetadata); ok {
+		r0 = rf(ctx, backupMetadata)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupMetadata)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupMetadata) error); ok {
+		r1 = rf(ctx, backupMetadata)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateBackupMetadata_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupMetadata'
+type MockStorage_UpdateBackupMetadata_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupMetadata is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupMetadata *datamodel.BackupMetadata
+func (_e *MockStorage_Expecter) UpdateBackupMetadata(ctx interface{}, backupMetadata interface{}) *MockStorage_UpdateBackupMetadata_Call {
+	return &MockStorage_UpdateBackupMetadata_Call{Call: _e.mock.On("UpdateBackupMetadata", ctx, backupMetadata)}
+}
+
+func (_c *MockStorage_UpdateBackupMetadata_Call) Run(run func(ctx context.Context, backupMetadata *datamodel.BackupMetadata)) *MockStorage_UpdateBackupMetadata_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BackupMetadata))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupMetadata_Call) Return(_a0 *datamodel.BackupMetadata, _a1 error) *MockStorage_UpdateBackupMetadata_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupMetadata_Call) RunAndReturn(run func(context.Context, *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error)) *MockStorage_UpdateBackupMetadata_Call {
 	_c.Call.Return(run)
 	return _c
 }

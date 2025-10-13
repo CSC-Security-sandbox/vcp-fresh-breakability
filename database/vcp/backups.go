@@ -305,7 +305,7 @@ func (d *DataStoreRepository) IsLatestBackup(ctx context.Context, backupUUID, vo
 	db := d.db.GORM().WithContext(ctx)
 	backup := &datamodel.Backup{}
 	// get backup by created_at timestamp under a volume
-	err := db.Where("volume_uuid = ? and state = ?", volumeUUID, models.LifeCycleStateAvailable).Order("created_at desc").First(&backup).Error
+	err := db.Where("volume_uuid = ? and (state = ? or (state = ? and attributes->>'delete_initiated' = ?))", volumeUUID, models.LifeCycleStateAvailable, models.LifeCycleStateError, true).Order("created_at desc").First(&backup).Error
 	if err != nil {
 		return false, err
 	}
@@ -630,4 +630,90 @@ func (d *DataStoreRepository) UpdateBackupConstituentCountFromVolume(ctx context
 	}
 
 	return dbBackup, nil
+}
+
+// CreateBackupMetadata creates a new BackupMetadata entry in the database
+func (d *DataStoreRepository) CreateBackupMetadata(ctx context.Context, backupMetadata *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	// Check if BackupMetadata already exists for this volume
+	var existingBackupMetadata datamodel.BackupMetadata
+	err = tx.Where("volume_uuid = ?", backupMetadata.VolumeUUID).First(&existingBackupMetadata).Error
+	if err == nil {
+		// BackupMetadata already exists for this volume
+		return &existingBackupMetadata, nil
+	}
+	if !vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	// Create new BackupMetadata entry
+	backupMetadata.UUID = utils.RandomUUID()
+
+	err = tx.Create(backupMetadata).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return backupMetadata, nil
+}
+
+// DeleteBackupMetadata deletes a BackupMetadata entry by volume UUID
+func (d *DataStoreRepository) DeleteBackupMetadata(ctx context.Context, volumeUUID string) error {
+	db := d.db.GORM().WithContext(ctx)
+
+	// Delete BackupMetadata entry by volume UUID
+	err := db.Where("volume_uuid = ?", volumeUUID).Delete(&datamodel.BackupMetadata{}).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetBackupMetadataByVolumeUUID gets a BackupMetadata entry by volume UUID
+func (d *DataStoreRepository) GetBackupMetadataByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.BackupMetadata, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var backupMetadata datamodel.BackupMetadata
+
+	err := db.Where("volume_uuid = ?", volumeUUID).First(&backupMetadata).Error
+	if err != nil {
+		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "backup metadata", &volumeUUID)
+	}
+
+	return &backupMetadata, nil
+}
+
+// UpdateBackupMetadata updates a BackupMetadata entry
+func (d *DataStoreRepository) UpdateBackupMetadata(ctx context.Context, backupMetadata *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	// First check if the record exists
+	var existingBackupMetadata datamodel.BackupMetadata
+	err = tx.Where("uuid = ?", backupMetadata.UUID).First(&existingBackupMetadata).Error
+	if err != nil {
+		if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("backup metadata", &backupMetadata.UUID)
+		}
+		return nil, err
+	}
+
+	// Update the existing record
+	err = tx.Model(&existingBackupMetadata).Updates(backupMetadata).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Return the updated record
+	return &existingBackupMetadata, nil
 }

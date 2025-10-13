@@ -963,6 +963,22 @@ func (s *PersistenceStore) BackupCountByVolumeID(ctx context.Context, volumeUUID
 	return s.dataStore.BackupCountByVolumeID(ctx, volumeUUID)
 }
 
+func (s *PersistenceStore) CreateBackupMetadata(ctx context.Context, backupMetadata *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error) {
+	return s.dataStore.CreateBackupMetadata(ctx, backupMetadata)
+}
+
+func (s *PersistenceStore) DeleteBackupMetadata(ctx context.Context, volumeUUID string) error {
+	return s.dataStore.DeleteBackupMetadata(ctx, volumeUUID)
+}
+
+func (s *PersistenceStore) GetBackupMetadataByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.BackupMetadata, error) {
+	return s.dataStore.GetBackupMetadataByVolumeUUID(ctx, volumeUUID)
+}
+
+func (s *PersistenceStore) UpdateBackupMetadata(ctx context.Context, backupMetadata *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error) {
+	return s.dataStore.UpdateBackupMetadata(ctx, backupMetadata)
+}
+
 func (s *PersistenceStore) CreateAdminJobSpec(ctx context.Context, spec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	return s.dataStore.CreateAdminJobSpec(ctx, spec)
 }

@@ -802,6 +802,167 @@ func TestIsLatestBackup(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.False(tt, isLatest)
 	})
+	t.Run("OnSuccessWithErrorStateBackupWithDeleteInitiated", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create an older available backup
+		backup1 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
+			Name:         "test_backup_1",
+			Description:  "Test backup 1",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		// Create a newer error state backup with delete_initiated = true
+		backup2 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
+			Name:         "test_backup_2",
+			Description:  "Test backup 2",
+			State:        models.LifeCycleStateError,
+			StateDetails: "Error in backup",
+			VolumeUUID:   "volume1",
+			Attributes: &datamodel.BackupAttributes{
+				DeleteInitiated: true,
+			},
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// The error state backup with delete_initiated should be considered latest
+		isLatest, err := store.IsLatestBackup(context.Background(), backup2.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest)
+
+		// The older available backup should not be considered latest
+		isLatest, err = store.IsLatestBackup(context.Background(), backup1.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.False(tt, isLatest)
+	})
+	t.Run("OnSuccessWithErrorStateBackupWithoutDeleteInitiated", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create an available backup
+		backup1 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
+			Name:         "test_backup_1",
+			Description:  "Test backup 1",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		// Create an error state backup without delete_initiated
+		backup2 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
+			Name:         "test_backup_2",
+			Description:  "Test backup 2",
+			State:        models.LifeCycleStateError,
+			StateDetails: "Error in backup",
+			VolumeUUID:   "volume1",
+			Attributes: &datamodel.BackupAttributes{
+				DeleteInitiated: false,
+			},
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// The available backup should be considered latest (error without delete_initiated is not included)
+		isLatest, err := store.IsLatestBackup(context.Background(), backup1.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest)
+
+		// The error backup without delete_initiated should not be considered latest
+		isLatest, err = store.IsLatestBackup(context.Background(), backup2.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.False(tt, isLatest)
+	})
+	t.Run("OnSuccessWithMixedStatesAndDeleteInitiated", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create an older available backup
+		backup1 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
+			Name:         "test_backup_1",
+			Description:  "Test backup 1",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		// Create an error state backup without delete_initiated
+		backup2 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
+			Name:         "test_backup_2",
+			Description:  "Test backup 2",
+			State:        models.LifeCycleStateError,
+			StateDetails: "Error in backup",
+			VolumeUUID:   "volume1",
+			Attributes: &datamodel.BackupAttributes{
+				DeleteInitiated: false,
+			},
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// Create the newest error state backup with delete_initiated = true
+		backup3 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid3"},
+			Name:         "test_backup_3",
+			Description:  "Test backup 3",
+			State:        models.LifeCycleStateError,
+			StateDetails: "Error in backup with delete initiated",
+			VolumeUUID:   "volume1",
+			Attributes: &datamodel.BackupAttributes{
+				DeleteInitiated: true,
+			},
+		}
+		err = store.db.Create(backup3).Error()
+		assert.NoError(tt, err)
+
+		// The newest error state backup with delete_initiated should be considered latest
+		isLatest, err := store.IsLatestBackup(context.Background(), backup3.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest)
+
+		// The available backup should not be considered latest
+		isLatest, err = store.IsLatestBackup(context.Background(), backup1.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.False(tt, isLatest)
+
+		// The error backup without delete_initiated should not be considered latest
+		isLatest, err = store.IsLatestBackup(context.Background(), backup2.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.False(tt, isLatest)
+	})
 	t.Run("OnError", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err)
@@ -3035,4 +3196,224 @@ func TestUpdateBackupConstituentCountFromVolumeReturnsErrorOnTransactionFailure(
 
 	_, err = store.UpdateBackupConstituentCountFromVolume(context.Background(), backup, volume)
 	assert.Error(t, err)
+}
+
+func TestCreateBackupMetadata_Success(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+	labels := &datamodel.JSONB{"env": "test", "team": "backend"}
+
+	backupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     labels,
+	}
+
+	result, err := store.CreateBackupMetadata(ctx, backupMetadata)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, volumeUUID, result.VolumeUUID)
+	assert.Equal(t, labels, result.Labels)
+	assert.NotEmpty(t, result.UUID)
+}
+
+func TestCreateBackupMetadata_AlreadyExists(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+	labels := &datamodel.JSONB{"env": "test", "team": "backend"}
+
+	// Create first backup metadata
+	backupMetadata1 := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     labels,
+	}
+	result1, err := store.CreateBackupMetadata(ctx, backupMetadata1)
+	assert.NoError(t, err)
+	assert.NotNil(t, result1)
+
+	// Try to create another backup metadata for the same volume
+	backupMetadata2 := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     &datamodel.JSONB{"env": "prod", "team": "frontend"},
+	}
+	result2, err := store.CreateBackupMetadata(ctx, backupMetadata2)
+	assert.NoError(t, err)
+	assert.NotNil(t, result2)
+	// Should return the existing one
+	assert.Equal(t, result1.UUID, result2.UUID)
+}
+
+func TestDeleteBackupMetadata(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+
+	// First create a backup metadata
+	backupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     &datamodel.JSONB{"env": "test"},
+	}
+	created, err := store.CreateBackupMetadata(ctx, backupMetadata)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	// Now delete it
+	err = store.DeleteBackupMetadata(ctx, volumeUUID)
+	assert.NoError(t, err)
+
+	// Verify it's deleted
+	_, err = store.GetBackupMetadataByVolumeUUID(ctx, volumeUUID)
+	assert.Error(t, err)
+}
+
+func TestDeleteBackupMetadata_NotFound(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+	volumeUUID := "non-existent-volume-uuid"
+
+	// Try to delete non-existent backup metadata
+	err = store.DeleteBackupMetadata(ctx, volumeUUID)
+	assert.NoError(t, err) // Should not return error for non-existent entry
+}
+
+func TestGetBackupMetadataByVolumeUUID_Success(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+	labels := &datamodel.JSONB{"env": "test", "team": "backend"}
+
+	// Create backup metadata
+	backupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     labels,
+	}
+	created, err := store.CreateBackupMetadata(ctx, backupMetadata)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	// Retrieve it
+	result, err := store.GetBackupMetadataByVolumeUUID(ctx, volumeUUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, volumeUUID, result.VolumeUUID)
+	assert.Equal(t, labels, result.Labels)
+	assert.Equal(t, created.UUID, result.UUID)
+}
+
+func TestGetBackupMetadataByVolumeUUID_NotFound(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+	volumeUUID := "non-existent-volume-uuid"
+
+	// Try to get non-existent backup metadata
+	result, err := store.GetBackupMetadataByVolumeUUID(ctx, volumeUUID)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestUpdateBackupMetadata_Success(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+	originalLabels := &datamodel.JSONB{"env": "test", "team": "backend"}
+	updatedLabels := &datamodel.JSONB{"env": "prod", "team": "frontend", "version": "v2"}
+
+	// Create backup metadata
+	backupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     originalLabels,
+	}
+	created, err := store.CreateBackupMetadata(ctx, backupMetadata)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	// Update it
+	created.Labels = updatedLabels
+	result, err := store.UpdateBackupMetadata(ctx, created)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, volumeUUID, result.VolumeUUID)
+	assert.Equal(t, updatedLabels, result.Labels)
+	assert.Equal(t, created.UUID, result.UUID)
+}
+
+func TestUpdateBackupMetadata_NotFound(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+	volumeUUID := "non-existent-volume-uuid"
+
+	// Try to update non-existent backup metadata
+	backupMetadata := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "non-existent-uuid"},
+		VolumeUUID: volumeUUID,
+		Labels:     &datamodel.JSONB{"env": "test"},
+	}
+	result, err := store.UpdateBackupMetadata(ctx, backupMetadata)
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }

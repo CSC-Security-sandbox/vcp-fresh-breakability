@@ -2476,3 +2476,224 @@ func TestPersistenceStore_UpdatePendingResourceDeletion_NotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.True(t, err.Error() == "An internal error occurred." || err.Error() == "Resource not found")
 }
+
+func TestPersistenceStore_CreateBackupMetadata(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+	labels := &datamodel.JSONB{"env": "test", "team": "backend"}
+
+	backupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     labels,
+	}
+
+	result, err := store.CreateBackupMetadata(ctx, backupMetadata)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, volumeUUID, result.VolumeUUID)
+	assert.Equal(t, labels, result.Labels)
+	assert.NotEmpty(t, result.UUID)
+}
+
+func TestPersistenceStore_CreateBackupMetadata_AlreadyExists(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+	labels1 := &datamodel.JSONB{"env": "test", "team": "backend"}
+	labels2 := &datamodel.JSONB{"env": "prod", "team": "frontend"}
+
+	// Create first backup metadata
+	backupMetadata1 := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     labels1,
+	}
+	result1, err := store.CreateBackupMetadata(ctx, backupMetadata1)
+	assert.NoError(t, err)
+	assert.NotNil(t, result1)
+
+	// Try to create another backup metadata for the same volume
+	backupMetadata2 := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     labels2,
+	}
+	result2, err := store.CreateBackupMetadata(ctx, backupMetadata2)
+	assert.NoError(t, err)
+	assert.NotNil(t, result2)
+	// Should return the existing one
+	assert.Equal(t, result1.UUID, result2.UUID)
+}
+
+func TestPersistenceStore_DeleteBackupMetadata(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+
+	// First create a backup metadata
+	backupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     &datamodel.JSONB{"env": "test"},
+	}
+	created, err := store.CreateBackupMetadata(ctx, backupMetadata)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	// Now delete it
+	err = store.DeleteBackupMetadata(ctx, volumeUUID)
+	assert.NoError(t, err)
+
+	// Verify it's deleted
+	_, err = store.GetBackupMetadataByVolumeUUID(ctx, volumeUUID)
+	assert.Error(t, err)
+}
+
+func TestPersistenceStore_DeleteBackupMetadata_NotFound(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	volumeUUID := "non-existent-volume-uuid"
+
+	// Try to delete non-existent backup metadata
+	err = store.DeleteBackupMetadata(ctx, volumeUUID)
+	assert.NoError(t, err) // Should not return error for non-existent entry
+}
+
+func TestPersistenceStore_GetBackupMetadataByVolumeUUID(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+	labels := &datamodel.JSONB{"env": "test", "team": "backend"}
+
+	// Create backup metadata
+	backupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     labels,
+	}
+	created, err := store.CreateBackupMetadata(ctx, backupMetadata)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	// Retrieve it
+	result, err := store.GetBackupMetadataByVolumeUUID(ctx, volumeUUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, volumeUUID, result.VolumeUUID)
+	assert.Equal(t, labels, result.Labels)
+	assert.Equal(t, created.UUID, result.UUID)
+}
+
+func TestPersistenceStore_GetBackupMetadataByVolumeUUID_NotFound(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	volumeUUID := "non-existent-volume-uuid"
+
+	// Try to get non-existent backup metadata
+	result, err := store.GetBackupMetadataByVolumeUUID(ctx, volumeUUID)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestPersistenceStore_UpdateBackupMetadata(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	volumeUUID := "test-volume-uuid"
+	originalLabels := &datamodel.JSONB{"env": "test", "team": "backend"}
+	updatedLabels := &datamodel.JSONB{"env": "prod", "team": "frontend", "version": "v2"}
+
+	// Create backup metadata
+	backupMetadata := &datamodel.BackupMetadata{
+		VolumeUUID: volumeUUID,
+		Labels:     originalLabels,
+	}
+	created, err := store.CreateBackupMetadata(ctx, backupMetadata)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	// Update it
+	created.Labels = updatedLabels
+	result, err := store.UpdateBackupMetadata(ctx, created)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, volumeUUID, result.VolumeUUID)
+	assert.Equal(t, updatedLabels, result.Labels)
+	assert.Equal(t, created.UUID, result.UUID)
+}
+
+func TestPersistenceStore_UpdateBackupMetadata_NotFound(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	volumeUUID := "non-existent-volume-uuid"
+
+	// Try to update non-existent backup metadata
+	backupMetadata := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "non-existent-uuid"},
+		VolumeUUID: volumeUUID,
+		Labels:     &datamodel.JSONB{"env": "test"},
+	}
+	result, err := store.UpdateBackupMetadata(ctx, backupMetadata)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}

@@ -451,6 +451,13 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, workflows.ConvertToVSAError(postTransferErr)
 	}
 
+	// Create BackupMetadata entry if this is the first backup for the volume
+	err = workflow.ExecuteActivity(ctx, backupActivities.CreateBackupMetadataIfFirstBackupActivity, volume).Get(ctx, nil)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to create BackupMetadata for volume %s: %v", volume.UUID, err)
+	}
+
 	ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_ABANDON,
 	})
