@@ -48,12 +48,16 @@ func init() {
 	}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_allocated_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolAllocatedSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["allocated_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: AllocatedUsed}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_allocated_size_regional_ha"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePoolRegionalHA, MeasuredType: PoolAllocatedSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["allocated_used_regional_ha"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePoolRegionalHA, MeasuredType: AllocatedUsed}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_space_logical_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: LogicalSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_snapshot_reserve_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: SnapshotSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["backup_logical_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: BackupLogicalSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["backup_volume_allocated_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: BackupVolumeAllocatedSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_capacity"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: AllocatedSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["snapmirror_total_transfer_bytes"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumeReplicationRelationship, MeasuredType: XregionReplicationTotalTransferBytes}
+	CombinedKeyResourceTypeMeasuredTypeMap["throughput_limit"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: VolumeAllocatedThroughput}
+	CombinedKeyResourceTypeMeasuredTypeMap["throughput_limit_regional_ha"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumeRegionalHA, MeasuredType: VolumeAllocatedThroughput}
 }
 
 // NewMeasuredType takes a string and converts it to the defined MeasuredType. If the string is not in the map of available measured types, exists is false and the result is nil.

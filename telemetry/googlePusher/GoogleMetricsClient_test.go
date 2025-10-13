@@ -255,7 +255,7 @@ func Test_partitionMetrics(t *testing.T) {
 	t.Run("Multiple metric types", func(t *testing.T) {
 		metrics := createDummyGoogleMetrics(3)
 		partitionedMetrics := partitionMetrics(metrics, logger)
-		require.Len(t, partitionedMetrics, 3)
+		require.Len(t, partitionedMetrics, 2)
 	})
 
 	t.Run("Empty metrics", func(t *testing.T) {
@@ -304,9 +304,9 @@ func Test_partitionMetrics_singleType(t *testing.T) {
 		*common.NewGoogleMetric(hm2),
 	}
 	partitions := partitionMetrics(metrics, logger)
-	assert.Len(t, partitions, 2)
+	assert.Len(t, partitions, 1)
 	for _, p := range partitions {
-		assert.Len(t, p, 1)
+		assert.Len(t, p, 2)
 	}
 }
 
