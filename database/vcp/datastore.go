@@ -30,6 +30,7 @@ func getVcpModels() []interface{} {
 		&datamodel.NodeNodeGroupMap{},
 		&datamodel.NodeGroup{},
 		&datamodel.PendingResourceDeletions{},
+		&datamodel.ActiveDirectory{},
 	}
 }
 
