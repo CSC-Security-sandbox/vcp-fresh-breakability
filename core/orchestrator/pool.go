@@ -430,12 +430,13 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 	}()
 
 	dbpool := database.ConvertPoolViewToPool(pool)
+	previousState := dbpool.State
+	previousStateDetails := dbpool.StateDetails
+
 	if err = se.DeletingPool(ctx, dbpool); err != nil {
 		return nil, "", err
 	}
 
-	previousState := dbpool.State
-	previousStateDetails := dbpool.StateDetails
 	defer func() {
 		if err != nil {
 			if _, poolErr := se.UpdatePoolState(ctx, dbpool, previousState, previousStateDetails); poolErr != nil {

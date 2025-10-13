@@ -1655,13 +1655,16 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 
 	poolView := &datamodel.PoolView{
 		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			Name:      "test-pool",
-			AccountID: account.ID,
-			Account:   account,
+			BaseModel:    datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:         "test-pool",
+			AccountID:    account.ID,
+			Account:      account,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateReadyDetails,
 		},
 		VolumeCount: 0, // No volumes so it can be deleted
 	}
+	dbpool := database.ConvertPoolViewToPool(poolView)
 
 	params := &common.DeletePoolParams{
 		PoolID:      "pool-uuid",
@@ -1688,7 +1691,7 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
 
 	// Mock pool state update to errored state (called by defer function)
-	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockStorage.On("UpdatePoolState", ctx, dbpool, dbpool.State, dbpool.StateDetails).Return(nil, nil)
 
 	// Execute test
 	result, jobID, err := _deletePool(ctx, mockTemporal, mockStorage, params)
@@ -1701,6 +1704,7 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 
 	// Verify job was marked as errored
 	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+	mockStorage.AssertCalled(t, "UpdatePoolState", ctx, dbpool, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 }
 
 // TestCreatePool_WorkflowFailure_JobUpdateFails tests error handling when both workflow and job update fail
