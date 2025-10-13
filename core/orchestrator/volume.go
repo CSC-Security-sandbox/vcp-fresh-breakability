@@ -1635,7 +1635,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if err != nil {
 		return nil, "", err
 	}
-
+	logger.Debugf("Pool details: UUID: %s, AccountID: %d, SizeBytes: %d, QuotaBytes: %d, VolumeCount: %d, Throughput: %f", pool.UUID, pool.AccountID, pool.SizeInBytes, pool.QuotaInBytes, pool.VolumeCount, pool.Throughput)
 	err = validateUpdateVolumeRequest(ctx, se, dbVolume, params, pool)
 	if err != nil {
 		return nil, "", err
@@ -1730,6 +1730,8 @@ func _updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *dat
 }
 
 func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams, pool *datamodel.PoolView) error {
+	log := util.GetLogger(ctx)
+
 	if volume.State == models.LifeCycleStateUpdating {
 		return customerrors.NewConflictErr("An update operation is already in progress for this volume")
 	} else if utils.IsTransitionalState(volume.State) {
@@ -1743,6 +1745,8 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 		// Calculate the size increase
 		sizeIncrease := params.QuotaInBytes - volume.SizeInBytes
+
+		log.Debugf("Current Volume Size: %d, New Volume Size: %d, Size Increase: %d, Pool Size: %d, Clones Shared Bytes: %d", volume.SizeInBytes, params.QuotaInBytes, sizeIncrease, pool.SizeInBytes, volume.ClonesSharedBytes)
 
 		// Check if adding the increase to current pool usage exceeds pool size
 		if sizeIncrease > 0 && pool.QuotaInBytes+uint64(sizeIncrease)-volume.ClonesSharedBytes > uint64(pool.SizeInBytes) {
