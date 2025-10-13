@@ -78,3 +78,4 @@ jobs:
       pre_release: true
       tag: ${{ needs.release_branch.outputs.devTAG }}
       pr_base_branch: ${{ needs.release_branch.outputs.devBranch }}
+      component_update: true
