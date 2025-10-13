@@ -1114,6 +1114,11 @@ func TestV1betaCreateBackup_CVPErrorCases(t *testing.T) {
 				GetVolume(ctx, "vol-id", false).
 				Return(nil, fmt.Errorf("not found"))
 
+			// Mock ListBackups call that happens when volume is not found
+			mockOrch.EXPECT().
+				ListBackups(ctx, "vault", "proj", [][]interface{}{{"name = ?", "res-id"}}).
+				Return([]*datamodel.Backup{}, nil)
+
 			mockClient.EXPECT().V1betaCreateBackup(mock.Anything).Return(nil, nil, c.err)
 			cvpClient := &cvpapi.Cvp{Backups: mockClient}
 			originalCreateClient := createClient
@@ -1155,6 +1160,11 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
 
+		// Mock ListBackups call that happens when volume is not found
+		mockOrch.EXPECT().
+			ListBackups(ctx, "vault", "proj", [][]interface{}{{"name = ?", "res-id"}}).
+			Return([]*datamodel.Backup{}, nil)
+
 		cvpBackupCreated := &backups.V1betaCreateBackupCreated{
 			Payload: &models.BackupV1beta{BackupID: "backup-id", BackupRegion: strPtr("us-east4"), BackupType: "adhoc", Created: strfmt.DateTime(time.Now().UTC()), VolumeID: "vol-id"},
 		}
@@ -1193,6 +1203,11 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
 
+		// Mock ListBackups call that happens when volume is not found
+		mockOrch.EXPECT().
+			ListBackups(ctx, "vault", "proj", [][]interface{}{{"name = ?", "res-id"}}).
+			Return([]*datamodel.Backup{}, nil)
+
 		cvpBackupAccepted := &backups.V1betaCreateBackupAccepted{
 			Payload: &models.OperationV1beta{Name: "operation1"},
 		}
@@ -1230,6 +1245,11 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 		mockOrch.EXPECT().
 			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
+
+		// Mock ListBackups call that happens when volume is not found
+		mockOrch.EXPECT().
+			ListBackups(ctx, "vault", "proj", [][]interface{}{{"name = ?", "res-id"}}).
+			Return([]*datamodel.Backup{}, nil)
 
 		mockClient.EXPECT().
 			V1betaCreateBackup(mock.Anything).
@@ -3985,4 +4005,248 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s
+}
+
+// TestV1betaCreateBackup_VolumeNotFoundInVSA tests the scenario where volume doesn't exist in VSA
+// and the function falls back to CVP, including the backup existence check logic
+func TestV1betaCreateBackup_VolumeNotFoundInVSA(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	t.Run("WhenVolumeNotFoundAndBackupExistsInVCP_ShouldReturnConflict", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("Error", "Backup with resource ID res-id already exists in backup vault vault").Return()
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   "vol-id",
+			ResourceId: "res-id",
+			Description: gcpgenserver.OptString{
+				Value: "test description",
+				Set:   true,
+			},
+			SnapshotId: gcpgenserver.OptString{
+				Value: "snap-id",
+				Set:   true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "proj",
+			BackupVaultId:  "vault",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		// Mock ParseAndValidateRegionAndZone to succeed
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Mock GetVolume to return NotFoundErr (volume doesn't exist in VSA)
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
+
+		// Mock ListBackups to return existing backup (backup already exists in VCP)
+		existingBackup := &datamodel.Backup{
+			Name: "res-id",
+		}
+		mockOrch.EXPECT().ListBackups(ctx, "vault", "proj", [][]interface{}{{"name = ?", "res-id"}}).
+			Return([]*datamodel.Backup{existingBackup}, nil)
+
+		handler := Handler{Orchestrator: mockOrch}
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		// Should return conflict error since backup already exists
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupConflict{}, result)
+
+		conflict := result.(*gcpgenserver.V1betaCreateBackupConflict)
+		assert.Equal(t, float64(409), conflict.Code)
+		assert.Contains(t, conflict.Message, "Backup with resource ID res-id already exists in backup vault vault")
+	})
+
+	t.Run("WhenVolumeNotFoundAndListBackupsFails_ShouldReturnInternalServerError", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("Error", "Failed to check for existing backups", "error", "Database connection failed").Return()
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   "vol-id",
+			ResourceId: "res-id",
+		}
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "proj",
+			BackupVaultId: "vault",
+		}
+
+		// Mock ParseAndValidateRegionAndZone to succeed
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Mock GetVolume to return NotFoundErr (volume doesn't exist in VSA)
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
+
+		// Mock ListBackups to fail
+		listBackupsErr := fmt.Errorf("Database connection failed")
+		mockOrch.EXPECT().ListBackups(ctx, "vault", "proj", [][]interface{}{{"name = ?", "res-id"}}).
+			Return(nil, listBackupsErr)
+
+		handler := Handler{Orchestrator: mockOrch}
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		// Should return internal server error since ListBackups failed
+		assert.Error(t, err)
+		assert.Equal(t, "Database connection failed", err.Error())
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupInternalServerError{}, result)
+
+		internalErr := result.(*gcpgenserver.V1betaCreateBackupInternalServerError)
+		assert.Equal(t, float64(500), internalErr.Code)
+		assert.Equal(t, "Database connection failed", internalErr.Message)
+	})
+
+	t.Run("WhenVolumeIsNilAndNoExistingBackup_ShouldProceedToCVP", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   "vol-id",
+			ResourceId: "res-id",
+			Description: gcpgenserver.OptString{
+				Value: "test description",
+				Set:   true,
+			},
+			SnapshotId: gcpgenserver.OptString{
+				Value: "snap-id",
+				Set:   true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "proj",
+			BackupVaultId:  "vault",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		// Mock ParseAndValidateRegionAndZone to succeed
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Mock GetVolume to return nil volume (volume doesn't exist in VSA)
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, nil)
+
+		// Mock ListBackups to return empty list (no existing backup)
+		mockOrch.EXPECT().ListBackups(ctx, "vault", "proj", [][]interface{}{{"name = ?", "res-id"}}).
+			Return([]*datamodel.Backup{}, nil)
+
+		// Mock CVP client creation
+		mockCVPClient := backups.NewMockClientService(t)
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockCVPClient}
+		}
+
+		// Mock CVP backup creation to return created backup
+		cvpBackupCreated := &backups.V1betaCreateBackupCreated{
+			Payload: &models.BackupV1beta{
+				ResourceID: "res-id",
+				VolumeID:   "vol-id",
+				State:      "Available for use",
+				BackupID:   "cvp-backup-id",
+			},
+		}
+		mockCVPClient.EXPECT().V1betaCreateBackup(mock.Anything).Return(cvpBackupCreated, nil, nil)
+
+		handler := Handler{Orchestrator: mockOrch}
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		// Should return operation response from CVP
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+		operation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(t, operation.Done.Value) // Should be done since CVP returned created backup
+	})
+
+	t.Run("WhenVolumeNotFoundAndNoExistingBackup_ShouldProceedToCVP", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   "vol-id",
+			ResourceId: "res-id",
+		}
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "proj",
+			BackupVaultId: "vault",
+		}
+
+		// Mock ParseAndValidateRegionAndZone to succeed
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Mock GetVolume to return NotFoundErr (volume doesn't exist in VSA)
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
+
+		// Mock ListBackups to return empty list (no existing backup with same resource ID)
+		mockOrch.EXPECT().ListBackups(ctx, "vault", "proj", [][]interface{}{{"name = ?", "res-id"}}).
+			Return([]*datamodel.Backup{}, nil)
+
+		// Mock CVP client creation
+		mockCVPClient := backups.NewMockClientService(t)
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockCVPClient}
+		}
+
+		// Mock CVP backup creation to return accepted operation
+		done := false
+		cvpBackupAccepted := &backups.V1betaCreateBackupAccepted{
+			Payload: &models.OperationV1beta{
+				Name: "operations/cvp-operation-id",
+				Done: &done,
+			},
+		}
+		mockCVPClient.EXPECT().V1betaCreateBackup(mock.Anything).Return(nil, cvpBackupAccepted, nil)
+
+		handler := Handler{Orchestrator: mockOrch}
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		// Should return operation response from CVP
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+		operation := result.(*gcpgenserver.OperationV1beta)
+		assert.False(t, operation.Done.Value)
+	})
 }

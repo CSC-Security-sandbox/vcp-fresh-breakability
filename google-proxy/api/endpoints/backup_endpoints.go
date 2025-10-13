@@ -155,6 +155,21 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 
 	// Check if volume exist in the VSA if not call CVP API to create the backup
 	if (err != nil && errors.IsNotFoundErr(err)) || vol == nil {
+		// Check if backup already exists in VCP under the same vault before creating in CVP
+		filters := [][]interface{}{{"name = ?", req.ResourceId}}
+		existingBackups, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, filters)
+		if err != nil {
+			logger.Error("Failed to check for existing backups", "error", err.Error())
+			return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+		}
+		if len(existingBackups) > 0 {
+			msg := fmt.Sprintf("Backup with resource ID %s already exists in backup vault %s", req.ResourceId, params.BackupVaultId)
+			logger.Error(msg)
+			return &gcpgenserver.V1betaCreateBackupConflict{
+				Code:    409,
+				Message: msg,
+			}, nil
+		}
 		jwtToken := utils.GetJWTTokenFromContext(ctx)
 		cvpClient := createClient(logger, jwtToken)
 
