@@ -313,8 +313,9 @@ type CustomError struct {
 	TrackingID  int
 	Message     string
 	Retriable   bool
-	HttpCode    *int  // HttpCode is the HTTP code associated with the error
-	OriginalErr error // OriginalErr holds the original error in case this is a wrapped error
+	HttpCode    *int          // HttpCode is the HTTP code associated with the error
+	OriginalErr error         // OriginalErr holds the original error in case this is a wrapped error
+	args        []interface{} // Arguments for formatting the message with placeholders
 }
 
 // Error implements the error interface for CustomError.
@@ -322,7 +323,13 @@ func (e *CustomError) Error() string {
 	if e == nil {
 		return ""
 	}
-	return fmt.Sprintf("%s", e.Message)
+
+	// If we have arguments, format the message with them
+	if len(e.args) > 0 {
+		return fmt.Sprintf(e.Message, e.args...)
+	}
+
+	return e.Message
 }
 
 // Unwrap returns the originalErr error if there is one.
@@ -372,7 +379,59 @@ func (e *CustomError) GetMessage() string {
 	if e == nil {
 		return ""
 	}
+
+	// If we have arguments, format the message with them
+	if len(e.args) > 0 {
+		return fmt.Sprintf(e.Message, e.args...)
+	}
+
 	return e.Message
+}
+
+// GetRawMessage returns the unformatted message template without any placeholder substitution.
+func (e *CustomError) GetRawMessage() string {
+	if e == nil {
+		return ""
+	}
+	return e.Message
+}
+
+// GetArgs returns the arguments used for message formatting.
+func (e *CustomError) GetArgs() []interface{} {
+	if e == nil {
+		return nil
+	}
+	return e.args
+}
+
+// HasArgs returns true if the error message contains format specifiers.
+func (e *CustomError) HasArgs() bool {
+	if e == nil {
+		return false
+	}
+	return len(e.args) > 0
+}
+
+// WithArgs creates a new CustomError with the same properties but different placeholder arguments.
+// This is useful when you want to reuse an existing error with different context.
+func (e *CustomError) WithArgs(args ...interface{}) *CustomError {
+	if e == nil {
+		return nil
+	}
+
+	// Ensure args is never nil - use empty slice if no args provided
+	if args == nil {
+		args = []interface{}{}
+	}
+
+	return &CustomError{
+		TrackingID:  e.TrackingID,
+		Message:     e.Message,
+		Retriable:   e.Retriable,
+		HttpCode:    e.HttpCode,
+		OriginalErr: e.OriginalErr,
+		args:        args,
+	}
 }
 
 // LogOriginalError logs the Original error message along with its code.
@@ -398,14 +457,62 @@ func NewVCPError(trackingID int, originalErr error) *CustomError {
 			Retriable:   *errMsg.Retriable,
 			HttpCode:    errMsg.HttpCode,
 			OriginalErr: originalErr,
+			args:        nil,
 		}
 	}
 	// If the error name is not defined, create a generic non-retriable error with the original error.
+	message := "An internal error occurred"
+	if originalErr != nil {
+		message = originalErr.Error()
+	}
+
 	return &CustomError{
 		TrackingID:  ErrInternalServerError, // Default to ErrInternalServerError
-		Message:     fmt.Sprintf("%s", originalErr.Error()),
+		Message:     message,
 		Retriable:   false,
 		OriginalErr: originalErr,
+		args:        nil,
+	}
+}
+
+// NewVCPErrorWithArgs creates a new CustomError with placeholder arguments for message formatting.
+// The message from the error configuration should contain format specifiers (e.g., %s, %d, %v).
+// Example: If the JSON message is "internal error occurred in %s", you can call:
+// NewVCPErrorWithArgs(ErrInternalServerError, err, "pool")
+func NewVCPErrorWithArgs(trackingID int, originalErr error, args ...interface{}) *CustomError {
+	// Ensure args is never nil - use empty slice if no args provided
+	if args == nil {
+		args = []interface{}{}
+	}
+
+	if errMsg, ok := errorMap[trackingID]; ok {
+		if errMsg.Retriable == nil {
+			// Default to false if retriable is not specified in the JSON file.
+			errMsg.Retriable = new(bool)
+			*errMsg.Retriable = false
+		}
+
+		return &CustomError{
+			TrackingID:  trackingID,
+			Message:     errMsg.Message,
+			Retriable:   *errMsg.Retriable,
+			HttpCode:    errMsg.HttpCode,
+			OriginalErr: originalErr,
+			args:        args,
+		}
+	}
+	// If the error name is not defined, create a generic non-retriable error with the original error.
+	message := "An internal error occurred"
+	if originalErr != nil {
+		message = originalErr.Error()
+	}
+
+	return &CustomError{
+		TrackingID:  ErrInternalServerError, // Default to ErrInternalServerError
+		Message:     message,
+		Retriable:   false,
+		OriginalErr: originalErr,
+		args:        args,
 	}
 }
 

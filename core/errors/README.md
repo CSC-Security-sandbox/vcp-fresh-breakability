@@ -41,12 +41,12 @@ The VSA Control Plane implements a comprehensive custom error handling system th
 
 The error system organizes errors into logical categories using numeric ranges:
 
-- **1000-1999**: General/Workflow errors
+- **1000-1999**: General/Workflow/Validation errors
 - **2000-2999**: Database errors  
 - **3000-3999**: GCP/Cloud errors
-- **4000-4999**: VSA Cluster errors
+- **4000-4999**: VSA Cluster/Pool errors
 - **5000-5999**: ONTAP errors
-- **6000-6999**: Replication/Validation errors
+- **6100-6999**: Replication errors
 - **7000-7999**: Snapshot/Volume errors
 - **12000-12999**: Backup errors
 
@@ -92,6 +92,43 @@ if err := db.Query(); err != nil {
 if err := db.Query(); err != nil {
     return errors.NewVCPError(errors.ErrDatabaseDataReadError, nil)
 }
+```
+
+**Using placeholders in error messages:**
+
+```go
+// JSON configuration example:
+// {
+//   "1001": {
+//     "description": "Workflow configuration error with context",
+//     "message": "Internal error occurred in %s: %s",
+//     "retriable": false,
+//     "http_code": 500
+//   }
+// }
+
+// Good: Create error with placeholder arguments
+if err := operation(); err != nil {
+    return errors.NewVCPErrorWithArgs(
+        errors.ErrWorkflowConfigurationError, 
+        err, 
+        "pool",           // First placeholder: %s
+        "connection failed" // Second placeholder: %s
+    )
+}
+
+// Good: Create error with single placeholder
+if err := validatePool(poolName); err != nil {
+    return errors.NewVCPErrorWithArgs(
+        errors.ErrResourceNotFound, 
+        err, 
+        poolName // First placeholder: %s
+    )
+}
+
+// Good: Reuse existing error with different arguments
+baseErr := errors.NewVCPError(errors.ErrWorkflowConfigurationError, err)
+poolErr := baseErr.WithArgs("pool", "validation failed")
 ```
 
 **Avoid double wrapping errors:**
@@ -293,6 +330,90 @@ func handleWorkflowError(err error) *errors.CustomError {
 
 ### Adding New Error Codes
 
+### Using Placeholders in Error Messages
+
+The custom error system supports Go's `fmt.Sprintf` style placeholders in error messages. This allows you to create dynamic, context-aware error messages.
+
+#### Placeholder Types Supported
+
+- **`%s`**: String values
+- **`%d`**: Integer values  
+- **`%v`**: Default format for any value
+- **`%+v`**: Detailed format for structs
+- **`%#v`**: Go syntax representation
+- **`%t`**: Boolean values
+- **`%f`**: Floating point numbers
+
+#### JSON Configuration Example
+
+```json
+{
+  "1001": {
+    "description": "Workflow configuration error with context",
+    "message": "Internal error occurred in %s: %s",
+    "retriable": false,
+    "http_code": 500
+  },
+  "2001": {
+    "description": "Database connection error with details",
+    "message": "Failed to connect to database %s on host %s: %s",
+    "retriable": true,
+    "http_code": 503
+  }
+}
+```
+
+#### Usage Examples
+
+```go
+// Single placeholder
+if err := validateResource(resourceName); err != nil {
+    return errors.NewVCPErrorWithArgs(
+        errors.ErrResourceNotFound, 
+        err, 
+        resourceName
+    )
+}
+
+// Multiple placeholders
+if err := connectToDatabase(dbName, host); err != nil {
+    return errors.NewVCPErrorWithArgs(
+        errors.ErrDatabaseConnectionClosed,
+        err,
+        dbName,    // First %s
+        host,      // Second %s
+        err.Error() // Third %s
+    )
+}
+
+// Reusing errors with different arguments
+baseErr := errors.NewVCPError(errors.ErrWorkflowConfigurationError, nil)
+poolErr := baseErr.WithArgs("pool", "validation failed")
+volumeErr := baseErr.WithArgs("volume", "creation failed")
+```
+
+#### Best Practices for Placeholders
+
+1. **Use descriptive placeholders**: Make it clear what each placeholder represents
+2. **Order matters**: Ensure placeholder order matches argument order
+3. **Validate arguments**: Check that arguments match expected types
+4. **Keep messages readable**: Don't overuse placeholders - keep messages human-readable
+5. **Consistent formatting**: Use consistent placeholder patterns across related errors
+
+#### Error Message Examples
+
+```go
+// Good: Clear and descriptive
+"Failed to create volume %s in pool %s: %s"
+"User %s attempted to access resource %s without permission"
+"Operation %s failed after %d retries: %s"
+
+// Avoid: Too many placeholders
+"Error %s in %s for %s with %s: %s" // Hard to understand
+```
+
+### Adding New Error Codes
+
 1. **Define the constant** in the appropriate range:
 
 ```go
@@ -349,17 +470,6 @@ func TestErrorWrapping(t *testing.T) {
 }
 ```
 
-### Integration Testing
-
-```go
-func TestErrorHTTPResponse(t *testing.T) {
-    customErr := errors.NewVCPError(errors.ErrResourceNotFound, nil)
-    
-    hasCode, httpCode := customErr.GetHttpCode()
-    assert.True(t, hasCode)
-    assert.Equal(t, 404, httpCode)
-}
-```
 
 ## Error Wrapping Best Practices
 
@@ -624,7 +734,47 @@ func workflowStep(ctx interface{}) error {
 }
 ```
 
-### 4. Retry Logic
+### 4. Error with Placeholders
+
+```go
+// Create errors with dynamic context using placeholders
+func createResourceError(resourceType, resourceName string, err error) error {
+    return errors.NewVCPErrorWithArgs(
+        errors.ErrResourceNotFound,
+        err,
+        resourceType,  // First placeholder: %s
+        resourceName   // Second placeholder: %s
+    )
+}
+
+// Reuse error templates with different arguments
+func handlePoolError(poolName string, operation string, err error) error {
+    baseErr := errors.NewVCPError(errors.ErrWorkflowConfigurationError, err)
+    
+    if operation == "create" {
+        return baseErr.WithArgs("pool creation", poolName)
+    } else if operation == "delete" {
+        return baseErr.WithArgs("pool deletion", poolName)
+    }
+    
+    return baseErr.WithArgs("pool operation", poolName)
+}
+
+// Example usage
+func processPool(poolName string) error {
+    if err := validatePool(poolName); err != nil {
+        return createResourceError("pool", poolName, err)
+    }
+    
+    if err := createPool(poolName); err != nil {
+        return handlePoolError(poolName, "create", err)
+    }
+    
+    return nil
+}
+```
+
+### 5. Retry Logic
 
 ```go
 func retryOperation(operation func() error, maxRetries int) error {
