@@ -64,6 +64,12 @@ func main() {
 	}()
 	// Register your custom metric
 	metrics.RegisterJobStatusCounter()
+	metrics.RegisterTotalVolumeCountGauge()
+	metrics.RegisterAutoTierEnabledGauge()
+	metrics.RegisterCRREnabledGauge()
+	metrics.RegisterLargeVolumeEnabledGauge()
+	metrics.RegisterCBSEnabledGauge()
+	metrics.RegisterEligibilityStringGauge()
 	// Start metrics HTTP server
 	metricsPort := os.Getenv("METRICS_PORT")
 	if metricsPort == "" {
@@ -323,6 +329,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
 	worker.RegisterWorkflow(jobmanagerworkflows.JobManagerWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.VolumeDetailsWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SnapshotsSyncParentWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SnapshotsSyncChildWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow)
@@ -350,6 +357,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.ResourceCleanupParentWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.ResourceCleanupChildWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncBackupZiZsWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.EligibilityStringWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -363,6 +371,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.OrphanJobActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&backgroundactivities.CustomerAdoptionActivity{SE: conn, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&backgroundactivities.HardDeleteResourcesAndAccountActivity{SE: conn})
 	worker.RegisterActivity(&backgroundworkflows.HardDeleteResourcesAndAccountworkflow{})
 	worker.RegisterActivity(&resource_events_activities.FinishProjectEventActivity{SE: conn})
@@ -372,4 +381,5 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&activities.WFLastExecutionActivity{TemporalClient: temporal})
 	worker.RegisterActivity(&activities.PoolActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.SyncBackupZiZsActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.EligibilityStringActivity{SE: conn, Scheduler: temporalScheduler})
 }

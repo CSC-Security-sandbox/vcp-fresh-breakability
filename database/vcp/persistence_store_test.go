@@ -2477,6 +2477,92 @@ func TestPersistenceStore_UpdatePendingResourceDeletion_NotFound(t *testing.T) {
 	assert.True(t, err.Error() == "An internal error occurred." || err.Error() == "Resource not found")
 }
 
+func TestGetEligibleVolumes_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+
+	// Create account
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "Account1",
+	}
+	_, err = store.CreateAccount(ctx, account)
+	assert.NoError(t, err)
+
+	// Create eligible volumes
+	for i := 1; i <= 2; i++ {
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("vol-uuid-%d", i)},
+			Name:      fmt.Sprintf("Volume%d", i),
+			State:     "READY",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		_, err = store.CreateVolume(ctx, vol)
+		assert.NoError(t, err)
+	}
+
+	// Test: returns eligible volumes
+	conditions := [][]interface{}{}
+	pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+	volumes, err := store.GetEligibleVolumes(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, volumes, 2)
+	assert.Equal(t, "Volume1", volumes[0].Name)
+	assert.Equal(t, "Volume2", volumes[1].Name)
+
+	// Test: returns empty slice when no eligible volumes
+	// Clear DB
+	err = ClearInMemoryDB(store.DB())
+	assert.NoError(t, err)
+	volumes, err = store.GetEligibleVolumes(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Empty(t, volumes)
+}
+
+func TestPersistenceStore_ListAllVolumes(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	// Create account
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "Account1",
+	}
+	_, err = store.CreateAccount(ctx, account)
+	require.NoError(t, err)
+
+	// Create volumes
+	for i := 1; i <= 2; i++ {
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("vol-uuid-%d", i)},
+			Name:      fmt.Sprintf("Volume%d", i),
+			AccountID: account.ID,
+		}
+		_, err = store.CreateVolume(ctx, vol)
+		require.NoError(t, err)
+	}
+
+	// Test: returns all volumes
+	conditions := [][]interface{}{}
+	pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+	volumes, err := store.ListAllVolumes(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, volumes, 2)
+	assert.Equal(t, "Volume1", volumes[0].Name)
+	assert.Equal(t, "Volume2", volumes[1].Name)
+
+	// Test: returns empty slice when no volumes
+	err = ClearInMemoryDB(store.DB())
+	require.NoError(t, err)
+	volumes, err = store.ListAllVolumes(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Empty(t, volumes)
+}
 func TestPersistenceStore_CreateBackupMetadata(t *testing.T) {
 	logger := log.NewLogger()
 	store, err := SetupStorageForTest(logger)

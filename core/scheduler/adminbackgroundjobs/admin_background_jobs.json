@@ -9,6 +9,11 @@
     "cronExpression": "0 0 * * *",
     "state": "CREATING"
   },
+  "VOLUME_DETAILS_TOTAL": {
+    "jobType": "VOLUME_DETAILS_TOTAL",
+    "cronExpression": "0 0 * * *",
+    "state": "CREATING"
+  },
   "HARD_DELETE_RESOURCES_AND_ACCOUNT": {
     "jobType": "HARD_DELETE_RESOURCES_AND_ACCOUNT",
     "cronExpression": "* 8 * * *",
@@ -52,6 +57,11 @@
   "SYNC_POOL_COMPLIANCE": {
     "jobType": "SYNC_POOL_COMPLIANCE",
     "cronExpression": "0 * * * *",
+    "state": "CREATING"
+  },
+  "ELIGIBILITY_STRING_JOB": {
+    "jobType": "ELIGIBILITY_STRING_JOB",
+    "cronExpression": "*/5 * * * *",
     "state": "CREATING"
   }
 }

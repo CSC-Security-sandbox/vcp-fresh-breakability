@@ -539,6 +539,10 @@ func (s *PersistenceStore) ListVolumes(ctx context.Context, conditions [][]inter
 	return s.dataStore.ListVolumes(ctx, conditions)
 }
 
+func (s *PersistenceStore) ListAllVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	return s.dataStore.ListAllVolumes(ctx, conditions, pagination)
+}
+
 func (s *PersistenceStore) ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
 	return s.dataStore.ListVolumesWithPagination(ctx, conditions, pagination)
 }
@@ -1213,6 +1217,10 @@ func (s *PersistenceStore) GetResourcesCount(ctx context.Context) (int64, error)
 
 func (s *PersistenceStore) DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error {
 	return s.dataStore.DeleteServiceAccount(ctx, serviceAccount)
+}
+
+func (s *PersistenceStore) GetEligibleVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	return s.dataStore.GetEligibleVolumes(ctx, conditions, pagination)
 }
 
 func (s *PersistenceStore) UpdateBackupConstituentCountFromVolume(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) (*datamodel.Backup, error) {

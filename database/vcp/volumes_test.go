@@ -2795,3 +2795,260 @@ func TestListVolumesWithPagination(t *testing.T) {
 		assert.Equal(tt, "test-volume-uuid-1", volumes[0].UUID, "Expected volume 1 UUID, got %v", volumes[0].UUID)
 	})
 }
+
+func TestListAllVolumes(t *testing.T) {
+	t.Run("ReturnsEmptySliceWhenNoVolumesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		conditions := [][]interface{}{}
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+		volumes, err := store.ListAllVolumes(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Empty(tt, volumes)
+	})
+
+	t.Run("ReturnsPaginatedVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "acc-uuid"},
+			Name:      "Account1",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		// Create 3 volumes
+		for i := 1; i <= 3; i++ {
+			vol := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("vol-uuid-%d", i)},
+				Name:      fmt.Sprintf("Volume%d", i),
+				State:     "READY",
+				AccountID: account.ID,
+				Account:   account,
+			}
+			err = store.db.Create(vol).Error()
+			assert.NoError(tt, err)
+		}
+
+		conditions := [][]interface{}{}
+		pagination := &dbutils.Pagination{Limit: 2, Offset: 0}
+		volumes, err := store.ListAllVolumes(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, volumes, 2)
+		assert.Equal(tt, "Volume1", volumes[0].Name)
+		assert.Equal(tt, "Volume2", volumes[1].Name)
+
+		// Second page
+		pagination = &dbutils.Pagination{Limit: 2, Offset: 2}
+		volumes, err = store.ListAllVolumes(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, volumes, 1)
+		assert.Equal(tt, "Volume3", volumes[0].Name)
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		conditions := [][]interface{}{}
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+		volumes, err := store.ListAllVolumes(context.Background(), conditions, pagination)
+		assert.Error(tt, err)
+		assert.Nil(tt, volumes)
+	})
+}
+
+// file: database/vcp/volumes_test.go
+
+func TestGetEligibleVolumes(t *testing.T) {
+	t.Run("ReturnsEmptySliceWhenNoVolumesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		conditions := [][]interface{}{}
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+		volumes, err := store.GetEligibleVolumes(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Empty(tt, volumes)
+	})
+
+	t.Run("ReturnsPaginatedEligibleVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "acc-uuid"},
+			Name:      "Account1",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		for i := 1; i <= 3; i++ {
+			vol := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("vol-uuid-%d", i)},
+				Name:      fmt.Sprintf("Volume%d", i),
+				State:     "READY",
+				AccountID: account.ID,
+				Account:   account,
+			}
+			err = store.db.Create(vol).Error()
+			assert.NoError(tt, err)
+		}
+
+		conditions := [][]interface{}{}
+		pagination := &dbutils.Pagination{Limit: 2, Offset: 0}
+		volumes, err := store.GetEligibleVolumes(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, volumes, 2)
+		assert.Equal(tt, "Volume1", volumes[0].Name)
+		assert.Equal(tt, "Volume2", volumes[1].Name)
+
+		pagination = &dbutils.Pagination{Limit: 2, Offset: 2}
+		volumes, err = store.GetEligibleVolumes(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, volumes, 1)
+		assert.Equal(tt, "Volume3", volumes[0].Name)
+	})
+
+	t.Run("ReturnsEligibleVolumesWithNilPagination", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "acc-uuid"},
+			Name:      "Account1",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+			Name:      "Volume1",
+			State:     "READY",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(vol).Error()
+		assert.NoError(tt, err)
+
+		conditions := [][]interface{}{}
+		volumes, err := store.GetEligibleVolumes(context.Background(), conditions, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, volumes, 1)
+		assert.Equal(tt, "Volume1", volumes[0].Name)
+	})
+
+	t.Run("ReturnsEligibleVolumesWithZeroLimit", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "acc-uuid"},
+			Name:      "Account1",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+			Name:      "Volume1",
+			State:     "READY",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(vol).Error()
+		assert.NoError(tt, err)
+
+		conditions := [][]interface{}{}
+		pagination := &dbutils.Pagination{Limit: 0, Offset: 0}
+		volumes, err := store.GetEligibleVolumes(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, volumes, 1)
+		assert.Equal(tt, "Volume1", volumes[0].Name)
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		conditions := [][]interface{}{}
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+		volumes, err := store.GetEligibleVolumes(context.Background(), conditions, pagination)
+		assert.Error(tt, err)
+		assert.Nil(tt, volumes)
+	})
+
+	t.Run("ReturnsEmptySliceWhenOffsetExceedsTotalVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "acc-uuid"},
+			Name:      "Account1",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+			Name:      "Volume1",
+			State:     "READY",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(vol).Error()
+		assert.NoError(tt, err)
+
+		conditions := [][]interface{}{}
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 100}
+		volumes, err := store.GetEligibleVolumes(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Empty(tt, volumes)
+	})
+}

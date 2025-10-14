@@ -5023,6 +5023,66 @@ func (_c *MockStorage_GetDeletedAccounts_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// GetEligibleVolumes provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockStorage) GetEligibleVolumes(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Volume, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEligibleVolumes")
+	}
+
+	var r0 []*datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Volume, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.Volume); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetEligibleVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEligibleVolumes'
+type MockStorage_GetEligibleVolumes_Call struct {
+	*mock.Call
+}
+
+// GetEligibleVolumes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) GetEligibleVolumes(ctx interface{}, conditions interface{}, pagination interface{}) *MockStorage_GetEligibleVolumes_Call {
+	return &MockStorage_GetEligibleVolumes_Call{Call: _e.mock.On("GetEligibleVolumes", ctx, conditions, pagination)}
+}
+
+func (_c *MockStorage_GetEligibleVolumes_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockStorage_GetEligibleVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetEligibleVolumes_Call) Return(_a0 []*datamodel.Volume, _a1 error) *MockStorage_GetEligibleVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetEligibleVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Volume, error)) *MockStorage_GetEligibleVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetHostGroup provides a mock function with given fields: ctx, id, accountID
 func (_m *MockStorage) GetHostGroup(ctx context.Context, id string, accountID int64) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, id, accountID)
@@ -7507,6 +7567,62 @@ func (_c *MockStorage_GetSvmsByPoolID_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// GetTotalVolumeCount provides a mock function with given fields: ctx
+func (_m *MockStorage) GetTotalVolumeCount(ctx context.Context) (int64, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTotalVolumeCount")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) int64); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetTotalVolumeCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTotalVolumeCount'
+type MockStorage_GetTotalVolumeCount_Call struct {
+	*mock.Call
+}
+
+// GetTotalVolumeCount is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockStorage_Expecter) GetTotalVolumeCount(ctx interface{}) *MockStorage_GetTotalVolumeCount_Call {
+	return &MockStorage_GetTotalVolumeCount_Call{Call: _e.mock.On("GetTotalVolumeCount", ctx)}
+}
+
+func (_c *MockStorage_GetTotalVolumeCount_Call) Run(run func(ctx context.Context)) *MockStorage_GetTotalVolumeCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetTotalVolumeCount_Call) Return(_a0 int64, _a1 error) *MockStorage_GetTotalVolumeCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetTotalVolumeCount_Call) RunAndReturn(run func(context.Context) (int64, error)) *MockStorage_GetTotalVolumeCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolume provides a mock function with given fields: ctx, id
 func (_m *MockStorage) GetVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	ret := _m.Called(ctx, id)
@@ -8819,6 +8935,66 @@ func (_c *MockStorage_IsLatestBackupAnyState_Call) Return(_a0 bool, _a1 error) *
 }
 
 func (_c *MockStorage_IsLatestBackupAnyState_Call) RunAndReturn(run func(context.Context, string, string) (bool, error)) *MockStorage_IsLatestBackupAnyState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListAllVolumes provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockStorage) ListAllVolumes(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Volume, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAllVolumes")
+	}
+
+	var r0 []*datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Volume, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.Volume); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListAllVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAllVolumes'
+type MockStorage_ListAllVolumes_Call struct {
+	*mock.Call
+}
+
+// ListAllVolumes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) ListAllVolumes(ctx interface{}, conditions interface{}, pagination interface{}) *MockStorage_ListAllVolumes_Call {
+	return &MockStorage_ListAllVolumes_Call{Call: _e.mock.On("ListAllVolumes", ctx, conditions, pagination)}
+}
+
+func (_c *MockStorage_ListAllVolumes_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockStorage_ListAllVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListAllVolumes_Call) Return(_a0 []*datamodel.Volume, _a1 error) *MockStorage_ListAllVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListAllVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Volume, error)) *MockStorage_ListAllVolumes_Call {
 	_c.Call.Return(run)
 	return _c
 }

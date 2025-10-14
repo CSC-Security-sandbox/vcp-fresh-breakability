@@ -17,6 +17,7 @@ import (
 const (
 	SyncVsaSnapshots              = "SYNC_VSA_SNAPSHOTS"
 	RotateKmsServiceAccounts      = "ROTATE_KMS_SERVICE_ACCOUNTS"
+	VolumeDetailsTotal            = "VOLUME_DETAILS_TOTAL"
 	OrphanJobScheduler            = "ORPHANED_JOB_SCHEDULER"
 	SyncLatestBackupLogicalSize   = "SYNC_LATEST_BACKUP_LOGICAL_SIZE"
 	HardDeleteResourcesAndAccount = "HARD_DELETE_RESOURCES_AND_ACCOUNT"
@@ -26,12 +27,14 @@ const (
 	DeleteResources               = "DELETE_RESOURCES"
 	SyncBackupZiZsMetadata        = "SYNC_BACKUP_ZIZS_METADATA"
 	SyncPoolCompliance            = "SYNC_POOL_COMPLIANCE"
+	EligibilityStringJob          = "ELIGIBILITY_STRING_JOB"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
 var JobTypeToWorkflow = map[string]interface{}{
 	SyncVsaSnapshots:              backgroundworkflows.SnapshotsSyncParentWorkflow,
 	RotateKmsServiceAccounts:      background_kms_workflows.RotateKmsSAKeyWorkflow,
+	VolumeDetailsTotal:            backgroundworkflows.VolumeDetailsWorkflow,
 	OrphanJobScheduler:            backgroundworkflows.OrphanJobSchedulerWorkflow,
 	SyncLatestBackupLogicalSize:   backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,
 	HardDeleteResourcesAndAccount: backgroundworkflows.HardDeleteResourcesAndAccountWorkflow,
@@ -41,6 +44,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	DeleteResources:               backgroundworkflows.ResourceCleanupParentWorkflow,
 	SyncBackupZiZsMetadata:        backgroundworkflows.SyncBackupZiZsWorkflow,
 	SyncPoolCompliance:            backgroundworkflows.SyncPoolZIZSDetailsWorkflow,
+	EligibilityStringJob:          backgroundworkflows.EligibilityStringWorkflow,
 }
 
 type JobManagerActivity struct {

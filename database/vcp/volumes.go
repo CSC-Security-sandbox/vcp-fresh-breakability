@@ -18,11 +18,13 @@ import (
 )
 
 var (
-	updateVolumeState      = _updateVolumeState
-	deleteVolume           = _deleteVolume
-	getMultipleVolumes     = _getMultipleVolumes
-	volumesWithHG          = _volumesWithHG
-	listVolumesWithDetails = _listVolumesWithDetails
+	updateVolumeState         = _updateVolumeState
+	deleteVolume              = _deleteVolume
+	getMultipleVolumes        = _getMultipleVolumes
+	volumesWithHG             = _volumesWithHG
+	listVolumesWithDetails    = _listVolumesWithDetails
+	listAllVolumesWithDetails = _listAllVolumesWithDetails
+	eligibleVolDetails        = _eligibleVolDetails
 )
 
 func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
@@ -518,6 +520,19 @@ func _volumesWithHG(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*data
 	return volumesWithBD, err
 }
 
+func (d *DataStoreRepository) ListAllVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	return listAllVolumesWithDetails(d.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
+}
+
+func _listAllVolumesWithDetails(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := db.Select("name, state, account_id, auto_tiering_enabled, snapshot_policy, large_volume_attributes, data_protection").Preload("Account").Where("deleted_at IS NULL").Scopes(dbutils.Paginate(pagination)).Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumes, nil
+}
+
 // ListVolumesWithAccounts retrieves all volumes with preloaded accounts
 // Filtering for backup logical size > 0 is done in the collector
 func (d *DataStoreRepository) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
@@ -534,5 +549,18 @@ func (d *DataStoreRepository) ListVolumesWithAccounts(ctx context.Context) ([]*d
 		return nil, err
 	}
 
+	return volumes, nil
+}
+
+func (d *DataStoreRepository) GetEligibleVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	return eligibleVolDetails(d.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
+}
+
+func _eligibleVolDetails(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := db.Select("name, state").Preload("Account").Where("deleted_at IS NULL").Scopes(dbutils.Paginate(pagination)).Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
 	return volumes, nil
 }

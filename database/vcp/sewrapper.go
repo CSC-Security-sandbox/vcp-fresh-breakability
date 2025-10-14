@@ -826,6 +826,26 @@ func (re *retryEngine) ListVolumes(ctx context.Context, conditions [][]interface
 	return var0, err
 }
 
+func (re *retryEngine) ListAllVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	var var0 []*datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListAllVolumes(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("ListAllVolumes", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
 	var var0 []*datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -933,6 +953,26 @@ func (re *retryEngine) GetAllVolumesForHG(ctx context.Context, hostGroupUUID str
 		var0, err = re.dataStore.GetAllVolumesForHG(ctx, hostGroupUUID, accountID)
 		if err != nil {
 			re.logError("GetAllVolumesForHG", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetEligibleVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
+	var var0 []*datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetEligibleVolumes(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("GetEligibleVolumes", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
