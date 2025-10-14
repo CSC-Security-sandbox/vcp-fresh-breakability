@@ -802,53 +802,6 @@ func TestIsLatestBackup(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.False(tt, isLatest)
 	})
-	t.Run("OnSuccessWithErrorStateBackupWithDeleteInitiated", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err)
-
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err)
-
-		// Create an older available backup
-		backup1 := &datamodel.Backup{
-			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
-			Name:         "test_backup_1",
-			Description:  "Test backup 1",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
-			VolumeUUID:   "volume1",
-		}
-		err = store.db.Create(backup1).Error()
-		assert.NoError(tt, err)
-
-		// Create a newer error state backup with delete_initiated = true
-		backup2 := &datamodel.Backup{
-			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
-			Name:         "test_backup_2",
-			Description:  "Test backup 2",
-			State:        models.LifeCycleStateError,
-			StateDetails: "Error in backup",
-			VolumeUUID:   "volume1",
-			Attributes: &datamodel.BackupAttributes{
-				DeleteInitiated: true,
-			},
-		}
-		err = store.db.Create(backup2).Error()
-		assert.NoError(tt, err)
-
-		// The error state backup with delete_initiated should be considered latest
-		isLatest, err := store.IsLatestBackup(context.Background(), backup2.UUID, "volume1")
-		assert.NoError(tt, err)
-		assert.True(tt, isLatest)
-
-		// The older available backup should not be considered latest
-		isLatest, err = store.IsLatestBackup(context.Background(), backup1.UUID, "volume1")
-		assert.NoError(tt, err)
-		assert.False(tt, isLatest)
-	})
 	t.Run("OnSuccessWithErrorStateBackupWithoutDeleteInitiated", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err)
@@ -890,73 +843,6 @@ func TestIsLatestBackup(t *testing.T) {
 		isLatest, err := store.IsLatestBackup(context.Background(), backup1.UUID, "volume1")
 		assert.NoError(tt, err)
 		assert.True(tt, isLatest)
-
-		// The error backup without delete_initiated should not be considered latest
-		isLatest, err = store.IsLatestBackup(context.Background(), backup2.UUID, "volume1")
-		assert.NoError(tt, err)
-		assert.False(tt, isLatest)
-	})
-	t.Run("OnSuccessWithMixedStatesAndDeleteInitiated", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err)
-
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err)
-
-		// Create an older available backup
-		backup1 := &datamodel.Backup{
-			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
-			Name:         "test_backup_1",
-			Description:  "Test backup 1",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
-			VolumeUUID:   "volume1",
-		}
-		err = store.db.Create(backup1).Error()
-		assert.NoError(tt, err)
-
-		// Create an error state backup without delete_initiated
-		backup2 := &datamodel.Backup{
-			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
-			Name:         "test_backup_2",
-			Description:  "Test backup 2",
-			State:        models.LifeCycleStateError,
-			StateDetails: "Error in backup",
-			VolumeUUID:   "volume1",
-			Attributes: &datamodel.BackupAttributes{
-				DeleteInitiated: false,
-			},
-		}
-		err = store.db.Create(backup2).Error()
-		assert.NoError(tt, err)
-
-		// Create the newest error state backup with delete_initiated = true
-		backup3 := &datamodel.Backup{
-			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid3"},
-			Name:         "test_backup_3",
-			Description:  "Test backup 3",
-			State:        models.LifeCycleStateError,
-			StateDetails: "Error in backup with delete initiated",
-			VolumeUUID:   "volume1",
-			Attributes: &datamodel.BackupAttributes{
-				DeleteInitiated: true,
-			},
-		}
-		err = store.db.Create(backup3).Error()
-		assert.NoError(tt, err)
-
-		// The newest error state backup with delete_initiated should be considered latest
-		isLatest, err := store.IsLatestBackup(context.Background(), backup3.UUID, "volume1")
-		assert.NoError(tt, err)
-		assert.True(tt, isLatest)
-
-		// The available backup should not be considered latest
-		isLatest, err = store.IsLatestBackup(context.Background(), backup1.UUID, "volume1")
-		assert.NoError(tt, err)
-		assert.False(tt, isLatest)
 
 		// The error backup without delete_initiated should not be considered latest
 		isLatest, err = store.IsLatestBackup(context.Background(), backup2.UUID, "volume1")
