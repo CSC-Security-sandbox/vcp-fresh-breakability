@@ -87,15 +87,14 @@ minikube image load docker.repo.eng.netapp.com/cicd/vsa/temporal-vlm:R9.17.1xN_7
 
 ##### 3. Run Skaffold
 
-Run the following to set the necessary environment variables:
+Run the following to set the necessary environment variables related to credentials.
+All non-authentication related env. variables are in `skaffold.env`, and can be customized there.
+
 ```bash
 export GHVSA_PAT=$(gh auth token)
 export DB_PASSWORD=<password-to-use-for-db>
 export DB_ADMIN_PASSWORD=<password-to-use-for-db>
 export VSA_NODE_PASSWORD=<password-to-be-set-on-ontap>
-export VSA_NODE_USERNAME=<username-to-be-set-on-ontap>
-export GCE_METADATA_HOST=<ip-of-remote-hosted-mock-server>
-export LOCAL_REGION=<region-to-use>
 ```
 
 Then for local development, run:

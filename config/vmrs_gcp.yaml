@@ -144,10 +144,9 @@ vmrs:
   ontap_overheads:
     # Amplification factors for customer requirements
     amplification_factors:
-      iops: 3.3       # ONTAP IOPS overhead multiplier
-      throughput: 2.538 # ONTAP throughput overhead multiplier  
-      capacity: 1.2   # WAFL capacity overhead (20%)
-    
+      iops: 1.8
+      throughput: 2.15
+      capacity: 1.2
     # Additional headroom for specific workloads
     workload_headroom:
       - workload: all
@@ -205,9 +204,9 @@ vmrs:
       # Entry-level VM for small workloads
       - vm_type: c3-standard-4-lssd
         ontap_perf:
-          iops: 8286               # ONTAP max IOPS per HA-pair
-          throughput_in_mibs: 105  # ONTAP max throughput per HA-pair (MiB/s)
-          capacity_in_gib: 213000  # ONTAP max capacity per HA-pair (GiB)
+          iops: 12085
+          throughput_in_mibs: 106
+          capacity_in_gib: 213000
         disk_perf:
           iops: 25000              # GCP max IOPS per VM
           throughput_in_mibs: 400  # GCP max throughput per VM (MiB/s)  
@@ -217,8 +216,8 @@ vmrs:
       # Medium VM for moderate workloads
       - vm_type: c3-standard-8-lssd
         ontap_perf:
-          iops: 19139
-          throughput_in_mibs: 321
+          iops: 25350
+          throughput_in_mibs: 495
           capacity_in_gib: 213000
         disk_perf:
           iops: 50000
@@ -229,8 +228,8 @@ vmrs:
       # High-performance VM for demanding workloads
       - vm_type: c3-standard-22-lssd
         ontap_perf:
-          iops: 34115
-          throughput_in_mibs: 662
+          iops: 44953
+          throughput_in_mibs: 851
           capacity_in_gib: 213000
         disk_perf:
           iops: 120000
@@ -241,9 +240,9 @@ vmrs:
       # Large VM for high-capacity workloads
       - vm_type: c3-standard-44-lssd
         ontap_perf:
-          iops: 64768
-          throughput_in_mibs: 1111
-          capacity_in_gib: 426000  # Increased capacity for larger VMs
+          iops: 90831
+          throughput_in_mibs: 1497
+          capacity_in_gib: 426000
         disk_perf:
           iops: 160000
           throughput_in_mibs: 2400
