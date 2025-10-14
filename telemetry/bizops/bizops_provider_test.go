@@ -56,6 +56,7 @@ func Test_ProcessBizOps(t *testing.T) {
 		mockBizOpsSink := &sink.MockBizOpsSink{}
 		mockMetricDB := &telemetrydb.MockStorage{}
 		mockVCPDB := &vcpdb.MockStorage{}
+		mockLogger.On("Debugf", mock.Anything, mock.Anything).Return("Processing BizOps Report")
 
 		// mock DB calls
 		mockVCPDB.On("GetAccounts", ctx, mock.Anything,

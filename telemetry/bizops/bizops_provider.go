@@ -48,11 +48,13 @@ func NewBizOpsProvider(metricsDB telemetrydb.Storage, vcpDB vcpdb.Storage, bizOp
 }
 
 func (bp *bizOpsProvider) ProcessBizOps(ctx context.Context, logger log.Logger, params *utils.BizOpsReportParams) error {
+	logger.Debugf("ProcessBizOps with params: params: %v", params)
 	bizOpsSink, err := validateAndGetSink(bp.bizOpsSink, params.SinkType)
 	if err != nil {
 		logger.Errorf("Failed to validate biz ops sink: %v", err)
 		return err
 	}
+	logger.Debugf("ProcessBizOps with sink: %s", bizOpsSink.Type())
 	accountsInfo, err := bp.getAccountsInfo(ctx)
 	if err != nil {
 		logger.Errorf("Failed to get accounts: %v", err)
@@ -119,12 +121,12 @@ func prepareAccountInfo(accounts []*datamodel.Account) []*metricModel.AccountInf
 		var isActive bool
 		if account.State == accountEnabled {
 			isActive = true
-			accountsInfo = append(accountsInfo, &metricModel.AccountInfo{
-				AccountID: strconv.FormatInt(account.ID, 10),
-				UserName:  account.Name,
-				IsActive:  isActive,
-			})
 		}
+		accountsInfo = append(accountsInfo, &metricModel.AccountInfo{
+			AccountID: strconv.FormatInt(account.ID, 10),
+			UserName:  account.Name,
+			IsActive:  isActive,
+		})
 	}
 	return accountsInfo
 }
@@ -143,10 +145,11 @@ func getContinentMap(googleContinents string) map[string]string {
 
 func (bp *bizOpsProvider) getAccountsInfo(ctx context.Context) ([]*metricModel.AccountInfo, error) {
 	var accountsInfo []*metricModel.AccountInfo
+	totalFetched := 0
 	for {
 		pagination := &dbutils.Pagination{
 			Limit:  paginationLimit,
-			Offset: len(accountsInfo), // As initial len of accountsInfo is 0, offset will be 0 for first call
+			Offset: totalFetched,
 		}
 		accounts, err := bp.vcpDB.GetAccounts(ctx, false, pagination)
 		if err != nil {
@@ -156,6 +159,7 @@ func (bp *bizOpsProvider) getAccountsInfo(ctx context.Context) ([]*metricModel.A
 		if len(accounts) == 0 {
 			break
 		}
+		totalFetched += len(accounts)
 		accountInfo := prepareAccountInfo(accounts)
 		accountsInfo = append(accountsInfo, accountInfo...)
 	}
