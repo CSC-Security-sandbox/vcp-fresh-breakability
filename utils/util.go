@@ -56,6 +56,7 @@ var (
 	MinLvThroughput                 = env.GetUint64("MIN_LV_THROUGHPUT", 64)
 	MaxLvThroughput                 = env.GetUint64("MAX_LV_THROUGHPUT", 60*1000)       // convert to megabit per second
 	MinHotTierSize                  = env.GetUint64("MIN_HOT_TIER_SIZE", 1099511627776) // 1 TiB
+	MinHotTierSizeLargeVolumes      = env.GetUint64("MIN_HOT_TIER_SIZE_LARGE_VOLUMES", 12*TiBInBytes)
 	ParseRegionAndZone              = _parseRegionAndZone
 	ParseAndValidateRegionAndZone   = _parseAndValidateRegionAndZone
 	GetPairedRegionURI              = _getPairedRegionURI

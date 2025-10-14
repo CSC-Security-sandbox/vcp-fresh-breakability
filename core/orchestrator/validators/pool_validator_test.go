@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -154,7 +155,7 @@ func TestValidationPipeline(t *testing.T) {
 
 		assert.NotNil(t, pipeline)
 		assert.Equal(t, validator, pipeline.validator)
-		assert.Len(t, pipeline.steps, 3)
+		assert.Len(t, pipeline.steps, 4)
 	})
 
 	t.Run("ExecuteSuccess", func(t *testing.T) {
@@ -375,80 +376,6 @@ func TestValidateCommonPoolParams(t *testing.T) {
 	})
 }
 
-// Tests for validateAutoTieringParams function
-func TestValidateAutoTieringParams(t *testing.T) {
-	t.Run("AutoTieringDisabled", func(t *testing.T) {
-		perf := &CustomPerformance{
-			AllowAutoTiering:   false,
-			SizeInBytes:        2 * utils.TiBInBytes,
-			HotTierSizeInBytes: 1 * utils.TiBInBytes,
-		}
-
-		err := validateAutoTieringParams(perf)
-		assert.NoError(t, err)
-	})
-
-	t.Run("ValidAutoTieringParameters", func(t *testing.T) {
-		perf := &CustomPerformance{
-			AllowAutoTiering:   true,
-			SizeInBytes:        2 * utils.TiBInBytes,
-			HotTierSizeInBytes: 1 * utils.TiBInBytes, // Less than pool size, >= minHotTierSize
-		}
-
-		err := validateAutoTieringParams(perf)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled")
-	})
-
-	t.Run("HotTierSizeExceedsPoolSize", func(t *testing.T) {
-		perf := &CustomPerformance{
-			AllowAutoTiering:   true,
-			SizeInBytes:        1 * utils.TiBInBytes,
-			HotTierSizeInBytes: 2 * utils.TiBInBytes, // Greater than pool size
-		}
-
-		err := validateAutoTieringParams(perf)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled")
-	})
-
-	t.Run("HotTierSizeBelowMinimum", func(t *testing.T) {
-		perf := &CustomPerformance{
-			AllowAutoTiering:   true,
-			SizeInBytes:        2 * utils.TiBInBytes,
-			HotTierSizeInBytes: minHotTierSize - 1, // Below minimum
-		}
-
-		err := validateAutoTieringParams(perf)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled")
-	})
-
-	t.Run("HotTierSizeAtMinimum", func(t *testing.T) {
-		perf := &CustomPerformance{
-			AllowAutoTiering:   true,
-			SizeInBytes:        2 * utils.TiBInBytes,
-			HotTierSizeInBytes: minHotTierSize, // At minimum
-		}
-
-		err := validateAutoTieringParams(perf)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled")
-	})
-
-	t.Run("HotTierSizeAtPoolSize", func(t *testing.T) {
-		perf := &CustomPerformance{
-			AllowAutoTiering:   true,
-			SizeInBytes:        2 * utils.TiBInBytes,
-			HotTierSizeInBytes: 2 * utils.TiBInBytes, // Equal to pool size
-		}
-
-		err := validateAutoTieringParams(perf)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled")
-	})
-}
-
 // Tests for ValidateThroughputRange function
 func TestValidateThroughputRange(t *testing.T) {
 	t.Run("ValidThroughput", func(t *testing.T) {
@@ -598,5 +525,305 @@ func TestPoolValidatorIntegration(t *testing.T) {
 		// Then run the validation pipeline
 		err = pipeline.Execute(perf)
 		assert.NoError(t, err)
+	})
+}
+
+func TestStandardPoolValidator_ValidateHotTierSize(t *testing.T) {
+	validator := &StandardPoolValidator{}
+
+	testCases := []struct {
+		name              string
+		perf              *CustomPerformance
+		expectedError     bool
+		errorSubstring    string
+		expectedErrorType string
+	}{
+		// Valid cases - auto-tiering disabled
+		{
+			name: "Auto-tiering disabled - no validation needed",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   false,
+				HotTierSizeInBytes: 0,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError: false,
+		},
+		{
+			name: "Auto-tiering disabled with hot tier size - no validation needed",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   false,
+				HotTierSizeInBytes: 1 * utils.TiBInBytes,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError: false,
+		},
+
+		// Valid cases - auto-tiering enabled with valid hot tier sizes
+		{
+			name: "Valid hot tier size at minimum boundary (1TB)",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: minHotTierSize,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError: false,
+		},
+		{
+			name: "Valid hot tier size within range",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: 1.5 * utils.TiBInBytes,
+				SizeInBytes:        3 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError: false,
+		},
+		{
+			name: "Valid hot tier size just below pool size",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: utils.TiBInBytes + utils.TiBInBytes/2, // 1.5 TiB
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError: false,
+		},
+		{
+			name: "Valid hot tier size equal to pool size",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: 2 * utils.TiBInBytes,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError: false,
+		},
+
+		// Invalid cases - hot tier size exceeds pool size
+		{
+			name: "Hot tier size exceeds pool size",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: 3 * utils.TiBInBytes,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError:     true,
+			errorSubstring:    "Hot-tier size",
+			expectedErrorType: "UserInputValidationErr",
+		},
+		{
+			name: "Hot tier size way exceeds pool size",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: 10 * utils.TiBInBytes,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError:     true,
+			errorSubstring:    "Hot-tier size",
+			expectedErrorType: "UserInputValidationErr",
+		},
+
+		// Invalid cases - hot tier size below minimum
+		{
+			name: "Hot tier size below minimum (500GB)",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: 500 * utils.GiBInBytes,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError:     true,
+			errorSubstring:    "HotTierSizeInBytes must be between",
+			expectedErrorType: "UserInputValidationErr",
+		},
+		{
+			name: "Hot tier size way below minimum (100GB)",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: 100 * utils.GiBInBytes,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError:     true,
+			errorSubstring:    "HotTierSizeInBytes must be between",
+			expectedErrorType: "UserInputValidationErr",
+		},
+		{
+			name: "Hot tier size zero",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: 0,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError:     true,
+			errorSubstring:    "HotTierSizeInBytes must be between",
+			expectedErrorType: "UserInputValidationErr",
+		},
+
+		// Edge cases
+		{
+			name: "Hot tier size one byte below minimum",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: minHotTierSize - 1,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError:     true,
+			errorSubstring:    "HotTierSizeInBytes must be between",
+			expectedErrorType: "UserInputValidationErr",
+		},
+		{
+			name: "Hot tier size one byte above pool size",
+			perf: &CustomPerformance{
+				AllowAutoTiering:   true,
+				HotTierSizeInBytes: 2*utils.TiBInBytes + 1,
+				SizeInBytes:        2 * utils.TiBInBytes,
+				LargeCapacity:      false,
+			},
+			expectedError:     true,
+			errorSubstring:    "Hot-tier size",
+			expectedErrorType: "UserInputValidationErr",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			AutoTieringEnabled = true
+			defer func() { AutoTieringEnabled = false }()
+			err := validator.ValidateAutoTierParams(tc.perf)
+
+			if tc.expectedError {
+				assert.Error(t, err)
+				if tc.errorSubstring != "" {
+					assert.Contains(t, err.Error(), tc.errorSubstring)
+				}
+				if tc.expectedErrorType == "UserInputValidationErr" {
+					var userInputErr *customerrors.UserInputValidationErr
+					assert.ErrorAs(t, err, &userInputErr)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestStandardPoolValidator_ValidateHotTierSize_EdgeCases(t *testing.T) {
+	validator := &StandardPoolValidator{}
+
+	t.Run("Auto-tiering enabled but feature disabled globally", func(t *testing.T) {
+		// This test assumes AutoTieringEnabled is false
+		perf := &CustomPerformance{
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: 1.5 * utils.TiBInBytes,
+			SizeInBytes:        2 * utils.TiBInBytes,
+			LargeCapacity:      false,
+		}
+
+		err := validator.ValidateAutoTierParams(perf)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled")
+	})
+
+	t.Run("Hot tier size exactly at minimum with large pool", func(t *testing.T) {
+		perf := &CustomPerformance{
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: minHotTierSize,
+			SizeInBytes:        5 * utils.TiBInBytes,
+			LargeCapacity:      false,
+		}
+		AutoTieringEnabled = true
+		defer func() { AutoTieringEnabled = false }()
+		err := validator.ValidateAutoTierParams(perf)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Hot tier size exactly equal to pool size", func(t *testing.T) {
+		poolSize := uint64(2 * utils.TiBInBytes)
+		perf := &CustomPerformance{
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: poolSize,
+			SizeInBytes:        poolSize,
+			LargeCapacity:      false,
+		}
+		AutoTieringEnabled = true
+		defer func() { AutoTieringEnabled = false }()
+		err := validator.ValidateAutoTierParams(perf)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Hot tier size just above minimum with small pool", func(t *testing.T) {
+		// Pool size just above minimum hot tier size
+		poolSize := minHotTierSize + 1*utils.GiBInBytes
+		perf := &CustomPerformance{
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: minHotTierSize + 1,
+			SizeInBytes:        poolSize,
+			LargeCapacity:      false,
+		}
+		AutoTieringEnabled = true
+		defer func() { AutoTieringEnabled = false }()
+		err := validator.ValidateAutoTierParams(perf)
+		assert.NoError(t, err)
+	})
+}
+
+func TestStandardPoolValidator_ValidateHotTierSize_Integration(t *testing.T) {
+	validator := &StandardPoolValidator{}
+
+	t.Run("Complete validation pipeline with hot tier", func(t *testing.T) {
+		perf := &CustomPerformance{
+			SizeInBytes:        3 * utils.TiBInBytes,
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: 1.5 * utils.TiBInBytes,
+			ThroughputMibps:    128,
+			Iops:               nillable.ToPointer(int64(2048)),
+			LargeCapacity:      false,
+		}
+		AutoTieringEnabled = true
+		defer func() { AutoTieringEnabled = false }()
+
+		// Test all validations together
+		sizeErr := validator.ValidateSize(perf)
+		throughputErr := validator.ValidateThroughput(perf)
+		iopsErr := validator.ValidateIops(perf)
+		hotTierErr := validator.ValidateAutoTierParams(perf)
+
+		assert.NoError(t, sizeErr)
+		assert.NoError(t, throughputErr)
+		assert.NoError(t, iopsErr)
+		assert.NoError(t, hotTierErr)
+	})
+
+	t.Run("Invalid configuration with hot tier issues", func(t *testing.T) {
+		perf := &CustomPerformance{
+			SizeInBytes:        0.5 * utils.TiBInBytes, // Too small for standard pool
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: 1.5 * utils.TiBInBytes, // Exceeds pool size
+			ThroughputMibps:    32,                     // Too low
+			Iops:               nillable.ToPointer(int64(100)),
+			LargeCapacity:      false,
+		}
+		AutoTieringEnabled = true
+		defer func() { AutoTieringEnabled = false }()
+
+		// Test all validations together
+		sizeErr := validator.ValidateSize(perf)
+		throughputErr := validator.ValidateThroughput(perf)
+		iopsErr := validator.ValidateIops(perf)
+		hotTierErr := validator.ValidateAutoTierParams(perf)
+
+		assert.Error(t, sizeErr)
+		assert.Error(t, throughputErr)
+		assert.Error(t, iopsErr)
+		assert.Error(t, hotTierErr)
+		assert.Contains(t, hotTierErr.Error(), "Hot-tier size")
 	})
 }

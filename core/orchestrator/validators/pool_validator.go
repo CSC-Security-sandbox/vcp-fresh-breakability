@@ -11,10 +11,11 @@ import (
 // Common validation constants used across validators
 var (
 	// Pool size limits
-	minQuotaInBytesPool = utils.MinQuotaInBytesPool
-	maxQuotaInBytesPool = utils.MaxQuotaInBytesPool
-	minSizeGranularity  = utils.MinSizeGranularity
-	minHotTierSize      = utils.MinHotTierSize
+	minQuotaInBytesPool        = utils.MinQuotaInBytesPool
+	maxQuotaInBytesPool        = utils.MaxQuotaInBytesPool
+	minSizeGranularity         = utils.MinSizeGranularity
+	minHotTierSize             = utils.MinHotTierSize
+	minHotTierSizeLargeVolumes = utils.MinHotTierSizeLargeVolumes
 
 	// Performance limits (shared)
 	minCustomThroughput = utils.MinCustomThroughput
@@ -29,7 +30,7 @@ var (
 	maxLvHotTierCapacity  = utils.MaxLvHotTierCapacity
 	minLvThroughput       = utils.MinLvThroughput
 	maxLvThroughput       = utils.MaxLvThroughput
-	autoTieringEnabled    = utils.AutoTieringEnabled
+	AutoTieringEnabled    = utils.AutoTieringEnabled
 )
 
 // CustomPerformance represents performance parameters that can be used for both create and update operations
@@ -82,6 +83,7 @@ type PoolValidator interface {
 	ValidateSize(perf *CustomPerformance) error
 	ValidateThroughput(perf *CustomPerformance) error
 	ValidateIops(perf *CustomPerformance) error
+	ValidateAutoTierParams(perf *CustomPerformance) error
 }
 
 // NewPoolValidator creates the appropriate validator based on pool type
@@ -105,6 +107,7 @@ func NewValidationPipeline(validator PoolValidator) *ValidationPipeline {
 			func(v PoolValidator, p *CustomPerformance) error { return v.ValidateSize(p) },
 			func(v PoolValidator, p *CustomPerformance) error { return v.ValidateThroughput(p) },
 			func(v PoolValidator, p *CustomPerformance) error { return v.ValidateIops(p) },
+			func(v PoolValidator, p *CustomPerformance) error { return v.ValidateAutoTierParams(p) },
 		},
 	}
 }
@@ -162,6 +165,33 @@ func validateIopsCommon(perf *CustomPerformance, minIops, maxIops uint64, iopsPe
 	return nil
 }
 
+// Common validateAutoTierCommon validation function to eliminate duplication
+func validateAutoTierCommon(perf *CustomPerformance, minHotTierSize uint64) error {
+	if !perf.AllowAutoTiering {
+		return nil // No validation needed if auto-tiering is disabled
+	}
+	if !AutoTieringEnabled && (perf.AllowAutoTiering || perf.HotTierSizeInBytes > 0) {
+		return customerrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled")
+	}
+
+	// 1. HotTierSizeInBytes must be less than or equal to pool size
+	if perf.HotTierSizeInBytes > perf.SizeInBytes {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("Hot-tier size %s exceeds the total storage pool capacity %s.",
+				utils.FmtUint64Bytes(perf.HotTierSizeInBytes),
+				utils.FmtUint64Bytes(perf.SizeInBytes)))
+	}
+
+	// 2. HotTierSizeInBytes must be >= minimum size
+	if perf.HotTierSizeInBytes < minHotTierSize {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("HotTierSizeInBytes must be between %s and a value less than the pool size %s.",
+				utils.FmtUint64Bytes(minHotTierSize),
+				utils.FmtUint64Bytes(perf.SizeInBytes)))
+	}
+	return nil
+}
+
 // ValidateCommonPoolParams validates parameters that are common to all pool types
 func ValidateCommonPoolParams(perf *CustomPerformance) error {
 	if perf.SizeInBytes%minSizeGranularity != 0 {
@@ -172,38 +202,6 @@ func ValidateCommonPoolParams(perf *CustomPerformance) error {
 	if perf.QosType != utils.QosTypeAuto {
 		return customerrors.NewUserInputValidationErr(
 			"Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is auto")
-	}
-
-	// Validate auto-tiering numerical parameters
-	if err := validateAutoTieringParams(perf); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// validateAutoTieringParams validates auto-tiering numerical parameters
-func validateAutoTieringParams(perf *CustomPerformance) error {
-	if !perf.AllowAutoTiering {
-		return nil // No validation needed if auto-tiering is disabled
-	}
-	if !autoTieringEnabled && (perf.AllowAutoTiering || perf.HotTierSizeInBytes > 0) {
-		return customerrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled")
-	}
-	// 1. HotTierSizeInBytes must be less than or equal to pool size
-	if perf.HotTierSizeInBytes > perf.SizeInBytes {
-		return customerrors.NewUserInputValidationErr(
-			fmt.Sprintf("Hot-tier size %s exceeds the total storage pool capacity %s.",
-				utils.FmtUint64Bytes(perf.HotTierSizeInBytes),
-				utils.FmtUint64Bytes(perf.SizeInBytes)))
-	}
-
-	// 2. HotTierSizeInBytes must be >= minimum size (1TB)
-	if perf.HotTierSizeInBytes < minHotTierSize {
-		return customerrors.NewUserInputValidationErr(
-			fmt.Sprintf("HotTierSizeInBytes must be between %s and a value less than the pool size %s.",
-				utils.FmtUint64Bytes(minHotTierSize),
-				utils.FmtUint64Bytes(perf.SizeInBytes)))
 	}
 
 	return nil

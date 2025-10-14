@@ -43,3 +43,7 @@ func (v *StandardPoolValidator) ValidateIops(perf *CustomPerformance) error {
 	// Use shared IOPS validation logic with standard pool parameters
 	return validateIopsCommon(perf, minCustomIops, maxCustomIops, iopsPerMiBps, "")
 }
+
+func (v *StandardPoolValidator) ValidateAutoTierParams(perf *CustomPerformance) error {
+	return validateAutoTierCommon(perf, minHotTierSize)
+}

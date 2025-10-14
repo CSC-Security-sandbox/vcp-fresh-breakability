@@ -413,18 +413,18 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		// Once the cluster is deployed, IPs are reserved from the subnet. Using this defer block we will fetch and
 		// update the SubnetToIPsReserved details for pools including failed pools.
 		var subnetToIPsReserved *[]datamodel.SubnetToIPs
-		err = workflow.ExecuteActivity(ctx, poolActivity.GetIPsConsumedForSubnet, dbPool, tenancyDetails, params.Region).Get(ctx, &subnetToIPsReserved)
-		if err != nil {
-			wf.Logger.Errorf("Failed to get IPs consumed by deployment in the alloted subnet, error: %v", err)
+		err1 := workflow.ExecuteActivity(ctx, poolActivity.GetIPsConsumedForSubnet, dbPool, tenancyDetails, params.Region).Get(ctx, &subnetToIPsReserved)
+		if err1 != nil {
+			wf.Logger.Errorf("Failed to get IPs consumed by deployment in the alloted subnet, error: %v", err1)
 		}
 
 		if subnetToIPsReserved != nil {
 			clusterDetails.ReservedIPsInSubnet = subnetToIPsReserved
-			err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
+			err1 = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
 				"cluster_details": clusterDetails,
 			}).Get(ctx, nil)
-			if err != nil {
-				wf.Logger.Errorf("Failed to save IPs consumed by deployment in the alloted subnet in DB, error: %v", err)
+			if err1 != nil {
+				wf.Logger.Errorf("Failed to save IPs consumed by deployment in the alloted subnet in DB, error: %v", err1)
 			}
 		} else {
 			wf.Logger.Debugf("No subnet to IPs reserved found for pool %s", dbPool.Name)

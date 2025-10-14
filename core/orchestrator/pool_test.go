@@ -2582,6 +2582,40 @@ func TestValidatePoolParams(t *testing.T) {
 		err := _validatePoolParams(perf, ServiceLevelNameFLEX)
 		assert.NoError(tt, err, "Hot tier size should be allowed when auto-tiering is disabled")
 	})
+	t.Run("AutoTieringEnabled_WithHotTierSize_LV_Error", func(tt *testing.T) {
+		perf := &validators.CustomPerformance{
+			SizeInBytes:        uint64(10 * utils.TiBInBytes),
+			ThroughputMibps:    128,
+			Iops:               nillable.ToPointer(int64(2048)),
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: uint64(2 * utils.TiBInBytes), // Hot tier size set but auto-tiering disabled
+			QosType:            QosTypeAuto,
+			LargeCapacity:      true,
+		}
+		validators.AutoTieringEnabled = true
+		defer func() {
+			validators.AutoTieringEnabled = false
+		}()
+		err := _validatePoolParams(perf, ServiceLevelNameFLEX)
+		assert.EqualError(tt, err, "SizeInBytes must be at least 12TiB (13194139533312 bytes) for Large Capacity pools")
+	})
+	t.Run("AutoTieringEnabled_WithHotTierSize_LV_NoError", func(tt *testing.T) {
+		perf := &validators.CustomPerformance{
+			SizeInBytes:        uint64(12 * utils.TiBInBytes),
+			ThroughputMibps:    128,
+			Iops:               nillable.ToPointer(int64(2048)),
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: uint64(12 * utils.TiBInBytes), // Hot tier size set but auto-tiering disabled
+			QosType:            QosTypeAuto,
+			LargeCapacity:      true,
+		}
+		validators.AutoTieringEnabled = true
+		defer func() {
+			validators.AutoTieringEnabled = false
+		}()
+		err := _validatePoolParams(perf, ServiceLevelNameFLEX)
+		assert.NoError(tt, err, "SizeInBytes must be at least 12TiB (13194139533312 bytes) for Large Capacity pools")
+	})
 }
 
 // Tests for the refactored _validateCreatePoolParams function
