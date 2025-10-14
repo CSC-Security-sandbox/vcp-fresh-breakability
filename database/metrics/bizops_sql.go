@@ -52,14 +52,14 @@ continent VARCHAR (255) NOT NULL
      'VOLUME_REPLICATION_RELATIONSHIP', 
      'VOLUME_REGIONAL_HA',
      'VOLUME_POOL_REGIONAL_HA',
-     'CBS',
+     'CBS'
      ) and
     measured_type in (
      'XREGION_REPLICATION_TOTAL_TRANSFER_BYTES', 
      'ALLOCATED_USED', 
      'POOL_ALLOCATED_SIZE', 
      'ALLOCATED_SIZE', 
-     'LOGICAL_SIZE',
+     'LOGICAL_SIZE'
      ) and
  	service_level is not null
  ;
