@@ -25,8 +25,6 @@ var (
 	adcStorageURL  = env.GetString("ADC_STORAGE_URL", "storage.googleapis.com")
 	adcCertSecret  = env.GetString("ADC_CERT_SECRET_NAME", "adc-cert")
 
-	// Polling configuration
-	adcMaxPollingAttempts  = 60
 	adcMaxCloudRunAttempts = 20
 )
 
@@ -327,11 +325,10 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 	switch adcResponse.StatusCode {
 	case http.StatusTemporaryRedirect:
 		currentRedirectURL := adcResponse.RedirectURL
-		pollingAttempts := 0
 		pollingCompleted := false
 		startTime := workflow.Now(ctx)
 
-		for pollingAttempts < adcMaxPollingAttempts && !pollingCompleted {
+		for !pollingCompleted {
 			var statusResponse common.ADCResponse
 			err = workflow.ExecuteActivity(ctx, adcActivity.CheckDeleteStatusWithCloudRun, adcParams, serviceURL, currentRedirectURL).Get(ctx, &statusResponse)
 			if err != nil {
@@ -377,11 +374,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 					wf.Logger.Error("Sleep failed", "error", err)
 					return nil, ConvertToVSAError(err)
 				}
-				pollingAttempts++
 			}
-		}
-		if !pollingCompleted {
-			return nil, ConvertToVSAError(fmt.Errorf("ADC delete operation timed out after %d polling attempts", adcMaxPollingAttempts))
 		}
 	case http.StatusOK:
 		wf.Logger.Info("Backup deletion completed immediately")
