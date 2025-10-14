@@ -10,12 +10,14 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
-	jsonUnmarshal = json.Unmarshal
+	jsonUnmarshal           = json.Unmarshal
+	convertLabelsMapToJSONB = utils.ConvertLabelsMapToJSONB
 )
 
 func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgenserver.V1betaInternalDescribePoolParams) (gcpgenserver.V1betaInternalDescribePoolRes, error) {
@@ -339,6 +341,7 @@ func prepareCreateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplic
 			DestinationVolumeName: req.DestinationVolumeName,
 			DestinationPoolUUID:   req.DestinationPoolUuid.Value,
 			ReplicationPolicy:     string(req.ReplicationPolicy.Value),
+			Labels:                map[string]string(req.Labels.Value),
 		},
 	}
 
@@ -363,6 +366,9 @@ func prepareUpdateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplic
 	if req.ReplicationSchedule.IsSet() {
 		schedule := string(req.ReplicationSchedule.Value)
 		param.ReplicationSchedule = &schedule
+	}
+	if req.Labels.IsSet() {
+		param.Labels = convertLabelsMapToJSONB(req.Labels.Value)
 	}
 	return param
 }

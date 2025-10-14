@@ -510,6 +510,9 @@ func (h Handler) V1betaUpdateReplication(ctx context.Context, req *gcpgenserver.
 	if req.ReplicationSchedule.IsSet() {
 		updateReplicationParams.ReplicationSchedule = nillable.ToPointer(string(req.ReplicationSchedule.Value))
 	}
+	if req.Labels.IsSet() {
+		updateReplicationParams.Labels = req.Labels.Value
+	}
 
 	volumeRep, jobUUID, err := h.Orchestrator.UpdateReplication(ctx, updateReplicationParams)
 	if err != nil {

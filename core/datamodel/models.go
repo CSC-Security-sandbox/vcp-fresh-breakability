@@ -540,6 +540,7 @@ type ReplicationDetails struct {
 	DestinationSvmName         string `json:"destination_svm_name"`
 	DestinationVolumeName      string `json:"destination_volume_name"`
 	ExternalUUID               string `json:"external_uuid"`
+	Labels                     *JSONB `json:"labels"`
 }
 
 func (rd *ReplicationDetails) Scan(value interface{}) error {

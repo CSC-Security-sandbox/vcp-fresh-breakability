@@ -130,6 +130,7 @@ type UpdateReplicationEvent struct {
 	CommonReplicationEventParams
 	ReplicationSchedule *string
 	Description         *string
+	Labels              map[string]string
 }
 
 type ResumeReplicationResult struct {

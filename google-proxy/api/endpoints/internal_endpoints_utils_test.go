@@ -406,6 +406,59 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 	})
 }
 
+func TestConvertJSONBLabelsToOptLabels(t *testing.T) {
+	tests := []struct {
+		name     string
+		labels   *datamodel.JSONB
+		expected gcpgenserver.OptVolumeReplicationInternalV1betaLabels
+	}{
+		{
+			name:     "NilLabels",
+			labels:   nil,
+			expected: gcpgenserver.OptVolumeReplicationInternalV1betaLabels{},
+		},
+		{
+			name: "ValidLabels",
+			labels: &datamodel.JSONB{
+				"environment": "production",
+				"team":        "platform",
+				"cost-center": "engineering",
+			},
+			expected: gcpgenserver.NewOptVolumeReplicationInternalV1betaLabels(
+				gcpgenserver.VolumeReplicationInternalV1betaLabels{
+					"environment": "production",
+					"team":        "platform",
+					"cost-center": "engineering",
+				},
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertJSONBLabelsToOptLabels(tt.labels)
+
+			if result.Set != tt.expected.Set {
+				t.Errorf("Expected Set %t, got %t", tt.expected.Set, result.Set)
+			}
+
+			if result.Set && tt.expected.Set {
+				if len(result.Value) != len(tt.expected.Value) {
+					t.Errorf("Expected %d labels, got %d", len(tt.expected.Value), len(result.Value))
+				}
+
+				for key, expectedValue := range tt.expected.Value {
+					if actualValue, exists := result.Value[key]; !exists {
+						t.Errorf("Expected key %s to exist", key)
+					} else if actualValue != expectedValue {
+						t.Errorf("Expected value %s for key %s, got %s", expectedValue, key, actualValue)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestConvertToPoolInternalV1Beta(t *testing.T) {
 	timenow := time.Now()
 	autoTieringConfig := &models.AutoTieringConfig{

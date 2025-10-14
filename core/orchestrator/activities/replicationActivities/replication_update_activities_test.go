@@ -654,6 +654,9 @@ func TestUpdateReplicationOnDestination(t *testing.T) {
 			Event: &replication.UpdateReplicationEvent{
 				Description:         nillable.GetStringPtr("description"),
 				ReplicationSchedule: nillable.GetStringPtr("schedule"),
+				Labels: map[string]string{
+					"key": "value",
+				},
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
 					XCorrelationID: nillable.GetStringPtr("correlationId"),
 					ReplicationModel: &datamodel.VolumeReplication{
@@ -677,6 +680,7 @@ func TestUpdateReplicationOnDestination(t *testing.T) {
 		req := &googleproxyclient.VolumeReplicationUpdateInternalV1beta{
 			Description:         googleproxyclient.NewOptNilString(nillable.GetString(inputResult.Event.Description, "")),
 			ReplicationSchedule: googleproxyclient.NewOptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule(convertReplicationScheduleToInternalUpdateReplicationSchedule(*inputResult.Event.ReplicationSchedule)),
+			Labels:              googleproxyclient.NewOptVolumeReplicationUpdateInternalV1betaLabels(inputResult.Event.Labels),
 		}
 		mockClient.EXPECT().V1betaInternalUpdateVolumeReplication(ctx, req, *updateReplicationParams).Return(res, nil)
 		activity := VolumeReplicationUpdateActivity{SE: mockStorage}

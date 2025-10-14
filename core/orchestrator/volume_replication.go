@@ -67,6 +67,7 @@ var (
 	utilsParseProjectNumberFromURI    = utils.ParseProjectNumberFromURI
 	authGetSignedJwtToken             = auth.GetSignedJwtToken
 	utilGetVolumeUriFromCcfeUri       = utils.GetVolumeUriFromCcfeUri
+	convertLabelsMapToJSONB           = utils.ConvertLabelsMapToJSONB
 )
 
 const (
@@ -416,6 +417,7 @@ func convertDataStoreReplicationToModel(replication *datamodel.VolumeReplication
 			DestinationReplicationUUID: replication.ReplicationAttributes.DestinationReplicationUUID,
 			DestinationSvmName:         replication.ReplicationAttributes.DestinationSvmName,
 			DestinationVolumeName:      replication.ReplicationAttributes.DestinationVolumeName,
+			Labels:                     convertJSONBLabelsToMap(replication.ReplicationAttributes.Labels),
 		},
 		MirrorState:           replication.MirrorState,
 		RelationshipStatus:    replication.RelationshipStatus,
@@ -431,6 +433,21 @@ func convertDataStoreReplicationToModel(replication *datamodel.VolumeReplication
 		AccountID:             replication.AccountID,
 		VolumeID:              replication.VolumeID,
 	}
+}
+
+func convertJSONBLabelsToMap(jsonb *datamodel.JSONB) map[string]string {
+	if jsonb == nil {
+		return nil
+	}
+
+	result := make(map[string]string)
+	for key, value := range *jsonb {
+		if strValue, ok := value.(string); ok {
+			result[key] = strValue
+		}
+	}
+
+	return result
 }
 
 func prepareReplicationDataModel(params *commonparams.CreateVolumeReplicationInternalParams, account *datamodel.Account, volume *datamodel.Volume) *datamodel.VolumeReplication {
@@ -457,6 +474,7 @@ func prepareReplicationDataModel(params *commonparams.CreateVolumeReplicationInt
 			DestinationReplicationUUID: params.VolumeReplication.ReplicationAttributes.DestinationReplicationUUID,
 			DestinationSvmName:         params.VolumeReplication.ReplicationAttributes.DestinationSvmName,
 			DestinationVolumeName:      params.VolumeReplication.ReplicationAttributes.DestinationVolumeName,
+			Labels:                     convertLabelsMapToJSONB(params.VolumeReplication.ReplicationAttributes.Labels),
 		},
 		MirrorState:           params.VolumeReplication.MirrorState,
 		RelationshipStatus:    params.VolumeReplication.RelationshipStatus,
@@ -1060,7 +1078,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		TransferStats:                 gcpgenserver.NewOptTransferStatsV1beta(transferStats),
 		Created:                       gcpgenserver.NewOptDateTime(in.CreatedAt.Value),
 		Role:                          role,
-		Labels:                        gcpgenserver.OptReplicationV1betaLabels{},
+		Labels:                        gcpgenserver.NewOptReplicationV1betaLabels(gcpgenserver.ReplicationV1betaLabels(in.Labels.Value)),
 		ClusterLocation:               gcpgenserver.OptString{},
 		HybridReplicationType:         gcpgenserver.OptReplicationV1betaHybridReplicationType{},
 		HybridPeeringDetails:          gcpgenserver.OptHybridPeeringV1beta{},
@@ -1293,6 +1311,7 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 		},
 		ReplicationSchedule: params.ReplicationSchedule,
 		Description:         params.Description,
+		Labels:              params.Labels,
 	}
 
 	if params.Zone != "" {

@@ -36,7 +36,7 @@ func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx 
 	return res, nil
 }
 
-func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx context.Context, replication *datamodel.VolumeReplication, replicationCreateResponseONTAP *vsa.VolumeReplication, description *string) error {
+func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx context.Context, replication *datamodel.VolumeReplication, replicationCreateResponseONTAP *vsa.VolumeReplication, params *common.UpdateVolumeReplicationInternalParams) error {
 	se := a.SE
 	logger := util.GetLogger(ctx)
 
@@ -58,8 +58,13 @@ func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx c
 	replication.LastUpdatedFromOntap = time.Now()
 	replication.ProgressLastUpdated = &replication.LastUpdatedFromOntap
 
-	if description != nil {
-		replication.Description = *description
+	if params != nil {
+		if params.Description != nil {
+			replication.Description = *params.Description
+		}
+		if params.Labels != nil {
+			replication.ReplicationAttributes.Labels = params.Labels
+		}
 	}
 
 	if err := se.UpdateVolumeReplication(ctx, replication); err != nil {

@@ -7280,3 +7280,76 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		mockTemporal.AssertExpectations(tt)
 	})
 }
+
+func TestConvertJSONBLabelsToMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		jsonb    *datamodel.JSONB
+		expected map[string]string
+	}{
+		{
+			name:     "NilJSONB",
+			jsonb:    nil,
+			expected: nil,
+		},
+		{
+			name:     "EmptyJSONB",
+			jsonb:    &datamodel.JSONB{},
+			expected: map[string]string{},
+		},
+		{
+			name: "ValidJSONBWithStringValues",
+			jsonb: &datamodel.JSONB{
+				"environment": "production",
+				"team":        "platform",
+				"cost-center": "engineering",
+			},
+			expected: map[string]string{
+				"environment": "production",
+				"team":        "platform",
+				"cost-center": "engineering",
+			},
+		},
+		{
+			name: "JSONBWithMixedTypes",
+			jsonb: &datamodel.JSONB{
+				"environment": "production",
+				"count":       123,
+				"enabled":     true,
+				"team":        "platform",
+			},
+			expected: map[string]string{
+				"environment": "production",
+				"team":        "platform",
+			},
+		},
+		{
+			name: "SingleStringValue",
+			jsonb: &datamodel.JSONB{
+				"owner": "team-a",
+			},
+			expected: map[string]string{
+				"owner": "team-a",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertJSONBLabelsToMap(tt.jsonb)
+
+			if tt.expected == nil {
+				assert.Nil(t, result)
+			} else {
+				assert.NotNil(t, result)
+				assert.Equal(t, len(tt.expected), len(result))
+
+				for key, expectedValue := range tt.expected {
+					actualValue, exists := result[key]
+					assert.True(t, exists, "Expected key %s to exist", key)
+					assert.Equal(t, expectedValue, actualValue, "Expected value %s for key %s, got %s", expectedValue, key, actualValue)
+				}
+			}
+		})
+	}
+}

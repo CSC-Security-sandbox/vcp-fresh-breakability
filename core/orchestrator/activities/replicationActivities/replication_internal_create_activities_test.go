@@ -167,10 +167,18 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 			},
 		}
 		vsaModel := &vsa.VolumeReplication{}
+		description := "new description"
+		params := &commonparams.UpdateVolumeReplicationInternalParams{
+			Description: &description,
+			Labels: &datamodel.JSONB{
+				"key": "value",
+			},
+		}
 		mockStorage.On("UpdateVolumeReplication", ctx, replication).Return(nil)
-		err := activity.UpdateVolumeReplicationDetails(ctx, replication, vsaModel, nil)
+		err := activity.UpdateVolumeReplicationDetails(ctx, replication, vsaModel, params)
 
 		assert.NoError(t, err)
+		assert.Equal(tt, replication.ReplicationAttributes.Labels, params.Labels)
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccessWithOntapResponseNil", func(tt *testing.T) {

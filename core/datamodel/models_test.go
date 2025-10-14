@@ -65,7 +65,7 @@ func TestReplicationDetails_Value(t *testing.T) {
 	rd := ReplicationDetails{EndpointType: "type"}
 	val, err := rd.Value()
 	assert.NoError(t, err)
-	assert.Equal(t, `{"endpoint_type":"type","replication_type":"","replication_schedule":"","source_pool_uuid":"","source_volume_uuid":"","source_location":"","source_host_name":"","source_replication_uuid":"","source_svm_name":"","source_volume_name":"","destination_pool_uuid":"","destination_volume_uuid":"","destination_location":"","destination_host_name":"","destination_replication_uuid":"","destination_svm_name":"","destination_volume_name":"","external_uuid":""}`, string(val.([]byte)))
+	assert.Equal(t, `{"endpoint_type":"type","replication_type":"","replication_schedule":"","source_pool_uuid":"","source_volume_uuid":"","source_location":"","source_host_name":"","source_replication_uuid":"","source_svm_name":"","source_volume_name":"","destination_pool_uuid":"","destination_volume_uuid":"","destination_location":"","destination_host_name":"","destination_replication_uuid":"","destination_svm_name":"","destination_volume_name":"","external_uuid":"","labels":null}`, string(val.([]byte)))
 }
 
 func TestSnapshotAttributes_Scan(t *testing.T) {

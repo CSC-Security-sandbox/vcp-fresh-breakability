@@ -1864,8 +1864,13 @@ func TestV1betaUpdateReplication(t *testing.T) {
 			ReplicationResourceId: "replication-resource-id",
 			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
+		labels := map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		}
 		req := &gcpgenserver.ReplicationUpdateV1beta{
 			Description: gcpgenserver.NewOptString("new description"),
+			Labels:      gcpgenserver.NewOptReplicationUpdateV1betaLabels(labels),
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "location-id", "location-id", nil

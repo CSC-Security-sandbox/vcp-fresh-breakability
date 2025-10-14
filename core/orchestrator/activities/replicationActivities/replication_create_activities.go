@@ -642,6 +642,7 @@ func _convertVolumeReplicationCreateParams(result replication.CreateReplicationR
 		ReverseResume:         googleproxyclient.NewOptBool(false),
 		CcfeURI:               googleproxyclient.NewOptString(result.DbVolReplication.Uri),
 		CcfeRemoteURI:         googleproxyclient.NewOptString(result.DbVolReplication.RemoteUri),
+		Labels:                googleproxyclient.NewOptVolumeReplicationCreateInternalV1betaLabels(result.Event.CreateReplicationParams.Labels),
 	}
 
 	return createReplicationParams

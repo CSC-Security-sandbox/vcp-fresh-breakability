@@ -1143,3 +1143,16 @@ func GetNLFSecretPath() string {
 	}
 	return secretUri
 }
+
+func ConvertLabelsMapToJSONB(labels map[string]string) *datamodel.JSONB {
+	if labels == nil || len(labels) == 0 {
+		return nil
+	}
+
+	jsonbMap := make(datamodel.JSONB)
+	for key, value := range labels {
+		jsonbMap[key] = value
+	}
+
+	return &jsonbMap
+}

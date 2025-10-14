@@ -3056,3 +3056,76 @@ func TestGetNLFSecretPath(t *testing.T) {
 	actual = GetNLFSecretPath()
 	assert.Equal(t, "", actual)
 }
+
+func TestConvertLabelsMapToJSONB(t *testing.T) {
+	tests := []struct {
+		name     string
+		labels   map[string]string
+		expected *datamodel.JSONB
+	}{
+		{
+			name:     "NilLabels",
+			labels:   nil,
+			expected: nil,
+		},
+		{
+			name:     "EmptyLabels",
+			labels:   map[string]string{},
+			expected: nil,
+		},
+		{
+			name: "ValidLabels",
+			labels: map[string]string{
+				"environment": "production",
+				"team":        "platform",
+				"cost-center": "engineering",
+			},
+			expected: &datamodel.JSONB{
+				"environment": "production",
+				"team":        "platform",
+				"cost-center": "engineering",
+			},
+		},
+		{
+			name: "SingleLabel",
+			labels: map[string]string{
+				"owner": "team-a",
+			},
+			expected: &datamodel.JSONB{
+				"owner": "team-a",
+			},
+		},
+		{
+			name: "LabelsWithEmptyValues",
+			labels: map[string]string{
+				"environment": "production",
+				"empty-key":   "",
+				"team":        "platform",
+			},
+			expected: &datamodel.JSONB{
+				"environment": "production",
+				"empty-key":   "",
+				"team":        "platform",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ConvertLabelsMapToJSONB(tt.labels)
+
+			if tt.expected == nil {
+				assert.Nil(t, result)
+			} else {
+				assert.NotNil(t, result)
+				assert.Equal(t, len(*tt.expected), len(*result))
+
+				for key, expectedValue := range *tt.expected {
+					actualValue, exists := (*result)[key]
+					assert.True(t, exists, "Expected key %s to exist", key)
+					assert.Equal(t, expectedValue, actualValue, "Expected value %s for key %s, got %s", expectedValue, key, actualValue)
+				}
+			}
+		})
+	}
+}

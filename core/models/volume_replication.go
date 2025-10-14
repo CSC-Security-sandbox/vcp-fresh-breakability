@@ -80,6 +80,7 @@ type ReplicationDetails struct {
 	DestinationVolumeName      string
 	ReplicationPolicy          string
 	ExternalUUID               string
+	Labels                     map[string]string
 }
 
 type GcpHydrateCreate struct {

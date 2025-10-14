@@ -318,6 +318,7 @@ type UpdateVolumeReplicationInternalParams struct {
 	Description           *string
 	LocationId            string
 	XCorrelationID        string
+	Labels                *datamodel.JSONB
 }
 
 // CreateVolumeReplicationParams describes parameters supplied to CreatingVolumeReplication
@@ -540,6 +541,7 @@ type UpdateReplicationParams struct {
 	ReplicationResourceId string
 	ReplicationSchedule   *string
 	Description           *string
+	Labels                map[string]string
 }
 
 // UpdateHostGroupParams describes parameters supplied to UpdateHostGroup

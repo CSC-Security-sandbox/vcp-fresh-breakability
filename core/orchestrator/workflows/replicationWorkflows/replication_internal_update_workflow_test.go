@@ -2,6 +2,7 @@ package replicationWorkflows
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -59,6 +60,9 @@ func TestUpdateInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		params := &commonparams.UpdateVolumeReplicationInternalParams{
 			VolumeReplicationUuid: "test-replication-uuid",
+			Labels: &datamodel.JSONB{
+				"key": "value",
+			},
 		}
 
 		volumeReplication := &models.VolumeReplication{
@@ -88,10 +92,24 @@ func TestUpdateInternalVolumeReplicationWorkflow(t *testing.T) {
 			VolumeID:  volumeReplication.VolumeID,
 			Volume:    volume,
 		}
+		replicationUpdateResponseONTAP := &vsa.VolumeReplication{
+			RelationshipID:        "test-relationship-id-123",
+			ReplicationSchedule:   "hourly",
+			MirrorState:           "snapmirrored",
+			RelationshipStatus:    "idle",
+			TotalTransferBytes:    1024000,
+			TotalTransferTimeSecs: 3600,
+			LastTransferSize:      512000,
+			LastTransferError:     "",
+			LastTransferDuration:  1800,
+			LastTransferEndTime:   &time.Time{},
+			LagTime:               300,
+		}
+
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("UpdateVolumeReplicationOntap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
-		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, replicationDb, replicationUpdateResponseONTAP, params).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(UpdateInternalVolumeReplicationWorkflow, params, replicationDb)
 

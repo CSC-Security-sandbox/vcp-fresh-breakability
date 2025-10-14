@@ -3019,6 +3019,13 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
 		assert.ErrorContains(tt, customErr.OriginalErr, "Invalid replication schedule provided.")
 	})
+	t.Run("WhenLabelsInvalid", func(tt *testing.T) {
+		ctx := context.Background()
+		event.Description = nillable.ToPointer("New description")
+		event.Labels = map[string]string{"": "value"}
+		_, err := _validateReplicationUpdate(ctx, event)
+		assert.Error(tt, err)
+	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
 		defer func() {
@@ -3031,6 +3038,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 			RelationshipStatus: &relationshipStatus,
 		}
 		event.Description = nillable.ToPointer("New description")
+		event.Labels = map[string]string{"key": "value"}
 		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
 			return dstReplication, nil
 		}

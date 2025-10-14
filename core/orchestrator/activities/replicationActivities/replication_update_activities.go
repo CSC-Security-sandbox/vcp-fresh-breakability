@@ -74,6 +74,9 @@ func (a *VolumeReplicationUpdateActivity) UpdateReplicationOnDestination(ctx con
 	if result.Event.ReplicationSchedule != nil {
 		body.ReplicationSchedule = googleproxyclient.NewOptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule(convertReplicationScheduleToInternalUpdateReplicationSchedule(*result.Event.ReplicationSchedule))
 	}
+	if result.Event.Labels != nil {
+		body.Labels = googleproxyclient.NewOptVolumeReplicationUpdateInternalV1betaLabels(result.Event.Labels)
+	}
 	res, err := googleProxyClient.Invoker.V1betaInternalUpdateVolumeReplication(ctx, body, *updateReplicationParams)
 	if err != nil {
 		return nil, err

@@ -141,6 +141,7 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		retObj.DestinationVolumeName = replication.ReplicationAttributes.DestinationVolumeName
 		retObj.DestinationVolumeUuid = gcpgenserver.NewOptString(replication.ReplicationAttributes.DestinationVolumeUUID)
 		retObj.RemoteRegion = replication.ReplicationAttributes.DestinationLocation
+		retObj.Labels = convertJSONBLabelsToOptLabels(replication.ReplicationAttributes.Labels)
 	}
 
 	if nillable.GetString(replication.RelationshipStatus, "") == models.SnapmirrorRelationshipTransferring {
@@ -152,6 +153,22 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 	}
 
 	return retObj
+}
+
+func convertJSONBLabelsToOptLabels(labels *datamodel.JSONB) gcpgenserver.OptVolumeReplicationInternalV1betaLabels {
+	if labels == nil {
+		return gcpgenserver.OptVolumeReplicationInternalV1betaLabels{}
+	}
+
+	result := make(map[string]string)
+	for key, value := range *labels {
+		if strValue, ok := value.(string); ok {
+			result[key] = strValue
+		}
+	}
+
+	convertedLabels := gcpgenserver.VolumeReplicationInternalV1betaLabels(result)
+	return gcpgenserver.NewOptVolumeReplicationInternalV1betaLabels(convertedLabels)
 }
 
 func convertToPoolInternalV1Beta(pool *models.Pool) *gcpgenserver.PoolInternalV1beta {

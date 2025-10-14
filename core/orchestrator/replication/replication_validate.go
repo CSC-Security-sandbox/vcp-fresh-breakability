@@ -36,6 +36,7 @@ var (
 	validateLabels                  = _validateLabels
 	internalUtilGetCCFEURI          = GetCCFEURI
 	utilsParseProjectNumberFromURI  = utils.ParseProjectNumberFromURI
+	convertLabelsMapToJSONB         = utils.ConvertLabelsMapToJSONB
 
 	validateStoragePoolUri      = _validateStoragePoolUri
 	getDestinationPool          = _getDestinationPool
@@ -502,6 +503,7 @@ func _createReplicationObjects(event *CreateReplicationEvent, remotelocation, re
 		EndpointType:        models.VolumeReplicationCVPV1betaEndpointTypeSrc,
 		ReplicationSchedule: string(mapCCFERescheduleToInternalReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(*event.CreateReplicationParams.ReplicationSchedule))),
 		SourcePoolUUID:      event.SourcePool.UUID,
+		Labels:              convertLabelsMapToJSONB(event.CreateReplicationParams.Labels),
 	}
 	expectedDbReplication.ReplicationAttributes = &replicationAttributes
 
@@ -757,6 +759,14 @@ func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEve
 	if event.ReplicationSchedule != nil && *event.ReplicationSchedule == models.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED {
 		logger.Error("replicationSchedule is UNSPECIFIED for update replication")
 		return nil, errors.NewVCPError(errors.ErrorReplicationScheduleUnspecified, errors.New("Invalid replication schedule provided."))
+	}
+
+	if event.Labels != nil {
+		err := _validateLabels(event.Labels)
+		if err != nil {
+			logger.Error("validateLabels error", common.Error(err))
+			return nil, err
+		}
 	}
 
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)

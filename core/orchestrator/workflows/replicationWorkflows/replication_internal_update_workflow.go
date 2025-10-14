@@ -107,7 +107,7 @@ func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, arg
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetails, replication, replicationUpdateResponse, params.Description).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetails, replication, replicationUpdateResponse, params).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
