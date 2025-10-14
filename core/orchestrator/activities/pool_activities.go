@@ -1904,6 +1904,12 @@ func _deleteLIFs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err))
 	}
+
+	// return if there are no nodes(that means no lifs are there
+	if len(nodes) == 0 {
+		return nil
+	}
+
 	nodeIds := make([]int64, 0, len(nodes))
 	for _, node := range nodes {
 		nodeIds = append(nodeIds, node.ID)

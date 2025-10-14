@@ -1579,6 +1579,19 @@ func Test_deleteLIFsDeletesAllLIFsSuccessfully(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func Test_deleteLIFsWhenZeroNodes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 2}}
+
+	// Mock nodes
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{}, nil)
+
+	err := activities.DeleteLIFs(ctx, mockStorage, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func Test_deleteLIFsSkipsDeletedLIFs(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.Background()
