@@ -5859,3 +5859,271 @@ func TestPollSnapmirrorFirewallOperation(t *testing.T) {
 		assert.Equal(tt, replicationResult, result)
 	})
 }
+
+// TestConvertSourceVolumeToDestinationVolume_LargeVolumeAttributes_NewIfLoop tests the newly added if loop condition
+func TestConvertSourceVolumeToDestinationVolume_LargeVolumeAttributes_NewIfLoop(t *testing.T) {
+	t.Run("WithLargeCapacityTrueAndConstituentCountSet_ShouldSetBothParameters", func(tt *testing.T) {
+		// Arrange
+		largeCapacity := true
+		constituentCount := int32(4)
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 1073741824, // 1GB
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"NFSv3"},
+					},
+					LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+						LargeCapacity:               largeCapacity,
+						LargeVolumeConstituentCount: &constituentCount,
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID: "test-volume-id",
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert - Both parameters should be set because all conditions are met
+		assert.True(tt, result.LargeCapacity.IsSet())
+		assert.Equal(tt, largeCapacity, result.LargeCapacity.Value)
+
+		assert.True(tt, result.LargeVolumeConstituentCount.IsSet())
+		assert.Equal(tt, constituentCount, result.LargeVolumeConstituentCount.Value)
+	})
+	t.Run("WithLargeCapacityFalse_ShouldNotSetParameters", func(tt *testing.T) {
+		// Arrange
+		largeCapacity := false
+		constituentCount := int32(4)
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 1073741824, // 1GB
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"NFSv3"},
+					},
+					LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+						LargeCapacity:               largeCapacity, // false
+						LargeVolumeConstituentCount: &constituentCount,
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID: "test-volume-id",
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert - Parameters should NOT be set because LargeCapacity is false
+		assert.False(tt, result.LargeCapacity.IsSet())
+		assert.False(tt, result.LargeVolumeConstituentCount.IsSet())
+	})
+	t.Run("WithNilLargeVolumeConstituentCount_ShouldNotSetParameters", func(tt *testing.T) {
+		// Arrange
+		largeCapacity := true
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 1073741824, // 1GB
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"NFSv3"},
+					},
+					LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+						LargeCapacity:               largeCapacity,
+						LargeVolumeConstituentCount: nil, // nil constituent count
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID: "test-volume-id",
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert - Parameters should NOT be set because LargeVolumeConstituentCount is nil
+		assert.False(tt, result.LargeCapacity.IsSet())
+		assert.False(tt, result.LargeVolumeConstituentCount.IsSet())
+	})
+	t.Run("WithNilLargeVolumeAttributes_ShouldNotSetParameters", func(tt *testing.T) {
+		// Arrange
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 1073741824, // 1GB
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"NFSv3"},
+					},
+					LargeVolumeAttributes: nil, // nil LargeVolumeAttributes
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID: "test-volume-id",
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert - Parameters should NOT be set because LargeVolumeAttributes is nil
+		assert.False(tt, result.LargeCapacity.IsSet())
+		assert.False(tt, result.LargeVolumeConstituentCount.IsSet())
+	})
+	t.Run("WithVariousConstituentCounts_ShouldSetCorrectly", func(tt *testing.T) {
+		testCases := []struct {
+			name             string
+			largeCapacity    bool
+			constituentCount int32
+			shouldBeSet      bool
+		}{
+			{"LargeCapacityTrue_ConstituentCount1", true, 1, true},
+			{"LargeCapacityTrue_ConstituentCount2", true, 2, true},
+			{"LargeCapacityTrue_ConstituentCount4", true, 4, true},
+			{"LargeCapacityTrue_ConstituentCount8", true, 8, true},
+			{"LargeCapacityTrue_ConstituentCount16", true, 16, true},
+			{"LargeCapacityFalse_ConstituentCount4", false, 4, false}, // Should not be set
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(ttt *testing.T) {
+				// Arrange
+				replicationResult := &replication.CreateReplicationResult{
+					Event: &replication.CreateReplicationEvent{
+						SourceVolume: datamodel.Volume{
+							Name:        "test-volume",
+							SizeInBytes: 1073741824, // 1GB
+							VolumeAttributes: &datamodel.VolumeAttributes{
+								CreationToken: "test-token",
+								Protocols:     []string{"NFSv3"},
+							},
+							LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+								LargeCapacity:               tc.largeCapacity,
+								LargeVolumeConstituentCount: &tc.constituentCount,
+							},
+						},
+						CreateReplicationParams: &replication.CreateReplicationParamsBody{
+							DestinationVolumeParameters: &replication.DestinationVolumeParams{
+								VolumeID: "test-volume-id",
+							},
+						},
+					},
+					DstPool: &googleproxyclient.PoolInternalV1beta{
+						PoolId:  googleproxyclient.NewOptString("pool-123"),
+						Network: "test-network",
+					},
+				}
+
+				// Act
+				result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+				// Assert
+				if tc.shouldBeSet {
+					assert.True(ttt, result.LargeCapacity.IsSet())
+					assert.Equal(ttt, tc.largeCapacity, result.LargeCapacity.Value)
+					assert.True(ttt, result.LargeVolumeConstituentCount.IsSet())
+					assert.Equal(ttt, tc.constituentCount, result.LargeVolumeConstituentCount.Value)
+				} else {
+					assert.False(ttt, result.LargeCapacity.IsSet())
+					assert.False(ttt, result.LargeVolumeConstituentCount.IsSet())
+				}
+			})
+		}
+	})
+	t.Run("IntegrationWithOtherVolumeAttributes_ShouldWorkCorrectly", func(tt *testing.T) {
+		// Arrange - Test that the new if loop works correctly with other volume attributes
+		largeCapacity := true
+		constituentCount := int32(4)
+
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					Name:        "test-volume",
+					SizeInBytes: 5368709120, // 5GB
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						CreationToken: "test-token",
+						Protocols:     []string{"NFSv3", "NFSv4"},
+					},
+					LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+						LargeCapacity:               largeCapacity,
+						LargeVolumeConstituentCount: &constituentCount,
+					},
+				},
+				CreateReplicationParams: &replication.CreateReplicationParamsBody{
+					DestinationVolumeParameters: &replication.DestinationVolumeParams{
+						VolumeID:    "test-volume-id",
+						Description: func() *string { s := "Destination description"; return &s }(),
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				PoolId:  googleproxyclient.NewOptString("pool-123"),
+				Network: "test-network",
+			},
+		}
+
+		// Act
+		result := convertSourceVolumeToDestinationVolume(replicationResult)
+
+		// Assert - Verify all attributes are set correctly
+		assert.Equal(tt, "test-volume-id", result.ResourceId)
+		assert.Equal(tt, "test-token", result.CreationToken.Value)
+		assert.Equal(tt, "pool-123", result.PoolId.Value)
+		assert.Equal(tt, float64(5368709120), result.QuotaInBytes.Value)
+		assert.Equal(tt, "test-network", result.Network.Value)
+		assert.Equal(tt, "Destination description", result.Description.Value)
+
+		// Verify LargeVolumeAttributes are set (because all conditions are met)
+		assert.True(tt, result.LargeCapacity.IsSet())
+		assert.Equal(tt, largeCapacity, result.LargeCapacity.Value)
+		assert.True(tt, result.LargeVolumeConstituentCount.IsSet())
+		assert.Equal(tt, constituentCount, result.LargeVolumeConstituentCount.Value)
+
+		// Verify protocols
+		assert.Len(tt, result.Protocols, 2)
+		protocolsMap := make(map[string]bool)
+		for _, p := range result.Protocols {
+			protocolsMap[string(p)] = true
+		}
+	})
+}

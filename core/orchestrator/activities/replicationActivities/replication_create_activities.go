@@ -595,6 +595,11 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 		BlockDevices:  blockDevices,
 		TieringPolicy: tieringPolicyV1beta,
 	}
+
+	if srcVol.LargeVolumeAttributes != nil && srcVol.LargeVolumeAttributes.LargeCapacity && srcVol.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
+		volume.LargeCapacity = googleproxyclient.NewOptNilBool(srcVol.LargeVolumeAttributes.LargeCapacity)
+		volume.LargeVolumeConstituentCount = googleproxyclient.NewOptNilInt32(*srcVol.LargeVolumeAttributes.LargeVolumeConstituentCount)
+	}
 	if result.Event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy != nil {
 		tieringPolicyParam := result.Event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy
 
