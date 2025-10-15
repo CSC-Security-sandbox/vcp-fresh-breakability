@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -148,7 +149,6 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 // Returns the aggregate distribution result containing the list of aggregates and multiplier.
 func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, aggregates []*vsa.Aggregate, largeVolumeConstituentCount int64, totalNodes int) (*models.AggregateDistributionResult, error) {
 	logger := util.GetLogger(ctx)
-	const maxConstituentsPerAggregate int64 = 200
 	expectedAggregateCount := totalNodes / 2
 
 	// Validate that we have exactly 12 aggregates

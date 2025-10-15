@@ -578,7 +578,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		assert.ErrorContains(tt, err, "Large Volume constituent count is only supported for large capacity volumes")
 	})
 
-	t.Run("MaxConstituentCountForLargeCapacity", func(tt *testing.T) {
+	t.Run("PrimeGreaterThan7ConstituentCountForLargeCapacity", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -621,11 +621,70 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountName:                 "test_account",
 			Name:                        "test-volume",
 			PoolID:                      pool.UUID,
-			QuotaInBytes:                107374182400, // 100 GiB (valid for non-large capacity)
+			QuotaInBytes:                12 * utils.TiBInBytes, // 12 TiB
 			Protocols:                   []string{utils.ProtocolNFSv3},
 			Network:                     "test-network",
 			LargeCapacity:               true,
-			LargeVolumeConstituentCount: 1200, // Constituent count set for non-large capacity - not allowed!
+			LargeVolumeConstituentCount: 31, // Constituent count is prime
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, fmt.Sprintf("Consituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
+	})
+
+	t.Run("MaxConstituentCountForLargeCapacity", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   13194139533312, // 12TB
+			LargeCapacity: true,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:                 "test_account",
+			Name:                        "test-volume",
+			PoolID:                      pool.UUID,
+			QuotaInBytes:                13194139533312,
+			Protocols:                   []string{utils.ProtocolNFSv3},
+			Network:                     "test-network",
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 2200,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -17457,4 +17516,36 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 		assert.Nil(tt, volume)
 		assert.Contains(tt, err.Error(), "Constituent count provided (5) does not match with that of backup (10)")
 	})
+}
+
+func TestIsPrime(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input int
+		want  bool
+	}{
+		{"Prime 7", 7, true},
+		{"Prime 11", 11, true},
+		{"Prime 13", 13, true},
+		{"Prime 17", 17, true},
+		{"Prime 23", 23, true},
+		{"Non-prime 9", 9, false},
+		{"Non-prime 15", 15, false},
+		{"Non-prime 21", 21, false},
+		{"Non-prime 25", 25, false},
+		{"Non-prime 27", 27, false},
+		{"Edge 2", 2, false},
+		{"Edge 3", 3, false},
+		{"Edge 4", 4, false},
+		{"Edge 6", 6, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isPrime(tc.input)
+			if got != tc.want {
+				t.Errorf("isPrime(%d) = %v; want %v", tc.input, got, tc.want)
+			}
+		})
+	}
 }

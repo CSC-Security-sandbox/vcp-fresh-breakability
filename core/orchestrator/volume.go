@@ -35,23 +35,23 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-const maxConstituentVolumesPerAggregate = 200
-
 var (
-	numOfLvHAPairs                = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
-	volumeRefreshIntervalMinutes  = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
-	maxThinClonesPerPool          = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
-	minQuotaInBytesVolume         = utils.MinQuotaInBytesVolumeForVolume
-	maxQuotaInBytesVolume         = utils.MaxQuotaInBytesVolumeForVolume
-	createVolume                  = _createVolume
-	revertVolume                  = _revertVolume
-	validateCreateVolumeParams    = _validateCreateVolumeParams
-	getIPAddressForVolume         = _getIPAddressForVolume
-	updateVolume                  = _updateVolume
-	deleteVolume                  = _deleteVolume
-	validateDeleteVolumeParams    = _validateDeleteVolumeParams
-	updateVolumeStatus            = _updateVolumeStatus
-	convertDatastoreVolumeToModel = _convertDatastoreVolumeToModel
+	numOfLvHAPairs                    = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
+	maxConstituentVolumesPerAggregate = env.GetInt("MAX_CONSTITUENTS_PER_AGGREGATE", 1000)
+	volumeRefreshIntervalMinutes      = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
+	maxThinClonesPerPool              = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
+	minQuotaInBytesVolume             = utils.MinQuotaInBytesVolumeForVolume
+	maxQuotaInBytesVolume             = utils.MaxQuotaInBytesVolumeForVolume
+	createVolume                      = _createVolume
+	revertVolume                      = _revertVolume
+	validateCreateVolumeParams        = _validateCreateVolumeParams
+	getIPAddressForVolume             = _getIPAddressForVolume
+	updateVolume                      = _updateVolume
+	deleteVolume                      = _deleteVolume
+	validateDeleteVolumeParams        = _validateDeleteVolumeParams
+	updateVolumeStatus                = _updateVolumeStatus
+	convertDatastoreVolumeToModel     = _convertDatastoreVolumeToModel
+	minPrimeNumberConfigAllowed       = 7
 
 	envIsLocalEnv                                   = env.IsLocalEnv
 	cvpCreateClient                                 = cvp.CreateClient
@@ -930,6 +930,21 @@ func _checkIsValidImmutableBackupPolicyWithStateCheck(ctx context.Context, se da
 	return nil
 }
 
+// isPrime return true if constituentVolumeCount is prime for constituentVolumeCount greater than and equal to seven
+func isPrime(constituentVolumeCount int) bool {
+	if constituentVolumeCount%2 == 0 || constituentVolumeCount%3 == 0 {
+		return false
+	}
+	sq_root := int(math.Sqrt(float64(constituentVolumeCount)))
+
+	for i := 5; i <= sq_root; i = i + 6 {
+		if constituentVolumeCount%i == 0 || constituentVolumeCount%(i+2) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 	if pool.LargeCapacity != params.LargeCapacity {
 		return customerrors.NewUserInputValidationErr("pool large capacity setting does not match volume large capacity setting")
@@ -946,6 +961,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 
 		if params.LargeVolumeConstituentCount > int32(numOfLvHAPairs*maxConstituentVolumesPerAggregate) {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(numOfLvHAPairs*maxConstituentVolumesPerAggregate)))
+		}
+
+		// validate large volume constituent count is not prime
+		if params.LargeVolumeConstituentCount > 0 && params.LargeVolumeConstituentCount > int32(minPrimeNumberConfigAllowed) && isPrime(int(params.LargeVolumeConstituentCount)) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Consituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
 		}
 
 		if params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume {

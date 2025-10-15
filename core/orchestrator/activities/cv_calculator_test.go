@@ -3,10 +3,11 @@ package activities
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"testing"
 )
 
 func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
@@ -545,8 +546,8 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 		})
 
 		t.Run("AllAggregatesAtCapacity_ReturnsError", func(t *testing.T) {
-			// Arrange - 12 aggregates all at max capacity (200)
-			aggregates := createTwelveTestAggregates([]int64{200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200})
+			// Arrange - 12 aggregates all at max capacity (1000)
+			aggregates := createTwelveTestAggregates([]int64{1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000})
 
 			// Act
 			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24)
