@@ -160,8 +160,12 @@ func (mp *MetricsProcessor) processRawMetrics(ctx context.Context, timestamp tim
 func (mp *MetricsProcessor) ProcessUsageMetrics(ctx context.Context) error {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Process %s!\n", "Usage Metrics")
-
-	err := mp.billingProvider.ProcessBillingMetrics(ctx, time.Now())
+	// Shift the aggregation cycle 15 mins prior from the aggregation trigger, to avoid 1 missed sample intermittently.
+	// If aggregation is triggered at 1:45 -> It needs to aggregate data from 12:45 to 1:45. But as the current timestamp in also ~1:45.
+	// There is a chance that the collection cycle is still running and record for 1:45 is still not hydrated. So aggregation will miss that record and will result into under billing.
+	// With this approach, aggregator will aggregate data from 12:30 to 1:30 (This will make sure that 1:30 sample is always available as collection for 1:30 is already finished by 1:45).
+	aggregationEndTime := time.Now().Add(-15 * time.Minute)
+	err := mp.billingProvider.ProcessBillingMetrics(ctx, aggregationEndTime)
 	if err != nil {
 		logger.Error("Failed to aggregate hydrated metrics", "error", err.Error())
 		return err
