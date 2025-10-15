@@ -360,6 +360,18 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Update CV count for auto-provisioned large volumes from the CreateVolume response
+	// Only execute if the volume is large capacity AND the customer didn't specify the constituent count
+	// (i.e., it was auto-provisioned by ONTAP) AND we got the count from the creation response
+	if dbVolume.LargeVolumeAttributes != nil && dbVolume.LargeVolumeAttributes.LargeCapacity &&
+		dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount == nil && volCreateResponse.ConstituentCount != nil {
+		log.Debugf("Updating CV count for auto-provisioned volume %s: %d", dbVolume.UUID, *volCreateResponse.ConstituentCount)
+
+		// Update the dbVolume struct with the actual CV count from ONTAP creation response
+		dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount = volCreateResponse.ConstituentCount
+		log.Debugf("Successfully updated CV count for auto-provisioned volume %s to %d", dbVolume.UUID, *volCreateResponse.ConstituentCount)
+	}
+
 	// Calculate the available LUN space by subtracting the reserved space for snapshots
 	var restoreVolCreateResponse *vsa.VolumeResponse
 	if isRestoreSnapshot {

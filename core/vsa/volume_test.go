@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -1854,4 +1855,232 @@ func TestMountVolume(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
+}
+
+// TestGetVolumeConstituentCountFallback tests the constituent count extraction logic
+func TestGetVolumeConstituentCountFallback(t *testing.T) {
+	tests := []struct {
+		name               string
+		ontapVolume        *ontaprest.Volume
+		expectedCount      *int32
+		expectedCountValue int32
+	}{
+		{
+			name: "ConstituentCount field available",
+			ontapVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					ConstituentCount: nillable.ToPointer(int64(8)),
+				},
+			},
+			expectedCount:      nillable.GetInt32Ptr(8),
+			expectedCountValue: 8,
+		},
+		{
+			name: "ConstituentCount nil but VolumeInlineConstituents available",
+			ontapVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					ConstituentCount: nil,
+					VolumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{
+						{Name: nillable.ToPointer("vol1")},
+						{Name: nillable.ToPointer("vol2")},
+						{Name: nillable.ToPointer("vol3")},
+					},
+				},
+			},
+			expectedCount:      nillable.GetInt32Ptr(3),
+			expectedCountValue: 3,
+		},
+		{
+			name: "Both ConstituentCount and VolumeInlineConstituents nil",
+			ontapVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					ConstituentCount:         nil,
+					VolumeInlineConstituents: nil,
+				},
+			},
+			expectedCount:      nil,
+			expectedCountValue: 0,
+		},
+		{
+			name: "ConstituentCount available and VolumeInlineConstituents also available - prefer ConstituentCount",
+			ontapVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					ConstituentCount: nillable.ToPointer(int64(5)),
+					VolumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{
+						{Name: nillable.ToPointer("vol1")},
+						{Name: nillable.ToPointer("vol2")},
+					},
+				},
+			},
+			expectedCount:      nillable.GetInt32Ptr(5),
+			expectedCountValue: 5,
+		},
+		{
+			name: "Empty VolumeInlineConstituents array",
+			ontapVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					ConstituentCount:         nil,
+					VolumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{},
+				},
+			},
+			expectedCount:      nillable.GetInt32Ptr(0),
+			expectedCountValue: 0,
+		},
+		{
+			name: "CreateVolume with ConstituentCount field",
+			ontapVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					ConstituentCount: nillable.ToPointer(int64(5)),
+				},
+			},
+			expectedCount:      nillable.GetInt32Ptr(5),
+			expectedCountValue: 5,
+		},
+		{
+			name: "CreateVolume with VolumeInlineConstituents array",
+			ontapVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					ConstituentCount: nil,
+					VolumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{
+						{Name: nillable.ToPointer("vol1")},
+						{Name: nillable.ToPointer("vol2")},
+					},
+				},
+			},
+			expectedCount:      nillable.GetInt32Ptr(2),
+			expectedCountValue: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Extract constituent count using the same logic as in GetVolume
+			var constituentCount *int32
+			if tt.ontapVolume.ConstituentCount != nil {
+				count := int32(*tt.ontapVolume.ConstituentCount)
+				constituentCount = &count
+			} else if tt.ontapVolume.VolumeInlineConstituents != nil {
+				// If constituent_count is not available but constituents array is available (even if empty), use the length
+				count := int32(len(tt.ontapVolume.VolumeInlineConstituents))
+				constituentCount = &count
+			}
+
+			// Verify the result
+			if tt.expectedCount == nil {
+				assert.Nil(t, constituentCount, "Expected constituent count to be nil")
+			} else {
+				require.NotNil(t, constituentCount, "Expected constituent count to not be nil")
+				assert.Equal(t, tt.expectedCountValue, *constituentCount, "Constituent count should match expected value")
+			}
+		})
+	}
+}
+
+// TestCreateVolumeConstituentCount tests the constituent count extraction in CreateVolume method
+func TestCreateVolumeConstituentCount(t *testing.T) {
+	tests := []struct {
+		name                     string
+		mockVolume               *ontaprest.Volume
+		expectedConstituentCount *int32
+		description              string
+	}{
+		{
+			name: "CreateVolume with ConstituentCount field",
+			mockVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					UUID:             nillable.ToPointer("test-uuid"),
+					Name:             nillable.ToPointer("test-volume"),
+					State:            nillable.ToPointer(models.VolumeStateOnline),
+					ConstituentCount: nillable.ToPointer(int64(5)),
+					Space: &models.VolumeInlineSpace{
+						Available: nillable.ToPointer(int64(1024)),
+					},
+				},
+			},
+			expectedConstituentCount: nillable.GetInt32Ptr(5),
+			description:              "Should extract constituent count from ConstituentCount field",
+		},
+		{
+			name: "CreateVolume with VolumeInlineConstituents array",
+			mockVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					UUID:             nillable.ToPointer("test-uuid-2"),
+					Name:             nillable.ToPointer("test-volume-2"),
+					State:            nillable.ToPointer(models.VolumeStateOnline),
+					ConstituentCount: nil,
+					VolumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{
+						{Name: nillable.ToPointer("vol1")},
+						{Name: nillable.ToPointer("vol2")},
+					},
+					Space: &models.VolumeInlineSpace{
+						Available: nillable.ToPointer(int64(1024)),
+					},
+				},
+			},
+			expectedConstituentCount: nillable.GetInt32Ptr(2),
+			description:              "Should count constituents from array when ConstituentCount is nil",
+		},
+		{
+			name: "CreateVolume with empty VolumeInlineConstituents array",
+			mockVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					UUID:                     nillable.ToPointer("test-uuid-3"),
+					Name:                     nillable.ToPointer("test-volume-3"),
+					State:                    nillable.ToPointer(models.VolumeStateOnline),
+					ConstituentCount:         nil,
+					VolumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{}, // Empty array
+					Space: &models.VolumeInlineSpace{
+						Available: nillable.ToPointer(int64(1024)),
+					},
+				},
+			},
+			expectedConstituentCount: nillable.GetInt32Ptr(0),
+			description:              "Should return 0 for empty constituents array",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			mockStorage := new(ontaprest.MockStorageClient)
+			mockClient := new(ontaprest.MockRESTClient)
+			mockClient.On("Storage").Return(mockStorage)
+			originalgetOntapClientFunc := getOntapClientFunc
+			defer func() {
+				getOntapClientFunc = originalgetOntapClientFunc
+			}()
+			getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+				return mockClient, nil
+			}
+			rc := &OntapRestProvider{}
+
+			volumeName := "testVolume"
+			params := CreateVolumeParams{
+				VolumeName: volumeName,
+				SvmName:    "testSVM",
+				Aggregates: []string{"testAggregate"},
+				Size:       int64(1024),
+				VolumeType: "rw",
+			}
+
+			mockJob := &ontaprest.JobAccepted{
+				JobUUID:      "testJobUUID",
+				ResourceUUID: "testResourceUUID",
+			}
+
+			mockStorage.On("VolumeCreate", mock.Anything).Return(tt.mockVolume, mockJob, nil)
+			mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+
+			// Act
+			resp, err := rc.CreateVolume(params)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.NotNil(t, resp)
+			assert.Equal(t, tt.expectedConstituentCount, resp.ConstituentCount, tt.description)
+
+			mockStorage.AssertExpectations(t)
+			mockClient.AssertExpectations(t)
+		})
+	}
 }

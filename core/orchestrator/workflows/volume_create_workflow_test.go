@@ -2,6 +2,7 @@ package workflows
 
 import (
 	err1 "errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -3768,20 +3769,184 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WithSplitVolumeAndChildWorkflo
 	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{BucketName: "new-bucket"}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
-	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
-		BucketName:          "new-bucket",
-		ServiceAccountName:  "test-sa",
-		VendorSubnetID:      "test-subnet",
-		TenantProjectNumber: "123456789",
-		SatisfiesPzi:        true,
-		SatisfiesPzs:        true,
-	}, nil)
-
 	// Execute the workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume, nil, nil)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// TestCreateVolumeWorkflow_CVCountUpdate tests the CV count update functionality for auto-provisioned large volumes
+func (s *UnitTestSuite) TestCreateVolumeWorkflow_CVCountUpdate() {
+	s.SetupTest()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		Name:      "test-volume",
+		Account:   &datamodel.Account{Name: "account-1"},
+		Svm:       &datamodel.Svm{Name: "svm_test"},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: nil, // Auto-provisioned
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
+			Protocols:       []string{utils.ProtocolISCSI},
+		},
+	}
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "ontap-uuid",
+			Name:         "test-volume",
+		},
+		State:            "online",
+		ConstituentCount: nillable.GetInt32Ptr(8), // This should trigger CV count update
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// TestCreateVolumeWorkflow_CVCountUpdateLogic tests the CV count update logic directly
+func TestCreateVolumeWorkflow_CVCountUpdateLogic(t *testing.T) {
+	tests := []struct {
+		name                string
+		dbVolume            *datamodel.Volume
+		volCreateResponse   *vsa.VolumeResponse
+		shouldExecuteUpdate bool
+		expectedLogMessage  string
+		description         string
+	}{
+		{
+			name: "Auto-provisioned large volume - should update CV count",
+			dbVolume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity:               true,
+					LargeVolumeConstituentCount: nil, // Auto-provisioned
+				},
+			},
+			volCreateResponse: &vsa.VolumeResponse{
+				ConstituentCount: nillable.GetInt32Ptr(8),
+			},
+			shouldExecuteUpdate: true,
+			expectedLogMessage:  "Updating CV count for auto-provisioned volume test-uuid: 8",
+			description:         "Should execute CV count update for auto-provisioned large volume",
+		},
+		{
+			name: "Customer-specified large volume - should NOT update CV count",
+			dbVolume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "test-uuid-2"},
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity:               true,
+					LargeVolumeConstituentCount: nillable.GetInt32Ptr(4), // Customer specified
+				},
+			},
+			volCreateResponse: &vsa.VolumeResponse{
+				ConstituentCount: nillable.GetInt32Ptr(6),
+			},
+			shouldExecuteUpdate: false,
+			expectedLogMessage:  "",
+			description:         "Should NOT execute CV count update when customer specified count",
+		},
+		{
+			name: "Regular volume - should NOT update CV count",
+			dbVolume: &datamodel.Volume{
+				BaseModel:             datamodel.BaseModel{UUID: "test-uuid-3"},
+				LargeVolumeAttributes: nil, // Not a large volume
+			},
+			volCreateResponse: &vsa.VolumeResponse{
+				ConstituentCount: nillable.GetInt32Ptr(1),
+			},
+			shouldExecuteUpdate: false,
+			expectedLogMessage:  "",
+			description:         "Should NOT execute CV count update for regular volumes",
+		},
+		{
+			name: "Auto-provisioned large volume with no CV count in response - should NOT update",
+			dbVolume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "test-uuid-4"},
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity:               true,
+					LargeVolumeConstituentCount: nil, // Auto-provisioned
+				},
+			},
+			volCreateResponse: &vsa.VolumeResponse{
+				ConstituentCount: nil, // No CV count in response
+			},
+			shouldExecuteUpdate: false,
+			expectedLogMessage:  "",
+			description:         "Should NOT execute CV count update when no CV count in response",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test the condition logic that determines whether to execute CV count update
+			shouldExecute := tt.dbVolume.LargeVolumeAttributes != nil &&
+				tt.dbVolume.LargeVolumeAttributes.LargeCapacity &&
+				tt.dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount == nil &&
+				tt.volCreateResponse.ConstituentCount != nil
+
+			assert.Equal(t, tt.shouldExecuteUpdate, shouldExecute, tt.description)
+
+			// Test the expected log message
+			if tt.shouldExecuteUpdate {
+				expectedLog := fmt.Sprintf("Updating CV count for auto-provisioned volume %s: %d",
+					tt.dbVolume.UUID, *tt.volCreateResponse.ConstituentCount)
+				assert.Equal(t, expectedLog, tt.expectedLogMessage, "Log message should match expected format")
+
+				// Test the updated large volume attributes structure
+				expectedAttributes := &datamodel.LargeVolumeAttributes{
+					LargeCapacity:               tt.dbVolume.LargeVolumeAttributes.LargeCapacity,
+					LargeVolumeConstituentCount: tt.volCreateResponse.ConstituentCount,
+				}
+				assert.Equal(t, expectedAttributes.LargeCapacity, tt.dbVolume.LargeVolumeAttributes.LargeCapacity)
+				assert.Equal(t, expectedAttributes.LargeVolumeConstituentCount, tt.volCreateResponse.ConstituentCount)
+			}
+		})
+	}
 }

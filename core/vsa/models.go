@@ -73,6 +73,7 @@ type VolumeResponse struct {
 	AFSSize                        int64
 	MetadataSize                   int64
 	SnapshotDirectoryAccessEnabled bool
+	ConstituentCount               *int32
 	Encryption
 }
 

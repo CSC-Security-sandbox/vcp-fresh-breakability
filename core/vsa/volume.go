@@ -77,7 +77,7 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		return nil, errors.New("invalid Volume response from API")
 	}
 
-	// Return the created SVM
+	// Return the created volume
 	volRes := &VolumeResponse{
 		ProviderResponse: ProviderResponse{
 			Name:         *vol.Name,
@@ -97,6 +97,16 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 	}
 	if vol.Size != nil {
 		volRes.Size = *vol.Size
+	}
+
+	// Extract constituent count from the created volume
+	if vol.ConstituentCount != nil {
+		count := int32(*vol.ConstituentCount)
+		volRes.ConstituentCount = &count
+	} else if vol.VolumeInlineConstituents != nil {
+		// If constituent_count is not available but constituents array is available (even if empty), use the length
+		count := int32(len(vol.VolumeInlineConstituents))
+		volRes.ConstituentCount = &count
 	}
 
 	return volRes, nil

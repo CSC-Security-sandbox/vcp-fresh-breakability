@@ -132,11 +132,19 @@ func (d *DataStoreRepository) UpdateVolume(ctx context.Context, volume *datamode
 		return err
 	}
 
-	err = tx.Model(&dbVolume).Updates(datamodel.Volume{
+	// Prepare the fields to update
+	updateFields := datamodel.Volume{
 		VolumeAttributes: volume.VolumeAttributes,
 		State:            volume.State,
 		StateDetails:     volume.StateDetails,
-	}).Error
+	}
+
+	// Update LargeVolumeAttributes only if LargeVolume is true
+	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
+		updateFields.LargeVolumeAttributes = volume.LargeVolumeAttributes
+	}
+
+	err = tx.Model(&dbVolume).Updates(updateFields).Error
 	if err != nil {
 		return err
 	}
