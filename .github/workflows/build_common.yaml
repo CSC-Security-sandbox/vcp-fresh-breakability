@@ -390,7 +390,7 @@ jobs:
         run: |
           IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "cloud-backup-adc" "telemetry" "vcp-cloudrun-deployer" "ontap-proxy")
           for IMAGE in "${IMAGES[@]}"; do
-            echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.7" || echo "${{ inputs.tag }}")"
+            echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.8" || echo "${{ inputs.tag }}")"
             docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
             --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root \
             ghcr.io/vcp-vsa-control-plane/vsacictl:v38 \
@@ -400,7 +400,7 @@ jobs:
             java -jar /bds-inspect/synopsys-detect-9.10.1.jar --detect.project.name=\"GCNV VSA Control Plane\" \
             --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com --blackduck.trust.cert=true \
             --blackduck.api.token="${{ secrets.BLACKDUCKSCANSATOKEN }}" --detect.cleanup=false --detect.tools=DOCKER \
-            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.7" || echo "${{ inputs.tag }}")  \
+            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.8" || echo "${{ inputs.tag }}")  \
             --detect.code.location.name=GCNV_VSA_Control_Plane_docker_${IMAGE}_code \
             --detect.docker.path=/__w/_tool/go/1.24.1/x64/bin/docker --detect.tools.excluded=DETECTOR \
             --detect.docker.inspector.air.gap.path=/bds-inspect/packaged-inspectors/docker/ \
@@ -442,7 +442,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
         with:
-          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}:2.7', matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}:{1}', matrix.image, inputs.tag) }}
+          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}:2.8', matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}:{1}', matrix.image, inputs.tag) }}
           format: 'sarif'
           output: 'repo-dir2/trivy-${{ matrix.image }}.sarif'
 
