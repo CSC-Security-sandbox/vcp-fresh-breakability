@@ -551,7 +551,17 @@ func TestProcessMetricsSuccess(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Labels: &datamodel.JSONB{"env": "test"},
 			},
-			Pool:    &datamodel.Pool{DeploymentName: ""},
+			Pool:    &datamodel.Pool{DeploymentName: "", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}},
+			Account: &datamodel.Account{Name: "customer1"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+			Name:      "resource2",
+			AccountID: 123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Labels: &datamodel.JSONB{"env": "test"},
+			},
+			Pool:    &datamodel.Pool{DeploymentName: "", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}},
 			Account: &datamodel.Account{Name: "customer1"},
 		},
 	}, nil).Once()
@@ -634,7 +644,17 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Labels: &datamodel.JSONB{"env": "test"},
 			},
-			Pool:    &datamodel.Pool{DeploymentName: ""},
+			Pool:    &datamodel.Pool{DeploymentName: "", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}},
+			Account: &datamodel.Account{Name: "customer1"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+			Name:      "resource2",
+			AccountID: 123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Labels: &datamodel.JSONB{"env": "test"},
+			},
+			Pool:    &datamodel.Pool{DeploymentName: "", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}},
 			Account: &datamodel.Account{Name: "customer1"},
 		},
 	}, nil).Once()
@@ -844,7 +864,17 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Labels: &datamodel.JSONB{"env": "test"},
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "deployment1"},
+			Pool:    &datamodel.Pool{DeploymentName: "deployment1", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}},
+			Account: &datamodel.Account{Name: "customer1"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+			Name:      "resource2",
+			AccountID: 123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Labels: &datamodel.JSONB{"env": "test"},
+			},
+			Pool:    &datamodel.Pool{DeploymentName: "deployment1", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}},
 			Account: &datamodel.Account{Name: "customer1"},
 		},
 	}, nil).Once()
@@ -906,7 +936,17 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Labels: &datamodel.JSONB{"env": "test"},
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "test-deployment"},
+			Pool:    &datamodel.Pool{DeploymentName: "test-deployment", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}},
+			Account: &datamodel.Account{Name: "customer1"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+			Name:      "resource2",
+			AccountID: 123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Labels: &datamodel.JSONB{"env": "test"},
+			},
+			Pool:    &datamodel.Pool{DeploymentName: "test-deployment", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}},
 			Account: &datamodel.Account{Name: "customer1"},
 		},
 	}, nil).Once()
@@ -1185,8 +1225,10 @@ func TestFetchResourceData(t *testing.T) {
 					VendorID:       "/projects/12345/",
 					DeploymentName: "dep1",
 					PoolAttributes: &datamodel.PoolAttributes{
-						Labels:      &datamodel.JSONB{"test": "test"},
-						PrimaryZone: "us-central1"},
+						Labels:       &datamodel.JSONB{"test": "test"},
+						PrimaryZone:  "us-central1",
+						IsRegionalHA: true,
+					},
 					Account: &datamodel.Account{Name: "account1"},
 				},
 			},
@@ -1849,6 +1891,133 @@ func TestCreateComplexFilter_WithLimitAndOrder(t *testing.T) {
 				_, hasLimit := result["limit"]
 				assert.False(t, hasLimit, "Should not have limit when not expected")
 			}
+		})
+	}
+}
+
+func TestGetResourceDataForAggregationUsage(t *testing.T) {
+	// Setup test processor
+	processor := &BillingProvider{}
+
+	// Create test resource keys
+	poolKey := ResourceKey{
+		ResourceType:   metadata.VolumePool,
+		ResourceName:   "test-pool",
+		DeploymentName: "test-deployment",
+		ConsumerID:     "test-customer",
+	}
+
+	volumeKey := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "test-volume",
+		DeploymentName: "test-deployment",
+		ConsumerID:     "test-customer",
+	}
+
+	poolKeyRegionalHA := ResourceKey{
+		ResourceType:   metadata.VolumePoolRegionalHA,
+		ResourceName:   "test-pool",
+		DeploymentName: "test-deployment",
+		ConsumerID:     "test-customer",
+	}
+
+	volumeKeyRegionalHA := ResourceKey{
+		ResourceType:   metadata.VolumeRegionalHA,
+		ResourceName:   "test-volume",
+		DeploymentName: "test-deployment",
+		ConsumerID:     "test-customer",
+	}
+
+	// Create test resource data
+	poolData := ResourceData{
+		UUID:      "pool-uuid",
+		AccountID: 123,
+		Labels:    Labels{"pool": "test"},
+	}
+
+	volumeData := ResourceData{
+		UUID:      "volume-uuid",
+		AccountID: 456,
+		Labels:    Labels{"volume": "test"},
+	}
+
+	// Create resource collection
+	resourceCollection := &ResourceCollection{
+		PoolData: map[ResourceKey]ResourceData{
+			poolKey:           poolData,
+			poolKeyRegionalHA: poolData,
+		},
+		VolumeData: map[ResourceKey]ResourceData{
+			volumeKey:           volumeData,
+			volumeKeyRegionalHA: volumeData,
+		},
+	}
+
+	tests := []struct {
+		name         string
+		id           ResourceKey
+		resourceType metadata.ResourceType
+		collection   *ResourceCollection
+		expected     *ResourceData
+		expectNil    bool
+	}{
+		{
+			name:         "VolumePool resource type",
+			id:           poolKey,
+			resourceType: metadata.VolumePool,
+			collection:   resourceCollection,
+			expected:     &poolData,
+		},
+		{
+			name:         "Volume resource type",
+			id:           volumeKey,
+			resourceType: metadata.Volume,
+			collection:   resourceCollection,
+			expected:     &volumeData,
+		},
+		{
+			name:         "VolumePoolRegionalHA resource type",
+			id:           poolKey,
+			resourceType: metadata.VolumePoolRegionalHA,
+			collection:   resourceCollection,
+			expected:     &poolData,
+		},
+		{
+			name:         "VolumeRegionalHA resource type",
+			id:           volumeKey,
+			resourceType: metadata.VolumeRegionalHA,
+			collection:   resourceCollection,
+			expected:     &volumeData,
+		},
+		{
+			name:         "Resource not found in collection",
+			id:           ResourceKey{ResourceType: metadata.Volume, ResourceName: "non-existent"},
+			resourceType: metadata.Volume,
+			collection:   resourceCollection,
+			expectNil:    true,
+		},
+		{
+			name:         "Unsupported resource type",
+			id:           poolKey,
+			resourceType: "unsupported",
+			collection:   resourceCollection,
+			expectNil:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processor.getResourceDataForAggregationUsage(tt.id, tt.resourceType, tt.collection)
+
+			if tt.expectNil {
+				assert.Nil(t, result, "Expected nil result for %s", tt.name)
+				return
+			}
+
+			assert.NotNil(t, result, "Expected non-nil result for %s", tt.name)
+			assert.Equal(t, tt.expected.UUID, result.UUID, "UUID mismatch for %s", tt.name)
+			assert.Equal(t, tt.expected.AccountID, result.AccountID, "AccountID mismatch for %s", tt.name)
+			assert.Equal(t, tt.expected.Labels, result.Labels, "Labels mismatch for %s", tt.name)
 		})
 	}
 }

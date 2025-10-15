@@ -236,8 +236,12 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				AccountID: pool.AccountID,
 				Labels:    limitedLabels,
 			}
+			resourceType := metadata.VolumePool
+			if pool.PoolAttributes != nil && pool.PoolAttributes.IsRegionalHA {
+				resourceType = metadata.VolumePoolRegionalHA
+			}
 			id := ResourceKey{
-				ResourceType:   metadata.VolumePool,
+				ResourceType:   resourceType,
 				ResourceName:   pool.Name,
 				DeploymentName: pool.DeploymentName,
 				ConsumerID:     pool.Account.Name,
@@ -315,8 +319,12 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 				AccountID: volume.AccountID,
 				Labels:    limitedLabels,
 			}
+			resourceType := metadata.Volume
+			if volume.Pool.PoolAttributes != nil && volume.Pool.PoolAttributes.IsRegionalHA {
+				resourceType = metadata.VolumeRegionalHA
+			}
 			id := ResourceKey{
-				ResourceType:   metadata.Volume,
+				ResourceType:   resourceType,
 				ResourceName:   volume.Name,
 				DeploymentName: volume.Pool.DeploymentName,
 				ConsumerID:     volume.Account.Name,
@@ -366,6 +374,10 @@ func (p *BillingProvider) getResourceDataForAggregationUsage(id ResourceKey, res
 	case metadata.VolumePool:
 		resourceData, found = resourceCollection.PoolData[id]
 	case metadata.Volume:
+		resourceData, found = resourceCollection.VolumeData[id]
+	case metadata.VolumePoolRegionalHA:
+		resourceData, found = resourceCollection.PoolData[id]
+	case metadata.VolumeRegionalHA:
 		resourceData, found = resourceCollection.VolumeData[id]
 	default:
 		return nil
