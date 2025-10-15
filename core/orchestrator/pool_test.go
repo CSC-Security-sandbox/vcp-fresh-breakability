@@ -499,7 +499,7 @@ func TestCreatePool(t *testing.T) {
 			PrimaryZone:      "test_zone1",
 			SecondaryZone:    "test_zone2",
 			Name:             "test_pool_1",
-			VendorID:         "test_vendor",
+			VendorID:         "test-vendor-id", // Changed to match the vendor_id in createDBPools
 			SizeInBytes:      1024,
 			AllowAutoTiering: true,
 			VendorSubNetID:   "test_network",

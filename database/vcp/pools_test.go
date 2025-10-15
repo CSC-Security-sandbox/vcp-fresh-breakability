@@ -2384,3 +2384,230 @@ func TestListPoolsWithPagination_Cases(t *testing.T) {
 		assert.True(tt, foundDeleted, "Expected deleted pool to be present in result set")
 	})
 }
+
+func TestCreatingPool_VendorIDUniqueness(t *testing.T) {
+	t.Run("AllowsSamePoolNameInDifferentZonesWithDifferentVendorIDs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create first pool in region (australia-southeast1)
+		// VendorID includes location in the path
+		poolRegion := &datamodel.Pool{
+			Name:           "nitin-pool-1754107056",
+			VendorID:       "/projects/29632252492/locations/australia-southeast1/pools/nitin-pool-1754107056",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "deployment-region",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:     "australia-southeast1",
+				ThroughputMibps: 64,
+				Iops:            1024,
+			},
+		}
+
+		createdPoolRegion, err := store.CreatingPool(context.Background(), poolRegion)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdPoolRegion)
+		assert.Equal(tt, "/projects/29632252492/locations/australia-southeast1/pools/nitin-pool-1754107056", createdPoolRegion.VendorID)
+		assert.Equal(tt, "australia-southeast1", createdPoolRegion.PoolAttributes.PrimaryZone)
+		assert.Equal(tt, models.LifeCycleStateCreating, createdPoolRegion.State)
+
+		// Create second pool in zone-a (australia-southeast1-a) with same pool name but different vendor_id
+		poolZoneA := &datamodel.Pool{
+			Name:           "nitin-pool-1754107056",
+			VendorID:       "/projects/29632252492/locations/australia-southeast1-a/pools/nitin-pool-1754107056",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "deployment-zone-a",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:     "australia-southeast1-a",
+				ThroughputMibps: 64,
+				Iops:            1024,
+			},
+		}
+
+		createdPoolZoneA, err := store.CreatingPool(context.Background(), poolZoneA)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdPoolZoneA)
+		assert.Equal(tt, "/projects/29632252492/locations/australia-southeast1-a/pools/nitin-pool-1754107056", createdPoolZoneA.VendorID)
+		assert.Equal(tt, "australia-southeast1-a", createdPoolZoneA.PoolAttributes.PrimaryZone)
+		assert.Equal(tt, models.LifeCycleStateCreating, createdPoolZoneA.State)
+
+		// Create third pool in zone-b (australia-southeast1-b) with same pool name but different vendor_id
+		poolZoneB := &datamodel.Pool{
+			Name:           "nitin-pool-1754107056",
+			VendorID:       "/projects/29632252492/locations/australia-southeast1-b/pools/nitin-pool-1754107056",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "deployment-zone-b",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:     "australia-southeast1-b",
+				ThroughputMibps: 64,
+				Iops:            1024,
+			},
+		}
+
+		createdPoolZoneB, err := store.CreatingPool(context.Background(), poolZoneB)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdPoolZoneB)
+		assert.Equal(tt, "/projects/29632252492/locations/australia-southeast1-b/pools/nitin-pool-1754107056", createdPoolZoneB.VendorID)
+		assert.Equal(tt, "australia-southeast1-b", createdPoolZoneB.PoolAttributes.PrimaryZone)
+		assert.Equal(tt, models.LifeCycleStateCreating, createdPoolZoneB.State)
+
+		// Verify all three pools exist with same name but different VendorIDs and UUIDs
+		assert.Equal(tt, "nitin-pool-1754107056", createdPoolRegion.Name)
+		assert.Equal(tt, "nitin-pool-1754107056", createdPoolZoneA.Name)
+		assert.Equal(tt, "nitin-pool-1754107056", createdPoolZoneB.Name)
+		assert.NotEqual(tt, createdPoolRegion.VendorID, createdPoolZoneA.VendorID)
+		assert.NotEqual(tt, createdPoolRegion.VendorID, createdPoolZoneB.VendorID)
+		assert.NotEqual(tt, createdPoolZoneA.VendorID, createdPoolZoneB.VendorID)
+		assert.NotEqual(tt, createdPoolRegion.UUID, createdPoolZoneA.UUID)
+		assert.NotEqual(tt, createdPoolRegion.UUID, createdPoolZoneB.UUID)
+		assert.NotEqual(tt, createdPoolZoneA.UUID, createdPoolZoneB.UUID)
+	})
+
+	t.Run("PreventsDuplicateVendorIDInSameAccount", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create first pool with a vendor_id
+		pool1 := &datamodel.Pool{
+			Name:           "pool_1",
+			VendorID:       "vendor-pool-duplicate",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "deployment-1",
+		}
+
+		createdPool1, err := store.CreatingPool(context.Background(), pool1)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdPool1)
+
+		// Try to create another pool with the same vendor_id in the same account
+		pool2 := &datamodel.Pool{
+			Name:           "pool_2",
+			VendorID:       "vendor-pool-duplicate",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "deployment-2",
+		}
+
+		_, err = store.CreatingPool(context.Background(), pool2)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid input parameters provided")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "pool already exists")
+	})
+
+	t.Run("AllowsSameVendorIDInDifferentAccounts", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		// Create two accounts
+		account1 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid-1",
+			},
+			Name: "test_account_1",
+		}
+		account2 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-account-uuid-2",
+			},
+			Name: "test_account_2",
+		}
+		err = store.db.Create(account1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account1: %v", err)
+		}
+		err = store.db.Create(account2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account2: %v", err)
+		}
+
+		// Create pool in account1 with a vendor_id
+		pool1 := &datamodel.Pool{
+			Name:           "pool_account1",
+			VendorID:       "vendor-pool-shared",
+			AccountID:      account1.ID,
+			Account:        account1,
+			DeploymentName: "deployment-account1",
+		}
+
+		createdPool1, err := store.CreatingPool(context.Background(), pool1)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdPool1)
+		assert.Equal(tt, account1.ID, createdPool1.AccountID)
+
+		// Create pool in account2 with the same vendor_id (should succeed)
+		pool2 := &datamodel.Pool{
+			Name:           "pool_account2",
+			VendorID:       "vendor-pool-shared",
+			AccountID:      account2.ID,
+			Account:        account2,
+			DeploymentName: "deployment-account2",
+		}
+
+		createdPool2, err := store.CreatingPool(context.Background(), pool2)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdPool2)
+		assert.Equal(tt, account2.ID, createdPool2.AccountID)
+
+		// Verify both pools exist with the same VendorID but different accounts
+		assert.Equal(tt, createdPool1.VendorID, createdPool2.VendorID)
+		assert.NotEqual(tt, createdPool1.AccountID, createdPool2.AccountID)
+		assert.NotEqual(tt, createdPool1.UUID, createdPool2.UUID)
+	})
+}

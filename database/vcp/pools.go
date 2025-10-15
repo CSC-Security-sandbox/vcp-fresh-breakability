@@ -62,7 +62,7 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 	defer commitOrRollbackOnError(logger, tx, &err)
 
 	var dbPool *datamodel.Pool
-	err1 := tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
+	err1 := tx.Where("vendor_id = ?", pool.VendorID).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
 		if pool.UUID == "" {
 			pool.UUID = utils.RandomUUID()
