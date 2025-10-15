@@ -78,8 +78,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	// Mock activities
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(emptyFilterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyFilterResult, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
@@ -120,8 +120,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 
 	// Mock ListPoolsForAccount to return empty pool list
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(emptyFilterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyFilterResult, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
@@ -167,7 +167,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to fetch job details from SDE"))
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
@@ -206,7 +206,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	// Mock activities
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to fetch job details from SDE"))
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 
 	// Execute workflow
 
@@ -246,7 +246,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("failed to start SDE Activity"))
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -292,7 +292,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to Poll SDE Activity"))
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -350,8 +350,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(filterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
 	// Account state should be reverted to enabled on failure
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
 
@@ -404,8 +404,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities - filter operation fails
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(nil, errors.New("database error during filtering"))
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("database error during filtering"))
 	// Account state should be reverted to enabled on failure
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
 
@@ -500,8 +500,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(filterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -589,8 +589,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(filterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -632,7 +632,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.RegisterActivity(startProjectEventActivity.ListPoolsForAccount)
 
 	// Mock activities - list pools fails
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to list pools"))
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to list pools"))
 
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
@@ -674,8 +674,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		FilteredPools: []*datamodel.PoolView{},
 		VSAError:      false,
 	}
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -748,7 +748,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -828,8 +828,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(poolFilterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(poolFilterResult, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -898,7 +898,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -980,7 +980,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sdeResult := &commonparams.StartProjectEventResult{
@@ -1064,8 +1064,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities - account state reversion fails
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(filterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
 	sdeResult := &commonparams.StartProjectEventResult{
 		Done: nillable.GetBoolPtr(true),
 		Name: nillable.GetStringPtr("operationID"),
@@ -1121,7 +1121,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
 	
@@ -1173,7 +1173,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil) // Polling succeeds
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
@@ -1223,7 +1223,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("SDE polling failed: operation timeout"))
 	// Account state should be reverted to disabled on SDE failure in ON state workflow
@@ -1286,8 +1286,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		VSAError:      false,
 	}
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	
 	// The SDE polling should be called with MaximumAttempts = 1 due to limited remaining time
@@ -1334,8 +1334,8 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 	// First call: set account to DISABLING state
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
 	// Second call: set account to HYPERSCALER_DISABLED state since no SDE operations
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
 	
@@ -1381,7 +1381,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	// SDE start operation fails
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("Failed to start SDE operation"))
 	// Revert account state due to failure
@@ -1454,7 +1454,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(startProjectEventActivity.UpdateAccountStateForHandleResource)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	sdeResult := &commonparams.StartProjectEventResult{
 		Done: nillable.GetBoolPtr(true), // Set to true so polling is skipped
 		Name: nillable.GetStringPtr("operationID"),
@@ -1494,7 +1494,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(startProjectEventActivity.UpdateAccountStateForHandleResource)
 
 	// Mock ListPoolsForAccount to return empty pool list
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
@@ -1536,7 +1536,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	result := &commonparams.StartProjectEventResult{
 		Done: nillable.GetBoolPtr(false),
 		Name: nillable.GetStringPtr("operationID"),
@@ -1583,7 +1583,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	// Mock activities
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to fetch job details from SDE"))
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 
 	// Execute workflow
 
@@ -1624,7 +1624,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("failed to start SDE Activity"))
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -1670,7 +1670,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	}
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to Poll SDE Activity"))
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -1738,7 +1738,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sdeResult := &commonparams.StartProjectEventResult{
@@ -1812,7 +1812,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get credentials"))
 	sdeResult := &commonparams.StartProjectEventResult{
 		Done: nillable.GetBoolPtr(true), // Set to true so polling is skipped
@@ -1873,7 +1873,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock ListPoolsForAccount to fail
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to list pools"))
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to list pools"))
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
@@ -1920,7 +1920,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities - empty pool list
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	sdeResult := &commonparams.StartProjectEventResult{
 		Done: nillable.GetBoolPtr(true), // Set to true so polling is skipped
 		Name: nillable.GetStringPtr("operationID"),
@@ -1995,7 +1995,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sdeResult := &commonparams.StartProjectEventResult{
@@ -2070,7 +2070,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sdeResult := &commonparams.StartProjectEventResult{
@@ -2154,7 +2154,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sdeResult := &commonparams.StartProjectEventResult{
@@ -2230,7 +2230,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(poolActivity.UpdatePoolState)
 
 	// Mock activities - account state reversion fails after VSA operations fail
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
 	// First call should succeed (ENABLING), second call should fail (revert to HYPERSCALERDISABLED)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
@@ -2288,7 +2288,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
 	
@@ -2340,7 +2340,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil) // Polling succeeds
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
@@ -2390,7 +2390,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("SDE polling failed: operation timeout"))
 	// Account state should be reverted to disabled on SDE failure in ON state workflow
@@ -2448,7 +2448,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	
 	// The SDE polling should be called with MaximumAttempts = 1 due to limited remaining time
@@ -2489,7 +2489,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
 	
 	// SDE activities should NOT be called when CVP_HOST is empty
@@ -2534,7 +2534,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Mock activities - no pools so VSA operations complete immediately
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	// SDE start operation fails
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("Failed to start SDE operation"))
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)

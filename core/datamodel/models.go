@@ -417,6 +417,7 @@ type JobAttributes struct {
 	ResourceUUID      string `json:"resource_uuid"`
 	PoolUUID          string `json:"pool_uuid"`
 	CurrentRetryCount int    `json:"current_retry_count"`
+	Location          string `json:"location"`
 }
 
 // Scan method for JobAttributes to handle JSONB data

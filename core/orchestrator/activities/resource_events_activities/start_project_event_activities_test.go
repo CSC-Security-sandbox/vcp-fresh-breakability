@@ -915,7 +915,7 @@ func TestListPoolsForAccount(t *testing.T) {
 		mockSE.On("GetAccount", ctx, projectNumber).Return(account, nil)
 		mockSE.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{pool}, nil)
 
-		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF")
+		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF", false)
 		assert.NotNil(tt, result)
 		assert.Nil(tt, err)
 	})
@@ -929,7 +929,7 @@ func TestListPoolsForAccount(t *testing.T) {
 
 		mockSE.On("GetAccount", ctx, projectNumber).Return(nil, errors2.NewVCPError(errors2.ErrDatabaseListPoolsForAccount, errors.NewNotFoundErr("Account", nil)))
 
-		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF")
+		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF", false)
 		assert.Nil(tt, result)
 		assert.NotNil(tt, err)
 		assert.IsType(tt, &temporal.ApplicationError{}, err)
@@ -948,7 +948,7 @@ func TestListPoolsForAccount(t *testing.T) {
 		mockSE.On("GetAccount", ctx, projectNumber).Return(account, nil)
 		mockSE.On("ListPools", ctx, mock.Anything).Return(nil, errors2.NewVCPError(errors2.ErrDatabaseListPoolsForAccount, errors.NewNotFoundErr("Pool", nil)))
 
-		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF")
+		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF", false)
 
 		assert.Nil(tt, result)
 		assert.NotNil(tt, err)
@@ -967,7 +967,7 @@ func TestListPoolsForAccount(t *testing.T) {
 
 		mockSE.On("GetAccount", ctx, projectNumber).Return(account, nil)
 
-		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "INVALID_STATE")
+		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "INVALID_STATE", false)
 
 		assert.Nil(tt, result)
 		assert.NotNil(tt, err)
@@ -976,6 +976,21 @@ func TestListPoolsForAccount(t *testing.T) {
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
+	})
+
+	t.Run("ZoneSkipLogic_ReturnsEmptyForZoneOperations", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &StartProjectEventActivity{SE: mockSE}
+
+		projectNumber := "test-project-number"
+		
+		// When isZone is true, the method should skip pool operations and return empty result
+		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF", true)
+		
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Empty(tt, result) // Should return empty slice for zone operations
 	})
 }
 
@@ -1063,7 +1078,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 		mockSE.On("GetVolumesByPoolID", ctx, int64(1)).Return([]*datamodel.Volume{}, nil)
 		mockSE.On("GetVolumesByPoolID", ctx, int64(2)).Return([]*datamodel.Volume{}, nil)
 
-		result, err := activity.FilterPoolsForClusterOperations(ctx, pools)
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, false)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -1098,7 +1113,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 		mockSE.On("GetVolumesByPoolID", ctx, int64(1)).Return([]*datamodel.Volume{}, nil)
 		// Pool 2 should be filtered out, so GetVolumesByPoolID shouldn't be called for it
 
-		result, err := activity.FilterPoolsForClusterOperations(ctx, pools)
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, false)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -1139,7 +1154,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 		mockSE.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
 		mockSE.On("GetSnapshotsByVolumeID", ctx, int64(10)).Return([]*datamodel.Snapshot{}, nil)
 
-		result, err := activity.FilterPoolsForClusterOperations(ctx, pools)
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, false)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -1186,7 +1201,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 		mockSE.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
 		mockSE.On("GetSnapshotsByVolumeID", ctx, int64(10)).Return(snapshots, nil)
 
-		result, err := activity.FilterPoolsForClusterOperations(ctx, pools)
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, false)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -1226,7 +1241,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 		// Mock no volumes for valid pool
 		mockSE.On("GetVolumesByPoolID", ctx, int64(1)).Return([]*datamodel.Volume{}, nil)
 
-		result, err := activity.FilterPoolsForClusterOperations(ctx, pools)
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, false)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -1253,7 +1268,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 		// Mock database error
 		mockSE.On("GetVolumesByPoolID", ctx, int64(1)).Return(nil, errors.New("database connection error"))
 
-		result, err := activity.FilterPoolsForClusterOperations(ctx, pools)
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, false)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
@@ -1267,7 +1282,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 
 		var pools []*datamodel.PoolView
 
-		result, err := activity.FilterPoolsForClusterOperations(ctx, pools)
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, false)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -1301,11 +1316,35 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 		mockSE.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
 		mockSE.On("GetSnapshotsByVolumeID", ctx, int64(10)).Return(nil, errors.New("database connection error for snapshots"))
 
-		result, err := activity.FilterPoolsForClusterOperations(ctx, pools)
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, false)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "database connection error for snapshots")
+	})
+
+	t.Run("FilterPoolsForClusterOperations_ZoneSkipLogic", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &StartProjectEventActivity{SE: mockSE}
+
+		pools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
+					Name:      "pool-1",
+					State:     models.LifeCycleStateREADY,
+				},
+			},
+		}
+
+		// When isZone is true, the method should skip pool filtering and return empty result
+		result, err := activity.FilterPoolsForClusterOperations(ctx, pools, true)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Empty(tt, result.FilteredPools) // Should return empty for zone operations
+		assert.False(tt, result.VSAError)      // No error flag for zone skip
 	})
 }
 

@@ -768,67 +768,67 @@ func Test_HTTPStatusConstants_FinishProjectEvent(t *testing.T) {
 // Test coverage for missing lines in FinishProjectEventForSDEActivity error handling
 func Test_FinishProjectEventForSDEActivity_ErrorCoverage(t *testing.T) {
 	testCases := []struct {
-		name           string
-		errorType      interface{}
-		expectedCode   int
+		name              string
+		errorType         interface{}
+		expectedCode      int
 		expectedRetryable bool
-		expectedMessage string
+		expectedMessage   string
 	}{
 		{
-			name:           "FinishProjectEventForSDEActivity_BadRequestError",
-			errorType:      &resource_events.V1betaResourceStateUpdateBadRequest{},
-			expectedCode:   errors2.ErrHandleResourceEventErrorBadRequest,
+			name:              "FinishProjectEventForSDEActivity_BadRequestError",
+			errorType:         &resource_events.V1betaResourceStateUpdateBadRequest{},
+			expectedCode:      errors2.ErrHandleResourceEventErrorBadRequest,
 			expectedRetryable: false,
-			expectedMessage: "Bad request error",
+			expectedMessage:   "Bad request error",
 		},
 		{
-			name:           "FinishProjectEventForSDEActivity_UnauthorizedError",
-			errorType:      &resource_events.V1betaResourceStateUpdateUnauthorized{},
-			expectedCode:   errors2.ErrHandleResourceEventErrorUnauthorized,
+			name:              "FinishProjectEventForSDEActivity_UnauthorizedError",
+			errorType:         &resource_events.V1betaResourceStateUpdateUnauthorized{},
+			expectedCode:      errors2.ErrHandleResourceEventErrorUnauthorized,
 			expectedRetryable: false,
-			expectedMessage: "Unauthorised error",
+			expectedMessage:   "Unauthorised error",
 		},
 		{
-			name:           "FinishProjectEventForSDEActivity_ForbiddenError",
-			errorType:      &resource_events.V1betaResourceStateUpdateForbidden{},
-			expectedCode:   errors2.ErrHandleResourceEventErrorForbidden,
+			name:              "FinishProjectEventForSDEActivity_ForbiddenError",
+			errorType:         &resource_events.V1betaResourceStateUpdateForbidden{},
+			expectedCode:      errors2.ErrHandleResourceEventErrorForbidden,
 			expectedRetryable: false,
-			expectedMessage: "Forbidden error",
+			expectedMessage:   "Forbidden error",
 		},
 		{
-			name:           "FinishProjectEventForSDEActivity_NotFoundError",
-			errorType:      &resource_events.V1betaResourceStateUpdateNotFound{},
-			expectedCode:   errors2.ErrHandleResourceEventErrorNotFound,
+			name:              "FinishProjectEventForSDEActivity_NotFoundError",
+			errorType:         &resource_events.V1betaResourceStateUpdateNotFound{},
+			expectedCode:      errors2.ErrHandleResourceEventErrorNotFound,
 			expectedRetryable: false,
-			expectedMessage: "Resource not found",
+			expectedMessage:   "Resource not found",
 		},
 		{
-			name:           "FinishProjectEventForSDEActivity_ConflictError",
-			errorType:      &resource_events.V1betaResourceStateUpdateConflict{},
-			expectedCode:   errors2.ErrHandleResourceEventErrorConflict,
+			name:              "FinishProjectEventForSDEActivity_ConflictError",
+			errorType:         &resource_events.V1betaResourceStateUpdateConflict{},
+			expectedCode:      errors2.ErrHandleResourceEventErrorConflict,
 			expectedRetryable: false,
-			expectedMessage: "Conflict error",
+			expectedMessage:   "Conflict error",
 		},
 		{
-			name:           "FinishProjectEventForSDEActivity_InternalServerError",
-			errorType:      &resource_events.V1betaResourceStateUpdateInternalServerError{},
-			expectedCode:   errors2.ErrHandleResourceEventErrorInternalServerError,
+			name:              "FinishProjectEventForSDEActivity_InternalServerError",
+			errorType:         &resource_events.V1betaResourceStateUpdateInternalServerError{},
+			expectedCode:      errors2.ErrHandleResourceEventErrorInternalServerError,
 			expectedRetryable: false,
-			expectedMessage: "Internal server error",
+			expectedMessage:   "Internal server error",
 		},
 		{
-			name:           "FinishProjectEventForSDEActivity_NotImplementedError",
-			errorType:      &resource_events.V1betaResourceStateUpdateNotImplemented{},
-			expectedCode:   errors2.ErrHandleResourceEventErrorNotImplemented,
+			name:              "FinishProjectEventForSDEActivity_NotImplementedError",
+			errorType:         &resource_events.V1betaResourceStateUpdateNotImplemented{},
+			expectedCode:      errors2.ErrHandleResourceEventErrorNotImplemented,
 			expectedRetryable: false,
-			expectedMessage: "Not implemented yet error",
+			expectedMessage:   "Not implemented yet error",
 		},
 		{
-			name:           "FinishProjectEventForSDEActivity_TooManyRequestsError",
-			errorType:      &resource_events.V1betaResourceStateUpdateTooManyRequests{},
-			expectedCode:   errors2.ErrHandleResourceEventErrorTooManyRequests,
+			name:              "FinishProjectEventForSDEActivity_TooManyRequestsError",
+			errorType:         &resource_events.V1betaResourceStateUpdateTooManyRequests{},
+			expectedCode:      errors2.ErrHandleResourceEventErrorTooManyRequests,
 			expectedRetryable: true,
-			expectedMessage: "Too many requests error",
+			expectedMessage:   "Too many requests error",
 		},
 	}
 
@@ -878,60 +878,60 @@ func Test_FinishProjectEventForSDEActivity_ErrorCoverage(t *testing.T) {
 // Test coverage for missing lines in PollFinishProjectEventSDEOperationActivity error handling
 func Test_PollFinishProjectEventSDEOperationActivity_ErrorCoverage(t *testing.T) {
 	testCases := []struct {
-		name           string
-		httpStatusCode int32
-		expectedCode   int
+		name              string
+		httpStatusCode    int32
+		expectedCode      int
 		expectedRetryable bool
-		expectedMessage string
+		expectedMessage   string
 	}{
 		{
-			name:           "PollFinishProjectEventSDEOperationActivity_BadRequestError",
-			httpStatusCode: int32(common.HTTPStatusBadRequest),
-			expectedCode:   errors2.ErrHandleResourceEventErrorBadRequest,
+			name:              "PollFinishProjectEventSDEOperationActivity_BadRequestError",
+			httpStatusCode:    int32(common.HTTPStatusBadRequest),
+			expectedCode:      errors2.ErrHandleResourceEventErrorBadRequest,
 			expectedRetryable: false,
-			expectedMessage: "Bad request error",
+			expectedMessage:   "Bad request error",
 		},
 		{
-			name:           "PollFinishProjectEventSDEOperationActivity_UnauthorizedError",
-			httpStatusCode: int32(common.HTTPStatusUnauthorized),
-			expectedCode:   errors2.ErrHandleResourceEventErrorUnauthorized,
+			name:              "PollFinishProjectEventSDEOperationActivity_UnauthorizedError",
+			httpStatusCode:    int32(common.HTTPStatusUnauthorized),
+			expectedCode:      errors2.ErrHandleResourceEventErrorUnauthorized,
 			expectedRetryable: false,
-			expectedMessage: "Unauthorised error",
+			expectedMessage:   "Unauthorised error",
 		},
 		{
-			name:           "PollFinishProjectEventSDEOperationActivity_ForbiddenError",
-			httpStatusCode: int32(common.HTTPStatusForbidden),
-			expectedCode:   errors2.ErrHandleResourceEventErrorForbidden,
+			name:              "PollFinishProjectEventSDEOperationActivity_ForbiddenError",
+			httpStatusCode:    int32(common.HTTPStatusForbidden),
+			expectedCode:      errors2.ErrHandleResourceEventErrorForbidden,
 			expectedRetryable: false,
-			expectedMessage: "Forbidden error",
+			expectedMessage:   "Forbidden error",
 		},
 		{
-			name:           "PollFinishProjectEventSDEOperationActivity_NotFoundError",
-			httpStatusCode: int32(common.HTTPStatusNotFound),
-			expectedCode:   errors2.ErrHandleResourceEventErrorNotFound,
+			name:              "PollFinishProjectEventSDEOperationActivity_NotFoundError",
+			httpStatusCode:    int32(common.HTTPStatusNotFound),
+			expectedCode:      errors2.ErrHandleResourceEventErrorNotFound,
 			expectedRetryable: false,
-			expectedMessage: "Resource not found",
+			expectedMessage:   "Resource not found",
 		},
 		{
-			name:           "PollFinishProjectEventSDEOperationActivity_InternalServerError",
-			httpStatusCode: int32(common.HTTPStatusInternalServerError),
-			expectedCode:   errors2.ErrHandleResourceEventErrorInternalServerError,
+			name:              "PollFinishProjectEventSDEOperationActivity_InternalServerError",
+			httpStatusCode:    int32(common.HTTPStatusInternalServerError),
+			expectedCode:      errors2.ErrHandleResourceEventErrorInternalServerError,
 			expectedRetryable: false,
-			expectedMessage: "Internal server error",
+			expectedMessage:   "Internal server error",
 		},
 		{
-			name:           "PollFinishProjectEventSDEOperationActivity_TooManyRequestsError",
-			httpStatusCode: int32(common.HTTPStatusTooManyRequests),
-			expectedCode:   errors2.ErrHandleResourceEventErrorTooManyRequests,
+			name:              "PollFinishProjectEventSDEOperationActivity_TooManyRequestsError",
+			httpStatusCode:    int32(common.HTTPStatusTooManyRequests),
+			expectedCode:      errors2.ErrHandleResourceEventErrorTooManyRequests,
 			expectedRetryable: true,
-			expectedMessage: "Too many requests error",
+			expectedMessage:   "Too many requests error",
 		},
 		{
-			name:           "PollFinishProjectEventSDEOperationActivity_UnknownErrorCode",
-			httpStatusCode: 999,
-			expectedCode:   errors2.ErrCVPClientFinishProjectEventError,
+			name:              "PollFinishProjectEventSDEOperationActivity_UnknownErrorCode",
+			httpStatusCode:    999,
+			expectedCode:      errors2.ErrCVPClientFinishProjectEventError,
 			expectedRetryable: false,
-			expectedMessage: "Client Error during FinishProjectEvent",
+			expectedMessage:   "Client Error during FinishProjectEvent",
 		},
 	}
 
@@ -987,4 +987,232 @@ func Test_PollFinishProjectEventSDEOperationActivity_ErrorCoverage(t *testing.T)
 			assert.Contains(tt, err.Error(), tc.expectedMessage)
 		})
 	}
+}
+
+func Test_VolumeAndPoolRegionalCheckActivity(t *testing.T) {
+	t.Run("VolumeAndPoolRegionalCheckActivity_Success_NoPoolsOrVolumes", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: projectNumber,
+		}
+
+		pools := []*datamodel.PoolView{}
+		volumes := []*datamodel.Volume{}
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return(volumes, nil)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VolumeAndPoolRegionalCheckActivity(ctx, projectNumber)
+		assert.NoError(tt, err)
+		assert.True(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeAndPoolRegionalCheckActivity_GetAccountError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+
+		projectNumber := "test-project-123"
+		expectedErr := errors.New("account not found")
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(nil, expectedErr)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VolumeAndPoolRegionalCheckActivity(ctx, projectNumber)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedErr, err)
+		assert.False(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeAndPoolRegionalCheckActivity_ListPoolsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+		listErr := errors.New("list pools failed")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: projectNumber,
+		}
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(nil, listErr)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VolumeAndPoolRegionalCheckActivity(ctx, projectNumber)
+		assert.Error(tt, err)
+		assert.Equal(tt, listErr, err)
+		assert.False(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeAndPoolRegionalCheckActivity_PoolsFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: projectNumber,
+		}
+
+		pools := []*datamodel.PoolView{
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}},
+		}
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VolumeAndPoolRegionalCheckActivity(ctx, projectNumber)
+		assert.NoError(tt, err)
+		assert.False(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeAndPoolRegionalCheckActivity_ListVolumesError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+		listErr := errors.New("list volumes failed")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: projectNumber,
+		}
+
+		pools := []*datamodel.PoolView{}
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, listErr)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VolumeAndPoolRegionalCheckActivity(ctx, projectNumber)
+		assert.Error(tt, err)
+		assert.Equal(tt, listErr, err)
+		assert.False(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeAndPoolRegionalCheckActivity_VolumesFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: projectNumber,
+		}
+
+		pools := []*datamodel.PoolView{}
+		volumes := []*datamodel.Volume{
+			{BaseModel: datamodel.BaseModel{ID: 1}},
+		}
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return(volumes, nil)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VolumeAndPoolRegionalCheckActivity(ctx, projectNumber)
+		assert.NoError(tt, err)
+		assert.False(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeAndPoolRegionalCheckActivity_MultiplePools", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: projectNumber,
+		}
+
+		pools := []*datamodel.PoolView{
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 2}}},
+		}
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VolumeAndPoolRegionalCheckActivity(ctx, projectNumber)
+		assert.NoError(tt, err)
+		assert.False(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeAndPoolRegionalCheckActivity_MultipleVolumes", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: projectNumber,
+		}
+
+		pools := []*datamodel.PoolView{}
+		volumes := []*datamodel.Volume{
+			{BaseModel: datamodel.BaseModel{ID: 1}},
+			{BaseModel: datamodel.BaseModel{ID: 2}},
+			{BaseModel: datamodel.BaseModel{ID: 3}},
+		}
+
+		mockSE.EXPECT().GetAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return(volumes, nil)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VolumeAndPoolRegionalCheckActivity(ctx, projectNumber)
+		assert.NoError(tt, err)
+		assert.False(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
 }

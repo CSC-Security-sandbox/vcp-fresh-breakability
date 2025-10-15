@@ -64,6 +64,8 @@ var _ WorkflowInterface = &startProjectEventOffStateWorkflow{}
 func StartProjectEventOffStateWorkflow(ctx workflow.Context, params *common.StartProjectEventParams) (interface{}, error) {
 	log := util.GetLogger(ctx)
 	startProjectEventWorkflow := new(startProjectEventOffStateWorkflow)
+	var customErr *vsaerrors.CustomError
+
 	err := startProjectEventWorkflow.Setup(ctx, params)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -71,14 +73,16 @@ func StartProjectEventOffStateWorkflow(ctx workflow.Context, params *common.Star
 	startProjectEventWorkflow.Status = WorkflowStatusRunning
 	err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		customErr = ConvertToVSAError(err)
+		return nil, customErr
 	}
-
-	var customErr *vsaerrors.CustomError
 	defer func() {
 		if customErr != nil {
 			startProjectEventWorkflow.Status = WorkflowStatusFailed
 			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			if err != nil {
+				log.Errorf("startProjectEventOffStateWorkflow failed to update job status: %v", err)
+			}
 		} else {
 			startProjectEventWorkflow.Status = WorkflowStatusCompleted
 			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
@@ -118,6 +122,9 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	startProjectEventParams := args[0].(*common.StartProjectEventParams)
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{}
 
+	// Determine if this is a zone-specific operation
+	isZone := startProjectEventParams.Zone != ""
+
 	var err error
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -145,6 +152,12 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 
 	accountStateToSet := models.AccountStateEnabled // default to failure state, will be changed to success state only on completion
 	defer func() {
+		// Skip account state update if this is a zone-specific operation
+		if isZone {
+			logger.Infof("Zone specified (%s), skipping account state update", startProjectEventParams.Zone)
+			return
+		}
+
 		updateErr := workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, accountStateToSet).Get(ctx, nil)
 		if updateErr != nil {
 			logger.Errorf("Failed to update account state to %s: %v", accountStateToSet, updateErr)
@@ -158,43 +171,50 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 		}
 	}()
 
-	// Set account state to "disabling" before starting VSA operations
-	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateDisabling).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	poolActivity := &resource_events_activities.StartProjectEventActivity{}
-	var allPoolList []*datamodel.PoolView
-
-	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, gcpserver.ResourceStateUpdateV1betaStateOFF).Get(ctx, &allPoolList) // No filter - get all pools
-	if err != nil {
-		logger.Errorf("Failed to list pools for project %s: %v", startProjectEventParams.ProjectNumber, err)
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Filter pools to exclude those in transient states and check associated resources
-	var filterResult *resource_events_activities.PoolFilterResult
-	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.FilterPoolsForClusterOperations, allPoolList).Get(ctx, &filterResult)
-	if err != nil {
-		logger.Errorf("Failed to filter pools for cluster operations: %v", err)
-		return nil, ConvertToVSAError(err)
+	// Set account state to "disabling" before starting VSA operations - skip if Zone is specified
+	if !isZone {
+		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateDisabling).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	} else {
+		logger.Infof("Zone specified (%s), skipping account state transition to DISABLING", startProjectEventParams.Zone)
 	}
 
 	// Now evaluate all results and determine final outcome
 	var hasVSAFailure bool
 	var hasSDEFailure bool
 
-	poolList := filterResult.FilteredPools
+	// Check if LocationId is specified and pass it to activities for skip logic
+	var vsaOperationsChan workflow.ReceiveChannel
+	var vsaResults *ClusterOperationResults
+	var poolList []*datamodel.PoolView
+	var filterResult *resource_events_activities.PoolFilterResult
+	vsaStartTime := time.Now() // Always capture start time for timeout calculations
+
+	// Always fetch pools but pass LocationId to let activities handle skip logic
+	poolActivity := &resource_events_activities.StartProjectEventActivity{}
+	var allPoolList []*datamodel.PoolView
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, gcpserver.ResourceStateUpdateV1betaStateOFF, isZone).Get(ctx, &allPoolList)
+	if err != nil {
+		logger.Errorf("Failed to list pools for project %s: %v", startProjectEventParams.ProjectNumber, err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	// Filter pools to exclude those in transient states and check associated resources
+	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.FilterPoolsForClusterOperations, allPoolList, isZone).Get(ctx, &filterResult)
+	if err != nil {
+		logger.Errorf("Failed to filter pools for cluster operations: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	poolList = filterResult.FilteredPools
 	if filterResult.VSAError {
 		logger.Errorf("Some pools/volumes/snapshots are in transient states. Job will fail even if available pools are processed.")
 		hasVSAFailure = true // Mark as failure when transient states are detected
 	}
 
-	// Check if there are any pools to process
-	var vsaOperationsChan workflow.ReceiveChannel
-	var vsaResults *ClusterOperationResults
-	vsaStartTime := time.Now() // Always capture start time for timeout calculations
 	if len(poolList) == 0 {
 		logger.Info("No pools found for project, skipping cluster operations")
 		// Create empty results for no pools
@@ -206,7 +226,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 		}
 	} else {
 		// Start VSA cluster operations in background asynchronously
-		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOff, poolList, s.processClusterForOFFState, models.LifeCycleStateDisabled)
+		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOff, poolList, s.processClusterForOFFState, models.LifeCycleStateDisabled, isZone)
 		if err != nil {
 			logger.Errorf("Failed to start VSA cluster operations: %v", err)
 			// Note: This error path should never occur as executeVSAClusterOperations always returns nil error
@@ -287,13 +307,13 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 		// Return appropriate error based on what failed
 		if hasVSAFailure && hasSDEFailure {
 			// Check if VSA failure is due to transient states
-			if filterResult.VSAError && (vsaResults == nil || vsaResults.FailedPools == 0) {
+			if filterResult != nil && filterResult.VSAError && (vsaResults == nil || vsaResults.FailedPools == 0) {
 				return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, fmt.Errorf("Job failed due to pools/volumes/snapshots in transient states. SDE also failed: %v", sdeError)))
 			}
 			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, fmt.Errorf("Both VSA and SDE operations failed. VSA: %d pools failed, SDE: %v", vsaResults.FailedPools, sdeError)))
 		} else if hasVSAFailure {
 			// Check if VSA failure is due to transient states
-			if filterResult.VSAError && (vsaResults == nil || vsaResults.FailedPools == 0) {
+			if filterResult != nil && filterResult.VSAError && (vsaResults == nil || vsaResults.FailedPools == 0) {
 				return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, errors.New("Job failed due to pools/volumes/snapshots in transient states")))
 			}
 			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterOperationFailed, errors.New("One or more cluster power off operations failed")))
@@ -303,7 +323,11 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	}
 
 	// All operations completed successfully - set account state to success state
-	accountStateToSet = models.AccountStateHyperscalerDisabled
+	if !isZone {
+		accountStateToSet = models.AccountStateHyperscalerDisabled
+	} else {
+		logger.Infof("Zone specified (%s), skipping account state transition to HYPERSCALERDISABLED", startProjectEventParams.Zone)
+	}
 	logger.Info("Start Project Event OFF state operations completed successfully")
 	return nil, nil
 }
@@ -318,6 +342,8 @@ type startProjectEventOnStateWorkflow struct {
 func StartProjectEventOnStateWorkflow(ctx workflow.Context, params *common.StartProjectEventParams) (interface{}, error) {
 	log := util.GetLogger(ctx)
 	startProjectEventWorkflow := new(startProjectEventOnStateWorkflow)
+	var customErr *vsaerrors.CustomError
+
 	err := startProjectEventWorkflow.Setup(ctx, params)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -325,14 +351,16 @@ func StartProjectEventOnStateWorkflow(ctx workflow.Context, params *common.Start
 	startProjectEventWorkflow.Status = WorkflowStatusRunning
 	err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		customErr = ConvertToVSAError(err)
+		return nil, customErr
 	}
-
-	var customErr *vsaerrors.CustomError
 	defer func() {
 		if customErr != nil {
 			startProjectEventWorkflow.Status = WorkflowStatusFailed
 			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			if err != nil {
+				log.Errorf("startProjectEventOffStateWorkflow failed to update job status: %v", err)
+			}
 		} else {
 			startProjectEventWorkflow.Status = WorkflowStatusCompleted
 			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
@@ -372,6 +400,9 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	startProjectEventParams := args[0].(*common.StartProjectEventParams)
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{}
 
+	// Determine if this is a zone-specific operation
+	isZone := startProjectEventParams.Zone != ""
+
 	var err error
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -400,6 +431,12 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 
 	accountStateToSet := models.AccountStateHyperscalerDisabled // default to failure state, will be changed to success state only on completion
 	defer func() {
+		// Skip account state update if this is a zone-specific operation
+		if isZone {
+			logger.Infof("Zone specified (%s), skipping account state update", startProjectEventParams.Zone)
+			return
+		}
+
 		updateErr := workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, accountStateToSet).Get(ctx, nil)
 		if updateErr != nil {
 			logger.Errorf("Failed to update account state to %s: %v", accountStateToSet, updateErr)
@@ -413,26 +450,30 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 		}
 	}()
 
-	// Set account state to "enabling" before starting VSA operations
-	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateEnabling).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+	// Set account state to "enabling" before starting VSA operations - skip if Zone is specified
+	if !isZone {
+		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateEnabling).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	} else {
+		logger.Infof("Zone specified (%s), skipping account state transition to ENABLING", startProjectEventParams.Zone)
 	}
 
-	// Get list of pools for the project to perform cluster operations
+	// Check if LocationId is specified and pass it to activities for skip logic
+	var vsaOperationsChan workflow.ReceiveChannel
+	var vsaResults *ClusterOperationResults
+	var poolList []*datamodel.PoolView
+	vsaStartTime := time.Now() // Always capture start time for timeout calculations
+
+	// Always fetch pools but pass LocationId to let activities handle skip logic
 	poolActivity := &resource_events_activities.StartProjectEventActivity{}
 
-	var poolList []*datamodel.PoolView
-	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, gcpserver.ResourceStateUpdateV1betaStateON).Get(ctx, &poolList)
+	err = workflow.ExecuteActivity(ctx, poolActivity.ListPoolsForAccount, startProjectEventParams.ProjectNumber, gcpserver.ResourceStateUpdateV1betaStateON, isZone).Get(ctx, &poolList)
 	if err != nil {
 		logger.Errorf("Failed to list pools for project %s: %v", startProjectEventParams.ProjectNumber, err)
 		return nil, ConvertToVSAError(err)
 	}
-
-	// Check if there are any pools to process
-	var vsaOperationsChan workflow.ReceiveChannel
-	var vsaResults *ClusterOperationResults
-	vsaStartTime := time.Now() // Always capture start time for timeout calculations
 
 	if len(poolList) == 0 {
 		logger.Info("No pools found for project, skipping cluster operations")
@@ -445,7 +486,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 		}
 	} else {
 		// Start VSA cluster operations in background asynchronously
-		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOn, poolList, s.processClusterForONState, models.LifeCycleStateREADY)
+		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOn, poolList, s.processClusterForONState, models.LifeCycleStateREADY, isZone)
 		if err != nil {
 			logger.Errorf("Failed to start VSA cluster operations: %v", err)
 			// Note: This error path should never occur as executeVSAClusterOperations always returns nil error
@@ -546,13 +587,17 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	}
 
 	// All operations completed successfully - set account state to success state
-	accountStateToSet = models.AccountStateEnabled
+	if !isZone {
+		accountStateToSet = models.AccountStateEnabled
+	} else {
+		logger.Infof("Zone specified (%s), skipping account state transition to ENABLED", startProjectEventParams.Zone)
+	}
 	logger.Info("Start Project Event ON state operations completed successfully")
 	return nil, nil
 }
 
 // executeVSAClusterOperations performs cluster operations for any state (ON/OFF) in parallel and returns a channel for polling
-func executeVSAClusterOperations(ctx workflow.Context, params *common.StartProjectEventParams, operationType string, poolList []*datamodel.PoolView, processorFunc func(workflow.Context, vlm.VlmWorkflowClient, *datamodel.PoolView, *common.StartProjectEventParams) error, targetLifecycleState string) (workflow.ReceiveChannel, error) {
+func executeVSAClusterOperations(ctx workflow.Context, params *common.StartProjectEventParams, operationType string, poolList []*datamodel.PoolView, processorFunc func(workflow.Context, vlm.VlmWorkflowClient, *datamodel.PoolView, *common.StartProjectEventParams, bool) error, targetLifecycleState string, isZone bool) (workflow.ReceiveChannel, error) {
 	logger := util.GetLogger(ctx)
 
 	logger.Infof("Found %d pools for project %s to perform cluster %s operations", len(poolList), params.ProjectNumber, operationType)
@@ -586,7 +631,7 @@ func executeVSAClusterOperations(ctx workflow.Context, params *common.StartProje
 				vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
 
 				// Execute the actual processor function for this pool
-				errOp := processorFunc(ctx, vsaClientWorkflowManager, currentPool, params)
+				errOp := processorFunc(ctx, vsaClientWorkflowManager, currentPool, params, isZone)
 				if errOp != nil {
 					result.Success = false
 					result.ErrorMessage = errOp.Error()
@@ -709,8 +754,15 @@ func waitForVSAOperationsWithTimeout(ctx workflow.Context, vsaOperationsChan wor
 }
 
 // processClusterForONState performs power cycle for a single cluster
-func (s *startProjectEventOnStateWorkflow) processClusterForONState(ctx workflow.Context, vsaClientWorkflowManager vlm.VlmWorkflowClient, pool *datamodel.PoolView, params *common.StartProjectEventParams) error {
+func (s *startProjectEventOnStateWorkflow) processClusterForONState(ctx workflow.Context, vsaClientWorkflowManager vlm.VlmWorkflowClient, pool *datamodel.PoolView, params *common.StartProjectEventParams, isZone bool) error {
 	logger := util.GetLogger(ctx)
+
+	// Skip VSA operations if this is a zone-specific operation
+	if isZone {
+		logger.Infof("Zone specified (%s), skipping VSA cluster power on operation for pool %s", params.Zone, pool.Name)
+		return nil
+	}
+
 	poolActivity := &activities.PoolActivity{}
 
 	// Prepare VLM config and credentials from pool data
@@ -746,8 +798,15 @@ func (s *startProjectEventOnStateWorkflow) processClusterForONState(ctx workflow
 }
 
 // processClusterForOFFState performs health check and power cycle for a single cluster shutdown
-func (s *startProjectEventOffStateWorkflow) processClusterForOFFState(ctx workflow.Context, vsaClientWorkflowManager vlm.VlmWorkflowClient, pool *datamodel.PoolView, params *common.StartProjectEventParams) error {
+func (s *startProjectEventOffStateWorkflow) processClusterForOFFState(ctx workflow.Context, vsaClientWorkflowManager vlm.VlmWorkflowClient, pool *datamodel.PoolView, params *common.StartProjectEventParams, isZone bool) error {
 	logger := util.GetLogger(ctx)
+
+	// Skip VSA operations if this is a zone-specific operation
+	if isZone {
+		logger.Infof("Zone specified (%s), skipping VSA cluster power off operation for pool %s", params.Zone, pool.Name)
+		return nil
+	}
+
 	poolActivity := &activities.PoolActivity{}
 
 	// Prepare VLM config and credentials from pool data

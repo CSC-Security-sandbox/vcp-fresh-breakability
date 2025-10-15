@@ -16,7 +16,7 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 	// Do nothing if the state is DELETE
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	_, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaStartProjectEventBadRequest{
 			Code:    parsingErr.Code,
@@ -37,6 +37,7 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: params.XCorrelationID.Value,
 		State:          string(req.State),
+		Zone:           zone,
 	}
 
 	job, err := h.Orchestrator.CreateOrGetStartProjectEventJob(ctx, reqParams)
@@ -62,7 +63,7 @@ func (h Handler) V1betaFinishProjectEvent(ctx context.Context, req *gcpgenserver
 
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	_, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaFinishProjectEventBadRequest{
@@ -85,6 +86,7 @@ func (h Handler) V1betaFinishProjectEvent(ctx context.Context, req *gcpgenserver
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: params.XCorrelationID.Value,
 		State:          string(req.State),
+		Zone:           zone,
 	}
 
 	jobUUID, err := h.Orchestrator.CreateOrGetFinishProjectEventJob(ctx, reqParams)

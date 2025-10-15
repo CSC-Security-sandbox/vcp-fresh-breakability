@@ -98,6 +98,7 @@ func (s *finishProjectEventDeleteStateWorkflow) Setup(ctx workflow.Context, inpu
 func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	finishProjectEventParams := args[0].(*common.FinishProjectEventParams)
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{}
+	logger := util.GetLogger(ctx)
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -140,103 +141,118 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 		return nil, ConvertToVSAError(err)
 	}
 
-	// Delete hostgroup from VCP.
-	HostGroupActivities := &activities.HostGroupUpdateActivity{}
-	var listOfHostGroups []*datamodel.HostGroup
-	errHostGroup := workflow.ExecuteActivity(ctx, HostGroupActivities.ListHostGroups, finishProjectEventParams.ProjectNumber).Get(ctx, &listOfHostGroups)
-	if errHostGroup != nil {
-		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorListingResources,
-				fmt.Errorf("error listing HostGroup %w", errHostGroup))))
-	}
-	if len(listOfHostGroups) > 0 {
-		for _, hostGroup := range listOfHostGroups {
-			errDeleteHG := workflow.ExecuteActivity(ctx, HostGroupActivities.DeleteHostGroup, hostGroup.UUID, hostGroup.AccountID).Get(ctx, nil)
-			if errDeleteHG != nil {
-				return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-					vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
-						fmt.Errorf("error deleting HostGroup %w", errDeleteHG))))
+	// skipping this code block if this is a zonal call
+	if finishProjectEventParams.Zone == "" {
+		// Delete hostGroup from VCP.
+		HostGroupActivities := &activities.HostGroupUpdateActivity{}
+		var listOfHostGroups []*datamodel.HostGroup
+		errHostGroup := workflow.ExecuteActivity(ctx, HostGroupActivities.ListHostGroups, finishProjectEventParams.ProjectNumber).Get(ctx, &listOfHostGroups)
+		if errHostGroup != nil {
+			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorListingResources,
+					fmt.Errorf("error listing HostGroup %w", errHostGroup))))
+		}
+		if len(listOfHostGroups) > 0 {
+			for _, hostGroup := range listOfHostGroups {
+				errDeleteHG := workflow.ExecuteActivity(ctx, HostGroupActivities.DeleteHostGroup, hostGroup.UUID, hostGroup.AccountID).Get(ctx, nil)
+				if errDeleteHG != nil {
+					return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+						vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
+							fmt.Errorf("error deleting HostGroup %w", errDeleteHG))))
+				}
 			}
 		}
-	}
-	// TODO: Delete Active directory from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
-	// Delete KMS config from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
-	kmsActivities := &kms_activities.KmsConfigActivity{}
-	var kmsConfigs []*datamodel.KmsConfig
-	err = workflow.ExecuteActivity(ctx, kmsActivities.ListKmsConfigActivity, finishProjectEventParams.ProjectNumber).Get(ctx, &kmsConfigs)
-	if err != nil {
-		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorListingResources,
-				fmt.Errorf("error listing KMS config %w", err))))
-	}
-	// For now, we will have only one KMS config per project.
-	if len(kmsConfigs) > 0 && kmsConfigs[0] != nil {
-		kmsConfig := kmsConfigs[0]
-		err = workflow.ExecuteActivity(ctx, kmsActivities.DeleteKmsConfig, kmsConfig,
-			&common.DeleteKmsConfigParams{KmsConfigID: kmsConfig.UUID}).Get(ctx, nil)
+		// TODO: Delete Active directory from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
+		// Delete KMS config from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
+		kmsActivities := &kms_activities.KmsConfigActivity{}
+		var kmsConfigs []*datamodel.KmsConfig
+		err = workflow.ExecuteActivity(ctx, kmsActivities.ListKmsConfigActivity, finishProjectEventParams.ProjectNumber).Get(ctx, &kmsConfigs)
+		if err != nil {
+			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorListingResources,
+					fmt.Errorf("error listing KMS config %w", err))))
+		}
+		// For now, we will have only one KMS config per project.
+		if len(kmsConfigs) > 0 && kmsConfigs[0] != nil {
+			kmsConfig := kmsConfigs[0]
+			err = workflow.ExecuteActivity(ctx, kmsActivities.DeleteKmsConfig, kmsConfig,
+				&common.DeleteKmsConfigParams{KmsConfigID: kmsConfig.UUID}).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
+						fmt.Errorf("error deleting KMS config %w", err))))
+			}
+		}
+
+		// Cleanup backup resources for the project with the default retry configuration
+		backupVaultActivity := &activities.BackupVaultActivity{}
+		backupPolicyActivity := &activities.BackupPolicyActivity{}
+
+		// Use the default retry policy for backup activities
+		backupRetryPolicy, err := PopulateRetryPolicyParams()
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		backupAO := workflow.ActivityOptions{
+			StartToCloseTimeout: backupRetryPolicy.StartToCloseTimeout,
+			RetryPolicy: &temporal.RetryPolicy{
+				InitialInterval:        backupRetryPolicy.InitialInterval,
+				BackoffCoefficient:     backupRetryPolicy.BackoffCoefficient,
+				MaximumInterval:        backupRetryPolicy.MaximumInterval,
+				MaximumAttempts:        int32(backupRetryPolicy.MaximumAttempts),
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		ctxBackup := workflow.WithActivityOptions(ctx, backupAO)
+
+		// Cleanup backup resources - try to clean up as much as possible
+		var backupCleanupErrors []error
+
+		// Cleanup backup vaults and their associated backups
+		err = workflow.ExecuteActivity(ctxBackup, backupVaultActivity.CleanupBackupVaultsForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+		if err != nil {
+			logger.Errorf("Failed to cleanup backup vaults for project %s: %v", finishProjectEventParams.ProjectNumber, err)
+			backupCleanupErrors = append(backupCleanupErrors, err)
+		} else {
+			logger.Infof("Successfully cleaned up backup vaults for project %s", finishProjectEventParams.ProjectNumber)
+		}
+
+		// Cleanup backup policies and their temporal schedulers
+		err = workflow.ExecuteActivity(ctxBackup, backupPolicyActivity.CleanupBackupPoliciesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+		if err != nil {
+			logger.Errorf("Failed to cleanup backup policies for project %s: %v", finishProjectEventParams.ProjectNumber, err)
+			backupCleanupErrors = append(backupCleanupErrors, err)
+		} else {
+			logger.Infof("Successfully cleaned up backup policies for project %s", finishProjectEventParams.ProjectNumber)
+		}
+
+		// Log summary of backup cleanup
+		if len(backupCleanupErrors) == 0 {
+			logger.Infof("Backup cleanup completed successfully for project %s", finishProjectEventParams.ProjectNumber)
+		} else {
+			logger.Warnf("Backup cleanup completed with %d errors for project %s", len(backupCleanupErrors), finishProjectEventParams.ProjectNumber)
+			// Note: We don't return the error here to allow the workflow to continue with other cleanup activities
+		}
+
+		err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteServiceAccountsFromAccountID, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
 				vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
-					fmt.Errorf("error deleting KMS config %w", err))))
+					fmt.Errorf("error delete service account %w", err))))
 		}
 	}
 
-	// Cleanup backup resources for the project with default retry configuration
-	backupVaultActivity := &activities.BackupVaultActivity{}
-	backupPolicyActivity := &activities.BackupPolicyActivity{}
-
-	// Use default retry policy for backup activities
-	backupRetryPolicy, err := PopulateRetryPolicyParams()
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	backupAO := workflow.ActivityOptions{
-		StartToCloseTimeout: backupRetryPolicy.StartToCloseTimeout,
-		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:        backupRetryPolicy.InitialInterval,
-			BackoffCoefficient:     backupRetryPolicy.BackoffCoefficient,
-			MaximumInterval:        backupRetryPolicy.MaximumInterval,
-			MaximumAttempts:        int32(backupRetryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"PanicError"},
-		},
-	}
-	ctxBackup := workflow.WithActivityOptions(ctx, backupAO)
-
-	// Cleanup backup resources - try to clean up as much as possible
-	var backupCleanupErrors []error
-	logger := util.GetLogger(ctx)
-
-	// Cleanup backup vaults and their associated backups
-	err = workflow.ExecuteActivity(ctxBackup, backupVaultActivity.CleanupBackupVaultsForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
-	if err != nil {
-		logger.Errorf("Failed to cleanup backup vaults for project %s: %v", finishProjectEventParams.ProjectNumber, err)
-		backupCleanupErrors = append(backupCleanupErrors, err)
-	} else {
-		logger.Infof("Successfully cleaned up backup vaults for project %s", finishProjectEventParams.ProjectNumber)
-	}
-
-	// Cleanup backup policies and their temporal schedulers
-	err = workflow.ExecuteActivity(ctxBackup, backupPolicyActivity.CleanupBackupPoliciesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
-	if err != nil {
-		logger.Errorf("Failed to cleanup backup policies for project %s: %v", finishProjectEventParams.ProjectNumber, err)
-		backupCleanupErrors = append(backupCleanupErrors, err)
-	} else {
-		logger.Infof("Successfully cleaned up backup policies for project %s", finishProjectEventParams.ProjectNumber)
-	}
-
-	// Log summary of backup cleanup
-	if len(backupCleanupErrors) == 0 {
-		logger.Infof("Backup cleanup completed successfully for project %s", finishProjectEventParams.ProjectNumber)
-	} else {
-		logger.Warnf("Backup cleanup completed with %d errors for project %s", len(backupCleanupErrors), finishProjectEventParams.ProjectNumber)
-		// Note: We don't return error here to allow the workflow to continue with other cleanup activities
-	}
-
-	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteServiceAccountsFromAccountID, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+	var RegionalResourceCheck bool
+	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, finishProjectEventParams.ProjectNumber).Get(ctx, &RegionalResourceCheck)
 	if err != nil {
 		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
-				fmt.Errorf("error delete service account %w", err))))
+			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorListingResources,
+				fmt.Errorf("error listing regional resource %w", err))))
+	}
+
+	if !RegionalResourceCheck {
+		logger.Infof("Account has active resources hence ignoring deleting the account. Account will be deleted as part of next finish project event.")
+		return nil, nil
 	}
 
 	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteAccountActivity, finishProjectEventParams.ProjectNumber).Get(ctx, nil)

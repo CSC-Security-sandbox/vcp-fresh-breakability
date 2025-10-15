@@ -197,4 +197,5 @@ type Job struct {
 type JobAttributes struct {
 	ResourceUUID string
 	PoolUUID     string
+	Location     string
 }

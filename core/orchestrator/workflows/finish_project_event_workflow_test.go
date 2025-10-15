@@ -66,6 +66,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Register activities (don't register VerifySoftDeletedResourcesForAccount/HardDeleteResourcesInOrder
 	// because we stub them with s.env.OnActivity to avoid running real activity code during unit tests)
+	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
+
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
@@ -88,6 +90,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 
 	// Mock host group activities - return empty list
 	var hostGroups []*datamodel.HostGroup
@@ -102,6 +105,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil).Once()
 
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
+
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	// Mock DeleteAccountActivity
 	s.env.OnActivity(finishProjectEventActivity.DeleteAccountActivity, mock.Anything, "test-project-number").Return(nil).Once()
@@ -131,29 +136,60 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 }
 
 func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_SuccessWhenCVPHostIsEmpty() {
+	// Ensure CVP_HOST is empty to test the early return path
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+	}()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
+	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
+	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
 
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Add GetAccount mock for VolumeAndPoolRegionalCheckActivity
+	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-	// Register activities
+	// Register all necessary activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
+	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
+	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.DeleteAccountActivity)
 
+	// Mock UpdateJobStatus activity
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Mock all activities that will be executed
+	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil).Once()
+	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil).Once()
+	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.DeleteAccountActivity, mock.Anything, "test-project-number").Return(nil).Once()
+
+	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
+		Zone:           "", // Empty zone to trigger the resource cleanup block
 	}
 	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
-
-	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
-	assert.Nil(s.T(), err)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
-	// Note: UpdateJob is called through UpdateJobStatus activity, not directly on mockStorage
 }
 
 func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_WithHostGroupsAndKmsConfigs() {
@@ -183,6 +219,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteAccountActivity)
 
+	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
 	// Mock finish project event activity
 	done := true
 	operationName := "test-operation"
@@ -203,6 +240,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 		{BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"}, AccountID: 123456},
 		{BaseModel: datamodel.BaseModel{UUID: "hg-uuid-2"}, AccountID: 123456},
 	}
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, "test-project-number").Return(hostGroups, nil).Once()
 	s.env.OnActivity(hostGroupActivities.DeleteHostGroup, mock.Anything, "hg-uuid-1", int64(123456)).Return(nil, nil).Once()
 	s.env.OnActivity(hostGroupActivities.DeleteHostGroup, mock.Anything, "hg-uuid-2", int64(123456)).Return(nil, nil).Once()
@@ -221,6 +259,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Mock VerifySoftDeletedResourcesForAccount to return false (cannot hard delete)
 	s.env.OnActivity(finishProjectEventActivity.VerifySoftDeletedResourcesForAccount, mock.Anything, "test-project-number").Return(false, nil).Once()
+
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
@@ -269,6 +309,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 		XCorrelationID: "test-correlation-id",
 	}
 	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -332,7 +373,9 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	defer func() {
 		cvp.CVP_HOST = ""
 	}()
+	// Allow UpdateJob + GetAccount
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -344,6 +387,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteAccountActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 
 	// Mock finish project event activity
 	done := true
@@ -370,6 +414,9 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	var kmsConfigs []*datamodel.KmsConfig
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, "test-project-number").Return(kmsConfigs, nil).Once()
 
+	// Stub VolumeAndPoolRegionalCheckActivity to avoid real storage calls (ListPools, etc.)
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
+
 	// Mock DeleteAccountActivity to fail
 	s.env.OnActivity(finishProjectEventActivity.DeleteAccountActivity, mock.Anything, "test-project-number").Return(errors.New("delete account failed")).Once()
 
@@ -382,7 +429,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	}
 	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
 
-	// Assert workflow failed
+	// Assert workflow failed at DeleteAccountActivity path
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
@@ -451,12 +498,14 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 
 	// Mock all activities to succeed
 	done := true
 	operationName := "test-operation"
 	finishResult := &commonparams.FinishProjectEventResult{Done: &done, Name: &operationName}
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil)
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -469,6 +518,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.VerifySoftDeletedResourcesForAccount, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(finishProjectEventActivity.HardDeleteResourcesInOrder, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
@@ -495,6 +545,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 
@@ -531,6 +582,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.VerifySoftDeletedResourcesForAccount, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(finishProjectEventActivity.HardDeleteResourcesInOrder, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
@@ -558,6 +610,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 
@@ -577,11 +630,14 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
 
+	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
+
 	// Mock activities - backup policy cleanup fails
 	done := true
 	operationName := "test-operation"
 	finishResult := &commonparams.FinishProjectEventResult{Done: &done, Name: &operationName}
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil)
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -639,6 +695,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 
 	// Mock activities - backup vault cleanup fails first time, succeeds on retry
 	done := true
@@ -661,6 +718,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.VerifySoftDeletedResourcesForAccount, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(finishProjectEventActivity.HardDeleteResourcesInOrder, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
@@ -690,6 +748,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
+
 	// Register backup cleanup activities
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
@@ -716,6 +776,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	// Create a non-retryable error (PanicError type)
 	panicErr := temporal.NewApplicationError("panic occurred during backup cleanup", "PanicError")
@@ -768,6 +829,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteAccountActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.VerifySoftDeletedResourcesForAccount)
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
@@ -786,6 +848,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(finishProjectEventActivity.DeleteAccountActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 	// Simulate error in VerifySoftDeletedResourcesForAccount to set errRollBack
 	s.env.OnActivity(finishProjectEventActivity.VerifySoftDeletedResourcesForAccount, mock.Anything, mock.Anything).Return(false, errors.New("verify soft delete error"))
 	// Simulate error in RollbackAccountStateActivity to hit logger branch
@@ -1130,6 +1193,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	defer func() { hardDeleteResources = origHardDelete }()
 
 	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
@@ -1141,6 +1205,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
@@ -1170,6 +1235,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.HardDeleteResourcesInOrder, mock.Anything, mock.Anything).Return(errors.New("hard delete failed"))
 	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
@@ -1184,4 +1250,53 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	err := s.env.GetWorkflowError()
 	assert.Error(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "Error occurred during hard delete of resources in FinishProjectEvent")
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_VolumeAndPoolRegionalCheck_Fails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
+	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
+	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
+	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+
+	// Mock finish project event activity
+	done := true
+	operationName := "test-operation"
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: &done,
+		Name: &operationName,
+	}
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock VolumeAndPoolRegionalCheckActivity to fail
+	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(errors.New("regional check failed")).Once()
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
 }

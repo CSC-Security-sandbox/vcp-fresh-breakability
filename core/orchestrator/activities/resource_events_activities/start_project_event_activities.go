@@ -3,6 +3,7 @@ package resource_events_activities
 import (
 	"context"
 	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -191,7 +192,15 @@ func (j *StartProjectEventActivity) PollStartProjectEventSDEOperationActivity(ct
 	return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSDEJobNotFinished, errors.New("job not finished")))
 }
 
-func (j *StartProjectEventActivity) ListPoolsForAccount(ctx context.Context, projectNumber string, state string) ([]*datamodel.PoolView, error) {
+func (j *StartProjectEventActivity) ListPoolsForAccount(ctx context.Context, projectNumber string, state string, isZone bool) ([]*datamodel.PoolView, error) {
+	logger := util.GetLogger(ctx)
+
+	// Skip pool listing if this is a zone-specific operation
+	if isZone {
+		logger.Infof("Zone-specific operation, skipping pool listing for VSA operations")
+		return []*datamodel.PoolView{}, nil
+	}
+
 	account, err := j.SE.GetAccount(ctx, projectNumber)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseListPoolsForAccount, err))
@@ -221,6 +230,7 @@ func (j *StartProjectEventActivity) UpdateAccountStateForHandleResource(ctx cont
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseListPoolsForAccount, err))
 	}
+
 	err = j.SE.UpdateAccountStateForHandleResource(ctx, account.UUID, newState)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseUpdateAccountState, err))
@@ -235,14 +245,29 @@ type PoolFilterResult struct {
 }
 
 // FilterPoolsForClusterOperations filters pools based on transient states and associated resources
-func (j *StartProjectEventActivity) FilterPoolsForClusterOperations(ctx context.Context, allPools []*datamodel.PoolView) (*PoolFilterResult, error) {
+func (j *StartProjectEventActivity) FilterPoolsForClusterOperations(ctx context.Context, allPools []*datamodel.PoolView, isZone bool) (*PoolFilterResult, error) {
 	logger := util.GetLogger(ctx)
+
+	// Skip pool filtering if this is a zone-specific operation
+	if isZone {
+		logger.Infof("Zone-specific operation, skipping pool filtering for VSA operations")
+		return &PoolFilterResult{
+			FilteredPools: []*datamodel.PoolView{},
+			VSAError:      false,
+		}, nil
+	}
+
 	se := j.SE
 
 	var filteredPools []*datamodel.PoolView
 	var vsaError bool
 
 	for _, pool := range allPools {
+		if pool.State == models.LifeCycleStateDisabled {
+			logger.Infof("Skipping pool %s (%s) - in DISABLED state", pool.Name, pool.UUID)
+			continue
+		}
+
 		// Skip pools in transient states (Creating, Updating, Deleting)
 		if isPoolInTransientState(pool.State) {
 			logger.Warnf("Skipping pool %s (%s) - in transient state: %s", pool.Name, pool.UUID, pool.State)

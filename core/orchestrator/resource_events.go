@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -40,35 +41,49 @@ func _createOrGetStartProjectEventJob(ctx context.Context, se database.Storage, 
 	// For DELETE state we already returned NotImplemented error
 	switch params.State {
 	case models.StateOn:
-		if account.State == models.AccountStateEnabled {
-			return "", errors.NewBadRequestErr("account is already in desired state")
-		}
 		wf = workflows.StartProjectEventOnStateWorkflow
 		jobType = string(models.JobTypeStartProjectEventOnState)
 	case models.StateOff:
-		if account.State == models.AccountStateHyperscalerDisabled {
-			return "", errors.NewBadRequestErr("account is already in desired state")
-		}
 		wf = workflows.StartProjectEventOffStateWorkflow
 		jobType = string(models.JobTypeStartProjectEventOffState)
 	}
 
 	jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
-	filter := utils2.CreateFilterWithConditions(
+
+	// First, get all jobs for this account and job type regardless of zone
+	baseFilterConditions := []*utils2.FilterCondition{
 		utils2.NewFilterCondition("account_id", "=", account.ID),
 		utils2.NewFilterCondition("type", "=", jobType),
-		utils2.NewFilterCondition("state", "in", jobTransitioningStates))
+		utils2.NewFilterCondition("state", "in", jobTransitioningStates),
+	}
 
-	jobs, err := se.GetJobsWithCondition(ctx, *filter)
+	baseFilter := utils2.CreateFilterWithConditions(baseFilterConditions...)
+
+	jobs, err := se.GetJobsWithCondition(ctx, *baseFilter)
 	if err != nil && !errors.IsNotFoundErr(err) {
-		logger.Errorf("Failed to get jobs with conditions: %v. Error: %v", filter, err)
+		logger.Errorf("Failed to get jobs with conditions: %v. Error: %v", baseFilter, err)
 		return "", err
 	}
 
 	if len(jobs) > 0 {
-		job := jobs[0]
-		logger.Infof("Found ongoing startProjectEvent job for account %s with Job UUID: %s", params.ProjectNumber, job.UUID)
-		return job.UUID, nil
+		// Check if any existing job matches the exact location
+		for _, job := range jobs {
+			var existingJobLocation string
+			if job.JobAttributes != nil {
+				existingJobLocation = job.JobAttributes.Location
+			}
+
+			// Check if locations match exactly (both empty or both same value)
+			if existingJobLocation == params.LocationId {
+				logger.Infof("Found ongoing startProjectEvent job for account %s with exact matching location '%s' and Job UUID: %s",
+					params.ProjectNumber, params.LocationId, job.UUID)
+				return job.UUID, nil
+			}
+		}
+
+		// If we reach here, there are existing jobs but none match the requested location
+		logger.Infof("Found existing jobs for account %s but none match requested location '%s', creating new job",
+			params.ProjectNumber, params.LocationId)
 	}
 
 	job := &datamodel.Job{
@@ -77,6 +92,9 @@ func _createOrGetStartProjectEventJob(ctx context.Context, se database.Storage, 
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			Location: params.LocationId,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -199,22 +217,39 @@ func _createOrGetFinishProjectEventJob(ctx context.Context, se database.Storage,
 
 	wf := workflows.FinishProjectEventDeleteStateWorkflow
 
-	filter := utils2.CreateFilterWithConditions(
+	baseFilterConditions := []*utils2.FilterCondition{
 		utils2.NewFilterCondition("account_id", "=", account.ID),
-		utils2.NewFilterCondition("type", "=", string(jobType)),
+		utils2.NewFilterCondition("type", "=", jobType),
 		utils2.NewFilterCondition("state", "in", jobTransitioningStates),
-	)
-	jobs, err := se.GetJobsWithCondition(ctx, *filter)
+	}
+
+	baseFilter := utils2.CreateFilterWithConditions(baseFilterConditions...)
+
+	jobs, err := se.GetJobsWithCondition(ctx, *baseFilter)
 	if err != nil && !errors.IsNotFoundErr(err) {
-		logger.Errorf("Failed to get jobs with conditions: %v. Error: %v", filter.ToGORMQuery(), err)
+		logger.Errorf("Failed to get jobs with conditions: %v. Error: %v", baseFilter, err)
 		return "", err
 	}
 
-	if (len(jobs)) > 0 {
-		job := jobs[0]
-		logger.Infof("Found New/Ongoing finishProjectEvent job for account %s with Job UUID: %s",
-			params.ProjectNumber, job.UUID)
-		return job.UUID, nil
+	if len(jobs) > 0 {
+		// Check if any existing job matches the exact location
+		for _, job := range jobs {
+			var existingJobLocation string
+			if job.JobAttributes != nil {
+				existingJobLocation = job.JobAttributes.Location
+			}
+
+			// Check if locations match exactly (both empty or both same value)
+			if existingJobLocation == params.LocationId {
+				logger.Infof("Found ongoing startProjectEvent job for account %s with exact matching location '%s' and Job UUID: %s",
+					params.ProjectNumber, params.LocationId, job.UUID)
+				return job.UUID, nil
+			}
+		}
+
+		// If we reach here, there are existing jobs but none match the requested location
+		logger.Infof("Found existing jobs for account %s but none match requested location '%s', creating new job",
+			params.ProjectNumber, params.LocationId)
 	}
 
 	job := datamodel.Job{
@@ -223,6 +258,9 @@ func _createOrGetFinishProjectEventJob(ctx context.Context, se database.Storage,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			Location: params.LocationId,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, &job)

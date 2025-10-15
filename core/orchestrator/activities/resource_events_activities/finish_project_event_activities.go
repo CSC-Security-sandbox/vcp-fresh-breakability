@@ -291,3 +291,38 @@ func (j *FinishProjectEventActivity) DeleteServiceAccountsFromAccountID(ctx cont
 	}
 	return nil
 }
+
+func (j *FinishProjectEventActivity) VolumeAndPoolRegionalCheckActivity(ctx context.Context, projectNumber string) (bool, error) {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+	account, err := se.GetAccount(ctx, projectNumber)
+	if err != nil {
+		logger.Errorf("Error getting account for project %s", projectNumber)
+		return false, err
+	}
+
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", account.ID),
+	)
+
+	PoolsList, err := se.ListPools(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	if len(PoolsList) > 0 {
+		logger.Infof("Found %d pools for account %s", len(PoolsList), account.UUID)
+		return false, nil
+	}
+
+	conditions := [][]interface{}{{"account_id = ?", account.ID}}
+	VolumesList, err := se.ListVolumes(ctx, conditions)
+	if err != nil {
+		logger.Errorf("Error listing volumes for account %s", account.UUID)
+		return false, err
+	}
+	if len(VolumesList) > 0 {
+		logger.Infof("Found %d volumes for account %s", len(VolumesList), account.UUID)
+		return false, nil
+	}
+	return true, nil
+}

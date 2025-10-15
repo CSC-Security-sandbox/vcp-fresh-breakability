@@ -5,6 +5,7 @@ type StartProjectEventParams struct {
 	State          string
 	ProjectNumber  string
 	XCorrelationID string
+	Zone           string
 }
 
 type StartProjectEventResult struct {
@@ -22,6 +23,7 @@ type FinishProjectEventParams struct {
 	State          string
 	ProjectNumber  string
 	XCorrelationID string
+	Zone           string
 }
 
 type FinishProjectEventResult struct {
