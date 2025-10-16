@@ -475,6 +475,10 @@ func (s *PersistenceStore) ListVolumeReplications(ctx context.Context, filter db
 	return s.dataStore.ListVolumeReplications(ctx, filter)
 }
 
+func (s *PersistenceStore) ListVolumeReplicationsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.VolumeReplication, error) {
+	return s.dataStore.ListVolumeReplicationsWithPagination(ctx, conditions, pagination)
+}
+
 func (s *PersistenceStore) GetVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolume(ctx, id)
 }

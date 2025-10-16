@@ -99,6 +99,7 @@ type (
 		GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error)
 		GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error)
 		ListVolumeReplications(ctx context.Context, filter dbutils.Filter) ([]*datamodel.VolumeReplication, error)
+		ListVolumeReplicationsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.VolumeReplication, error)
 
 		GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
 		CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)

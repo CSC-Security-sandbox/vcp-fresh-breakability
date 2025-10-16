@@ -15,21 +15,22 @@ const (
 
 type TelemetryConfig struct {
 	// Server configuration
-	OperationBatchSize            int64
-	PusherServiceName             string
-	PusherServiceProject          string
-	RootUrl                       string
-	RegionName                    string
-	EnableVolumeMetrics           bool
-	EnableBackupMetrics           bool
-	EnableBackupBillingMetrics    bool
-	PushBatchSize                 int64
-	Environment                   string
-	MaxGoogleBillingPushRetry     int64
-	PageSize                      int32
-	NumWorkers                    int
-	GoogleBillingLabelsMaxEntries int
-	PoolVolumeLabelPageSize       int
+	OperationBatchSize              int64
+	PusherServiceName               string
+	PusherServiceProject            string
+	RootUrl                         string
+	RegionName                      string
+	EnableVolumeMetrics             bool
+	EnableBackupMetrics             bool
+	EnableBackupBillingMetrics      bool
+	EnableReplicationBillingMetrics bool
+	PushBatchSize                   int64
+	Environment                     string
+	MaxGoogleBillingPushRetry       int64
+	PageSize                        int32
+	NumWorkers                      int
+	GoogleBillingLabelsMaxEntries   int
+	PoolVolumeLabelPageSize         int
 }
 
 type MetricItem struct {
@@ -52,6 +53,7 @@ func LoadConfig() *TelemetryConfig {
 	enableVolumeMetrics := env.GetBool("ENABLE_VOLUME_METRICS", false)
 	enableBackupMetrics := env.GetBool("ENABLE_BACKUP_METRICS", false)
 	enableBackupBillingMetrics := env.GetBool("ENABLE_BACKUP_BILLING_METRICS", false)
+	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
@@ -61,21 +63,22 @@ func LoadConfig() *TelemetryConfig {
 	poolVolumeLabelPageSize := env.GetInt("POOL_VOLUME_LABEL_PAGE_SIZE", 5000)
 
 	return &TelemetryConfig{
-		RootUrl:                       rootUrl,
-		PusherServiceName:             pusherServiceName,
-		PusherServiceProject:          pusherServiceProject,
-		OperationBatchSize:            operationBatchSize,
-		RegionName:                    regionName,
-		EnableVolumeMetrics:           enableVolumeMetrics,
-		PushBatchSize:                 pushBatchSize,
-		Environment:                   environment,
-		MaxGoogleBillingPushRetry:     maxGoogleBillingPushRetry,
-		PageSize:                      int32(pageSize),
-		EnableBackupMetrics:           enableBackupMetrics,
-		EnableBackupBillingMetrics:    enableBackupBillingMetrics,
-		NumWorkers:                    numWorkers,
-		GoogleBillingLabelsMaxEntries: googleBillingLabelsMaxEntries,
-		PoolVolumeLabelPageSize:       poolVolumeLabelPageSize,
+		RootUrl:                         rootUrl,
+		PusherServiceName:               pusherServiceName,
+		PusherServiceProject:            pusherServiceProject,
+		OperationBatchSize:              operationBatchSize,
+		RegionName:                      regionName,
+		EnableVolumeMetrics:             enableVolumeMetrics,
+		PushBatchSize:                   pushBatchSize,
+		Environment:                     environment,
+		MaxGoogleBillingPushRetry:       maxGoogleBillingPushRetry,
+		PageSize:                        int32(pageSize),
+		EnableBackupMetrics:             enableBackupMetrics,
+		EnableBackupBillingMetrics:      enableBackupBillingMetrics,
+		EnableReplicationBillingMetrics: enableReplicationBillingMetrics,
+		NumWorkers:                      numWorkers,
+		GoogleBillingLabelsMaxEntries:   googleBillingLabelsMaxEntries,
+		PoolVolumeLabelPageSize:         poolVolumeLabelPageSize,
 	}
 }
 

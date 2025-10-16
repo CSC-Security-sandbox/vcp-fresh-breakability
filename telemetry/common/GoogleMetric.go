@@ -329,3 +329,105 @@ func (gm *GoogleMetric) GetEndTime() (int64, error) {
 		return 0, NewInvalidGoogleMetricException("Invalid GoogleMetric type")
 	}
 }
+
+// GetResourceUUID Returns:
+// - The UUID of the resource as a string.
+// - An error if the UUID could not be retrieved.
+func (gm *GoogleMetric) GetResourceUUID() (string, error) {
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return "", err
+		}
+		if metric.ResourceUUID == "" {
+			return "", nil
+		}
+		return metric.ResourceUUID, nil
+	case HydratedMetric:
+		metric, err := gm.GetAsHydratedMetric()
+		if err != nil {
+			return "", err
+		}
+		if metric.Metadata.ResourceUUID == nil {
+			return "", nil
+		}
+		return *metric.Metadata.ResourceUUID, nil
+	default:
+		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}
+
+// GetServiceLevel returns the service level for the Google metric.
+// Returns:
+// - The service level as a string.
+// - An error if the service level could not be retrieved.
+func (gm *GoogleMetric) GetServiceLevel() (string, error) {
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return "", err
+		}
+		return metric.ServiceLevel, nil
+	default:
+		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}
+
+// GetReplicationType returns the replication type for replication metrics.
+// Returns:
+// - The replication type as a string.
+// - An error if the replication type could not be retrieved.
+func (gm *GoogleMetric) GetReplicationType() (string, error) {
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return "", err
+		}
+		return metric.ReplicationType, nil
+	default:
+		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}
+
+// GetSourceRegion returns the source region for replication metrics.
+// Returns:
+// - The source region as a string.
+// - An error if the source region could not be retrieved.
+func (gm *GoogleMetric) GetSourceRegion() (string, error) {
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return "", err
+		}
+		if metric.SourceRegion != nil {
+			return *metric.SourceRegion, nil
+		}
+		return "", nil
+	default:
+		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}
+
+// GetDestinationRegion returns the destination region for replication metrics.
+// Returns:
+// - The destination region as a string.
+// - An error if the destination region could not be retrieved.
+func (gm *GoogleMetric) GetDestinationRegion() (string, error) {
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return "", err
+		}
+		if metric.DestinationRegion != nil {
+			return *metric.DestinationRegion, nil
+		}
+		return "", nil
+	default:
+		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}

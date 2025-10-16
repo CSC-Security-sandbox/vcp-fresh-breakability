@@ -196,6 +196,6 @@ func Test_ProcessBizOps(t *testing.T) {
 func Test_getContinentMap_PanicsOnMalformedInput(t *testing.T) {
 	// empty string or malformed entries shouldn't panic the routine
 	assert.NotPanics(t, func() {
-		_ = getContinentMap("")
+		_ = GetContinentMap("")
 	})
 }

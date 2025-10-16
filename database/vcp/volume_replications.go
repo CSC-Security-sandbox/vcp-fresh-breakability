@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -251,6 +252,28 @@ func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter
 	err := db.Preload("Volume").Preload("Volume.Pool").Find(&volumeReplications).Error
 	if err != nil {
 		return nil, err
+	}
+	return volumeReplications, nil
+}
+
+func (d *DataStoreRepository) ListVolumeReplicationsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils2.Pagination) ([]*datamodel.VolumeReplication, error) {
+	return _listVolumeReplicationsWithDetailsPagination(d.db.ApplyFilter(conditions).Unscoped().GORM().WithContext(ctx), pagination)
+}
+
+func _listVolumeReplicationsWithDetailsPagination(db *gorm.DB, pagination *utils2.Pagination) ([]*datamodel.VolumeReplication, error) {
+	var volumeReplications []*datamodel.VolumeReplication
+	err := db.
+		Preload("Account").
+		Preload("Volume", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, pool_id")
+		}).
+		Preload("Volume.Pool", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, deployment_name")
+		}).
+		Scopes(utils2.Paginate(pagination)).
+		Find(&volumeReplications).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return volumeReplications, nil
 }

@@ -4,12 +4,17 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -19,6 +24,25 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/servicecontrol/v1"
 	"google.golang.org/api/transport"
+)
+
+const (
+	NorthAmericaContinent = "northamerica"
+	EuropeContinent       = "europe"
+	RegionPartsCount      = 2
+	ZonePartsCount        = 3
+)
+
+var (
+	googleContinents     = env.GetString("GOOGLE_CONTINENTS", "")
+	getContinentMap      = bizops.GetContinentMap
+	getResourceUUID      = _getResourceUUID
+	getFrequency         = _getFrequency
+	getReplicationType   = _getReplicationType
+	getContinent         = _getContinent
+	getSourceRegion      = _getSourceRegion
+	getDestinationRegion = _getDestinationRegion
+	getServiceLevel      = _getServiceLevel
 )
 
 type Operation servicecontrol.Operation
@@ -126,7 +150,7 @@ func (client *GoogleMetricsClient) reportOperationList(ctx context.Context, oper
 				}
 			}()
 
-			// logger.Infof("For service: %s; Google Metrics Operation list is %v", client.config.PusherServiceName, spew.Sdump(operationList))
+			logger.Infof("For service: %s; Google Metrics Operation list is %v", client.config.PusherServiceName, spew.Sdump(operationList))
 
 			serviceControl, err := createServiceControlClient(client.config.PusherServiceProject, client.rootURL, logger)
 			if err != nil {
@@ -589,7 +613,7 @@ func GetLabelKey(metric common.GoogleMetric) []string {
 	metricResourceType, _ := metric.GetResourceType()
 	switch metricResourceType {
 	case metadata.VolumeReplicationRelationship:
-		return []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level"}
+		return []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level", "/replication/replication_type"}
 	case metadata.Volume:
 		switch metricMeasuredType {
 		case metadata.CbsVolumeBackupSize:
@@ -611,16 +635,88 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 	case metadata.VolumeReplicationRelationship:
 		switch key {
 		case "/resource_id":
-			return "dummyLabelValue", nil
+			return getResourceUUID(metric)
 		case "/replication/frequency":
-			return "dummyLabelValue", nil
+			serviceLevel, err := getServiceLevel(metric)
+			return getFrequency(serviceLevel), err
 		case "/replication/source_continent":
-			return "dummyLabelValue", nil
+			sourceRegion, err := getSourceRegion(metric)
+			return getContinent(sourceRegion), err
 		case "/replication/destination_continent":
-			return "dummyLabelValue", nil
+			destinationRegion, err := getDestinationRegion(metric)
+			return getContinent(destinationRegion), err
 		case "/replication/source_service_level", "/replication/destination_service_level":
-			return "dummyLabelValue", nil
+			return "", nil
+		case "/replication/replication_type":
+			return getReplicationType(metric)
 		}
 	}
 	return "", nil
+}
+
+func _getResourceUUID(metric common.GoogleMetric) (string, error) {
+	return metric.GetResourceUUID()
+}
+
+func _getReplicationType(metric common.GoogleMetric) (string, error) {
+	return metric.GetReplicationType()
+}
+
+func _getSourceRegion(metric common.GoogleMetric) (string, error) {
+	return metric.GetSourceRegion()
+}
+
+func _getDestinationRegion(metric common.GoogleMetric) (string, error) {
+	return metric.GetDestinationRegion()
+}
+
+func _getServiceLevel(metric common.GoogleMetric) (string, error) {
+	return metric.GetServiceLevel()
+}
+
+func _getFrequency(serviceLevel string) string {
+	switch serviceLevel {
+	case "1":
+		return vsa.VolumeReplicationSchedule10Minutely
+	case "2":
+		return vsa.VolumeReplicationScheduleHourly
+	case "3":
+		return vsa.VolumeReplicationScheduleDaily
+	default:
+		return ""
+	}
+}
+
+// getContinent converts location to continent string
+func _getContinent(location string) string {
+	if location == "" {
+		return ""
+	}
+
+	normalizedLocation := strings.ToLower(location)
+	parts := strings.Split(normalizedLocation, "-")
+	count := len(parts)
+
+	if count != ZonePartsCount && count != RegionPartsCount {
+		return ""
+	}
+
+	switch parts[0] {
+	case "us":
+		parts[0] = NorthAmericaContinent
+	case "eu":
+		parts[0] = EuropeContinent
+	}
+
+	// Special case for Indonesia
+	if parts[0] == "asia" && len(parts) > 1 && parts[1] == "southeast2" {
+		return "indonesia"
+	}
+
+	continentMap := getContinentMap(googleContinents)
+	if continent, exists := continentMap[parts[0]]; exists {
+		return continent
+	}
+
+	return parts[0]
 }

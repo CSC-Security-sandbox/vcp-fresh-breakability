@@ -961,3 +961,422 @@ func TestGoogleMetric_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestGoogleMetric_GetServiceLevel_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		record    interface{}
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name:      "HydratedMetric type not supported",
+			record:    &entity.HydratedMetric{},
+			expectErr: true,
+			errMsg:    "Invalid GoogleMetric type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gm := NewGoogleMetric(tt.record)
+			result, err := gm.GetServiceLevel()
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				assert.Empty(t, result)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGoogleMetric_GetServiceLevel_WithBillingMetricFields(t *testing.T) {
+	tests := []struct {
+		name         string
+		serviceLevel string
+		expected     string
+	}{
+		{
+			name:         "Service level 1",
+			serviceLevel: "1",
+			expected:     "1",
+		},
+		{
+			name:         "Service level 2",
+			serviceLevel: "2",
+			expected:     "2",
+		},
+		{
+			name:         "Service level 3",
+			serviceLevel: "3",
+			expected:     "3",
+		},
+		{
+			name:         "Empty service level",
+			serviceLevel: "",
+			expected:     "",
+		},
+		{
+			name:         "Alphanumeric service level",
+			serviceLevel: "level-1",
+			expected:     "level-1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			record := &datamodel.AggregatedUsage{
+				ServiceLevel: tt.serviceLevel,
+			}
+			gm := NewGoogleMetric(record)
+			result, err := gm.GetServiceLevel()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGoogleMetric_GetReplicationType_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		record    interface{}
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name:      "HydratedMetric type not supported",
+			record:    &entity.HydratedMetric{},
+			expectErr: true,
+			errMsg:    "Invalid GoogleMetric type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gm := NewGoogleMetric(tt.record)
+			result, err := gm.GetReplicationType()
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				assert.Empty(t, result)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGoogleMetric_GetReplicationType_WithBillingMetricFields(t *testing.T) {
+	tests := []struct {
+		name            string
+		replicationType string
+		expected        string
+	}{
+		{
+			name:            "Cross region replication",
+			replicationType: "CROSS_REGION_REPLICATION",
+			expected:        "CROSS_REGION_REPLICATION",
+		},
+		{
+			name:            "Hybrid replication",
+			replicationType: "HYBRID_REPLICATION",
+			expected:        "HYBRID_REPLICATION",
+		},
+		{
+			name:            "Empty replication type",
+			replicationType: "",
+			expected:        "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			record := &datamodel.AggregatedUsage{
+				ReplicationType: tt.replicationType,
+			}
+			gm := NewGoogleMetric(record)
+			result, err := gm.GetReplicationType()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGoogleMetric_GetSourceRegion_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		record    interface{}
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name:      "HydratedMetric type not supported",
+			record:    &entity.HydratedMetric{},
+			expectErr: true,
+			errMsg:    "Invalid GoogleMetric type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gm := NewGoogleMetric(tt.record)
+			result, err := gm.GetSourceRegion()
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				assert.Empty(t, result)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGoogleMetric_GetSourceRegion_WithBillingMetricFields(t *testing.T) {
+	srcRegion1 := "us-east1"
+	srcRegion2 := "us-west1"
+	tests := []struct {
+		name         string
+		sourceRegion *string
+		expected     string
+	}{
+		{
+			name:         "Valid source region",
+			sourceRegion: &srcRegion1,
+			expected:     "us-east1",
+		},
+		{
+			name:         "Different source region",
+			sourceRegion: &srcRegion2,
+			expected:     "us-west1",
+		},
+		{
+			name:         "Nil source region",
+			sourceRegion: nil,
+			expected:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			record := &datamodel.AggregatedUsage{
+				SourceRegion: tt.sourceRegion,
+			}
+			gm := NewGoogleMetric(record)
+			result, err := gm.GetSourceRegion()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGoogleMetric_GetDestinationRegion_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		record    interface{}
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name:      "HydratedMetric type not supported",
+			record:    &entity.HydratedMetric{},
+			expectErr: true,
+			errMsg:    "Invalid GoogleMetric type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gm := NewGoogleMetric(tt.record)
+			result, err := gm.GetDestinationRegion()
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				assert.Empty(t, result)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGoogleMetric_GetDestinationRegion_WithBillingMetricFields(t *testing.T) {
+	dstRegion1 := "us-east1"
+	dstRegion2 := "us-west1"
+	tests := []struct {
+		name              string
+		destinationRegion *string
+		expected          string
+	}{
+		{
+			name:              "Valid source region",
+			destinationRegion: &dstRegion1,
+			expected:          "us-east1",
+		},
+		{
+			name:              "Different source region",
+			destinationRegion: &dstRegion2,
+			expected:          "us-west1",
+		},
+		{
+			name:              "Nil source region",
+			destinationRegion: nil,
+			expected:          "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			record := &datamodel.AggregatedUsage{
+				DestinationRegion: tt.destinationRegion,
+			}
+			gm := NewGoogleMetric(record)
+			result, err := gm.GetDestinationRegion()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGoogleMetric_GetResourceUUID_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		record    interface{}
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name:      "Invalid record type",
+			record:    "invalid record",
+			expectErr: true,
+			errMsg:    "Invalid GoogleMetric type",
+		},
+		{
+			name:      "Nil record",
+			record:    nil,
+			expectErr: true,
+			errMsg:    "Invalid GoogleMetric type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gm := NewGoogleMetric(tt.record)
+			result, err := gm.GetResourceUUID()
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				assert.Empty(t, result)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGoogleMetric_GetResourceUUID_WithBillingMetricFields(t *testing.T) {
+	tests := []struct {
+		name         string
+		resourceUUID string
+		expected     string
+	}{
+		{
+			name:         "Valid resource UUID",
+			resourceUUID: "123e4567-e89b-12d3-a456-426614174000",
+			expected:     "123e4567-e89b-12d3-a456-426614174000",
+		},
+		{
+			name:         "Different resource UUID",
+			resourceUUID: "987fcdeb-51a2-43d1-b789-123456789abc",
+			expected:     "987fcdeb-51a2-43d1-b789-123456789abc",
+		},
+		{
+			name:         "Empty resource UUID",
+			resourceUUID: "",
+			expected:     "",
+		},
+		{
+			name:         "Short UUID",
+			resourceUUID: "abc123",
+			expected:     "abc123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			record := &datamodel.AggregatedUsage{
+				ResourceUUID: tt.resourceUUID,
+			}
+			gm := NewGoogleMetric(record)
+			result, err := gm.GetResourceUUID()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGoogleMetric_GetResourceUUID_WithHydratedMetricFields(t *testing.T) {
+	tests := []struct {
+		name         string
+		resourceUUID *string
+		expected     string
+	}{
+		{
+			name:         "Valid resource UUID",
+			resourceUUID: stringPtr("123e4567-e89b-12d3-a456-426614174000"),
+			expected:     "123e4567-e89b-12d3-a456-426614174000",
+		},
+		{
+			name:         "Different resource UUID",
+			resourceUUID: stringPtr("987fcdeb-51a2-43d1-b789-123456789abc"),
+			expected:     "987fcdeb-51a2-43d1-b789-123456789abc",
+		},
+		{
+			name:         "Nil resource UUID",
+			resourceUUID: nil,
+			expected:     "",
+		},
+		{
+			name:         "Empty resource UUID",
+			resourceUUID: stringPtr(""),
+			expected:     "",
+		},
+		{
+			name:         "Short UUID",
+			resourceUUID: stringPtr("abc123"),
+			expected:     "abc123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			record := &entity.HydratedMetric{
+				Metadata: metadata.ResourceMetadata{
+					ResourceUUID: tt.resourceUUID,
+				},
+			}
+			gm := NewGoogleMetric(record)
+			result, err := gm.GetResourceUUID()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Helper function to create string pointers for testing
+func stringPtr(s string) *string {
+	return &s
+}

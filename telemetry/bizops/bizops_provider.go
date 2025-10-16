@@ -60,7 +60,7 @@ func (bp *bizOpsProvider) ProcessBizOps(ctx context.Context, logger log.Logger, 
 		logger.Errorf("Failed to get accounts: %v", err)
 		return err
 	}
-	continentMap := getContinentMap(googleContinents)
+	continentMap := GetContinentMap(googleContinents)
 	pr, pw := io.Pipe()
 	bizopsAggrParams := &metricModel.BizOpsAggregateParams{
 		AccountsInfo: accountsInfo,
@@ -131,7 +131,7 @@ func prepareAccountInfo(accounts []*datamodel.Account) []*metricModel.AccountInf
 	return accountsInfo
 }
 
-func getContinentMap(googleContinents string) map[string]string {
+func GetContinentMap(googleContinents string) map[string]string {
 	continentMap := make(map[string]string)
 	entries := strings.Split(googleContinents, ",")
 	for _, entry := range entries {

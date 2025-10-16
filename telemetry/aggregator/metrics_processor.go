@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -32,14 +33,25 @@ type ResourceKey struct {
 type Labels map[string]interface{}
 
 type ResourceData struct {
-	UUID      string
-	AccountID int64
-	Labels    Labels
+	UUID                  string
+	AccountID             int64
+	Labels                Labels
+	VolumeReplicationInfo *VolumeReplicationInfo
+}
+
+type VolumeReplicationInfo struct {
+	ReplicationName       *string
+	ReplicationType       string
+	ReplicationSchedule   string
+	SourceLocation        *string
+	DestinationVolumeUUID *string
+	DestinationLocation   *string
 }
 
 type ResourceCollection struct {
-	PoolData   map[ResourceKey]ResourceData
-	VolumeData map[ResourceKey]ResourceData
+	PoolData              map[ResourceKey]ResourceData
+	VolumeData            map[ResourceKey]ResourceData
+	VolumeReplicationData map[ResourceKey]ResourceData
 }
 
 type BillingProvider struct {
@@ -147,11 +159,12 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 
 	// Create a new ResourceCollection for this aggregation cycle
 	resourceCollection := &ResourceCollection{
-		PoolData:   make(map[ResourceKey]ResourceData),
-		VolumeData: make(map[ResourceKey]ResourceData),
+		PoolData:              make(map[ResourceKey]ResourceData),
+		VolumeData:            make(map[ResourceKey]ResourceData),
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
 	}
 
-	var poolsDataError, volumeDataError error
+	var poolsDataError, volumeDataError, volumeReplicationDataError error
 
 	// Fetch pool labels
 	if err := p.fetchPoolData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
@@ -165,9 +178,17 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 		volumeDataError = err
 	}
 
+	if p.config.EnableReplicationBillingMetrics {
+		if err := p.fetchVolumeReplicationData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
+			logger.Errorf("Failed to fetch volume replication labels: %v", err)
+			volumeReplicationDataError = err
+		}
+	}
+
 	// Log summary of what was successfully fetched
 	poolCount := len(resourceCollection.PoolData)
 	volumeCount := len(resourceCollection.VolumeData)
+	volumeReplicationCount := len(resourceCollection.VolumeReplicationData)
 
 	if poolsDataError != nil && volumeDataError != nil {
 		logger.Errorf("Failed to fetch both pool and volume resource data. Pool error: %v, Volume error: %v", poolsDataError, volumeDataError)
@@ -176,8 +197,10 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 		logger.Warnf("Failed to fetch pool resource data: %v, but successfully fetched %d volume resource data", poolsDataError, volumeCount)
 	} else if volumeDataError != nil {
 		logger.Warnf("Failed to fetch volume resource data: %v, but successfully fetched %d pool resource data", volumeDataError, poolCount)
+	} else if volumeReplicationDataError != nil {
+		logger.Warnf("Failed to fetch volume replication resource data: %v, but successfully fetched %d pool and %d volume resource data", volumeReplicationDataError, poolCount, volumeCount)
 	} else {
-		logger.Infof("Successfully fetched resource data for %d pools and %d volumes", poolCount, volumeCount)
+		logger.Infof("Successfully fetched resource data for %d pools, %d volumes, %d volume replication", poolCount, volumeCount, volumeReplicationCount)
 	}
 
 	return resourceCollection, nil
@@ -344,6 +367,92 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 	return nil
 }
 
+// fetchVolumeReplicationData fetches labels from volume replication table using pagination
+func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
+	logger := util.GetLogger(ctx)
+
+	conditions := [][]interface{}{
+		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
+	}
+
+	offset := 0
+	// Use configurable limit from config
+	limit := p.config.PoolVolumeLabelPageSize
+	totalProcessed := 0
+	batchCount := 0
+
+	for {
+		// Create pagination with offset and limit
+		pagination := &dbutils.Pagination{
+			Offset: offset,
+			Limit:  limit,
+		}
+
+		// Fetch paginated volume replications using ListVolumeReplicationsWithPagination
+		volumeReplications, err := p.vcpDataStore.ListVolumeReplicationsWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			return fmt.Errorf("failed to list volume replications (offset %d): %w", offset, err)
+		}
+
+		// Break if no records returned
+		if len(volumeReplications) == 0 {
+			break
+		}
+
+		// Process current batch
+		for _, volumeReplication := range volumeReplications {
+			// Skip volume replications with nil Account to prevent panic
+			if volumeReplication.Account == nil {
+				logger.Warnf("Skipping volume replication %s (%s) due to nil Account relationship", volumeReplication.Name, volumeReplication.UUID)
+				continue
+			}
+
+			var limitedLabels Labels
+			var volRepInfo *VolumeReplicationInfo
+			if volumeReplication.ReplicationAttributes != nil {
+				if volumeReplication.ReplicationAttributes.Labels != nil {
+					limitedLabels = p.limitLabels(volumeReplication.ReplicationAttributes.Labels)
+				} else {
+					limitedLabels = make(Labels)
+				}
+				volRepInfo = &VolumeReplicationInfo{
+					ReplicationName:       &volumeReplication.Name,
+					ReplicationSchedule:   volumeReplication.ReplicationAttributes.ReplicationSchedule,
+					ReplicationType:       volumeReplication.ReplicationAttributes.ReplicationType,
+					SourceLocation:        &volumeReplication.ReplicationAttributes.SourceLocation,
+					DestinationVolumeUUID: &volumeReplication.ReplicationAttributes.DestinationVolumeUUID,
+					DestinationLocation:   &volumeReplication.ReplicationAttributes.DestinationLocation,
+				}
+			}
+
+			volumeReplicationResourceData := ResourceData{
+				UUID:                  volumeReplication.UUID,
+				AccountID:             volumeReplication.AccountID,
+				Labels:                limitedLabels,
+				VolumeReplicationInfo: volRepInfo,
+			}
+			id := ResourceKey{
+				ResourceType:   metadata.VolumeReplicationRelationship,
+				ResourceName:   volumeReplication.ReplicationAttributes.ExternalUUID,
+				DeploymentName: volumeReplication.Volume.Pool.DeploymentName,
+				ConsumerID:     volumeReplication.Account.Name,
+			}
+			logger.Infof("Volume Replication name %s", volumeReplication.Name)
+			resourceCollection.VolumeReplicationData[id] = volumeReplicationResourceData
+		}
+
+		totalProcessed += len(volumeReplications)
+		batchCount++
+		logger.Debugf("Processed %d volume replications in batch %d (offset: %d, total: %d)", len(volumeReplications), batchCount, offset, totalProcessed)
+
+		// Update offset for next iteration
+		offset += limit
+	}
+
+	logger.Infof("Fetched resource data for %d volume replications in %d batches", len(resourceCollection.VolumeReplicationData), batchCount)
+	return nil
+}
+
 // limitLabels limits the number of labels to the configured maximum
 func (p *BillingProvider) limitLabels(labels *datamodel.JSONB) Labels {
 	if labels == nil {
@@ -379,6 +488,8 @@ func (p *BillingProvider) getResourceDataForAggregationUsage(id ResourceKey, res
 		resourceData, found = resourceCollection.PoolData[id]
 	case metadata.VolumeRegionalHA:
 		resourceData, found = resourceCollection.VolumeData[id]
+	case metadata.VolumeReplicationRelationship:
+		resourceData, found = resourceCollection.VolumeReplicationData[id]
 	default:
 		return nil
 	}
@@ -608,6 +719,18 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		AggregationType:        string(jobDef.AggregationType),
 		ServiceLevel:           unifiedServiceType,
 	}
+	if aggregated.ResourceType == metadata.VolumeReplicationRelationship {
+		if resourceData.VolumeReplicationInfo != nil {
+			aggregated.ServiceLevel = setServiceLevelForCRR(resourceData.VolumeReplicationInfo.ReplicationSchedule)
+			aggregated.ResourceName = resourceData.VolumeReplicationInfo.ReplicationName
+			aggregated.SourceRegion = resourceData.VolumeReplicationInfo.SourceLocation
+			aggregated.DestinationRegion = resourceData.VolumeReplicationInfo.DestinationLocation
+			aggregated.ReplicationDstVolumeID = resourceData.VolumeReplicationInfo.DestinationVolumeUUID
+			aggregated.ReplicationType = resourceData.VolumeReplicationInfo.ReplicationType
+		} else {
+			logger.Infof("No resourceData found for resource name %s, deployment name :%s", resourceKey.ResourceName, resourceKey.DeploymentName)
+		}
+	}
 
 	logger.Debugf("Processing metrics for resource %s and customer id %s with aggregation type %s and %s", resourceKey.ResourceName, resourceKey.ConsumerID, jobDef.AggregationType, aggregated)
 	// Format labels for better readability
@@ -667,4 +790,17 @@ func (p *BillingProvider) getUnsentGoogleUsages(ctx context.Context, maxRetries 
 func BytesToMiB(bytes float64) float64 {
 	const bytesInMiB = 1024 * 1024 // 1024^2
 	return bytes / float64(bytesInMiB)
+}
+
+func setServiceLevelForCRR(schedule string) string {
+	switch schedule {
+	case vsa.VolumeReplicationSchedule10Minutely:
+		return "1"
+	case vsa.VolumeReplicationScheduleHourly:
+		return "2"
+	case vsa.VolumeReplicationScheduleDaily:
+		return "3"
+	default:
+		return ""
+	}
 }

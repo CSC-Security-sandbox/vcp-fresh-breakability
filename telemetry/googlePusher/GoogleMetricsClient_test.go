@@ -812,16 +812,45 @@ func Test_GetLabelValue(t *testing.T) {
 		}
 		googleMetric := *common.NewGoogleMetric(hydratedM)
 
+		getResourceUUID = func(m common.GoogleMetric) (string, error) {
+			return "dummy-uuid", nil
+		}
+
+		getFrequency = func(serviceLevel string) string {
+			return "hourly"
+		}
+
+		getReplicationType = func(m common.GoogleMetric) (string, error) {
+			return "CROSS_REGION_REPLICATION", nil
+		}
+
+		getSourceRegion = func(m common.GoogleMetric) (string, error) {
+			return "us-east4", nil
+		}
+
+		getDestinationRegion = func(m common.GoogleMetric) (string, error) {
+			return "us-central1", nil
+		}
+
+		getServiceLevel = func(m common.GoogleMetric) (string, error) {
+			return "1", nil
+		}
+
+		getContinent = func(region string) string {
+			return "continent"
+		}
+
 		tests := []struct {
 			key      string
 			expected string
 		}{
-			{"/resource_id", "dummyLabelValue"},
-			{"/replication/frequency", "dummyLabelValue"},
-			{"/replication/source_continent", "dummyLabelValue"},
-			{"/replication/destination_continent", "dummyLabelValue"},
-			{"/replication/source_service_level", "dummyLabelValue"},
-			{"/replication/destination_service_level", "dummyLabelValue"},
+			{"/resource_id", "dummy-uuid"},
+			{"/replication/frequency", "hourly"},
+			{"/replication/source_continent", "continent"},
+			{"/replication/destination_continent", "continent"},
+			{"/replication/source_service_level", ""},
+			{"/replication/destination_service_level", ""},
+			{"/replication/replication_type", "CROSS_REGION_REPLICATION"},
 			{"/unknown_key", ""},
 		}
 
@@ -867,7 +896,7 @@ func Test_GetLabelKey(t *testing.T) {
 		googleMetric := *common.NewGoogleMetric(hydratedM)
 
 		result := GetLabelKey(googleMetric)
-		expected := []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level"}
+		expected := []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level", "/replication/replication_type"}
 		assert.Equal(t, expected, result)
 	})
 
@@ -2123,4 +2152,87 @@ func TestRegionalHAMetricNameGeneration(t *testing.T) {
 
 	// Log that these combinations are not yet supported
 	t.Log("VolumeRegionalHA and Volume with AllocatedSize combinations are not yet supported in the current implementation")
+}
+
+func Test_getFrequency(t *testing.T) {
+	tests := []struct {
+		name         string
+		serviceLevel string
+		expected     string
+	}{
+		{
+			name:         "service level 1 should return 10minutely schedule",
+			serviceLevel: "1",
+			expected:     "10minutely",
+		},
+		{
+			name:         "service level 2 should return hourly schedule",
+			serviceLevel: "2",
+			expected:     "hourly",
+		},
+		{
+			name:         "service level 3 should return daily schedule",
+			serviceLevel: "3",
+			expected:     "daily",
+		},
+		{
+			name:         "unknown service level should return empty string",
+			serviceLevel: "4",
+			expected:     "",
+		},
+		{
+			name:         "empty service level should return empty string",
+			serviceLevel: "",
+			expected:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := _getFrequency(tt.serviceLevel)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func Test_getContinent_ContinentMapIntegration(t *testing.T) {
+	t.Run("location empty", func(tt *testing.T) {
+		result := _getContinent("")
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("when invalid location", func(tt *testing.T) {
+		result := _getContinent("invalid-location-a-b-c")
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("location us-central1", func(tt *testing.T) {
+		result := _getContinent("us-central1")
+		assert.Equal(t, "northamerica", result)
+	})
+
+	t.Run("location us-east4", func(tt *testing.T) {
+		result := _getContinent("us-east4")
+		assert.Equal(t, "northamerica", result)
+	})
+
+	t.Run("location eu-west1", func(tt *testing.T) {
+		result := _getContinent("eu-west1")
+		assert.Equal(t, "europe", result)
+	})
+
+	t.Run("special case indonesia", func(tt *testing.T) {
+		result := _getContinent("asia-southeast2")
+		assert.Equal(t, "indonesia", result)
+	})
+
+	t.Run("verify continent map integration", func(tt *testing.T) {
+		getContinentMap = func(continents string) map[string]string {
+			return map[string]string{
+				"australia": "oceania",
+			}
+		}
+		result := _getContinent("australia-southeast1")
+		assert.Equal(t, "oceania", result)
+	})
 }
