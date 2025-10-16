@@ -50,6 +50,69 @@ func TestIsTransientErr_GenericTransient(t *testing.T) {
 	}
 }
 
+func TestIsTransientErr_UnexpectedEOFCaseInsensitive(t *testing.T) {
+	tests := []struct {
+		name     string
+		errorMsg string
+	}{
+		{"lowercase", "unexpected eof"},
+		{"uppercase", "UNEXPECTED EOF"},
+		{"mixed case", "Unexpected Eof"},
+		{"in sentence", "Connection failed: unexpected EOF encountered"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := errors.New(tt.errorMsg)
+			if !IsTransientErr(err) {
+				t.Errorf("Expected true for error message: %s", tt.errorMsg)
+			}
+		})
+	}
+}
+
+func TestIsTransientErr_ConnectionResetByPeer(t *testing.T) {
+	tests := []struct {
+		name     string
+		errorMsg string
+	}{
+		{"lowercase", "connection reset by peer"},
+		{"uppercase", "CONNECTION RESET BY PEER"},
+		{"mixed case", "Connection Reset By Peer"},
+		{"in sentence", "Failed to read: connection reset by peer"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := errors.New(tt.errorMsg)
+			if !IsTransientErr(err) {
+				t.Errorf("Expected true for error message: %s", tt.errorMsg)
+			}
+		})
+	}
+}
+
+func TestIsTransientErr_ContextCanceled(t *testing.T) {
+	tests := []struct {
+		name     string
+		errorMsg string
+	}{
+		{"lowercase", "context canceled"},
+		{"uppercase", "CONTEXT CANCELED"},
+		{"mixed case", "Context Canceled"},
+		{"in sentence", "Operation failed: context canceled by user"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := errors.New(tt.errorMsg)
+			if !IsTransientErr(err) {
+				t.Errorf("Expected true for error message: %s", tt.errorMsg)
+			}
+		})
+	}
+}
+
 func TestIsTransientErr_NonTransient(t *testing.T) {
 	err := errors.New("some permanent failure")
 	if IsTransientErr(err) {

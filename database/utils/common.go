@@ -45,20 +45,32 @@ func IsTransientErr(err error) bool {
 		return isTransient
 	}
 
-	// Handle generic errors
-	if strings.Contains(err.Error(), "dial error") {
+	// Get error message once for efficiency
+	errMsgLower := strings.ToLower(e.Error())
+
+	// Case-insensitive checks using pre-lowercased string
+	if strings.Contains(errMsgLower, "dial error") {
 		return true
 	}
-	if strings.Contains(err.Error(), "invalid connection") {
+	if strings.Contains(errMsgLower, "invalid connection") {
 		return true
 	}
-	if strings.Contains(strings.ToLower(err.Error()), "unexpected eof") {
+
+	if strings.Contains(errMsgLower, "unexpected eof") {
 		return true
 	}
+	if strings.Contains(errMsgLower, "connection reset by peer") {
+		return true
+	}
+	if strings.Contains(errMsgLower, "context canceled") {
+		return true
+	}
+
+	// Check for Postgres error codes in error message
 	for errorCode := range transientErrorCodes {
 		if strings.Contains(err.Error(), errorCode) {
 			return true
-		}
+		} // Not safe to use lowercased string here
 	}
 
 	return false
