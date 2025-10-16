@@ -206,6 +206,72 @@ func (_c *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call) RunAndRetu
 	return _c
 }
 
+// CreateActiveDirectory provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CreateActiveDirectory(ctx context.Context, params *common.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateActiveDirectory")
+	}
+
+	var r0 *models.ActiveDirectory
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateActiveDirectoryParams) *models.ActiveDirectory); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateActiveDirectoryParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.CreateActiveDirectoryParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_CreateActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateActiveDirectory'
+type MockOrchestratorFactory_CreateActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// CreateActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.CreateActiveDirectoryParams
+func (_e *MockOrchestratorFactory_Expecter) CreateActiveDirectory(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateActiveDirectory_Call {
+	return &MockOrchestratorFactory_CreateActiveDirectory_Call{Call: _e.mock.On("CreateActiveDirectory", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CreateActiveDirectory_Call) Run(run func(ctx context.Context, params *common.CreateActiveDirectoryParams)) *MockOrchestratorFactory_CreateActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.CreateActiveDirectoryParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateActiveDirectory_Call) Return(_a0 *models.ActiveDirectory, _a1 string, _a2 error) *MockOrchestratorFactory_CreateActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateActiveDirectory_Call) RunAndReturn(run func(context.Context, *common.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error)) *MockOrchestratorFactory_CreateActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAndSyncKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateAndSyncKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, error) {
 	ret := _m.Called(ctx, params)

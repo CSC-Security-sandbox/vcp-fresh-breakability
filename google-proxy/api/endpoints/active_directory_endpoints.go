@@ -1,114 +1,134 @@
 package api
 
 import (
+	// Standard library imports
 	"context"
+	"encoding/json"
+	"net/http"
 	"time"
 
+	// Third-party and local imports
+	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	vcpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var createClient = cvp.CreateClient
 
-func (h Handler) V1betaCreateActiveDirectory(ctx context.Context, req *gcpgenserver.ActiveDirectoryV1beta, params gcpgenserver.V1betaCreateActiveDirectoryParams) (r gcpgenserver.V1betaCreateActiveDirectoryRes, _ error) {
-	logger := util.GetLogger(ctx)
+// PasswordMask defines the mask used when logging out a password
+const (
+	PasswordMask = "******************"
+	UsernameMask = "******************"
+)
+
+func (h Handler) V1betaCreateActiveDirectory(
+	ctx context.Context,
+	req *gcpgenserver.ActiveDirectoryV1beta,
+	params gcpgenserver.V1betaCreateActiveDirectoryParams,
+) (gcpgenserver.V1betaCreateActiveDirectoryRes, error) {
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	body := &models.ActiveDirectoryV1beta{
-		DNS:                        &req.DNS,
-		Domain:                     &req.Domain,
-		NetBIOS:                    &req.NetBIOS,
-		Username:                   &req.Username,
-		Password:                   &req.Password,
-		ResourceID:                 &req.ResourceId,
-		Administrators:             req.Administrators,
-		SecurityOperators:          req.SecurityOperators,
-		AesEncryption:              &req.AesEncryption.Value,
-		AllowLocalNFSUsersWithLdap: &req.AllowLocalNFSUsersWithLdap.Value,
-		BackupOperators:            req.BackupOperators,
-		Description:                &req.Description.Value,
-		EncryptDCConnections:       &req.EncryptDCConnections.Value,
-		KdcIP:                      req.KdcIP.Value,
-		KdcHostname:                req.KdcHostname.Value,
-		Site:                       &req.Site.Value,
-		LdapSigning:                &req.LdapSigning.Value,
-		OrganizationalUnit:         &req.OrganizationalUnit.Value,
+
+	param := common.CreateActiveDirectoryParams{
+		AccountId:                   params.ProjectNumber,
+		Username:                    req.Username,
+		ResourceId:                  req.ResourceId,
+		Description:                 req.Description.Value,
+		Password:                    req.Password,
+		Domain:                      req.Domain,
+		DNS:                         req.DNS,
+		NetBIOS:                     req.NetBIOS,
+		OrganizationalUnit:          req.OrganizationalUnit.Value,
+		Site:                        req.Site.Value,
+		KdcIP:                       req.KdcIP.Value,
+		KdcHostname:                 req.KdcHostname.Value,
+		ActiveDirectoryStateDetails: req.ActiveDirectoryStateDetails.Value,
+		LdapSigning:                 req.LdapSigning.Value,
+		AllowLocalNFSUsersWithLdap:  req.AllowLocalNFSUsersWithLdap.Value,
+		EncryptDCConnections:        req.EncryptDCConnections.Value,
+		SecurityOperators:           req.SecurityOperators,
+		BackupOperators:             req.BackupOperators,
+		Administrators:              req.Administrators,
+		AesEncryption:               req.AesEncryption.Value,
 	}
-	createParams := &active_directories.V1betaCreateActiveDirectoryParams{
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: &params.XCorrelationID.Value,
-		Body:           body,
-	}
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-	created, err := cvpClient.ActiveDirectories.V1betaCreateActiveDirectory(createParams)
+
+	ad, jobUUID, err := h.Orchestrator.CreateActiveDirectory(ctx, &param)
 	if err != nil {
-		switch e := err.(type) {
-		case *active_directories.V1betaCreateActiveDirectoryUnprocessableEntity:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCreateActiveDirectoryUnprocessableEntity{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaCreateActiveDirectoryConflict:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCreateActiveDirectoryConflict{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaCreateActiveDirectoryBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+		if errors.IsUserInputValidationErr(err) {
 			return &gcpgenserver.V1betaCreateActiveDirectoryBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaCreateActiveDirectoryUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCreateActiveDirectoryUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-
-		case *active_directories.V1betaCreateActiveDirectoryForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCreateActiveDirectoryForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-
-		case *active_directories.V1betaCreateActiveDirectoryTooManyRequests:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCreateActiveDirectoryTooManyRequests{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaCreateActiveDirectoryDefault:
-			return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
-				Code:    500,
+				Code:    http.StatusBadRequest,
 				Message: err.Error(),
 			}, nil
 		}
-	}
-	if created == nil || created.Payload == nil {
 		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
-			Code:    500,
-			Message: "unknown error during the create active directory",
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
 		}, nil
 	}
-	response := convertOperationToOperationV1Beta(created.Payload)
-	return response, nil
+
+	resp, err := encodeActiveDirectoryV1(convertToActiveDirectoryV1Beta(ad))
+	if err != nil {
+		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{}, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber +
+		"/locations/" + params.LocationId +
+		"/operations/" + jobUUID
+
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(false),
+	}, nil
+}
+
+func convertToActiveDirectoryV1Beta(
+	ad *vcpModels.ActiveDirectory,
+) *gcpgenserver.ActiveDirectoryV1beta {
+	return &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryId:           gcpgenserver.NewOptString(ad.UUID),
+		ResourceId:                  ad.AdName,
+		Username:                    UsernameMask,
+		Password:                    PasswordMask,
+		Description:                 gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.Description),
+		Domain:                      ad.Domain,
+		DNS:                         ad.DNS,
+		NetBIOS:                     ad.NetBIOS,
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(mapActiveDirectoryState(ad.State)),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(ad.StateDetails),
+		CreatedAt:                   gcpgenserver.NewOptDateTime(ad.CreatedAt),
+		UpdatedAt:                   gcpgenserver.NewOptDateTime(ad.UpdatedAt),
+		SecurityOperators:           ad.ActiveDirectoryAttributes.SecurityOperators,
+		BackupOperators:             ad.ActiveDirectoryAttributes.BackupOperators,
+		Administrators:              ad.ActiveDirectoryAttributes.Administrators,
+		AesEncryption:               gcpgenserver.NewOptBool(ad.ActiveDirectoryAttributes.AesEncryption),
+		AllowLocalNFSUsersWithLdap:  gcpgenserver.NewOptBool(ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap),
+		EncryptDCConnections:        gcpgenserver.NewOptBool(ad.ActiveDirectoryAttributes.EncryptDCConnections),
+		LdapSigning:                 gcpgenserver.NewOptBool(ad.ActiveDirectoryAttributes.LdapSigning),
+		OrganizationalUnit:          gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.OrganizationalUnit),
+		Site:                        gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.Site),
+		KdcIP:                       gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.KdcIP),
+		KdcHostname:                 gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.KdcHostname),
+	}
+}
+
+// encodeActiveDirectoryV1 encodes an ActiveDirectoryV1beta struct to JSON.
+func encodeActiveDirectoryV1(
+	pool *gcpgenserver.ActiveDirectoryV1beta,
+) (jx.Raw, error) {
+	data, err := json.Marshal(pool)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func (h Handler) V1betaDeleteActiveDirectory(ctx context.Context, params gcpgenserver.V1betaDeleteActiveDirectoryParams) (r gcpgenserver.V1betaDeleteActiveDirectoryRes, _ error) {
@@ -498,4 +518,19 @@ func convertToADV1Beta(ad *models.ActiveDirectoryV1beta) gcpgenserver.ActiveDire
 		adResponse.KdcHostname = gcpgenserver.NewOptString(ad.KdcHostname)
 	}
 	return adResponse
+}
+
+func mapActiveDirectoryState(state string) gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState {
+	switch state {
+	case "CREATING":
+		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING
+	case "READY":
+		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY
+	case "DELETING":
+		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateDELETING
+	case "ERROR":
+		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR
+	default:
+		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
+	}
 }

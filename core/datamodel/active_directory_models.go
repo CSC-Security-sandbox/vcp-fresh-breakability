@@ -28,6 +28,7 @@ type ActiveDirectoryAttributes struct {
 	SvmIds                        []string            `json:"svm_ids"`
 	AdUsers                       map[string][]string `json:"ad_users"`
 	KdcIP                         string              `json:"kdc_ip"`
+	KdcHostname                   string              `json:"kdc_hostname"`
 	UserDN                        string              `json:"user_dn"`
 	GroupDN                       string              `json:"group_dn"`
 	GroupMembershipFilter         string              `json:"group_membership_filter"`

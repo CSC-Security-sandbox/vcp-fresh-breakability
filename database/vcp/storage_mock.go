@@ -672,6 +672,65 @@ func (_c *MockStorage_CreateAccount_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
+// CreateActiveDirectory provides a mock function with given fields: ctx, ad
+func (_m *MockStorage) CreateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
+	ret := _m.Called(ctx, ad)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateActiveDirectory")
+	}
+
+	var r0 *datamodel.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)); ok {
+		return rf(ctx, ad)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ActiveDirectory) *datamodel.ActiveDirectory); ok {
+		r0 = rf(ctx, ad)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.ActiveDirectory) error); ok {
+		r1 = rf(ctx, ad)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateActiveDirectory'
+type MockStorage_CreateActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// CreateActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ad *datamodel.ActiveDirectory
+func (_e *MockStorage_Expecter) CreateActiveDirectory(ctx interface{}, ad interface{}) *MockStorage_CreateActiveDirectory_Call {
+	return &MockStorage_CreateActiveDirectory_Call{Call: _e.mock.On("CreateActiveDirectory", ctx, ad)}
+}
+
+func (_c *MockStorage_CreateActiveDirectory_Call) Run(run func(ctx context.Context, ad *datamodel.ActiveDirectory)) *MockStorage_CreateActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ActiveDirectory))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateActiveDirectory_Call) Return(_a0 *datamodel.ActiveDirectory, _a1 error) *MockStorage_CreateActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateActiveDirectory_Call) RunAndReturn(run func(context.Context, *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)) *MockStorage_CreateActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAdminJobSpec provides a mock function with given fields: ctx, jobSpec
 func (_m *MockStorage) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	ret := _m.Called(ctx, jobSpec)
@@ -3829,6 +3888,66 @@ func (_c *MockStorage_GetAccounts_Call) Return(_a0 []*datamodel.Account, _a1 err
 }
 
 func (_c *MockStorage_GetAccounts_Call) RunAndReturn(run func(context.Context, bool, *utils.Pagination) ([]*datamodel.Account, error)) *MockStorage_GetAccounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetActiveDirectoryByNameAndAccountID provides a mock function with given fields: ctx, name, accountID
+func (_m *MockStorage) GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error) {
+	ret := _m.Called(ctx, name, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActiveDirectoryByNameAndAccountID")
+	}
+
+	var r0 *datamodel.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.ActiveDirectory, error)); ok {
+		return rf(ctx, name, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.ActiveDirectory); ok {
+		r0 = rf(ctx, name, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, name, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetActiveDirectoryByNameAndAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveDirectoryByNameAndAccountID'
+type MockStorage_GetActiveDirectoryByNameAndAccountID_Call struct {
+	*mock.Call
+}
+
+// GetActiveDirectoryByNameAndAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetActiveDirectoryByNameAndAccountID(ctx interface{}, name interface{}, accountID interface{}) *MockStorage_GetActiveDirectoryByNameAndAccountID_Call {
+	return &MockStorage_GetActiveDirectoryByNameAndAccountID_Call{Call: _e.mock.On("GetActiveDirectoryByNameAndAccountID", ctx, name, accountID)}
+}
+
+func (_c *MockStorage_GetActiveDirectoryByNameAndAccountID_Call) Run(run func(ctx context.Context, name string, accountID int64)) *MockStorage_GetActiveDirectoryByNameAndAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetActiveDirectoryByNameAndAccountID_Call) Return(_a0 *datamodel.ActiveDirectory, _a1 error) *MockStorage_GetActiveDirectoryByNameAndAccountID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetActiveDirectoryByNameAndAccountID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.ActiveDirectory, error)) *MockStorage_GetActiveDirectoryByNameAndAccountID_Call {
 	_c.Call.Return(run)
 	return _c
 }

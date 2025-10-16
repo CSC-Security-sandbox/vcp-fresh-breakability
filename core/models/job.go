@@ -120,6 +120,7 @@ const (
 	JobTypeUpdateBackup                      JobType = "UPDATE_BACKUP"
 	JobTypeUpdateBackupPolicy                JobType = "UPDATE_BACKUP_POLICY"
 	JobTypeDeleteBackupPolicy                JobType = "DELETE_BACKUP_POLICY"
+	JobTypeCreateActiveDirectory             JobType = "CREATE_ACTIVE_DIRECTORY"
 )
 
 // GetResourceJobType returns the appropriate job type based on the resource type, operation, and pool category

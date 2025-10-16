@@ -1226,3 +1226,11 @@ func (s *PersistenceStore) GetEligibleVolumes(ctx context.Context, conditions []
 func (s *PersistenceStore) UpdateBackupConstituentCountFromVolume(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) (*datamodel.Backup, error) {
 	return s.dataStore.UpdateBackupConstituentCountFromVolume(ctx, backup, volume)
 }
+
+func (s *PersistenceStore) CreateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
+	return s.dataStore.CreateActiveDirectory(ctx, ad)
+}
+
+func (s *PersistenceStore) GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error) {
+	return s.dataStore.GetActiveDirectoryByNameAndAccountID(ctx, name, accountID)
+}

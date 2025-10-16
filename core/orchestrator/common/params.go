@@ -649,3 +649,31 @@ type EstablishVolumePeeringParams struct {
 	PeerVolumeName  string
 	Passphrase      string
 }
+
+type CreateActiveDirectoryParams struct {
+	AccountId                   string
+	ActiveDirectoryId           string
+	Username                    string `json:"Username" validate:"Username"`
+	ResourceId                  string `json:"ResourceId" validate:"ResourceId"`
+	Password                    string
+	Domain                      string
+	DNS                         string `json:"DNS" validate:"DNS"`
+	NetBIOS                     string `json:"netBIOS" validate:"NetBIOS"`
+	OrganizationalUnit          string `json:"organizationalUnit" validate:"OrganizationalUnit"`
+	Site                        string `json:"Site" validate:"Site"`
+	KdcIP                       string
+	KdcHostname                 string
+	ActiveDirectoryState        string
+	ActiveDirectoryStateDetails string
+	CreatedAt                   time.Time
+	UpdatedAt                   time.Time
+	DeletedAt                   time.Time
+	LdapSigning                 bool
+	AllowLocalNFSUsersWithLdap  bool
+	EncryptDCConnections        bool
+	SecurityOperators           []string `json:"securityOperators" validate:"SecurityOperators"`
+	BackupOperators             []string `json:"backupOperators" validate:"BackupOperators"`
+	Administrators              []string `json:"administrators" validate:"Administrators"`
+	AesEncryption               bool
+	Description                 string
+}
