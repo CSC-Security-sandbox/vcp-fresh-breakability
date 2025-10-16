@@ -28,13 +28,19 @@ var (
 	globalHostGroupName = "hg" + strconv.FormatInt(time.Now().Unix(), 10)
 	globalVolumeName    = "v" + strconv.FormatInt(time.Now().Unix(), 10)
 	globalSnapshotName  = "s" + strconv.FormatInt(time.Now().Unix(), 10)
+	// NFS volume specific variables
+	globalNFSVolumeName = "nfsv" + strconv.FormatInt(time.Now().Unix(), 10)
+	globalCreationToken = "policy" + strconv.FormatInt(time.Now().Unix(), 10)
 	globalNetwork       = fmt.Sprintf("projects/%s/global/networks/%s", globalProjectNumber, vpcName)
 	globalPoolUUID      = ""
 	globalHostGroupUUID = ""
 	globalVolumeUUID    = ""
 	globalSnapshotUUID  = ""
-	defaultPoolSize     = 2199023255552 // 2 TiB
-	defaultVolumeSize   = 107374182400  // 100 GiB
+	// NFS specific UUIDs
+	globalNFSVolumeUUID  = ""
+	defaultPoolSize      = 2199023255552 // 2 TiB
+	defaultVolumeSize    = 107374182400  // 100 GiB
+	defaultNFSVolumeSize = 1073741824    // 1 GiB for NFS testing
 )
 
 // getEnvOrDefault retrieves the value of an environment variable or returns a default value if the variable is not set or empty.
@@ -192,7 +198,7 @@ func TestUpdatePoolAndWaitForCompletion(t *testing.T) {
 		OperationId:   operationID,
 	}
 
-	done := pollOperationDone(t, client, ctx, describeParams, 50, 30*time.Second)
+	done := pollOperationDone(t, client, ctx, describeParams, 120, 30*time.Second)
 	require.True(t, done, "operation did not complete in time")
 }
 
@@ -521,6 +527,185 @@ func TestDeleteVolumeAndWaitForCompletion(t *testing.T) {
 	}
 	done := pollOperationDone(t, client, ctx, describeParams, 20, 30*time.Second)
 	require.True(t, done, "operation did not complete in time")
+}
+
+// NFS Volume Tests
+
+func TestCreateNFSVolumeAndWaitForCompletion(t *testing.T) {
+	ctx := context.Background()
+	client := getTestClient(t)
+
+	params := googleproxyclient.V1betaCreateVolumeParams{
+		ProjectNumber: globalProjectNumber,
+		LocationId:    globalLocationId,
+	}
+	volumeReq := &googleproxyclient.VolumeCreateV1beta{
+		Volume: googleproxyclient.VolumeV1beta{
+			ResourceId:    globalNFSVolumeName,
+			CreationToken: googleproxyclient.OptString{Value: globalCreationToken, Set: true},
+			PoolId:        googleproxyclient.NilString{Value: globalPoolUUID, Null: false},
+			QuotaInBytes:  googleproxyclient.OptFloat64{Value: float64(defaultNFSVolumeSize), Set: true},
+			Description:   googleproxyclient.OptNilString{Value: "NFS test volume", Set: true},
+			Protocols:     []googleproxyclient.ProtocolsV1beta{googleproxyclient.ProtocolsV1betaNFSV3},
+			ExportPolicy: googleproxyclient.OptExportPolicyV1beta{
+				Value: googleproxyclient.ExportPolicyV1beta{
+					Rules: []googleproxyclient.SimpleExportPolicyRuleV1beta{
+						{
+							AccessType:     googleproxyclient.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+							AllowedClients: "0.0.0.0/0",
+							Nfsv3:          googleproxyclient.OptNilBool{Value: true, Set: true},
+							Nfsv4:          googleproxyclient.OptNilBool{Value: false, Set: true},
+						},
+					},
+				},
+				Set: true,
+			},
+			StorageClass: googleproxyclient.OptStorageClassV1beta{
+				Value: googleproxyclient.StorageClassV1betaSOFTWARE,
+				Set:   true,
+			},
+		},
+		VolumeType: googleproxyclient.OptVolumeCreateV1betaVolumeType{Value: googleproxyclient.VolumeCreateV1betaVolumeTypePRIMARY, Set: true},
+	}
+
+	res, err := client.V1betaCreateVolume(ctx, volumeReq, params)
+	log.Printf("CreateNFSVolume response: %+v, err: %v", res, err)
+	require.NoError(t, err)
+	operation, ok := res.(*googleproxyclient.OperationV1beta)
+	require.True(t, ok, "expected OperationV1beta, got %T", res)
+	operationID := extractOperationID(operation.GetName().Value)
+
+	var volumeV1beta gcpgenserver.VolumeV1beta
+	err = json.Unmarshal(operation.GetResponse(), &volumeV1beta)
+	if err != nil {
+		log.Printf("Error unmarshalling VolumeV1beta: %v", err)
+		require.Fail(t, "Failed to unmarshal VolumeV1beta")
+		return
+	}
+	globalNFSVolumeUUID = volumeV1beta.VolumeId.Value
+
+	require.NotEmpty(t, operationID)
+
+	describeParams := googleproxyclient.V1betaDescribeOperationParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		OperationId:   operationID,
+	}
+	done := pollOperationDone(t, client, ctx, describeParams, 20, 30*time.Second)
+
+	require.True(t, done, "NFS volume creation operation did not complete in time")
+}
+
+func TestGetNFSVolume(t *testing.T) {
+	ctx := context.Background()
+	client := getTestClient(t)
+
+	params := googleproxyclient.V1betaDescribeVolumeParams{
+		ProjectNumber: globalProjectNumber,
+		LocationId:    globalLocationId,
+		VolumeId:      globalNFSVolumeUUID,
+	}
+
+	res, err := client.V1betaDescribeVolume(ctx, params)
+	log.Printf("GetNFSVolume response: %+v, err: %v", res, err)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	volume, ok := res.(*googleproxyclient.VolumeV1beta)
+	require.True(t, ok, "expected VolumeV1beta, got %T", res)
+	require.Equal(t, globalNFSVolumeUUID, volume.VolumeId.Value)
+	require.Equal(t, globalNFSVolumeName, volume.ResourceId)
+	require.Equal(t, globalCreationToken, volume.CreationToken.Value)
+	require.Equal(t, googleproxyclient.VolumeV1betaVolumeStateREADY, volume.VolumeState.Value)
+	require.Equal(t, googleproxyclient.StorageClassV1betaSOFTWARE, volume.StorageClass.Value)
+	require.Equal(t, googleproxyclient.VolumeV1betaServiceLevelFLEX, volume.ServiceLevel.Value)
+	require.Equal(t, "Available for use", volume.VolumeStateDetails.Value)
+	require.Equal(t, float64(defaultNFSVolumeSize), volume.QuotaInBytes.Value)
+	require.Contains(t, volume.Protocols, googleproxyclient.ProtocolsV1betaNFSV3)
+
+	// Validate export policy
+	require.True(t, volume.ExportPolicy.Set)
+	require.Len(t, volume.ExportPolicy.Value.Rules, 1)
+	rule := volume.ExportPolicy.Value.Rules[0]
+	require.Equal(t, googleproxyclient.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE, rule.AccessType)
+	require.Equal(t, "0.0.0.0/0", rule.AllowedClients)
+	require.True(t, rule.Nfsv3.Value)
+	require.False(t, rule.Nfsv4.Value)
+}
+
+func TestUpdateNFSVolumeAndWaitForCompletion(t *testing.T) {
+	ctx := context.Background()
+	client := getTestClient(t)
+
+	newCreationToken := "newtoken" + strconv.FormatInt(time.Now().Unix(), 10)
+	newSize := int64(2147483648) // 2 GiB
+
+	params := googleproxyclient.V1betaUpdateVolumeParams{
+		ProjectNumber: globalProjectNumber,
+		LocationId:    globalLocationId,
+		VolumeId:      globalNFSVolumeUUID,
+	}
+	volumeReq := &googleproxyclient.VolumeUpdateV1beta{
+		CreationToken: googleproxyclient.OptNilString{Value: newCreationToken, Set: true},
+		QuotaInBytes:  googleproxyclient.OptNilFloat64{Value: float64(newSize), Set: true},
+		PoolId:        googleproxyclient.OptNilString{Value: globalPoolUUID, Set: true},
+		Protocols:     []googleproxyclient.ProtocolsV1beta{googleproxyclient.ProtocolsV1betaNFSV3},
+		ExportPolicy: googleproxyclient.OptExportPolicyV1beta{
+			Value: googleproxyclient.ExportPolicyV1beta{
+				Rules: []googleproxyclient.SimpleExportPolicyRuleV1beta{
+					{
+						AccessType:     googleproxyclient.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+						AllowedClients: "0.0.0.0/0",
+						Nfsv3:          googleproxyclient.OptNilBool{Value: true, Set: true},
+						Nfsv4:          googleproxyclient.OptNilBool{Value: false, Set: true},
+					},
+				},
+			},
+			Set: true,
+		},
+		Description: googleproxyclient.OptNilString{Value: "Updated NFS volume", Set: true},
+	}
+
+	res, err := client.V1betaUpdateVolume(ctx, volumeReq, params)
+	log.Printf("UpdateNFSVolume response: %+v, err: %v", res, err)
+	require.NoError(t, err)
+	operation, ok := res.(*googleproxyclient.OperationV1beta)
+	require.True(t, ok, "expected OperationV1beta, got %T", res)
+	operationID := extractOperationID(operation.GetName().Value)
+	require.NotEmpty(t, operationID)
+	describeParams := googleproxyclient.V1betaDescribeOperationParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		OperationId:   operationID,
+	}
+	done := pollOperationDone(t, client, ctx, describeParams, 20, 30*time.Second)
+	require.True(t, done, "NFS volume update operation did not complete in time")
+}
+
+func TestDeleteNFSVolumeAndWaitForCompletion(t *testing.T) {
+	ctx := context.Background()
+	client := getTestClient(t)
+
+	params := googleproxyclient.V1betaDeleteVolumeParams{
+		ProjectNumber: globalProjectNumber,
+		LocationId:    globalLocationId,
+		VolumeId:      globalNFSVolumeUUID,
+	}
+
+	res, err := client.V1betaDeleteVolume(ctx, googleproxyclient.OptV1betaDeleteVolumeReq{}, params)
+	log.Printf("DeleteNFSVolume response: %+v, err: %v", res, err)
+	require.NoError(t, err)
+	operation, ok := res.(*googleproxyclient.OperationV1beta)
+	require.True(t, ok, "expected OperationV1beta, got %T", res)
+	operationID := extractOperationID(operation.GetName().Value)
+	require.NotEmpty(t, operationID)
+	describeParams := googleproxyclient.V1betaDescribeOperationParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		OperationId:   operationID,
+	}
+	done := pollOperationDone(t, client, ctx, describeParams, 20, 30*time.Second)
+	require.True(t, done, "NFS volume deletion operation did not complete in time")
 }
 
 func TestDeletePoolAndWaitForCompletion(t *testing.T) {
