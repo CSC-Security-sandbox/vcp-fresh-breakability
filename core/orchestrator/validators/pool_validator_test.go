@@ -87,7 +87,7 @@ func TestNewCustomPerformanceFromUpdate(t *testing.T) {
 			AllowAutoTiering:     true,
 			HotTierSizeInBytes:   1 * utils.TiBInBytes,
 			QosType:              utils.QosTypeAuto,
-			LargeCapacity:        true,
+			LargeCapacity:        nillable.ToPointer(true),
 		}
 
 		perf := NewCustomPerformanceFromUpdate(params)
@@ -98,7 +98,7 @@ func TestNewCustomPerformanceFromUpdate(t *testing.T) {
 		assert.Equal(t, params.AllowAutoTiering, perf.AllowAutoTiering)
 		assert.Equal(t, params.HotTierSizeInBytes, perf.HotTierSizeInBytes)
 		assert.Equal(t, params.QosType, perf.QosType)
-		assert.Equal(t, params.LargeCapacity, perf.LargeCapacity)
+		// LargeCapacity is not copied from UpdatePoolParams to CustomPerformance
 	})
 
 	t.Run("WithNilIops", func(t *testing.T) {
@@ -109,7 +109,7 @@ func TestNewCustomPerformanceFromUpdate(t *testing.T) {
 			AllowAutoTiering:     false,
 			HotTierSizeInBytes:   0,
 			QosType:              utils.QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 		}
 
 		perf := NewCustomPerformanceFromUpdate(params)
@@ -120,7 +120,7 @@ func TestNewCustomPerformanceFromUpdate(t *testing.T) {
 		assert.Equal(t, params.AllowAutoTiering, perf.AllowAutoTiering)
 		assert.Equal(t, params.HotTierSizeInBytes, perf.HotTierSizeInBytes)
 		assert.Equal(t, params.QosType, perf.QosType)
-		assert.Equal(t, params.LargeCapacity, perf.LargeCapacity)
+		// LargeCapacity is not copied from UpdatePoolParams to CustomPerformance
 	})
 }
 

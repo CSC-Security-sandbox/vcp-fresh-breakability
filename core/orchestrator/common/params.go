@@ -291,7 +291,7 @@ type UpdatePoolParams struct {
 	CustomPerformanceEnabled  bool
 	TotalThroughputMibps      int64
 	TotalIops                 *int64
-	LargeCapacity             bool
+	LargeCapacity             *bool
 	AutoResizeTriggeredUpdate bool
 }
 

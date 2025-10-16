@@ -365,6 +365,10 @@ func _validateAndSetUpdatePoolParams(params *commonparams.UpdatePoolParams, pool
 	// Build CustomPerformance params first
 	perf := validators.NewCustomPerformanceFromUpdate(params)
 	perf.LargeCapacity = pool.LargeCapacity // Use existing pool type for validation
+	// Prevent changing pool type
+	if params.LargeCapacity != nil && (*params.LargeCapacity != pool.LargeCapacity) {
+		return customerrors.NewUserInputValidationErr("Given large capacity value is not supported. Large capacity cannot be changed for existing pool")
+	}
 
 	// Call unified validation (no service level check needed for updates)
 	err := ValidatePoolParams(perf, "")

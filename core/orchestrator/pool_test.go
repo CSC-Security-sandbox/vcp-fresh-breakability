@@ -840,7 +840,7 @@ func TestUpdatePool(t *testing.T) {
 			PoolId:               "test-pool-uuid1",
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -875,7 +875,7 @@ func TestUpdatePool(t *testing.T) {
 			PoolId:               "test-pool-uuid1",
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -2977,7 +2977,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -2997,7 +2997,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(200 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        true,
+			LargeCapacity:        nillable.ToPointer(true),
 			TotalThroughputMibps: 2000,
 			TotalIops:            nillable.ToPointer(int64(32000)), // Minimum IOPS for 2000 MiBps in large capacity
 		}
@@ -3017,7 +3017,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(10 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			AllowAutoTiering:     true,
@@ -3040,7 +3040,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(10 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			AllowAutoTiering:     true,
@@ -3063,7 +3063,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(20 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 512,
 			TotalIops:            nillable.ToPointer(int64(8192)),
 			AllowAutoTiering:     true,
@@ -3089,7 +3089,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(20 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 512,
 			TotalIops:            nillable.ToPointer(int64(8192)),
 			AllowAutoTiering:     true,
@@ -3115,7 +3115,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(20 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 512,
 			TotalIops:            nillable.ToPointer(int64(8192)),
 			AllowAutoTiering:     false, // Trying to disable auto-tiering
@@ -3140,7 +3140,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(1 * utils.GiBInBytes), // Below minimum
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 128,
 			TotalIops:            nillable.ToPointer(int64(2048)),
 		}
@@ -3161,7 +3161,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(500 * utils.TiBInBytes), // Above maximum (425 TiB)
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 128,
 			TotalIops:            nillable.ToPointer(int64(2048)),
 		}
@@ -3182,7 +3182,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              "Manual", // Invalid QoS type
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -3203,7 +3203,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 32, // Below minimum (64 MiBps)
 			TotalIops:            nillable.ToPointer(int64(2048)),
 		}
@@ -3224,7 +3224,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 6000, // Above maximum (5120 MiBps)
 			TotalIops:            nillable.ToPointer(int64(2048)),
 		}
@@ -3245,7 +3245,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(500)), // Below minimum (1024 IOPS)
 		}
@@ -3266,7 +3266,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(200000)), // Above maximum (160000 IOPS)
 		}
@@ -3286,7 +3286,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: -1, // Invalid negative throughput
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -3307,7 +3307,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 128, // IOPS will be calculated from this
 			TotalIops:            nil, // IOPS not set, should be calculated
 		}
@@ -3331,7 +3331,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			Labels:               labels,
@@ -3352,7 +3352,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			Description:          "Updated pool description",
@@ -3373,7 +3373,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			VendorID:             "updated-vendor-id",
@@ -3394,7 +3394,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:              uint64(4 * utils.TiBInBytes),
 			QosType:                  QosTypeAuto,
-			LargeCapacity:            false,
+			LargeCapacity:            nillable.ToPointer(false),
 			TotalThroughputMibps:     256,
 			TotalIops:                nillable.ToPointer(int64(4096)),
 			CustomPerformanceEnabled: true,
@@ -3414,7 +3414,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(10 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			AllowAutoTiering:     true,
@@ -3441,7 +3441,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			Labels:               labels,
@@ -3461,7 +3461,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			Description:          "Updated pool description",
@@ -3481,7 +3481,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			VendorID:             "updated-vendor-id",
@@ -3501,7 +3501,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:              uint64(4 * utils.TiBInBytes),
 			QosType:                  QosTypeAuto,
-			LargeCapacity:            false,
+			LargeCapacity:            nillable.ToPointer(false),
 			TotalThroughputMibps:     256,
 			TotalIops:                nillable.ToPointer(int64(4096)),
 			CustomPerformanceEnabled: true,
@@ -3522,7 +3522,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 0, // Zero throughput
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -3542,7 +3542,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(100)), // Below minimum IOPS
 		}
@@ -3562,7 +3562,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(200000)), // Above maximum IOPS
 		}
@@ -3582,7 +3582,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 10000, // Above maximum throughput
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -3602,7 +3602,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(10 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			AllowAutoTiering:     true,
@@ -3624,7 +3624,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(50 * utils.TiBInBytes), // Boundary size for standard pool
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -3643,7 +3643,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(100 * utils.TiBInBytes), // Boundary size for large capacity pool
 			QosType:              QosTypeAuto,
-			LargeCapacity:        true,
+			LargeCapacity:        nillable.ToPointer(true),
 			TotalThroughputMibps: 1000,
 			TotalIops:            nillable.ToPointer(int64(16000)), // Minimum IOPS for 1000 MiBps in large capacity
 		}
@@ -3662,7 +3662,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:             uint64(10 * utils.TiBInBytes),
 			QosType:                 QosTypeAuto,
-			LargeCapacity:           false,
+			LargeCapacity:           nillable.ToPointer(false),
 			TotalThroughputMibps:    256,
 			TotalIops:               nillable.ToPointer(int64(4096)),
 			AllowAutoTiering:        true,
@@ -3685,7 +3685,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,
+			LargeCapacity:        nillable.ToPointer(false),
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 			Zone:                 "us-central1-b",
@@ -3704,10 +3704,11 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 	// Test for the specific line: perf.LargeCapacity = pool.LargeCapacity
 	t.Run("LargeCapacityFieldIsSetFromExistingPool", func(tt *testing.T) {
 		// Test case 1: Update params specify LargeCapacity=false but pool has LargeCapacity=true
+		// This should now fail with the new validation that prevents changing LargeCapacity
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(20 * utils.TiBInBytes), // Use valid large capacity size
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false, // Update params specify standard capacity
+			LargeCapacity:        nillable.ToPointer(false), // Update params specify standard capacity
 			TotalThroughputMibps: 1000,
 			TotalIops:            nillable.ToPointer(int64(16000)),
 		}
@@ -3719,14 +3720,16 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		}
 
 		err := _validateAndSetUpdatePoolParams(params, pool)
-		// Should pass validation because validation uses pool.LargeCapacity=true, not params.LargeCapacity=false
-		assert.NoError(tt, err, "Validation should use existing pool's LargeCapacity value")
+		// Should fail validation because we can't change LargeCapacity
+		assert.Error(tt, err, "Cannot change LargeCapacity for existing pool")
+		assert.Contains(tt, err.Error(), "Large capacity cannot be changed for existing pool")
 
 		// Test case 2: Update params specify LargeCapacity=true but pool has LargeCapacity=false
+		// This should now fail with the new validation that prevents changing LargeCapacity
 		params2 := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes), // Use valid standard capacity size
 			QosType:              QosTypeAuto,
-			LargeCapacity:        true, // Update params specify large capacity
+			LargeCapacity:        nillable.ToPointer(true), // Update params specify large capacity
 			TotalThroughputMibps: 256,
 			TotalIops:            nillable.ToPointer(int64(4096)),
 		}
@@ -3738,15 +3741,15 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		}
 
 		err2 := _validateAndSetUpdatePoolParams(params2, pool2)
-		// Should pass validation because validation uses pool.LargeCapacity=false, not params.LargeCapacity=true
-		assert.NoError(tt, err2, "Validation should use existing pool's LargeCapacity value")
+		// Should fail validation because we can't change LargeCapacity
+		assert.Error(tt, err2, "Cannot change LargeCapacity for existing pool")
+		assert.Contains(tt, err2.Error(), "Large capacity cannot be changed for existing pool")
 
-		// Test case 3: Verify that the validation actually uses the pool's LargeCapacity value
-		// by testing with invalid parameters that would fail for large capacity but pass for standard
+		// Test case 3: We don't try to change LargeCapacity, but provide invalid parameters for the pool type
 		params3 := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(500 * utils.TiBInBytes), // Exceeds standard pool maximum (425 TiB)
 			QosType:              QosTypeAuto,
-			LargeCapacity:        false,                            // Update params specify standard capacity
+			LargeCapacity:        nil,                              // Don't specify a new value (use existing)
 			TotalThroughputMibps: 2000,                             // Large capacity throughput
 			TotalIops:            nillable.ToPointer(int64(32000)), // Large capacity IOPS
 		}
@@ -3758,8 +3761,87 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		}
 
 		err3 := _validateAndSetUpdatePoolParams(params3, pool3)
-		// Should fail validation because the parameters are for large capacity but pool is standard capacity
+		// Should still fail validation because the size parameters are incompatible with standard pool
 		assert.Error(tt, err3, "Validation should fail when large capacity params are used with standard capacity pool")
+	})
+
+	// Test specifically for the validation that prevents changing LargeCapacity for existing pools
+	t.Run("PreventChangingLargeCapacityForExistingPool", func(tt *testing.T) {
+		// Test case 1: Attempt to change from standard to large capacity
+		standardPool := &datamodel.Pool{
+			SizeInBytes:      int64(10 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false, // Standard capacity pool
+		}
+
+		paramsToLarge := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(20 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(true), // Try to change to large capacity
+			TotalThroughputMibps: 1000,
+			TotalIops:            nillable.ToPointer(int64(16000)),
+		}
+
+		err1 := _validateAndSetUpdatePoolParams(paramsToLarge, standardPool)
+		assert.Error(tt, err1, "Changing from standard to large capacity should fail")
+		assert.True(tt, errors.IsUserInputValidationErr(err1))
+		assert.Contains(tt, err1.Error(), "Large capacity cannot be changed for existing pool")
+
+		// Test case 2: Attempt to change from large to standard capacity
+		largePool := &datamodel.Pool{
+			SizeInBytes:      int64(100 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    true, // Large capacity pool
+		}
+
+		paramsToStandard := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(50 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(false), // Try to change to standard capacity
+			TotalThroughputMibps: 500,
+			TotalIops:            nillable.ToPointer(int64(8000)),
+		}
+
+		err2 := _validateAndSetUpdatePoolParams(paramsToStandard, largePool)
+		assert.Error(tt, err2, "Changing from large to standard capacity should fail")
+		assert.True(tt, errors.IsUserInputValidationErr(err2))
+		assert.Contains(tt, err2.Error(), "Large capacity cannot be changed for existing pool")
+
+		// Test case 3: No change in LargeCapacity (standard to standard)
+		noChangeStandard := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(15 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(false), // Same capacity type as pool
+			TotalThroughputMibps: 300,
+			TotalIops:            nillable.ToPointer(int64(4800)),
+		}
+
+		err3 := _validateAndSetUpdatePoolParams(noChangeStandard, standardPool)
+		assert.NoError(tt, err3, "No change in capacity type should pass validation")
+
+		// Test case 4: No change in LargeCapacity (large to large)
+		noChangeLarge := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(120 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(true), // Same capacity type as pool
+			TotalThroughputMibps: 1200,
+			TotalIops:            nillable.ToPointer(int64(19200)),
+		}
+
+		err4 := _validateAndSetUpdatePoolParams(noChangeLarge, largePool)
+		assert.NoError(tt, err4, "No change in capacity type should pass validation")
+
+		// Test case 5: LargeCapacity field omitted (nil)
+		omittedCapacity := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(120 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nil, // Field omitted
+			TotalThroughputMibps: 1200,
+			TotalIops:            nillable.ToPointer(int64(19200)),
+		}
+
+		err5 := _validateAndSetUpdatePoolParams(omittedCapacity, largePool)
+		assert.NoError(tt, err5, "Omitted LargeCapacity should pass validation")
 	})
 }
 

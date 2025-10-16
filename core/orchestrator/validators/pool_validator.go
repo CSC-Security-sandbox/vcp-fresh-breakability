@@ -74,7 +74,6 @@ func NewCustomPerformanceFromUpdate(params *commonparams.UpdatePoolParams) *Cust
 		AllowAutoTiering:   params.AllowAutoTiering,
 		HotTierSizeInBytes: params.HotTierSizeInBytes,
 		QosType:            params.QosType,
-		LargeCapacity:      params.LargeCapacity,
 	}
 }
 
