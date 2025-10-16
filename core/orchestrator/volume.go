@@ -964,8 +964,8 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 
 		// validate large volume constituent count is not prime
-		if params.LargeVolumeConstituentCount > 0 && params.LargeVolumeConstituentCount > int32(minPrimeNumberConfigAllowed) && isPrime(int(params.LargeVolumeConstituentCount)) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Consituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
+		if params.LargeVolumeConstituentCount > 0 && params.LargeVolumeConstituentCount >= int32(minPrimeNumberConfigAllowed) && isPrime(int(params.LargeVolumeConstituentCount)) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
 		}
 
 		if params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume {

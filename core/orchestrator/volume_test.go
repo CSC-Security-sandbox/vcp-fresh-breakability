@@ -634,7 +634,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.ErrorContains(tt, err, fmt.Sprintf("Consituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
+		assert.ErrorContains(tt, err, fmt.Sprintf("Constituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
 	})
 
 	t.Run("MaxConstituentCountForLargeCapacity", func(tt *testing.T) {
