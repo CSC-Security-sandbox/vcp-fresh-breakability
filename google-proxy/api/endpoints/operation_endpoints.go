@@ -60,14 +60,17 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 		switch job.State {
 		case models.JobsStateERROR:
 			errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
-
+			detailedErrorMessage := errMsg.Message
+			if job.TrackingID == vsaerrors.ErrRestoreVolumeValidation {
+				detailedErrorMessage = string(job.ErrorDetails)
+			}
 			return &gcpgenserver.OperationV1beta{
 				Done: gcpgenserver.NewOptBool(jobFinished),
 				Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
 				Error: gcpgenserver.OptStatusV1Beta{
 					Value: gcpgenserver.StatusV1Beta{
 						Code:    gcpgenserver.NewOptFloat64(float64(*errMsg.HttpCode)),
-						Message: gcpgenserver.NewOptString(errMsg.Message),
+						Message: gcpgenserver.NewOptString(detailedErrorMessage),
 					},
 					Set: true,
 				},

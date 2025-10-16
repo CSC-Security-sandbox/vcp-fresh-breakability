@@ -782,7 +782,7 @@ func (a VolumeCreateActivity) LunSizeUpdateValidation(ctx context.Context, volum
 	// Check if the available space is less than the current LUN size
 	if requiredLunSpace < lun.Size {
 		logger.Errorf("Lun size %d cannot be reduced to %d", lun.Size, requiredLunSpace)
-		err = vsaerrors.NewVCPError(vsaerrors.ErrRestoreVolumeValidation, fmt.Errorf("Cannot create a volume with this given size and snapReserve percentage. Please consider increasing the volume size to at least of size %.2f GB along with this snapReserve", float64(lun.Size)/float64(BytesPerGB)*(utils.PercentageBase/float64(utils.PercentageBase-volume.VolumeAttributes.SnapReserve))))
+		err = vsaerrors.NewVCPError(vsaerrors.ErrRestoreVolumeValidation, fmt.Errorf("Error restoring volume - Cannot restore a volume with this given size and snapReserve. Please consider increasing the volume size to at least of size %.2f GB along with this snapReserve", float64(lun.Size)/float64(BytesPerGB)*(utils.PercentageBase/float64(utils.PercentageBase-volume.VolumeAttributes.SnapReserve))))
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
 	return nil
