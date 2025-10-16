@@ -67,6 +67,8 @@ metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
 maxThinClonesPerPool: 100
 enableAutoPoolScaling: true
+hardDeleteResources: true
+scheduleHardDelete: false
 autoPoolScalingLimits:
   c3-standard-4-lssd:
     min_volume_count: 1

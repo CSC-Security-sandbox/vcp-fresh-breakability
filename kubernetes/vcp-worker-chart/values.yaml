@@ -190,6 +190,8 @@ workerConfig:
   autoTierHotTierAutoResizeThresholdPercent: 90
   autoTierHotTierAutoResizeIncreasePercent: 10
   autoTieringSyncActivityMaxAttempts: 1
+  hardDeleteResources: "true"
+  scheduleHardDelete: "false"
 
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
   mgmtFirewallSourceRanges: "198.18.0.0/15"

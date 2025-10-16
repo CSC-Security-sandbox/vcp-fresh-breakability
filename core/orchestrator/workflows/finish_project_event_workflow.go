@@ -23,7 +23,7 @@ var (
 	finishProjectCVPJobRetryMaxAttempts           = env.GetInt("FINISH_PROJECT_CVP_CLIENT_RETRY_MAX_ATTEMPTS", 20)
 	finishProjectInitialRetryIntervalForCVPClient = env.GetString("FINISH_PROJECT_CVP_CLIENT_RETRY_INTERVAL", "30s")
 	finishProjectBackoffCoefficientForCVPClient   = env.GetFloat64("FINISH_PROJECT_CVP_CLIENT_BACKOFF_COEFFICIENT", 1.0)
-	hardDeleteResources                           = env.GetBool("HARD_DELETE_RESOURCES", false)
+	hardDeleteResources                           = env.GetBool("HARD_DELETE_RESOURCES", true)
 )
 
 // FinishProjectEventDeleteStateWorkflow is a workflow that handles the DELETE state for FinishProjectEvent.
