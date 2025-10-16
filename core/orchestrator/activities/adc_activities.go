@@ -16,6 +16,7 @@ import (
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"github.com/xyproto/randomstring"
 	"k8s.io/client-go/rest"
 )
 
@@ -382,7 +383,7 @@ func (a *ADCActivity) CreateHmacKeys(ctx context.Context, params *common.HmacKey
 func (a *ADCActivity) GenerateResourceTimestamp(ctx context.Context) (string, error) {
 	// Use current time - this will be consistent across replays within the same activity execution
 	timestamp := time.Now().Format("20060102150405") // YYYYMMDDHHMMSS format
-	return timestamp, nil
+	return timestamp + randomstring.HumanFriendlyEnglishString(4), nil
 }
 
 // ConvertADCParamsToRequest converts the ADC parameters to the request friendly structure.

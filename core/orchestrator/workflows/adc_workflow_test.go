@@ -72,7 +72,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -85,7 +85,7 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
@@ -227,7 +227,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - IsServiceAccountCreated fails
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(false, errors.New("failed to check service account"))
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -295,7 +295,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - AttachRolesToServiceAccount fails
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to attach roles"))
@@ -364,7 +364,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - CreateHmacKeys fails
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -435,7 +435,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - DeployADCCloudRunService fails
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -510,7 +510,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - CheckOperationStatus fails
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -594,7 +594,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - GetADCServiceURL fails
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -678,7 +678,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - InitialDeleteRequestWithCloudRun fails
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -691,7 +691,7 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to initiate delete request"))
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
@@ -826,7 +826,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - all succeed until cleanup
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -839,7 +839,7 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
@@ -918,7 +918,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - all succeed until sleep
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -931,7 +931,7 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
@@ -1008,7 +1008,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
@@ -1073,7 +1073,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - CreateServiceAccount fails
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create service account"))
 
 		// Execute workflow
@@ -1139,7 +1139,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - IsServiceAccountCreated returns false
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(false, nil)
 
@@ -1206,7 +1206,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - all succeed until logical size calculation
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1219,7 +1219,7 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
@@ -1296,7 +1296,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - all succeed until logical size calculation
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1309,7 +1309,7 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
@@ -1387,7 +1387,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - all succeed
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1400,7 +1400,7 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
@@ -1477,7 +1477,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - InitialDeleteRequestWithCloudRun returns redirect
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1490,11 +1490,11 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		// Initial delete request returns redirect
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode:  http.StatusTemporaryRedirect,
-			RedirectURL: "https://adc-svc-20231201120000-abc123.run.app/status/123",
+			RedirectURL: "https://adc-svc-20231201120000abcd-abc123.run.app/status/123",
 		}, nil)
 		// Status check returns OK after progressive sleep
 		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
@@ -1574,7 +1574,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - InitialDeleteRequestWithCloudRun returns redirect
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1587,19 +1587,19 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		// Initial delete request returns redirect
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode:  http.StatusTemporaryRedirect,
-			RedirectURL: "https://adc-svc-20231201120000-abc123.run.app/status/123",
+			RedirectURL: "https://adc-svc-20231201120000abcd-abc123.run.app/status/123",
 		}, nil)
 		// First status check returns another redirect (triggers progressive sleep)
-		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, "https://adc-svc-20231201120000-abc123.run.app/status/123").Return(&common.ADCResponse{
+		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, "https://adc-svc-20231201120000abcd-abc123.run.app/status/123").Return(&common.ADCResponse{
 			StatusCode:  http.StatusTemporaryRedirect,
-			RedirectURL: "https://adc-svc-20231201120000-abc123.run.app/status/456",
+			RedirectURL: "https://adc-svc-20231201120000abcd-abc123.run.app/status/456",
 		}, nil)
 		// Second status check returns OK
-		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, "https://adc-svc-20231201120000-abc123.run.app/status/456").Return(&common.ADCResponse{
+		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, "https://adc-svc-20231201120000abcd-abc123.run.app/status/456").Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
@@ -1676,7 +1676,7 @@ func TestADCWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses - InitialDeleteRequestWithCloudRun returns redirect
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1689,11 +1689,11 @@ func TestADCWorkflow(t *testing.T) {
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000-abc123.run.app", nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
 		// Initial delete request returns redirect
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode:  http.StatusTemporaryRedirect,
-			RedirectURL: "https://adc-svc-20231201120000-abc123.run.app/status/123",
+			RedirectURL: "https://adc-svc-20231201120000abcd-abc123.run.app/status/123",
 		}, nil)
 		// Status check returns not found (triggers progressive sleep logic)
 		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{

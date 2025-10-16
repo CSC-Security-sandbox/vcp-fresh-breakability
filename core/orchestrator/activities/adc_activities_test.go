@@ -785,7 +785,7 @@ func TestGenerateResourceTimestamp(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotEmpty(t, timestamp)
 		// Verify it's in the expected format (YYYYMMDDHHMMSS)
-		assert.Len(t, timestamp, 14)
+		assert.Len(t, timestamp, 18)
 	})
 }
 
