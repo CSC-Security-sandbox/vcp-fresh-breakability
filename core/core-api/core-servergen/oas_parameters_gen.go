@@ -460,8 +460,8 @@ func decodeV1GetMultipleReplicationsByExternalUUIDParams(args [0]string, argsEsc
 
 // V1GetOntapCredentialsParams is parameters of v1_getOntapCredentials operation.
 type V1GetOntapCredentialsParams struct {
-	// The name of the pool.
-	PoolName string
+	// UUID v4 used to identify the pool.
+	PoolId string
 	// User name.
 	UserName OptString
 	// Account name.
@@ -471,10 +471,10 @@ type V1GetOntapCredentialsParams struct {
 func unpackV1GetOntapCredentialsParams(packed middleware.Parameters) (params V1GetOntapCredentialsParams) {
 	{
 		key := middleware.ParameterKey{
-			Name: "poolName",
+			Name: "poolId",
 			In:   "path",
 		}
-		params.PoolName = packed[key].(string)
+		params.PoolId = packed[key].(string)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -499,7 +499,7 @@ func unpackV1GetOntapCredentialsParams(packed middleware.Parameters) (params V1G
 
 func decodeV1GetOntapCredentialsParams(args [1]string, argsEscaped bool, r *http.Request) (params V1GetOntapCredentialsParams, _ error) {
 	q := uri.NewQueryDecoder(r.URL.Query())
-	// Decode path: poolName.
+	// Decode path: poolId.
 	if err := func() error {
 		param := args[0]
 		if argsEscaped {
@@ -511,7 +511,7 @@ func decodeV1GetOntapCredentialsParams(args [1]string, argsEscaped bool, r *http
 		}
 		if len(param) > 0 {
 			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "poolName",
+				Param:   "poolId",
 				Value:   param,
 				Style:   uri.PathStyleSimple,
 				Explode: false,
@@ -528,21 +528,21 @@ func decodeV1GetOntapCredentialsParams(args [1]string, argsEscaped bool, r *http
 					return err
 				}
 
-				params.PoolName = c
+				params.PoolId = c
 				return nil
 			}(); err != nil {
 				return err
 			}
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    0,
-					MinLengthSet: false,
-					MaxLength:    255,
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        nil,
-				}).Validate(string(params.PoolName)); err != nil {
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.PoolId)); err != nil {
 					return errors.Wrap(err, "string")
 				}
 				return nil
@@ -555,7 +555,7 @@ func decodeV1GetOntapCredentialsParams(args [1]string, argsEscaped bool, r *http
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "poolName",
+			Name: "poolId",
 			In:   "path",
 			Err:  err,
 		}

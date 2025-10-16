@@ -744,6 +744,59 @@ func TestPoolV1StoragePoolState_Examples(t *testing.T) {
 		})
 	}
 }
+func TestReplicationV1_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestReplicationV1State_EncodeDecode(t *testing.T) {
+	var typ ReplicationV1State
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ReplicationV1State
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestReplicationV1State_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ReplicationV1State
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ReplicationV1State
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestStatusV1_EncodeDecode(t *testing.T) {
 	var typ StatusV1
 	typ.SetFake()
@@ -934,6 +987,114 @@ func TestV1DeletePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1DeletePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDForbidden_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDNotFound_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDOK_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetMultipleReplicationsByExternalUUIDUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1GetMultipleReplicationsByExternalUUIDUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetMultipleReplicationsByExternalUUIDUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1GetOntapCredentialsBadRequest_EncodeDecode(t *testing.T) {

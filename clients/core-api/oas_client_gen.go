@@ -35,11 +35,17 @@ type Invoker interface {
 	//
 	// DELETE /v1/pools/{poolId}
 	V1DeletePool(ctx context.Context, params V1DeletePoolParams) (V1DeletePoolRes, error)
+	// V1GetMultipleReplicationsByExternalUUID invokes v1_getMultipleReplicationsByExternalUUID operation.
+	//
+	// Returns replications filtered by external UUIDs and endpoint type.
+	//
+	// GET /v1/getMultipleReplicationsByExternalUUID
+	V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams) (V1GetMultipleReplicationsByExternalUUIDRes, error)
 	// V1GetOntapCredentials invokes v1_getOntapCredentials operation.
 	//
 	// Returns the credentials of the specified account name.
 	//
-	// GET /v1/pools/{poolId}/ontap/credentials
+	// GET /v1/pools/{poolId}/credentials
 	V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error)
 	// V1GetPool invokes v1_getPool operation.
 	//
@@ -242,11 +248,97 @@ func (c *Client) sendV1DeletePool(ctx context.Context, params V1DeletePoolParams
 	return result, nil
 }
 
+// V1GetMultipleReplicationsByExternalUUID invokes v1_getMultipleReplicationsByExternalUUID operation.
+//
+// Returns replications filtered by external UUIDs and endpoint type.
+//
+// GET /v1/getMultipleReplicationsByExternalUUID
+func (c *Client) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams) (V1GetMultipleReplicationsByExternalUUIDRes, error) {
+	res, err := c.sendV1GetMultipleReplicationsByExternalUUID(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1GetMultipleReplicationsByExternalUUID(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams) (res V1GetMultipleReplicationsByExternalUUIDRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/getMultipleReplicationsByExternalUUID"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "externalUuids" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "externalUuids",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.StringToString(params.ExternalUuids))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "includeSourceEndpoints" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "includeSourceEndpoints",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IncludeSourceEndpoints.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1GetMultipleReplicationsByExternalUUIDResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1GetOntapCredentials invokes v1_getOntapCredentials operation.
 //
 // Returns the credentials of the specified account name.
 //
-// GET /v1/pools/{poolId}/ontap/credentials
+// GET /v1/pools/{poolId}/credentials
 func (c *Client) V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error) {
 	res, err := c.sendV1GetOntapCredentials(ctx, params)
 	return res, err
@@ -275,7 +367,7 @@ func (c *Client) sendV1GetOntapCredentials(ctx context.Context, params V1GetOnta
 		}
 		pathParts[1] = encoded
 	}
-	pathParts[2] = "/ontap/credentials"
+	pathParts[2] = "/credentials"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	q := uri.NewQueryEncoder()

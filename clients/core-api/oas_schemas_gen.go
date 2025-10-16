@@ -2076,6 +2076,52 @@ func (o OptPoolV1StoragePoolState) Or(d PoolV1StoragePoolState) PoolV1StoragePoo
 	return d
 }
 
+// NewOptReplicationV1State returns new OptReplicationV1State with value set to v.
+func NewOptReplicationV1State(v ReplicationV1State) OptReplicationV1State {
+	return OptReplicationV1State{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReplicationV1State is optional ReplicationV1State.
+type OptReplicationV1State struct {
+	Value ReplicationV1State
+	Set   bool
+}
+
+// IsSet returns true if OptReplicationV1State was set.
+func (o OptReplicationV1State) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReplicationV1State) Reset() {
+	var v ReplicationV1State
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReplicationV1State) SetTo(v ReplicationV1State) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReplicationV1State) Get() (v ReplicationV1State, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReplicationV1State) Or(d ReplicationV1State) ReplicationV1State {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptStatusV1 returns new OptStatusV1 with value set to v.
 func NewOptStatusV1(v StatusV1) OptStatusV1 {
 	return OptStatusV1{
@@ -2502,8 +2548,6 @@ type PoolV1 struct {
 	// Flag indicating if the pool satisfies zonal separation.
 	SatisfiesPzs          OptNilBool                        `json:"satisfies_pzs"`
 	AssetLocationMetadata OptNilPoolV1AssetLocationMetadata `json:"assetLocationMetadata"`
-	// Asset metadata containing child assets information.
-	AssetMetadata OptNilPoolV1AssetLocationMetadata `json:"assetMetadata"`
 	// Flag indicating if the custom performance is enabled for the pool.
 	CustomPerformanceEnabled OptBool `json:"customPerformanceEnabled"`
 	// The total iops set for a pool.
@@ -2683,11 +2727,6 @@ func (s *PoolV1) GetSatisfiesPzs() OptNilBool {
 // GetAssetLocationMetadata returns the value of AssetLocationMetadata.
 func (s *PoolV1) GetAssetLocationMetadata() OptNilPoolV1AssetLocationMetadata {
 	return s.AssetLocationMetadata
-}
-
-// GetAssetMetadata returns the value of AssetMetadata.
-func (s *PoolV1) GetAssetMetadata() OptNilPoolV1AssetLocationMetadata {
-	return s.AssetMetadata
 }
 
 // GetCustomPerformanceEnabled returns the value of CustomPerformanceEnabled.
@@ -2873,11 +2912,6 @@ func (s *PoolV1) SetSatisfiesPzs(val OptNilBool) {
 // SetAssetLocationMetadata sets the value of AssetLocationMetadata.
 func (s *PoolV1) SetAssetLocationMetadata(val OptNilPoolV1AssetLocationMetadata) {
 	s.AssetLocationMetadata = val
-}
-
-// SetAssetMetadata sets the value of AssetMetadata.
-func (s *PoolV1) SetAssetMetadata(val OptNilPoolV1AssetLocationMetadata) {
-	s.AssetMetadata = val
 }
 
 // SetCustomPerformanceEnabled sets the value of CustomPerformanceEnabled.
@@ -3149,6 +3183,153 @@ func (s *PoolV1StoragePoolState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/Replication_v1
+type ReplicationV1 struct {
+	// UUID v4 used to identify the replication.
+	ReplicationId OptString `json:"replicationId"`
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId OptString `json:"resourceId"`
+	// Description of the replication.
+	Description OptNilString `json:"description"`
+	// The current lifecycle state of the replication.
+	State OptReplicationV1State `json:"state"`
+	// Details about the current lifecycle state.
+	StateDetails OptString `json:"stateDetails"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+}
+
+// GetReplicationId returns the value of ReplicationId.
+func (s *ReplicationV1) GetReplicationId() OptString {
+	return s.ReplicationId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *ReplicationV1) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *ReplicationV1) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetState returns the value of State.
+func (s *ReplicationV1) GetState() OptReplicationV1State {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *ReplicationV1) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetCreated returns the value of Created.
+func (s *ReplicationV1) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// SetReplicationId sets the value of ReplicationId.
+func (s *ReplicationV1) SetReplicationId(val OptString) {
+	s.ReplicationId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *ReplicationV1) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *ReplicationV1) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetState sets the value of State.
+func (s *ReplicationV1) SetState(val OptReplicationV1State) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *ReplicationV1) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetCreated sets the value of Created.
+func (s *ReplicationV1) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// The current lifecycle state of the replication.
+type ReplicationV1State string
+
+const (
+	ReplicationV1StateSTATEUNSPECIFIED ReplicationV1State = "STATE_UNSPECIFIED"
+	ReplicationV1StateCREATING         ReplicationV1State = "CREATING"
+	ReplicationV1StateREADY            ReplicationV1State = "READY"
+	ReplicationV1StateUPDATING         ReplicationV1State = "UPDATING"
+	ReplicationV1StateDELETING         ReplicationV1State = "DELETING"
+	ReplicationV1StateERROR            ReplicationV1State = "ERROR"
+)
+
+// AllValues returns all ReplicationV1State values.
+func (ReplicationV1State) AllValues() []ReplicationV1State {
+	return []ReplicationV1State{
+		ReplicationV1StateSTATEUNSPECIFIED,
+		ReplicationV1StateCREATING,
+		ReplicationV1StateREADY,
+		ReplicationV1StateUPDATING,
+		ReplicationV1StateDELETING,
+		ReplicationV1StateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReplicationV1State) MarshalText() ([]byte, error) {
+	switch s {
+	case ReplicationV1StateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case ReplicationV1StateCREATING:
+		return []byte(s), nil
+	case ReplicationV1StateREADY:
+		return []byte(s), nil
+	case ReplicationV1StateUPDATING:
+		return []byte(s), nil
+	case ReplicationV1StateDELETING:
+		return []byte(s), nil
+	case ReplicationV1StateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReplicationV1State) UnmarshalText(data []byte) error {
+	switch ReplicationV1State(data) {
+	case ReplicationV1StateSTATEUNSPECIFIED:
+		*s = ReplicationV1StateSTATEUNSPECIFIED
+		return nil
+	case ReplicationV1StateCREATING:
+		*s = ReplicationV1StateCREATING
+		return nil
+	case ReplicationV1StateREADY:
+		*s = ReplicationV1StateREADY
+		return nil
+	case ReplicationV1StateUPDATING:
+		*s = ReplicationV1StateUPDATING
+		return nil
+	case ReplicationV1StateDELETING:
+		*s = ReplicationV1StateDELETING
+		return nil
+	case ReplicationV1StateERROR:
+		*s = ReplicationV1StateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/Status_v1
 type StatusV1 struct {
 	// The status code.
@@ -3298,6 +3479,62 @@ func (*V1DeletePoolUnauthorized) v1DeletePoolRes() {}
 type V1DeletePoolUnprocessableEntity Error
 
 func (*V1DeletePoolUnprocessableEntity) v1DeletePoolRes() {}
+
+type V1GetMultipleReplicationsByExternalUUIDBadRequest Error
+
+func (*V1GetMultipleReplicationsByExternalUUIDBadRequest) v1GetMultipleReplicationsByExternalUUIDRes() {
+}
+
+type V1GetMultipleReplicationsByExternalUUIDForbidden Error
+
+func (*V1GetMultipleReplicationsByExternalUUIDForbidden) v1GetMultipleReplicationsByExternalUUIDRes() {
+}
+
+type V1GetMultipleReplicationsByExternalUUIDInternalServerError Error
+
+func (*V1GetMultipleReplicationsByExternalUUIDInternalServerError) v1GetMultipleReplicationsByExternalUUIDRes() {
+}
+
+type V1GetMultipleReplicationsByExternalUUIDNotFound Error
+
+func (*V1GetMultipleReplicationsByExternalUUIDNotFound) v1GetMultipleReplicationsByExternalUUIDRes() {
+}
+
+type V1GetMultipleReplicationsByExternalUUIDNotImplemented Error
+
+func (*V1GetMultipleReplicationsByExternalUUIDNotImplemented) v1GetMultipleReplicationsByExternalUUIDRes() {
+}
+
+type V1GetMultipleReplicationsByExternalUUIDOK struct {
+	Replications []ReplicationV1 `json:"replications"`
+}
+
+// GetReplications returns the value of Replications.
+func (s *V1GetMultipleReplicationsByExternalUUIDOK) GetReplications() []ReplicationV1 {
+	return s.Replications
+}
+
+// SetReplications sets the value of Replications.
+func (s *V1GetMultipleReplicationsByExternalUUIDOK) SetReplications(val []ReplicationV1) {
+	s.Replications = val
+}
+
+func (*V1GetMultipleReplicationsByExternalUUIDOK) v1GetMultipleReplicationsByExternalUUIDRes() {}
+
+type V1GetMultipleReplicationsByExternalUUIDTooManyRequests Error
+
+func (*V1GetMultipleReplicationsByExternalUUIDTooManyRequests) v1GetMultipleReplicationsByExternalUUIDRes() {
+}
+
+type V1GetMultipleReplicationsByExternalUUIDUnauthorized Error
+
+func (*V1GetMultipleReplicationsByExternalUUIDUnauthorized) v1GetMultipleReplicationsByExternalUUIDRes() {
+}
+
+type V1GetMultipleReplicationsByExternalUUIDUnprocessableEntity Error
+
+func (*V1GetMultipleReplicationsByExternalUUIDUnprocessableEntity) v1GetMultipleReplicationsByExternalUUIDRes() {
+}
 
 type V1GetOntapCredentialsBadRequest Error
 

@@ -24,6 +24,17 @@ type V1DeletePoolParams struct {
 	XCorrelationID OptString
 }
 
+// V1GetMultipleReplicationsByExternalUUIDParams is parameters of v1_getMultipleReplicationsByExternalUUID operation.
+type V1GetMultipleReplicationsByExternalUUIDParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Comma-separated list of external UUIDs to filter by.
+	ExternalUuids string
+	// Whether to include source endpoints in results. If false (default), only destination endpoints are
+	// returned.
+	IncludeSourceEndpoints OptBool
+}
+
 // V1GetOntapCredentialsParams is parameters of v1_getOntapCredentials operation.
 type V1GetOntapCredentialsParams struct {
 	// UUID v4 used to identify the pool.

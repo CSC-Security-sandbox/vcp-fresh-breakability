@@ -593,7 +593,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /v1/pools/{poolName}/ontap/credentials:
+  /v1/pools/{poolId}/credentials:
     get:
       tags:
         - pools
@@ -601,7 +601,7 @@ paths:
       description: Returns the credentials of the specified account name.
       operationId: v1_getOntapCredentials
       parameters:
-        - $ref: '#/components/parameters/poolNamePathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
         - $ref: '#/components/parameters/userNameQueryParameter'
         - $ref: '#/components/parameters/accountNameQueryParameter'
       responses:
@@ -1834,14 +1834,6 @@ components:
       name: locationId
       in: path
       description: The location/region to perform the operation in.
-      required: true
-      schema:
-        maxLength: 255
-        type: string
-    poolNamePathParameter:
-      name: poolName
-      in: path
-      description: The name of the pool
       required: true
       schema:
         maxLength: 255

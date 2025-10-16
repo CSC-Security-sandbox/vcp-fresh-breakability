@@ -670,7 +670,7 @@ func TestCreatePool(t *testing.T) {
 			Region:           "test_region",
 			PrimaryZone:      "test_zone",
 			SecondaryZone:    "",
-			Name:             "test_pool",
+			Name:             "test-pool-uuid",
 			VendorID:         "test_vendor",
 			SizeInBytes:      1024,
 			AllowAutoTiering: true,
@@ -3777,7 +3777,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
+			Name:      "test-pool-uuid",
 			AccountID: account.ID,
 			PoolCredentials: &datamodel.PoolCredentials{
 				SecretID:      "test-secret-id",
@@ -3809,7 +3809,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		err = store.DB().Create(node2).Error
 		assert.NoError(t, err)
 
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, credentials)
@@ -3864,7 +3864,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, credentials)
-		assert.Contains(t, err.Error(), "pool not found")
+		assert.Contains(t, err.Error(), "Pool not found")
 	})
 	t.Run("WhenPoolHasNoCredentials", func(t *testing.T) {
 		ctx, store, orch, _ := setup(t)
@@ -3879,7 +3879,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:            "test_pool",
+			Name:            "test-pool-uuid",
 			AccountID:       account.ID,
 			PoolCredentials: nil, // No credentials
 		}
@@ -3887,7 +3887,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
 
 		// Assert
 		assert.NoError(t, err)
@@ -3906,7 +3906,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
+			Name:      "test-pool-uuid",
 			AccountID: account.ID,
 			PoolCredentials: &datamodel.PoolCredentials{
 				SecretID:      "",
@@ -3919,7 +3919,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
 
 		// Assert
 		assert.NoError(t, err)
@@ -3959,7 +3959,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
+			Name:      "test-pool-uuid",
 			AccountID: account.ID,
 			PoolCredentials: &datamodel.PoolCredentials{
 				SecretID:      "test-secret-id",
@@ -3972,7 +3972,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute with empty userName
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "")
 
 		// Assert - should still work even with empty userName
 		assert.NoError(t, err)
@@ -4007,7 +4007,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:            "test_pool",
+			Name:            "test-pool-uuid",
 			AccountID:       account.ID,
 			PoolCredentials: nil, // Explicitly nil
 		}
@@ -4015,7 +4015,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test_pool", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
 
 		// Assert
 		assert.NoError(t, err)

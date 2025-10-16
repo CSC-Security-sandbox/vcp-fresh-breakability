@@ -185,9 +185,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/ontap/credentials"
+					case '/': // Prefix: "/credentials"
 
-						if l := len("/ontap/credentials"); len(elem) >= l && elem[0:l] == "/ontap/credentials" {
+						if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
 							elem = elem[l:]
 						} else {
 							break
@@ -455,9 +455,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						}
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/ontap/credentials"
+					case '/': // Prefix: "/credentials"
 
-						if l := len("/ontap/credentials"); len(elem) >= l && elem[0:l] == "/ontap/credentials" {
+						if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
 							elem = elem[l:]
 						} else {
 							break
@@ -470,7 +470,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								r.name = V1GetOntapCredentialsOperation
 								r.summary = "Get ONTAP credentials"
 								r.operationID = "v1_getOntapCredentials"
-								r.pathPattern = "/v1/pools/{poolName}/ontap/credentials"
+								r.pathPattern = "/v1/pools/{poolId}/credentials"
 								r.args = args
 								r.count = 1
 								return r, true

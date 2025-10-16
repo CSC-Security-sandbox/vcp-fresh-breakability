@@ -25,7 +25,7 @@ func (h Handler) V1GetOntapCredentials(ctx context.Context, params oasgenserver.
 		}, nil
 	}
 	accountName := params.AccountName.Value
-	poolCredentials, err := h.Orchestrator.GetExpertModePoolCreds(ctx, params.PoolName, accountName, params.UserName.Value)
+	poolCredentials, err := h.Orchestrator.GetExpertModePoolCreds(ctx, params.PoolId, accountName, params.UserName.Value)
 	if err != nil {
 		// Check if the error is ErrPoolNotFound and return 404
 		var customErr *errors.CustomError

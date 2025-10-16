@@ -479,6 +479,15 @@ func (s *OptPoolV1StoragePoolState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptReplicationV1State) SetFake() {
+	var elem ReplicationV1State
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptStatusV1) SetFake() {
 	var elem StatusV1
 	{
@@ -820,6 +829,45 @@ func (s *PoolV1StoragePoolState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ReplicationV1) SetFake() {
+	{
+		{
+			s.ReplicationId.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ReplicationV1State) SetFake() {
+	*s = ReplicationV1StateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *StatusV1) SetFake() {
 	{
 		{
@@ -974,6 +1022,94 @@ func (s *V1DeletePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1DeletePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetMultipleReplicationsByExternalUUIDBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetMultipleReplicationsByExternalUUIDForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetMultipleReplicationsByExternalUUIDInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetMultipleReplicationsByExternalUUIDNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetMultipleReplicationsByExternalUUIDNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDOK) SetFake() {
+	{
+		{
+			s.Replications = nil
+			for i := 0; i < 0; i++ {
+				var elem ReplicationV1
+				{
+					elem.SetFake()
+				}
+				s.Replications = append(s.Replications, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetMultipleReplicationsByExternalUUIDTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetMultipleReplicationsByExternalUUIDUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetMultipleReplicationsByExternalUUIDUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetMultipleReplicationsByExternalUUIDUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

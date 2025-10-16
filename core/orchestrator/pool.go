@@ -709,17 +709,14 @@ func convertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
 	return result
 }
 
-func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolName string, accountName string, userName string) (*models.UserCredentials, error) {
+func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID string, accountName string, userName string) (*models.UserCredentials, error) {
 	se := o.storage
 
 	account, err := getAccountWithName(ctx, se, accountName)
 	if err != nil {
 		return nil, err
 	}
-
-	conditions := [][]interface{}{{"name = ?", poolName}}
-	conditions = append(conditions, []interface{}{"account_id = ?", account.ID})
-	pool, err := se.GetPoolByName(ctx, conditions)
+	pool, err := se.GetPool(ctx, poolUUID, account.ID)
 	if err != nil {
 		return nil, err
 	}

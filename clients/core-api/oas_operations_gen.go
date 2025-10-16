@@ -6,11 +6,12 @@ package coreapi
 type OperationName = string
 
 const (
-	V1CreatePoolOperation          OperationName = "V1CreatePool"
-	V1DeletePoolOperation          OperationName = "V1DeletePool"
-	V1GetOntapCredentialsOperation OperationName = "V1GetOntapCredentials"
-	V1GetPoolOperation             OperationName = "V1GetPool"
-	V1ListPoolsOperation           OperationName = "V1ListPools"
-	V1RotateGcpKmsConfigOperation  OperationName = "V1RotateGcpKmsConfig"
-	V1UpdatePoolOperation          OperationName = "V1UpdatePool"
+	V1CreatePoolOperation                            OperationName = "V1CreatePool"
+	V1DeletePoolOperation                            OperationName = "V1DeletePool"
+	V1GetMultipleReplicationsByExternalUUIDOperation OperationName = "V1GetMultipleReplicationsByExternalUUID"
+	V1GetOntapCredentialsOperation                   OperationName = "V1GetOntapCredentials"
+	V1GetPoolOperation                               OperationName = "V1GetPool"
+	V1ListPoolsOperation                             OperationName = "V1ListPools"
+	V1RotateGcpKmsConfigOperation                    OperationName = "V1RotateGcpKmsConfig"
+	V1UpdatePoolOperation                            OperationName = "V1UpdatePool"
 )
