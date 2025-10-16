@@ -68,7 +68,7 @@ func LaunchJobManagerWorkflow(ctx context.Context, temporalClient client.Client,
 			TaskQueue:                workflow_engine.BackgroundTaskQueue,
 			ID:                       scheduler.JobManagerWorkflowID,
 			WorkflowIDConflictPolicy: enums.WORKFLOW_ID_CONFLICT_POLICY_FAIL,
-			WorkflowRunTimeout:       time.Minute * 15,
+			WorkflowRunTimeout:       workflow_engine.GetWorkflowGlobalTimeout(),
 		},
 		jobmanagerworkflows.JobManagerWorkflow,
 	)
