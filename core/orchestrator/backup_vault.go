@@ -334,6 +334,7 @@ func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.Back
 		DestinationBackupVault:     bv.CrossRegionBackupVaultName,
 		BackupVaultType:            &bv.BackupVaultType,
 		CrossRegionBackupVaultName: bv.CrossRegionBackupVaultName,
+		AccountName:                bv.Account.Name,
 	}
 	if bv.ImmutableAttributes != nil {
 		res.BackupRetentionPolicy = models.BackupRetentionPolicyparams{
