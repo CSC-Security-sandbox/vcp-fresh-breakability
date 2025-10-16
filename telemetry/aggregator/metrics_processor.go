@@ -694,6 +694,10 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		return fmt.Errorf("skipping aggregation usage record as resource data not found for resource name : %s, deployment name : %s, customer ID : %s", resourceKey.ResourceName, resourceKey.DeploymentName, resourceKey.ConsumerID)
 	}
 
+	if metrics[0].MeasuredType != metadata.PoolTotalIops && metrics[0].MeasuredType != metadata.PoolTotalThroughputMibps {
+		quantity = BytesToMiB(quantity)
+	}
+
 	// Create aggregated record with all available fields
 	aggregated := &datamodel2.AggregatedUsage{
 		ResourceUUID:           resourceUUID,
@@ -703,7 +707,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		AggregationEnd:         end,
 		MeasuredType:           metrics[0].MeasuredType,
 		ResourceType:           metrics[0].ResourceType,
-		Quantity:               BytesToMiB(quantity),
+		Quantity:               quantity,
 		ResourceName:           &metrics[0].ResourceName,
 		RegionName:             &metrics[0].Location,
 		LastCounterValue:       lastCounterValue,

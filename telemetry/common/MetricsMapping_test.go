@@ -185,10 +185,14 @@ func TestMetricsMappingMapCompleteness(t *testing.T) {
 		// Regular volume pool mappings
 		{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolAllocatedSize},
 		{ResourceType: metadata.VolumePool, MeasuredType: metadata.AllocatedUsed},
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolTotalThroughputMibps},
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolTotalIops},
 
 		// Regional HA volume pool mappings
 		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolAllocatedSize},
 		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.AllocatedUsed},
+		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolTotalThroughputMibps},
+		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolTotalIops},
 
 		// Volume mappings
 		{ResourceType: metadata.Volume, MeasuredType: metadata.BackupLogicalSize},

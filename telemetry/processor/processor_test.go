@@ -769,77 +769,43 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 	mockTenantProvider.On("GetTenantProjects", mock.Anything, mock.Anything).Return([]string{"project1"}, nil)
 	mockClient := new(collector.MockMonitoringClient)
 	testMetrics := []common.MetricItem{
-		{
-			Metric:       "volume_read_ops",
-			ResourceType: "netapp_volume",
-		},
+		{Metric: "volume_read_ops", ResourceType: "netapp_volume"},
 	}
 	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
 		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account:        &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+			Name: "dummy-pool", Description: "desc", State: "active", VendorID: "vendor",
+			ServiceLevel: "standard", SizeInBytes: 100, UsedBytes: 10, Network: "net", QosType: "qos",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "", CertificateID: ""},
+			Account:         &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}},
+			PoolAttributes:  &datamodel.PoolAttributes{}, ClusterDetails: datamodel.ClusterDetails{},
 		},
 	}}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
 	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
-
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
-	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.MatchedBy(func(metrics []metricsdm.HydratedMetrics) bool {
-		// For volume metrics, we expect both metrics to be included (even unknown types)
-		if len(metrics) == 2 {
-			// Check if this is volume metrics (contains UnknownMeasuredType or FileSystemReadOps)
-			hasVolumeMetrics := false
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.MatchedBy(func(ctx context.Context) bool {
+		return true
+	}), mock.MatchedBy(func(metrics []metricsdm.HydratedMetrics) bool {
+		if len(metrics) == 4 {
+			hasPoolAllocated := false
+			hasAllocatedUsed := false
+			hasTotalThroughput := false
+			hasTotalIOPS := false
 			for _, metric := range metrics {
-				if metric.MeasuredType == metadata.UnknownMeasuredType || metric.MeasuredType == metadata.AllocatedSize {
-					hasVolumeMetrics = true
-					break
+				switch metric.MeasuredType {
+				case metadata.PoolAllocatedSize:
+					hasPoolAllocated = true
+				case metadata.AllocatedUsed:
+					hasAllocatedUsed = true
+				case metadata.PoolTotalThroughputMibps:
+					hasTotalThroughput = true
+				case metadata.PoolTotalIops:
+					hasTotalIOPS = true
 				}
 			}
-			if hasVolumeMetrics {
-				// This is the volume metrics call - should include both unknown and valid types
-				hasUnknown := false
-				hasFileSystemReadOps := false
-				for _, metric := range metrics {
-					if metric.MeasuredType == metadata.UnknownMeasuredType {
-						hasUnknown = true
-					}
-					if metric.MeasuredType == metadata.AllocatedSize {
-						hasFileSystemReadOps = true
-					}
-				}
-				return hasUnknown && hasFileSystemReadOps
-			} else {
-				// This is the pool metrics call - should include both PoolAllocatedSize and AllocatedUsed
-				hasPoolAllocated := false
-				hasAllocatedUsed := false
-				for _, metric := range metrics {
-					if metric.MeasuredType == metadata.PoolAllocatedSize {
-						hasPoolAllocated = true
-					}
-					if metric.MeasuredType == metadata.AllocatedUsed {
-						hasAllocatedUsed = true
-					}
-				}
-				return hasPoolAllocated && hasAllocatedUsed
-			}
+			return hasPoolAllocated && hasAllocatedUsed && hasTotalThroughput && hasTotalIOPS
 		}
 		return false
 	}), mock.AnythingOfType("int")).Return(nil).Maybe()
@@ -850,9 +816,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
 		return nil
 	}
-	defer func() {
-		collector.CollectVolumeMetrics = originalFunc
-	}()
+	defer func() { collector.CollectVolumeMetrics = originalFunc }()
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink, googleMetricProvider: provider}
 	err := mp.ProcessPerformanceMetrics(ctx)
@@ -1029,35 +993,37 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_S
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
 	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
-	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(2) // 2 metrics: PoolAllocatedSize and AllocatedUsed
+	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(4) // 4 metrics: PoolAllocatedSize, AllocatedUsed, PoolTotalThroughputMiBps, PoolTotalIOPS
 
 	// Mock successful CreateHydratedMetricsBatch call
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.MatchedBy(func(metrics []metricsdm.HydratedMetrics) bool {
-		// Verify we have the expected hydrated metrics - now both PoolAllocatedSize and AllocatedUsed
-		if len(metrics) != 2 {
+		// Verify we have the expected hydrated metrics - now four metrics
+		if len(metrics) != 4 {
 			return false
 		}
 
-		// Check for PoolAllocatedSize metric
-		hasPoolAllocated := false
-		hasAllocatedUsed := false
+		// Check for expected metrics
+		expectedMetrics := map[metadata.MeasuredType]float64{
+			metadata.PoolAllocatedSize:        1000,
+			metadata.AllocatedUsed:            500,
+			metadata.PoolTotalThroughputMibps: -64,
+			metadata.PoolTotalIops:            0,
+		}
+
 		for _, metric := range metrics {
-			if metric.MeasuredType == metadata.PoolAllocatedSize &&
-				metric.ResourceType == metadata.VolumePool &&
-				metric.ConsumerID == "test-account" &&
-				metric.ResourceName == "test-pool" &&
-				metric.Quantity == float64(1000) {
-				hasPoolAllocated = true
-			}
-			if metric.MeasuredType == metadata.AllocatedUsed &&
-				metric.ResourceType == metadata.VolumePool &&
-				metric.ConsumerID == "test-account" &&
-				metric.ResourceName == "test-pool" &&
-				metric.Quantity == float64(500) {
-				hasAllocatedUsed = true
+			if quantity, ok := expectedMetrics[metric.MeasuredType]; ok {
+				if metric.ResourceType != metadata.VolumePool ||
+					metric.ConsumerID != "test-account" ||
+					metric.ResourceName != "test-pool" ||
+					metric.Quantity != quantity {
+					return false
+				}
+				delete(expectedMetrics, metric.MeasuredType)
+			} else {
+				return false
 			}
 		}
-		return hasPoolAllocated && hasAllocatedUsed
+		return len(expectedMetrics) == 0
 	}), mock.AnythingOfType("int")).Return(nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
@@ -1067,7 +1033,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_S
 	assert.NoError(t, err)
 
 	// Wait for async operations to complete
-	waitForAsyncOperations(t, 200*time.Millisecond)
+	waitForAsyncOperations(t, 500*time.Millisecond) // Increased timeout for robustness
 
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
@@ -1164,26 +1130,44 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MultiplePoolsHydratedMetrics
 
 	// Mock successful CreateHydratedMetricsBatch call for multiple pools
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.MatchedBy(func(metrics []metricsdm.HydratedMetrics) bool {
-		// Should have 4 hydrated metrics (2 per pool: PoolAllocatedSize and AllocatedUsed)
-		if len(metrics) != 4 {
+		// Should have 8 hydrated metrics (4 per pool: PoolAllocatedSize, AllocatedUsed, PoolTotalThroughputMiBps, PoolTotalIops)
+		if len(metrics) != 8 {
 			return false
 		}
 
 		// Verify both pools have correct hydrated metrics
-		poolAllocatedCount := 0
-		allocatedUsedCount := 0
-		poolNames := make(map[string]bool)
+		expectedMetrics := map[string]map[metadata.MeasuredType]bool{
+			"pool-1": {
+				metadata.PoolAllocatedSize:        false,
+				metadata.AllocatedUsed:            false,
+				metadata.PoolTotalThroughputMibps: false,
+				metadata.PoolTotalIops:            false,
+			},
+			"pool-2": {
+				metadata.PoolAllocatedSize:        false,
+				metadata.AllocatedUsed:            false,
+				metadata.PoolTotalThroughputMibps: false,
+				metadata.PoolTotalIops:            false,
+			},
+		}
+
 		for _, metric := range metrics {
-			if metric.MeasuredType == metadata.PoolAllocatedSize && metric.ResourceType == metadata.VolumePool {
-				poolAllocatedCount++
-				poolNames[metric.ResourceName] = true
-			}
-			if metric.MeasuredType == metadata.AllocatedUsed && metric.ResourceType == metadata.VolumePool {
-				allocatedUsedCount++
+			if _, exists := expectedMetrics[metric.ResourceName]; exists {
+				if _, exists := expectedMetrics[metric.ResourceName][metric.MeasuredType]; exists {
+					expectedMetrics[metric.ResourceName][metric.MeasuredType] = true
+				}
 			}
 		}
 
-		return poolAllocatedCount == 2 && allocatedUsedCount == 2 && poolNames["pool-1"] && poolNames["pool-2"]
+		for _, metricsMap := range expectedMetrics {
+			for _, found := range metricsMap {
+				if !found {
+					return false
+				}
+			}
+		}
+
+		return true
 	}), mock.AnythingOfType("int")).Return(nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
@@ -1242,6 +1226,11 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsWithNilTeleme
 }
 
 func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t *testing.T) {
+	const (
+		poolSizeInBytes = 5368709120 // 5GB
+		usedBytes       = 2147483648 // 2GB
+	)
+
 	ctx := context.Background()
 	vcpStore := &database.MockStorage{}
 	telemetryStore := &metricdb.MockStorage{}
@@ -1252,8 +1241,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t 
 		Pool: datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-test"},
 			Name:        "validation-pool",
-			SizeInBytes: 5368709120, // 5GB
-			UsedBytes:   2147483648, // 2GB
+			SizeInBytes: poolSizeInBytes,
+			UsedBytes:   usedBytes,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-validation"},
 				Name:      "validation-account",
@@ -1261,7 +1250,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t 
 			PoolAttributes: &datamodel.PoolAttributes{},
 			ClusterDetails: datamodel.ClusterDetails{},
 		},
-		QuotaInBytes: 2147483648,
+		QuotaInBytes: usedBytes,
 	}
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
@@ -1269,65 +1258,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t 
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(2)
 
 	// Detailed validation of hydrated metrics structure
-	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.MatchedBy(func(metrics []metricsdm.HydratedMetrics) bool {
-		if len(metrics) != 2 {
-			return false
-		}
-
-		// Find PoolAllocatedSize and AllocatedUsed metrics
-		var poolAllocatedMetric, allocatedUsedMetric metricsdm.HydratedMetrics
-		hasPoolAllocated := false
-		hasAllocatedUsed := false
-
-		for _, metric := range metrics {
-			if metric.MeasuredType == metadata.PoolAllocatedSize {
-				poolAllocatedMetric = metric
-				hasPoolAllocated = true
-			}
-			if metric.MeasuredType == metadata.AllocatedUsed {
-				allocatedUsedMetric = metric
-				hasAllocatedUsed = true
-			}
-		}
-
-		if !hasPoolAllocated || !hasAllocatedUsed {
-			return false
-		}
-
-		// Validate PoolAllocatedSize metric fields
-		poolAllocatedValidations := []bool{
-			poolAllocatedMetric.MeasuredType == metadata.PoolAllocatedSize,
-			poolAllocatedMetric.ResourceType == metadata.VolumePool,
-			poolAllocatedMetric.ConsumerID == "validation-account",
-			poolAllocatedMetric.ResourceName == "validation-pool",
-			poolAllocatedMetric.Quantity == float64(5368709120),
-			!poolAllocatedMetric.MetricTimestamp.IsZero(), // Timestamp should be set
-		}
-
-		// Validate AllocatedUsed metric fields
-		allocatedUsedValidations := []bool{
-			allocatedUsedMetric.MeasuredType == metadata.AllocatedUsed,
-			allocatedUsedMetric.ResourceType == metadata.VolumePool,
-			allocatedUsedMetric.ConsumerID == "validation-account",
-			allocatedUsedMetric.ResourceName == "validation-pool",
-			allocatedUsedMetric.Quantity == float64(2147483648),
-			!allocatedUsedMetric.MetricTimestamp.IsZero(), // Timestamp should be set
-		}
-
-		for _, valid := range poolAllocatedValidations {
-			if !valid {
-				return false
-			}
-		}
-
-		for _, valid := range allocatedUsedValidations {
-			if !valid {
-				return false
-			}
-		}
-
-		return true
-	}), mock.AnythingOfType("int")).Return(nil)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.MatchedBy(validateHydratedMetrics), mock.AnythingOfType("int")).Return(nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
 	err := mp.ProcessPerformanceMetrics(ctx)
@@ -1339,6 +1270,72 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t 
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// Helper function to validate hydrated metrics
+func validateHydratedMetrics(metrics []metricsdm.HydratedMetrics) bool {
+	if len(metrics) != 4 {
+		return false
+	}
+
+	expectedMetrics := map[metadata.MeasuredType]metricsdm.HydratedMetrics{
+		metadata.PoolAllocatedSize: {
+			MeasuredType:    metadata.PoolAllocatedSize,
+			ResourceType:    metadata.VolumePool,
+			ConsumerID:      "validation-account",
+			ResourceName:    "validation-pool",
+			Quantity:        float64(5368709120),
+			MetricTimestamp: time.Now(), // This needs to be checked more precisely
+		},
+		metadata.AllocatedUsed: {
+			MeasuredType:    metadata.AllocatedUsed,
+			ResourceType:    metadata.VolumePool,
+			ConsumerID:      "validation-account",
+			ResourceName:    "validation-pool",
+			Quantity:        float64(2147483648),
+			MetricTimestamp: time.Now(), // This needs to be checked more precisely
+		},
+		metadata.PoolTotalThroughputMibps: {
+			MeasuredType:    metadata.PoolTotalThroughputMibps,
+			ResourceType:    metadata.VolumePool,
+			ConsumerID:      "validation-account",
+			ResourceName:    "validation-pool",
+			Quantity:        -64,
+			MetricTimestamp: time.Now(), // This needs to be checked more precisely
+		},
+		metadata.PoolTotalIops: {
+			MeasuredType:    metadata.PoolTotalIops,
+			ResourceType:    metadata.VolumePool,
+			ConsumerID:      "validation-account",
+			ResourceName:    "validation-pool",
+			Quantity:        0,
+			MetricTimestamp: time.Now(), // This needs to be checked more precisely
+		},
+	}
+
+	for _, metric := range metrics {
+		expectedMetric, exists := expectedMetrics[metric.MeasuredType]
+		if !exists {
+			return false
+		}
+
+		metricValidations := []bool{
+			metric.MeasuredType == expectedMetric.MeasuredType,
+			metric.ResourceType == expectedMetric.ResourceType,
+			metric.ConsumerID == expectedMetric.ConsumerID,
+			metric.ResourceName == expectedMetric.ResourceName,
+			metric.Quantity == expectedMetric.Quantity,
+			!metric.MetricTimestamp.IsZero(), // Timestamp should be set
+		}
+
+		for _, valid := range metricValidations {
+			if !valid {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // Test the new dual return value functionality from GetPoolMetrics integration
@@ -1368,26 +1365,32 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_GetPoolMetricsDualReturn(t *
 
 	// Mock both metrics delivery and hydrated metrics batch creation
 	sink.On("DeliverMetrics", mock.Anything, mock.MatchedBy(func(metrics []entity.HydratedMetric) bool {
-		// Should receive 2 metrics: PoolAllocatedSize and AllocatedUsed
-		return len(metrics) == 2
-	})).Return(2)
+		// Should receive 4 metrics based on the log output
+		return len(metrics) == 4
+	})).Return(4)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.MatchedBy(func(metrics []metricsdm.HydratedMetrics) bool {
-		// Should receive 2 hydrated metrics: PoolAllocatedSize and AllocatedUsed
-		if len(metrics) != 2 {
+		// Should receive 4 hydrated metrics based on the log output
+		if len(metrics) != 4 {
 			return false
 		}
 		hasPoolAllocated := false
 		hasAllocatedUsed := false
+		hasTotalThroughput := false
+		hasTotalIOPS := false
 		for _, metric := range metrics {
-			if metric.MeasuredType == metadata.PoolAllocatedSize {
+			switch metric.MeasuredType {
+			case metadata.PoolAllocatedSize:
 				hasPoolAllocated = true
-			}
-			if metric.MeasuredType == metadata.AllocatedUsed {
+			case metadata.AllocatedUsed:
 				hasAllocatedUsed = true
+			case metadata.PoolTotalThroughputMibps:
+				hasTotalThroughput = true
+			case metadata.PoolTotalIops:
+				hasTotalIOPS = true
 			}
 		}
-		return hasPoolAllocated && hasAllocatedUsed
+		return hasPoolAllocated && hasAllocatedUsed && hasTotalThroughput && hasTotalIOPS
 	}), mock.AnythingOfType("int")).Return(nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}

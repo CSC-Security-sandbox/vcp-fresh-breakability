@@ -63,6 +63,7 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 				},
 				PoolAttributes: &datamodel.PoolAttributes{
 					ThroughputMibps: 100,
+					Iops:            1000,
 				},
 			},
 			Throughput:   100.0,
@@ -75,8 +76,8 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Len(t, result.HydratedMetrics, 2)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
-	assert.Len(t, result.HydratedMetricsDataModel, 2) // Should have 2 hydrated metrics (both PoolAllocatedSize and AllocatedUsed)
+	assert.Len(t, result.HydratedMetrics, 4)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
+	assert.Len(t, result.HydratedMetricsDataModel, 4) // Should have 2 hydrated metrics (both PoolAllocatedSize and AllocatedUsed)
 
 	// Test new PoolMetadataMap field
 	assert.NotNil(t, result.PoolMetadataMap, "PoolMetadataMap should not be nil")
@@ -140,6 +141,7 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 				},
 				PoolAttributes: &datamodel.PoolAttributes{
 					ThroughputMibps: 0,
+					Iops:            0,
 				},
 			},
 			QuotaInBytes: 300,
@@ -157,6 +159,7 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 				},
 				PoolAttributes: &datamodel.PoolAttributes{
 					ThroughputMibps: 0,
+					Iops:            0,
 				},
 			},
 			QuotaInBytes: 800,
@@ -168,8 +171,8 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Len(t, result.HydratedMetrics, 4)          // Should have 4 metrics: 2 pools * 2 metric types each
-	assert.Len(t, result.HydratedMetricsDataModel, 4) // Should have 4 hydrated metrics (2 per pool for both PoolAllocatedSize and AllocatedUsed)
+	assert.Len(t, result.HydratedMetrics, 8)          // Should have 4 metrics: 2 pools * 2 metric types each
+	assert.Len(t, result.HydratedMetricsDataModel, 8) // Should have 4 hydrated metrics (2 per pool for both PoolAllocatedSize and AllocatedUsed)
 
 	// Check first pool metrics
 	assert.Equal(t, metadata.PoolAllocatedSize, result.HydratedMetrics[0].MeasuredType)
@@ -182,13 +185,13 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 	assert.Equal(t, float64(300), result.HydratedMetrics[1].Quantity)
 
 	// Check second pool metrics
-	assert.Equal(t, metadata.PoolAllocatedSize, result.HydratedMetrics[2].MeasuredType)
-	assert.Equal(t, float64(2000), result.HydratedMetrics[2].Quantity)
-	assert.Equal(t, "Pool2", derefString(result.HydratedMetrics[2].Metadata.ResourceName))
-	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[2].Metadata.AccountName))
+	assert.Equal(t, metadata.PoolAllocatedSize, result.HydratedMetrics[4].MeasuredType)
+	assert.Equal(t, float64(2000), result.HydratedMetrics[4].Quantity)
+	assert.Equal(t, "Pool2", derefString(result.HydratedMetrics[4].Metadata.ResourceName))
+	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[4].Metadata.AccountName))
 
-	assert.Equal(t, metadata.AllocatedUsed, result.HydratedMetrics[3].MeasuredType)
-	assert.Equal(t, float64(800), result.HydratedMetrics[3].Quantity)
+	assert.Equal(t, metadata.AllocatedUsed, result.HydratedMetrics[5].MeasuredType)
+	assert.Equal(t, float64(800), result.HydratedMetrics[5].Quantity)
 
 	// Check hydrated metrics - Pool1 PoolAllocatedSize
 	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
@@ -203,16 +206,16 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 	assert.Equal(t, float64(300), result.HydratedMetricsDataModel[1].Quantity)
 
 	// Check hydrated metrics - Pool2 PoolAllocatedSize
-	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[2].ConsumerID)
-	assert.Equal(t, "Pool2", result.HydratedMetricsDataModel[2].ResourceName)
-	assert.Equal(t, metadata.PoolAllocatedSize, result.HydratedMetricsDataModel[2].MeasuredType)
-	assert.Equal(t, float64(2000), result.HydratedMetricsDataModel[2].Quantity)
+	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[4].ConsumerID)
+	assert.Equal(t, "Pool2", result.HydratedMetricsDataModel[4].ResourceName)
+	assert.Equal(t, metadata.PoolAllocatedSize, result.HydratedMetricsDataModel[4].MeasuredType)
+	assert.Equal(t, float64(2000), result.HydratedMetricsDataModel[4].Quantity)
 
 	// Check hydrated metrics - Pool2 AllocatedUsed
-	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[3].ConsumerID)
-	assert.Equal(t, "Pool2", result.HydratedMetricsDataModel[3].ResourceName)
-	assert.Equal(t, metadata.AllocatedUsed, result.HydratedMetricsDataModel[3].MeasuredType)
-	assert.Equal(t, float64(800), result.HydratedMetricsDataModel[3].Quantity)
+	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[5].ConsumerID)
+	assert.Equal(t, "Pool2", result.HydratedMetricsDataModel[5].ResourceName)
+	assert.Equal(t, metadata.AllocatedUsed, result.HydratedMetricsDataModel[5].MeasuredType)
+	assert.Equal(t, float64(800), result.HydratedMetricsDataModel[5].Quantity)
 }
 
 func Test_GetPoolMetrics_EmptyPools(t *testing.T) {
@@ -359,7 +362,7 @@ func TestGetPoolMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	assert.NotNil(t, result)
 
 	// Verify that both PoolAllocatedSize and AllocatedUsed metrics are converted to HydratedMetrics
-	assert.Len(t, result.HydratedMetricsDataModel, 2)
+	assert.Len(t, result.HydratedMetricsDataModel, 4)
 
 	// Find the PoolAllocatedSize metric in the metrics slice
 	var poolAllocatedSizeMetric *entity.HydratedMetric
@@ -607,8 +610,8 @@ func Test_GetPoolMetrics_IncludesThroughputAndResourceID(t *testing.T) {
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Len(t, result.HydratedMetrics, 2)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
-	assert.Len(t, result.HydratedMetricsDataModel, 2) // Should have 2 hydrated metrics
+	assert.Len(t, result.HydratedMetrics, 4)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
+	assert.Len(t, result.HydratedMetricsDataModel, 4) // Should have 2 hydrated metrics
 
 	// Test new PoolMetadataMap functionality
 	assert.NotNil(t, result.PoolMetadataMap, "PoolMetadataMap should not be nil")
@@ -755,8 +758,8 @@ func Test_GetPoolMetrics_RegionalHAPool(t *testing.T) {
 	assert.NotNil(t, result)
 
 	// Verify metrics were created
-	assert.Len(t, result.HydratedMetrics, 2)
-	assert.Len(t, result.HydratedMetricsDataModel, 2)
+	assert.Len(t, result.HydratedMetrics, 4)
+	assert.Len(t, result.HydratedMetricsDataModel, 4)
 	assert.Len(t, result.PoolMetadataMap, 1)
 
 	// Check that the resource type is correctly set to VolumePoolRegionalHA
@@ -819,8 +822,8 @@ func Test_GetPoolMetrics_ZonalPool(t *testing.T) {
 	assert.NotNil(t, result)
 
 	// Verify metrics were created
-	assert.Len(t, result.HydratedMetrics, 2)
-	assert.Len(t, result.HydratedMetricsDataModel, 2)
+	assert.Len(t, result.HydratedMetrics, 4)
+	assert.Len(t, result.HydratedMetricsDataModel, 4)
 	assert.Len(t, result.PoolMetadataMap, 1)
 
 	// Check that the resource type is correctly set to VolumePool (regular zonal)
@@ -901,8 +904,8 @@ func Test_GetPoolMetrics_MixedPoolTypes(t *testing.T) {
 	assert.NotNil(t, result)
 
 	// Verify metrics were created for both pools
-	assert.Len(t, result.HydratedMetrics, 4)          // 2 metrics per pool
-	assert.Len(t, result.HydratedMetricsDataModel, 4) // 2 hydrated metrics per pool
+	assert.Len(t, result.HydratedMetrics, 8)          // 2 metrics per pool
+	assert.Len(t, result.HydratedMetricsDataModel, 8) // 2 hydrated metrics per pool
 	assert.Len(t, result.PoolMetadataMap, 2)          // 2 pools
 
 	// Check first pool (Regional HA)
@@ -919,10 +922,14 @@ func Test_GetPoolMetrics_MixedPoolTypes(t *testing.T) {
 	// First two metrics should be for Regional HA pool
 	assert.Equal(t, metadata.VolumePoolRegionalHA, result.HydratedMetricsDataModel[0].ResourceType)
 	assert.Equal(t, metadata.VolumePoolRegionalHA, result.HydratedMetricsDataModel[1].ResourceType)
+	assert.Equal(t, metadata.VolumePoolRegionalHA, result.HydratedMetricsDataModel[2].ResourceType)
+	assert.Equal(t, metadata.VolumePoolRegionalHA, result.HydratedMetricsDataModel[3].ResourceType)
 
 	// Last two metrics should be for Zonal pool
-	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[2].ResourceType)
-	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[3].ResourceType)
+	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[4].ResourceType)
+	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[5].ResourceType)
+	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[6].ResourceType)
+	assert.Equal(t, metadata.VolumePool, result.HydratedMetricsDataModel[7].ResourceType)
 
 	m.AssertExpectations(t)
 }

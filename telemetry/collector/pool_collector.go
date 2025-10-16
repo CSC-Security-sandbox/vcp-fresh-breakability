@@ -14,6 +14,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+var (
+	BaseThroughputMibps = 64.0
+	IopsFactor          = 16.0
+)
+
 // PoolMetricsResult holds the results from GetPoolMetrics operation
 type PoolMetricsResult struct {
 	// HydratedMetrics contains the traditional hydrated metrics
@@ -58,13 +63,19 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 		poolMetadataMap[pool.ID] = poolMetadata
 
 		// Create a metric for the pool
-		metric := setupHydratedMetric(timestamp, poolMetadata, metadata.PoolAllocatedSize, float64(pool.SizeInBytes))
-		metrics = append(metrics, metric)
-		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, timestamp, float64(pool.SizeInBytes)))
+		metricsToCollect := []struct {
+			measureType metadata.MeasuredType
+			value       float64
+		}{
+			{metadata.PoolAllocatedSize, float64(pool.SizeInBytes)},
+			{metadata.AllocatedUsed, float64(pool.QuotaInBytes)},
+			{metadata.PoolTotalThroughputMibps, float64(pool.PoolAttributes.ThroughputMibps)},
+			{metadata.PoolTotalIops, float64(pool.PoolAttributes.Iops)},
+		}
 
-		metric = setupHydratedMetric(timestamp, poolMetadata, metadata.AllocatedUsed, float64(pool.QuotaInBytes))
-		metrics = append(metrics, metric)
-		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, pool.Account.Name, poolMetadata, timestamp, float64(pool.QuotaInBytes)))
+		for _, m := range metricsToCollect {
+			setupPoolMetric(&metrics, &hydratedMetrics, timestamp, poolMetadata, m.measureType, m.value, pool.Account.Name)
+		}
 	}
 
 	// Return the structured result
@@ -106,6 +117,15 @@ func setupHydratedMetric(now time.Time, poolMetadata metadata.ResourceMetadata, 
 }
 
 func setupHydratedMetricsDataModel(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resourceMetadata metadata.ResourceMetadata, timestamp time.Time, quantity float64) datamodel2.HydratedMetrics {
+	switch measuredType {
+	case metadata.PoolTotalThroughputMibps:
+		quantity = quantity - BaseThroughputMibps
+		// Billable Throughput = Total Throughput set by the user - 64 (Minimum throughput included in the base price)
+	case metadata.PoolTotalIops:
+		throughput := *resourceMetadata.Throughput
+		quantity = quantity - IopsFactor*throughput
+		// Billable IOPS = Total IOPS set by the user - (16 * total throughput set by the user for the pool)
+	}
 	return datamodel2.HydratedMetrics{
 		MetricTimestamp: timestamp,
 		MeasuredType:    measuredType,
@@ -116,4 +136,10 @@ func setupHydratedMetricsDataModel(measuredType metadata.MeasuredType, resourceT
 		Quantity:        quantity,
 		DeploymentName:  *resourceMetadata.DeploymentName,
 	}
+}
+
+func setupPoolMetric(metrics *[]entity.HydratedMetric, hydratedMetrics *[]datamodel2.HydratedMetrics, timestamp time.Time, poolMetadata metadata.ResourceMetadata, measureType metadata.MeasuredType, value float64, accountName string) {
+	metric := setupHydratedMetric(timestamp, poolMetadata, measureType, value)
+	*metrics = append(*metrics, metric)
+	*hydratedMetrics = append(*hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, poolMetadata, timestamp, value))
 }

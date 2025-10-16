@@ -22,6 +22,8 @@ const (
 	UnknownMeasuredType                                  MeasuredType = "UNKNOWN_MEASURED_TYPE"
 	PoolAllocatedSize                                    MeasuredType = "POOL_ALLOCATED_SIZE"
 	AllocatedUsed                                        MeasuredType = "ALLOCATED_USED"
+	PoolTotalThroughputMibps                             MeasuredType = "POOL_TOTAL_THROUGHPUT_MIBPS"
+	PoolTotalIops                                        MeasuredType = "POOL_TOTAL_IOPS"
 	LogicalSize                                          MeasuredType = "LOGICAL_SIZE"
 	SnapshotSize                                         MeasuredType = "SNAPSHOT_SIZE"
 	AllocatedSize                                        MeasuredType = "ALLOCATED_SIZE"
@@ -48,8 +50,12 @@ func init() {
 	}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_allocated_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolAllocatedSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["allocated_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: AllocatedUsed}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_total_throughput_mibps"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolTotalThroughputMibps}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_total_iops"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolTotalIops}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_allocated_size_regional_ha"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePoolRegionalHA, MeasuredType: PoolAllocatedSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["allocated_used_regional_ha"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePoolRegionalHA, MeasuredType: AllocatedUsed}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_total_throughput_mibps_regional_ha"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePoolRegionalHA, MeasuredType: PoolTotalThroughputMibps}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_total_iops_regional_ha"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePoolRegionalHA, MeasuredType: PoolTotalIops}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_space_logical_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: LogicalSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_snapshot_reserve_used"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: SnapshotSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["backup_logical_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: BackupLogicalSize}
