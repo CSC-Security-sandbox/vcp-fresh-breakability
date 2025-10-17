@@ -37,46 +37,46 @@ import (
 const VMsPerHAPair = 2
 
 var (
-	DeploymentsInsert                 = common.DeploymentsInsert
-	PrepareVlmConfig                  = _prepareVlmConfig
-	ReadFile                          = os.ReadFile
-	SaveNodeDetails                   = _saveNodeDetails
-	DeleteLIFs                        = _deleteLIFs
-	DeleteSVMs                        = _deleteSVMs
-	FailedSVMs                        = _failedSVMs
-	DeleteNodes                       = _deleteNodes
-	FailedNodes                       = _failedNodes
-	DeletingNodes                     = _deletingNodes
-	DeletingSVMs                      = _deletingSVMs
-	CreateVPC                         = _createVPC
-	InsertSubnet                      = _insertSubnet
-	InsertFirewall                    = _insertFirewall
-	GetTenantProject                  = _getTenantProject
-	GetCreateDataSubnetworkOp         = _getCreateDataSubnetworkOp
-	GetSubnetToBeUsed                 = getSubnetToBeUsed
-	SetupNetworkFirewallsForIscsi     = setupNetworkFirewallsForIscsi
-	SetupNetworkFirewallsForNFS       = setupNetworkFirewallsForNFS
-	CreateGCPBucket                   = _createGCPBucket
-	CheckReusableSubnet               = _checkReusableSubnet
-	CreateServiceAccountAndAttachRole = _createServiceAccountAndAttachRole
-	DeleteSrvcAccount                 = _deleteServiceAccount
-	DeleteGCPBucket                   = _deleteGCPBucket
-	LoadVMRSConfig                    = vmrs_config.LoadConfig
-	CreateDecisionMaker               = vmrs_decision.NewDecisionMaker
-	CreateLargeVolumeVMRSConfig       = _createLargeVolumeVMRSConfig
-	VlmConfigFilePath                 = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
-	ValidateVlmConfigInputs           = _validateVlmConfigInputs
-	GetCreateSubnetworkOperation      = _getCreateSubnetworkOperation
-	ReleaseSubnet                     = _releaseSubnet
-	CheckAndUpdateFirewall            = _checkAndUpdateFirewall
-	LoadVlmConfigFromFile             = loadVlmConfigFromFile
-	GetServiceNetOpStatus             = _getServiceNetOpStatus
-	GetComputeOpStatus                = _getComputeOpStatus
-	GetSubnetFromOperation            = _getSubnetFromOperation
-	GetGatewayFromIpCidrRange         = _getGatewayFromIpCidrRange
-	ResolveZonesForCluster            = _resolveZonesForCluster
-	GetInternalVSANetworkForFirewalls = _getInternalVSANetworkForFirewalls
-	ListAddressesByDeployment         = _listAddressesByDeployment
+	DeploymentsInsert                        = common.DeploymentsInsert
+	PrepareVlmConfig                         = _prepareVlmConfig
+	ReadFile                                 = os.ReadFile
+	SaveNodeDetails                          = _saveNodeDetails
+	DeleteLIFs                               = _deleteLIFs
+	DeleteSVMs                               = _deleteSVMs
+	FailedSVMs                               = _failedSVMs
+	DeleteNodes                              = _deleteNodes
+	FailedNodes                              = _failedNodes
+	DeletingNodes                            = _deletingNodes
+	DeletingSVMs                             = _deletingSVMs
+	CreateVPC                                = _createVPC
+	InsertSubnet                             = _insertSubnet
+	InsertFirewall                           = _insertFirewall
+	GetTenantProject                         = _getTenantProject
+	GetCreateDataSubnetworkOp                = _getCreateDataSubnetworkOp
+	GetSubnetToBeUsed                        = getSubnetToBeUsed
+	SetupNetworkFirewallsForIscsi            = setupNetworkFirewallsForIscsi
+	SetupNetworkFirewallsForNFS              = setupNetworkFirewallsForNFS
+	CreateGCPBucket                          = _createGCPBucket
+	CheckReusableSubnet                      = _checkReusableSubnet
+	CreateServiceAccountAndAttachRole        = _createServiceAccountAndAttachRole
+	DeleteServiceAccountAndRemoveStorageRole = _deleteServiceAccountAndRemoveStorageRole
+	DeleteGCPBucket                          = _deleteGCPBucket
+	LoadVMRSConfig                           = vmrs_config.LoadConfig
+	CreateDecisionMaker                      = vmrs_decision.NewDecisionMaker
+	CreateLargeVolumeVMRSConfig              = _createLargeVolumeVMRSConfig
+	VlmConfigFilePath                        = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
+	ValidateVlmConfigInputs                  = _validateVlmConfigInputs
+	GetCreateSubnetworkOperation             = _getCreateSubnetworkOperation
+	ReleaseSubnet                            = _releaseSubnet
+	CheckAndUpdateFirewall                   = _checkAndUpdateFirewall
+	LoadVlmConfigFromFile                    = loadVlmConfigFromFile
+	GetServiceNetOpStatus                    = _getServiceNetOpStatus
+	GetComputeOpStatus                       = _getComputeOpStatus
+	GetSubnetFromOperation                   = _getSubnetFromOperation
+	GetGatewayFromIpCidrRange                = _getGatewayFromIpCidrRange
+	ResolveZonesForCluster                   = _resolveZonesForCluster
+	GetInternalVSANetworkForFirewalls        = _getInternalVSANetworkForFirewalls
+	ListAddressesByDeployment                = _listAddressesByDeployment
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
@@ -1749,7 +1749,7 @@ func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID strin
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	err = DeleteSrvcAccount(ctx, projectID, saAccountID, gcpService)
+	err = DeleteServiceAccountAndRemoveStorageRole(ctx, projectID, saAccountID, gcpService)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1792,12 +1792,22 @@ func assignUniqueSerialNumber(ctx context.Context, se database.Storage, cfg *vlm
 	return nil
 }
 
-func _deleteServiceAccount(ctx context.Context, projectNumber string, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
+func _deleteServiceAccountAndRemoveStorageRole(ctx context.Context, projectNumber string, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
 	logger := gcpService.GetLogger()
 
 	saEmail := utils.ConstructServiceAccountEmail(saAccountID, projectNumber)
 	logger.Infof("Deleting service account %s in project %s", saEmail, projectNumber)
-	err := gcpService.DeleteServiceAccount(projectNumber, saEmail)
+
+	roles := []string{"roles/storage.objectUser"}
+	err := gcpService.RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber)
+	if err != nil {
+		logger.Errorf("Failed to remove roles from service account %s: %v.", saEmail, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully removed roles from service account %s", saEmail)
+
+	err = gcpService.DeleteServiceAccount(projectNumber, saEmail)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1826,6 +1836,8 @@ func _createServiceAccountAndAttachRole(ctx context.Context, projectID string, s
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	logger.Infof("Successfully created service account %s with roles %v", saEmail, roles)
+
 	return sa, nil
 }
 

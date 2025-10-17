@@ -3025,22 +3025,52 @@ func Test_deleteServiceAccount(t *testing.T) {
 	saAccountID := "test-sa"
 	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectNumber)
 	logger := util.GetLogger(ctx)
+	roles := []string{"roles/storage.objectUser"}
 
-	t.Run("success", func(t *testing.T) {
+	t.Run("success - roles removed and service account deleted", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
-		mockGcp.EXPECT().GetLogger().Return(logger)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(nil)
 		mockGcp.EXPECT().DeleteServiceAccount(projectNumber, saEmail).Return(nil)
-		err := activities.DeleteSrvcAccount(ctx, projectNumber, saAccountID, mockGcp)
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
 		assert.NoError(t, err)
 	})
 
-	t.Run("delete fails", func(t *testing.T) {
+	t.Run("failure - role removal fails", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
-		mockGcp.EXPECT().GetLogger().Return(logger)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(errors.New("role removal failed"))
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "role removal failed")
+	})
+
+	t.Run("failure - delete service account fails after successful role removal", func(t *testing.T) {
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(nil)
 		mockGcp.EXPECT().DeleteServiceAccount(projectNumber, saEmail).Return(errors.New("delete failed"))
-		err := activities.DeleteSrvcAccount(ctx, projectNumber, saAccountID, mockGcp)
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
+	})
+
+	t.Run("failure - permission denied for role removal", func(t *testing.T) {
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(errors.New("permission denied"))
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
+	})
+
+	t.Run("failure - service account not found during role removal", func(t *testing.T) {
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(errors.New("service account not found"))
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "service account not found")
 	})
 }
 
@@ -3050,15 +3080,15 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 	projectNumber := "123456789"
 	saAccountID := "test-sa"
 
-	origDeleteSrvcAccount := activities.DeleteSrvcAccount
+	origDeleteSrvcAccount := activities.DeleteServiceAccountAndRemoveStorageRole
 	getGCPService := hyperscaler2.GetGCPService
 	defer func() {
-		activities.DeleteSrvcAccount = origDeleteSrvcAccount
+		activities.DeleteServiceAccountAndRemoveStorageRole = origDeleteSrvcAccount
 		hyperscaler2.GetGCPService = getGCPService
 	}()
 
 	t.Run("success", func(t *testing.T) {
-		activities.DeleteSrvcAccount = func(ctx context.Context, projectNumber, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
+		activities.DeleteServiceAccountAndRemoveStorageRole = func(ctx context.Context, projectNumber, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
 			return nil
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -3069,7 +3099,7 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 	})
 
 	t.Run("failure", func(t *testing.T) {
-		activities.DeleteSrvcAccount = func(ctx context.Context, projectNumber, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
+		activities.DeleteServiceAccountAndRemoveStorageRole = func(ctx context.Context, projectNumber, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
 			return errors.New("delete error")
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
