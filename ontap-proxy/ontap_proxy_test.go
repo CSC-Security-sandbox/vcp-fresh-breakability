@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions/processor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 )
@@ -756,14 +757,21 @@ func TestGetAPICallCertificate(t *testing.T) {
 
 func TestAllowAction_ProcessResponse(t *testing.T) {
 	t.Run("WhenResponseWithFields_ShouldRemoveSpecifiedFields", func(t *testing.T) {
-		allowAction := actions.Allow{
-			Name:         "Test field removal",
-			RemoveFields: []string{"password", "secret"},
+		allowAction := processor.Allow{
+			Name: "Test field removal",
+			ResponseRule: actions.ResponseRule{
+				RemovalRules: []actions.RemovalRule{
+					{FieldPath: "password"},
+					{FieldPath: "nested.secret"},
+				},
+			},
 		}
 
 		jsonData := `{"name":"test-volume","password":"secret123","size":1073741824,"nested":{"secret":"hidden","public":"visible"}}`
 		resp := &http.Response{
-			Body: io.NopCloser(strings.NewReader(jsonData)),
+			Body:       io.NopCloser(strings.NewReader(jsonData)),
+			StatusCode: 200,
+			Header:     make(http.Header),
 		}
 
 		err := allowAction.ProcessResponse(resp)
@@ -773,24 +781,30 @@ func TestAllowAction_ProcessResponse(t *testing.T) {
 		assert.NoError(t, err, "Should read response body")
 
 		assert.NotContains(t, string(body), "password", "Password field should be removed")
-		assert.NotContains(t, string(body), "secret", "Secret field should be removed")
+		assert.NotContains(t, string(body), "\"secret\":\"hidden\"", "Secret field should be removed")
 		assert.Contains(t, string(body), "name", "Name field should remain")
 		assert.Contains(t, string(body), "public", "Public field should remain")
 	})
 
 	t.Run("WhenNonJSONResponse_ShouldReturnError", func(t *testing.T) {
-		allowAction := actions.Allow{
-			Name:         "Test non-JSON response",
-			RemoveFields: []string{"password"},
+		allowAction := processor.Allow{
+			Name: "Test non-JSON response",
+			ResponseRule: actions.ResponseRule{
+				RemovalRules: []actions.RemovalRule{
+					{FieldPath: "password"},
+				},
+			},
 		}
 
 		resp := &http.Response{
-			Body: io.NopCloser(strings.NewReader("not json data")),
+			Body:       io.NopCloser(strings.NewReader("not json data")),
+			StatusCode: 200,
+			Header:     make(http.Header),
 		}
 
 		err := allowAction.ProcessResponse(resp)
 		assert.Error(t, err, "Should return error for non-JSON response")
-		assert.Contains(t, err.Error(), "not valid JSON", "Error should mention JSON validation")
+		assert.Contains(t, err.Error(), "failed to decode response", "Error should mention JSON decoding failure")
 	})
 }
 

@@ -1,128 +1,70 @@
 package actions
 
-import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
+import "net/http"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-)
-
+// RequestProcessor defines the interface for processing HTTP requests and responses
 type RequestProcessor interface {
-	ShouldAllow(r *http.Request) bool
+	ShouldAllow(r *http.Request) (bool, error)
 	ProcessRequest(r *http.Request, w http.ResponseWriter) error
 	ProcessResponse(resp *http.Response) error
 }
 
-type Allow struct {
-	Name         string
-	RemoveFields []string
-	AddHeaders   map[string]string
+// Rule maps HTTP methods to actions
+type Rule struct {
+	GET    RequestProcessor
+	POST   RequestProcessor
+	PATCH  RequestProcessor
+	DELETE RequestProcessor
 }
 
-func (a Allow) ShouldAllow(r *http.Request) bool {
-	return true
-}
-
-func (a Allow) ProcessRequest(r *http.Request, w http.ResponseWriter) error {
-	logger := log.NewLogger()
-	logger.Info("Processing request", "action", a.Name)
-	return nil
-}
-
-func (a Allow) ProcessResponse(resp *http.Response) error {
-	logger := log.NewLogger()
-	logger.Info("Processing response", "action", a.Name)
-	return a.applyModifications(resp)
-}
-
-func (a Allow) applyModifications(resp *http.Response) error {
-	if a.AddHeaders != nil {
-		for key, value := range a.AddHeaders {
-			resp.Header.Set(key, value)
-		}
+// GetAction returns the appropriate action for the HTTP method
+func (rule Rule) GetAction(r *http.Request) RequestProcessor {
+	if r == nil {
+		return nil
 	}
 
-	if len(a.RemoveFields) > 0 {
-		if err := a.removeJSONFields(resp); err != nil {
-			logger := log.NewLogger()
-			logger.Error("Error removing fields", "error", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (a Allow) removeJSONFields(resp *http.Response) error {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	var data interface{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return fmt.Errorf("response is not valid JSON, cannot remove fields: %v", err)
-	}
-
-	a.removeFields(data)
-
-	newBody, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-
-	resp.Body = io.NopCloser(bytes.NewReader(newBody))
-	resp.ContentLength = int64(len(newBody))
-
-	logger := log.NewLogger()
-	logger.Info("Removed fields", "fields", a.RemoveFields)
-	return nil
-}
-
-func (a Allow) removeFields(data interface{}) {
-	switch v := data.(type) {
-	case map[string]interface{}:
-		for _, field := range a.RemoveFields {
-			if _, exists := v[field]; exists {
-				logger := log.NewLogger()
-				logger.Info("Removing field", "field", field)
-				delete(v, field)
-			}
-		}
-
-		for _, value := range v {
-			a.removeFields(value)
-		}
-
-	case []interface{}:
-		for _, item := range v {
-			a.removeFields(item)
-		}
+	switch r.Method {
+	case http.MethodGet:
+		return rule.GET
+	case http.MethodPost:
+		return rule.POST
+	case http.MethodPatch:
+		return rule.PATCH
+	case http.MethodDelete:
+		return rule.DELETE
+	default:
+		return nil
 	}
 }
 
-type Deny struct {
-	Name string
+// ValidationRule defines a validation rule for a field
+type ValidationRule struct {
+	FieldPath string        // JSON path to the field (e.g., "size", "guarantee.type")
+	Required  bool          // Whether the field is required
+	MinValue  interface{}   // Minimum value for numeric fields
+	MaxValue  interface{}   // Maximum value for numeric fields
+	Values    []interface{} // Allowed values for the field
 }
 
-func (d Deny) ShouldAllow(r *http.Request) bool {
-	return false
+// InjectionRule defines a field injection rule
+type InjectionRule struct {
+	FieldPath string      // JSON path to the field
+	Value     interface{} // Value to inject
 }
 
-func (d Deny) ProcessRequest(r *http.Request, w http.ResponseWriter) error {
-	logger := log.NewLogger()
-	logger.Info("Processing deny", "action", d.Name)
-	http.Error(w, "Forbidden", http.StatusForbidden)
-	return nil
+// RemovalRule defines a field removal rule for response
+type RemovalRule struct {
+	FieldPath string // JSON path to the field to remove
 }
 
-func (d Deny) ProcessResponse(resp *http.Response) error {
-	return nil
+// RequestRule contains rules for request processing
+type RequestRule struct {
+	ValidationRules []ValidationRule // Fields to validate
+	InjectionRules  []InjectionRule  // Fields to inject
 }
 
-func DenyAll() RequestProcessor {
-	return Deny{Name: "Access denied"}
+// ResponseRule contains rules for response processing
+type ResponseRule struct {
+	InjectionRules []InjectionRule // Fields to inject in response
+	RemovalRules   []RemovalRule   // Fields to remove from response
 }

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
@@ -10,33 +11,17 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+// uuidPattern is a compiled regex pattern for matching UUIDs in URL paths
+var uuidPattern = regexp.MustCompile(`/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}`)
+
 func RuleEngineMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := log.NewLogger()
 
-			path := extractOntapPath(r.URL.Path)
-			if path == "" {
-				logger.Error("Could not extract ONTAP path", "path", r.URL.Path)
-				http.Error(w, "Invalid path", http.StatusBadRequest)
-				return
-			}
-
-			proxyRules := rules.GetProxyRules()
-
-			var matchedRule actions.Rule
-			var matchedPath string
-			for rulePath, rule := range proxyRules {
-				if path == rulePath {
-					matchedRule = rule
-					matchedPath = rulePath
-					break
-				}
-			}
-
-			if matchedPath == "" {
-				logger.Error("No rule found for path", "path", path)
-				http.Error(w, "No rule configured for this endpoint", http.StatusNotFound)
+			matchedRule, matchedPath, found := findMatchingRule(r.URL.Path, logger)
+			if !found {
+				next.ServeHTTP(w, r)
 				return
 			}
 
@@ -48,11 +33,15 @@ func RuleEngineMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			if !action.ShouldAllow(r) {
+			allowed, err := action.ShouldAllow(r)
+			if err != nil {
+				logger.Error("Validation error", "error", err)
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if !allowed {
 				logger.Info("Request denied by action")
-				if err := action.ProcessRequest(r, w); err != nil {
-					logger.Error("Error in request handler", "error", err)
-				}
+				http.Error(w, "Request denied", http.StatusForbidden)
 				return
 			}
 
@@ -68,6 +57,35 @@ func RuleEngineMiddleware() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// findMatchingRule extracts the ONTAP path and finds the matching rule
+// Returns: (rule, matchedPath, found)
+func findMatchingRule(requestPath string, logger log.Logger) (actions.Rule, string, bool) {
+	path := extractOntapPath(requestPath)
+	if path == "" {
+		logger.Error("Could not extract ONTAP path", "path", requestPath)
+		return actions.Rule{}, "", false
+	}
+
+	proxyRules := rules.GetProxyRules()
+
+	var matchedRule actions.Rule
+	var matchedPath string
+	for rulePath, rule := range proxyRules {
+		if path == rulePath {
+			matchedRule = rule
+			matchedPath = rulePath
+			break
+		}
+	}
+
+	if matchedPath == "" {
+		logger.Info("No rule found for path, passing to next middleware", "path", path)
+		return actions.Rule{}, "", false
+	}
+
+	return matchedRule, matchedPath, true
 }
 
 func extractOntapPath(fullPath string) string {
@@ -86,5 +104,15 @@ func extractOntapPath(fullPath string) string {
 	}
 
 	ontapPath := "/" + strings.Join(parts[ontapApiIndex+1:], "/")
-	return ontapPath
+
+	normalizedPath := normalizeUUIDs(ontapPath)
+
+	return normalizedPath
+}
+
+// normalizeUUIDs replaces UUID-like patterns in the path with {uuid} placeholders
+func normalizeUUIDs(path string) string {
+	path = uuidPattern.ReplaceAllString(path, "/{uuid}")
+
+	return path
 }

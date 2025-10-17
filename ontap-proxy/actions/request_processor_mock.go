@@ -115,7 +115,7 @@ func (_c *MockRequestProcessor_ProcessResponse_Call) RunAndReturn(run func(*http
 }
 
 // ShouldAllow provides a mock function with given fields: r
-func (_m *MockRequestProcessor) ShouldAllow(r *http.Request) bool {
+func (_m *MockRequestProcessor) ShouldAllow(r *http.Request) (bool, error) {
 	ret := _m.Called(r)
 
 	if len(ret) == 0 {
@@ -123,13 +123,23 @@ func (_m *MockRequestProcessor) ShouldAllow(r *http.Request) bool {
 	}
 
 	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*http.Request) (bool, error)); ok {
+		return rf(r)
+	}
 	if rf, ok := ret.Get(0).(func(*http.Request) bool); ok {
 		r0 = rf(r)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(*http.Request) error); ok {
+		r1 = rf(r)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockRequestProcessor_ShouldAllow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ShouldAllow'
@@ -150,12 +160,12 @@ func (_c *MockRequestProcessor_ShouldAllow_Call) Run(run func(r *http.Request)) 
 	return _c
 }
 
-func (_c *MockRequestProcessor_ShouldAllow_Call) Return(_a0 bool) *MockRequestProcessor_ShouldAllow_Call {
-	_c.Call.Return(_a0)
+func (_c *MockRequestProcessor_ShouldAllow_Call) Return(_a0 bool, _a1 error) *MockRequestProcessor_ShouldAllow_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockRequestProcessor_ShouldAllow_Call) RunAndReturn(run func(*http.Request) bool) *MockRequestProcessor_ShouldAllow_Call {
+func (_c *MockRequestProcessor_ShouldAllow_Call) RunAndReturn(run func(*http.Request) (bool, error)) *MockRequestProcessor_ShouldAllow_Call {
 	_c.Call.Return(run)
 	return _c
 }
