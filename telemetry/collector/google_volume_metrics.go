@@ -90,7 +90,7 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				EndTime:   timestamppb.New(g.endTime),
 			},
 			View:     monitoringpb.ListTimeSeriesRequest_FULL,
-			PageSize: 100,
+			PageSize: telemetryConfig.PageSize,
 		}
 
 		it := g.client.ListTimeSeries(ctx, req)
