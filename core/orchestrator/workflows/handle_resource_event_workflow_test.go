@@ -419,7 +419,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 
 	// Mock activities - HostGroup resource encounters non-NotFoundErr error (should fallback to SDE)
 	s.env.OnActivity(hreActivity.HandleResourceEventsONForVCPActivity, mock.Anything, mock.Anything).Return(false, errors.New("temporary network error"))
-	
+
 	result := &common.HandleResourceEventResult{
 		Done: nillable.GetBoolPtr(false),
 		Name: nillable.GetStringPtr("operationID"),
@@ -477,6 +477,42 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + DONE
+}
+
+func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow_StoragePoolFoundInVCP_EarlyReturn() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsONForVCPActivity)
+
+	// Mock activities - StoragePool resource found in VCP (should trigger early return)
+	s.env.OnActivity(hreActivity.HandleResourceEventsONForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+
+	// Execute workflow
+	param := &common.UpdateResourceStateParams{
+		ProjectNumber:  "123456789",
+		XCorrelationID: "test-correlation-id",
+		LocationId:     "us-central1",
+		State:          models.StateOn,
+		ResourceId:     "storage-pool-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeStoragePool,
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateONWorkflow, param)
+
+	// Assert workflow completed successfully with early return
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + DONE
 }
 
@@ -876,7 +912,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 
 	// Mock activities - HostGroup resource encounters non-NotFoundErr error (should fallback to SDE)
 	s.env.OnActivity(hreActivity.HandleResourceEventsOFFForVCPActivity, mock.Anything, mock.Anything).Return(false, errors.New("temporary network error"))
-	
+
 	result := &common.HandleResourceEventResult{
 		Done: nillable.GetBoolPtr(false),
 		Name: nillable.GetStringPtr("operationID"),
@@ -934,6 +970,42 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + DONE
+}
+
+func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkflow_StoragePoolFoundInVCP_EarlyReturn() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	hreActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "DONE", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(hreActivity.HandleResourceEventsOFFForVCPActivity)
+
+	// Mock activities - StoragePool resource found in VCP (should trigger early return)
+	s.env.OnActivity(hreActivity.HandleResourceEventsOFFForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+
+	// Execute workflow
+	param := &common.UpdateResourceStateParams{
+		ProjectNumber:  "123456789",
+		XCorrelationID: "test-correlation-id",
+		LocationId:     "us-central1",
+		State:          models.StateOff,
+		ResourceId:     "storage-pool-id",
+		ResourceType:   common.ResourceStateV1ResourceTypeStoragePool,
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateOFFWorkflow, param)
+
+	// Assert workflow completed successfully with early return
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + DONE
 }
 
@@ -2267,7 +2339,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError()) // Should succeed without going through pool logic
+	assert.Nil(s.T(), s.env.GetWorkflowError()) // Should succeed without going through pool logic
 }
 
 // Test case: HandleResourceEventsForSDEActivity fails in SDE path

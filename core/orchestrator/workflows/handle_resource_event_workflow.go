@@ -135,9 +135,7 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 		}
 	} else if isVCPResource {
 		if handleResourceEventParams.ResourceType == common.ResourceStateV1ResourceTypeStoragePool {
-			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
-					fmt.Errorf("HRE ON event for StoragePool is not implemented"))))
+			return nil, nil
 		}
 		return nil, nil
 	}
@@ -271,9 +269,7 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 		}
 	} else if isVCPResource {
 		if handleResourceEventParams.ResourceType == common.ResourceStateV1ResourceTypeStoragePool {
-			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
-					fmt.Errorf("HRE OFF event for StoragePool is not implemented"))))
+			return nil, nil
 		}
 		return nil, nil
 	}
@@ -756,9 +752,7 @@ func (s updateResourceStateDELETEWorkflow) Run(ctx workflow.Context, args ...int
 	}
 
 	if updateResourceStateParams.ResourceType == common.ResourceStateV1ResourceTypeVolume && isVCPResource {
-		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
-				fmt.Errorf("HRE DELETE event for VSA volume is not implemented"))))
+		return nil, nil
 	}
 
 	return nil, nil
