@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -465,6 +466,10 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	}
 
 	if req.Volume.CacheParameters.IsSet() {
+		if err := validateFlexCacheRequest(req); err != nil {
+			return nil, errors.NewUserInputValidationErr(err.Error())
+		}
+
 		reqCacheProperties, _ := req.Volume.CacheParameters.Get()
 		param.CacheParameters = &models.CacheParameters{
 			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
@@ -2145,4 +2150,119 @@ func (h Handler) V1betaEstablishVolumePeering(ctx context.Context, req *gcpgense
 		Response: resp,
 		Done:     gcpgenserver.OptBool{},
 	}, nil
+}
+
+// validateFlexCacheRequest validates FlexCache volumes against the full API request
+func validateFlexCacheRequest(req *gcpgenserver.VolumeCreateV1beta) error {
+	vol := req.Volume
+
+	if req.SnapshotId.IsSet() && req.SnapshotId.Value != "" {
+		return fmt.Errorf("cache volume creation from snapshot is not supported")
+	}
+
+	if req.BackupId.IsSet() && req.BackupId.Value != "" {
+		return fmt.Errorf("cache volume creation from backup is not supported")
+	}
+
+	cp := vol.CacheParameters.Value
+
+	if cp.PeerClusterName == "" {
+		return fmt.Errorf("cache volume creation requires cacheParameters.peerClusterName")
+	}
+
+	if cp.PeerVolumeName == "" {
+		return fmt.Errorf("cache volume creation requires cacheParameters.peerVolumeName")
+	} else {
+		originVolumeNamePattern := `^[a-zA-Z_][a-zA-Z0-9_]{0,202}$`
+		if matched, _ := regexp.MatchString(originVolumeNamePattern, cp.PeerVolumeName); !matched {
+			return fmt.Errorf(
+				"origin volume name '%s' is invalid. It must start with an alphabetic character or underscore, contain only letters, digits, and underscores, and be between 1 and 203 characters in length",
+				cp.PeerVolumeName,
+			)
+		}
+	}
+
+	if cp.PeerSvmName == "" {
+		return fmt.Errorf("cache volume creation requires cacheParameters.peerSvmName")
+	}
+
+	if len(cp.PeerIpAddresses) == 0 {
+		return fmt.Errorf("cache volume creation requires cacheParameters.peerIPAddresses")
+	}
+
+	if cp.CacheConfig.IsSet() {
+		cc := cp.CacheConfig.Value
+		if cc.AtimeScrubDays.IsSet() && (!cc.AtimeScrubEnabled.IsSet() || !cc.AtimeScrubEnabled.Value) {
+			return fmt.Errorf("atimeScrubEnabled must be true to set atimeScrubDays")
+		}
+
+		if cp.CacheConfig.Value.PrePopulate.IsSet() {
+			pp := cp.CacheConfig.Value.PrePopulate.Value
+			if len(pp.PathList.Value) > 0 || len(pp.ExcludePathList.Value) > 0 || (pp.Recursion.IsSet() && pp.Recursion.Value) {
+				return fmt.Errorf("pre-populate is not supported during FlexCache volume creation")
+			}
+		}
+	}
+
+	if vol.SnapshotPolicy.IsSet() {
+		return fmt.Errorf("snapshot policy is not allowed for FlexCache volumes")
+	}
+
+	if vol.SnapReserve.IsSet() && vol.SnapReserve.Value != 0 {
+		return fmt.Errorf("snapshot reserve is not allowed for FlexCache volumes")
+	}
+
+	if vol.SnapshotDirectory.IsSet() && vol.SnapshotDirectory.Value {
+		return fmt.Errorf("snapshot directory is not allowed for FlexCache volumes")
+	}
+
+	if vol.BackupConfig.IsSet() {
+		bc := vol.BackupConfig.Value
+		if bc.BackupPolicyId.IsSet() && bc.BackupPolicyId.Value != "" {
+			return fmt.Errorf("backup policy is not allowed for FlexCache volumes")
+		}
+		if bc.BackupVaultId.IsSet() && bc.BackupVaultId.Value != "" {
+			return fmt.Errorf("backup vault is not allowed for FlexCache volumes")
+		}
+	}
+
+	if vol.TieringPolicy.IsSet() {
+		tp := vol.TieringPolicy.Value
+		if tp.TierAction.IsSet() && tp.TierAction.Value != "" {
+			return fmt.Errorf("tiering policy is not allowed for FlexCache volumes")
+		}
+	}
+
+	if req.HybridReplicationParameters.IsSet() {
+		return fmt.Errorf("hybrid replication is not allowed for FlexCache volumes")
+	}
+
+	if len(vol.SmbSettings) > 0 {
+		notSupportedSmbSettings := map[string]bool{
+			"CONTINUOUSLY_AVAILABLE": true,
+			"SHOW_SNAPSHOT":          true,
+			"SHOW_PREVIOUS_VERSIONS": true,
+		}
+
+		var notSupported []string
+		for _, smbSetting := range vol.SmbSettings {
+			if notSupportedSmbSettings[string(smbSetting)] {
+				notSupported = append(notSupported, string(smbSetting))
+			}
+		}
+
+		if len(notSupported) > 0 {
+			return fmt.Errorf("SMB share properties %s are not supported for FlexCache volumes", strings.Join(notSupported, ", "))
+		}
+	}
+
+	if vol.LargeVolumeConstituentCount.IsSet() {
+		return fmt.Errorf("large volume constituent count is not allowed for FlexCache volumes")
+	}
+
+	if vol.LargeCapacity.IsSet() {
+		return fmt.Errorf("large capacity is not allowed for FlexCache volumes")
+	}
+
+	return nil
 }

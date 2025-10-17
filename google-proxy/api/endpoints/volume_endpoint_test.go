@@ -7735,3 +7735,710 @@ func TestV1betaEstablishVolumePeering(t *testing.T) {
 		assert.NotNil(tt, op.Response)
 	})
 }
+
+func TestValidateFlexCacheRequest(t *testing.T) {
+	tests := []struct {
+		name        string
+		req         *gcpgenserver.VolumeCreateV1beta
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "Valid FlexCache request - minimal configuration",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - with cache config",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1", "10.0.0.2"},
+						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+							WritebackEnabled:        gcpgenserver.NewOptNilBool(true),
+							AtimeScrubEnabled:       gcpgenserver.NewOptNilBool(true),
+							AtimeScrubDays:          gcpgenserver.NewOptNilInt16(30),
+							CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(false),
+						}),
+					}),
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - with empty pre-populate",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+							PrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+								PathList:        gcpgenserver.NewOptNilStringArray([]string{}),
+								ExcludePathList: gcpgenserver.NewOptNilStringArray([]string{}),
+								Recursion:       gcpgenserver.NewOptNilBool(false),
+							}),
+						}),
+					}),
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - snapshot directory disabled",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SnapshotDirectory: gcpgenserver.NewOptBool(false),
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - snapshot reserve is zero",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SnapReserve: gcpgenserver.NewOptFloat64(0),
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - backup config with empty strings",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
+						BackupPolicyId: gcpgenserver.NewOptNilString(""),
+						BackupVaultId:  gcpgenserver.NewOptNilString(""),
+					}),
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - tiering policy with empty tier action",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(gcpgenserver.TieringPolicyV1beta{
+						TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(""),
+					}),
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - empty SMB settings",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SmbSettings: gcpgenserver.SMBSettingsV1beta{},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - supported SMB settings",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SmbSettings: gcpgenserver.SMBSettingsV1beta{
+						gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+						gcpgenserver.SMBSettingsV1betaItemOPLOCKS,
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - valid origin volume names",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "_valid_name_123",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid FlexCache request - atimeScrubDays not set without atimeScrubEnabled",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+							AtimeScrubEnabled: gcpgenserver.NewOptNilBool(false),
+						}),
+					}),
+				},
+			},
+			expectError: false,
+		},
+
+		// Snapshot and backup ID validation
+		{
+			name: "Invalid FlexCache request - snapshot ID set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+				SnapshotId: gcpgenserver.NewOptString("snapshot-123"),
+			},
+			expectError: true,
+			errorMsg:    "cache volume creation from snapshot is not supported",
+		},
+		{
+			name: "Invalid FlexCache request - backup ID set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+				BackupId: gcpgenserver.NewOptString("backup-123"),
+			},
+			expectError: true,
+			errorMsg:    "cache volume creation from backup is not supported",
+		},
+
+		// Cache parameters validation
+		{
+			name: "Invalid FlexCache request - missing peer cluster name",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "cache volume creation requires cacheParameters.peerClusterName",
+		},
+		{
+			name: "Invalid FlexCache request - missing peer volume name",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "cache volume creation requires cacheParameters.peerVolumeName",
+		},
+		{
+			name: "Invalid FlexCache request - invalid peer volume name (starts with number)",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "1invalid",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "origin volume name '1invalid' is invalid",
+		},
+		{
+			name: "Invalid FlexCache request - invalid peer volume name (contains dash)",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "invalid-name",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "origin volume name 'invalid-name' is invalid",
+		},
+		{
+			name: "Invalid FlexCache request - missing peer SVM name",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "cache volume creation requires cacheParameters.peerSvmName",
+		},
+		{
+			name: "Invalid FlexCache request - missing peer IP addresses",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{},
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "cache volume creation requires cacheParameters.peerIPAddresses",
+		},
+
+		// Pre-populate validation
+		{
+			name: "Invalid FlexCache request - pre-populate with pathList",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+							PrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+								PathList: gcpgenserver.NewOptNilStringArray([]string{"/dir1"}),
+							}),
+						}),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "pre-populate is not supported during FlexCache volume creation",
+		},
+		{
+			name: "Invalid FlexCache request - pre-populate with excludePathList",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+							PrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+								ExcludePathList: gcpgenserver.NewOptNilStringArray([]string{"/dir2"}),
+							}),
+						}),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "pre-populate is not supported during FlexCache volume creation",
+		},
+		{
+			name: "Invalid FlexCache request - pre-populate with recursion enabled",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+							PrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+								Recursion: gcpgenserver.NewOptNilBool(true),
+							}),
+						}),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "pre-populate is not supported during FlexCache volume creation",
+		},
+
+		// Atime scrub validation
+		{
+			name: "Invalid FlexCache request - atimeScrubDays set without atimeScrubEnabled",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+							AtimeScrubDays: gcpgenserver.NewOptNilInt16(30),
+						}),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "atimeScrubEnabled must be true to set atimeScrubDays",
+		},
+		{
+			name: "Invalid FlexCache request - atimeScrubDays set with atimeScrubEnabled false",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+							AtimeScrubEnabled: gcpgenserver.NewOptNilBool(false),
+							AtimeScrubDays:    gcpgenserver.NewOptNilInt16(30),
+						}),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "atimeScrubEnabled must be true to set atimeScrubDays",
+		},
+
+		// Snapshot policy validation
+		{
+			name: "Invalid FlexCache request - snapshot policy set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SnapshotPolicy: gcpgenserver.NewOptSnapshotPolicyV1beta(gcpgenserver.SnapshotPolicyV1beta{
+						Enabled: gcpgenserver.NewOptNilBool(true),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "snapshot policy is not allowed for FlexCache volumes",
+		},
+
+		// Snapshot reserve validation
+		{
+			name: "Invalid FlexCache request - snapshot reserve non-zero",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SnapReserve: gcpgenserver.NewOptFloat64(10),
+				},
+			},
+			expectError: true,
+			errorMsg:    "snapshot reserve is not allowed for FlexCache volumes",
+		},
+
+		// Snapshot directory validation
+		{
+			name: "Invalid FlexCache request - snapshot directory enabled",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SnapshotDirectory: gcpgenserver.NewOptBool(true),
+				},
+			},
+			expectError: true,
+			errorMsg:    "snapshot directory is not allowed for FlexCache volumes",
+		},
+
+		// Backup config validation
+		{
+			name: "Invalid FlexCache request - backup policy set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
+						BackupPolicyId: gcpgenserver.NewOptNilString("backup-policy-123"),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "backup policy is not allowed for FlexCache volumes",
+		},
+		{
+			name: "Invalid FlexCache request - backup vault set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
+						BackupVaultId: gcpgenserver.NewOptNilString("backup-vault-id"),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "backup vault is not allowed for FlexCache volumes",
+		},
+
+		// Tiering policy validation
+		{
+			name: "Invalid FlexCache request - tiering policy set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(gcpgenserver.TieringPolicyV1beta{
+						TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("AUTO"),
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "tiering policy is not allowed for FlexCache volumes",
+		},
+
+		// Hybrid replication validation
+		{
+			name: "Invalid FlexCache request - hybrid replication enabled",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+				},
+				HybridReplicationParameters: gcpgenserver.NewOptHybridReplicationParametersV1beta(
+					gcpgenserver.HybridReplicationParametersV1beta{},
+				),
+			},
+			expectError: true,
+			errorMsg:    "hybrid replication is not allowed for FlexCache volumes",
+		},
+
+		// SMB settings validation
+		{
+			name: "Invalid FlexCache request - CONTINUOUSLY_AVAILABLE SMB setting",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SmbSettings: gcpgenserver.SMBSettingsV1beta{
+						gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "SMB share properties CONTINUOUSLY_AVAILABLE are not supported for FlexCache volumes",
+		},
+		{
+			name: "Invalid FlexCache request - SHOW_SNAPSHOT SMB setting",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SmbSettings: gcpgenserver.SMBSettingsV1beta{
+						gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "SMB share properties SHOW_SNAPSHOT are not supported for FlexCache volumes",
+		},
+		{
+			name: "Invalid FlexCache request - SHOW_PREVIOUS_VERSIONS SMB setting",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SmbSettings: gcpgenserver.SMBSettingsV1beta{
+						gcpgenserver.SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "SMB share properties SHOW_PREVIOUS_VERSIONS are not supported for FlexCache volumes",
+		},
+		{
+			name: "Invalid FlexCache request - multiple unsupported SMB settings",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SmbSettings: gcpgenserver.SMBSettingsV1beta{
+						gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+						gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "SMB share properties",
+		},
+		{
+			name: "Invalid FlexCache request - mixed supported and unsupported SMB settings",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					SmbSettings: gcpgenserver.SMBSettingsV1beta{
+						gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+						gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+						gcpgenserver.SMBSettingsV1betaItemOPLOCKS,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "SMB share properties CONTINUOUSLY_AVAILABLE are not supported for FlexCache volumes",
+		},
+
+		// Large volume validation
+		{
+			name: "Invalid FlexCache request - large volume constituent count set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					LargeVolumeConstituentCount: gcpgenserver.NewOptNilInt32(8),
+				},
+			},
+			expectError: true,
+			errorMsg:    "large volume constituent count is not allowed for FlexCache volumes",
+		},
+		{
+			name: "Invalid FlexCache request - large capacity set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					LargeCapacity: gcpgenserver.NewOptNilBool(true),
+				},
+			},
+			expectError: true,
+			errorMsg:    "large capacity is not allowed for FlexCache volumes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateFlexCacheRequest(tt.req)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+					return
+				}
+
+				if tt.errorMsg != "" {
+					if !contains(err.Error(), tt.errorMsg) {
+						t.Errorf("Expected error message to contain '%s', but got: %v", tt.errorMsg, err.Error())
+					}
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+			}
+		})
+	}
+}
