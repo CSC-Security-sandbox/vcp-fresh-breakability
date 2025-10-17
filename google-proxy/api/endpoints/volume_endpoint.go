@@ -993,10 +993,16 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		rules := make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 0)
 		for _, rule := range volume.FileProperties.ExportPolicy.ExportRules {
 			rules = append(rules, gcpgenserver.SimpleExportPolicyRuleV1beta{
-				AllowedClients: rule.AllowedClients,
-				AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(rule.AccessType),
-				Nfsv3:          gcpgenserver.OptNilBool{Value: rule.NFSv3},
-				Nfsv4:          gcpgenserver.OptNilBool{Value: rule.NFSv4},
+				AllowedClients:      rule.AllowedClients,
+				AccessType:          gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(rule.AccessType),
+				Nfsv3:               gcpgenserver.NewOptNilBool(rule.NFSv3),
+				Nfsv4:               gcpgenserver.NewOptNilBool(rule.NFSv4),
+				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(rule.Kerberos5ReadOnly),
+				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(rule.Kerberos5ReadWrite),
+				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(rule.Kerberos5iReadOnly),
+				Kerberos5iReadWrite: gcpgenserver.NewOptNilBool(rule.Kerberos5iReadWrite),
+				Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(rule.Kerberos5pReadOnly),
+				Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(rule.Kerberos5pReadWrite),
 			})
 		}
 		res.ExportPolicy = gcpgenserver.NewOptExportPolicyV1beta(

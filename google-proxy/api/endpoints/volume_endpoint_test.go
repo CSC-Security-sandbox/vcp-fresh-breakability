@@ -4124,18 +4124,30 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 					ExportPolicyName: "test-export-policy",
 					ExportRules: []*models.ExportRule{
 						{
-							AllowedClients: "192.168.1.0/24",
-							AccessType:     "READ_WRITE",
-							NFSv3:          true,
-							NFSv4:          false,
-							Index:          1,
+							AllowedClients:      "192.168.1.0/24",
+							AccessType:          "READ_WRITE",
+							NFSv3:               true,
+							NFSv4:               false,
+							Kerberos5ReadOnly:   false,
+							Kerberos5ReadWrite:  false,
+							Kerberos5iReadOnly:  false,
+							Kerberos5iReadWrite: false,
+							Kerberos5pReadOnly:  false,
+							Kerberos5pReadWrite: false,
+							Index:               1,
 						},
 						{
-							AllowedClients: "10.0.0.0/8",
-							AccessType:     "READ_ONLY",
-							NFSv3:          false,
-							NFSv4:          true,
-							Index:          2,
+							AllowedClients:      "10.0.0.0/8",
+							AccessType:          "READ_ONLY",
+							NFSv3:               false,
+							NFSv4:               true,
+							Kerberos5ReadOnly:   false,
+							Kerberos5ReadWrite:  false,
+							Kerberos5iReadOnly:  false,
+							Kerberos5iReadWrite: false,
+							Kerberos5pReadOnly:  false,
+							Kerberos5pReadWrite: false,
+							Index:               2,
 						},
 					},
 				},
@@ -4157,6 +4169,12 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE, rule1.AccessType)
 		assert.True(t, rule1.Nfsv3.Value)
 		assert.False(t, rule1.Nfsv4.Value)
+		assert.False(t, rule1.Kerberos5ReadOnly.Value)
+		assert.False(t, rule1.Kerberos5ReadWrite.Value)
+		assert.False(t, rule1.Kerberos5iReadOnly.Value)
+		assert.False(t, rule1.Kerberos5iReadWrite.Value)
+		assert.False(t, rule1.Kerberos5pReadOnly.Value)
+		assert.False(t, rule1.Kerberos5pReadWrite.Value)
 
 		// Verify second rule
 		rule2 := exportPolicy.Rules[1]
@@ -4164,6 +4182,141 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY, rule2.AccessType)
 		assert.False(t, rule2.Nfsv3.Value)
 		assert.True(t, rule2.Nfsv4.Value)
+		assert.False(t, rule2.Kerberos5ReadOnly.Value)
+		assert.False(t, rule2.Kerberos5ReadWrite.Value)
+		assert.False(t, rule2.Kerberos5iReadOnly.Value)
+		assert.False(t, rule2.Kerberos5iReadWrite.Value)
+		assert.False(t, rule2.Kerberos5pReadOnly.Value)
+		assert.False(t, rule2.Kerberos5pReadWrite.Value)
+	})
+
+	t.Run("WithFilePropertiesAndKerberosExportRules", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:  "kerberos-token",
+			PoolID:         "kerberos-pool",
+			QuotaInBytes:   4096,
+			ProtocolTypes:  []string{"NFSV3", "NFSV4"},
+			LifeCycleState: "READY",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "kerberos-export-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients:      "192.168.1.0/24",
+							AccessType:          "READ_WRITE",
+							NFSv3:               true,
+							NFSv4:               false,
+							Kerberos5ReadOnly:   true,
+							Kerberos5ReadWrite:  false,
+							Kerberos5iReadOnly:  false,
+							Kerberos5iReadWrite: true,
+							Kerberos5pReadOnly:  true,
+							Kerberos5pReadWrite: false,
+							Index:               1,
+						},
+						{
+							AllowedClients:      "10.0.0.0/8",
+							AccessType:          "READ_ONLY",
+							NFSv3:               false,
+							NFSv4:               true,
+							Kerberos5ReadOnly:   false,
+							Kerberos5ReadWrite:  true,
+							Kerberos5iReadOnly:  true,
+							Kerberos5iReadWrite: false,
+							Kerberos5pReadOnly:  false,
+							Kerberos5pReadWrite: true,
+							Index:               2,
+						},
+					},
+				},
+			},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.Equal(t, "kerberos-token", out.CreationToken.Value)
+		assert.Equal(t, "NFSV3", string(out.Protocols[0]))
+		assert.Equal(t, "NFSV4", string(out.Protocols[1]))
+
+		// Verify ExportPolicy is properly converted
+		assert.True(t, out.ExportPolicy.IsSet())
+		exportPolicy := out.ExportPolicy.Value
+		assert.Len(t, exportPolicy.Rules, 2)
+
+		// Verify first rule with Kerberos parameters
+		rule1 := exportPolicy.Rules[0]
+		assert.Equal(t, "192.168.1.0/24", rule1.AllowedClients)
+		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE, rule1.AccessType)
+		assert.True(t, rule1.Nfsv3.Value)
+		assert.False(t, rule1.Nfsv4.Value)
+		assert.True(t, rule1.Kerberos5ReadOnly.Value)
+		assert.False(t, rule1.Kerberos5ReadWrite.Value)
+		assert.False(t, rule1.Kerberos5iReadOnly.Value)
+		assert.True(t, rule1.Kerberos5iReadWrite.Value)
+		assert.True(t, rule1.Kerberos5pReadOnly.Value)
+		assert.False(t, rule1.Kerberos5pReadWrite.Value)
+
+		// Verify second rule with Kerberos parameters
+		rule2 := exportPolicy.Rules[1]
+		assert.Equal(t, "10.0.0.0/8", rule2.AllowedClients)
+		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY, rule2.AccessType)
+		assert.False(t, rule2.Nfsv3.Value)
+		assert.True(t, rule2.Nfsv4.Value)
+		assert.False(t, rule2.Kerberos5ReadOnly.Value)
+		assert.True(t, rule2.Kerberos5ReadWrite.Value)
+		assert.True(t, rule2.Kerberos5iReadOnly.Value)
+		assert.False(t, rule2.Kerberos5iReadWrite.Value)
+		assert.False(t, rule2.Kerberos5pReadOnly.Value)
+		assert.True(t, rule2.Kerberos5pReadWrite.Value)
+	})
+
+	t.Run("WithFilePropertiesAndMixedExportRules", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:  "mixed-token",
+			PoolID:         "mixed-pool",
+			QuotaInBytes:   8192,
+			ProtocolTypes:  []string{"NFSV3"},
+			LifeCycleState: "READY",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "mixed-export-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients:      "172.16.0.0/16",
+							AccessType:          "READ_WRITE",
+							NFSv3:               true,
+							NFSv4:               true,
+							Kerberos5ReadOnly:   false,
+							Kerberos5ReadWrite:  false,
+							Kerberos5iReadOnly:  false,
+							Kerberos5iReadWrite: false,
+							Kerberos5pReadOnly:  false,
+							Kerberos5pReadWrite: false,
+							Index:               1,
+						},
+					},
+				},
+			},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify ExportPolicy is properly converted
+		assert.True(t, out.ExportPolicy.IsSet())
+		exportPolicy := out.ExportPolicy.Value
+		assert.Len(t, exportPolicy.Rules, 1)
+
+		// Verify rule with all false Kerberos parameters
+		rule := exportPolicy.Rules[0]
+		assert.Equal(t, "172.16.0.0/16", rule.AllowedClients)
+		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE, rule.AccessType)
+		assert.True(t, rule.Nfsv3.Value)
+		assert.True(t, rule.Nfsv4.Value)
+		assert.False(t, rule.Kerberos5ReadOnly.Value)
+		assert.False(t, rule.Kerberos5ReadWrite.Value)
+		assert.False(t, rule.Kerberos5iReadOnly.Value)
+		assert.False(t, rule.Kerberos5iReadWrite.Value)
+		assert.False(t, rule.Kerberos5pReadOnly.Value)
+		assert.False(t, rule.Kerberos5pReadWrite.Value)
 	})
 
 	t.Run("WithBlockDevices_ShouldConvertToAPIFormat", func(t *testing.T) {
