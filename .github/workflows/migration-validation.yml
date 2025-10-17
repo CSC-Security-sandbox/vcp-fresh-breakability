@@ -1,0 +1,162 @@
+name: Database Migration Validation
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'database/vcp/migrations/**/*.sql'
+      - 'database/metrics/migrations/**/*.sql'
+  workflow_dispatch:
+
+jobs:
+  validate-migrations:
+    runs-on: ubuntu-latest
+    name: Validate Migration Up/Down Pairs
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get changed files
+        id: changed-files
+        run: |
+          set -euo pipefail
+          
+          # Get changed files (robust for pull_request and push events)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Ensure we have the base branch refs available
+            git fetch --no-tags origin +refs/heads/*:refs/remotes/origin/* || true
+            all_changed_files=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...${{ github.sha }} 2>/dev/null || echo "")
+          else
+            # For push events, compare last two commits; fallback to other diffs for single-commit cases
+            all_changed_files=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD^..HEAD 2>/dev/null || git diff --name-only)
+          fi
+          
+          # Filter for migration files only
+          migration_changed_files=$(echo "$all_changed_files" | grep -E "database/(vcp|metrics)/migrations/.*\.sql$" || echo "")
+          
+          # Check if any migration files changed
+          if [ -n "$migration_changed_files" ] && [ "$migration_changed_files" != "" ]; then
+            echo "any_changed=true" >> $GITHUB_OUTPUT
+            echo "all_changed_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$migration_changed_files" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "any_changed=false" >> $GITHUB_OUTPUT
+            echo "all_changed_files=" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "🔍 Migration files changed:"
+          echo "$migration_changed_files"
+      
+      - name: Validate migration pairs
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          set -e
+          
+          echo "🔍 Checking database migration files..."
+          
+          # Colors for output
+          RED='\033[0;31m'
+          GREEN='\033[0;32m'
+          YELLOW='\033[1;33m'
+          NC='\033[0m' # No Color
+          
+          errors=0
+          warnings=0
+          
+          
+          # Function to check only changed files
+          check_changed_migrations() {
+            echo -e "\n${YELLOW}🔄 Checking migration files...${NC}"
+            
+            # Read changed files into an array to handle spaces in file names
+            changed_files_output="${{ steps.changed-files.outputs.all_changed_files }}"
+            if [ -n "$changed_files_output" ]; then
+              readarray -t changed_files_array <<< "$changed_files_output"
+            else
+              changed_files_array=()
+            fi
+            
+            # Arrays to track up files that need down files
+            declare -A missing_down_files
+            declare -A found_pairs
+            
+            for file in "${changed_files_array[@]}"; do
+              echo -e "  📄 Changed file: $file"
+              
+              if [[ "$file" == *.up.sql ]]; then
+                # This is an up file, check if corresponding down file exists
+                base_name=$(basename "$file" .up.sql)
+                dir_path=$(dirname "$file")
+                down_file="${dir_path}/${base_name}.down.sql"
+                
+                if [[ -f "$down_file" ]]; then
+                  echo -e "    ✅ Has corresponding down file: ${base_name}.down.sql"
+                  found_pairs["$base_name"]=1
+                else
+                  echo -e "    ${RED}❌ Missing corresponding down file: ${down_file}${NC}"
+                  missing_down_files["$file"]="$down_file"
+                  errors=$((errors + 1))
+                fi
+              elif [[ "$file" == *.down.sql ]]; then
+                # This is a down file, check if corresponding up file exists
+                base_name=$(basename "$file" .down.sql)
+                dir_path=$(dirname "$file")
+                up_file="${dir_path}/${base_name}.up.sql"
+                
+                if [[ -f "$up_file" ]]; then
+                  echo -e "    ✅ Has corresponding up file: ${base_name}.up.sql"
+                  found_pairs["$base_name"]=1
+                else
+                  echo -e "    ${YELLOW}⚠️  Orphaned down file (no corresponding up file): $file${NC}"
+                  warnings=$((warnings + 1))
+                fi
+              fi
+            done
+            
+            # Report missing down files
+            if [[ ${#missing_down_files[@]} -gt 0 ]]; then
+              echo -e "\n${RED}❌ MISSING DOWN MIGRATION FILES:${NC}"
+              for up_file in "${!missing_down_files[@]}"; do
+                echo -e "  ${RED}• ${up_file} → Missing: ${missing_down_files[$up_file]}${NC}"
+              done
+            fi
+          }
+          
+          echo -e "${YELLOW}Changed files:${NC}"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+          
+          # Check changed migrations only
+          check_changed_migrations
+          
+          # Summary
+          echo -e "\n${YELLOW}📊 SUMMARY:${NC}"
+          echo -e "  Errors: $errors"
+          echo -e "  Warnings: $warnings"
+          
+          if [[ $errors -gt 0 ]]; then
+            echo -e "\n${RED}💥 VALIDATION FAILED!${NC}"
+            echo -e "${RED}Every database migration .up.sql file must have a corresponding .down.sql file.${NC}"
+            echo -e "${RED}Please add the missing down migration files before merging this PR.${NC}"
+            echo -e "\n${YELLOW}📋 Migration File Naming Convention:${NC}"
+            echo -e "  • Up migration: NNNN_description.up.sql"
+            echo -e "  • Down migration: NNNN_description.down.sql"
+            echo -e "\n${YELLOW}📁 Migration Directories:${NC}"
+            echo -e "  • database/vcp/migrations/pre/"
+            echo -e "  • database/vcp/migrations/post/"
+            echo -e "  • database/metrics/migrations/pre/"
+            echo -e "  • database/metrics/migrations/post/"
+            exit 1
+          elif [[ $warnings -gt 0 ]]; then
+            echo -e "\n${YELLOW}⚠️  VALIDATION COMPLETED WITH WARNINGS${NC}"
+            echo -e "${YELLOW}Please review the orphaned down migration files.${NC}"
+          else
+            echo -e "\n${GREEN}✅ VALIDATION PASSED!${NC}"
+            echo -e "${GREEN}All migration files have proper up/down pairs.${NC}"
+          fi
