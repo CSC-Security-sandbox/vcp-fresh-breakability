@@ -766,7 +766,7 @@ func _verifyDstReplicationReverse(ctx context.Context, event *ReverseReplication
 func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEvent) (*coreModels.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 
-	if event.ReplicationSchedule == nil && event.Description == nil {
+	if event.ReplicationSchedule == nil && event.Description == nil && event.Labels == nil {
 		logger.Error("empty replication update payload")
 		return nil, errors.NewVCPError(errors.ErrorEmptyUpdateReplicationPayload, errors.New("empty replication update payload"))
 	}
