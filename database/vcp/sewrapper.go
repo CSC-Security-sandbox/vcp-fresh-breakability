@@ -1536,6 +1536,26 @@ func (re *retryEngine) UpdateJobAttributes(ctx context.Context, jobUUID string, 
 	return err
 }
 
+func (re *retryEngine) CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error) {
+	var var0 *datamodel.Job
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CheckAndFetchDuplicateJobs(ctx, jobType, correlationID)
+		if err != nil {
+			re.logError("CheckAndFetchDuplicateJobs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	var var0 *datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {

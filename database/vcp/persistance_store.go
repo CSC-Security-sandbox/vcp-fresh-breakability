@@ -1242,3 +1242,7 @@ func (s *PersistenceStore) CreateActiveDirectory(ctx context.Context, ad *datamo
 func (s *PersistenceStore) GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error) {
 	return s.dataStore.GetActiveDirectoryByNameAndAccountID(ctx, name, accountID)
 }
+
+func (s *PersistenceStore) CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error) {
+	return s.dataStore.CheckAndFetchDuplicateJobs(ctx, jobType, correlationID)
+}

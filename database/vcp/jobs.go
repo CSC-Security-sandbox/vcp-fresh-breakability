@@ -164,3 +164,21 @@ func (d *DataStoreRepository) GetOngoingMigrateKmsConfigJob(ctx context.Context,
 
 	return &job, nil
 }
+
+func (d *DataStoreRepository) CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error) {
+	var job datamodel.Job
+	err := d.db.GORM().Unscoped().WithContext(ctx).Where(
+		"correlation_id = ? AND type = ?",
+		correlationID, jobType,
+	).First(&job).Error
+
+	if err != nil {
+		if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+			// do not return any error if no job is found
+			return nil, nil
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return &job, nil
+}

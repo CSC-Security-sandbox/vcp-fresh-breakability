@@ -602,7 +602,7 @@ func GetCCFEURI(projectNumber, location, volumeName, replicationName string) str
 	return out
 }
 
-func _validateReplicationParams(ctx context.Context, event *CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+func _validateReplicationParams(ctx context.Context, event *CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*coreModels.VolumeReplication, *string, error) {
 	logger := util.GetLogger(ctx)
 	ccfeURI := internalUtilGetCCFEURI(event.AccountName, event.Location, event.VolumeResourceID, event.ReplicationResourceID)
 	filter := utils2.CreateFilterWithConditions(
@@ -610,18 +610,18 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 		utils2.NewFilterCondition("uri", "=", ccfeURI))
 	replicationDb, err := se.ListVolumeReplications(ctx, *filter)
 	if err != nil {
-		return errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+		return nil, nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
 	}
 	if len(replicationDb) == 0 {
 		logger.Error("Replication not found in database", "ccfeURI", ccfeURI)
-		return utilErrors.NewUserInputValidationErr("No replication found for the given URI")
+		return nil, nil, utilErrors.NewUserInputValidationErr("No replication found for the given URI")
 	}
 	replication := replicationDb[0]
 
 	remoteProject, err := utilsParseProjectNumberFromURI(replication.RemoteUri)
 	if err != nil {
 		logger.Error("Parse Remote URI Error", "error", err)
-		return errors.NewVCPError(errors.ErrProjectParsingError, err)
+		return nil, nil, errors.NewVCPError(errors.ErrProjectParsingError, err)
 	}
 
 	event.SourceProjectNumber, event.DestinationProjectNumber = event.AccountName, remoteProject
@@ -632,7 +632,7 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 	srcToken, err := InternalUtilGetSignedToken(event.SourceProjectNumber)
 	if err != nil {
 		logger.Error("Get Signed Token Error", "error", err)
-		return errors.NewVCPError(errors.ErrGetSignedToken, err)
+		return nil, nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
 	}
 
 	dstToken := srcToken
@@ -641,48 +641,63 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 		dstToken, err = InternalUtilGetSignedToken(event.DestinationProjectNumber)
 		if err != nil {
 			logger.Error("Get Signed Token Error For Remote Project", "error", err)
-			return errors.NewVCPError(errors.ErrGetSignedToken, err)
+			return nil, nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
 		}
 	}
 
 	sourceRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
 	if parseError != nil {
 		logger.Error("Parse Source Location Error")
-		return errors.NewVCPError(errors.ErrParseSourceLocation, errors.New(parseError.Error()))
+		return nil, nil, errors.NewVCPError(errors.ErrParseSourceLocation, errors.New(parseError.Error()))
 	}
 
 	srcBasePath, err := InternalUtilGetPairedRegionURI(sourceRegion)
 	if err != nil {
 		logger.Error("Get Paired Source Region Uri error", "error", err)
-		return errors.NewVCPError(errors.ErrGetSrcBasePath, err)
+		return nil, nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
 	}
 
 	destRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
 	if parseError != nil {
 		logger.Error("Parse Destination Location Error", "error", errors.New(parseError.Error()))
-		return errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
+		return nil, nil, errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
 	}
 
 	dstBasePath, err := InternalUtilGetPairedRegionURI(destRegion)
 	if err != nil {
 		logger.Error("Get Paired Destination Region Uri error", "error", err)
-		return errors.NewVCPError(errors.ErrGetDstBasePath, err)
+		return nil, nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
+	}
+
+	// Set the ReplicationModel before checking for duplicate jobs
+	event.ReplicationModel = replication
+	event.SrcBasePath = srcBasePath
+	event.DstBasePath = dstBasePath
+	event.SrcToken = srcToken
+	event.DstToken = dstToken
+
+	// check for duplicate jobs
+	existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, jobType, utils.GetCoRelationIDFromContext(ctx))
+	if err != nil {
+		return nil, nil, err
+	}
+	if existingJob != nil {
+		dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
+		if err != nil || dstReplication == nil {
+			logger.Error("getReplication error", "error", err)
+			return nil, nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+		}
+		return dstReplication, &existingJob.UUID, nil
 	}
 
 	if !isCleanup {
 		// Check if replication job is in process
 		err = replicationJobInProcess(ctx, event.SourceProjectNumber, event.DestinationProjectNumber, srcBasePath, dstBasePath, replication.ReplicationAttributes.SourceLocation, replication.ReplicationAttributes.DestinationLocation, srcToken, dstToken, replication.Uri, replication.RemoteUri, replication.ReplicationAttributes.SourcePoolUUID, replication.ReplicationAttributes.DestinationPoolUUID, event.XCorrelationID)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 	}
-
-	event.SrcBasePath = srcBasePath
-	event.DstBasePath = dstBasePath
-	event.SrcToken = srcToken
-	event.DstToken = dstToken
-	event.ReplicationModel = replication
-	return nil
+	return nil, nil, nil
 }
 
 func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEvent) (*coreModels.VolumeReplication, error) {
@@ -926,6 +941,9 @@ func convertReplicationResponseToModels(response *googleproxyclient.V1betaGetMul
 		replication.ProgressLastUpdated = &response.Replications[0].ProgressLastUpdated.Value
 	}
 	replication.CreatedAt = response.Replications[0].CreatedAt.Value
+	replication.State = mapLifecycleStateToState(response.Replications[0].LifeCycleState.Value)
+	replication.StateDetails = response.Replications[0].LifeCycleStateDetails.Value
+
 	return &replication
 }
 
@@ -981,5 +999,26 @@ func mapCCFERescheduleToInternalReplicationSchedule(schedule gcpgenserver.Replic
 		return googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule10minutely
 	default:
 		return googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly
+	}
+}
+
+func mapLifecycleStateToState(state googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState) string {
+	switch state {
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating:
+		return coreModels.LifeCycleStateCreating
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable:
+		return coreModels.LifeCycleStateAvailable
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting:
+		return coreModels.LifeCycleStateDeleting
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleted:
+		return coreModels.LifeCycleStateDeleted
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError:
+		return coreModels.LifeCycleStateError
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled:
+		return coreModels.LifeCycleStateDisabled
+	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating:
+		return coreModels.LifeCycleStateUpdating
+	default:
+		return coreModels.LifeCycleStateUnknown
 	}
 }

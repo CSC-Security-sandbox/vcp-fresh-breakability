@@ -327,10 +327,16 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeStopVolumeReplication))
 	if err != nil {
 		return nil, "", err
 	}
+	if existingJobUuid != nil {
+		existingReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+		return existingReplication, *existingJobUuid, nil
+	}
+
 	dstReplication, err := verifyDstReplicationStop(ctx, &event)
 	if err != nil {
 		return nil, "", err
@@ -521,6 +527,20 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 		return nil, "", err
 	}
 
+	// check for duplicate jobs
+	existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(models.JobTypeCreateVolumeReplication), utils.GetCoRelationIDFromContext(ctx))
+	if err != nil {
+		return nil, "", err
+	}
+	if existingJob != nil {
+		replication, err := se.GetVolumeReplication(ctx, existingJob.JobAttributes.ResourceUUID)
+		if err != nil {
+			logger.Error("Failed to get replication from database", "error", err)
+			return nil, "", err
+		}
+		return convertDataStoreReplicationToModel(replication), existingJob.UUID, nil
+	}
+
 	baseEvent := replication.ReplicationEventBase{}
 	baseEvent.AddEvent(commonparams.NewEvent(commonparams.EventCreated, time.Now(), commonparams.String("created_by", "CreateReplication")))
 
@@ -556,7 +576,7 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: dbRepl.UUID,
+			ResourceUUID: volumeRep.UUID,
 			PoolUUID:     srcVolume.Pool.UUID,
 		},
 	}
@@ -1227,9 +1247,14 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeResumeVolumeReplication))
 	if err != nil {
 		return nil, "", err
+	}
+	if existingJobUuid != nil {
+		existingReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+		return existingReplication, *existingJobUuid, nil
 	}
 
 	dstReplication, err := verifyDstReplicationResume(ctx, &event)
@@ -1318,9 +1343,14 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeUpdateVolumeReplication))
 	if err != nil {
 		return nil, "", err
+	}
+	if existingJobUuid != nil {
+		existingReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+		return existingReplication, *existingJobUuid, nil
 	}
 
 	dstReplication, err := validateReplicationUpdate(ctx, &event)
@@ -1573,10 +1603,16 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, isCleanUp)
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, isCleanUp, string(models.JobTypeDeleteVolumeReplication))
 	if err != nil {
 		return nil, "", err
 	}
+	if existingJobUuid != nil {
+		existingReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+		return existingReplication, *existingJobUuid, nil
+	}
+
 	dstReplication := &models.VolumeReplication{
 		ReplicationAttributes: &models.ReplicationDetails{
 			EndpointType: event.ReplicationModel.ReplicationAttributes.EndpointType,
@@ -1681,9 +1717,14 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeSyncVolumeReplication))
 	if err != nil {
 		return nil, "", err
+	}
+	if existingJobUuid != nil {
+		existingReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+		return existingReplication, *existingJobUuid, nil
 	}
 
 	dstReplication, err := verifyDstReplicationSync(ctx, &event)
@@ -1845,9 +1886,14 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false)
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeReverseResumeVolumeReplication))
 	if err != nil {
 		return nil, nil, err
+	}
+	if existingJobUuid != nil {
+		existingReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+		return existingReplication, existingJobUuid, nil
 	}
 
 	replicationDb, err := verifyDstReplicationReverse(ctx, &event)

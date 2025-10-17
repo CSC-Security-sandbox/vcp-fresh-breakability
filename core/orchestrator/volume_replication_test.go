@@ -390,6 +390,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		}
 		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
@@ -432,6 +433,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, dbRep).Return(nil, errors.New("failed to create volume replication in db"))
 
 		params := &commonparams.CreateVolumeReplicationParams{
@@ -481,6 +483,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		}
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
@@ -538,6 +541,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		}
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
@@ -594,6 +598,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		}
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 
 		params := &commonparams.CreateVolumeReplicationParams{
 			AccountName:      "test-account",
@@ -3306,8 +3311,8 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return errors.New("validation error")
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, errors.New("validation error")
 		}
 		params := &commonparams.ResumeReplicationParams{
 			AccountName: "account-name",
@@ -3337,8 +3342,8 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return nil
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
@@ -3373,7 +3378,7 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3382,7 +3387,7 @@ func TestResumeReplication(t *testing.T) {
 					},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
@@ -3419,7 +3424,7 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3428,7 +3433,7 @@ func TestResumeReplication(t *testing.T) {
 					},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
@@ -3473,7 +3478,7 @@ func TestResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3485,7 +3490,7 @@ func TestResumeReplication(t *testing.T) {
 					EndpointType: "src",
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -3535,7 +3540,7 @@ func TestResumeReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.ResumeReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3547,7 +3552,7 @@ func TestResumeReplication(t *testing.T) {
 					EndpointType: "src",
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -3605,7 +3610,7 @@ func TestResumeReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.ResumeReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
@@ -3617,7 +3622,7 @@ func TestResumeReplication(t *testing.T) {
 					EndpointType: "src",
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -3651,6 +3656,51 @@ func TestResumeReplication(t *testing.T) {
 		// Since params.Region is not set in this test, Location should be empty
 		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Location)
 		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Zone)
+	})
+	t.Run("WhenDuplicateJobExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		existingJobUUID := "existing-job-uuid"
+		existingReplication := &models.VolumeReplication{
+			State: models.LifeCycleStateREADY,
+			ReplicationAttributes: &models.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up the event properly
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return existingReplication, &existingJobUUID, nil
+		}
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+		}
+		result, jobUUID, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, existingJobUUID, jobUUID)
+		// Note: State and StateDetails are no longer updated when duplicate job exists
 	})
 }
 
@@ -4102,8 +4152,8 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return errors.New("validation error")
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, errors.New("validation error")
 		}
 		params := &commonparams.StopReplicationParams{
 			AccountName: "account-name",
@@ -4133,8 +4183,8 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return nil
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationStop = func(ctx context.Context, event *replication.StopReplicationEvent) (*models.VolumeReplication, error) {
@@ -4169,7 +4219,7 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -4179,7 +4229,7 @@ func TestStopReplication(t *testing.T) {
 					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationStop = func(ctx context.Context, event *replication.StopReplicationEvent) (*models.VolumeReplication, error) {
@@ -4216,7 +4266,7 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -4226,7 +4276,7 @@ func TestStopReplication(t *testing.T) {
 					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationStop = func(ctx context.Context, event *replication.StopReplicationEvent) (*models.VolumeReplication, error) {
@@ -4272,7 +4322,7 @@ func TestStopReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -4285,7 +4335,7 @@ func TestStopReplication(t *testing.T) {
 					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -4335,7 +4385,7 @@ func TestStopReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.StopReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -4348,7 +4398,7 @@ func TestStopReplication(t *testing.T) {
 					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -4406,7 +4456,7 @@ func TestStopReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.StopReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -4419,7 +4469,7 @@ func TestStopReplication(t *testing.T) {
 					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -4453,6 +4503,51 @@ func TestStopReplication(t *testing.T) {
 		// Since params.Region is not set in this test, Location should be empty
 		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Location)
 		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Zone)
+	})
+	t.Run("WhenDuplicateJobExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		existingJobUUID := "existing-job-uuid"
+		existingReplication := &models.VolumeReplication{
+			State: models.LifeCycleStateREADY,
+			ReplicationAttributes: &models.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up the event properly
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return existingReplication, &existingJobUUID, nil
+		}
+		params := &commonparams.StopReplicationParams{
+			AccountName: "account-name",
+		}
+		result, jobUUID, err := _stopReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, existingJobUUID, jobUUID)
+		// Note: State and StateDetails are no longer updated when duplicate job exists
 	})
 }
 
@@ -5006,8 +5101,8 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return errors.New("validation error")
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, errors.New("validation error")
 		}
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
@@ -5037,7 +5132,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5050,7 +5145,7 @@ func TestDeleteReplication(t *testing.T) {
 					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
@@ -5086,7 +5181,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5099,7 +5194,7 @@ func TestDeleteReplication(t *testing.T) {
 					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
@@ -5135,7 +5230,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5148,7 +5243,7 @@ func TestDeleteReplication(t *testing.T) {
 					EndpointType: "src",
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return nil, nil
@@ -5200,7 +5295,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5213,7 +5308,7 @@ func TestDeleteReplication(t *testing.T) {
 					EndpointType: "src",
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return nil, nil
@@ -5265,7 +5360,7 @@ func TestDeleteReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5276,7 +5371,7 @@ func TestDeleteReplication(t *testing.T) {
 					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -5326,7 +5421,7 @@ func TestDeleteReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.DeleteReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5339,7 +5434,7 @@ func TestDeleteReplication(t *testing.T) {
 					EndpointType: "src",
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -5397,7 +5492,7 @@ func TestDeleteReplication(t *testing.T) {
 
 		// Capture the event to verify zone parameter handling
 		var capturedEvent *replication.DeleteReplicationEvent
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5410,7 +5505,7 @@ func TestDeleteReplication(t *testing.T) {
 					EndpointType: "src",
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -5444,6 +5539,51 @@ func TestDeleteReplication(t *testing.T) {
 		// Since params.Region is not set in this test, Location should be empty
 		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Location)
 		assert.Equal(tt, "", capturedEvent.CommonReplicationEventParams.Zone)
+	})
+	t.Run("WhenDuplicateJobExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		existingJobUUID := "existing-job-uuid"
+		existingReplication := &models.VolumeReplication{
+			State: models.LifeCycleStateREADY,
+			ReplicationAttributes: &models.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up the event properly
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return existingReplication, &existingJobUUID, nil
+		}
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+		}
+		result, jobUUID, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, existingJobUUID, jobUUID)
+		// Note: State and StateDetails are no longer updated when duplicate job exists
 	})
 }
 
@@ -5487,8 +5627,8 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return errors.New("validation error")
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, errors.New("validation error")
 		}
 		params := &commonparams.ResumeReplicationParams{
 			AccountName: "account-name",
@@ -5518,8 +5658,8 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return nil
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationSync = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
@@ -5554,7 +5694,7 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5568,7 +5708,7 @@ func TestSyncReplication(t *testing.T) {
 					},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationSync = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
@@ -5605,7 +5745,7 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				BaseModel: datamodel.BaseModel{
@@ -5619,7 +5759,7 @@ func TestSyncReplication(t *testing.T) {
 					},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		verifyDstReplicationSync = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
@@ -5672,7 +5812,7 @@ func TestSyncReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -5689,7 +5829,7 @@ func TestSyncReplication(t *testing.T) {
 					},
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -5715,6 +5855,51 @@ func TestSyncReplication(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenDuplicateJobExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		existingJobUUID := "existing-job-uuid"
+		existingReplication := &models.VolumeReplication{
+			State: models.LifeCycleStateREADY,
+			ReplicationAttributes: &models.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up the event properly
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return existingReplication, &existingJobUUID, nil
+		}
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+		}
+		result, jobUUID, err := _syncReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, existingJobUUID, jobUUID)
+		// Note: State and StateDetails are no longer updated when duplicate job exists
 	})
 }
 
@@ -5951,8 +6136,8 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return errors.New("validation error")
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, errors.New("validation error")
 		}
 		params := &commonparams.UpdateReplicationParams{
 			AccountName: "account-name",
@@ -5982,8 +6167,8 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
-			return nil
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, nil
 		}
 
 		validateReplicationUpdate = func(ctx context.Context, event *replication.UpdateReplicationEvent) (*models.VolumeReplication, error) {
@@ -6018,7 +6203,7 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					Pool: &datamodel.Pool{
@@ -6032,7 +6217,7 @@ func TestUpdateReplication(t *testing.T) {
 				},
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		validateReplicationUpdate = func(ctx context.Context, event *replication.UpdateReplicationEvent) (*models.VolumeReplication, error) {
@@ -6069,7 +6254,7 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					Pool: &datamodel.Pool{
@@ -6083,7 +6268,7 @@ func TestUpdateReplication(t *testing.T) {
 				},
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 			}
-			return nil
+			return nil, nil, nil
 		}
 
 		validateReplicationUpdate = func(ctx context.Context, event *replication.UpdateReplicationEvent) (*models.VolumeReplication, error) {
@@ -6136,7 +6321,7 @@ func TestUpdateReplication(t *testing.T) {
 			return account, nil
 		}
 
-		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool) error {
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Volume: &datamodel.Volume{
 					Pool: &datamodel.Pool{
@@ -6153,7 +6338,7 @@ func TestUpdateReplication(t *testing.T) {
 					EndpointType: "src",
 				},
 			}
-			return nil
+			return nil, nil, nil
 		}
 		expectedResponse := &models.VolumeReplication{
 			ReplicationAttributes: &models.ReplicationDetails{},
@@ -6179,6 +6364,51 @@ func TestUpdateReplication(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenDuplicateJobExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		existingJobUUID := "existing-job-uuid"
+		existingReplication := &models.VolumeReplication{
+			State: models.LifeCycleStateREADY,
+			ReplicationAttributes: &models.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up the event properly
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return existingReplication, &existingJobUUID, nil
+		}
+		params := &commonparams.UpdateReplicationParams{
+			AccountName: "account-name",
+		}
+		result, jobUUID, err := _updateReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, existingJobUUID, jobUUID)
+		// Note: State and StateDetails are no longer updated when duplicate job exists
 	})
 }
 
@@ -7015,8 +7245,8 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
-			return errors.New("validation failed")
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, errors.New("validation failed")
 		}
 
 		params := &commonparams.ReverseAndResumeReplicationParams{
@@ -7049,8 +7279,8 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
-			return nil
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, nil
 		}
 
 		originalVerifyFunc := verifyDstReplicationReverse
@@ -7089,8 +7319,8 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
-			return nil
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, nil
 		}
 
 		mockReplicationModel := &datamodel.VolumeReplication{
@@ -7152,8 +7382,8 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
-			return nil
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, nil
 		}
 
 		mockReplicationModel := &datamodel.VolumeReplication{
@@ -7224,8 +7454,8 @@ func TestReverseAndResumeReplication(t *testing.T) {
 
 		originalValidateFunc := validateReplicationParams
 		defer func() { validateReplicationParams = originalValidateFunc }()
-		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountId int64, se database.Storage, isCleanup bool) error {
-			return nil
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			return nil, nil, nil
 		}
 
 		mockReplicationModel := &datamodel.VolumeReplication{

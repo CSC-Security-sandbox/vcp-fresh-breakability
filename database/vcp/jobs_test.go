@@ -333,7 +333,7 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-uuid"},
 			ResourceName: "test-pool",
 			State:        string(models.JobsStatePROCESSING),
-			Type:         string(models.JobTypeCreatePool),
+			Type:         string(string(models.JobTypeCreatePool)),
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
@@ -413,7 +413,7 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "regular-job-uuid"},
 			ResourceName: "test-regular-pool",
 			State:        string(models.JobsStatePROCESSING),
-			Type:         string(models.JobTypeCreatePool),
+			Type:         string(string(models.JobTypeCreatePool)),
 		}
 		_, err = store.CreateJob(context.Background(), regularJob)
 		assert.NoError(tt, err, "Failed to create regular job: %v", err)
@@ -436,7 +436,7 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		for _, job := range jobs {
 			jobTypes[job.Type] = true
 		}
-		assert.True(tt, jobTypes[string(models.JobTypeCreatePool)], "Expected regular pool job type to be present")
+		assert.True(tt, jobTypes[string(string(models.JobTypeCreatePool))], "Expected regular pool job type to be present")
 		assert.True(tt, jobTypes[string(models.JobTypeCreateLargePool)], "Expected large pool job type to be present")
 	})
 
@@ -462,7 +462,7 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "job-uuid-2"},
 			ResourceName: "test-pool",
 			State:        string(models.JobsStatePROCESSING),
-			Type:         string(models.JobTypeCreatePool),
+			Type:         string(string(models.JobTypeCreatePool)),
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
@@ -570,5 +570,330 @@ func TestUpdateJobAttributes(t *testing.T) {
 		newAttrs := &datamodel.JobAttributes{ResourceUUID: "updated"}
 		err = store.UpdateJobAttributes(context.Background(), "any-uuid", newAttrs)
 		assert.Error(tt, err)
+	})
+}
+
+func TestCheckAndFetchDuplicateJobs(t *testing.T) {
+	t.Run("WhenDuplicateJobExistsWithNewState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a job with NEW state and specific correlation ID
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStateNEW),
+			CorrelationID: "test-correlation-id",
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		// Check for duplicate job
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
+		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
+		assert.Equal(tt, job.CorrelationID, duplicateJob.CorrelationID, "Expected correlation ID %v, got %v", job.CorrelationID, duplicateJob.CorrelationID)
+		assert.Equal(tt, job.Type, duplicateJob.Type, "Expected job type %v, got %v", job.Type, duplicateJob.Type)
+	})
+
+	t.Run("WhenDuplicateJobExistsWithProcessingState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a job with PROCESSING state and specific correlation ID
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStatePROCESSING),
+			CorrelationID: "test-correlation-id",
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		// Check for duplicate job
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
+		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
+		assert.Equal(tt, job.State, duplicateJob.State, "Expected job state %v, got %v", job.State, duplicateJob.State)
+	})
+
+	t.Run("WhenNoDuplicateJobExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Check for duplicate job that doesn't exist
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "non-existent-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Nil(tt, duplicateJob, "Expected no duplicate job to be found")
+	})
+
+	t.Run("WhenJobExistsButWithDifferentCorrelationID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a job with different correlation ID
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStateNEW),
+			CorrelationID: "different-correlation-id",
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		// Check for duplicate job with different correlation ID
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Nil(tt, duplicateJob, "Expected no duplicate job to be found")
+	})
+
+	t.Run("WhenJobExistsButWithDifferentJobType", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a job with different job type
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreatePool)),
+			State:         string(models.JobsStateNEW),
+			CorrelationID: "test-correlation-id",
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		// Check for duplicate job with different job type
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Nil(tt, duplicateJob, "Expected no duplicate job to be found")
+	})
+
+	t.Run("WhenJobExistsButWithNonTransientState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a job with DONE state (non-transient)
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStateDONE),
+			CorrelationID: "test-correlation-id",
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		// Check for duplicate job - should find it because current implementation returns all jobs regardless of state
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
+		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
+		assert.Equal(tt, job.State, duplicateJob.State, "Expected job state %v, got %v", job.State, duplicateJob.State)
+	})
+
+	t.Run("WhenJobExistsButWithErrorState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a job with ERROR state (non-transient)
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStateERROR),
+			CorrelationID: "test-correlation-id",
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		// Check for duplicate job - should find it because current implementation returns all jobs regardless of state
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
+		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
+		assert.Equal(tt, job.State, duplicateJob.State, "Expected job state %v, got %v", job.State, duplicateJob.State)
+	})
+
+	t.Run("WhenMultipleJobsExistWithSameCorrelationIDAndType", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create multiple jobs with same correlation ID and type but different states
+		job1 := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-1-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStateDONE), // Non-transient state
+			CorrelationID: "test-correlation-id",
+		}
+		job2 := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "job-2-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStateNEW), // Transient state
+			CorrelationID: "test-correlation-id",
+		}
+		job3 := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   3,
+				UUID: "job-3-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStatePROCESSING), // Transient state
+			CorrelationID: "test-correlation-id",
+		}
+
+		_, err = store.CreateJob(context.Background(), job1)
+		assert.NoError(tt, err, "Failed to create job1: %v", err)
+		_, err = store.CreateJob(context.Background(), job2)
+		assert.NoError(tt, err, "Failed to create job2: %v", err)
+		_, err = store.CreateJob(context.Background(), job3)
+		assert.NoError(tt, err, "Failed to create job3: %v", err)
+
+		// Check for duplicate job - should find any job since current implementation returns all jobs regardless of state
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
+		assert.Contains(tt, []string{job1.UUID, job2.UUID, job3.UUID}, duplicateJob.UUID, "Expected to find any of the jobs")
+		assert.Contains(tt, []string{string(models.JobsStateDONE), string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}, duplicateJob.State, "Expected to find any job state")
+	})
+
+	t.Run("WhenEmptyCorrelationID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a job with empty correlation ID
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStateNEW),
+			CorrelationID: "",
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		// Check for duplicate job with empty correlation ID
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job with empty correlation ID")
+		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
+	})
+
+	t.Run("WhenDifferentJobTypesWithSameCorrelationID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create jobs with different types but same correlation ID
+		replicationJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreateVolumeReplication)),
+			State:         string(models.JobsStateNEW),
+			CorrelationID: "test-correlation-id",
+		}
+		poolJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "pool-job-uuid",
+			},
+			Type:          string(string(models.JobTypeCreatePool)),
+			State:         string(models.JobsStateNEW),
+			CorrelationID: "test-correlation-id",
+		}
+
+		_, err = store.CreateJob(context.Background(), replicationJob)
+		assert.NoError(tt, err, "Failed to create replication job: %v", err)
+		_, err = store.CreateJob(context.Background(), poolJob)
+		assert.NoError(tt, err, "Failed to create pool job: %v", err)
+
+		// Check for duplicate replication job
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, duplicateJob, "Expected to find duplicate replication job")
+		assert.Equal(tt, replicationJob.UUID, duplicateJob.UUID, "Expected replication job UUID %v, got %v", replicationJob.UUID, duplicateJob.UUID)
+		assert.Equal(tt, string(string(models.JobTypeCreateVolumeReplication)), duplicateJob.Type, "Expected replication job type")
+
+		// Check for duplicate pool job
+		duplicateJob, err = store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreatePool), "test-correlation-id")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, duplicateJob, "Expected to find duplicate pool job")
+		assert.Equal(tt, poolJob.UUID, duplicateJob.UUID, "Expected pool job UUID %v, got %v", poolJob.UUID, duplicateJob.UUID)
+		assert.Equal(tt, string(string(models.JobTypeCreatePool)), duplicateJob.Type, "Expected pool job type")
 	})
 }

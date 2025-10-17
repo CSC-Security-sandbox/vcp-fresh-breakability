@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
@@ -2109,7 +2110,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrDatabaseDataReadError, errors.New("some error"))
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -2120,7 +2121,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		response := []*datamodel.VolumeReplication{}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
 		expectedError := errors.NewUserInputValidationErr("No replication found for the given URI")
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 		mockStorage.AssertExpectations(tt)
@@ -2147,7 +2148,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", vsaErrors.NewVCPError(vsaErrors.ErrProjectParsingError, parseError)
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2179,7 +2180,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		InternalParseRegionAndZone = func(location string) (string, string, error) {
 			return location, "", nil
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2215,7 +2216,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
 			return "", errors.New("some error")
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2240,6 +2241,7 @@ func TestValidateReplicationParams(t *testing.T) {
 			},
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", nil
 		}
@@ -2255,7 +2257,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
 			return errors.New("some error")
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2280,6 +2282,7 @@ func TestValidateReplicationParams(t *testing.T) {
 			},
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", nil
 		}
@@ -2295,7 +2298,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
 			return nil
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2320,6 +2323,7 @@ func TestValidateReplicationParams(t *testing.T) {
 			},
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", nil
 		}
@@ -2335,8 +2339,414 @@ func TestValidateReplicationParams(t *testing.T) {
 		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
 			return nil
 		}
-		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, true)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, true, "CREATE_VOLUME_REPLICATION")
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenParseSourceLocationError", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "invalid-location",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "", "", errors.New("parse error")
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrParseSourceLocation, errors.New("parse error"))
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenGetPairedSourceRegionURIError", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "us-central1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "", errors.New("paired region error")
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrGetSrcBasePath, errors.New("paired region error"))
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenParseDestinationLocationError", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "invalid-location",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "", "", errors.New("parse destination error")
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrParseDestinationLocation, errors.New("parse destination error"))
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenGetPairedDestinationRegionURIError", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			if region == "us-central1" {
+				return "basePath", nil
+			}
+			return "", errors.New("paired destination region error")
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrGetDstBasePath, errors.New("paired destination region error"))
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenCheckAndFetchDuplicateJobsError", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("duplicate job check error"))
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		expectedError := errors.New("duplicate job check error")
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenDuplicateJobFound", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			getReplication = _getReplication
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-job-uuid",
+			},
+		}
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(existingJob, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		mirrorState := "MIRRORED"
+		mockReplication := &coreModels.VolumeReplication{
+			MirrorState: &mirrorState,
+		}
+		getReplication = func(ctx context.Context, basePath, projectNumber, location, replicationUUID, token string) (*coreModels.VolumeReplication, error) {
+			return mockReplication, nil
+		}
+		replication, jobUUID, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.NoError(tt, err)
+		assert.Equal(tt, mockReplication, replication)
+		assert.Equal(tt, "existing-job-uuid", *jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenGetReplicationErrorForDuplicateJob", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			getReplication = _getReplication
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-job-uuid",
+			},
+		}
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(existingJob, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		getReplication = func(ctx context.Context, basePath, projectNumber, location, replicationUUID, token string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("get replication error")
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, errors.New("get replication error"))
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenReplicationJobInProcessError", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return errors.New("replication job in process error")
+		}
+		expectedError := errors.New("replication job in process error")
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return nil
+		}
+		replication, jobUUID, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.NoError(tt, err)
+		assert.Nil(tt, replication)
+		assert.Nil(tt, jobUUID)
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -3173,5 +3583,284 @@ func TestVolumeIDValidation(t *testing.T) {
 		// Empty volume ID should not match the regex (since it requires at least one character)
 		matches := compiledRegex.MatchString("")
 		assert.False(t, matches, "Empty volume ID should NOT match the regex pattern")
+	})
+}
+
+func TestMapLifecycleStateToState(t *testing.T) {
+	t.Run("ValidStateMappings", func(tt *testing.T) {
+		testCases := []struct {
+			name          string
+			inputState    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState
+			expectedState string
+		}{
+			{
+				name:          "Creating",
+				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating,
+				expectedState: coreModels.LifeCycleStateCreating,
+			},
+			{
+				name:          "Available",
+				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable,
+				expectedState: coreModels.LifeCycleStateAvailable,
+			},
+			{
+				name:          "Updating",
+				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating,
+				expectedState: coreModels.LifeCycleStateUpdating,
+			},
+			{
+				name:          "Disabled",
+				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled,
+				expectedState: coreModels.LifeCycleStateDisabled,
+			},
+			{
+				name:          "Deleting",
+				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting,
+				expectedState: coreModels.LifeCycleStateDeleting,
+			},
+			{
+				name:          "Deleted",
+				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleted,
+				expectedState: coreModels.LifeCycleStateDeleted,
+			},
+			{
+				name:          "Error",
+				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError,
+				expectedState: coreModels.LifeCycleStateError,
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				result := mapLifecycleStateToState(tc.inputState)
+				assert.Equal(t, tc.expectedState, result, "Expected state %s, got %s", tc.expectedState, result)
+			})
+		}
+	})
+	t.Run("UnknownState", func(tt *testing.T) {
+		// Test with an unknown/invalid state
+		unknownState := googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState("unknown")
+		result := mapLifecycleStateToState(unknownState)
+		assert.Equal(t, coreModels.LifeCycleStateUnknown, result, "Unknown state should map to LifeCycleStateUnknown")
+	})
+	t.Run("EmptyState", func(tt *testing.T) {
+		// Test with empty state
+		emptyState := googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState("")
+		result := mapLifecycleStateToState(emptyState)
+		assert.Equal(t, coreModels.LifeCycleStateUnknown, result, "Empty state should map to LifeCycleStateUnknown")
+	})
+	t.Run("CaseSensitivity", func(tt *testing.T) {
+		// Test that the function is case-sensitive (should not match uppercase)
+		uppercaseState := googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState("CREATING")
+		result := mapLifecycleStateToState(uppercaseState)
+		assert.Equal(t, coreModels.LifeCycleStateUnknown, result, "Uppercase state should map to LifeCycleStateUnknown")
+	})
+	t.Run("AllEnumValuesCovered", func(tt *testing.T) {
+		// Verify that all possible enum values are handled
+		allStates := []googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState{
+			googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating,
+			googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable,
+			googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating,
+			googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled,
+			googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting,
+			googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleted,
+			googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError,
+		}
+
+		for _, state := range allStates {
+			result := mapLifecycleStateToState(state)
+			assert.NotEqual(t, coreModels.LifeCycleStateUnknown, result, "State %s should not map to unknown", state)
+		}
+	})
+}
+
+func TestConvertReplicationResponseToModels(t *testing.T) {
+	t.Run("ValidReplicationResponse", func(tt *testing.T) {
+		testCases := []struct {
+			name           string
+			lifecycleState googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState
+			expectedState  string
+		}{
+			{
+				name:           "CreatingState",
+				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating,
+				expectedState:  coreModels.LifeCycleStateCreating,
+			},
+			{
+				name:           "AvailableState",
+				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable,
+				expectedState:  coreModels.LifeCycleStateAvailable,
+			},
+			{
+				name:           "UpdatingState",
+				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating,
+				expectedState:  coreModels.LifeCycleStateUpdating,
+			},
+			{
+				name:           "DisabledState",
+				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled,
+				expectedState:  coreModels.LifeCycleStateDisabled,
+			},
+			{
+				name:           "DeletingState",
+				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting,
+				expectedState:  coreModels.LifeCycleStateDeleting,
+			},
+			{
+				name:           "DeletedState",
+				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleted,
+				expectedState:  coreModels.LifeCycleStateDeleted,
+			},
+			{
+				name:           "ErrorState",
+				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError,
+				expectedState:  coreModels.LifeCycleStateError,
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				// Create a mock response with the specific lifecycle state
+				response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+					Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
+						{
+							Name:                  googleproxyclient.OptString{Value: "test-replication", Set: true},
+							VolumeReplicationUuid: googleproxyclient.OptString{Value: "test-uuid", Set: true},
+							Description:           googleproxyclient.OptString{Value: "test description", Set: true},
+							SourceVolumeUuid:      googleproxyclient.OptString{Value: "source-uuid", Set: true},
+							SourceVolumeName:      "source-volume",
+							DestinationVolumeUuid: googleproxyclient.OptString{Value: "dest-uuid", Set: true},
+							DestinationVolumeName: "dest-volume",
+							ReplicationSchedule:   googleproxyclient.OptVolumeReplicationInternalV1betaReplicationSchedule{Value: googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly, Set: true},
+							EndpointType:          googleproxyclient.VolumeReplicationInternalV1betaEndpointTypeSrc,
+							TotalTransferBytes:    googleproxyclient.OptInt64{Value: 1024, Set: true},
+							TotalTransferTimeSecs: googleproxyclient.OptInt64{Value: 3600, Set: true},
+							LastTransferSize:      googleproxyclient.OptInt64{Value: 512, Set: true},
+							LastTransferError:     googleproxyclient.OptString{Value: "", Set: true},
+							LastTransferDuration:  googleproxyclient.OptInt64{Value: 1800, Set: true},
+							TotalProgress:         googleproxyclient.OptInt64{Value: 50, Set: true},
+							LagTime:               googleproxyclient.OptInt64{Value: 300, Set: true},
+							LifeCycleState:        googleproxyclient.OptVolumeReplicationInternalV1betaLifeCycleState{Value: tc.lifecycleState, Set: true},
+							LifeCycleStateDetails: googleproxyclient.OptString{Value: "test state details", Set: true},
+							CreatedAt:             googleproxyclient.OptDateTime{Value: time.Now(), Set: true},
+						},
+					},
+				}
+
+				result := convertReplicationResponseToModels(response)
+
+				assert.NotNil(t, result, "Result should not be nil")
+				assert.Equal(t, tc.expectedState, result.State, "Expected state %s, got %s", tc.expectedState, result.State)
+				assert.Equal(t, "test state details", result.StateDetails, "State details should match")
+				assert.Equal(t, "test-replication", result.Name, "Name should match")
+				assert.Equal(t, "test-uuid", result.UUID, "UUID should match")
+			})
+		}
+	})
+
+	t.Run("NilResponse", func(tt *testing.T) {
+		// Note: The function doesn't handle nil response gracefully, so we expect a panic
+		defer func() {
+			if r := recover(); r != nil {
+				// Expected panic when response is nil
+			}
+		}()
+		result := convertReplicationResponseToModels(nil)
+		assert.Nil(t, result, "Result should be nil for nil response")
+	})
+
+	t.Run("EmptyReplications", func(tt *testing.T) {
+		response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{},
+		}
+
+		result := convertReplicationResponseToModels(response)
+		assert.Nil(t, result, "Result should be nil for empty replications")
+	})
+
+	t.Run("UnknownLifecycleState", func(tt *testing.T) {
+		unknownState := googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState("unknown")
+		response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					Name:                  googleproxyclient.OptString{Value: "test-replication", Set: true},
+					VolumeReplicationUuid: googleproxyclient.OptString{Value: "test-uuid", Set: true},
+					Description:           googleproxyclient.OptString{Value: "test description", Set: true},
+					SourceVolumeUuid:      googleproxyclient.OptString{Value: "source-uuid", Set: true},
+					SourceVolumeName:      "source-volume",
+					DestinationVolumeUuid: googleproxyclient.OptString{Value: "dest-uuid", Set: true},
+					DestinationVolumeName: "dest-volume",
+					ReplicationSchedule:   googleproxyclient.OptVolumeReplicationInternalV1betaReplicationSchedule{Value: googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly, Set: true},
+					EndpointType:          googleproxyclient.VolumeReplicationInternalV1betaEndpointTypeSrc,
+					TotalTransferBytes:    googleproxyclient.OptInt64{Value: 1024, Set: true},
+					TotalTransferTimeSecs: googleproxyclient.OptInt64{Value: 3600, Set: true},
+					LastTransferSize:      googleproxyclient.OptInt64{Value: 512, Set: true},
+					LastTransferError:     googleproxyclient.OptString{Value: "", Set: true},
+					LastTransferDuration:  googleproxyclient.OptInt64{Value: 1800, Set: true},
+					TotalProgress:         googleproxyclient.OptInt64{Value: 50, Set: true},
+					LagTime:               googleproxyclient.OptInt64{Value: 300, Set: true},
+					LifeCycleState:        googleproxyclient.OptVolumeReplicationInternalV1betaLifeCycleState{Value: unknownState, Set: true},
+					LifeCycleStateDetails: googleproxyclient.OptString{Value: "test state details", Set: true},
+					CreatedAt:             googleproxyclient.OptDateTime{Value: time.Now(), Set: true},
+				},
+			},
+		}
+
+		result := convertReplicationResponseToModels(response)
+
+		assert.NotNil(t, result, "Result should not be nil")
+		assert.Equal(t, coreModels.LifeCycleStateUnknown, result.State, "Unknown state should map to LifeCycleStateUnknown")
+		assert.Equal(t, "test state details", result.StateDetails, "State details should match")
+	})
+
+	t.Run("CompleteReplicationData", func(tt *testing.T) {
+		response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					Name:                  googleproxyclient.OptString{Value: "test-replication", Set: true},
+					VolumeReplicationUuid: googleproxyclient.OptString{Value: "test-uuid", Set: true},
+					Description:           googleproxyclient.OptString{Value: "test description", Set: true},
+					SourceVolumeUuid:      googleproxyclient.OptString{Value: "source-uuid", Set: true},
+					SourceVolumeName:      "source-volume",
+					DestinationVolumeUuid: googleproxyclient.OptString{Value: "dest-uuid", Set: true},
+					DestinationVolumeName: "dest-volume",
+					ReplicationSchedule:   googleproxyclient.OptVolumeReplicationInternalV1betaReplicationSchedule{Value: googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly, Set: true},
+					EndpointType:          googleproxyclient.VolumeReplicationInternalV1betaEndpointTypeSrc,
+					TotalTransferBytes:    googleproxyclient.OptInt64{Value: 1024, Set: true},
+					TotalTransferTimeSecs: googleproxyclient.OptInt64{Value: 3600, Set: true},
+					LastTransferSize:      googleproxyclient.OptInt64{Value: 512, Set: true},
+					LastTransferError:     googleproxyclient.OptString{Value: "", Set: true},
+					LastTransferDuration:  googleproxyclient.OptInt64{Value: 1800, Set: true},
+					TotalProgress:         googleproxyclient.OptInt64{Value: 50, Set: true},
+					LagTime:               googleproxyclient.OptInt64{Value: 300, Set: true},
+					LifeCycleState:        googleproxyclient.OptVolumeReplicationInternalV1betaLifeCycleState{Value: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable, Set: true},
+					LifeCycleStateDetails: googleproxyclient.OptString{Value: "test state details", Set: true},
+					CreatedAt:             googleproxyclient.OptDateTime{Value: time.Now(), Set: true},
+				},
+			},
+		}
+
+		result := convertReplicationResponseToModels(response)
+
+		assert.NotNil(t, result, "Result should not be nil")
+		assert.Equal(t, coreModels.LifeCycleStateAvailable, result.State, "State should be mapped correctly")
+		assert.Equal(t, "test state details", result.StateDetails, "State details should match")
+		assert.Equal(t, "test-replication", result.Name, "Name should match")
+		assert.Equal(t, "test-uuid", result.UUID, "UUID should match")
+		assert.Equal(t, "test description", result.Description, "Description should match")
+		assert.NotNil(t, result.ReplicationAttributes, "ReplicationAttributes should be set")
+		assert.Equal(t, "source-uuid", result.ReplicationAttributes.SourceVolumeUUID, "SourceVolumeUUID should match")
+		assert.Equal(t, "source-volume", result.ReplicationAttributes.SourceVolumeName, "SourceVolumeName should match")
+		assert.Equal(t, "dest-uuid", result.ReplicationAttributes.DestinationVolumeUUID, "DestinationVolumeUUID should match")
+		assert.Equal(t, "dest-volume", result.ReplicationAttributes.DestinationVolumeName, "DestinationVolumeName should match")
+		assert.Equal(t, "hourly", result.ReplicationAttributes.ReplicationSchedule, "ReplicationSchedule should match")
+		assert.Equal(t, "src", result.ReplicationAttributes.EndpointType, "EndpointType should match")
+		assert.Equal(t, int64(1024), result.TotalTransferBytes, "TotalTransferBytes should match")
+		assert.Equal(t, int64(3600), result.TotalTransferTimeSecs, "TotalTransferTimeSecs should match")
+		assert.Equal(t, int64(512), result.LastTransferSize, "LastTransferSize should match")
+		assert.Equal(t, "", result.LastTransferError, "LastTransferError should match")
+		assert.Equal(t, int64(1800), result.LastTransferDuration, "LastTransferDuration should match")
+		assert.Equal(t, int64(50), result.TotalProgress, "TotalProgress should match")
+		assert.Equal(t, int64(300), result.LagTime, "LagTime should match")
 	})
 }

@@ -522,6 +522,66 @@ func (_c *MockStorage_BatchUpdateVolumeFields_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// CheckAndFetchDuplicateJobs provides a mock function with given fields: ctx, jobType, correlationID
+func (_m *MockStorage) CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error) {
+	ret := _m.Called(ctx, jobType, correlationID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckAndFetchDuplicateJobs")
+	}
+
+	var r0 *datamodel.Job
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*datamodel.Job, error)); ok {
+		return rf(ctx, jobType, correlationID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *datamodel.Job); ok {
+		r0 = rf(ctx, jobType, correlationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, jobType, correlationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CheckAndFetchDuplicateJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckAndFetchDuplicateJobs'
+type MockStorage_CheckAndFetchDuplicateJobs_Call struct {
+	*mock.Call
+}
+
+// CheckAndFetchDuplicateJobs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobType string
+//   - correlationID string
+func (_e *MockStorage_Expecter) CheckAndFetchDuplicateJobs(ctx interface{}, jobType interface{}, correlationID interface{}) *MockStorage_CheckAndFetchDuplicateJobs_Call {
+	return &MockStorage_CheckAndFetchDuplicateJobs_Call{Call: _e.mock.On("CheckAndFetchDuplicateJobs", ctx, jobType, correlationID)}
+}
+
+func (_c *MockStorage_CheckAndFetchDuplicateJobs_Call) Run(run func(ctx context.Context, jobType string, correlationID string)) *MockStorage_CheckAndFetchDuplicateJobs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CheckAndFetchDuplicateJobs_Call) Return(_a0 *datamodel.Job, _a1 error) *MockStorage_CheckAndFetchDuplicateJobs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CheckAndFetchDuplicateJobs_Call) RunAndReturn(run func(context.Context, string, string) (*datamodel.Job, error)) *MockStorage_CheckAndFetchDuplicateJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Close provides a mock function with no fields
 func (_m *MockStorage) Close() error {
 	ret := _m.Called()
