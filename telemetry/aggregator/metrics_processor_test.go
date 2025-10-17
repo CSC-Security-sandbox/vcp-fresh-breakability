@@ -2275,6 +2275,7 @@ func TestFetchBackupMetadata_Debug(t *testing.T) {
 
 	config := &common.TelemetryConfig{
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2320,6 +2321,7 @@ func TestFetchBackupData_Success(t *testing.T) {
 	config := &common.TelemetryConfig{
 		EnableBackupBillingMetrics:    true,
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2425,6 +2427,7 @@ func TestFetchBackupData_GetBackupMetadataError(t *testing.T) {
 	config := &common.TelemetryConfig{
 		EnableBackupBillingMetrics:    true,
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2461,6 +2464,7 @@ func TestFetchBackupData_GetBackupMetricsError(t *testing.T) {
 	config := &common.TelemetryConfig{
 		EnableBackupBillingMetrics:    true,
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2495,6 +2499,7 @@ func TestFetchBackupData_NilAttributes(t *testing.T) {
 	config := &common.TelemetryConfig{
 		EnableBackupBillingMetrics:    true,
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2546,6 +2551,7 @@ func TestFetchBackupData_NilBackupVault(t *testing.T) {
 		EnableBackupBillingMetrics:    true,
 		PageSize:                      1000,
 		GoogleBillingLabelsMaxEntries: 10,
+		PoolVolumeLabelPageSize:       10,
 	}
 
 	provider := &BillingProvider{
@@ -2594,6 +2600,7 @@ func TestFetchBackupMetadata_Success(t *testing.T) {
 
 	config := &common.TelemetryConfig{
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2635,6 +2642,7 @@ func TestFetchBackupMetadata_TableDoesNotExist(t *testing.T) {
 
 	config := &common.TelemetryConfig{
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2664,6 +2672,7 @@ func TestFetchBackupMetadata_OtherError(t *testing.T) {
 
 	config := &common.TelemetryConfig{
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2694,6 +2703,7 @@ func TestFetchBackupMetadata_EmptyResult(t *testing.T) {
 
 	config := &common.TelemetryConfig{
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2723,6 +2733,7 @@ func TestFetchBackupMetadata_MultipleBatches(t *testing.T) {
 
 	config := &common.TelemetryConfig{
 		PageSize:                      1, // Small page size to force multiple batches
+		PoolVolumeLabelPageSize:       1, // Small page size to force multiple batches
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2773,6 +2784,7 @@ func TestFetchBackupMetadata_NilLabels(t *testing.T) {
 
 	config := &common.TelemetryConfig{
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2813,6 +2825,7 @@ func TestFetchBackupMetadata_EmptyVolumeUUID(t *testing.T) {
 
 	config := &common.TelemetryConfig{
 		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       10,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 
@@ -2854,6 +2867,7 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	config := &common.TelemetryConfig{
 		EnableBackupBillingMetrics:    true,
 		PageSize:                      1, // Small page size to force multiple batches
+		PoolVolumeLabelPageSize:       1, // Small page size to force multiple batches
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 

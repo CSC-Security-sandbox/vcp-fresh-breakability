@@ -141,6 +141,8 @@ func assembleVolumeMetadata(volume *datamodel.Volume, config *common.TelemetryCo
 	if volume.Account != nil {
 		met.SetAccountName(volume.Account.Name)
 	}
-	met.SetDeploymentName(volume.Pool.DeploymentName)
+	if volume.Pool != nil {
+		met.SetDeploymentName(volume.Pool.DeploymentName)
+	}
 	return met
 }

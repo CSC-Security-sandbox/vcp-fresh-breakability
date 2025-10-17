@@ -398,7 +398,7 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 
 	offset := int32(0)
 	// Use configurable limit from config
-	limit := p.config.PageSize
+	limit := p.config.PoolVolumeLabelPageSize
 	totalProcessed := 0
 	batchCount := 0
 
@@ -457,7 +457,7 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 		logger.Debugf("Processed %d backup metrics in batch %d (offset: %d, total: %d)", len(backups), batchCount, offset, totalProcessed)
 
 		// Update offset for next iteration
-		offset += limit
+		offset += int32(limit)
 	}
 
 	logger.Infof("Fetched resource data for %d backups with %d volume labels in %d batches", len(resourceCollection.BackupData), len(volumeLabelsMap), batchCount)
@@ -563,7 +563,7 @@ func (p *BillingProvider) fetchBackupMetadata(ctx context.Context, aggregationSt
 
 	offset := int32(0)
 	// Use configurable limit from config
-	limit := p.config.PageSize
+	limit := p.config.PoolVolumeLabelPageSize
 	totalProcessed := 0
 	batchCount := 0
 
@@ -607,7 +607,7 @@ func (p *BillingProvider) fetchBackupMetadata(ctx context.Context, aggregationSt
 		logger.Debugf("Processed %d backup metadata entries in batch %d (offset: %d, total: %d)", len(backupMetadataList), batchCount, offset, totalProcessed)
 
 		// Update offset for next iteration
-		offset += limit
+		offset += int32(limit)
 	}
 
 	logger.Infof("Fetched %d backup metadata entries with labels in %d batches", len(volumeLabelsMap), batchCount)
