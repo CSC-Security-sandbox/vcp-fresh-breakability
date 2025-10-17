@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -468,23 +469,38 @@ func (d *DataStoreRepository) UpdateBackupLatestLogicalBackupSizeByVolume(ctx co
 	return nil
 }
 
-// GetBackupLogicalSizeMetrics retrieves backup logical size metrics grouped by volume UUID
+// GetBackupMetrics retrieves backup logical size metrics grouped by volume UUID with pagination
 // Returns the latest backup entry for each volume with state 'available'
-func (d *DataStoreRepository) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
-	db := d.db.GORM().WithContext(ctx)
+func (d *DataStoreRepository) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	db := d.db.ApplyFilter(conditions).GORM().WithContext(ctx)
 	var results []*datamodel.Backup
 
 	// Query to get the latest backup for each volume with state 'available'
-	// Only select the columns we need for metrics
-	err := db.Table("backups").
-		Select("backups.uuid, backups.name, backups.volume_uuid, backups.latest_logical_backup_size, backups.attributes").
-		Where("backups.state = ?", models.LifeCycleStateAvailable).
-		Where("backups.id IN (?)", db.Table("backups").
+	// Use Find instead of Scan to ensure Preload works correctly
+	err := db.Preload("BackupVault", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, name, account_id")
+	}).
+		Where("state = ?", models.LifeCycleStateAvailable).
+		Where("id IN (?)", db.Table("backups").
 			Select("MAX(id)").
 			Where("state = ?", models.LifeCycleStateAvailable).
 			Group("volume_uuid")).
-		Scan(&results).Error
+		Scopes(dbutils.Paginate(pagination)).
+		Find(&results).Error
 
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// GetBackupMetadata retrieves backup metadata entries with pagination and conditions
+func (d *DataStoreRepository) GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error) {
+	db := d.db.ApplyFilter(conditions).GORM().WithContext(ctx)
+	var results []*datamodel.BackupMetadata
+
+	err := db.Scopes(dbutils.Paginate(pagination)).Find(&results).Error
 	if err != nil {
 		return nil, err
 	}

@@ -15,6 +15,7 @@ const (
 	VolumeRegionalHA                  ResourceType = "VOLUME_REGIONAL_HA"
 	VolumePoolRegionalHA              ResourceType = "VOLUME_POOL_REGIONAL_HA"
 	VolumeReplicationRelationship     ResourceType = "VOLUME_REPLICATION_RELATIONSHIP"
+	Backup                            ResourceType = "BACKUP"
 	CBS                               ResourceType = "CBS"
 	MetricsNamePrefixPoolFirstParty                = "netapp.googleapis.com/storage_pool/"
 	MetricsNamePrefixVolumeFirstParty              = "netapp.googleapis.com/volume/"

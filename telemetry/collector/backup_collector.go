@@ -6,12 +6,18 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	pageSize = env.GetInt64("PAGE_SIZE", 1000)
 )
 
 const EmptyDeploymentName = ""
@@ -27,14 +33,44 @@ type BackupMetricsResult struct {
 // GetBackupMetrics retrieves backup logical size metrics from the database and returns them in a structured result.
 func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, timestamp time.Time) (*BackupMetricsResult, error) {
 	logger := util.GetLogger(ctx)
-	backups, err := vcpDB.GetBackupLogicalSizeMetrics(ctx)
-	if err != nil {
-		logger.Error("Failed to get backup logical size metrics", "error", err.Error())
-		return &BackupMetricsResult{}, err
-	}
-	logger.Info(fmt.Sprintf("Found %d backup metrics", len(backups)))
 
-	if len(backups) == 0 {
+	// Fetch all backup metrics using pagination
+	var allBackups []*datamodel.Backup
+	offset := int64(0)
+	limit := pageSize // Use a reasonable page size for collector
+
+	// Create conditions for backup metrics (available state is already handled in the query)
+	conditions := [][]interface{}{}
+
+	for {
+		// Create pagination with offset and limit
+		pagination := &dbutils.Pagination{
+			Offset: int(offset),
+			Limit:  int(limit),
+		}
+
+		// Fetch paginated backup metrics
+		backups, err := vcpDB.GetBackupMetrics(ctx, conditions, pagination)
+		if err != nil {
+			logger.Error("Failed to get backup logical size metrics", "error", err.Error())
+			return &BackupMetricsResult{}, err
+		}
+
+		// Break if no records returned
+		if len(backups) == 0 {
+			break
+		}
+
+		// Append to all backups
+		allBackups = append(allBackups, backups...)
+
+		// Update offset for next iteration
+		offset += limit
+	}
+
+	logger.Info(fmt.Sprintf("Found %d backup metrics", len(allBackups)))
+
+	if len(allBackups) == 0 {
 		return &BackupMetricsResult{}, nil
 	}
 
@@ -43,7 +79,7 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	var hydratedMetrics []datamodel2.HydratedMetrics
 
 	// Iterate over all backups and generate metrics
-	for _, backup := range backups {
+	for _, backup := range allBackups {
 		// Assemble metadata for the backup (billing on volume)
 		if backup.Attributes == nil {
 			logger.Error(fmt.Sprintf("Backup attributes is missing found for volume %s", backup.VolumeUUID))
@@ -71,14 +107,19 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 
 func assembleBackupMetadata(backup *datamodel.Backup, config *common.TelemetryConfig) metadata.ResourceMetadata {
 	met := metadata.ResourceMetadata{}
-	// Billing on volume, so use volume UUID as resource UUID
 	met.SetResourceUUID(backup.VolumeUUID)
-	met.SetResourceType(metadata.Volume) // Billing on volume
+	met.SetResourceType(metadata.Backup)
 	met.SetSizeInBytes(backup.LatestLogicalBackupSize)
 	met.SetRegionName(config.RegionName)
 	met.SetResourceName(backup.Attributes.VolumeName)
 	met.SetResourceDisplayName(backup.Attributes.VolumeName)
 	met.SetAccountName(backup.Attributes.AccountIdentifier)
-	met.SetDeploymentName(EmptyDeploymentName)
+
+	// Check if BackupVault is not nil before accessing its Name
+	if backup.BackupVault != nil {
+		met.SetDeploymentName(backup.BackupVault.Name)
+	} else {
+		met.SetDeploymentName(EmptyDeploymentName)
+	}
 	return met
 }

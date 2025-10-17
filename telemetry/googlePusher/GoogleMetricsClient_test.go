@@ -900,13 +900,13 @@ func Test_GetLabelKey(t *testing.T) {
 		assert.Equal(t, expected, result)
 	})
 
-	t.Run("Volume resource with CbsVolumeBackupSize measured type", func(t *testing.T) {
+	t.Run("Backup resource with BackupLogicalSize measured type", func(t *testing.T) {
 		rm := metadata.ResourceMetadata{
-			ResourceType: metadata.Volume,
+			ResourceType: metadata.Backup,
 		}
 		hydratedM := &entity.HydratedMetric{
 			Metadata:     rm,
-			MeasuredType: metadata.CbsVolumeBackupSize,
+			MeasuredType: metadata.BackupLogicalSize,
 		}
 		googleMetric := *common.NewGoogleMetric(hydratedM)
 
@@ -1096,7 +1096,7 @@ func Test_CreateMetricValue_ErrorPaths(t *testing.T) {
 		}
 		hydratedM := &entity.HydratedMetric{
 			Metadata:     rm,
-			MeasuredType: metadata.CbsVolumeBackupSize,
+			MeasuredType: metadata.BackupLogicalSize,
 			Quantity:     100.0,
 			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
 		}
@@ -2009,11 +2009,6 @@ func TestGetLabelKey_RegionalHA(t *testing.T) {
 			name:         "VolumePoolRegionalHA",
 			resourceType: metadata.VolumePoolRegionalHA,
 			measuredType: metadata.PoolAllocatedSize,
-		},
-		{
-			name:         "VolumeRegionalHA",
-			resourceType: metadata.VolumeRegionalHA,
-			measuredType: metadata.AllocatedSize,
 		},
 	}
 

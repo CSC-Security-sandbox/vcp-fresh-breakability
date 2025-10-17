@@ -962,6 +962,208 @@ func TestGoogleMetric_Validate(t *testing.T) {
 	}
 }
 
+// TestGetRegion_BillingMetric tests GetRegion for BillingMetric
+func TestGetRegion_BillingMetric(t *testing.T) {
+	region := "us-east-1"
+	billingMetric := &datamodel.AggregatedUsage{RegionName: &region}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetRegion()
+	assert.NoError(t, err)
+	assert.Equal(t, region, result)
+}
+
+// TestGetRegion_BillingMetric_NilRegion tests GetRegion for BillingMetric with nil region
+func TestGetRegion_BillingMetric_NilRegion(t *testing.T) {
+	billingMetric := &datamodel.AggregatedUsage{RegionName: nil}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetRegion()
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetRegion_BillingMetric_Error tests GetRegion for BillingMetric with error
+func TestGetRegion_BillingMetric_Error(t *testing.T) {
+	googleMetric := NewGoogleMetric(nil)
+
+	result, err := googleMetric.GetRegion()
+	assert.Error(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetRegion_HydratedMetric tests GetRegion for HydratedMetric
+func TestGetRegion_HydratedMetric(t *testing.T) {
+	region := "us-west-2"
+	hydratedMetric := &entity.HydratedMetric{Metadata: metadata.ResourceMetadata{RegionName: &region}}
+	googleMetric := NewGoogleMetric(hydratedMetric)
+
+	result, err := googleMetric.GetRegion()
+	assert.NoError(t, err)
+	assert.Equal(t, region, result)
+}
+
+// TestGetRegion_HydratedMetric_NilRegion tests GetRegion for HydratedMetric with nil region
+func TestGetRegion_HydratedMetric_NilRegion(t *testing.T) {
+	hydratedMetric := &entity.HydratedMetric{Metadata: metadata.ResourceMetadata{RegionName: nil}}
+	googleMetric := NewGoogleMetric(hydratedMetric)
+
+	result, err := googleMetric.GetRegion()
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetRegion_HydratedMetric_Error tests GetRegion for HydratedMetric with error
+func TestGetRegion_HydratedMetric_Error(t *testing.T) {
+	googleMetric := NewGoogleMetric(nil)
+
+	result, err := googleMetric.GetRegion()
+	assert.Error(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetRegion_InvalidType tests GetRegion for invalid metric type
+func TestGetRegion_InvalidType(t *testing.T) {
+	googleMetric := &GoogleMetric{Record: "invalid"}
+
+	result, err := googleMetric.GetRegion()
+	assert.Error(t, err)
+	assert.Empty(t, result)
+	assert.Contains(t, err.Error(), "Invalid GoogleMetric type")
+}
+
+// TestGetResourceUUID_BillingMetric tests GetResourceUUID for BillingMetric
+func TestGetResourceUUID_BillingMetric(t *testing.T) {
+	resourceUUID := "resource-uuid-123"
+	billingMetric := &datamodel.AggregatedUsage{ResourceUUID: resourceUUID}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetResourceUUID()
+	assert.NoError(t, err)
+	assert.Equal(t, resourceUUID, result)
+}
+
+// TestGetResourceUUID_BillingMetric_EmptyUUID tests GetResourceUUID for BillingMetric with empty UUID
+func TestGetResourceUUID_BillingMetric_EmptyUUID(t *testing.T) {
+	billingMetric := &datamodel.AggregatedUsage{ResourceUUID: ""}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetResourceUUID()
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetResourceUUID_BillingMetric_Error tests GetResourceUUID for BillingMetric with error
+func TestGetResourceUUID_BillingMetric_Error(t *testing.T) {
+	googleMetric := NewGoogleMetric(nil)
+
+	result, err := googleMetric.GetResourceUUID()
+	assert.Error(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetResourceUUID_HydratedMetric tests GetResourceUUID for HydratedMetric
+func TestGetResourceUUID_HydratedMetric(t *testing.T) {
+	resourceUUID := "resource-uuid-456"
+	hydratedMetric := &entity.HydratedMetric{Metadata: metadata.ResourceMetadata{ResourceUUID: &resourceUUID}}
+	googleMetric := NewGoogleMetric(hydratedMetric)
+
+	result, err := googleMetric.GetResourceUUID()
+	assert.NoError(t, err)
+	assert.Equal(t, resourceUUID, result)
+}
+
+// TestGetResourceUUID_HydratedMetric_NilUUID tests GetResourceUUID for HydratedMetric with nil UUID
+func TestGetResourceUUID_HydratedMetric_NilUUID(t *testing.T) {
+	hydratedMetric := &entity.HydratedMetric{Metadata: metadata.ResourceMetadata{ResourceUUID: nil}}
+	googleMetric := NewGoogleMetric(hydratedMetric)
+
+	result, err := googleMetric.GetResourceUUID()
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetResourceUUID_HydratedMetric_Error tests GetResourceUUID for HydratedMetric with error
+func TestGetResourceUUID_HydratedMetric_Error(t *testing.T) {
+	googleMetric := NewGoogleMetric(nil)
+
+	result, err := googleMetric.GetResourceUUID()
+	assert.Error(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetResourceUUID_InvalidType tests GetResourceUUID for invalid metric type
+func TestGetResourceUUID_InvalidType(t *testing.T) {
+	googleMetric := &GoogleMetric{Record: "invalid"}
+
+	result, err := googleMetric.GetResourceUUID()
+	assert.Error(t, err)
+	assert.Empty(t, result)
+	assert.Contains(t, err.Error(), "Invalid GoogleMetric type")
+}
+
+// TestGetLabels_BillingMetric tests GetLabels for BillingMetric
+func TestGetLabels_BillingMetric(t *testing.T) {
+	labels := `{"env":"prod","team":"backend"}`
+	billingMetric := &datamodel.AggregatedUsage{BillingLabels: &labels}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetLabels()
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "prod", result["env"])
+	assert.Equal(t, "backend", result["team"])
+}
+
+// TestGetLabels_BillingMetric_NilLabels tests GetLabels for BillingMetric with nil labels
+func TestGetLabels_BillingMetric_NilLabels(t *testing.T) {
+	billingMetric := &datamodel.AggregatedUsage{BillingLabels: nil}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetLabels()
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+}
+
+// TestGetLabels_BillingMetric_InvalidJSON tests GetLabels for BillingMetric with invalid JSON
+func TestGetLabels_BillingMetric_InvalidJSON(t *testing.T) {
+	invalidJSON := `{"invalid": json}`
+	billingMetric := &datamodel.AggregatedUsage{BillingLabels: &invalidJSON}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetLabels()
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// TestGetLabels_BillingMetric_Error tests GetLabels for BillingMetric with error
+func TestGetLabels_BillingMetric_Error(t *testing.T) {
+	googleMetric := NewGoogleMetric(nil)
+
+	result, err := googleMetric.GetLabels()
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// TestGetLabels_HydratedMetric tests GetLabels for HydratedMetric
+func TestGetLabels_HydratedMetric(t *testing.T) {
+	googleMetric := NewGoogleMetric(&entity.HydratedMetric{})
+
+	result, err := googleMetric.GetLabels()
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+}
+
+// TestGetLabels_InvalidType tests GetLabels for invalid metric type
+func TestGetLabels_InvalidType(t *testing.T) {
+	googleMetric := &GoogleMetric{Record: "invalid"}
+
+	result, err := googleMetric.GetLabels()
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Invalid GoogleMetric type")
+}
+
 func TestGoogleMetric_GetServiceLevel_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name      string

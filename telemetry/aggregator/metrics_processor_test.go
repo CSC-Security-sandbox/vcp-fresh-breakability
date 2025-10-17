@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
@@ -2230,6 +2231,717 @@ func TestGetResourceDataForAggregationUsage(t *testing.T) {
 			assert.Equal(t, tt.expected.Labels, result.Labels, "Labels mismatch for %s", tt.name)
 		})
 	}
+}
+
+// Helper function to create JSONB from map
+func createJSONB(data map[string]string) *datamodel.JSONB {
+	jsonb := datamodel.JSONB{}
+	for k, v := range data {
+		jsonb[k] = v // v is string, but JSONB expects interface{}
+	}
+	return &jsonb
+}
+
+// TestLimitLabels_Debug tests the limitLabels function directly
+func TestLimitLabels_Debug(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	// Test with our createJSONB function
+	jsonb := createJSONB(map[string]string{"env": "dev"})
+	t.Logf("Created JSONB: %+v", *jsonb)
+
+	labels := provider.limitLabels(jsonb)
+	t.Logf("Labels after limitLabels: %+v", labels)
+
+	assert.Len(t, labels, 1)
+	assert.Equal(t, "dev", labels["env"])
+}
+
+// TestFetchBackupMetadata_Debug tests the fetchBackupMetadata function with debug output
+func TestFetchBackupMetadata_Debug(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	backupMetadataList := []*datamodel.BackupMetadata{
+		{VolumeUUID: "volume-uuid-1", Labels: createJSONB(map[string]string{"env": "dev"})},
+	}
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backupMetadataList, nil)
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.BackupMetadata{}, nil)
+
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+
+	t.Logf("BackupMetadata: %+v", backupMetadataList[0])
+	t.Logf("BackupMetadata.Labels: %+v", backupMetadataList[0].Labels)
+	t.Logf("VolumeLabelsMap: %+v", volumeLabelsMap)
+
+	assert.NoError(t, err)
+	assert.Len(t, volumeLabelsMap, 1)
+	assert.Equal(t, Labels{"env": "dev"}, volumeLabelsMap["volume-uuid-1"])
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupData_Success tests successful fetching of backup data
+func TestFetchBackupData_Success(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		EnableBackupBillingMetrics:    true,
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+	resourceCollection := &ResourceCollection{
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+
+	// Mock backup metadata
+	backupMetadataList := []*datamodel.BackupMetadata{
+		{VolumeUUID: "volume-uuid-1", Labels: createJSONB(map[string]string{"env": "dev"})},
+	}
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backupMetadataList, nil)
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.BackupMetadata{}, nil)
+
+	// Mock backup metrics
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 1024,
+			Attributes:              &datamodel.BackupAttributes{VolumeName: "Volume1", AccountIdentifier: "Account1"},
+			BackupVault:             &datamodel.BackupVault{Name: "Vault1", AccountID: 1},
+		},
+	}
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.BackupData, 1)
+
+	key := ResourceKey{
+		ResourceType:   metadata.Backup,
+		ResourceName:   "Volume1",
+		DeploymentName: "Vault1",
+		ConsumerID:     "Account1",
+	}
+	data, ok := resourceCollection.BackupData[key]
+	assert.True(t, ok)
+	assert.Equal(t, "volume-uuid-1", data.UUID)
+	assert.Equal(t, int64(1), data.AccountID)
+	assert.Equal(t, Labels{"env": "dev"}, data.Labels)
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchResourceData_BackupBillingDisabled tests fetchResourceData when backup billing is disabled
+func TestFetchResourceData_BackupBillingDisabled(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		EnableBackupBillingMetrics:    false,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	// Mock the calls that fetchResourceData makes
+	mockVCPDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	mockVCPDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+
+	resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+	assert.NoError(t, err)
+	assert.NotNil(t, resourceCollection)
+	assert.Empty(t, resourceCollection.BackupData) // Should be empty since backup billing is disabled
+
+	// GetBackupMetadata and GetBackupMetrics should not be called when disabled
+	mockVCPDB.AssertNotCalled(t, "GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything)
+	mockVCPDB.AssertNotCalled(t, "GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// TestFetchBackupData_GetBackupMetadataError tests error handling for GetBackupMetadata
+func TestFetchBackupData_GetBackupMetadataError(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		EnableBackupBillingMetrics:    true,
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+	resourceCollection := &ResourceCollection{
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metadata error"))
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return([]*datamodel.Backup{}, nil) // Still mock GetBackupMetrics to avoid panic
+
+	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	assert.NoError(t, err) // Should not return error, just log warning and continue with empty labels
+	assert.Empty(t, resourceCollection.BackupData)
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupData_GetBackupMetricsError tests error handling for GetBackupMetrics
+func TestFetchBackupData_GetBackupMetricsError(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		EnableBackupBillingMetrics:    true,
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+	resourceCollection := &ResourceCollection{
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metrics error"))
+
+	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get backup metrics")
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupData_NilAttributes tests handling of backups with nil attributes
+func TestFetchBackupData_NilAttributes(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		EnableBackupBillingMetrics:    true,
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+	resourceCollection := &ResourceCollection{
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+
+	// Mock backup metadata
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
+
+	// Mock backup with nil attributes
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:  "volume-uuid-1",
+			Attributes:  nil, // Nil attributes
+			BackupVault: &datamodel.BackupVault{Name: "Vault1", AccountID: 1},
+		},
+	}
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	assert.NoError(t, err)
+	assert.Empty(t, resourceCollection.BackupData) // Should be empty due to nil attributes
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupData_NilBackupVault tests handling of backups with nil BackupVault
+func TestFetchBackupData_NilBackupVault(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		EnableBackupBillingMetrics:    true,
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+	resourceCollection := &ResourceCollection{
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+
+	// Mock backup metadata
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
+
+	// Mock backup with nil BackupVault
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:  "volume-uuid-1",
+			Attributes:  &datamodel.BackupAttributes{VolumeName: "Volume1", AccountIdentifier: "Account1"},
+			BackupVault: nil, // Nil BackupVault
+		},
+	}
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	assert.NoError(t, err)
+	assert.Empty(t, resourceCollection.BackupData) // Should be empty due to nil BackupVault
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupMetadata_Success tests successful fetching of backup metadata
+func TestFetchBackupMetadata_Success(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	backupMetadataList := []*datamodel.BackupMetadata{
+		{VolumeUUID: "volume-uuid-1", Labels: createJSONB(map[string]string{"env": "dev"})},
+		{VolumeUUID: "volume-uuid-2", Labels: createJSONB(map[string]string{"team": "eng"})},
+	}
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backupMetadataList, nil)
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.BackupMetadata{}, nil)
+
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	assert.NoError(t, err)
+	assert.Len(t, volumeLabelsMap, 2)
+	assert.Equal(t, Labels{"env": "dev"}, volumeLabelsMap["volume-uuid-1"])
+	assert.Equal(t, Labels{"team": "eng"}, volumeLabelsMap["volume-uuid-2"])
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupMetadata_TableDoesNotExist tests handling of "table does not exist" error
+func TestFetchBackupMetadata_TableDoesNotExist(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("relation \"backup_metadata\" does not exist"))
+
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	assert.NoError(t, err) // Should not return error, but an empty map
+	assert.Empty(t, volumeLabelsMap)
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupMetadata_OtherError tests handling of other errors
+func TestFetchBackupMetadata_OtherError(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some other database error"))
+
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to fetch backup metadata")
+	assert.Nil(t, volumeLabelsMap)
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupMetadata_EmptyResult tests handling of empty results
+func TestFetchBackupMetadata_EmptyResult(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
+
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	assert.NoError(t, err)
+	assert.Empty(t, volumeLabelsMap)
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupMetadata_MultipleBatches tests pagination with multiple batches
+func TestFetchBackupMetadata_MultipleBatches(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		PageSize:                      1, // Small page size to force multiple batches
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	// Mock first batch
+	backupMetadataList1 := []*datamodel.BackupMetadata{
+		{VolumeUUID: "volume-uuid-1", Labels: createJSONB(map[string]string{"env": "dev"})},
+	}
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backupMetadataList1, nil)
+
+	// Mock second batch
+	backupMetadataList2 := []*datamodel.BackupMetadata{
+		{VolumeUUID: "volume-uuid-2", Labels: createJSONB(map[string]string{"team": "eng"})},
+	}
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 1
+	})).Return(backupMetadataList2, nil)
+
+	// Mock empty third batch to end pagination
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 2
+	})).Return([]*datamodel.BackupMetadata{}, nil)
+
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	assert.NoError(t, err)
+	assert.Len(t, volumeLabelsMap, 2)
+	assert.Equal(t, Labels{"env": "dev"}, volumeLabelsMap["volume-uuid-1"])
+	assert.Equal(t, Labels{"team": "eng"}, volumeLabelsMap["volume-uuid-2"])
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupMetadata_NilLabels tests handling of backup metadata with nil labels
+func TestFetchBackupMetadata_NilLabels(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	backupMetadataList := []*datamodel.BackupMetadata{
+		{VolumeUUID: "volume-uuid-1", Labels: nil}, // Nil labels
+		{VolumeUUID: "volume-uuid-2", Labels: createJSONB(map[string]string{"team": "eng"})},
+	}
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backupMetadataList, nil)
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.BackupMetadata{}, nil)
+
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	assert.NoError(t, err)
+	assert.Len(t, volumeLabelsMap, 1) // Only one entry with valid labels
+	assert.Equal(t, Labels{"team": "eng"}, volumeLabelsMap["volume-uuid-2"])
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupMetadata_EmptyVolumeUUID tests handling of backup metadata with empty volume UUID
+func TestFetchBackupMetadata_EmptyVolumeUUID(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		PageSize:                      1000,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+
+	backupMetadataList := []*datamodel.BackupMetadata{
+		{VolumeUUID: "", Labels: createJSONB(map[string]string{"env": "dev"})}, // Empty volume UUID
+		{VolumeUUID: "volume-uuid-2", Labels: createJSONB(map[string]string{"team": "eng"})},
+	}
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backupMetadataList, nil)
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.BackupMetadata{}, nil)
+
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	assert.NoError(t, err)
+	assert.Len(t, volumeLabelsMap, 1) // Only one entry with valid volume UUID
+	assert.Equal(t, Labels{"team": "eng"}, volumeLabelsMap["volume-uuid-2"])
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchBackupData_MultipleBatches tests pagination with multiple batches for backup data
+func TestFetchBackupData_MultipleBatches(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		EnableBackupBillingMetrics:    true,
+		PageSize:                      1, // Small page size to force multiple batches
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+
+	provider := &BillingProvider{
+		config:       config,
+		vcpDataStore: mockVCPDB,
+		metricsDB:    mockDB,
+	}
+
+	ctx := context.Background()
+	aggregationStartTime := time.Now().Add(-time.Hour)
+	aggregationEndTime := time.Now()
+	resourceCollection := &ResourceCollection{
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+
+	// Mock backup metadata
+	backupMetadataList := []*datamodel.BackupMetadata{
+		{VolumeUUID: "volume-uuid-1", Labels: createJSONB(map[string]string{"env": "dev"})},
+		{VolumeUUID: "volume-uuid-2", Labels: createJSONB(map[string]string{"env": "prod"})},
+	}
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return(backupMetadataList, nil).Once()
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil).Once()
+
+	// Mock first batch of backup metrics
+	backups1 := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:              "volume-uuid-1",
+			LatestLogicalBackupSize: 1024,
+			Attributes:              &datamodel.BackupAttributes{VolumeName: "Volume1", AccountIdentifier: "Account1"},
+			BackupVault:             &datamodel.BackupVault{Name: "Vault1", AccountID: 1},
+		},
+	}
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups1, nil).Once()
+
+	// Mock second batch of backup metrics
+	backups2 := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-2"},
+			VolumeUUID:              "volume-uuid-2",
+			LatestLogicalBackupSize: 2048,
+			Attributes:              &datamodel.BackupAttributes{VolumeName: "Volume2", AccountIdentifier: "Account2"},
+			BackupVault:             &datamodel.BackupVault{Name: "Vault2", AccountID: 2},
+		},
+	}
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 1
+	})).Return(backups2, nil).Once()
+
+	// Mock empty third batch to end pagination
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 2
+	})).Return([]*datamodel.Backup{}, nil).Once()
+
+	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.BackupData, 2)
+
+	// Verify first backup
+	key1 := ResourceKey{
+		ResourceType:   metadata.Backup,
+		ResourceName:   "Volume1",
+		DeploymentName: "Vault1",
+		ConsumerID:     "Account1",
+	}
+	data1, ok := resourceCollection.BackupData[key1]
+	assert.True(t, ok)
+	assert.Equal(t, "volume-uuid-1", data1.UUID)
+	assert.Equal(t, int64(1), data1.AccountID)
+	assert.Equal(t, Labels{"env": "dev"}, data1.Labels)
+
+	// Verify second backup
+	key2 := ResourceKey{
+		ResourceType:   metadata.Backup,
+		ResourceName:   "Volume2",
+		DeploymentName: "Vault2",
+		ConsumerID:     "Account2",
+	}
+	data2, ok := resourceCollection.BackupData[key2]
+	assert.True(t, ok)
+	assert.Equal(t, "volume-uuid-2", data2.UUID)
+	assert.Equal(t, int64(2), data2.AccountID)
+	assert.Equal(t, Labels{"env": "prod"}, data2.Labels)
+
+	mockVCPDB.AssertExpectations(t)
 }
 
 func TestSetServiceLevelForCRR(t *testing.T) {

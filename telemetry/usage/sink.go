@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -54,8 +55,10 @@ func (s *GoogleUsageSink) completeRecords(records []datamodel.AggregatedUsage) [
 	var firstPartyGoogleMetrics []common.GoogleMetric
 	for _, record := range records {
 		switch record.MeasuredType {
-		case "CBS_VOLUME_BACKUP_SIZE":
-			record.Quantity = float64(utils2.MibHoursToGibHours(record.Quantity))
+		case metadata.BackupLogicalSize:
+			record.Quantity = float64(utils2.MibtoKib(record.Quantity))
+		case metadata.BackupEnabledVolumeAllocatedSize:
+			record.Quantity = float64(utils2.MibHoursToGibHoursWithRoundOff(record.Quantity))
 		default:
 			record.Quantity = float64(utils2.MibHoursToGibHours(record.Quantity))
 		}

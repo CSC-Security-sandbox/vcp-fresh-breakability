@@ -1,9 +1,10 @@
 package datamodel
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"io"
 	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
 type HydratedMetrics struct {

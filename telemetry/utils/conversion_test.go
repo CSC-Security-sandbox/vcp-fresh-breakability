@@ -128,3 +128,55 @@ func TestMibHoursToGibHoursWithRoundOff(t *testing.T) {
 		})
 	}
 }
+
+// TestMibtoKib tests the MibtoKib conversion function
+func TestMibtoKib(t *testing.T) {
+	tests := []struct {
+		name     string
+		mib      float64
+		expected int64
+	}{
+		{
+			name:     "zero MiB",
+			mib:      0,
+			expected: 0,
+		},
+		{
+			name:     "one MiB",
+			mib:      1,
+			expected: 1024,
+		},
+		{
+			name:     "fractional MiB",
+			mib:      0.5,
+			expected: 512,
+		},
+		{
+			name:     "large value",
+			mib:      1024,
+			expected: 1048576, // 1024 * 1024
+		},
+		{
+			name:     "negative value",
+			mib:      -5,
+			expected: -5120,
+		},
+		{
+			name:     "decimal value",
+			mib:      10.25,
+			expected: 10496, // 10.25 * 1024 = 10496
+		},
+		{
+			name:     "small decimal value",
+			mib:      0.1,
+			expected: 102, // 0.1 * 1024 = 102.4, truncated to 102
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MibtoKib(tt.mib)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

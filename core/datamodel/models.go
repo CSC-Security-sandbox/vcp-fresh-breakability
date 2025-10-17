@@ -755,14 +755,6 @@ type BackupMetadata struct {
 	Labels     *JSONB `json:"labels" gorm:"type:jsonb"`
 }
 
-type ADC struct {
-	Id         int64  `gorm:"column:id;primaryKey"`
-	Name       string `gorm:"column:name;not null;unique"`
-	Status     string `gorm:"column:status;not null"` // e.g., "active" or "inactive"
-	InUse      bool   `gorm:"column:in_use;not null;default:false"`
-	WorkflowId string `gorm:"column:workflow_id"`
-}
-
 type AdminJobSpec struct {
 	BaseModel
 	JobType        string `gorm:"column:job_type;unique"`

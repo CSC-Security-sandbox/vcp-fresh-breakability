@@ -4428,29 +4428,29 @@ func (_c *MockStorage_GetBackupCountByVolumeUUIDs_Call) RunAndReturn(run func(co
 	return _c
 }
 
-// GetBackupLogicalSizeMetrics provides a mock function with given fields: ctx
-func (_m *MockStorage) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
-	ret := _m.Called(ctx)
+// GetBackupMetadata provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockStorage) GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.BackupMetadata, error) {
+	ret := _m.Called(ctx, conditions, pagination)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetBackupLogicalSizeMetrics")
+		panic("no return value specified for GetBackupMetadata")
 	}
 
-	var r0 []*datamodel.Backup
+	var r0 []*datamodel.BackupMetadata
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]*datamodel.Backup, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.BackupMetadata, error)); ok {
+		return rf(ctx, conditions, pagination)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []*datamodel.Backup); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.BackupMetadata); ok {
+		r0 = rf(ctx, conditions, pagination)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*datamodel.Backup)
+			r0 = ret.Get(0).([]*datamodel.BackupMetadata)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4458,30 +4458,32 @@ func (_m *MockStorage) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*data
 	return r0, r1
 }
 
-// MockStorage_GetBackupLogicalSizeMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupLogicalSizeMetrics'
-type MockStorage_GetBackupLogicalSizeMetrics_Call struct {
+// MockStorage_GetBackupMetadata_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupMetadata'
+type MockStorage_GetBackupMetadata_Call struct {
 	*mock.Call
 }
 
-// GetBackupLogicalSizeMetrics is a helper method to define mock.On call
+// GetBackupMetadata is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockStorage_Expecter) GetBackupLogicalSizeMetrics(ctx interface{}) *MockStorage_GetBackupLogicalSizeMetrics_Call {
-	return &MockStorage_GetBackupLogicalSizeMetrics_Call{Call: _e.mock.On("GetBackupLogicalSizeMetrics", ctx)}
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) GetBackupMetadata(ctx interface{}, conditions interface{}, pagination interface{}) *MockStorage_GetBackupMetadata_Call {
+	return &MockStorage_GetBackupMetadata_Call{Call: _e.mock.On("GetBackupMetadata", ctx, conditions, pagination)}
 }
 
-func (_c *MockStorage_GetBackupLogicalSizeMetrics_Call) Run(run func(ctx context.Context)) *MockStorage_GetBackupLogicalSizeMetrics_Call {
+func (_c *MockStorage_GetBackupMetadata_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockStorage_GetBackupMetadata_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
 	})
 	return _c
 }
 
-func (_c *MockStorage_GetBackupLogicalSizeMetrics_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockStorage_GetBackupLogicalSizeMetrics_Call {
+func (_c *MockStorage_GetBackupMetadata_Call) Return(_a0 []*datamodel.BackupMetadata, _a1 error) *MockStorage_GetBackupMetadata_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorage_GetBackupLogicalSizeMetrics_Call) RunAndReturn(run func(context.Context) ([]*datamodel.Backup, error)) *MockStorage_GetBackupLogicalSizeMetrics_Call {
+func (_c *MockStorage_GetBackupMetadata_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.BackupMetadata, error)) *MockStorage_GetBackupMetadata_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4541,6 +4543,66 @@ func (_c *MockStorage_GetBackupMetadataByVolumeUUID_Call) Return(_a0 *datamodel.
 }
 
 func (_c *MockStorage_GetBackupMetadataByVolumeUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.BackupMetadata, error)) *MockStorage_GetBackupMetadataByVolumeUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupMetrics provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockStorage) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupMetrics")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.Backup); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupMetrics'
+type MockStorage_GetBackupMetrics_Call struct {
+	*mock.Call
+}
+
+// GetBackupMetrics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) GetBackupMetrics(ctx interface{}, conditions interface{}, pagination interface{}) *MockStorage_GetBackupMetrics_Call {
+	return &MockStorage_GetBackupMetrics_Call{Call: _e.mock.On("GetBackupMetrics", ctx, conditions, pagination)}
+}
+
+func (_c *MockStorage_GetBackupMetrics_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockStorage_GetBackupMetrics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupMetrics_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockStorage_GetBackupMetrics_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupMetrics_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Backup, error)) *MockStorage_GetBackupMetrics_Call {
 	_c.Call.Return(run)
 	return _c
 }

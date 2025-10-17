@@ -35,6 +35,9 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 
 	// Create poolMetadataMap for testing
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+	poolMetadataMap[1] = metadata.ResourceMetadata{
+		ResourceType: metadata.Volume,
+	}
 
 	backupChainBytes := int64(1024)
 	volumes := []*datamodel.Volume{
@@ -46,6 +49,11 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment",
+			},
+			PoolID: 1,
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
@@ -61,13 +69,13 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	assert.NotNil(t, result)
 
 	// VolumeAllocatedThroughput should be in separate field
-	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 0)
-	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
-	// Check BackupVolumeAllocatedSize metric (in regular field)
-	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
+	// Check BackupEnabledVolumeAllocatedSize metric (in regular field)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
 	assert.Equal(t, metadata.Volume, result.HydratedMetrics[0].Metadata.ResourceType)
@@ -76,7 +84,7 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
 
 	// Check hydrated metrics data model
-	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
 	assert.Equal(t, metadata.Volume, result.HydratedMetricsDataModel[0].ResourceType)
 	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
 	assert.Equal(t, "Volume1", result.HydratedMetricsDataModel[0].ResourceName)
@@ -106,6 +114,10 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment-1",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes1,
 			},
@@ -117,6 +129,10 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes2,
@@ -134,19 +150,19 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field (2 volumes)
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 0)
-	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true (2 volumes)
+	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true (2 volumes)
 	assert.Len(t, result.HydratedMetrics, 2)
 	assert.Len(t, result.HydratedMetricsDataModel, 2)
 
-	// Check first volume BackupVolumeAllocatedSize metric (in regular field)
-	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
+	// Check first volume BackupEnabledVolumeAllocatedSize metric (in regular field)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
 	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
 
-	// Check second volume BackupVolumeAllocatedSize metric (in regular field)
-	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetrics[1].MeasuredType)
+	// Check second volume BackupEnabledVolumeAllocatedSize metric (in regular field)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetrics[1].MeasuredType)
 	assert.Equal(t, float64(4096), result.HydratedMetrics[1].Quantity)
 	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[1].Metadata.ResourceUUID))
 	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[1].Metadata.ResourceName))
@@ -155,13 +171,13 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 	// Check hydrated metrics - Volume1
 	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
 	assert.Equal(t, "Volume1", result.HydratedMetricsDataModel[0].ResourceName)
-	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetricsDataModel[0].Quantity)
 
 	// Check hydrated metrics - Volume2
 	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[1].ConsumerID)
 	assert.Equal(t, "Volume2", result.HydratedMetricsDataModel[1].ResourceName)
-	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetricsDataModel[1].MeasuredType)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[1].MeasuredType)
 	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[1].Quantity)
 }
 
@@ -210,6 +226,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment-1",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &zeroBackupChainBytes, // Should be filtered out
 			},
@@ -221,6 +241,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &positiveBackupChainBytes, // Should be included
@@ -239,7 +263,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 	// VolumeAllocatedThroughput metrics should be generated for both volumes (2 total)
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 0)
 
-	// Only one volume should be processed for BackupVolumeAllocatedSize (the one with positive backup chain bytes)
+	// Only one volume should be processed for BackupEnabledVolumeAllocatedSize (the one with positive backup chain bytes)
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
@@ -267,6 +291,10 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment-1",
+			},
 			DataProtection: nil, // Should be processed (not filtered out)
 		},
 		{
@@ -277,6 +305,10 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &positiveBackupChainBytes, // Should be included
@@ -326,6 +358,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 			SizeInBytes: 2048,
 			Throughput:  100, // Won't matter since account is nil, but added for consistency
 			Account:     nil, // Nil account should be filtered out
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment-1",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
@@ -338,6 +374,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
@@ -384,6 +424,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment-1",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
@@ -396,6 +440,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
@@ -442,6 +490,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment-1",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
@@ -454,6 +506,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
@@ -500,6 +556,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "", // Missing account name
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment-1",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
@@ -512,6 +572,10 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
@@ -553,6 +617,10 @@ func TestAssembleVolumeMetadata(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
 			Name:      "test-account",
 		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			DeploymentName: "test-deployment",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: &backupChainBytes,
 		},
@@ -582,6 +650,9 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "ap-south-1"}
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+	poolMetadataMap[1] = metadata.ResourceMetadata{
+		ResourceType: metadata.Volume,
+	}
 
 	backupChainBytes := int64(5000)
 	volumes := []*datamodel.Volume{
@@ -593,6 +664,11 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-integration"},
 				Name:      "IntegrationAccount",
+			},
+			PoolID: 1,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-integration"},
+				DeploymentName: "integration-deployment",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
@@ -611,22 +687,22 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	// Verify that VolumeAllocatedThroughput metric is generated
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
 
-	// Verify that BackupVolumeAllocatedSize metric is converted to HydratedMetrics
+	// Verify that BackupEnabledVolumeAllocatedSize metric is converted to HydratedMetrics
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
-	// Find the BackupVolumeAllocatedSize metric in the metrics slice
-	var backupVolumeAllocatedSizeMetric *entity.HydratedMetric
+	// Find the BackupEnabledVolumeAllocatedSize metric in the metrics slice
+	var BackupEnabledVolumeAllocatedSizeMetric *entity.HydratedMetric
 	for i := range result.HydratedMetrics {
-		if result.HydratedMetrics[i].MeasuredType == metadata.BackupVolumeAllocatedSize {
-			backupVolumeAllocatedSizeMetric = &result.HydratedMetrics[i]
+		if result.HydratedMetrics[i].MeasuredType == metadata.BackupEnabledVolumeAllocatedSize {
+			BackupEnabledVolumeAllocatedSizeMetric = &result.HydratedMetrics[i]
 			break
 		}
 	}
-	assert.NotNil(t, backupVolumeAllocatedSizeMetric)
+	assert.NotNil(t, BackupEnabledVolumeAllocatedSizeMetric)
 
 	// Verify the HydratedMetrics data model is correctly populated
 	hmBackupVolumeAllocated := result.HydratedMetricsDataModel[0]
-	assert.Equal(t, metadata.BackupVolumeAllocatedSize, hmBackupVolumeAllocated.MeasuredType)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, hmBackupVolumeAllocated.MeasuredType)
 	assert.Equal(t, metadata.Volume, hmBackupVolumeAllocated.ResourceType)
 	assert.Equal(t, "IntegrationAccount", hmBackupVolumeAllocated.ConsumerID)
 	assert.Equal(t, "IntegrationVolume", hmBackupVolumeAllocated.ResourceName)
@@ -665,6 +741,10 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-throughput"},
 				Name:      "ThroughputAccount",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-throughput"},
+				DeploymentName: "throughput-deployment",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
@@ -681,7 +761,7 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
-	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
+	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
 	assert.Len(t, result.HydratedMetrics, 1)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
@@ -693,8 +773,8 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 	assert.Equal(t, "ThroughputAccount", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.AccountName))
 	assert.Equal(t, metadata.Volume, result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceType)
 
-	// Check BackupVolumeAllocatedSize metric (in regular field)
-	assert.Equal(t, metadata.BackupVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
+	// Check BackupEnabledVolumeAllocatedSize metric (in regular field)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-throughput", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
 }
@@ -724,6 +804,10 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-zero"},
 				Name:      "ZeroAccount",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-zero"},
+				DeploymentName: "zero-deployment",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
@@ -740,7 +824,7 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
-	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
+	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
 	assert.Len(t, result.HydratedMetrics, 1)
 
 	// Check VolumeAllocatedThroughput metric with zero volume throughput (should use pool throughput)
@@ -774,6 +858,10 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-nil"},
 				Name:      "NilAccount",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-nil"},
+				DeploymentName: "nil-deployment",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
@@ -790,7 +878,7 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
-	// BackupVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
+	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
 	assert.Len(t, result.HydratedMetrics, 1)
 
 	// Check VolumeAllocatedThroughput metric - should use volume throughput when volume.Throughput != 0
@@ -824,6 +912,10 @@ func Test_GetVolumeMetrics_WithResourceTypeMapping(t *testing.T) {
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "account-uuid-regional"},
 			Name:      "RegionalAccount",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-regional"},
+			DeploymentName: "regional-deployment",
 		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: &backupChainBytes,
@@ -868,6 +960,10 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
 				Name:      "Account1",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment-1",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &negativeBackupChainBytes, // Should be filtered out
 			},
@@ -881,6 +977,10 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
 				Name:      "Account2",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+				DeploymentName: "test-deployment-2",
+			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &zeroBackupChainBytes, // Should be filtered out
 			},
@@ -893,6 +993,10 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "account-uuid-3"},
 				Name:      "Account3",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-3"},
+				DeploymentName: "test-deployment-3",
 			},
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &positiveBackupChainBytes, // Should be included

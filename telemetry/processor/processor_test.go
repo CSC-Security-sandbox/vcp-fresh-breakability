@@ -1565,7 +1565,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_BackupMetricsError(t *testin
 	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
 
 	// Mock backup metrics collection to return error
-	vcpStore.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(nil, errors.New("backup metrics collection failed"))
+	vcpStore.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("backup metrics collection failed"))
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
 
@@ -1579,7 +1579,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_BackupMetricsError(t *testin
 
 	// Verify that ListPools was called and backup metrics collection was attempted
 	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "GetBackupLogicalSizeMetrics", mock.Anything)
+	vcpStore.AssertCalled(t, "GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything)
 	// Since backup metrics collection fails, CreateHydratedMetricsBatch should not be called
 	telemetryStore.AssertNotCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }

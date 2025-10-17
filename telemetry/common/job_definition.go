@@ -78,9 +78,19 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 		AggregationType: IntegralAggregation,
 		IsBillable:      false,
 	},
-	{ResourceType: metadata.Volume, MeasuredType: metadata.CbsVolumeBackupSize}: {
+	{ResourceType: metadata.Backup, MeasuredType: metadata.BackupLogicalSize}: {
 		AggregationType: IntegralAggregation,
 		IsBillable:      true,
 		SKU:             BillingMetricNameVolumeBackup,
+	},
+	{ResourceType: metadata.Volume, MeasuredType: metadata.BackupEnabledVolumeAllocatedSize}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNameVolumeBackupManagementUsage,
+	},
+	{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.BackupEnabledVolumeAllocatedSize}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNameVolumeBackupManagementUsage,
 	},
 }

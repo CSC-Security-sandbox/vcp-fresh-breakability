@@ -34,7 +34,7 @@ func CreateMetricsMappingMap() map[metadata.CombinedKeyResourceTypeMeasuredType]
 		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolTotalIops}: {
 			Left: "iops_limit", Middle: "", Right: "",
 		},
-		{ResourceType: metadata.Volume, MeasuredType: metadata.BackupLogicalSize}: {
+		{ResourceType: metadata.Backup, MeasuredType: metadata.BackupLogicalSize}: {
 			Left: "backup_used", Middle: "", Right: "",
 		},
 		{ResourceType: metadata.Volume, MeasuredType: metadata.VolumeAllocatedThroughput}: {

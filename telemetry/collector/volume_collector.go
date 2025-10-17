@@ -108,7 +108,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		allocatedSize := volume.SizeInBytes
 
 		if config.EnableBackupBillingMetrics {
-			metric := setupHydratedMetric(timestamp, volumeMetadata, metadata.BackupVolumeAllocatedSize, float64(allocatedSize))
+			metric := setupHydratedMetric(timestamp, volumeMetadata, metadata.BackupEnabledVolumeAllocatedSize, float64(allocatedSize))
 			metrics = append(metrics, metric)
 
 			// Use actual account name from the preloaded account
@@ -116,6 +116,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			if volume.Account != nil {
 				accountName = volume.Account.Name
 			}
+			metric.Metadata.ResourceType = resourceType
 			hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)))
 		}
 	}
@@ -140,6 +141,6 @@ func assembleVolumeMetadata(volume *datamodel.Volume, config *common.TelemetryCo
 	if volume.Account != nil {
 		met.SetAccountName(volume.Account.Name)
 	}
-	met.SetDeploymentName(EmptyDeploymentName)
+	met.SetDeploymentName(volume.Pool.DeploymentName)
 	return met
 }

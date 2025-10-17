@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
@@ -2668,7 +2669,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 	}
 }
 
-func TestGetBackupLogicalSizeMetrics(t *testing.T) {
+func TestGetBackupMetrics(t *testing.T) {
 	t.Run("ReturnsLatestBackupForEachVolumeSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err)
@@ -2749,7 +2750,7 @@ func TestGetBackupLogicalSizeMetrics(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test: should return only the latest available backup for each volume
-		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		results, err := store.GetBackupMetrics(context.Background(), [][]interface{}{}, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 2) // Only 2 volumes with available backups
 
@@ -2763,6 +2764,9 @@ func TestGetBackupLogicalSizeMetrics(t *testing.T) {
 		assert.Equal(tt, "volume-uuid-1", volume1Backup.VolumeUUID)
 		assert.Equal(tt, int64(2048), volume1Backup.LatestLogicalBackupSize)
 		assert.NotNil(tt, volume1Backup.Attributes)
+		// Verify BackupVault is properly loaded
+		assert.NotNil(tt, volume1Backup.BackupVault)
+		assert.Equal(tt, "test-backup-vault", volume1Backup.BackupVault.Name)
 
 		assert.NotNil(tt, volume2Backup)
 		assert.Equal(tt, "backup-uuid-3", volume2Backup.UUID)
@@ -2770,6 +2774,9 @@ func TestGetBackupLogicalSizeMetrics(t *testing.T) {
 		assert.Equal(tt, "volume-uuid-2", volume2Backup.VolumeUUID)
 		assert.Equal(tt, int64(4096), volume2Backup.LatestLogicalBackupSize)
 		assert.NotNil(tt, volume2Backup.Attributes)
+		// Verify BackupVault is properly loaded
+		assert.NotNil(tt, volume2Backup.BackupVault)
+		assert.Equal(tt, "test-backup-vault", volume2Backup.BackupVault.Name)
 	})
 
 	t.Run("ReturnsEmptySliceWhenNoAvailableBackups", func(tt *testing.T) {
@@ -2803,7 +2810,7 @@ func TestGetBackupLogicalSizeMetrics(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test: should return empty slice when no available backups
-		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		results, err := store.GetBackupMetrics(context.Background(), [][]interface{}{}, nil)
 		assert.NoError(tt, err)
 		assert.Empty(tt, results)
 	})
@@ -2824,7 +2831,7 @@ func TestGetBackupLogicalSizeMetrics(t *testing.T) {
 		_ = sqlDB.Close()
 
 		// Test: should return error on DB failure
-		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		results, err := store.GetBackupMetrics(context.Background(), [][]interface{}{}, nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, results)
 	})
@@ -2882,7 +2889,7 @@ func TestGetBackupLogicalSizeMetrics(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test: should return only the latest backup (highest ID)
-		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		results, err := store.GetBackupMetrics(context.Background(), [][]interface{}{}, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 
@@ -2925,7 +2932,7 @@ func TestGetBackupLogicalSizeMetrics(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test: should still return the backup even with nil attributes
-		results, err := store.GetBackupLogicalSizeMetrics(context.Background())
+		results, err := store.GetBackupMetrics(context.Background(), [][]interface{}{}, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 
@@ -3302,4 +3309,214 @@ func TestUpdateBackupMetadata_NotFound(t *testing.T) {
 	result, err := store.UpdateBackupMetadata(ctx, backupMetadata)
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+// TestGetBackupMetadata_WithPagination tests GetBackupMetadata with pagination
+func TestGetBackupMetadata_WithPagination(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Create test backup metadata entries
+	backupMetadata1 := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "metadata-uuid-1"},
+		VolumeUUID: "volume-uuid-1",
+		Labels:     &datamodel.JSONB{"env": "test1"},
+	}
+	err = store.db.Create(backupMetadata1).Error()
+	assert.NoError(t, err)
+
+	backupMetadata2 := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "metadata-uuid-2"},
+		VolumeUUID: "volume-uuid-2",
+		Labels:     &datamodel.JSONB{"env": "test2"},
+	}
+	err = store.db.Create(backupMetadata2).Error()
+	assert.NoError(t, err)
+
+	backupMetadata3 := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "metadata-uuid-3"},
+		VolumeUUID: "volume-uuid-3",
+		Labels:     &datamodel.JSONB{"env": "test3"},
+	}
+	err = store.db.Create(backupMetadata3).Error()
+	assert.NoError(t, err)
+
+	// Test pagination with limit 2, offset 0
+	pagination := &dbutils.Pagination{
+		Offset: 0,
+		Limit:  2,
+	}
+	conditions := [][]interface{}{}
+
+	result, err := store.GetBackupMetadata(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 2)
+
+	// Test pagination with limit 2, offset 2
+	pagination2 := &dbutils.Pagination{
+		Offset: 2,
+		Limit:  2,
+	}
+
+	result2, err := store.GetBackupMetadata(ctx, conditions, pagination2)
+	assert.NoError(t, err)
+	assert.Len(t, result2, 1)
+}
+
+// TestGetBackupMetadata_WithConditions tests GetBackupMetadata with conditions
+func TestGetBackupMetadata_WithConditions(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Create test backup metadata entries
+	backupMetadata1 := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "metadata-uuid-1"},
+		VolumeUUID: "volume-uuid-1",
+		Labels:     &datamodel.JSONB{"env": "test1"},
+	}
+	err = store.db.Create(backupMetadata1).Error()
+	assert.NoError(t, err)
+
+	backupMetadata2 := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "metadata-uuid-2"},
+		VolumeUUID: "volume-uuid-2",
+		Labels:     &datamodel.JSONB{"env": "test2"},
+	}
+	err = store.db.Create(backupMetadata2).Error()
+	assert.NoError(t, err)
+
+	// Test with condition to filter by volume UUID
+	conditions := [][]interface{}{
+		{"volume_uuid = ?", "volume-uuid-1"},
+	}
+	pagination := &dbutils.Pagination{
+		Offset: 0,
+		Limit:  10,
+	}
+
+	result, err := store.GetBackupMetadata(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "volume-uuid-1", result[0].VolumeUUID)
+}
+
+// TestGetBackupMetadata_EmptyResult tests GetBackupMetadata with no results
+func TestGetBackupMetadata_EmptyResult(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Test with condition that matches no records
+	conditions := [][]interface{}{
+		{"volume_uuid = ?", "non-existent-volume"},
+	}
+	pagination := &dbutils.Pagination{
+		Offset: 0,
+		Limit:  10,
+	}
+
+	result, err := store.GetBackupMetadata(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 0)
+}
+
+// TestGetBackupMetadata_WithNilPagination tests GetBackupMetadata with nil pagination
+func TestGetBackupMetadata_WithNilPagination(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Create test backup metadata entry
+	backupMetadata := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "metadata-uuid-1"},
+		VolumeUUID: "volume-uuid-1",
+		Labels:     &datamodel.JSONB{"env": "test1"},
+	}
+	err = store.db.Create(backupMetadata).Error()
+	assert.NoError(t, err)
+
+	// Test with nil pagination
+	conditions := [][]interface{}{}
+	var pagination *dbutils.Pagination = nil
+
+	result, err := store.GetBackupMetadata(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "volume-uuid-1", result[0].VolumeUUID)
+}
+
+// TestGetBackupMetadata_WithComplexConditions tests GetBackupMetadata with complex conditions
+func TestGetBackupMetadata_WithComplexConditions(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Create test backup metadata entries with different timestamps
+	now := time.Now()
+	backupMetadata1 := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "metadata-uuid-1", CreatedAt: now.Add(-2 * time.Hour)},
+		VolumeUUID: "volume-uuid-1",
+		Labels:     &datamodel.JSONB{"env": "test1"},
+	}
+	err = store.db.Create(backupMetadata1).Error()
+	assert.NoError(t, err)
+
+	backupMetadata2 := &datamodel.BackupMetadata{
+		BaseModel:  datamodel.BaseModel{UUID: "metadata-uuid-2", CreatedAt: now.Add(-1 * time.Hour)},
+		VolumeUUID: "volume-uuid-2",
+		Labels:     &datamodel.JSONB{"env": "test2"},
+	}
+	err = store.db.Create(backupMetadata2).Error()
+	assert.NoError(t, err)
+
+	// Test with complex conditions (created_at > specific time)
+	conditions := [][]interface{}{
+		{"created_at > ?", now.Add(-90 * time.Minute)},
+	}
+	pagination := &dbutils.Pagination{
+		Offset: 0,
+		Limit:  10,
+	}
+
+	result, err := store.GetBackupMetadata(ctx, conditions, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "volume-uuid-2", result[0].VolumeUUID)
 }

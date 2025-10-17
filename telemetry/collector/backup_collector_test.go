@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
@@ -20,8 +21,8 @@ type mockBackupStorage struct {
 	database.Storage
 }
 
-func (m *mockBackupStorage) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
-	args := m.Called(ctx)
+func (m *mockBackupStorage) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	args := m.Called(ctx, conditions, pagination)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -43,10 +44,24 @@ func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 				AccountIdentifier: "Account1",
 				VolumeName:        "Volume1",
 			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+				Name:      "BackupVault1",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+					Name:      "Account1",
+				},
+			},
 		},
 	}
 
-	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
+	// Mock the first call to return backups, subsequent calls return empty
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
 
 	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -58,14 +73,14 @@ func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(1024), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, metadata.Volume, result.HydratedMetrics[0].Metadata.ResourceType)
+	assert.Equal(t, metadata.Backup, result.HydratedMetrics[0].Metadata.ResourceType)
 	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "us-east-1", derefString(result.HydratedMetrics[0].Metadata.RegionName))
 	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
 
 	// Check hydrated metrics data model
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetricsDataModel[0].MeasuredType)
-	assert.Equal(t, metadata.Volume, result.HydratedMetricsDataModel[0].ResourceType)
+	assert.Equal(t, metadata.Backup, result.HydratedMetricsDataModel[0].ResourceType)
 	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
 	assert.Equal(t, "Volume1", result.HydratedMetricsDataModel[0].ResourceName)
 	assert.Equal(t, "us-east-1", result.HydratedMetricsDataModel[0].Location)
@@ -90,6 +105,14 @@ func Test_GetBackupMetrics_MultipleBackups(t *testing.T) {
 				AccountIdentifier: "Account1",
 				VolumeName:        "Volume1",
 			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+				Name:      "BackupVault1",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+					Name:      "Account1",
+				},
+			},
 		},
 		{
 			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-2"},
@@ -100,10 +123,24 @@ func Test_GetBackupMetrics_MultipleBackups(t *testing.T) {
 				AccountIdentifier: "Account2",
 				VolumeName:        "Volume2",
 			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"},
+				Name:      "BackupVault2",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
+					Name:      "Account2",
+				},
+			},
 		},
 	}
 
-	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
+	// Mock the first call to return backups, subsequent calls return empty
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
 
 	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -142,7 +179,8 @@ func Test_GetBackupMetrics_EmptyBackups(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
-	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return([]*datamodel.Backup{}, nil)
+	// Mock to return empty results immediately
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 
 	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -151,11 +189,11 @@ func Test_GetBackupMetrics_EmptyBackups(t *testing.T) {
 	assert.Empty(t, result.HydratedMetricsDataModel)
 }
 
-func Test_GetBackupMetrics_GetBackupLogicalSizeMetricsError(t *testing.T) {
+func Test_GetBackupMetrics_GetBackupMetricsError(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
-	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(nil, assert.AnError)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
 	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.Error(t, err)
@@ -179,7 +217,13 @@ func Test_GetBackupMetrics_NilAttributes(t *testing.T) {
 		},
 	}
 
-	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
+	// Mock the first call to return backups, subsequent calls return empty
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
 
 	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -204,6 +248,14 @@ func Test_GetBackupMetrics_MixedValidAndNilAttributes(t *testing.T) {
 				AccountIdentifier: "Account1",
 				VolumeName:        "Volume1",
 			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+				Name:      "BackupVault1",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+					Name:      "Account1",
+				},
+			},
 		},
 		{
 			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-2"},
@@ -211,6 +263,14 @@ func Test_GetBackupMetrics_MixedValidAndNilAttributes(t *testing.T) {
 			VolumeUUID:              "volume-uuid-2",
 			LatestLogicalBackupSize: 2048,
 			Attributes:              nil, // This should be skipped
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"},
+				Name:      "BackupVault2",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
+					Name:      "Account2",
+				},
+			},
 		},
 		{
 			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-3"},
@@ -221,10 +281,24 @@ func Test_GetBackupMetrics_MixedValidAndNilAttributes(t *testing.T) {
 				AccountIdentifier: "Account3",
 				VolumeName:        "Volume3",
 			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-3"},
+				Name:      "BackupVault3",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-3"},
+					Name:      "Account3",
+				},
+			},
 		},
 	}
 
-	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
+	// Mock the first call to return backups, subsequent calls return empty
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
 
 	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -282,7 +356,7 @@ func TestAssembleBackupMetadata(t *testing.T) {
 
 	// Assertions
 	assert.Equal(t, "test-volume-uuid", derefString(resourceMetadata.ResourceUUID))
-	assert.Equal(t, metadata.Volume, resourceMetadata.ResourceType)
+	assert.Equal(t, metadata.Backup, resourceMetadata.ResourceType)
 	assert.Equal(t, int64(1024), derefInt64(resourceMetadata.SizeInBytes))
 	assert.Equal(t, "us-central1", derefString(resourceMetadata.RegionName))
 	assert.Equal(t, "test-volume", derefString(resourceMetadata.ResourceName))
@@ -343,10 +417,24 @@ func TestGetBackupMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 				AccountIdentifier: "IntegrationAccount",
 				VolumeName:        "IntegrationVolume",
 			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-integration"},
+				Name:      "IntegrationBackupVault",
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "account-uuid-integration"},
+					Name:      "IntegrationAccount",
+				},
+			},
 		},
 	}
 
-	m.On("GetBackupLogicalSizeMetrics", mock.Anything).Return(backups, nil)
+	// Mock the first call to return backups, subsequent calls return empty
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
 
 	result, err := GetBackupMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -356,25 +444,25 @@ func TestGetBackupMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
 	// Find the BackupLogicalSize metric in the metrics slice
-	var backupLogicalSizeMetric *entity.HydratedMetric
+	var backupMetric *entity.HydratedMetric
 	for i := range result.HydratedMetrics {
 		if result.HydratedMetrics[i].MeasuredType == metadata.BackupLogicalSize {
-			backupLogicalSizeMetric = &result.HydratedMetrics[i]
+			backupMetric = &result.HydratedMetrics[i]
 			break
 		}
 	}
-	assert.NotNil(t, backupLogicalSizeMetric)
+	assert.NotNil(t, backupMetric)
 
 	// Verify the HydratedMetrics data model is correctly populated
-	hmBackupLogical := result.HydratedMetricsDataModel[0]
-	assert.Equal(t, metadata.BackupLogicalSize, hmBackupLogical.MeasuredType)
-	assert.Equal(t, metadata.Volume, hmBackupLogical.ResourceType)
-	assert.Equal(t, "IntegrationAccount", hmBackupLogical.ConsumerID)
-	assert.Equal(t, "IntegrationVolume", hmBackupLogical.ResourceName)
-	assert.Equal(t, "ap-south-1", hmBackupLogical.Location)
-	assert.Equal(t, float64(5000), hmBackupLogical.Quantity)
+	hmBackup := result.HydratedMetricsDataModel[0]
+	assert.Equal(t, metadata.BackupLogicalSize, hmBackup.MeasuredType)
+	assert.Equal(t, metadata.Backup, hmBackup.ResourceType)
+	assert.Equal(t, "IntegrationAccount", hmBackup.ConsumerID)
+	assert.Equal(t, "IntegrationVolume", hmBackup.ResourceName)
+	assert.Equal(t, "ap-south-1", hmBackup.Location)
+	assert.Equal(t, float64(5000), hmBackup.Quantity)
 
 	// Verify timestamp is recent (within last minute)
-	timeDiff := time.Since(hmBackupLogical.MetricTimestamp)
+	timeDiff := time.Since(hmBackup.MetricTimestamp)
 	assert.True(t, timeDiff < time.Minute, "Timestamp should be recent")
 }

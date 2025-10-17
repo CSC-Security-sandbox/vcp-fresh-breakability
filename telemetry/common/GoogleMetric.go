@@ -1,6 +1,8 @@
 package common
 
 import (
+	"encoding/json"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
@@ -197,6 +199,35 @@ func (gm *GoogleMetric) GetResourceType() (metadata.ResourceType, error) {
 	}
 }
 
+// GetRegion returns the region for the Google metric.
+// Returns:
+// - The region as a string.
+// - An error if the region could not be retrieved.
+func (gm *GoogleMetric) GetRegion() (string, error) {
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return "", err
+		}
+		if metric.RegionName == nil {
+			return "", nil
+		}
+		return *metric.RegionName, nil
+	case HydratedMetric:
+		metric, err := gm.GetAsHydratedMetric()
+		if err != nil {
+			return "", err
+		}
+		if metric.Metadata.RegionName != nil {
+			return *metric.Metadata.RegionName, nil
+		}
+		return "", nil
+	default:
+		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}
+
 // GetTags returns the tags for the Google metric.
 // Returns:
 // - The tags as a string.
@@ -327,6 +358,34 @@ func (gm *GoogleMetric) GetEndTime() (int64, error) {
 		return metric.Timestamp.ToTime().Unix(), nil
 	default:
 		return 0, NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}
+
+// GetLabels  returns the user labels for the Google metric.
+// Returns:
+// - The user labels as a map[string]string.
+// - An error if the user labels could not be retrieved.
+func (gm *GoogleMetric) GetLabels() (map[string]string, error) {
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return nil, err
+		}
+
+		if metric.BillingLabels == nil {
+			return nil, nil
+		}
+		var labels map[string]string
+		err = json.Unmarshal([]byte(*metric.BillingLabels), &labels)
+		if err != nil {
+			return nil, err
+		}
+		return labels, nil
+	case HydratedMetric:
+		return nil, nil
+	default:
+		return nil, NewInvalidGoogleMetricException("Invalid GoogleMetric type")
 	}
 }
 

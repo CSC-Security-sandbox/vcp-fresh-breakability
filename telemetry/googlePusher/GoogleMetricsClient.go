@@ -267,10 +267,12 @@ func (client *GoogleMetricsClient) createOperationForMetric(operationId string, 
 		return nil, nil, err
 	}
 
-	if metricType == common.BillingMetric { // TODO Implement Billing Labels
+	if metricType == common.BillingMetric {
+		labels, err := googleMetric.GetLabels()
 		if err != nil {
-			client.logger.Warnf("Error getting billing labels: %v", err)
+			client.logger.Errorf("Error getting billing labels: %v", err)
 		}
+		op.UserLabels = labels
 	}
 
 	op.OperationName = fmt.Sprintf("OperationMetrics_%s-%d", resourceUuid, opStart)
@@ -601,6 +603,8 @@ func (client *GoogleMetricsClient) GetMetricName(metric common.GoogleMetric) (st
 			metricsName = metadata.MetricsNamePrefixPoolFirstParty + nameAndKeyLabel.Left
 		case metadata.Volume, metadata.VolumeRegionalHA:
 			metricsName = metadata.MetricsNamePrefixVolumeFirstParty + nameAndKeyLabel.Left
+		case metadata.Backup:
+			metricsName = metadata.MetricsNamePrefixVolumeFirstParty + nameAndKeyLabel.Left
 		default:
 			return "", fmt.Errorf("unrecognized resource type: %s", resourceType)
 		}
@@ -616,7 +620,17 @@ func GetLabelKey(metric common.GoogleMetric) []string {
 		return []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level", "/replication/replication_type"}
 	case metadata.Volume:
 		switch metricMeasuredType {
-		case metadata.CbsVolumeBackupSize:
+		case metadata.BackupEnabledVolumeAllocatedSize:
+			return []string{"/resource_id"}
+		}
+	case metadata.VolumeRegionalHA:
+		switch metricMeasuredType {
+		case metadata.BackupEnabledVolumeAllocatedSize:
+			return []string{"/resource_id"}
+		}
+	case metadata.Backup:
+		switch metricMeasuredType {
+		case metadata.BackupLogicalSize:
 			return []string{"/resource_id", "/backups/location"}
 		}
 	}
@@ -632,6 +646,23 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 
 	metricResourceType, _ := metric.GetResourceType()
 	switch metricResourceType {
+	case metadata.Backup:
+		switch key {
+		case "/resource_id":
+			return metric.GetResourceUUID()
+		case "/backups/location":
+			return metric.GetRegion()
+		}
+	case metadata.Volume:
+		switch key {
+		case "/resource_id":
+			return metric.GetResourceUUID()
+		}
+	case metadata.VolumeRegionalHA:
+		switch key {
+		case "/resource_id":
+			return metric.GetResourceUUID()
+		}
 	case metadata.VolumeReplicationRelationship:
 		switch key {
 		case "/resource_id":

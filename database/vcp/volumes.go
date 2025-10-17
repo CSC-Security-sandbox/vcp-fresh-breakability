@@ -528,6 +528,7 @@ func _volumesWithHG(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*data
 	return volumesWithBD, err
 }
 
+// ListAllVolumes retrieves all volumes
 func (d *DataStoreRepository) ListAllVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
 	return listAllVolumesWithDetails(d.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
 }
@@ -542,15 +543,17 @@ func _listAllVolumesWithDetails(db *gorm.DB, pagination *dbutils.Pagination) ([]
 }
 
 // ListVolumesWithAccounts retrieves all volumes with preloaded accounts
-// Filtering for backup logical size > 0 is done in the collector
 func (d *DataStoreRepository) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var volumes []*datamodel.Volume
 
-	// Query to get all volumes with preloaded accounts
+	// Query to get all volumes with preloaded accounts and pools (only deployment_name for pools)
 	err := db.Preload("Account", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id, name")
 	}).
+		Preload("Pool", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, deployment_name")
+		}).
 		Find(&volumes).Error
 
 	if err != nil {

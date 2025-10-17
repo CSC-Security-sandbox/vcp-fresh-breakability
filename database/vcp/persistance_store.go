@@ -1183,8 +1183,12 @@ func (s *PersistenceStore) RollBackDeletedAccount(ctx context.Context, accountID
 	return s.dataStore.RollBackDeletedAccount(ctx, accountID)
 }
 
-func (s *PersistenceStore) GetBackupLogicalSizeMetrics(ctx context.Context) ([]*datamodel.Backup, error) {
-	return s.dataStore.GetBackupLogicalSizeMetrics(ctx)
+func (s *PersistenceStore) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetBackupMetrics(ctx, conditions, pagination)
+}
+
+func (s *PersistenceStore) GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error) {
+	return s.dataStore.GetBackupMetadata(ctx, conditions, pagination)
 }
 
 func (s *PersistenceStore) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {

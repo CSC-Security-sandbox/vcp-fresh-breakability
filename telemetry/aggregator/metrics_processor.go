@@ -51,6 +51,7 @@ type VolumeReplicationInfo struct {
 type ResourceCollection struct {
 	PoolData              map[ResourceKey]ResourceData
 	VolumeData            map[ResourceKey]ResourceData
+	BackupData            map[ResourceKey]ResourceData
 	VolumeReplicationData map[ResourceKey]ResourceData
 }
 
@@ -162,9 +163,10 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 		PoolData:              make(map[ResourceKey]ResourceData),
 		VolumeData:            make(map[ResourceKey]ResourceData),
 		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+		BackupData:            make(map[ResourceKey]ResourceData),
 	}
 
-	var poolsDataError, volumeDataError, volumeReplicationDataError error
+	var poolsDataError, volumeDataError, backupDataError, volumeReplicationDataError error
 
 	// Fetch pool labels
 	if err := p.fetchPoolData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
@@ -178,6 +180,14 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 		volumeDataError = err
 	}
 
+	// Fetch backup data only if backup billing is enabled
+	if p.config.EnableBackupBillingMetrics {
+		if err := p.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
+			logger.Errorf("Failed to fetch backup data: %v", err)
+			backupDataError = err
+		}
+	}
+
 	if p.config.EnableReplicationBillingMetrics {
 		if err := p.fetchVolumeReplicationData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
 			logger.Errorf("Failed to fetch volume replication labels: %v", err)
@@ -185,22 +195,24 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 		}
 	}
 
-	// Log summary of what was successfully fetched
 	poolCount := len(resourceCollection.PoolData)
 	volumeCount := len(resourceCollection.VolumeData)
+	backupCount := len(resourceCollection.BackupData)
 	volumeReplicationCount := len(resourceCollection.VolumeReplicationData)
 
 	if poolsDataError != nil && volumeDataError != nil {
-		logger.Errorf("Failed to fetch both pool and volume resource data. Pool error: %v, Volume error: %v", poolsDataError, volumeDataError)
+		logger.Errorf("Failed to fetch both pool and volume resource data. Pool error: %v, Volume error: %v, Backup error: %v", poolsDataError, volumeDataError, backupDataError)
 		return nil, fmt.Errorf("failed to fetch any resource data")
 	} else if poolsDataError != nil {
-		logger.Warnf("Failed to fetch pool resource data: %v, but successfully fetched %d volume resource data", poolsDataError, volumeCount)
+		logger.Warnf("Failed to fetch pool resource data: %v, but successfully fetched %d volume resource data ", poolsDataError, volumeCount)
 	} else if volumeDataError != nil {
 		logger.Warnf("Failed to fetch volume resource data: %v, but successfully fetched %d pool resource data", volumeDataError, poolCount)
+	} else if backupDataError != nil {
+		logger.Warnf("Failed to fetch backup resource data: %v", backupDataError)
 	} else if volumeReplicationDataError != nil {
 		logger.Warnf("Failed to fetch volume replication resource data: %v, but successfully fetched %d pool and %d volume resource data", volumeReplicationDataError, poolCount, volumeCount)
 	} else {
-		logger.Infof("Successfully fetched resource data for %d pools, %d volumes, %d volume replication", poolCount, volumeCount, volumeReplicationCount)
+		logger.Infof("Successfully fetched resource data for %d pools, %d volumes, %d backups, %d volume replication", poolCount, volumeCount, backupCount, volumeReplicationCount)
 	}
 
 	return resourceCollection, nil
@@ -367,19 +379,105 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 	return nil
 }
 
-// fetchVolumeReplicationData fetches labels from volume replication table using pagination
-func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
+// fetchBackupData fetches backup data and constructs ResourceData and ResourceKey
+func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
 
+	// First, fetch all backup metadata entries to get volumeUUID -> labels mapping
+	volumeLabelsMap, err := p.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	if err != nil {
+		logger.Warnf("Failed to fetch backup metadata (table may not exist yet): %v", err)
+		// Continue with empty labels map if metadata fetch fails
+		volumeLabelsMap = make(map[string]Labels)
+	}
+
+	// Create conditions for backups including deleted backups where deleted_at is between aggregation times
 	conditions := [][]interface{}{
 		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
 	}
+
+	offset := int32(0)
+	// Use configurable limit from config
+	limit := p.config.PageSize
+	totalProcessed := 0
+	batchCount := 0
+
+	for {
+		// Create pagination with offset and limit
+		pagination := &dbutils.Pagination{
+			Offset: int(offset),
+			Limit:  int(limit),
+		}
+
+		// Fetch paginated backup metrics
+		backups, err := p.vcpDataStore.GetBackupMetrics(ctx, conditions, pagination)
+		if err != nil {
+			return fmt.Errorf("failed to get backup metrics (offset %d): %w", offset, err)
+		}
+
+		// Break if no records returned
+		if len(backups) == 0 {
+			break
+		}
+
+		// Process current batch
+		for _, backup := range backups {
+			// Skip backups with nil Attributes or BackupVault to prevent panic
+			if backup.Attributes == nil {
+				logger.Warnf("Skipping backup %s due to nil Attributes", backup.UUID)
+				continue
+			}
+			if backup.BackupVault == nil {
+				logger.Warnf("Skipping backup %s due to nil BackupVault relationship", backup.UUID)
+				continue
+			}
+
+			// Get labels from the backup metadata map
+			labels := volumeLabelsMap[backup.VolumeUUID]
+			if labels == nil {
+				labels = make(Labels)
+			}
+
+			backupResourceData := ResourceData{
+				UUID:      backup.VolumeUUID, // Using volume UUID
+				AccountID: backup.BackupVault.AccountID,
+				Labels:    labels,
+			}
+			id := ResourceKey{
+				ResourceType:   metadata.Backup,
+				ResourceName:   backup.Attributes.VolumeName,
+				DeploymentName: backup.BackupVault.Name,
+				ConsumerID:     backup.Attributes.AccountIdentifier,
+			}
+			resourceCollection.BackupData[id] = backupResourceData
+		}
+
+		totalProcessed += len(backups)
+		batchCount++
+		logger.Debugf("Processed %d backup metrics in batch %d (offset: %d, total: %d)", len(backups), batchCount, offset, totalProcessed)
+
+		// Update offset for next iteration
+		offset += limit
+	}
+
+	logger.Infof("Fetched resource data for %d backups with %d volume labels in %d batches", len(resourceCollection.BackupData), len(volumeLabelsMap), batchCount)
+	return nil
+}
+
+// fetchVolumeReplicationData fetches labels from volume replication table using pagination
+func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
+	logger := util.GetLogger(ctx)
 
 	offset := 0
 	// Use configurable limit from config
 	limit := p.config.PoolVolumeLabelPageSize
 	totalProcessed := 0
 	batchCount := 0
+
+	// Create conditions for backups including deleted backups where deleted_at is between aggregation times
+	conditions := [][]interface{}{
+		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
+	}
 
 	for {
 		// Create pagination with offset and limit
@@ -453,6 +551,69 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 	return nil
 }
 
+// fetchBackupMetadata fetches all backup metadata entries and returns volumeUUID -> labels mapping
+func (p *BillingProvider) fetchBackupMetadata(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time) (map[string]Labels, error) {
+	logger := util.GetLogger(ctx)
+
+	// Create conditions for backup metadata with labels including deleted metadata where deleted_at is between aggregation times
+	conditions := [][]interface{}{
+		{"labels IS NOT NULL"},
+		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
+	}
+
+	offset := int32(0)
+	// Use configurable limit from config
+	limit := p.config.PageSize
+	totalProcessed := 0
+	batchCount := 0
+
+	// Create volumeUUID -> labels mapping
+	volumeLabelsMap := make(map[string]Labels)
+
+	for {
+		// Create pagination with offset and limit
+		pagination := &dbutils.Pagination{
+			Offset: int(offset),
+			Limit:  int(limit),
+		}
+
+		// Fetch paginated backup metadata using interface method
+		backupMetadataList, err := p.vcpDataStore.GetBackupMetadata(ctx, conditions, pagination)
+		if err != nil {
+			// Check if it's a table not found error
+			if strings.Contains(err.Error(), "does not exist") {
+				logger.Warnf("Backup metadata table does not exist yet, returning empty labels map")
+				return make(map[string]Labels), nil
+			}
+			return nil, fmt.Errorf("failed to fetch backup metadata (offset %d): %w", offset, err)
+		}
+
+		// Break if no records returned
+		if len(backupMetadataList) == 0 {
+			break
+		}
+
+		// Process current batch
+		for _, backupMetadata := range backupMetadataList {
+			if backupMetadata.Labels != nil && backupMetadata.VolumeUUID != "" {
+				// Convert JSONB to Labels map
+				labels := p.limitLabels(backupMetadata.Labels)
+				volumeLabelsMap[backupMetadata.VolumeUUID] = labels
+			}
+		}
+
+		totalProcessed += len(backupMetadataList)
+		batchCount++
+		logger.Debugf("Processed %d backup metadata entries in batch %d (offset: %d, total: %d)", len(backupMetadataList), batchCount, offset, totalProcessed)
+
+		// Update offset for next iteration
+		offset += limit
+	}
+
+	logger.Infof("Fetched %d backup metadata entries with labels in %d batches", len(volumeLabelsMap), batchCount)
+	return volumeLabelsMap, nil
+}
+
 // limitLabels limits the number of labels to the configured maximum
 func (p *BillingProvider) limitLabels(labels *datamodel.JSONB) Labels {
 	if labels == nil {
@@ -484,6 +645,8 @@ func (p *BillingProvider) getResourceDataForAggregationUsage(id ResourceKey, res
 		resourceData, found = resourceCollection.PoolData[id]
 	case metadata.Volume:
 		resourceData, found = resourceCollection.VolumeData[id]
+	case metadata.Backup:
+		resourceData, found = resourceCollection.BackupData[id]
 	case metadata.VolumePoolRegionalHA:
 		resourceData, found = resourceCollection.PoolData[id]
 	case metadata.VolumeRegionalHA:
@@ -723,6 +886,11 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		AggregationType:        string(jobDef.AggregationType),
 		ServiceLevel:           unifiedServiceType,
 	}
+
+	if aggregated.MeasuredType == metadata.BackupLogicalSize {
+		aggregated.DestinationRegion = &metrics[0].Location
+	}
+
 	if aggregated.ResourceType == metadata.VolumeReplicationRelationship {
 		if resourceData.VolumeReplicationInfo != nil {
 			aggregated.ServiceLevel = setServiceLevelForCRR(resourceData.VolumeReplicationInfo.ReplicationSchedule)

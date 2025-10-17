@@ -195,7 +195,7 @@ func TestMetricsMappingMapCompleteness(t *testing.T) {
 		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolTotalIops},
 
 		// Volume mappings
-		{ResourceType: metadata.Volume, MeasuredType: metadata.BackupLogicalSize},
+		{ResourceType: metadata.Backup, MeasuredType: metadata.BackupLogicalSize},
 		{ResourceType: metadata.Volume, MeasuredType: metadata.VolumeAllocatedThroughput},
 
 		// Regional HA volume mappings

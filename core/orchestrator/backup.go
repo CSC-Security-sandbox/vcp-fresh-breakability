@@ -513,7 +513,7 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 		return err
 	}
 
-	if isLatest && count != 1 {
+	if isLatest && count > 1 {
 		return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
 	}
 
