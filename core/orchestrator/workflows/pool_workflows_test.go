@@ -5089,7 +5089,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil).Maybe()
 	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("test-error")).Maybe()
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
-	
+
 	// Add missing mocks for activities that get called during rollback/error handling
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return("test-svm", nil).Maybe()
 	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&[]datamodel.SubnetToIPs{}, nil).Maybe()
@@ -5100,7 +5100,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-	
+
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
@@ -8066,6 +8066,761 @@ func TestUpdateAutoTieringFields(t *testing.T) {
 					dbPoolCopy.AutoTieringConfig.BucketName,
 					"BucketName should match: %s", tt.description)
 			}
+		})
+	}
+}
+
+// TestSyncPoolComplianceForPoolWorkflow_BucketComplianceSuccess tests successful bucket compliance fetch
+func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceSuccess(t *testing.T) {
+	// Enable global auto-tiering flag for this test
+	originalAutoTieringEnabled := utils.AutoTieringEnabled
+	defer func() { utils.AutoTieringEnabled = originalAutoTieringEnabled }()
+	utils.AutoTieringEnabled = true
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	// Mock VLM client
+	mockVLMClient := new(vlm.MockVlmWorkflowClient)
+	oldGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVLMClient
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = oldGetNewVSAClientWorkflowManager
+	}()
+
+	poolIdentifier := &database.PoolIdentifier{
+		UUID:      "test-pool-uuid",
+		Name:      "test-pool",
+		AccountID: 123,
+		VendorID:  "test-vendor-id",
+	}
+
+	// Mock FetchPoolData activity - returns success with AutoTieringBucketName
+	fetchResult := &activities.FetchPoolDataActivityOutput{
+		Success:               true,
+		PoolUUID:              "test-pool-uuid",
+		AccountName:           "test-account",
+		AutoTieringEnabled:    true,
+		AutoTieringBucketName: "test-bucket",
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				GCPConfig: vlm.GCPConfig{
+					ProjectID: "test-project",
+				},
+				DeploymentID: "test-deployment",
+			},
+		},
+	}
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).
+		Return(fetchResult, nil)
+
+	// Mock VLM GetClusterZiZsDetails - returns compliance data
+	mockVLMClient.On("GetClusterZiZsDetails", mock.Anything, mock.AnythingOfType("*vlm.GetResourceInfoReq")).
+		Return(&vlm.GetResourceInfoResp{
+			ResourceInfo: vlm.ResourceInformation{
+				GCPRI: map[string][]vlm.GCPResourceInformation{
+					"test-resource": {
+						{
+							SatisfiesPzi: true,
+							SatisfiesPzs: true,
+							AssetType:    "compute.googleapis.com/Instance",
+							AssetLink:    "//compute.googleapis.com/projects/test/zones/us-central1-a/instances/test-instance",
+						},
+					},
+				},
+			},
+		}, nil)
+
+	// Mock GetBucketCompliance activity - both compliance fields true
+	bucketCompliance := &datamodel.BucketDetails{
+		BucketName:   "test-bucket",
+		SatisfiesPzi: true,
+		SatisfiesPzs: true,
+	}
+	env.OnActivity("GetBucketCompliance", mock.Anything, "test-bucket").
+		Return(bucketCompliance, nil)
+
+	// Mock UpdatePoolCompliance activity - receives AND'ed result
+	updateResult := &activities.UpdatePoolComplianceActivityOutput{
+		Success:  true,
+		PoolUUID: "test-pool-uuid",
+	}
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.MatchedBy(func(input activities.UpdatePoolComplianceActivityInput) bool {
+		// Verify that both satisfyZI and satisfyZS are true (cluster AND bucket both true)
+		return input.PoolUUID == "test-pool-uuid" &&
+			input.SatisfyZI == true &&
+			input.SatisfyZS == true
+	})).Return(updateResult, nil)
+
+	env.ExecuteWorkflow(SyncPoolComplianceForPoolWorkflow, poolIdentifier)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestSyncPoolComplianceForPoolWorkflow_BucketComplianceFalse tests bucket compliance false scenarios
+func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceFalse(t *testing.T) {
+	// Enable global auto-tiering flag for this test
+	originalAutoTieringEnabled := utils.AutoTieringEnabled
+	defer func() { utils.AutoTieringEnabled = originalAutoTieringEnabled }()
+	utils.AutoTieringEnabled = true
+
+	tests := []struct {
+		name                   string
+		clusterSatisfyZI       bool
+		clusterSatisfyZS       bool
+		bucketSatisfyZI        bool
+		bucketSatisfyZS        bool
+		expectedFinalSatisfyZI bool
+		expectedFinalSatisfyZS bool
+	}{
+		{
+			name:                   "Cluster compliant, bucket non-compliant - ZI",
+			clusterSatisfyZI:       true,
+			clusterSatisfyZS:       true,
+			bucketSatisfyZI:        false,
+			bucketSatisfyZS:        true,
+			expectedFinalSatisfyZI: false, // AND operation: true && false = false
+			expectedFinalSatisfyZS: true,  // AND operation: true && true = true
+		},
+		{
+			name:                   "Cluster compliant, bucket non-compliant - ZS",
+			clusterSatisfyZI:       true,
+			clusterSatisfyZS:       true,
+			bucketSatisfyZI:        true,
+			bucketSatisfyZS:        false,
+			expectedFinalSatisfyZI: true,  // AND operation: true && true = true
+			expectedFinalSatisfyZS: false, // AND operation: true && false = false
+		},
+		{
+			name:                   "Cluster compliant, bucket non-compliant - both",
+			clusterSatisfyZI:       true,
+			clusterSatisfyZS:       true,
+			bucketSatisfyZI:        false,
+			bucketSatisfyZS:        false,
+			expectedFinalSatisfyZI: false, // AND operation: true && false = false
+			expectedFinalSatisfyZS: false, // AND operation: true && false = false
+		},
+		{
+			name:                   "Cluster non-compliant, bucket compliant",
+			clusterSatisfyZI:       false,
+			clusterSatisfyZS:       false,
+			bucketSatisfyZI:        true,
+			bucketSatisfyZS:        true,
+			expectedFinalSatisfyZI: false, // AND operation: false && true = false
+			expectedFinalSatisfyZS: false, // AND operation: false && true = false
+		},
+		{
+			name:                   "Both non-compliant",
+			clusterSatisfyZI:       false,
+			clusterSatisfyZS:       false,
+			bucketSatisfyZI:        false,
+			bucketSatisfyZS:        false,
+			expectedFinalSatisfyZI: false, // AND operation: false && false = false
+			expectedFinalSatisfyZS: false, // AND operation: false && false = false
+		},
+		{
+			name:                   "Mixed compliance states - ZI false ZS true",
+			clusterSatisfyZI:       false,
+			clusterSatisfyZS:       true,
+			bucketSatisfyZI:        true,
+			bucketSatisfyZS:        false,
+			expectedFinalSatisfyZI: false, // AND operation: false && true = false
+			expectedFinalSatisfyZS: false, // AND operation: true && false = false
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var ts testsuite.WorkflowTestSuite
+			env := ts.NewTestWorkflowEnvironment()
+			env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+			encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+			mockHeader := &commonpb.Header{
+				Fields: map[string]*commonpb.Payload{
+					"logParam": encodedValue,
+				},
+			}
+			env.SetHeader(mockHeader)
+
+			mockStorage := database.NewMockStorage(t)
+			env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+			// Mock VLM client
+			mockVLMClient := new(vlm.MockVlmWorkflowClient)
+			oldGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+			GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+				return mockVLMClient
+			}
+			defer func() {
+				GetNewVSAClientWorkflowManager = oldGetNewVSAClientWorkflowManager
+			}()
+
+			poolIdentifier := &database.PoolIdentifier{
+				UUID:      "test-pool-uuid",
+				Name:      "test-pool",
+				AccountID: 123,
+				VendorID:  "test-vendor-id",
+			}
+
+			// Mock FetchPoolData activity
+			fetchResult := &activities.FetchPoolDataActivityOutput{
+				Success:               true,
+				PoolUUID:              "test-pool-uuid",
+				AccountName:           "test-account",
+				AutoTieringEnabled:    true,
+				AutoTieringBucketName: "test-bucket",
+				VLMConfig: vlm.VLMConfig{
+					Deployment: vlm.DeploymentConfig{
+						GCPConfig: vlm.GCPConfig{
+							ProjectID: "test-project",
+						},
+						DeploymentID: "test-deployment",
+					},
+				},
+			}
+			env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).
+				Return(fetchResult, nil)
+
+			// Mock VLM GetClusterZiZsDetails with cluster compliance values
+			mockVLMClient.On("GetClusterZiZsDetails", mock.Anything, mock.AnythingOfType("*vlm.GetResourceInfoReq")).
+				Return(&vlm.GetResourceInfoResp{
+					ResourceInfo: vlm.ResourceInformation{
+						GCPRI: map[string][]vlm.GCPResourceInformation{
+							"test-resource": {
+								{
+									SatisfiesPzi: tt.clusterSatisfyZI,
+									SatisfiesPzs: tt.clusterSatisfyZS,
+									AssetType:    "compute.googleapis.com/Instance",
+									AssetLink:    "//compute.googleapis.com/projects/test/zones/us-central1-a/instances/test-instance",
+								},
+							},
+						},
+					},
+				}, nil)
+
+			// Mock GetBucketCompliance activity with bucket compliance values
+			bucketCompliance := &datamodel.BucketDetails{
+				BucketName:   "test-bucket",
+				SatisfiesPzi: tt.bucketSatisfyZI,
+				SatisfiesPzs: tt.bucketSatisfyZS,
+			}
+			env.OnActivity("GetBucketCompliance", mock.Anything, "test-bucket").
+				Return(bucketCompliance, nil)
+
+			// Mock UpdatePoolCompliance activity - verify AND'ed result
+			updateResult := &activities.UpdatePoolComplianceActivityOutput{
+				Success:  true,
+				PoolUUID: "test-pool-uuid",
+			}
+			env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.MatchedBy(func(input activities.UpdatePoolComplianceActivityInput) bool {
+				// Verify the AND operation result
+				return input.PoolUUID == "test-pool-uuid" &&
+					input.SatisfyZI == tt.expectedFinalSatisfyZI &&
+					input.SatisfyZS == tt.expectedFinalSatisfyZS
+			})).Return(updateResult, nil)
+
+			env.ExecuteWorkflow(SyncPoolComplianceForPoolWorkflow, poolIdentifier)
+
+			assert.True(t, env.IsWorkflowCompleted())
+			assert.NoError(t, env.GetWorkflowError())
+		})
+	}
+}
+
+// TestSyncPoolComplianceForPoolWorkflow_GetBucketComplianceError tests error handling in GetBucketCompliance
+func TestSyncPoolComplianceForPoolWorkflow_GetBucketComplianceError(t *testing.T) {
+	// Enable global auto-tiering flag for this test
+	originalAutoTieringEnabled := utils.AutoTieringEnabled
+	defer func() { utils.AutoTieringEnabled = originalAutoTieringEnabled }()
+	utils.AutoTieringEnabled = true
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	// Mock VLM client
+	mockVLMClient := new(vlm.MockVlmWorkflowClient)
+	oldGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVLMClient
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = oldGetNewVSAClientWorkflowManager
+	}()
+
+	poolIdentifier := &database.PoolIdentifier{
+		UUID:      "test-pool-uuid",
+		Name:      "test-pool",
+		AccountID: 123,
+		VendorID:  "test-vendor-id",
+	}
+
+	// Mock FetchPoolData activity
+	fetchResult := &activities.FetchPoolDataActivityOutput{
+		Success:               true,
+		PoolUUID:              "test-pool-uuid",
+		AccountName:           "test-account",
+		AutoTieringEnabled:    true,
+		AutoTieringBucketName: "test-bucket",
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				GCPConfig: vlm.GCPConfig{
+					ProjectID: "test-project",
+				},
+				DeploymentID: "test-deployment",
+			},
+		},
+	}
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).
+		Return(fetchResult, nil)
+
+	// Mock VLM GetClusterZiZsDetails - returns compliance data
+	mockVLMClient.On("GetClusterZiZsDetails", mock.Anything, mock.AnythingOfType("*vlm.GetResourceInfoReq")).
+		Return(&vlm.GetResourceInfoResp{
+			ResourceInfo: vlm.ResourceInformation{
+				GCPRI: map[string][]vlm.GCPResourceInformation{
+					"test-resource": {
+						{
+							SatisfiesPzi: true,
+							SatisfiesPzs: true,
+							AssetType:    "compute.googleapis.com/Instance",
+							AssetLink:    "//compute.googleapis.com/projects/test/zones/us-central1-a/instances/test-instance",
+						},
+					},
+				},
+			},
+		}, nil)
+
+	// Mock GetBucketCompliance activity - returns error
+	env.OnActivity("GetBucketCompliance", mock.Anything, "test-bucket").
+		Return(nil, fmt.Errorf("failed to get bucket compliance from GCP"))
+
+	env.ExecuteWorkflow(SyncPoolComplianceForPoolWorkflow, poolIdentifier)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to get bucket compliance from GCP")
+}
+
+// TestSyncPoolComplianceForPoolWorkflow_EmptyBucketName tests handling of empty bucket name
+func TestSyncPoolComplianceForPoolWorkflow_EmptyBucketName(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	// Mock VLM client
+	mockVLMClient := new(vlm.MockVlmWorkflowClient)
+	oldGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVLMClient
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = oldGetNewVSAClientWorkflowManager
+	}()
+
+	poolIdentifier := &database.PoolIdentifier{
+		UUID:      "test-pool-uuid",
+		Name:      "test-pool",
+		AccountID: 123,
+		VendorID:  "test-vendor-id",
+	}
+
+	// Mock FetchPoolData activity - returns empty AutoTieringBucketName
+	fetchResult := &activities.FetchPoolDataActivityOutput{
+		Success:               true,
+		PoolUUID:              "test-pool-uuid",
+		AccountName:           "test-account",
+		AutoTieringEnabled:    false, // Auto-tiering not enabled
+		AutoTieringBucketName: "",    // Empty bucket name
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				GCPConfig: vlm.GCPConfig{
+					ProjectID: "test-project",
+				},
+				DeploymentID: "test-deployment",
+			},
+		},
+	}
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).
+		Return(fetchResult, nil)
+
+	// Mock VLM GetClusterZiZsDetails - returns compliance data
+	mockVLMClient.On("GetClusterZiZsDetails", mock.Anything, mock.AnythingOfType("*vlm.GetResourceInfoReq")).
+		Return(&vlm.GetResourceInfoResp{
+			ResourceInfo: vlm.ResourceInformation{
+				GCPRI: map[string][]vlm.GCPResourceInformation{
+					"test-resource": {
+						{
+							SatisfiesPzi: true,
+							SatisfiesPzs: true,
+							AssetType:    "compute.googleapis.com/Instance",
+							AssetLink:    "//compute.googleapis.com/projects/test/zones/us-central1-a/instances/test-instance",
+						},
+					},
+				},
+			},
+		}, nil)
+
+	// When AutoTieringEnabled is false, GetBucketCompliance should NOT be called
+	// Mock UpdatePoolCompliance activity - should receive cluster compliance values only (no AND with bucket)
+	updateResult := &activities.UpdatePoolComplianceActivityOutput{
+		Success:  true,
+		PoolUUID: "test-pool-uuid",
+	}
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.MatchedBy(func(input activities.UpdatePoolComplianceActivityInput) bool {
+		// Since auto-tiering is disabled, only cluster compliance matters (no bucket AND operation)
+		return input.PoolUUID == "test-pool-uuid" &&
+			input.SatisfyZI == true && // Cluster ZI is true
+			input.SatisfyZS == true // Cluster ZS is true
+	})).Return(updateResult, nil)
+
+	env.ExecuteWorkflow(SyncPoolComplianceForPoolWorkflow, poolIdentifier)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestSyncPoolComplianceForPoolWorkflow_AutoTieringDisabled tests scenarios when auto-tiering is disabled
+func TestSyncPoolComplianceForPoolWorkflow_AutoTieringDisabled(t *testing.T) {
+	tests := []struct {
+		name               string
+		autoTieringEnabled bool
+		clusterZI          bool
+		clusterZS          bool
+		expectedFinalZI    bool
+		expectedFinalZS    bool
+		description        string
+	}{
+		{
+			name:               "AutoTiering disabled - cluster compliant",
+			autoTieringEnabled: false,
+			clusterZI:          true,
+			clusterZS:          true,
+			expectedFinalZI:    true,
+			expectedFinalZS:    true,
+			description:        "When auto-tiering is disabled, only cluster compliance matters",
+		},
+		{
+			name:               "AutoTiering disabled - cluster non-compliant",
+			autoTieringEnabled: false,
+			clusterZI:          false,
+			clusterZS:          false,
+			expectedFinalZI:    false,
+			expectedFinalZS:    false,
+			description:        "When auto-tiering is disabled, only cluster compliance matters",
+		},
+		{
+			name:               "AutoTiering disabled - mixed compliance",
+			autoTieringEnabled: false,
+			clusterZI:          true,
+			clusterZS:          false,
+			expectedFinalZI:    true,
+			expectedFinalZS:    false,
+			description:        "When auto-tiering is disabled, only cluster compliance matters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var ts testsuite.WorkflowTestSuite
+			env := ts.NewTestWorkflowEnvironment()
+			env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+			encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+			mockHeader := &commonpb.Header{
+				Fields: map[string]*commonpb.Payload{
+					"logParam": encodedValue,
+				},
+			}
+			env.SetHeader(mockHeader)
+
+			mockStorage := database.NewMockStorage(t)
+			env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+			// Mock VLM client
+			mockVLMClient := new(vlm.MockVlmWorkflowClient)
+			oldGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+			GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+				return mockVLMClient
+			}
+			defer func() {
+				GetNewVSAClientWorkflowManager = oldGetNewVSAClientWorkflowManager
+			}()
+
+			poolIdentifier := &database.PoolIdentifier{
+				UUID:      "test-pool-uuid",
+				Name:      "test-pool",
+				AccountID: 123,
+				VendorID:  "test-vendor-id",
+			}
+
+			// Mock FetchPoolData activity with AutoTieringEnabled flag
+			fetchResult := &activities.FetchPoolDataActivityOutput{
+				Success:               true,
+				PoolUUID:              "test-pool-uuid",
+				AccountName:           "test-account",
+				AutoTieringEnabled:    tt.autoTieringEnabled,
+				AutoTieringBucketName: "test-bucket",
+				VLMConfig: vlm.VLMConfig{
+					Deployment: vlm.DeploymentConfig{
+						GCPConfig: vlm.GCPConfig{
+							ProjectID: "test-project",
+						},
+						DeploymentID: "test-deployment",
+					},
+				},
+			}
+			env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).
+				Return(fetchResult, nil)
+
+			// Mock VLM GetClusterZiZsDetails with cluster compliance values
+			mockVLMClient.On("GetClusterZiZsDetails", mock.Anything, mock.AnythingOfType("*vlm.GetResourceInfoReq")).
+				Return(&vlm.GetResourceInfoResp{
+					ResourceInfo: vlm.ResourceInformation{
+						GCPRI: map[string][]vlm.GCPResourceInformation{
+							"test-resource": {
+								{
+									SatisfiesPzi: tt.clusterZI,
+									SatisfiesPzs: tt.clusterZS,
+									AssetType:    "compute.googleapis.com/Instance",
+									AssetLink:    "//compute.googleapis.com/projects/test/zones/us-central1-a/instances/test-instance",
+								},
+							},
+						},
+					},
+				}, nil)
+
+			// GetBucketCompliance should NOT be called when AutoTiering is disabled
+
+			// Mock UpdatePoolCompliance activity - should receive cluster compliance values only
+			updateResult := &activities.UpdatePoolComplianceActivityOutput{
+				Success:  true,
+				PoolUUID: "test-pool-uuid",
+			}
+			env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.MatchedBy(func(input activities.UpdatePoolComplianceActivityInput) bool {
+				// Verify that only cluster compliance is used (no bucket compliance AND operation)
+				return input.PoolUUID == "test-pool-uuid" &&
+					input.SatisfyZI == tt.expectedFinalZI &&
+					input.SatisfyZS == tt.expectedFinalZS
+			})).Return(updateResult, nil)
+
+			env.ExecuteWorkflow(SyncPoolComplianceForPoolWorkflow, poolIdentifier)
+
+			assert.True(t, env.IsWorkflowCompleted(), tt.description)
+			assert.NoError(t, env.GetWorkflowError(), tt.description)
+		})
+	}
+}
+
+// TestSyncPoolComplianceForPoolWorkflow_BucketComplianceLogicalAND tests the logical AND operation
+func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceLogicalAND(t *testing.T) {
+	// Enable global auto-tiering flag for this test
+	originalAutoTieringEnabled := utils.AutoTieringEnabled
+	defer func() { utils.AutoTieringEnabled = originalAutoTieringEnabled }()
+	utils.AutoTieringEnabled = true
+
+	// This test specifically validates the logical AND operation between cluster and bucket compliance
+	testCases := []struct {
+		name            string
+		clusterZI       bool
+		clusterZS       bool
+		bucketZI        bool
+		bucketZS        bool
+		expectedFinalZI bool
+		expectedFinalZS bool
+		description     string
+	}{
+		{
+			name:            "Both cluster and bucket ZI/ZS compliant",
+			clusterZI:       true,
+			clusterZS:       true,
+			bucketZI:        true,
+			bucketZS:        true,
+			expectedFinalZI: true,
+			expectedFinalZS: true,
+			description:     "When both are compliant, pool should be compliant",
+		},
+		{
+			name:            "Cluster compliant but bucket ZI non-compliant",
+			clusterZI:       true,
+			clusterZS:       true,
+			bucketZI:        false,
+			bucketZS:        true,
+			expectedFinalZI: false,
+			expectedFinalZS: true,
+			description:     "Bucket non-compliance should propagate to pool (AND logic)",
+		},
+		{
+			name:            "Cluster compliant but bucket ZS non-compliant",
+			clusterZI:       true,
+			clusterZS:       true,
+			bucketZI:        true,
+			bucketZS:        false,
+			expectedFinalZI: true,
+			expectedFinalZS: false,
+			description:     "Bucket non-compliance should propagate to pool (AND logic)",
+		},
+		{
+			name:            "Cluster ZI non-compliant but bucket compliant",
+			clusterZI:       false,
+			clusterZS:       true,
+			bucketZI:        true,
+			bucketZS:        true,
+			expectedFinalZI: false,
+			expectedFinalZS: true,
+			description:     "Cluster non-compliance should propagate to pool (AND logic)",
+		},
+		{
+			name:            "Cluster ZS non-compliant but bucket compliant",
+			clusterZI:       true,
+			clusterZS:       false,
+			bucketZI:        true,
+			bucketZS:        true,
+			expectedFinalZI: true,
+			expectedFinalZS: false,
+			description:     "Cluster non-compliance should propagate to pool (AND logic)",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var ts testsuite.WorkflowTestSuite
+			env := ts.NewTestWorkflowEnvironment()
+			env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+			encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+			mockHeader := &commonpb.Header{
+				Fields: map[string]*commonpb.Payload{
+					"logParam": encodedValue,
+				},
+			}
+			env.SetHeader(mockHeader)
+
+			mockStorage := database.NewMockStorage(t)
+			env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+			// Mock VLM client
+			mockVLMClient := new(vlm.MockVlmWorkflowClient)
+			oldGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+			GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+				return mockVLMClient
+			}
+			defer func() {
+				GetNewVSAClientWorkflowManager = oldGetNewVSAClientWorkflowManager
+			}()
+
+			poolIdentifier := &database.PoolIdentifier{
+				UUID:      "test-pool-uuid",
+				Name:      "test-pool",
+				AccountID: 123,
+				VendorID:  "test-vendor-id",
+			}
+
+			// Mock FetchPoolData activity
+			fetchResult := &activities.FetchPoolDataActivityOutput{
+				Success:               true,
+				PoolUUID:              "test-pool-uuid",
+				AccountName:           "test-account",
+				AutoTieringEnabled:    true,
+				AutoTieringBucketName: "test-bucket",
+				VLMConfig: vlm.VLMConfig{
+					Deployment: vlm.DeploymentConfig{
+						GCPConfig: vlm.GCPConfig{
+							ProjectID: "test-project",
+						},
+						DeploymentID: "test-deployment",
+					},
+				},
+			}
+			env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).
+				Return(fetchResult, nil)
+
+			// Mock VLM GetClusterZiZsDetails - returns cluster compliance
+			mockVLMClient.On("GetClusterZiZsDetails", mock.Anything, mock.AnythingOfType("*vlm.GetResourceInfoReq")).
+				Return(&vlm.GetResourceInfoResp{
+					ResourceInfo: vlm.ResourceInformation{
+						GCPRI: map[string][]vlm.GCPResourceInformation{
+							"test-resource": {
+								{
+									SatisfiesPzi: tc.clusterZI,
+									SatisfiesPzs: tc.clusterZS,
+									AssetType:    "compute.googleapis.com/Instance",
+									AssetLink:    "//compute.googleapis.com/projects/test/zones/us-central1-a/instances/test-instance",
+								},
+							},
+						},
+					},
+				}, nil)
+
+			// Mock GetBucketCompliance activity - returns bucket compliance
+			bucketCompliance := &datamodel.BucketDetails{
+				BucketName:   "test-bucket",
+				SatisfiesPzi: tc.bucketZI,
+				SatisfiesPzs: tc.bucketZS,
+			}
+			env.OnActivity("GetBucketCompliance", mock.Anything, "test-bucket").
+				Return(bucketCompliance, nil)
+
+			// Mock UpdatePoolCompliance activity - verify AND'ed result
+			updateResult := &activities.UpdatePoolComplianceActivityOutput{
+				Success:  true,
+				PoolUUID: "test-pool-uuid",
+			}
+			env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.MatchedBy(func(input activities.UpdatePoolComplianceActivityInput) bool {
+				// The critical assertion: verify the AND operation
+				// satisfyZI = clusterZI && bucketZI
+				// satisfyZS = clusterZS && bucketZS
+				ziMatch := input.SatisfyZI == tc.expectedFinalZI
+				zsMatch := input.SatisfyZS == tc.expectedFinalZS
+
+				if !ziMatch || !zsMatch {
+					t.Errorf("%s failed: Expected ZI=%v ZS=%v, got ZI=%v ZS=%v (cluster: ZI=%v ZS=%v, bucket: ZI=%v ZS=%v)",
+						tc.description,
+						tc.expectedFinalZI, tc.expectedFinalZS,
+						input.SatisfyZI, input.SatisfyZS,
+						tc.clusterZI, tc.clusterZS,
+						tc.bucketZI, tc.bucketZS)
+				}
+
+				return input.PoolUUID == "test-pool-uuid" && ziMatch && zsMatch
+			})).Return(updateResult, nil)
+
+			env.ExecuteWorkflow(SyncPoolComplianceForPoolWorkflow, poolIdentifier)
+
+			assert.True(t, env.IsWorkflowCompleted(), tc.description)
+			assert.NoError(t, env.GetWorkflowError(), tc.description)
 		})
 	}
 }

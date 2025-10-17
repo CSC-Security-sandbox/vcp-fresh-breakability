@@ -2423,10 +2423,12 @@ func (a *PoolActivity) FetchPoolData(ctx context.Context, input FetchPoolDataAct
 		accountName = poolView.Account.Name
 	}
 	return &FetchPoolDataActivityOutput{
-		PoolUUID:    input.PoolUUID,
-		VLMConfig:   vlmConfig,
-		Success:     true,
-		AccountName: accountName,
+		PoolUUID:              input.PoolUUID,
+		VLMConfig:             vlmConfig,
+		Success:               true,
+		AccountName:           accountName,
+		AutoTieringEnabled:    poolView.AllowAutoTiering,
+		AutoTieringBucketName: poolView.AutoTieringConfig.BucketName,
 	}, nil
 }
 
@@ -2473,6 +2475,38 @@ func (a *PoolActivity) UpdatePoolCompliance(ctx context.Context, input UpdatePoo
 	}, nil
 }
 
+func (a *PoolActivity) GetBucketCompliance(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+	logger := util.GetLogger(ctx)
+
+	if bucketName == "" {
+		logger.Errorf("Bucket name parameter is empty, required to fetch zi/zs compliance")
+		return nil, fmt.Errorf("bucket name parameter is required to fetch zi/zs compliance")
+	}
+
+	// Get cloud service
+	cloudService, err := GetCloudService(ctx)
+	if err != nil {
+		logger.Errorf("Failed to get cloud service during AT bucket compliance check: %v", err)
+		return nil, err
+	}
+
+	// Get bucket details from GCP API
+	cloudBucketDetails, err := cloudService.GetBucket(ctx, bucketName)
+	if err != nil {
+		logger.Errorf("Failed to get bucket details from GCP for fetching zi/zs compliance, error: %v", err)
+		return nil, err
+	}
+
+	logger.Infof("Successfully retrieved bucket details from GCP for fetching zi/zs compliance, bucketName: %s", bucketName)
+	logger.Infof("Received bucket compliance details from GCP - satisfiesPzi: %t, satisfiesPzs: %t", cloudBucketDetails.SatisfiesPzi, cloudBucketDetails.SatisfiesPzs)
+
+	return &datamodel.BucketDetails{
+		BucketName:   bucketName,
+		SatisfiesPzi: cloudBucketDetails.SatisfiesPzi,
+		SatisfiesPzs: cloudBucketDetails.SatisfiesPzs,
+	}, nil
+}
+
 // FetchPoolDataActivityInput represents the input for fetching pool data
 type FetchPoolDataActivityInput struct {
 	PoolUUID  string `json:"pool_uuid"`
@@ -2481,11 +2515,13 @@ type FetchPoolDataActivityInput struct {
 
 // FetchPoolDataActivityOutput represents the output for fetching pool data
 type FetchPoolDataActivityOutput struct {
-	PoolUUID    string        `json:"pool_uuid"`
-	VLMConfig   vlm.VLMConfig `json:"vlm_config"`
-	Success     bool          `json:"success"`
-	Error       string        `json:"error,omitempty"`
-	AccountName string        `json:"account_name"`
+	PoolUUID              string        `json:"pool_uuid"`
+	VLMConfig             vlm.VLMConfig `json:"vlm_config"`
+	Success               bool          `json:"success"`
+	Error                 string        `json:"error,omitempty"`
+	AccountName           string        `json:"account_name"`
+	AutoTieringEnabled    bool          `json:"auto_tiering_enabled"`
+	AutoTieringBucketName string        `json:"auto_tiering_bucket_name"`
 }
 
 // UpdatePoolComplianceActivityInput represents the input for updating pool compliance

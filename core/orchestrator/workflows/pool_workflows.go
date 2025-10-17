@@ -1842,7 +1842,30 @@ func (wf *syncPoolComplianceForPoolWorkflow) Run(ctx workflow.Context, args ...i
 		"satisfyZI", satisfyZI,
 		"satisfyZS", satisfyZS)
 
-	// Step 3: Update pool with compliance data
+	// Step 3: If AutoTiering feature is enabled as well its enabled for the pool,
+	// then only fetch AT bucket compliance from GCP & include in pool compliance calculation
+	if utils.AutoTieringEnabled && fetchResult.AutoTieringEnabled {
+		var bucketComplianceResult datamodel.BucketDetails
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetBucketCompliance, fetchResult.AutoTieringBucketName).Get(ctx, &bucketComplianceResult)
+		if err != nil {
+			logger.Error("GetBucketCompliance for auto tiering bucket activity execution failed.", "Error", err, "PoolName", poolIdentifier.Name)
+			return nil, ConvertToVSAError(err)
+		}
+
+		logger.Info("Auto tiering bucket compliance fetched,",
+			"PoolName", poolIdentifier.Name,
+			"BucketName", fetchResult.AutoTieringBucketName,
+			"satisfyZI", bucketComplianceResult.SatisfiesPzi,
+			"satisfyZS", bucketComplianceResult.SatisfiesPzs,
+		)
+
+		// Logical AND of bucket compliance with cluster compliance
+		// Pool is ZI/ZS compliant only if both cluster and bucket are compliant
+		satisfyZI = satisfyZI && bucketComplianceResult.SatisfiesPzi
+		satisfyZS = satisfyZS && bucketComplianceResult.SatisfiesPzs
+	}
+
+	// Step 4: Update pool with compliance data
 	updateInput := activities.UpdatePoolComplianceActivityInput{
 		PoolUUID:      poolIdentifier.UUID,
 		SatisfyZI:     satisfyZI,

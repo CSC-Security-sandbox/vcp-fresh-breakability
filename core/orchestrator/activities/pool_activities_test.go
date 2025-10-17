@@ -9677,6 +9677,9 @@ func TestFetchPoolData_Success(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: poolUUID},
 			AccountID: accountID,
 			VLMConfig: string(vlmConfigJSON),
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				BucketName: "test-bucket",
+			},
 		},
 	}
 
@@ -10116,4 +10119,252 @@ func TestUpdatePoolCompliance_AllComplianceScenarios(t *testing.T) {
 	}
 
 	mockSE.AssertExpectations(t)
+}
+
+func TestGetBucketCompliance_Success(t *testing.T) {
+	// Store original function
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+
+	bucketName := "test-bucket"
+
+	// Mock cloud service
+	mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockCloudService, nil
+	}
+
+	expectedCloudBucketDetails := &hyperscaler_models.BucketDetails{
+		Name:         "test-bucket",
+		SatisfiesPzi: true,
+		SatisfiesPzs: false,
+	}
+
+	mockCloudService.On("GetBucket", ctx, bucketName).Return(expectedCloudBucketDetails, nil).Once()
+
+	result, err := activity.GetBucketCompliance(ctx, bucketName)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, bucketName, result.BucketName)
+	assert.Equal(t, true, result.SatisfiesPzi)
+	assert.Equal(t, false, result.SatisfiesPzs)
+	mockCloudService.AssertExpectations(t)
+}
+
+func TestGetBucketCompliance_EmptyBucketName(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+
+	result, err := activity.GetBucketCompliance(ctx, "")
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "bucket name parameter is required to fetch zi/zs compliance")
+}
+
+func TestGetBucketCompliance_GetCloudServiceError(t *testing.T) {
+	// Store original function
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+
+	bucketName := "test-bucket"
+
+	// Mock GetCloudService to return error
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return nil, fmt.Errorf("failed to get cloud service")
+	}
+
+	result, err := activity.GetBucketCompliance(ctx, bucketName)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to get cloud service")
+}
+
+func TestGetBucketCompliance_GetBucketError(t *testing.T) {
+	// Store original function
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+
+	bucketName := "test-bucket"
+
+	// Mock cloud service
+	mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockCloudService, nil
+	}
+
+	mockCloudService.On("GetBucket", ctx, bucketName).Return(nil, fmt.Errorf("bucket not found")).Once()
+
+	result, err := activity.GetBucketCompliance(ctx, bucketName)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "bucket not found")
+	mockCloudService.AssertExpectations(t)
+}
+
+func TestGetBucketCompliance_BothComplianceFieldsTrue(t *testing.T) {
+	// Store original function
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+
+	bucketName := "compliant-bucket"
+
+	// Mock cloud service
+	mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockCloudService, nil
+	}
+
+	expectedCloudBucketDetails := &hyperscaler_models.BucketDetails{
+		Name:         "compliant-bucket",
+		SatisfiesPzi: true,
+		SatisfiesPzs: true,
+	}
+
+	mockCloudService.On("GetBucket", ctx, bucketName).Return(expectedCloudBucketDetails, nil).Once()
+
+	result, err := activity.GetBucketCompliance(ctx, bucketName)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, bucketName, result.BucketName)
+	assert.True(t, result.SatisfiesPzi)
+	assert.True(t, result.SatisfiesPzs)
+	mockCloudService.AssertExpectations(t)
+}
+
+func TestGetBucketCompliance_BothComplianceFieldsFalse(t *testing.T) {
+	// Store original function
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+
+	bucketName := "non-compliant-bucket"
+
+	// Mock cloud service
+	mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockCloudService, nil
+	}
+
+	expectedCloudBucketDetails := &hyperscaler_models.BucketDetails{
+		Name:         "non-compliant-bucket",
+		SatisfiesPzi: false,
+		SatisfiesPzs: false,
+	}
+
+	mockCloudService.On("GetBucket", ctx, bucketName).Return(expectedCloudBucketDetails, nil).Once()
+
+	result, err := activity.GetBucketCompliance(ctx, bucketName)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, bucketName, result.BucketName)
+	assert.False(t, result.SatisfiesPzi)
+	assert.False(t, result.SatisfiesPzs)
+	mockCloudService.AssertExpectations(t)
+}
+
+func TestGetBucketCompliance_AllScenarios(t *testing.T) {
+	// Store original function
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	testCases := []struct {
+		name         string
+		bucketName   string
+		satisfiesPzi bool
+		satisfiesPzs bool
+	}{
+		{
+			name:         "PziOnly",
+			bucketName:   "pzi-only-bucket",
+			satisfiesPzi: true,
+			satisfiesPzs: false,
+		},
+		{
+			name:         "PzsOnly",
+			bucketName:   "pzs-only-bucket",
+			satisfiesPzi: false,
+			satisfiesPzs: true,
+		},
+		{
+			name:         "BothCompliant",
+			bucketName:   "fully-compliant-bucket",
+			satisfiesPzi: true,
+			satisfiesPzs: true,
+		},
+		{
+			name:         "NeitherCompliant",
+			bucketName:   "non-compliant-bucket",
+			satisfiesPzi: false,
+			satisfiesPzs: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSE := database.NewMockStorage(t)
+			activity := &activities.PoolActivity{SE: mockSE}
+			ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+
+			// Mock cloud service
+			mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+			activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+				return mockCloudService, nil
+			}
+
+			expectedCloudBucketDetails := &hyperscaler_models.BucketDetails{
+				Name:         tc.bucketName,
+				SatisfiesPzi: tc.satisfiesPzi,
+				SatisfiesPzs: tc.satisfiesPzs,
+			}
+
+			mockCloudService.On("GetBucket", ctx, tc.bucketName).Return(expectedCloudBucketDetails, nil).Once()
+
+			result, err := activity.GetBucketCompliance(ctx, tc.bucketName)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, tc.bucketName, result.BucketName)
+			assert.Equal(t, tc.satisfiesPzi, result.SatisfiesPzi)
+			assert.Equal(t, tc.satisfiesPzs, result.SatisfiesPzs)
+			mockCloudService.AssertExpectations(t)
+		})
+	}
 }
