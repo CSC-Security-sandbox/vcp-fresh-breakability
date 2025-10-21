@@ -156,6 +156,37 @@ func TestDeleteVolumeInONTAP_Failure(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func TestDeleteVolumeInONTAP_VolumeInUse(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeExternalUUID := "uuid-123"
+	volumeName := "test-volume"
+
+	node := &models.Node{}
+	expectedError := errors.New("volume is in use by a snapshot")
+
+	// Mock the DeleteVolume method to return "volume is in use" error
+	mockProvider.On("DeleteVolume", volumeExternalUUID, volumeName).Return(expectedError)
+
+	// Act
+	err := activity.DeleteVolumeInONTAP(ctx, volumeExternalUUID, volumeName, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume is in use")
+	mockProvider.AssertExpectations(t)
+}
+
 func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider

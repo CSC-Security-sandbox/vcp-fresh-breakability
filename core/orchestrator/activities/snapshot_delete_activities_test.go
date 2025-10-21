@@ -156,6 +156,44 @@ func TestDeleteSnapshotInONTAP_GetproviderByNodeFailure(t *testing.T) {
 	assert.EqualError(t, err, "failed to get provider by node")
 }
 
+func TestDeleteSnapshotInONTAP_SnapshotInUse(t *testing.T) {
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.SnapshotDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	snapshot := &datamodel.Snapshot{
+		SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "uuid-123"},
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-snapshot-id",
+		},
+		Volume: &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-123"},
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-id",
+			},
+		},
+		Name: "test-snapshot",
+	}
+	node := &models.Node{}
+	expectedError := errors.New("snapshot is in use by a volume clone")
+
+	// Mock the DeleteSnapshot method to return "snapshot is in use" error
+	mockProvider.On("DeleteSnapshot", snapshot.SnapshotAttributes.ExternalUUID, snapshot.Volume.VolumeAttributes.ExternalUUID).Return(expectedError)
+
+	err := activity.DeleteSnapshotInONTAP(ctx, snapshot, node)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "snapshot is in use")
+	mockProvider.AssertExpectations(t)
+}
+
 func TestUpdateDeleteSnapshotDetails_Failure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.SnapshotDeleteActivity{SE: mockStorage}

@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -24,6 +25,9 @@ func (a *SnapshotDeleteActivity) DeleteSnapshotInONTAP(ctx context.Context, snap
 	}
 	err = provider.DeleteSnapshot(snapshot.SnapshotAttributes.ExternalUUID, snapshot.Volume.VolumeAttributes.ExternalUUID)
 	if err != nil {
+		if strings.Contains(err.Error(), "snapshot is in use") {
+			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
+		}
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Infof("Snapshot %s deleted successfully from the vsa cluster", snapshot.Name)

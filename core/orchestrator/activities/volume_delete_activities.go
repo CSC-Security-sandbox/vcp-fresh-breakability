@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -26,6 +27,9 @@ func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeEx
 	}
 	err = provider.DeleteVolume(volumeExternalUUID, volumeName)
 	if err != nil {
+		if strings.Contains(err.Error(), "volume is in use") {
+			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
+		}
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Volume %s deleted successfully from the vsa cluster", volumeName)
