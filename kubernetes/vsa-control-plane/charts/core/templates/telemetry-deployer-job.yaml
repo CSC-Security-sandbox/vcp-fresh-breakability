@@ -120,6 +120,10 @@ spec:
               value: {{ .Values.global.coreConfig.localRegion | default "us-west2" | quote }}
             - name: ENABLE_VOLUME_METRICS
               value: {{ .Values.telemetryDeployer.enableVolumeMetrics | default "false" | quote }}
+            - name: ENABLE_BACKUP_METRICS
+              value: {{ .Values.telemetryDeployer.enableBackupMetrics | default "false" | quote }}
+            - name: ENABLE_BACKUP_BILLING_METRICS
+              value: {{ .Values.telemetryDeployer.enableBackupBillingMetrics | default "false" | quote }}
             - name: PUSH_BATCH_SIZE
               value: {{ .Values.telemetryDeployer.pushBatchSize | default "1000" | quote }}
             - name: MAX_GOOGLE_BILLING_PUSH_RETRY

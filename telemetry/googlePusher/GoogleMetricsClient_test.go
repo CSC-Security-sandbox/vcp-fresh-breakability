@@ -887,13 +887,11 @@ func Test_GetLabelValue(t *testing.T) {
 // Test missing coverage for GetLabelKey function
 func Test_GetLabelKey(t *testing.T) {
 	t.Run("VolumeReplicationRelationship resource", func(t *testing.T) {
-		rm := metadata.ResourceMetadata{
+		aggregated := &datamodel.AggregatedUsage{
 			ResourceType: metadata.VolumeReplicationRelationship,
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
 		}
-		hydratedM := &entity.HydratedMetric{
-			Metadata: rm,
-		}
-		googleMetric := *common.NewGoogleMetric(hydratedM)
+		googleMetric := *common.NewGoogleMetric(aggregated)
 
 		result := GetLabelKey(googleMetric)
 		expected := []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level", "/replication/replication_type"}
@@ -901,35 +899,17 @@ func Test_GetLabelKey(t *testing.T) {
 	})
 
 	t.Run("Backup resource with BackupLogicalSize measured type", func(t *testing.T) {
-		rm := metadata.ResourceMetadata{
+		aggregated := &datamodel.AggregatedUsage{
 			ResourceType: metadata.Backup,
-		}
-		hydratedM := &entity.HydratedMetric{
-			Metadata:     rm,
 			MeasuredType: metadata.BackupLogicalSize,
 		}
-		googleMetric := *common.NewGoogleMetric(hydratedM)
+		googleMetric := *common.NewGoogleMetric(aggregated)
 
 		result := GetLabelKey(googleMetric)
 		expected := []string{"/resource_id", "/backups/location"}
 		assert.Equal(t, expected, result)
 	})
-
-	t.Run("Volume resource with non-CbsVolumeBackupSize measured type", func(t *testing.T) {
-		rm := metadata.ResourceMetadata{
-			ResourceType: metadata.Volume,
-		}
-		hydratedM := &entity.HydratedMetric{
-			Metadata:     rm,
-			MeasuredType: metadata.LogicalSize,
-		}
-		googleMetric := *common.NewGoogleMetric(hydratedM)
-
-		result := GetLabelKey(googleMetric)
-		assert.Nil(t, result)
-	})
-
-	t.Run("Other resource types", func(t *testing.T) {
+	t.Run("when not billing record", func(t *testing.T) {
 		rm := metadata.ResourceMetadata{
 			ResourceType: metadata.VolumePool,
 		}

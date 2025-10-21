@@ -613,6 +613,9 @@ func (client *GoogleMetricsClient) GetMetricName(metric common.GoogleMetric) (st
 }
 
 func GetLabelKey(metric common.GoogleMetric) []string {
+	if metric.GetType() != common.BillingMetric {
+		return nil
+	}
 	metricMeasuredType, _ := metric.GetMeasuredType()
 	metricResourceType, _ := metric.GetResourceType()
 	switch metricResourceType {

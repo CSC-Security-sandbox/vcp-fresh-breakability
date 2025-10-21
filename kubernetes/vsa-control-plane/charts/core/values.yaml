@@ -240,6 +240,8 @@ telemetryDeployer:
   pusherServiceName: "autopush-netapp.sandbox.googleapis.com"
   pusherServiceProject: "netapp-au-se1-autopush-sde-tst"
   enableVolumeMetrics: false
+  enableBackupMetrics: false
+  enableBackupBillingMetrics: false
   pushBatchSize: 1000
   maxGoogleBillingPushRetry: 5
   pageSize: 1000
