@@ -390,6 +390,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	for _, backup := range backups {
 		backup.Attributes.VolumeName = volume.Name
 		backup.Attributes.SourceVolumeZone = volume.Pool.PoolAttributes.PrimaryZone
+		backup.Attributes.IsRegionalHA = volume.Pool.PoolAttributes.IsRegionalHA
 		backup.Attributes.SnapshotName = snapshotName
 		backup.Attributes.SnapshotID = ontapSnapshot.ExternalUUID
 		backup.Attributes.SnapshotCreationTime = workflow.Now(ctx).String()

@@ -1105,7 +1105,7 @@ func SetImmutableBackupEnabledForTest(enabled bool) {
 // GetSourceVolumePathFromBackup gets the source volume path from a backup object
 func _getSourceVolumePathFromBackup(backup *datamodel.Backup) string {
 	var sourceVolumeZone string
-	if backup.Attributes.SourceVolumeZone == "" {
+	if backup.Attributes.IsRegionalHA || backup.Attributes.SourceVolumeZone == "" {
 		sourceVolumeZone = *backup.BackupVault.SourceRegionName
 	} else {
 		sourceVolumeZone = backup.Attributes.SourceVolumeZone

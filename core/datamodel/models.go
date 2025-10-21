@@ -803,6 +803,7 @@ type BackupAttributes struct {
 	ObjectStoreUUID                string    `json:"object_store_uuid"`
 	SourceVolumeZone               string    `json:"source_volume_zone"`
 	ConstituentCountOfBackup       int32     `json:"constituent_count_of_backup"`
+	IsRegionalHA                   bool      `json:"is_regional_ha"`
 }
 
 func (b *BackupAttributes) Scan(value interface{}) error {

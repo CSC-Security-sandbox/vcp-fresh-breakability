@@ -328,6 +328,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.UpdateVolumeInReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&backgroundactivities.SyncBackupZiZsActivity{SE: dbcon})
 	worker.RegisterActivity(&active_directory_activities.ActiveDirectoryCreateActivity{SE: dbcon, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: dbcon})
 }
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
