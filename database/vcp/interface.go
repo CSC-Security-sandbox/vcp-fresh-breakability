@@ -97,8 +97,9 @@ type (
 		DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error)
 		GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error)
 		GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error)
+		GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error)
 		GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error)
-		ListVolumeReplications(ctx context.Context, filter dbutils.Filter) ([]*datamodel.VolumeReplication, error)
+		ListVolumeReplications(ctx context.Context, filter dbutils.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error)
 		ListVolumeReplicationsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.VolumeReplication, error)
 
 		GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
@@ -289,5 +290,11 @@ type (
 
 		CreateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)
 		GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error)
+
+		// Cluster Peering methods
+		GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx context.Context, accountID int64, onPrempCluster string, poolID int64) (*datamodel.ClusterPeerings, error)
+		CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error)
+		UpdateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error
+		ListClusterPeeringRowsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.ClusterPeerings, error)
 	}
 )

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"gorm.io/gorm"
 )
 
@@ -495,31 +496,33 @@ type NodeDetails struct {
 
 type VolumeReplication struct {
 	BaseModel
-	Name                  string              `gorm:"column:name"`
-	Description           string              `gorm:"column:description"`
-	State                 string              `gorm:"column:state"`
-	StateDetails          string              `gorm:"column:state_details"`
-	Uri                   string              `gorm:"column:uri"`
-	RemoteUri             string              `gorm:"column:remote_uri"`
-	ReplicationAttributes *ReplicationDetails `gorm:"column:replication_attributes;type:jsonb"`
-	MirrorState           *string             `gorm:"column:mirror_state"`
-	RelationshipStatus    *string             `gorm:"column:relationship_status"`
-	TotalProgress         int64               `gorm:"column:total_progress"`
-	TotalTransferBytes    int64               `gorm:"column:total_transfer_bytes"`
-	TotalTransferTimeSecs int64               `gorm:"column:total_transfer_time_secs"`
-	LastTransferSize      int64               `gorm:"column:last_transfer_size"`
-	LastTransferError     string              `gorm:"column:last_transfer_error"`
-	LastTransferDuration  int64               `gorm:"column:last_transfer_duration"`
-	LastTransferEndTime   *time.Time          `gorm:"column:last_transfer_end_time"`
-	ProgressLastUpdated   *time.Time          `gorm:"column:progress_last_updated"`
-	LastUpdatedFromOntap  time.Time           `gorm:"column:last_updated_from_ontap"`
-	Healthy               bool                `gorm:"column:healthy;default:true"`
-	UnhealthyReason       string              `gorm:"column:unhealthy_reason"`
-	LagTime               int64               `gorm:"column:lag_time"`
-	AccountID             int64               `gorm:"column:account_id"`
-	Account               *Account            `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	VolumeID              int64               `gorm:"column:volume_id"`
-	Volume                *Volume             `gorm:"ForeignKey:VolumeID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Name                        string                      `gorm:"column:name"`
+	Description                 string                      `gorm:"column:description"`
+	State                       string                      `gorm:"column:state"`
+	StateDetails                string                      `gorm:"column:state_details"`
+	Uri                         string                      `gorm:"column:uri"`
+	RemoteUri                   string                      `gorm:"column:remote_uri"`
+	ReplicationAttributes       *ReplicationDetails         `gorm:"column:replication_attributes;type:jsonb"`
+	MirrorState                 *string                     `gorm:"column:mirror_state"`
+	RelationshipStatus          *string                     `gorm:"column:relationship_status"`
+	TotalProgress               int64                       `gorm:"column:total_progress"`
+	TotalTransferBytes          int64                       `gorm:"column:total_transfer_bytes"`
+	TotalTransferTimeSecs       int64                       `gorm:"column:total_transfer_time_secs"`
+	LastTransferSize            int64                       `gorm:"column:last_transfer_size"`
+	LastTransferError           string                      `gorm:"column:last_transfer_error"`
+	LastTransferDuration        int64                       `gorm:"column:last_transfer_duration"`
+	LastTransferEndTime         *time.Time                  `gorm:"column:last_transfer_end_time"`
+	ProgressLastUpdated         *time.Time                  `gorm:"column:progress_last_updated"`
+	LastUpdatedFromOntap        time.Time                   `gorm:"column:last_updated_from_ontap"`
+	Healthy                     bool                        `gorm:"column:healthy;default:true"`
+	UnhealthyReason             string                      `gorm:"column:unhealthy_reason"`
+	LagTime                     int64                       `gorm:"column:lag_time"`
+	AccountID                   int64                       `gorm:"column:account_id"`
+	Account                     *Account                    `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	VolumeID                    int64                       `gorm:"column:volume_id"`
+	Volume                      *Volume                     `gorm:"ForeignKey:VolumeID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	ClusterPeerId               sql.NullInt64               `gorm:"column:cluster_peer_id"`
+	HybridReplicationAttributes *HybridReplicationAttribute `gorm:"column:hybrid_replication_attributes;type:jsonb"`
 }
 
 type ReplicationDetails struct {
@@ -542,6 +545,71 @@ type ReplicationDetails struct {
 	DestinationVolumeName      string `json:"destination_volume_name"`
 	ExternalUUID               string `json:"external_uuid"`
 	Labels                     *JSONB `json:"labels"`
+}
+
+type HybridReplicationAttribute struct {
+	SvmPeerCommand                *string                        `json:"svm_peer_command,omitempty"`
+	SvmPeerExpiryTime             *time.Time                     `json:"svm_peer_expiry_time,omitempty"`
+	Description                   string                         `json:"description"`
+	Labels                        map[string]string              `json:"labels"`
+	PeerVolumeName                string                         `json:"peer_volume_name"`
+	PeerSvmName                   string                         `json:"peer_svm_name"`
+	ReplicationSchedule           string                         `json:"replication_schedule"`
+	HybridReplicationType         *string                        `json:"hybrid_replication_type,omitempty"`
+	HybridReplicationUserCommands []string                       `json:"hybrid_replication_user_commands,omitempty"`
+	StateDetailsCode              int32                          `json:"state_details_code"`
+	Status                        models.HybridReplicationStatus `json:"status"`
+	StatusDetails                 string                         `json:"status_details"`
+}
+
+// Scan implements the sql.Scanner interface for JSONB deserialization
+func (h *HybridReplicationAttribute) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, h)
+}
+
+// Value implements the driver.Valuer interface for JSONB serialization
+func (h HybridReplicationAttribute) Value() (driver.Value, error) {
+	return json.Marshal(h)
+}
+
+type ClusterPeerings struct {
+	BaseModel
+	State                    models.ClusterPeeringStatus `gorm:"column:state"`
+	StateDetails             string                      `gorm:"column:state_details"`
+	OnprempCluster           string                      `gorm:"column:onpremp_cluster"`
+	OntapPeerUUID            string                      `gorm:"column:ontap_peer_uuid"`
+	AccountID                int64                       `gorm:"column:account_id"`
+	PoolID                   int64                       `gorm:"column:pool_id"`
+	ClusterPeeringAttributes *ClusterPeeringAttributes   `gorm:"column:cluster_peering_attributes;type:jsonb"`
+}
+
+type ClusterPeeringAttributes struct {
+	PassPhrase      *string    `json:"pass_phrase,omitempty"`
+	Command         *string    `json:"command,omitempty"`
+	ExpiryTime      *time.Time `json:"expiry_time,omitempty"`
+	ClusterLocation *string    `json:"cluster_location,omitempty"`
+}
+
+// Scan implements the sql.Scanner interface for ClusterPeeringRowAttributes
+func (cpr *ClusterPeeringAttributes) Scan(value interface{}) error {
+	if value == nil {
+		*cpr = ClusterPeeringAttributes{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, cpr)
+}
+
+// Value implements the driver.Valuer interface for ClusterPeeringRowAttributes
+func (cpr ClusterPeeringAttributes) Value() (driver.Value, error) {
+	return json.Marshal(cpr)
 }
 
 func (rd *ReplicationDetails) Scan(value interface{}) error {

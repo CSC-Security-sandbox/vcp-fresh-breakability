@@ -133,3 +133,39 @@ type UpdateVolumeReplicationAttributesParams struct {
 	VolumeReplicationId       string
 	VolumeReplicationInternal *gcpgenserver.VolumeReplicationInternalV1beta
 }
+
+type HybridReplicationStatus string
+
+var (
+	HybridReplicationStatusPendingClusterPeer   HybridReplicationStatus = "PENDING_CLUSTER_PEER"
+	HybridReplicationStatusPendingSVMPeer       HybridReplicationStatus = "PENDING_SVM_PEER"
+	HybridReplicationStatusSVMPeered            HybridReplicationStatus = "SVM_PEERED"
+	HybridReplicationStatusPeered               HybridReplicationStatus = "PEERED"
+	HybridReplicationStatusPendingReverseResume HybridReplicationStatus = "PENDING_REMOTE_RESYNC"
+	HybridReplicationStatusExternalManaged      HybridReplicationStatus = "EXTERNALLY_MANAGED_REPLICATION"
+)
+
+type ClusterPeeringStatus string
+
+var (
+	CvpClusterPeeringStatusCREATING              ClusterPeeringStatus = "CREATING"
+	CvpClusterPeeringStatusPENDINGCLUSTERPEERING ClusterPeeringStatus = "PENDING_CLUSTER_PEERING"
+	CvpClusterPeeringStatusPEERED                ClusterPeeringStatus = "PEERED"
+	CvpClusterPeeringStatusDELETED               ClusterPeeringStatus = "DELETED"
+	CvpClusterPeeringStatusERROR                 ClusterPeeringStatus = "ERROR"
+)
+
+const (
+	AuthenticationStateOk      string = "ok"
+	AuthenticationStateAbsent  string = "absent"
+	AuthenticationStatePending string = "pending"
+	AuthenticationStateProblem string = "problem"
+)
+
+const (
+	AvailabilityAvailable    string = "available"
+	AvailabilityPartial      string = "partial"
+	AvailabilityUnavailable  string = "unavailable"
+	AvailabilityPending      string = "pending"
+	AvailabilityUnidentified string = "unidentified"
+)

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
 
@@ -365,8 +368,9 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			Name:    "test_pool",
-			Account: account,
+			Name:           "test_pool",
+			Account:        account,
+			DeploymentName: "test-deployment",
 		}
 
 		err = store.db.Create(pool).Error()
@@ -387,6 +391,32 @@ func TestUpdateVolumeReplication(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
+		// Create a cluster peering row for testing ClusterPeerId
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "test-cluster",
+			OntapPeerUUID:  "test-ontap-peer-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		err = store.db.Create(clusterPeeringRow).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create cluster peering row: %v", err)
+		}
+
+		// Create hybrid replication attributes
+		hybridAttrs := &datamodel.HybridReplicationAttribute{
+			PeerVolumeName:      "peer-volume-1",
+			PeerSvmName:         "peer-svm-1",
+			Description:         "Test replication",
+			Labels:              map[string]string{"env": "test"},
+			ReplicationSchedule: "hourly",
+			Status:              models.HybridReplicationStatusPeered,
+			StatusDetails:       "Successfully peered",
+		}
+
 		volumeRep := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
 			Name:      "test_volume_rep",
@@ -395,9 +425,22 @@ func TestUpdateVolumeReplication(t *testing.T) {
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ExternalUUID: "test-volume-rep-external-uuid",
 			},
+			HybridReplicationAttributes: hybridAttrs,
+			ClusterPeerId:               sql.NullInt64{Int64: clusterPeeringRow.ID, Valid: true},
 		}
 		err = store.db.Create(volumeRep).Error()
 		assert.NoError(tt, err, "Failed to create volume replication")
+
+		// Create updated hybrid replication attributes
+		updatedHybridAttrs := &datamodel.HybridReplicationAttribute{
+			PeerVolumeName:      "peer-volume-2",
+			PeerSvmName:         "peer-svm-2",
+			Description:         "Updated test replication",
+			Labels:              map[string]string{"env": "prod"},
+			ReplicationSchedule: "daily",
+			Status:              models.HybridReplicationStatusPeered,
+			StatusDetails:       "Successfully updated",
+		}
 
 		mirrorState := "snapmirrored"
 		relationshipStatus := "success"
@@ -412,6 +455,8 @@ func TestUpdateVolumeReplication(t *testing.T) {
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ExternalUUID: "test-volume-rep-external-uuid",
 			},
+			HybridReplicationAttributes: updatedHybridAttrs,
+			ClusterPeerId:               sql.NullInt64{Int64: clusterPeeringRow.ID, Valid: true},
 		}
 		err = store.UpdateVolumeReplication(context.Background(), updateVolumeRep)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
@@ -420,6 +465,18 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		assert.NoError(tt, err1, "Expected no error, got %v", err1)
 		assert.Equal(tt, models.LifeCycleStateUpdating, updatedVolumeRep.State, "Expected volume state %v, got %v", models.LifeCycleStateUpdating, updatedVolumeRep.State)
 		assert.Equal(tt, lastTransferSize, updatedVolumeRep.LastTransferSize, "Expected volume last transfer size %v, got %v", lastTransferSize, updatedVolumeRep.LastTransferSize)
+
+		// Verify HybridReplicationAttributes were updated
+		assert.NotNil(tt, updatedVolumeRep.HybridReplicationAttributes, "Expected HybridReplicationAttributes to be set")
+		assert.Equal(tt, "peer-volume-2", updatedVolumeRep.HybridReplicationAttributes.PeerVolumeName, "Expected updated peer volume name")
+		assert.Equal(tt, "peer-svm-2", updatedVolumeRep.HybridReplicationAttributes.PeerSvmName, "Expected updated peer svm name")
+		assert.Equal(tt, "Updated test replication", updatedVolumeRep.HybridReplicationAttributes.Description, "Expected updated description")
+		assert.Equal(tt, "prod", updatedVolumeRep.HybridReplicationAttributes.Labels["env"], "Expected updated labels")
+		assert.Equal(tt, "daily", updatedVolumeRep.HybridReplicationAttributes.ReplicationSchedule, "Expected updated replication schedule")
+
+		// Verify ClusterPeerId was updated
+		assert.True(tt, updatedVolumeRep.ClusterPeerId.Valid, "Expected ClusterPeerId to be valid")
+		assert.Equal(tt, clusterPeeringRow.ID, updatedVolumeRep.ClusterPeerId.Int64, "Expected ClusterPeerId to match cluster peering row ID")
 	})
 	t.Run("WhenVolumeReplicationIsNotFound", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -696,12 +753,28 @@ func CreateTestData(store *DataStoreRepository) (*datamodel.Account, *datamodel.
 		return nil, nil, nil, err
 	}
 
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "test-svm-uuid",
+		},
+		Name:      "test_svm",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+	}
+	err = store.db.Create(svm).Error()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:      "test_volume",
 		AccountID: account.ID,
 		Account:   account,
 		Pool:      pool,
+		Svm:       svm,
+		SvmID:     svm.ID,
 		PoolID:    pool.ID,
 	}
 	err = store.db.Create(volume).Error()
@@ -756,12 +829,17 @@ func TestListVolumeReplications(t *testing.T) {
 			utils.NewFilterCondition("account_id", "=", account.ID),
 			utils.NewFilterCondition("uuid", "in", replicationUUIDs))
 
-		replications, err := store.ListVolumeReplications(context.Background(), *filter)
+		replications, err := store.ListVolumeReplications(context.Background(), *filter, 1)
 		assert.NoError(t, err, "Expected no error, got %v", err)
 		assert.Len(t, replications, 2, "Expected 2 volume replications, got %d", len(replications))
 		assert.Equal(t, replication1.UUID, replications[0].UUID, "Expected replication 1 UUID %v, got %v", replication1.UUID, replications[0].UUID)
 		assert.Equal(t, replication2.UUID, replications[1].UUID, "Expected replication 2 UUID %v, got %v", replication2.UUID, replications[1].UUID)
 		assert.Equal(t, "external-cluster", replications[0].Volume.Pool.ClusterDetails.ExternalName, "Expected cluster name %v, got %v", "external-cluster", replications[0].Volume.Pool.ClusterDetails.ExternalName)
+
+		// Verify that Volume.Svm is preloaded
+		assert.NotNil(t, replications[0].Volume.Svm, "Volume.Svm should be preloaded")
+		assert.Equal(t, "test_svm", replications[0].Volume.Svm.Name, "Expected SVM name %v, got %v", "test_svm", replications[0].Volume.Svm.Name)
+		assert.Equal(t, "test-svm-uuid", replications[0].Volume.Svm.UUID, "Expected SVM UUID %v, got %v", "test-svm-uuid", replications[0].Volume.Svm.UUID)
 	})
 	t.Run("WhenNoReplicationsExist", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -780,7 +858,7 @@ func TestListVolumeReplications(t *testing.T) {
 		filter := utils.CreateFilterWithConditions(
 			utils.NewFilterCondition("account_id", "=", account.ID))
 
-		replications, err := store.ListVolumeReplications(context.Background(), *filter)
+		replications, err := store.ListVolumeReplications(context.Background(), *filter, 0)
 		assert.NoError(t, err, "Expected no error, got %v", err)
 		assert.Empty(t, replications, "Expected no volume replications, got %d", len(replications))
 	})
@@ -800,7 +878,7 @@ func TestListVolumeReplications(t *testing.T) {
 
 		expectedError := customerrors.NewUserInputValidationErr("no filter conditions provided for listing volume replications")
 
-		replications, err := store.ListVolumeReplications(context.Background(), utils.Filter{})
+		replications, err := store.ListVolumeReplications(context.Background(), utils.Filter{}, 0)
 		assert.EqualError(t, expectedError, "no filter conditions provided for listing volume replications", "Expected error %v, got %v", expectedError, err)
 		assert.Empty(t, replications, "Expected no volume replications, got %d", len(replications))
 	})
@@ -850,7 +928,7 @@ func TestListVolumeReplications(t *testing.T) {
 			utils.NewFilterCondition("account_id", "=", account.ID),
 			utils.NewFilterCondition("uri", "in", uris))
 
-		replications, err := store.ListVolumeReplications(context.Background(), *filter)
+		replications, err := store.ListVolumeReplications(context.Background(), *filter, 0)
 		assert.NoError(t, err, "Expected no error, got %v", err)
 		assert.Len(t, replications, 1, "Expected 2 volume replications, got %d", len(replications))
 		assert.Equal(t, replication1.UUID, replications[0].UUID, "Expected replication 1 UUID %v, got %v", replication1.UUID, replications[0].UUID)
@@ -1425,5 +1503,317 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 		assert.Empty(tt, resultReplications[0].Volume.Pool.Name, "Pool Name should be empty due to selective loading")
 		assert.Empty(tt, resultReplications[0].Volume.Pool.Description, "Pool Description should be empty due to selective loading")
 		assert.Zero(tt, resultReplications[0].Volume.Pool.SizeInBytes, "Pool SizeInBytes should be zero due to selective loading")
+	})
+}
+
+func TestGetVolumeReplicationCountByPeerName(t *testing.T) {
+	logger := log.NewLogger()
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	t.Run("WhenVolumeReplicationsExistWithMatchingPeerNames", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create pools
+		pool1 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-1-uuid"},
+			Name:           "test_pool_1",
+			AccountID:      1,
+			DeploymentName: "test-deployment-1",
+		}
+		err = store.db.Create(pool1).Error()
+		assert.NoError(tt, err, "Failed to create pool 1")
+
+		pool2 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-2-uuid"},
+			Name:           "test_pool_2",
+			AccountID:      1,
+			DeploymentName: "test-deployment-2",
+		}
+		err = store.db.Create(pool2).Error()
+		assert.NoError(tt, err, "Failed to create pool 2")
+
+		// Create volumes
+		volume1 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-1-uuid"},
+			Name:      "test_volume_1",
+			AccountID: 1,
+			PoolID:    pool1.ID,
+		}
+		err = store.db.Create(volume1).Error()
+		assert.NoError(tt, err, "Failed to create volume 1")
+
+		volume2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-2-uuid"},
+			Name:      "test_volume_2",
+			AccountID: 1,
+			PoolID:    pool2.ID,
+		}
+		err = store.db.Create(volume2).Error()
+		assert.NoError(tt, err, "Failed to create volume 2")
+
+		// Create hybrid replication attributes for matching peer names
+		hybridAttrs1 := &datamodel.HybridReplicationAttribute{
+			PeerVolumeName:      "peer-volume-1",
+			PeerSvmName:         "peer-svm-1",
+			Description:         "Test replication 1",
+			Labels:              map[string]string{"env": "test"},
+			ReplicationSchedule: "hourly",
+			Status:              models.HybridReplicationStatusPeered,
+			StatusDetails:       "Successfully peered",
+		}
+
+		hybridAttrs2 := &datamodel.HybridReplicationAttribute{
+			PeerVolumeName:      "peer-volume-1",
+			PeerSvmName:         "peer-svm-1",
+			Description:         "Test replication 2",
+			Labels:              map[string]string{"env": "test"},
+			ReplicationSchedule: "daily",
+			Status:              models.HybridReplicationStatusPeered,
+			StatusDetails:       "Successfully peered",
+		}
+
+		// Create volume replications with matching peer names
+		volumeReplication1 := &datamodel.VolumeReplication{
+			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-1-uuid"},
+			Name:                        "test_replication_1",
+			State:                       models.LifeCycleStateAvailable,
+			AccountID:                   1,
+			VolumeID:                    volume1.ID,
+			HybridReplicationAttributes: hybridAttrs1,
+		}
+		err = store.db.Create(volumeReplication1).Error()
+		assert.NoError(tt, err, "Failed to create volume replication 1")
+
+		volumeReplication2 := &datamodel.VolumeReplication{
+			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-2-uuid"},
+			Name:                        "test_replication_2",
+			State:                       models.LifeCycleStateAvailable,
+			AccountID:                   1,
+			VolumeID:                    volume2.ID,
+			HybridReplicationAttributes: hybridAttrs2,
+		}
+		err = store.db.Create(volumeReplication2).Error()
+		assert.NoError(tt, err, "Failed to create volume replication 2")
+
+		// Create volume replication with different peer names
+		hybridAttrs3 := &datamodel.HybridReplicationAttribute{
+			PeerVolumeName:      "peer-volume-2",
+			PeerSvmName:         "peer-svm-2",
+			Description:         "Test replication 3",
+			Labels:              map[string]string{"env": "test"},
+			ReplicationSchedule: "weekly",
+			Status:              models.HybridReplicationStatusPeered,
+			StatusDetails:       "Successfully peered",
+		}
+
+		volumeReplication3 := &datamodel.VolumeReplication{
+			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-3-uuid"},
+			Name:                        "test_replication_3",
+			State:                       models.LifeCycleStateAvailable,
+			AccountID:                   1,
+			VolumeID:                    volume1.ID,
+			HybridReplicationAttributes: hybridAttrs3,
+		}
+		err = store.db.Create(volumeReplication3).Error()
+		assert.NoError(tt, err, "Failed to create volume replication 3")
+
+		// Query for volume replications with specific peer names
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "test_account", "peer-svm-1", "peer-volume-1")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, int64(2), count, "Expected 2 volume replications, got %d", count)
+	})
+
+	t.Run("WhenNoVolumeReplicationsExistWithMatchingPeerNames", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Query for volume replications with non-matching peer names
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "test_account", "non-existent-svm", "non-existent-volume")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, int64(0), count, "Expected 0 volume replications, got %d", count)
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Query for volume replications with non-existent account
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "non-existent-account", "peer-svm-1", "peer-volume-1")
+		assert.Error(tt, err, "Expected error for non-existent account")
+		assert.Equal(tt, int64(0), count, "Expected 0 count for non-existent account")
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create pool
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:           "test_pool",
+			AccountID:      1,
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		// Create volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create hybrid replication attributes
+		hybridAttrs := &datamodel.HybridReplicationAttribute{
+			PeerVolumeName:      "peer-volume-1",
+			PeerSvmName:         "peer-svm-1",
+			Description:         "Test replication",
+			Labels:              map[string]string{"env": "test"},
+			ReplicationSchedule: "hourly",
+			Status:              models.HybridReplicationStatusPeered,
+			StatusDetails:       "Successfully peered",
+		}
+
+		// Create volume replication
+		volumeReplication := &datamodel.VolumeReplication{
+			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-uuid"},
+			Name:                        "test_replication",
+			State:                       models.LifeCycleStateAvailable,
+			AccountID:                   1,
+			VolumeID:                    volume.ID,
+			HybridReplicationAttributes: hybridAttrs,
+		}
+		err = store.db.Create(volumeReplication).Error()
+		assert.NoError(tt, err, "Failed to create volume replication")
+
+		// Use a cancelled context to trigger a database error
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel the context immediately
+
+		_, err = store.GetVolumeReplicationCountByPeerName(cancelledCtx, "test_account", "peer-svm-1", "peer-volume-1")
+		assert.Error(tt, err, "Expected error due to cancelled context")
+	})
+
+	t.Run("WhenVolumeReplicationQueryFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create pool
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:           "test_pool",
+			AccountID:      1,
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		// Create volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create hybrid replication attributes
+		hybridAttrs := &datamodel.HybridReplicationAttribute{
+			PeerVolumeName:      "peer-volume-1",
+			PeerSvmName:         "peer-svm-1",
+			Description:         "Test replication",
+			Labels:              map[string]string{"env": "test"},
+			ReplicationSchedule: "hourly",
+			Status:              models.HybridReplicationStatusPeered,
+			StatusDetails:       "Successfully peered",
+		}
+
+		// Create volume replication
+		volumeReplication := &datamodel.VolumeReplication{
+			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-uuid"},
+			Name:                        "test_replication",
+			State:                       models.LifeCycleStateAvailable,
+			AccountID:                   1,
+			VolumeID:                    volume.ID,
+			HybridReplicationAttributes: hybridAttrs,
+		}
+		err = store.db.Create(volumeReplication).Error()
+		assert.NoError(tt, err, "Failed to create volume replication")
+
+		// Get the underlying GORM database connection
+		gormDB := store.db.GORM()
+
+		// Drop the volume_replications table to cause the query to fail
+		// This will allow the account lookup to succeed but cause the volume replication query to fail
+		err = gormDB.Migrator().DropTable(&datamodel.VolumeReplication{})
+		assert.NoError(tt, err, "Failed to drop volume_replications table")
+
+		// Try to get count after dropping the table - this should trigger line 246
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "test_account", "peer-svm-1", "peer-volume-1")
+		assert.Error(tt, err, "Expected error when volume_replications table is dropped")
+		assert.Equal(tt, int64(0), count, "Expected count to be 0 when database error occurs")
 	})
 }

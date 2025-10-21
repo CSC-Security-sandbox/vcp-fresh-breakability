@@ -471,8 +471,12 @@ func (s *PersistenceStore) GetVolumeReplicationCountByVolumeID(ctx context.Conte
 	return s.dataStore.GetVolumeReplicationCountByVolumeID(ctx, volumeID)
 }
 
-func (s *PersistenceStore) ListVolumeReplications(ctx context.Context, filter dbutils.Filter) ([]*datamodel.VolumeReplication, error) {
-	return s.dataStore.ListVolumeReplications(ctx, filter)
+func (s *PersistenceStore) GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
+	return s.dataStore.GetVolumeReplicationCountByPeerName(ctx, accountName, peerSvmName, peerVolumeName)
+}
+
+func (s *PersistenceStore) ListVolumeReplications(ctx context.Context, filter dbutils.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error) {
+	return s.dataStore.ListVolumeReplications(ctx, filter, queryDepth)
 }
 
 func (s *PersistenceStore) ListVolumeReplicationsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.VolumeReplication, error) {
@@ -1245,4 +1249,21 @@ func (s *PersistenceStore) GetActiveDirectoryByNameAndAccountID(ctx context.Cont
 
 func (s *PersistenceStore) CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error) {
 	return s.dataStore.CheckAndFetchDuplicateJobs(ctx, jobType, correlationID)
+}
+
+// Cluster Peering methods
+func (s *PersistenceStore) GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx context.Context, accountID int64, externalCluster string, poolID int64) (*datamodel.ClusterPeerings, error) {
+	return s.dataStore.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, accountID, externalCluster, poolID)
+}
+
+func (s *PersistenceStore) CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error) {
+	return s.dataStore.CreateClusterPeeringRow(ctx, clusterPeeringRow)
+}
+
+func (s *PersistenceStore) UpdateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error {
+	return s.dataStore.UpdateClusterPeeringRow(ctx, clusterPeeringRow)
+}
+
+func (s *PersistenceStore) ListClusterPeeringRowsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.ClusterPeerings, error) {
+	return s.dataStore.ListClusterPeeringRowsByAccountID(ctx, accountID)
 }

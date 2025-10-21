@@ -291,6 +291,7 @@ const (
 	ErrDeletingSVMPeer           = 11005
 	ErrEstablishPeeringJobFailed = 11006
 	ErrInternalPeeringJobFailed  = 11007
+	ErrClusterPeerNotFound       = 11008
 
 	// Backup specific errors (12000-12999 range)
 	ErrImmutableValidationWithUpdatingBackupPolicy = 12001

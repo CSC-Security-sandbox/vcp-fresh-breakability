@@ -2108,7 +2108,7 @@ func TestValidateReplicationParams(t *testing.T) {
 	}
 	t.Run("WhenListVolumeReplicationError", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrDatabaseDataReadError, errors.New("some error"))
 		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 
@@ -2119,7 +2119,7 @@ func TestValidateReplicationParams(t *testing.T) {
 	t.Run("WhenEmptyListVolumeReplication", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		response := []*datamodel.VolumeReplication{}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		expectedError := errors.NewUserInputValidationErr("No replication found for the given URI")
 		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
 		assert.Error(tt, err)
@@ -2142,7 +2142,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				},
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 
 		parseError := errors.New("some error")
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
@@ -2170,7 +2170,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				},
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", nil
 		}
@@ -2203,7 +2203,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				},
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", nil
 		}
@@ -2240,7 +2240,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				},
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", nil
@@ -2281,7 +2281,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				},
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", nil
@@ -2322,7 +2322,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				},
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", nil
@@ -2362,7 +2362,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "123456789", nil
 		}
@@ -2398,7 +2398,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "123456789", nil
 		}
@@ -2437,7 +2437,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "123456789", nil
 		}
@@ -2479,7 +2479,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "123456789", nil
 		}
@@ -2524,7 +2524,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("duplicate job check error"))
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "123456789", nil
@@ -2568,7 +2568,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				UUID: "existing-job-uuid",
@@ -2624,7 +2624,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				UUID: "existing-job-uuid",
@@ -2676,7 +2676,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "123456789", nil
@@ -2723,7 +2723,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
 		}
-		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "123456789", nil

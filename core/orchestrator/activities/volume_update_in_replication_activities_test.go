@@ -36,7 +36,7 @@ func TestGetReplicationFromDBVolume(t *testing.T) {
 			AccountName: "test-project",
 			Region:      "us-central1",
 		}
-		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything).Return(nil, errors.New("test error"))
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("test error"))
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 
 		_, err := activity.GetReplicationFromDBVolume(ctx, volume, event, params)
@@ -59,7 +59,7 @@ func TestGetReplicationFromDBVolume(t *testing.T) {
 		}
 		dbRepl := []*datamodel.VolumeReplication{}
 		expectedError := utilErrors.NewNonRetryableErr("no replication found for the volume")
-		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything).Return(dbRepl, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return(dbRepl, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 
 		_, err := activity.GetReplicationFromDBVolume(ctx, volume, event, params)
@@ -90,7 +90,7 @@ func TestGetReplicationFromDBVolume(t *testing.T) {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 		expectedError := vcpError.NewVCPError(vcpError.ErrProjectParsingError, errors.New("test error"))
-		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything).Return(dbRepl, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return(dbRepl, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 
 		_, err := activity.GetReplicationFromDBVolume(ctx, volume, event, params)
@@ -134,7 +134,7 @@ func TestGetReplicationFromDBVolume(t *testing.T) {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 			InternalParseRegionAndZone = utils.ParseRegionAndZone
 		}()
-		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything).Return(dbRepl, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return(dbRepl, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 
 		_, err := activity.GetReplicationFromDBVolume(ctx, volume, event, params)
@@ -184,7 +184,7 @@ func TestGetReplicationFromDBVolume(t *testing.T) {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 			InternalParseRegionAndZone = utils.ParseRegionAndZone
 		}()
-		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything).Return(dbRepl, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return(dbRepl, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 
 		_, err := activity.GetReplicationFromDBVolume(ctx, volume, event, params)
@@ -230,7 +230,7 @@ func TestGetReplicationFromDBVolume(t *testing.T) {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 			InternalParseRegionAndZone = utils.ParseRegionAndZone
 		}()
-		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything).Return(dbRepl, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return(dbRepl, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 
 		_, err := activity.GetReplicationFromDBVolume(ctx, volume, event, params)
@@ -276,7 +276,7 @@ func TestGetReplicationFromDBVolume(t *testing.T) {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 			InternalParseRegionAndZone = utils.ParseRegionAndZone
 		}()
-		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything).Return(dbRepl, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return(dbRepl, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 
 		_, err := activity.GetReplicationFromDBVolume(ctx, volume, event, params)

@@ -33,7 +33,7 @@ func (a *UpdateVolumeInReplicationActivity) GetReplicationFromDBVolume(ctx conte
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("volume_id", "=", dbVolume.ID))
 
-	dbReplication, err := se.ListVolumeReplications(ctx, *filter)
+	dbReplication, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthZero)
 	if err != nil {
 		logger.Error("Failed to list volume replications", "error", err)
 		return nil, err

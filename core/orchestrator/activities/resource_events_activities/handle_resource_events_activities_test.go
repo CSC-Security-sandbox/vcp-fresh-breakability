@@ -1491,7 +1491,7 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 			dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
 			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
 
-		mockSE.On("ListVolumeReplications", ctx, *filter).Return([]*datamodel.VolumeReplication{volumeReplication}, nil)
+		mockSE.On("ListVolumeReplications", ctx, *filter, 0).Return([]*datamodel.VolumeReplication{volumeReplication}, nil)
 		mockSE.On("DeleteVolumeReplication", ctx, volumeReplication).Return(volumeReplication, nil)
 
 		err := activity.DeleteReplicationsForVolume(ctx, volume)
@@ -1517,7 +1517,7 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 			dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
 			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
 
-		mockSE.On("ListVolumeReplications", ctx, *filter).Return(nil, errors.New("listing failed"))
+		mockSE.On("ListVolumeReplications", ctx, *filter, 0).Return(nil, errors.New("listing failed"))
 
 		err := activity.DeleteReplicationsForVolume(ctx, volume)
 		assert.NotNil(tt, err)
@@ -1553,7 +1553,7 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 			dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
 			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
 
-		mockSE.On("ListVolumeReplications", ctx, *filter).Return([]*datamodel.VolumeReplication{volumeReplication}, nil)
+		mockSE.On("ListVolumeReplications", ctx, *filter, 0).Return([]*datamodel.VolumeReplication{volumeReplication}, nil)
 		mockSE.On("DeleteVolumeReplication", ctx, volumeReplication).Return(nil, errors.New("deletion failed"))
 
 		err := activity.DeleteReplicationsForVolume(ctx, volume)
@@ -1730,7 +1730,7 @@ func Test_HandleBackupPolicyResourceEvent(t *testing.T) {
 			ResourceType:  common.ResourceStateV1ResourceTypeBackupPolicy,
 			ResourceId:    "test-backup-policy-id",
 			ProjectNumber: "test-project-number",
-			}
+		}
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
 		backupPolicy := &datamodel.BackupPolicy{
@@ -1951,7 +1951,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		}
 
 		mockAccount := &datamodel.Account{
-			BaseModel:     datamodel.BaseModel{ID: 123},
+			BaseModel: datamodel.BaseModel{ID: 123},
 		}
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
@@ -1983,7 +1983,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		}
 
 		mockAccount := &datamodel.Account{
-			BaseModel:     datamodel.BaseModel{ID: 123},
+			BaseModel: datamodel.BaseModel{ID: 123},
 		}
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
@@ -2015,7 +2015,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		}
 
 		mockAccount := &datamodel.Account{
-			BaseModel:     datamodel.BaseModel{ID: 123},
+			BaseModel: datamodel.BaseModel{ID: 123},
 		}
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
@@ -2070,7 +2070,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		}
 
 		mockAccount := &datamodel.Account{
-			BaseModel:     datamodel.BaseModel{ID: 123},
+			BaseModel: datamodel.BaseModel{ID: 123},
 		}
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:     datamodel.BaseModel{UUID: "test-backup-policy-id"},
@@ -2090,12 +2090,12 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 func Test_HTTPStatusConstants_HandleResourceEvent(t *testing.T) {
 	// Verify that constants from common package are used correctly
 	testCases := []struct {
-		name           string
-		statusCode     int32
+		name             string
+		statusCode       int32
 		expectedConstant int
 	}{
 		{"BadRequest", 400, common.HTTPStatusBadRequest},
-		{"Unauthorized", 401, common.HTTPStatusUnauthorized}, 
+		{"Unauthorized", 401, common.HTTPStatusUnauthorized},
 		{"Forbidden", 403, common.HTTPStatusForbidden},
 		{"NotFound", 404, common.HTTPStatusNotFound},
 		{"TooManyRequests", 429, common.HTTPStatusTooManyRequests},
@@ -2104,7 +2104,7 @@ func Test_HTTPStatusConstants_HandleResourceEvent(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			assert.Equal(tt, int(tc.statusCode), tc.expectedConstant, 
+			assert.Equal(tt, int(tc.statusCode), tc.expectedConstant,
 				"Constant value should match HTTP status code")
 		})
 	}
@@ -2872,7 +2872,7 @@ func Test_HandleSnapshot_ErrorCoverage(t *testing.T) {
 	})
 }
 
-// Test coverage for handleVolume error paths  
+// Test coverage for handleVolume error paths
 func Test_HandleVolume_ErrorCoverage(t *testing.T) {
 	t.Run("HandleVolume_NotFoundError", func(tt *testing.T) {
 		ctx := context.Background()

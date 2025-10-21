@@ -75,7 +75,7 @@ func TestGetReplicationsFromDB(t *testing.T) {
 		expectedError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, errors.New("Difficult to see; always in motion is the future."))
 
 		mockStorage.On("GetAccount", ctx, "deathstar").Return(account, nil)
-		mockStorage.On("ListVolumeReplications", ctx, *filter).Return(nil, errors.New("Difficult to see; always in motion is the future."))
+		mockStorage.On("ListVolumeReplications", ctx, *filter, 0).Return(nil, errors.New("Difficult to see; always in motion is the future."))
 		_, err := activity.GetReplicationsFromDB(ctx, params)
 
 		assert.Error(t, err)
@@ -112,7 +112,7 @@ func TestGetReplicationsFromDB(t *testing.T) {
 		expectedError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("replication", nil))
 
 		mockStorage.On("GetAccount", ctx, "deathstar").Return(account, nil)
-		mockStorage.On("ListVolumeReplications", ctx, *filter).Return(expectedResp, nil)
+		mockStorage.On("ListVolumeReplications", ctx, *filter, 0).Return(expectedResp, nil)
 		_, err := activity.GetReplicationsFromDB(ctx, params)
 
 		assert.Error(t, err)
@@ -168,7 +168,7 @@ func TestGetReplicationsFromDB(t *testing.T) {
 			utils.NewFilterCondition("uuid", "in", params.ReplicationUUIDs))
 
 		mockStorage.On("GetAccount", ctx, "deathstar").Return(account, nil)
-		mockStorage.On("ListVolumeReplications", ctx, *filter).Return(expectedResp, nil)
+		mockStorage.On("ListVolumeReplications", ctx, *filter, 0).Return(expectedResp, nil)
 
 		resp, err := activity.GetReplicationsFromDB(ctx, params)
 

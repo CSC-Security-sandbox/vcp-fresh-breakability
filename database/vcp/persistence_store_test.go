@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -1305,7 +1306,7 @@ func TestListVolumeReplications_Persistence_Store(t *testing.T) {
 		dbutils.NewFilterCondition("account_id", "=", replication.AccountID))
 
 	// List volume replications
-	reps, err := store.ListVolumeReplications(ctx, *filter)
+	reps, err := store.ListVolumeReplications(ctx, *filter, 0)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, reps)
 	assert.Equal(t, created.Name, reps[0].Name)
@@ -2782,4 +2783,1103 @@ func TestPersistenceStore_UpdateBackupMetadata_NotFound(t *testing.T) {
 	result, err := store.UpdateBackupMetadata(ctx, backupMetadata)
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func TestPersistenceStore_GetClusterPeerByAccountIDExternalClusterAndPoolID(t *testing.T) {
+	t.Run("WhenClusterPeerExists", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		assert.NotNil(tt, createdPool, "Created pool should not be nil")
+		pool = createdPool
+
+		// Create test cluster peering row
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-cluster-peer-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "test-cluster",
+			OntapPeerUUID:  "test-ontap-peer-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		createdRow, err := store.CreateClusterPeeringRow(ctx, clusterPeeringRow)
+		assert.NoError(tt, err, "Failed to create cluster peering row")
+
+		// Test getting the cluster peer
+		result, err := store.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, account.ID, "test-cluster", pool.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, result, "Expected result to not be nil")
+		assert.Equal(tt, createdRow.ID, result.ID, "Expected cluster peer ID %v, got %v", createdRow.ID, result.ID)
+		assert.Equal(tt, "test-cluster", result.OnprempCluster, "Expected onprem cluster %v, got %v", "test-cluster", result.OnprempCluster)
+		assert.Equal(tt, account.ID, result.AccountID, "Expected account ID %v, got %v", account.ID, result.AccountID)
+		assert.Equal(tt, pool.ID, result.PoolID, "Expected pool ID %v, got %v", pool.ID, result.PoolID)
+	})
+
+	t.Run("WhenClusterPeerDoesNotExist", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Try to get non-existent cluster peer
+		result, err := store.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, 999, "non-existent-cluster", 999)
+		assert.Error(tt, err, "Expected error for non-existent cluster peer")
+		assert.Nil(tt, result, "Expected result to be nil")
+
+		// Verify it's a not found error
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrClusterPeerNotFound, customErr.TrackingID, "Expected cluster peer not found error")
+		}
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(context.Background(), account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(context.Background(), pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		pool = createdPool
+
+		// Use a cancelled context to trigger a database error
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel the context immediately
+
+		result, err := store.GetClusterPeerByAccountIDExternalClusterAndPoolID(cancelledCtx, account.ID, "test-cluster", pool.ID)
+		assert.Error(tt, err, "Expected error due to cancelled context")
+		assert.Nil(tt, result, "Expected result to be nil")
+	})
+}
+
+func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
+	t.Run("WhenClusterPeeringRowIsUpdatedSuccessfully", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		assert.NotNil(tt, createdPool, "Created pool should not be nil")
+		pool = createdPool
+
+		// Create initial cluster peering row
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-cluster-peer-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusCREATING,
+			StateDetails:   "Creating cluster peer",
+			OnprempCluster: "test-cluster",
+			OntapPeerUUID:  "test-ontap-peer-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		createdRow, err := store.CreateClusterPeeringRow(ctx, clusterPeeringRow)
+		assert.NoError(tt, err, "Failed to create cluster peering row")
+		assert.NotNil(tt, createdRow, "Created cluster peering row should not be nil")
+
+		// Update the cluster peering row
+		createdRow.State = models.CvpClusterPeeringStatusPEERED
+		createdRow.StateDetails = "Successfully peered"
+		createdRow.OntapPeerUUID = "updated-ontap-peer-uuid"
+
+		err = store.UpdateClusterPeeringRow(ctx, createdRow)
+		assert.NoError(tt, err, "Expected no error when updating cluster peering row")
+
+		// Verify the update by retrieving the updated row
+		updatedRow, err := store.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, account.ID, "test-cluster", pool.ID)
+		assert.NoError(tt, err, "Failed to retrieve updated cluster peering row")
+		assert.NotNil(tt, updatedRow, "Updated cluster peering row should not be nil")
+		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, updatedRow.State, "Expected state to be PEERED")
+		assert.Equal(tt, "Successfully peered", updatedRow.StateDetails, "Expected state details to be updated")
+		assert.Equal(tt, "updated-ontap-peer-uuid", updatedRow.OntapPeerUUID, "Expected OntapPeerUUID to be updated")
+		assert.Equal(tt, createdRow.ID, updatedRow.ID, "Expected ID to remain the same")
+	})
+
+	t.Run("WhenClusterPeeringRowDoesNotExist", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Try to update a non-existent cluster peering row
+		nonExistentRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   999,
+				UUID: "non-existent-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Updated",
+			OnprempCluster: "non-existent-cluster",
+			OntapPeerUUID:  "non-existent-ontap-uuid",
+			AccountID:      999,
+			PoolID:         999,
+		}
+
+		err = store.UpdateClusterPeeringRow(ctx, nonExistentRow)
+		assert.NoError(tt, err, "UpdateClusterPeeringRow should not return error even for non-existent rows (GORM Save creates if not exists)")
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(context.Background(), account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(context.Background(), pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		pool = createdPool
+
+		// Create initial cluster peering row
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-cluster-peer-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusCREATING,
+			StateDetails:   "Creating cluster peer",
+			OnprempCluster: "test-cluster",
+			OntapPeerUUID:  "test-ontap-peer-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		createdRow, err := store.CreateClusterPeeringRow(context.Background(), clusterPeeringRow)
+		assert.NoError(tt, err, "Failed to create cluster peering row")
+		createdRow.State = models.CvpClusterPeeringStatusPEERED
+
+		// Use a cancelled context to trigger a database error
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel the context immediately
+
+		err = store.UpdateClusterPeeringRow(cancelledCtx, createdRow)
+		assert.Error(tt, err, "Expected error due to cancelled context")
+	})
+
+	t.Run("WhenUpdatingMultipleFields", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		pool = createdPool
+
+		// Create initial cluster peering row
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-cluster-peer-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusCREATING,
+			StateDetails:   "Initial state",
+			OnprempCluster: "test-cluster",
+			OntapPeerUUID:  "initial-ontap-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		createdRow, err := store.CreateClusterPeeringRow(ctx, clusterPeeringRow)
+		assert.NoError(tt, err, "Failed to create cluster peering row")
+
+		// Update multiple fields
+		createdRow.State = models.CvpClusterPeeringStatusPEERED
+		createdRow.StateDetails = "Updated multiple fields"
+		createdRow.OntapPeerUUID = "updated-multiple-ontap-uuid"
+		createdRow.OnprempCluster = "updated-cluster"
+
+		err = store.UpdateClusterPeeringRow(ctx, createdRow)
+		assert.NoError(tt, err, "Expected no error when updating multiple fields")
+
+		// Verify all fields were updated
+		updatedRow, err := store.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, account.ID, "updated-cluster", pool.ID)
+		assert.NoError(tt, err, "Failed to retrieve updated cluster peering row")
+		assert.NotNil(tt, updatedRow, "Updated cluster peering row should not be nil")
+		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, updatedRow.State, "Expected state to be PEERED")
+		assert.Equal(tt, "Updated multiple fields", updatedRow.StateDetails, "Expected state details to be updated")
+		assert.Equal(tt, "updated-multiple-ontap-uuid", updatedRow.OntapPeerUUID, "Expected OntapPeerUUID to be updated")
+		assert.Equal(tt, "updated-cluster", updatedRow.OnprempCluster, "Expected OnprempCluster to be updated")
+	})
+}
+
+func TestPersistenceStore_ListClusterPeeringRowsByAccountID(t *testing.T) {
+	t.Run("WhenAccountHasMultipleClusterPeeringRows", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		assert.NotNil(tt, createdPool, "Created pool should not be nil")
+		pool = createdPool
+
+		// Create multiple cluster peering rows for the same account
+		clusterPeeringRow1 := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-cluster-peer-uuid-1",
+			},
+			State:          models.CvpClusterPeeringStatusCREATING,
+			StateDetails:   "Creating cluster peer 1",
+			OnprempCluster: "test-cluster-1",
+			OntapPeerUUID:  "test-ontap-peer-uuid-1",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		createdRow1, err := store.CreateClusterPeeringRow(ctx, clusterPeeringRow1)
+		assert.NoError(tt, err, "Failed to create cluster peering row 1")
+		assert.NotNil(tt, createdRow1, "Created cluster peering row 1 should not be nil")
+
+		clusterPeeringRow2 := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-cluster-peer-uuid-2",
+			},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered cluster 2",
+			OnprempCluster: "test-cluster-2",
+			OntapPeerUUID:  "test-ontap-peer-uuid-2",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		createdRow2, err := store.CreateClusterPeeringRow(ctx, clusterPeeringRow2)
+		assert.NoError(tt, err, "Failed to create cluster peering row 2")
+		assert.NotNil(tt, createdRow2, "Created cluster peering row 2 should not be nil")
+
+		clusterPeeringRow3 := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-cluster-peer-uuid-3",
+			},
+			State:          models.CvpClusterPeeringStatusERROR,
+			StateDetails:   "Error peering cluster 3",
+			OnprempCluster: "test-cluster-3",
+			OntapPeerUUID:  "test-ontap-peer-uuid-3",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		createdRow3, err := store.CreateClusterPeeringRow(ctx, clusterPeeringRow3)
+		assert.NoError(tt, err, "Failed to create cluster peering row 3")
+		assert.NotNil(tt, createdRow3, "Created cluster peering row 3 should not be nil")
+
+		// List all cluster peering rows for the account
+		results, err := store.ListClusterPeeringRowsByAccountID(ctx, account.ID)
+		assert.NoError(tt, err, "Expected no error when listing cluster peering rows")
+		assert.NotNil(tt, results, "Results should not be nil")
+		assert.Len(tt, results, 3, "Expected 3 cluster peering rows")
+
+		// Verify all rows are returned
+		clusterNames := make(map[string]bool)
+		for _, row := range results {
+			assert.Equal(tt, account.ID, row.AccountID, "Expected account ID to match")
+			assert.Equal(tt, pool.ID, row.PoolID, "Expected pool ID to match")
+			clusterNames[row.OnprempCluster] = true
+		}
+
+		assert.True(tt, clusterNames["test-cluster-1"], "Expected cluster 1 to be in results")
+		assert.True(tt, clusterNames["test-cluster-2"], "Expected cluster 2 to be in results")
+		assert.True(tt, clusterNames["test-cluster-3"], "Expected cluster 3 to be in results")
+	})
+
+	t.Run("WhenAccountHasNoClusterPeeringRows", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// List cluster peering rows for account with no rows
+		results, err := store.ListClusterPeeringRowsByAccountID(ctx, account.ID)
+		assert.NoError(tt, err, "Expected no error when listing cluster peering rows for empty account")
+		assert.NotNil(tt, results, "Results should not be nil")
+		assert.Len(tt, results, 0, "Expected 0 cluster peering rows")
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Try to list cluster peering rows for non-existent account
+		results, err := store.ListClusterPeeringRowsByAccountID(ctx, 999)
+		assert.NoError(tt, err, "Expected no error when listing cluster peering rows for non-existent account")
+		assert.NotNil(tt, results, "Results should not be nil")
+		assert.Len(tt, results, 0, "Expected 0 cluster peering rows for non-existent account")
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(context.Background(), account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Use a cancelled context to trigger a database error
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel the context immediately
+
+		results, err := store.ListClusterPeeringRowsByAccountID(cancelledCtx, account.ID)
+		assert.Error(tt, err, "Expected error due to cancelled context")
+		assert.Nil(tt, results, "Expected results to be nil")
+	})
+
+	t.Run("WhenAccountHasMixedStates", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		pool = createdPool
+
+		// Create cluster peering rows with different states
+		states := []models.ClusterPeeringStatus{
+			models.CvpClusterPeeringStatusCREATING,
+			models.CvpClusterPeeringStatusPEERED,
+			models.CvpClusterPeeringStatusERROR,
+			models.CvpClusterPeeringStatusDELETED,
+		}
+
+		for i, state := range states {
+			clusterPeeringRow := &datamodel.ClusterPeerings{
+				BaseModel: datamodel.BaseModel{
+					UUID: fmt.Sprintf("test-cluster-peer-uuid-%d", i+1),
+				},
+				State:          state,
+				StateDetails:   fmt.Sprintf("State details for %s", state),
+				OnprempCluster: fmt.Sprintf("test-cluster-%d", i+1),
+				OntapPeerUUID:  fmt.Sprintf("test-ontap-peer-uuid-%d", i+1),
+				AccountID:      account.ID,
+				PoolID:         pool.ID,
+			}
+			createdRow, err := store.CreateClusterPeeringRow(ctx, clusterPeeringRow)
+			assert.NoError(tt, err, "Failed to create cluster peering row %d", i+1)
+			assert.NotNil(tt, createdRow, "Created cluster peering row %d should not be nil", i+1)
+		}
+
+		// List all cluster peering rows for the account
+		results, err := store.ListClusterPeeringRowsByAccountID(ctx, account.ID)
+		assert.NoError(tt, err, "Expected no error when listing cluster peering rows")
+		assert.NotNil(tt, results, "Results should not be nil")
+		assert.Len(tt, results, 4, "Expected 4 cluster peering rows")
+
+		// Verify all states are present
+		foundStates := make(map[models.ClusterPeeringStatus]bool)
+		for _, row := range results {
+			assert.Equal(tt, account.ID, row.AccountID, "Expected account ID to match")
+			assert.Equal(tt, pool.ID, row.PoolID, "Expected pool ID to match")
+			foundStates[row.State] = true
+		}
+
+		for _, state := range states {
+			assert.True(tt, foundStates[state], "Expected state %s to be in results", state)
+		}
+	})
+}
+
+func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
+	t.Run("WhenVolumeReplicationsExistWithMatchingPeerName", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		assert.NotNil(tt, createdPool, "Created pool should not be nil")
+		pool = createdPool
+
+		// Create test volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Account:   &datamodel.Account{},
+		}
+		createdVolume, err := store.CreateVolume(ctx, volume)
+		assert.NoError(tt, err, "Failed to create volume")
+		assert.NotNil(tt, createdVolume, "Created volume should not be nil")
+		volume = createdVolume
+
+		// Create additional volumes for different replications
+		volume2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid-2",
+			},
+			Name:      "test_volume_2",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Account:   &datamodel.Account{},
+		}
+		createdVolume2, err := store.CreateVolume(ctx, volume2)
+		assert.NoError(tt, err, "Failed to create volume 2")
+		assert.NotNil(tt, createdVolume2, "Created volume 2 should not be nil")
+		volume2 = createdVolume2
+
+		volume3 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid-3",
+			},
+			Name:      "test_volume_3",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Account:   &datamodel.Account{},
+		}
+		createdVolume3, err := store.CreateVolume(ctx, volume3)
+		assert.NoError(tt, err, "Failed to create volume 3")
+		assert.NotNil(tt, createdVolume3, "Created volume 3 should not be nil")
+		volume3 = createdVolume3
+
+		// Create volume replications with matching peer names
+		peerSvmName := "test-peer-svm"
+		peerVolumeName := "test-peer-volume"
+
+		// Create first volume replication
+		volumeReplication1 := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-replication-uuid-1",
+			},
+			Name:      "test_volume_replication_1",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "dst",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    peerSvmName,
+				PeerVolumeName: peerVolumeName,
+				Description:    "Test replication 1",
+				Status:         models.HybridReplicationStatusPeered,
+				StatusDetails:  "Active replication",
+			},
+		}
+		createdReplication1, err := store.CreateVolumeReplication(ctx, volumeReplication1)
+		assert.NoError(tt, err, "Failed to create volume replication 1")
+		assert.NotNil(tt, createdReplication1, "Created volume replication 1 should not be nil")
+
+		// Create second volume replication with same peer names
+		volumeReplication2 := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-replication-uuid-2",
+			},
+			Name:      "test_volume_replication_2",
+			AccountID: account.ID,
+			VolumeID:  volume2.ID,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "dst",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    peerSvmName,
+				PeerVolumeName: peerVolumeName,
+				Description:    "Test replication 2",
+				Status:         models.HybridReplicationStatusPeered,
+				StatusDetails:  "Active replication",
+			},
+		}
+		createdReplication2, err := store.CreateVolumeReplication(ctx, volumeReplication2)
+		assert.NoError(tt, err, "Failed to create volume replication 2")
+		assert.NotNil(tt, createdReplication2, "Created volume replication 2 should not be nil")
+
+		// Create third volume replication with different peer names
+		volumeReplication3 := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-replication-uuid-3",
+			},
+			Name:      "test_volume_replication_3",
+			AccountID: account.ID,
+			VolumeID:  volume3.ID,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "dst",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    "different-peer-svm",
+				PeerVolumeName: "different-peer-volume",
+				Description:    "Test replication 3",
+				Status:         models.HybridReplicationStatusPeered,
+				StatusDetails:  "Active replication",
+			},
+		}
+		createdReplication3, err := store.CreateVolumeReplication(ctx, volumeReplication3)
+		assert.NoError(tt, err, "Failed to create volume replication 3")
+		assert.NotNil(tt, createdReplication3, "Created volume replication 3 should not be nil")
+
+		// Get count for matching peer names
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, peerSvmName, peerVolumeName)
+		assert.NoError(tt, err, "Expected no error when getting volume replication count")
+		assert.Equal(tt, int64(2), count, "Expected count to be 2 for matching peer names")
+
+		// Get count for non-matching peer names
+		count, err = store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "different-peer-svm", "different-peer-volume")
+		assert.NoError(tt, err, "Expected no error when getting volume replication count")
+		assert.Equal(tt, int64(1), count, "Expected count to be 1 for different peer names")
+	})
+
+	t.Run("WhenNoVolumeReplicationsExist", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Get count for non-existent peer names
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "non-existent-svm", "non-existent-volume")
+		assert.NoError(tt, err, "Expected no error when getting volume replication count for non-existent peer names")
+		assert.Equal(tt, int64(0), count, "Expected count to be 0 for non-existent peer names")
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Try to get count for non-existent account
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "non-existent-account", "test-svm", "test-volume")
+		assert.Error(tt, err, "Expected error when getting count for non-existent account")
+		assert.Equal(tt, int64(0), count, "Expected count to be 0 for non-existent account")
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(context.Background(), account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Use a cancelled context to trigger a database error
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel the context immediately
+
+		count, err := store.GetVolumeReplicationCountByPeerName(cancelledCtx, account.Name, "test-svm", "test-volume")
+		assert.Error(tt, err, "Expected error due to cancelled context")
+		assert.Equal(tt, int64(0), count, "Expected count to be 0 when error occurs")
+	})
+
+	t.Run("WhenVolumeReplicationsHaveDifferentPeerNames", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		pool = createdPool
+
+		// Create test volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Account:   &datamodel.Account{},
+		}
+		createdVolume, err := store.CreateVolume(ctx, volume)
+		assert.NoError(tt, err, "Failed to create volume")
+		volume = createdVolume
+
+		// Create additional volumes for different replications
+		volume2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid-2",
+			},
+			Name:      "test_volume_2",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Account:   &datamodel.Account{},
+		}
+		createdVolume2, err := store.CreateVolume(ctx, volume2)
+		assert.NoError(tt, err, "Failed to create volume 2")
+		assert.NotNil(tt, createdVolume2, "Created volume 2 should not be nil")
+		volume2 = createdVolume2
+
+		volume3 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid-3",
+			},
+			Name:      "test_volume_3",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Account:   &datamodel.Account{},
+		}
+		createdVolume3, err := store.CreateVolume(ctx, volume3)
+		assert.NoError(tt, err, "Failed to create volume 3")
+		assert.NotNil(tt, createdVolume3, "Created volume 3 should not be nil")
+		volume3 = createdVolume3
+
+		// Create volume replications with different peer names
+		peerNames := []struct {
+			svmName    string
+			volumeName string
+			volume     *datamodel.Volume
+		}{
+			{"svm1", "volume1", volume},
+			{"svm2", "volume2", volume2},
+			{"svm3", "volume3", volume3},
+		}
+
+		for i, peerName := range peerNames {
+			volumeReplication := &datamodel.VolumeReplication{
+				BaseModel: datamodel.BaseModel{
+					UUID: fmt.Sprintf("test-volume-replication-uuid-%d", i+1),
+				},
+				Name:      fmt.Sprintf("test_volume_replication_%d", i+1),
+				AccountID: account.ID,
+				VolumeID:  peerName.volume.ID,
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "dst",
+				},
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					PeerSvmName:    peerName.svmName,
+					PeerVolumeName: peerName.volumeName,
+					Description:    fmt.Sprintf("Test replication %d", i+1),
+					Status:         models.HybridReplicationStatusPeered,
+					StatusDetails:  "Active replication",
+				},
+			}
+			createdReplication, err := store.CreateVolumeReplication(ctx, volumeReplication)
+			assert.NoError(tt, err, "Failed to create volume replication %d", i+1)
+			assert.NotNil(tt, createdReplication, "Created volume replication %d should not be nil", i+1)
+		}
+
+		// Test each peer name individually
+		for i, peerName := range peerNames {
+			count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, peerName.svmName, peerName.volumeName)
+			assert.NoError(tt, err, "Expected no error when getting count for peer %d", i+1)
+			assert.Equal(tt, int64(1), count, "Expected count to be 1 for peer %d", i+1)
+		}
+
+		// Test non-existent peer name
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "non-existent-svm", "non-existent-volume")
+		assert.NoError(tt, err, "Expected no error when getting count for non-existent peer")
+		assert.Equal(tt, int64(0), count, "Expected count to be 0 for non-existent peer")
+	})
+
+	t.Run("WhenDatabaseQueryFails", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "test-deployment",
+			VendorID:       "test-vendor-id",
+			Account:        &datamodel.Account{},
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		assert.NoError(tt, err, "Failed to create pool")
+		pool = createdPool
+
+		// Create test volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Account:   &datamodel.Account{},
+		}
+		createdVolume, err := store.CreateVolume(ctx, volume)
+		assert.NoError(tt, err, "Failed to create volume")
+		volume = createdVolume
+
+		// Create volume replication
+		volumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-replication-uuid",
+			},
+			Name:      "test_volume_replication",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "dst",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    "test-peer-svm",
+				PeerVolumeName: "test-peer-volume",
+				Description:    "Test replication",
+				Status:         models.HybridReplicationStatusPeered,
+				StatusDetails:  "Active replication",
+			},
+		}
+		createdReplication, err := store.CreateVolumeReplication(ctx, volumeReplication)
+		assert.NoError(tt, err, "Failed to create volume replication")
+		assert.NotNil(tt, createdReplication, "Created volume replication should not be nil")
+
+		// Close the store to simulate database connection failure
+		err = store.Close()
+		assert.NoError(tt, err, "Failed to close store")
+
+		// Try to get count after closing the store - this should trigger line 246
+		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "test-peer-svm", "test-peer-volume")
+		assert.Error(tt, err, "Expected error when database connection is closed")
+		assert.Equal(tt, int64(0), count, "Expected count to be 0 when database error occurs")
+	})
 }

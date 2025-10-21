@@ -779,7 +779,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			AccountName: "test-account",
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(nil, errors.New("failed to list replications"))
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(nil, errors.New("failed to list replications"))
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.NotNil(tt, err)
@@ -802,7 +802,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			AccountName: "test-account",
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
 
 		replications, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -853,7 +853,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		}
 		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorCurrentRegion, &expCustErr)
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		res, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Empty(tt, res)
@@ -904,7 +904,7 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorDestinationRegion, errors.New("SomeError"))
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		res, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Empty(tt, res)
@@ -955,7 +955,7 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorSourceRegion, errors.New("SomeError"))
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		res, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Empty(tt, res)
@@ -1005,7 +1005,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		expError := errors.New("failed to get replication objects")
 
@@ -1094,7 +1094,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		res, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -1171,7 +1171,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -1247,7 +1247,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -1333,7 +1333,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -1412,7 +1412,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -1480,7 +1480,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -1548,7 +1548,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -1612,7 +1612,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
@@ -1640,7 +1640,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		mm.On("utilParseAndValidateRegionAndZone", "us-west1-a").Return("us-west1", "us-west1-a", (*gcpserver.Error)(nil)).Once()
 
 		// Mock successful replication list with a replication where remote region is a zone
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 			{
 				Name: "test-replication",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -1696,7 +1696,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		mm.On("utilParseAndValidateRegionAndZone", "us-west1-a").Return("us-west1", "us-west1-a", (*gcpserver.Error)(nil)).Once()
 
 		// Mock successful replication list with a replication where remote region matches current location
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 			{
 				Name: "test-replication",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -1752,7 +1752,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		mm.On("utilParseAndValidateRegionAndZone", "us-west1").Return("us-west1", "", (*gcpserver.Error)(nil)).Once()
 
 		// Mock successful replication list with a replication where both locations are regions
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 			{
 				Name: "test-replication",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -1808,7 +1808,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		mm.On("utilParseAndValidateRegionAndZone", "us-west1").Return("us-west1", "", (*gcpserver.Error)(nil)).Once()
 
 		// Mock successful replication list with a replication where both locations are regions
-		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return([]*datamodel.VolumeReplication{
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 			{
 				Name: "test-replication",
 				ReplicationAttributes: &datamodel.ReplicationDetails{

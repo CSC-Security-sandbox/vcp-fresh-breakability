@@ -472,7 +472,7 @@ func (a *ResourceEventsActivity) DeleteReplicationsForVolume(ctx context.Context
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
 		dbutils.NewFilterCondition("volume_id", "=", volume.ID))
-	replications, err := se.ListVolumeReplications(ctx, *filter)
+	replications, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthZero)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

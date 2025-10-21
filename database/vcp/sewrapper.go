@@ -1162,6 +1162,26 @@ func (re *retryEngine) GetVolumeReplicationCount(ctx context.Context, accountNam
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeReplicationCountByPeerName(ctx, accountName, peerSvmName, peerVolumeName)
+		if err != nil {
+			re.logError("GetVolumeReplicationCountByPeerName", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1182,11 +1202,11 @@ func (re *retryEngine) GetVolumeReplicationCountByVolumeID(ctx context.Context, 
 	return var0, err
 }
 
-func (re *retryEngine) ListVolumeReplications(ctx context.Context, filter dbutils.Filter) ([]*datamodel.VolumeReplication, error) {
+func (re *retryEngine) ListVolumeReplications(ctx context.Context, filter dbutils.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error) {
 	var var0 []*datamodel.VolumeReplication
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.ListVolumeReplications(ctx, filter)
+		var0, err = re.dataStore.ListVolumeReplications(ctx, filter, queryDepth)
 		if err != nil {
 			re.logError("ListVolumeReplications", err)
 			if !dbutils.IsTransientErr(err) {
@@ -4458,6 +4478,85 @@ func (re *retryEngine) GetActiveDirectoryByNameAndAccountID(ctx context.Context,
 		var0, err = re.dataStore.GetActiveDirectoryByNameAndAccountID(ctx, name, accountID)
 		if err != nil {
 			re.logError("GetActiveDirectoryByNameAndAccountID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx context.Context, accountID int64, onPrempCluster string, poolID int64) (*datamodel.ClusterPeerings, error) {
+	var var0 *datamodel.ClusterPeerings
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, accountID, onPrempCluster, poolID)
+		if err != nil {
+			re.logError("GetClusterPeerByAccountIDExternalClusterAndPoolID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error) {
+	var var0 *datamodel.ClusterPeerings
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateClusterPeeringRow(ctx, clusterPeeringRow)
+		if err != nil {
+			re.logError("CreateClusterPeeringRow", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateClusterPeeringRow(ctx, clusterPeeringRow)
+		if err != nil {
+			re.logError("UpdateClusterPeeringRow", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) ListClusterPeeringRowsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.ClusterPeerings, error) {
+	var var0 []*datamodel.ClusterPeerings
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListClusterPeeringRowsByAccountID(ctx, accountID)
+		if err != nil {
+			re.logError("ListClusterPeeringRowsByAccountID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

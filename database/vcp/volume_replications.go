@@ -22,6 +22,8 @@ var (
 const (
 	VolumeReplicationEndpointTypeDestination = "dst"
 	VolumeReplicationEndpointTypeSource      = "src"
+	QueryDepthZero                           = 0
+	QueryDepthOne                            = 1
 )
 
 // CreateVolumeReplication creates a new replication in the database
@@ -130,9 +132,10 @@ func (d *DataStoreRepository) UpdateVolumeReplication(ctx context.Context, volum
 	dbReplication.LastTransferEndTime = volumeRep.LastTransferEndTime
 	dbReplication.ProgressLastUpdated = volumeRep.ProgressLastUpdated
 	dbReplication.Description = volumeRep.Description
-
+	dbReplication.HybridReplicationAttributes = volumeRep.HybridReplicationAttributes
 	dbReplication.LagTime = volumeRep.LagTime
 	dbReplication.LastUpdatedFromOntap = volumeRep.LastUpdatedFromOntap
+	dbReplication.ClusterPeerId = volumeRep.ClusterPeerId
 	err = tx.Updates(dbReplication).Error
 	if err != nil {
 		return err
@@ -233,6 +236,20 @@ func (d *DataStoreRepository) GetVolumeReplicationCount(ctx context.Context, acc
 	return count, nil
 }
 
+func (d *DataStoreRepository) GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
+	var count int64
+	account, err := d.GetAccount(ctx, accountName)
+	if err != nil {
+		return 0, err
+	}
+	err = d.db.GORM().WithContext(ctx).Model(&datamodel.VolumeReplication{}).Where("account_id = ? AND hybrid_replication_attributes->>'peer_volume_name' = ? AND hybrid_replication_attributes->>'peer_svm_name' = ?", account.ID, peerVolumeName, peerSvmName).Count(&count).Error
+
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (d *DataStoreRepository) GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error) {
 	var count int64
 	err := d.db.GORM().WithContext(ctx).Model(&datamodel.VolumeReplication{}).Where("volume_id = ?", volumeID).Count(&count).Error
@@ -242,20 +259,23 @@ func (d *DataStoreRepository) GetVolumeReplicationCountByVolumeID(ctx context.Co
 	return count, nil
 }
 
-func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter utils2.Filter) ([]*datamodel.VolumeReplication, error) {
+func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter utils2.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error) {
 	if len(filter.Conditions) == 0 {
 		return nil, customerrors.NewUserInputValidationErr("no filter conditions provided for listing volume replications")
 	}
-
+	var err error
 	db := d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
 	var volumeReplications []*datamodel.VolumeReplication
-	err := db.Preload("Volume").Preload("Volume.Pool").Find(&volumeReplications).Error
+	db = db.Preload("Volume").Preload("Volume.Pool")
+	if queryDepth == 1 {
+		db = db.Preload("Volume.Svm")
+	}
+	err = db.Find(&volumeReplications).Error
 	if err != nil {
 		return nil, err
 	}
 	return volumeReplications, nil
 }
-
 func (d *DataStoreRepository) ListVolumeReplicationsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils2.Pagination) ([]*datamodel.VolumeReplication, error) {
 	return _listVolumeReplicationsWithDetailsPagination(d.db.ApplyFilter(conditions).Unscoped().GORM().WithContext(ctx), pagination)
 }

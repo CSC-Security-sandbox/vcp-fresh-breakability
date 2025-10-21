@@ -42,7 +42,7 @@ func _getMultipleReplicationsInternal(ctx context.Context, se database.Storage, 
 		utils.NewFilterCondition("account_id", "=", account.ID),
 		utils.NewFilterCondition("uuid", "in", replicationUUIDs))
 
-	replications, err := se.ListVolumeReplications(ctx, *filter)
+	replications, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthZero)
 	if err != nil {
 		logger.Errorf("Failed to list replications for account %s: %v", accountName, err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)

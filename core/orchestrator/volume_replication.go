@@ -669,7 +669,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	filter := utils2.CreateFilterWithConditions(
 		utils2.NewFilterCondition("account_id", "=", account.ID),
 		utils2.NewFilterCondition("uri", "in", params.ReplicationURIs))
-	replications, err := se.ListVolumeReplications(ctx, *filter)
+	replications, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthZero)
 	if err != nil {
 		logger.Errorf("Failed to list replications for account %s: %v", params.AccountName, err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
@@ -762,7 +762,7 @@ func _getMultipleReplicationsByExternalUUID(ctx context.Context, se database.Sto
 		utils2.NewFilterCondition("replication_attributes->>'external_uuid'", "in", params.ExternalUUIDs),
 		utils2.NewFilterCondition("replication_attributes->>'endpoint_type'", "=", params.EndpointType))
 
-	replications, err := se.ListVolumeReplications(ctx, *filter)
+	replications, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthZero)
 	if err != nil {
 		logger.Errorf("Failed to list replications with external UUIDs %v and endpoint_type %s: %v", params.ExternalUUIDs, params.EndpointType, err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)

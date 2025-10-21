@@ -50,7 +50,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 			utils2.NewFilterCondition("replication_attributes->>'endpoint_type'", "=", "dst"))
 
 		// Mock the ListVolumeReplications call
-		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter).Return(testReplications, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter, mock.Anything).Return(testReplications, nil)
 
 		// Create params
 		params := commonparams.GetMultipleReplicationsByExternalUUIDParams{
@@ -86,7 +86,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 			utils2.NewFilterCondition("replication_attributes->>'endpoint_type'", "=", "dst"))
 
 		// Mock the ListVolumeReplications call to return empty slice
-		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter).Return([]*datamodel.VolumeReplication{}, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
 
 		// Create params
 		params := commonparams.GetMultipleReplicationsByExternalUUIDParams{
@@ -116,7 +116,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 			utils2.NewFilterCondition("replication_attributes->>'endpoint_type'", "=", "dst"))
 
 		// Mock the ListVolumeReplications call to return an error
-		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter).Return(nil, assert.AnError)
+		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter, mock.Anything).Return(nil, assert.AnError)
 
 		// Create params
 		params := commonparams.GetMultipleReplicationsByExternalUUIDParams{
@@ -161,7 +161,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 			utils2.NewFilterCondition("replication_attributes->>'endpoint_type'", "=", "src"))
 
 		// Mock the ListVolumeReplications call
-		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter).Return(testReplications, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter, mock.Anything).Return(testReplications, nil)
 
 		// Create params
 		params := commonparams.GetMultipleReplicationsByExternalUUIDParams{
@@ -193,7 +193,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 			utils2.NewFilterCondition("replication_attributes->>'endpoint_type'", "=", "dst"))
 
 		// Mock the ListVolumeReplications call to return empty slice
-		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter).Return([]*datamodel.VolumeReplication{}, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
 
 		// Create params
 		params := commonparams.GetMultipleReplicationsByExternalUUIDParams{
@@ -260,7 +260,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 			utils2.NewFilterCondition("replication_attributes->>'endpoint_type'", "=", "dst"))
 
 		// Mock the ListVolumeReplications call
-		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter).Return(testReplications, nil)
+		mockStorage.On("ListVolumeReplications", mock.Anything, *expectedFilter, mock.Anything).Return(testReplications, nil)
 
 		// Create params
 		params := commonparams.GetMultipleReplicationsByExternalUUIDParams{

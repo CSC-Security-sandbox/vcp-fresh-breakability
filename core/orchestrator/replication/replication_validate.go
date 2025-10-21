@@ -608,7 +608,7 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 	filter := utils2.CreateFilterWithConditions(
 		utils2.NewFilterCondition("account_id", "=", accountID),
 		utils2.NewFilterCondition("uri", "=", ccfeURI))
-	replicationDb, err := se.ListVolumeReplications(ctx, *filter)
+	replicationDb, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthZero)
 	if err != nil {
 		return nil, nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
 	}

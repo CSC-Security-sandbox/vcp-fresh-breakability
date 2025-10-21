@@ -358,3 +358,153 @@ func TestResourceAttributes_Value(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, ra, result)
 }
+
+func TestClusterPeeringAttributes_Scan(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected ClusterPeeringAttributes
+		wantErr  bool
+	}{
+		{
+			name:  "valid JSON bytes with all fields",
+			input: []byte(`{"pass_phrase": "secret123", "command": "create", "expiry_time": "2023-12-31T23:59:59Z", "cluster_location": "us-west-1"}`),
+			expected: ClusterPeeringAttributes{
+				PassPhrase:      stringPtr("secret123"),
+				Command:         stringPtr("create"),
+				ExpiryTime:      timePtr(time.Date(2023, 12, 31, 23, 59, 59, 0, time.UTC)),
+				ClusterLocation: stringPtr("us-west-1"),
+			},
+			wantErr: false,
+		},
+		{
+			name:  "valid JSON bytes with partial fields",
+			input: []byte(`{"command": "delete", "cluster_location": "us-east-1"}`),
+			expected: ClusterPeeringAttributes{
+				PassPhrase:      nil,
+				Command:         stringPtr("delete"),
+				ExpiryTime:      nil,
+				ClusterLocation: stringPtr("us-east-1"),
+			},
+			wantErr: false,
+		},
+		{
+			name:  "valid JSON bytes with empty object",
+			input: []byte(`{}`),
+			expected: ClusterPeeringAttributes{
+				PassPhrase:      nil,
+				Command:         nil,
+				ExpiryTime:      nil,
+				ClusterLocation: nil,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "nil input",
+			input:    nil,
+			expected: ClusterPeeringAttributes{},
+			wantErr:  false,
+		},
+		{
+			name:     "invalid type - string instead of bytes",
+			input:    "not bytes",
+			expected: ClusterPeeringAttributes{},
+			wantErr:  true,
+		},
+		{
+			name:     "invalid JSON format",
+			input:    []byte(`{"invalid": json}`),
+			expected: ClusterPeeringAttributes{},
+			wantErr:  true,
+		},
+		{
+			name:     "invalid JSON - missing closing brace",
+			input:    []byte(`{"command": "test"`),
+			expected: ClusterPeeringAttributes{},
+			wantErr:  true,
+		},
+		{
+			name:  "valid JSON with null values",
+			input: []byte(`{"pass_phrase": null, "command": "test", "expiry_time": null, "cluster_location": null}`),
+			expected: ClusterPeeringAttributes{
+				PassPhrase:      nil,
+				Command:         stringPtr("test"),
+				ExpiryTime:      nil,
+				ClusterLocation: nil,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var cpr ClusterPeeringAttributes
+			err := cpr.Scan(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, cpr)
+			}
+		})
+	}
+}
+
+func TestClusterPeeringAttributes_Value(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   ClusterPeeringAttributes
+		wantErr bool
+	}{
+		{
+			name: "all fields populated",
+			input: ClusterPeeringAttributes{
+				PassPhrase:      stringPtr("secret123"),
+				Command:         stringPtr("create"),
+				ExpiryTime:      timePtr(time.Date(2023, 12, 31, 23, 59, 59, 0, time.UTC)),
+				ClusterLocation: stringPtr("us-west-1"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "partial fields populated",
+			input: ClusterPeeringAttributes{
+				Command:         stringPtr("delete"),
+				ClusterLocation: stringPtr("us-east-1"),
+			},
+			wantErr: false,
+		},
+		{
+			name:    "empty struct",
+			input:   ClusterPeeringAttributes{},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			value, err := tt.input.Value()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, value)
+
+				// Verify it can be scanned back
+				var result ClusterPeeringAttributes
+				err = result.Scan(value)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.input, result)
+			}
+		})
+	}
+}
+
+// Helper functions for creating pointers
+func stringPtr(s string) *string {
+	return &s
+}
+
+func timePtr(t time.Time) *time.Time {
+	return &t
+}
