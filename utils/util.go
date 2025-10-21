@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -90,6 +91,8 @@ var (
 	AutoTieringEnabled              = env.GetBool("AUTO_TIERING_ENABLED", false)
 	immutableBackupEnabled          = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
 	RestoreVolumeBufferEnabled      = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
+
+	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+`)
 )
 
 const (
@@ -1144,6 +1147,11 @@ func GetNLFSecretPath() string {
 	return secretUri
 }
 
+func ExtractOntapVersion(input string) string {
+	match := ontapVersionRegex.FindString(input)
+	return match
+}
+
 func ConvertLabelsMapToJSONB(labels map[string]string) *datamodel.JSONB {
 	if labels == nil || len(labels) == 0 {
 		return nil
@@ -1155,4 +1163,20 @@ func ConvertLabelsMapToJSONB(labels map[string]string) *datamodel.JSONB {
 	}
 
 	return &jsonbMap
+}
+
+// ConvertTimeToOptDateTime converts *time.Time to OptDateTime
+func ConvertTimeToOptDateTime(t *time.Time) oasgenserver.OptDateTime {
+	if t == nil {
+		return oasgenserver.OptDateTime{}
+	}
+	return oasgenserver.NewOptDateTime(*t)
+}
+
+// ConvertStringToOptString converts string to OptString
+func ConvertStringToOptString(s string) oasgenserver.OptString {
+	if s == "" {
+		return oasgenserver.OptString{}
+	}
+	return oasgenserver.NewOptString(s)
 }

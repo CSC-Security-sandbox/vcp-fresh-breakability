@@ -192,6 +192,28 @@ func _newGcpServices(ctx context.Context) *google.GcpServices {
 	}
 }
 
+// GenerateVSASignedURLActivity generates a signed URL for VSA image in an activity
+func (ca CommonActivities) GenerateVSASignedURLActivity(ctx context.Context, vsaImagePath string) (string, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get GCP service
+	gcpService, err := _getGCPService(ctx)
+	if err != nil {
+		logger.Error("Failed to initialize GCP services for signed URL generation", "error", err)
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+
+	// Generate signed URL
+	signedURL, err := gcpService.GenerateVSASignedURL(ctx, vsaImagePath)
+	if err != nil {
+		logger.Error("Failed to generate signed URL for VSA image", "vsaImagePath", vsaImagePath, "error", err)
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+
+	logger.Info("Successfully generated signed URL for VSA image", "vsaImagePath", vsaImagePath)
+	return signedURL, nil
+}
+
 // makeSubnetName generates a subnet name based on the project number, region and timestamp
 func _makeSubnetName(projectNumber string, isLargeCapacity bool) string {
 	timeNow := strconv.Itoa(int(time.Now().Unix()))

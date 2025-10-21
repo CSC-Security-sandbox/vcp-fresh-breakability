@@ -8,6 +8,18 @@ import (
 type VSAClientWorkflowManagerMock struct {
 }
 
+func (vlmManager *VSAClientWorkflowManagerMock) ValidateClusterHealth(ctx workflow.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock ValidateClusterHealth")
+	return nil
+}
+
+func (vlmManager *VSAClientWorkflowManagerMock) ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpReq) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock ClusterPowerOp")
+	return nil
+}
+
 func (vlmManager *VSAClientWorkflowManagerMock) GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error) {
 	logger := util.GetLogger(ctx)
 	logger.Info("Mock GetClusterZiZsDetails")
@@ -70,16 +82,40 @@ func (vlmManager *VSAClientWorkflowManagerMock) UpdateVSAClusterDeployment(ctx w
 	return updateVSAClusterDeploymentResponse, nil
 }
 
-func (vlmManager *VSAClientWorkflowManagerMock) ValidateClusterHealth(ctx workflow.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error {
+func (vlmManager *VSAClientWorkflowManagerMock) UpgradeVSAClusterDeployment(ctx workflow.Context, upgradeVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpgradeVSAClusterDeploymentResponse, error) {
 	logger := util.GetLogger(ctx)
-	logger.Info("Mock ValidateClusterHealth")
+	logger.Info("Mock UpgradeVSAClusterDeployment")
+	upgradeVSAClusterDeploymentResponse := &UpgradeVSAClusterDeploymentResponse{
+		VLMConfig:    upgradeVSAClusterDeploymentRequest.VLMConfig,
+		OntapVersion: upgradeVSAClusterDeploymentRequest.OntapUpgrade.OntapUpgradeTargetImageVersion,
+	}
 
-	return nil
+	return upgradeVSAClusterDeploymentResponse, nil
 }
 
-func (vlmManager *VSAClientWorkflowManagerMock) ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error {
+func (vlmManager *VSAClientWorkflowManagerMock) UpgradeVSAClusterDeploymentWorkflow(ctx workflow.Context, req *UpdateVSAClusterDeploymentRequest) (*UpgradeVSAClusterDeploymentResponse, error) {
 	logger := util.GetLogger(ctx)
-	logger.Info("Mock ClusterPowerOp", "operation", clusterPowerOpRequest.Operation)
+	logger.Info("Mock UpgradeVSAClusterDeploymentWorkflow")
+	upgradeVSAClusterDeploymentResponse := &UpgradeVSAClusterDeploymentResponse{
+		VLMConfig:    req.VLMConfig,
+		OntapVersion: req.OntapUpgrade.OntapUpgradeTargetImageVersion,
+	}
 
+	return upgradeVSAClusterDeploymentResponse, nil
+}
+
+func (vlmManager *VSAClientWorkflowManagerMock) UpgradeVSAMediatorWorkflow(ctx workflow.Context, req *UpdateMediatorRequest) (*UpdateMediatorResponse, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock UpgradeVSAMediatorWorkflow")
+	upgradeVSAMediatorResponse := &UpdateMediatorResponse{
+		VLMConfig: req.VLMConfig,
+	}
+
+	return upgradeVSAMediatorResponse, nil
+}
+
+func (vlmManager *VSAClientWorkflowManagerMock) UpdateLicenseWorkflow(ctx workflow.Context, req *UpdateLicenseRequest) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock UpdateLicenseWorkflow", "vsaManagementIP", req.VSAManagementIP)
 	return nil
 }

@@ -99,6 +99,18 @@ func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string, acco
 	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}, AccountID: accountID})
 }
 
+func (d *DataStoreRepository) GetPoolByUUID(ctx context.Context, poolUUID string) (*datamodel.Pool, error) {
+	var pool datamodel.Pool
+	err := d.db.GORM().WithContext(ctx).Where("uuid = ?", poolUUID).First(&pool).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("Pool", &poolUUID)
+		}
+		return nil, err
+	}
+	return &pool, nil
+}
+
 func (d *DataStoreRepository) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -39,7 +38,7 @@ var (
 	configureKmsConfigForSvmActivity     = _configureKmsConfigForSvmActivity
 	isProberProject                      = utils.IsProberProject
 	GetNewVSAClientWorkflowManager       = _getNewVSAClientWorkflowManager
-	ExtractOntapVersion                  = _extractOntapVersion
+	ExtractOntapVersion                  = utils.ExtractOntapVersion
 	WaitForServiceNetworkOperationStatus = _waitForServiceNetworkOperationStatus
 	WaitForGCPNetworkOperationStatus     = _waitForGCPNetworkOperationStatus
 	verifyKmsConfigReachability          = _verifyKmsConfigReachability
@@ -393,6 +392,15 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, ConvertToVSAError(err)
 		}
 	}
+
+	// Create pool build info with current image details
+	poolBuildInfo := &datamodel.PoolBuildInfo{
+		VSABuildImage:      vsaImageName,
+		MediatorBuildImage: mediatorImage,
+		OntapVersion:       env.CurrentOntapVersionDetails,
+		BuildTimestamp:     time.Now(),
+	}
+	dbPool.BuildInfo = poolBuildInfo
 
 	clusterDetails := &datamodel.ClusterDetails{
 		ExternalName:          createVSAClusterDeploymentResponse.VLMConfig.VsaCluster.ClusterName,
@@ -1423,12 +1431,6 @@ func prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest 
 		// If we set this all the time, VLM will trigger a VM rotation even if we use the same instance type.
 		updateVSAClusterDeploymentRequest.NewInstanceType = newVLMConfig.Deployment.VSAInstanceType
 	}
-}
-
-func _extractOntapVersion(input string) string {
-	re := regexp.MustCompile(`\d+\.\d+\.\d+`)
-	match := re.FindString(input)
-	return match
 }
 
 func _waitForServiceNetworkOperationStatus(ctx workflow.Context, poolActivity *activities.PoolActivity, op string, timeout time.Duration) ([]byte, error) {

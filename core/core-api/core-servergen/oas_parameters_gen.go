@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
-
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -22,7 +21,7 @@ type V1CreatePoolParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString
+	XCorrelationID OptString `json:",omitempty,omitzero"`
 }
 
 func unpackV1CreatePoolParams(packed middleware.Parameters) (params V1CreatePoolParams) {
@@ -127,7 +126,7 @@ type V1DeletePoolParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString
+	XCorrelationID OptString `json:",omitempty,omitzero"`
 }
 
 func unpackV1DeletePoolParams(packed middleware.Parameters) (params V1DeletePoolParams) {
@@ -291,15 +290,97 @@ func decodeV1DeletePoolParams(args [1]string, argsEscaped bool, r *http.Request)
 	return params, nil
 }
 
+// V1GetClusterUpgradeStatusParams is parameters of v1_getClusterUpgradeStatus operation.
+type V1GetClusterUpgradeStatusParams struct {
+	// Job ID of the upgrade operation.
+	JobId string
+}
+
+func unpackV1GetClusterUpgradeStatusParams(packed middleware.Parameters) (params V1GetClusterUpgradeStatusParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "jobId",
+			In:   "path",
+		}
+		params.JobId = packed[key].(string)
+	}
+	return params
+}
+
+func decodeV1GetClusterUpgradeStatusParams(args [1]string, argsEscaped bool, r *http.Request) (params V1GetClusterUpgradeStatusParams, _ error) {
+	// Decode path: jobId.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "jobId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.JobId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.JobId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "jobId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1GetMultipleReplicationsByExternalUUIDParams is parameters of v1_getMultipleReplicationsByExternalUUID operation.
 type V1GetMultipleReplicationsByExternalUUIDParams struct {
 	// Correlation identifier.
-	XCorrelationID OptString
+	XCorrelationID OptString `json:",omitempty,omitzero"`
 	// Comma-separated list of external UUIDs to filter by.
 	ExternalUuids string
 	// Whether to include source endpoints in results. If false (default), only destination endpoints are
 	// returned.
-	IncludeSourceEndpoints OptBool
+	IncludeSourceEndpoints OptBool `json:",omitempty,omitzero"`
 }
 
 func unpackV1GetMultipleReplicationsByExternalUUIDParams(packed middleware.Parameters) (params V1GetMultipleReplicationsByExternalUUIDParams) {
@@ -463,9 +544,9 @@ type V1GetOntapCredentialsParams struct {
 	// UUID v4 used to identify the pool.
 	PoolId string
 	// User name.
-	UserName OptString
+	UserName OptString `json:",omitempty,omitzero"`
 	// Account name.
-	AccountName OptString
+	AccountName OptString `json:",omitempty,omitzero"`
 }
 
 func unpackV1GetOntapCredentialsParams(packed middleware.Parameters) (params V1GetOntapCredentialsParams) {
@@ -654,7 +735,7 @@ type V1GetPoolParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString
+	XCorrelationID OptString `json:",omitempty,omitzero"`
 }
 
 func unpackV1GetPoolParams(packed middleware.Parameters) (params V1GetPoolParams) {
@@ -818,6 +899,69 @@ func decodeV1GetPoolParams(args [1]string, argsEscaped bool, r *http.Request) (p
 	return params, nil
 }
 
+// V1ListAvailableVersionsParams is parameters of v1_listAvailableVersions operation.
+type V1ListAvailableVersionsParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString `json:",omitempty,omitzero"`
+}
+
+func unpackV1ListAvailableVersionsParams(packed middleware.Parameters) (params V1ListAvailableVersionsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1ListAvailableVersionsParams(args [0]string, argsEscaped bool, r *http.Request) (params V1ListAvailableVersionsParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1ListPoolsParams is parameters of v1_listPools operation.
 type V1ListPoolsParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -825,9 +969,9 @@ type V1ListPoolsParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString
+	XCorrelationID OptString `json:",omitempty,omitzero"`
 	// If true, response will include deleted storage pools.
-	IncludeDeleted OptBool
+	IncludeDeleted OptBool `json:",omitempty,omitzero"`
 }
 
 func unpackV1ListPoolsParams(packed middleware.Parameters) (params V1ListPoolsParams) {
@@ -1070,7 +1214,7 @@ type V1UpdatePoolParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString
+	XCorrelationID OptString `json:",omitempty,omitzero"`
 }
 
 func unpackV1UpdatePoolParams(packed middleware.Parameters) (params V1UpdatePoolParams) {
@@ -1228,6 +1372,88 @@ func decodeV1UpdatePoolParams(args [1]string, argsEscaped bool, r *http.Request)
 		return params, &ogenerrors.DecodeParamError{
 			Name: "x-correlation-id",
 			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1UpgradeClusterParams is parameters of v1_upgradeCluster operation.
+type V1UpgradeClusterParams struct {
+	// UUID of the cluster to upgrade.
+	ClusterId string
+}
+
+func unpackV1UpgradeClusterParams(packed middleware.Parameters) (params V1UpgradeClusterParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "clusterId",
+			In:   "path",
+		}
+		params.ClusterId = packed[key].(string)
+	}
+	return params
+}
+
+func decodeV1UpgradeClusterParams(args [1]string, argsEscaped bool, r *http.Request) (params V1UpgradeClusterParams, _ error) {
+	// Decode path: clusterId.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "clusterId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ClusterId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.ClusterId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "clusterId",
+			In:   "path",
 			Err:  err,
 		}
 	}

@@ -17,7 +17,7 @@ var (
 )
 
 // V1RotateGcpKmsConfig implements the KMS config service account key rotation endpoint
-func (h Handler) V1RotateGcpKmsConfig(ctx context.Context, req *oasgenserver.GcpKmsKeyRotateV1, params oasgenserver.V1RotateGcpKmsConfigParams) (oasgenserver.V1RotateGcpKmsConfigRes, error) {
+func (h *Handler) V1RotateGcpKmsConfig(ctx context.Context, req *oasgenserver.GcpKmsKeyRotateV1, params oasgenserver.V1RotateGcpKmsConfigParams) (oasgenserver.V1RotateGcpKmsConfigRes, error) {
 	if !kmsRotationEnabled {
 		return &oasgenserver.V1RotateGcpKmsConfigForbidden{
 			Message: "KMS rotation feature is currently disabled",

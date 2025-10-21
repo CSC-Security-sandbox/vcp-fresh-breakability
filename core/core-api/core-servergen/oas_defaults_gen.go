@@ -3,6 +3,14 @@
 package coreapiserver
 
 // setDefaults set default value of fields.
+func (s *ClusterUpgradeRequestV1) setDefaults() {
+	{
+		val := bool(false)
+		s.ForceUpgrade.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *OperationV1) setDefaults() {
 	{
 		val := bool(false)

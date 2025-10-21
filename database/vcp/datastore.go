@@ -30,6 +30,8 @@ func getVcpModels() []interface{} {
 		&datamodel.BackupMetadata{},
 		&datamodel.NodeNodeGroupMap{},
 		&datamodel.NodeGroup{},
+		&datamodel.ClusterUpgradeJob{},
+		&datamodel.ImageVersion{},
 		&datamodel.PendingResourceDeletions{},
 		&datamodel.ActiveDirectory{},
 		&datamodel.ClusterPeerings{},

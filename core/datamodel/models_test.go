@@ -301,6 +301,74 @@ func TestCacheParameters(t *testing.T) {
 	})
 }
 
+func TestUpgradeErrorDetails_Scan(t *testing.T) {
+	t.Run("ValidJSON", func(t *testing.T) {
+		var ued UpgradeErrorDetails
+		jsonData := []byte(`{"errorCode": "UPGRADE_FAILED", "errorMessage": "Test error", "errorType": "UPGRADE_ERROR", "retryable": true, "stackTrace": "trace"}`)
+		err := ued.Scan(jsonData)
+		assert.NoError(t, err)
+		assert.Equal(t, "UPGRADE_FAILED", ued.ErrorCode)
+		assert.Equal(t, "Test error", ued.ErrorMessage)
+		assert.Equal(t, "UPGRADE_ERROR", ued.ErrorType)
+		assert.True(t, ued.Retryable)
+		assert.Equal(t, "trace", ued.StackTrace)
+	})
+
+	t.Run("ScanNil", func(t *testing.T) {
+		var ued UpgradeErrorDetails
+		err := ued.Scan(nil)
+		assert.NoError(t, err)
+		assert.Equal(t, UpgradeErrorDetails{}, ued)
+	})
+
+	t.Run("InvalidType", func(t *testing.T) {
+		var ued UpgradeErrorDetails
+		err := ued.Scan("not a byte slice")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "type assertion to []byte failed")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		var ued UpgradeErrorDetails
+		invalidJSON := []byte(`{"invalid": json}`)
+		err := ued.Scan(invalidJSON)
+		assert.Error(t, err)
+	})
+}
+
+func TestUpgradeErrorDetails_Value(t *testing.T) {
+	t.Run("ValidData", func(t *testing.T) {
+		ued := UpgradeErrorDetails{
+			ErrorCode:    "UPGRADE_FAILED",
+			ErrorMessage: "Test error",
+			ErrorType:    "UPGRADE_ERROR",
+			Retryable:    true,
+			StackTrace:   "trace",
+		}
+		val, err := ued.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+
+		// Verify it's a byte slice
+		bytes, ok := val.([]byte)
+		assert.True(t, ok)
+		assert.Contains(t, string(bytes), "UPGRADE_FAILED")
+		assert.Contains(t, string(bytes), "Test error")
+	})
+
+	t.Run("EmptyData", func(t *testing.T) {
+		ued := UpgradeErrorDetails{}
+		val, err := ued.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+
+		// Should still produce valid JSON
+		bytes, ok := val.([]byte)
+		assert.True(t, ok)
+		assert.Equal(t, `{"errorCode":"","errorMessage":"","errorType":"","retryable":false}`, string(bytes))
+	})
+}
+
 func TestResourceAttributes_Scan(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -358,6 +426,88 @@ func TestResourceAttributes_Value(t *testing.T) {
 	err = json.Unmarshal(value.([]byte), &result)
 	assert.NoError(t, err)
 	assert.Equal(t, ra, result)
+}
+
+func TestPoolBuildInfo_Scan(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected PoolBuildInfo
+		wantErr  bool
+	}{
+		{
+			name:  "valid JSON bytes",
+			input: []byte(`{"vsaBuildImage": "vsa-image:latest", "mediatorBuildImage": "mediator-image:latest", "ontapVersion": "9.17.1", "buildTimestamp": "2023-01-01T00:00:00Z"}`),
+			expected: PoolBuildInfo{
+				VSABuildImage:      "vsa-image:latest",
+				MediatorBuildImage: "mediator-image:latest",
+				OntapVersion:       "9.17.1",
+				BuildTimestamp:     time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+			},
+			wantErr: false,
+		},
+		{
+			name:     "nil input",
+			input:    nil,
+			expected: PoolBuildInfo{},
+			wantErr:  false,
+		},
+		{
+			name:     "invalid type",
+			input:    "not bytes",
+			expected: PoolBuildInfo{},
+			wantErr:  true,
+		},
+		{
+			name:     "invalid JSON",
+			input:    []byte(`{"invalid": json}`),
+			expected: PoolBuildInfo{},
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var pbi PoolBuildInfo
+			err := pbi.Scan(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, pbi)
+			}
+		})
+	}
+}
+
+func TestPoolBuildInfo_Value(t *testing.T) {
+	pbi := PoolBuildInfo{
+		VSABuildImage:      "vsa-image:latest",
+		MediatorBuildImage: "mediator-image:latest",
+		OntapVersion:       "9.17.1",
+		BuildTimestamp:     time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	value, err := pbi.Value()
+	assert.NoError(t, err)
+	assert.NotNil(t, value)
+
+	// Verify it can be unmarshaled back
+	var result PoolBuildInfo
+	err = json.Unmarshal(value.([]byte), &result)
+	assert.NoError(t, err)
+	assert.Equal(t, pbi, result)
+
+	// Test with empty struct
+	emptyPbi := PoolBuildInfo{}
+	value, err = emptyPbi.Value()
+	assert.NoError(t, err)
+	assert.NotNil(t, value)
+
+	// Should produce valid JSON
+	bytes, ok := value.([]byte)
+	assert.True(t, ok)
+	assert.Equal(t, `{"vsaBuildImage":"","mediatorBuildImage":"","ontapVersion":"","buildTimestamp":"0001-01-01T00:00:00Z"}`, string(bytes))
 }
 
 func TestClusterPeeringAttributes_Scan(t *testing.T) {

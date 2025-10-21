@@ -778,7 +778,7 @@ func (s *startProjectEventOnStateWorkflow) processClusterForONState(ctx workflow
 		return ConvertToVSAError(err)
 	}
 
-	clusterPowerOpRequest := &vlm.ClusterPowerOpRequest{
+	clusterPowerOpRequest := &vlm.ClusterPowerOpReq{
 		VLMConfig:        *currentVlmConfig,
 		OntapCredentials: *ontapCredentials,
 		Operation:        vlm.ClusterPowerOn,
@@ -846,7 +846,7 @@ func (s *startProjectEventOffStateWorkflow) processClusterForOFFState(ctx workfl
 	// Step 2: Power off the cluster
 	logger.Info("Starting cluster power off operation", "deploymentID", currentVlmConfig.Deployment.DeploymentID)
 
-	clusterPowerOpRequest := &vlm.ClusterPowerOpRequest{
+	clusterPowerOpRequest := &vlm.ClusterPowerOpReq{
 		VLMConfig:        *currentVlmConfig,
 		OntapCredentials: *ontapCredentials,
 		Operation:        vlm.ClusterPowerOff,

@@ -230,6 +230,26 @@ func (re *retryEngine) GetPool(ctx context.Context, poolUUID string, accountID i
 	return var0, err
 }
 
+func (re *retryEngine) GetPoolByUUID(ctx context.Context, poolUUID string) (*datamodel.Pool, error) {
+	var var0 *datamodel.Pool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetPoolByUUID(ctx, poolUUID)
+		if err != nil {
+			re.logError("GetPoolByUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) ListPools(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.PoolView, error) {
 	var var0 []*datamodel.PoolView
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4398,6 +4418,183 @@ func (re *retryEngine) HardDeleteResourceByTable(ctx context.Context, table stri
 		err = re.dataStore.HardDeleteResourceByTable(ctx, table, query, id)
 		if err != nil {
 			re.logError("HardDeleteResourceByTable", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) CreateClusterUpgradeJob(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob) (*datamodel.ClusterUpgradeJob, error) {
+	var var0 *datamodel.ClusterUpgradeJob
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateClusterUpgradeJob(ctx, upgradeJob)
+		if err != nil {
+			re.logError("CreateClusterUpgradeJob", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetClusterUpgradeJobByUUID(ctx context.Context, jobUUID string) (*datamodel.ClusterUpgradeJob, error) {
+	var var0 *datamodel.ClusterUpgradeJob
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetClusterUpgradeJobByUUID(ctx, jobUUID)
+		if err != nil {
+			re.logError("GetClusterUpgradeJobByUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetClusterUpgradeJobsByClusterID(ctx context.Context, clusterID string) ([]*datamodel.ClusterUpgradeJob, error) {
+	var var0 []*datamodel.ClusterUpgradeJob
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetClusterUpgradeJobsByClusterID(ctx, clusterID)
+		if err != nil {
+			re.logError("GetClusterUpgradeJobsByClusterID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateClusterUpgradeJob(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateClusterUpgradeJob(ctx, upgradeJob)
+		if err != nil {
+			re.logError("UpdateClusterUpgradeJob", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) CreateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) (*datamodel.ImageVersion, error) {
+	var var0 *datamodel.ImageVersion
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateImageVersion(ctx, imageVersion)
+		if err != nil {
+			re.logError("CreateImageVersion", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetImageVersionByOntapVersion(ctx context.Context, ontapVersion string) (*datamodel.ImageVersion, error) {
+	var var0 *datamodel.ImageVersion
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetImageVersionByOntapVersion(ctx, ontapVersion)
+		if err != nil {
+			re.logError("GetImageVersionByOntapVersion", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) ListImageVersions(ctx context.Context, activeOnly bool) ([]*datamodel.ImageVersion, error) {
+	var var0 []*datamodel.ImageVersion
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListImageVersions(ctx, activeOnly)
+		if err != nil {
+			re.logError("ListImageVersions", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateImageVersion(ctx, imageVersion)
+		if err != nil {
+			re.logError("UpdateImageVersion", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) DeleteImageVersion(ctx context.Context, ontapVersion string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteImageVersion(ctx, ontapVersion)
+		if err != nil {
+			re.logError("DeleteImageVersion", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

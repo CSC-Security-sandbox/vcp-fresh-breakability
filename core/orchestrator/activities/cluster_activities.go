@@ -2,8 +2,10 @@ package activities
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-openapi/strfmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -11,6 +13,8 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
 var (
@@ -107,4 +111,57 @@ func CreateClusterPeer(ctx context.Context, params *commonparams.ClusterPeerPara
 	params.UUID = clusterPeer.ExternalUUID
 	params.Passphrase = (*string)(clusterPeer.Passphrase)
 	return params, nil
+}
+
+type ClusterUpgradeActivity struct {
+	SE database.Storage
+}
+
+// UpdateClusterUpgradeJobStatusActivity updates the status of a cluster upgrade job
+func (j *ClusterUpgradeActivity) UpdateClusterUpgradeJobStatusActivity(ctx context.Context, jobUUID, status, errorMessage string) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Updating cluster upgrade job status", "jobUUID", jobUUID, "status", status)
+
+	se := j.SE
+
+	// Get the upgrade job
+	upgradeJob, err := se.GetClusterUpgradeJobByUUID(ctx, jobUUID)
+	if err != nil {
+		logger.Error("Failed to get cluster upgrade job", "jobUUID", jobUUID, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Update the status
+	upgradeJob.Status = status
+	upgradeJob.UpdatedAt = time.Now()
+
+	// Set error details if provided
+	if errorMessage != "" {
+		upgradeJob.ErrorDetails = &datamodel.UpgradeErrorDetails{
+			ErrorCode:    "UPGRADE_FAILED",
+			ErrorMessage: errorMessage,
+			ErrorType:    "UPGRADE_ERROR",
+			Retryable:    true,
+		}
+	}
+
+	// Set timestamps based on status
+	if status == string(models.UpgradeStatusInProgress) {
+		now := time.Now()
+		upgradeJob.StartedAt = &now
+	} else if status == string(models.UpgradeStatusCompleted) || status == string(models.UpgradeStatusFailed) {
+		now := time.Now()
+		upgradeJob.CompletedAt = &now
+		upgradeJob.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
+	}
+
+	// Save the updated job
+	err = se.UpdateClusterUpgradeJob(ctx, upgradeJob)
+	if err != nil {
+		logger.Error("Failed to update cluster upgrade job", "jobUUID", jobUUID, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Info("Successfully updated cluster upgrade job status", "jobUUID", jobUUID, "status", status)
+	return nil
 }

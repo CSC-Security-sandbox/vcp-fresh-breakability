@@ -234,6 +234,15 @@ type DeleteSnapshotParams struct {
 	SnapshotID string
 }
 
+// UpgradeClusterParams describes parameters supplied to UpgradeCluster
+type UpgradeClusterParams struct {
+	ClusterID          string            `json:"clusterId"`
+	VSABuildImage      string            `json:"vsaBuildImage"`          // Optional: VSA build image to upgrade to (requires forceUpgrade=true)
+	MediatorBuildImage string            `json:"mediatorBuildImage"`     // Optional: Mediator build image to upgrade to (requires forceUpgrade=true)
+	ForceUpgrade       bool              `json:"forceUpgrade,omitempty"` // Required when specifying build images, or when upgrade gap > 1
+	Metadata           map[string]string `json:"metadata,omitempty"`
+}
+
 type ListSnapshotsParams struct {
 	SnapshotBaseParams
 }

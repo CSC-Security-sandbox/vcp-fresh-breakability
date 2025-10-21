@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
-
 	"github.com/ogen-go/ogen/validate"
 
 	std "encoding/json"
@@ -40,6 +39,18 @@ func TestAnyV1AnyValue_EncodeDecode(t *testing.T) {
 	var typ2 AnyV1AnyValue
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestAvailableVersionV1_EncodeDecode(t *testing.T) {
+	var typ AvailableVersionV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AvailableVersionV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestChildAsset_EncodeDecode(t *testing.T) {
 	var typ ChildAsset
 	typ.SetFake()
@@ -51,6 +62,169 @@ func TestChildAsset_EncodeDecode(t *testing.T) {
 
 	var typ2 ChildAsset
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestClusterUpgradeRequestV1_EncodeDecode(t *testing.T) {
+	var typ ClusterUpgradeRequestV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ClusterUpgradeRequestV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestClusterUpgradeRequestV1Metadata_EncodeDecode(t *testing.T) {
+	var typ ClusterUpgradeRequestV1Metadata
+	typ = make(ClusterUpgradeRequestV1Metadata)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ClusterUpgradeRequestV1Metadata
+	typ2 = make(ClusterUpgradeRequestV1Metadata)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestClusterUpgradeRequestV1Metadata_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"operator\":\"admin@company.com\",\"reason\":\"Scheduled maintenance\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ClusterUpgradeRequestV1Metadata
+			typ = make(ClusterUpgradeRequestV1Metadata)
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ClusterUpgradeRequestV1Metadata
+			typ2 = make(ClusterUpgradeRequestV1Metadata)
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestClusterUpgradeResponseV1_EncodeDecode(t *testing.T) {
+	var typ ClusterUpgradeResponseV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ClusterUpgradeResponseV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestClusterUpgradeResponseV1Status_EncodeDecode(t *testing.T) {
+	var typ ClusterUpgradeResponseV1Status
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ClusterUpgradeResponseV1Status
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestClusterUpgradeResponseV1Status_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"IN_PROGRESS\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ClusterUpgradeResponseV1Status
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ClusterUpgradeResponseV1Status
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestClusterUpgradeStatusV1_EncodeDecode(t *testing.T) {
+	var typ ClusterUpgradeStatusV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ClusterUpgradeStatusV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestClusterUpgradeStatusV1Status_EncodeDecode(t *testing.T) {
+	var typ ClusterUpgradeStatusV1Status
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ClusterUpgradeStatusV1Status
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestClusterUpgradeStatusV1Status_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"IN_PROGRESS\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ClusterUpgradeStatusV1Status
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ClusterUpgradeStatusV1Status
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
 }
 func TestError_EncodeDecode(t *testing.T) {
 	var typ Error
@@ -304,6 +478,18 @@ func TestJobV1State_Examples(t *testing.T) {
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
+}
+func TestListAvailableVersionsResponseV1_EncodeDecode(t *testing.T) {
+	var typ ListAvailableVersionsResponseV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ListAvailableVersionsResponseV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestOntapCredentialsV1_EncodeDecode(t *testing.T) {
 	var typ OntapCredentialsV1
@@ -821,6 +1007,71 @@ func TestStorageClassV1_EncodeDecode(t *testing.T) {
 	var typ2 StorageClassV1
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestUpgradeErrorV1_EncodeDecode(t *testing.T) {
+	var typ UpgradeErrorV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 UpgradeErrorV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestUpgradeProgressV1_EncodeDecode(t *testing.T) {
+	var typ UpgradeProgressV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 UpgradeProgressV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestUpgradeProgressV1Status_EncodeDecode(t *testing.T) {
+	var typ UpgradeProgressV1Status
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 UpgradeProgressV1Status
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestUpgradeProgressV1Status_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"IN_PROGRESS\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ UpgradeProgressV1Status
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 UpgradeProgressV1Status
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestV1CreatePoolBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1CreatePoolBadRequest
 	typ.SetFake()
@@ -987,6 +1238,90 @@ func TestV1DeletePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1DeletePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetClusterUpgradeStatusBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1GetClusterUpgradeStatusBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetClusterUpgradeStatusBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetClusterUpgradeStatusForbidden_EncodeDecode(t *testing.T) {
+	var typ V1GetClusterUpgradeStatusForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetClusterUpgradeStatusForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetClusterUpgradeStatusInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1GetClusterUpgradeStatusInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetClusterUpgradeStatusInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetClusterUpgradeStatusNotFound_EncodeDecode(t *testing.T) {
+	var typ V1GetClusterUpgradeStatusNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetClusterUpgradeStatusNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetClusterUpgradeStatusTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1GetClusterUpgradeStatusTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetClusterUpgradeStatusTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetClusterUpgradeStatusUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1GetClusterUpgradeStatusUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetClusterUpgradeStatusUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetClusterUpgradeStatusUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1GetClusterUpgradeStatusUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetClusterUpgradeStatusUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1GetMultipleReplicationsByExternalUUIDBadRequest_EncodeDecode(t *testing.T) {
@@ -1277,6 +1612,90 @@ func TestV1GetPoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1GetPoolUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1ListAvailableVersionsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1ListAvailableVersionsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAvailableVersionsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAvailableVersionsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1ListAvailableVersionsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAvailableVersionsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAvailableVersionsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1ListAvailableVersionsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAvailableVersionsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAvailableVersionsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1ListAvailableVersionsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAvailableVersionsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAvailableVersionsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1ListAvailableVersionsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAvailableVersionsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAvailableVersionsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1ListAvailableVersionsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAvailableVersionsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAvailableVersionsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1ListAvailableVersionsUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAvailableVersionsUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1ListPoolsBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1ListPoolsBadRequest
 	typ.SetFake()
@@ -1551,5 +1970,101 @@ func TestV1UpdatePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1UpdatePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpgradeClusterBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1UpgradeClusterBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpgradeClusterBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpgradeClusterConflict_EncodeDecode(t *testing.T) {
+	var typ V1UpgradeClusterConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpgradeClusterConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpgradeClusterForbidden_EncodeDecode(t *testing.T) {
+	var typ V1UpgradeClusterForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpgradeClusterForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpgradeClusterInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1UpgradeClusterInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpgradeClusterInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpgradeClusterNotFound_EncodeDecode(t *testing.T) {
+	var typ V1UpgradeClusterNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpgradeClusterNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpgradeClusterTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1UpgradeClusterTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpgradeClusterTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpgradeClusterUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1UpgradeClusterUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpgradeClusterUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpgradeClusterUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1UpgradeClusterUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpgradeClusterUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }

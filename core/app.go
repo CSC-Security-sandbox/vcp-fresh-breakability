@@ -15,15 +15,17 @@ import (
 	"github.com/robfig/cron"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	coregenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
-	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/handler"
+	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/endpoints"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks"
+	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/drivers/postgres"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -33,7 +35,7 @@ import (
 )
 
 func main() {
-	ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, uuid.NewString())
+	ctx := context.WithValue(context.Background(), utilsmiddleware.CorrelationContextKey, uuid.NewString())
 
 	// Use signal.NotifyContext to handle termination signals
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
@@ -66,13 +68,24 @@ func main() {
 
 	// Initialize Temporal client
 	workflowClient, err := initializeTemporalClient(logger)
+	if err != nil {
+		logger.Error("Failed to initialize Temporal client", "error", err.Error())
+		os.Exit(1)
+	}
+	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
 
 	// Create GCP proxy server and inject required dependencies
 	orch := orchestrator.GetNewOrchestrator(dbCon, workflowClient.GetTemporalClient())
-	newHandler := api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
+	newHandler := &api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
 	oasserver, err := coregenserver.NewServer(newHandler)
 	if err != nil {
 		logger.Error("Failed to create server", "error", err.Error())
+		os.Exit(1)
+	}
+
+	_, err = vsaerrors.NewErrorHandler()
+	if err != nil {
+		logger.Error("Failed to create error handler", "error", err.Error())
 		os.Exit(1)
 	}
 
@@ -112,6 +125,7 @@ func main() {
 		}
 		return nil
 	})
+	handleGracefulShutdown(eg, ctx, httpServer, logger)
 
 	// Wait for all goroutines to finish
 	if err := eg.Wait(); err != nil {
@@ -189,18 +203,14 @@ func GetDBConfig(cfg *common.Config) dbutils.DbConfig {
 }
 
 func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
-	// Setup HTTP router
 	mux := chi.NewRouter()
 	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
 	mux.Use(auth.AuthMiddleware(true)) // true = skip project number validation
 	mux.Use(log.RecoverMiddleware)
-
-	// Mount the generated API handler
-	mux.Mount("/", http.Handler(handler))
+	mux.Mount("/", handler)
 	mux.Handle("/metrics", promhttp.Handler())
 
-	// Setup HTTP server with proper timeouts
 	return &http.Server{
 		Addr:              cfg.CoreHost + ":" + cfg.CorePort,
 		Handler:           mux,
@@ -300,4 +310,20 @@ func syncVSAClusterHealthWithLock(ctx context.Context, se database.Storage, logg
 	} else {
 		logger.InfoContext(ctx, "Could not acquire lock - another pod is currently executing the task or not enough time has passed since last execution")
 	}
+}
+
+func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer *http.Server, logger log.Logger) {
+	eg.Go(func() error {
+		<-ctx.Done()
+		logger.Info("Shutting down server")
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Error("Failed to shut down server gracefully", "error", err.Error())
+			return err
+		}
+		return nil
+	})
 }

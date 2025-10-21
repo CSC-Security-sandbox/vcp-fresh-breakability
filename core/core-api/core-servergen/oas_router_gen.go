@@ -106,6 +106,109 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				}
 
+			case 'c': // Prefix: "clusters/"
+
+				if l := len("clusters/"); len(elem) >= l && elem[0:l] == "clusters/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case 'u': // Prefix: "upgrade/"
+					origElem := elem
+					if l := len("upgrade/"); len(elem) >= l && elem[0:l] == "upgrade/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "jobId"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleV1GetClusterUpgradeStatusRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "GET")
+						}
+
+						return
+					}
+
+					elem = origElem
+				case 'v': // Prefix: "versions"
+					origElem := elem
+					if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleV1ListAvailableVersionsRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "GET")
+						}
+
+						return
+					}
+
+					elem = origElem
+				}
+				// Param: "clusterId"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/upgrade"
+
+					if l := len("/upgrade"); len(elem) >= l && elem[0:l] == "/upgrade" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleV1UpgradeClusterRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "POST")
+						}
+
+						return
+					}
+
+				}
+
 			case 'g': // Prefix: "getMultipleReplicationsByExternalUUID"
 
 				if l := len("getMultipleReplicationsByExternalUUID"); len(elem) >= l && elem[0:l] == "getMultipleReplicationsByExternalUUID" {
@@ -342,6 +445,117 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							r.summary = "Rotate gcp kms config service account key"
 							r.operationID = "v1_rotateGcpKmsConfig"
 							r.pathPattern = "/v1/Storage/GcpKmsConfig/{uuid}/RotateServiceAccountKey"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
+				}
+
+			case 'c': // Prefix: "clusters/"
+
+				if l := len("clusters/"); len(elem) >= l && elem[0:l] == "clusters/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case 'u': // Prefix: "upgrade/"
+					origElem := elem
+					if l := len("upgrade/"); len(elem) >= l && elem[0:l] == "upgrade/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "jobId"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = V1GetClusterUpgradeStatusOperation
+							r.summary = "Get cluster upgrade status"
+							r.operationID = "v1_getClusterUpgradeStatus"
+							r.pathPattern = "/v1/clusters/upgrade/{jobId}"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
+					elem = origElem
+				case 'v': // Prefix: "versions"
+					origElem := elem
+					if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = V1ListAvailableVersionsOperation
+							r.summary = "List available ONTAP versions"
+							r.operationID = "v1_listAvailableVersions"
+							r.pathPattern = "/v1/clusters/versions"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+					elem = origElem
+				}
+				// Param: "clusterId"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/upgrade"
+
+					if l := len("/upgrade"); len(elem) >= l && elem[0:l] == "/upgrade" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = V1UpgradeClusterOperation
+							r.summary = "Upgrade a VSA cluster"
+							r.operationID = "v1_upgradeCluster"
+							r.pathPattern = "/v1/clusters/{clusterId}/upgrade"
 							r.args = args
 							r.count = 1
 							return r, true

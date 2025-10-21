@@ -363,6 +363,10 @@ func (s *PersistenceStore) GetPool(ctx context.Context, poolUUID string, account
 	return s.dataStore.GetPool(ctx, poolUUID, accountID)
 }
 
+func (s *PersistenceStore) GetPoolByUUID(ctx context.Context, poolUUID string) (*datamodel.Pool, error) {
+	return s.dataStore.GetPoolByUUID(ctx, poolUUID)
+}
+
 func (s *PersistenceStore) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	return s.dataStore.UpdatingPool(ctx, pool)
 }
@@ -1245,6 +1249,47 @@ func (s *PersistenceStore) CreateActiveDirectory(ctx context.Context, ad *datamo
 
 func (s *PersistenceStore) GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error) {
 	return s.dataStore.GetActiveDirectoryByNameAndAccountID(ctx, name, accountID)
+}
+
+// Image version methods
+func (s *PersistenceStore) CreateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) (*datamodel.ImageVersion, error) {
+	return s.dataStore.CreateImageVersion(ctx, imageVersion)
+}
+
+func (s *PersistenceStore) GetImageVersionByOntapVersion(ctx context.Context, ontapVersion string) (*datamodel.ImageVersion, error) {
+	return s.dataStore.GetImageVersionByOntapVersion(ctx, ontapVersion)
+}
+
+func (s *PersistenceStore) ListImageVersions(ctx context.Context, activeOnly bool) ([]*datamodel.ImageVersion, error) {
+	return s.dataStore.ListImageVersions(ctx, activeOnly)
+}
+
+func (s *PersistenceStore) UpdateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) error {
+	return s.dataStore.UpdateImageVersion(ctx, imageVersion)
+}
+
+func (s *PersistenceStore) DeleteImageVersion(ctx context.Context, ontapVersion string) error {
+	return s.dataStore.DeleteImageVersion(ctx, ontapVersion)
+}
+
+// CreateClusterUpgradeJob creates a new cluster upgrade job in the database
+func (s *PersistenceStore) CreateClusterUpgradeJob(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob) (*datamodel.ClusterUpgradeJob, error) {
+	return s.dataStore.CreateClusterUpgradeJob(ctx, upgradeJob)
+}
+
+// GetClusterUpgradeJobByUUID retrieves a cluster upgrade job by its UUID
+func (s *PersistenceStore) GetClusterUpgradeJobByUUID(ctx context.Context, jobUUID string) (*datamodel.ClusterUpgradeJob, error) {
+	return s.dataStore.GetClusterUpgradeJobByUUID(ctx, jobUUID)
+}
+
+// GetClusterUpgradeJobsByClusterID retrieves all cluster upgrade jobs for a given cluster ID
+func (s *PersistenceStore) GetClusterUpgradeJobsByClusterID(ctx context.Context, clusterID string) ([]*datamodel.ClusterUpgradeJob, error) {
+	return s.dataStore.GetClusterUpgradeJobsByClusterID(ctx, clusterID)
+}
+
+// UpdateClusterUpgradeJob updates an existing cluster upgrade job
+func (s *PersistenceStore) UpdateClusterUpgradeJob(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob) error {
+	return s.dataStore.UpdateClusterUpgradeJob(ctx, upgradeJob)
 }
 
 func (s *PersistenceStore) CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error) {

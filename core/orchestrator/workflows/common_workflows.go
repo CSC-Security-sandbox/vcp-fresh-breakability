@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"strconv"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -41,12 +41,13 @@ const (
 )
 
 var (
-	StartToCloseTimeout   = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT", "55m")
-	StartToCloseTimeoutLV = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_LV", "60m")
-	RetryInterval         = env.GetString("RETRY_INTERVAL", "5s")
-	RetryMaxAttempts      = env.GetInt("RETRY_MAX_ATTEMPTS", 3)
-	RetryMaxInterval      = env.GetString("RETRY_MAX_INTERVAL", "5m")
-	RetryBackoff          = env.GetString("RETRY_BACKOFF_COEFFICIENT", "2.0")
+	StartToCloseTimeout        = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT", "55m")
+	StartToCloseTimeoutLV      = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_LV", "60m")
+	StartToCloseTimeoutUpgrade = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_UPGRADE", "300m")
+	RetryInterval              = env.GetString("RETRY_INTERVAL", "5s")
+	RetryMaxAttempts           = env.GetInt("RETRY_MAX_ATTEMPTS", 3)
+	RetryMaxInterval           = env.GetString("RETRY_MAX_INTERVAL", "5m")
+	RetryBackoff               = env.GetString("RETRY_BACKOFF_COEFFICIENT", "2.0")
 
 	// Service Account specific retry policy configurations
 	SARetryStartToCloseTimeout = env.GetString("SA_RETRY_START_TO_CLOSE_TIMEOUT", "25m")

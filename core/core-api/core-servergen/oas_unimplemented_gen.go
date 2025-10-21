@@ -33,6 +33,15 @@ func (UnimplementedHandler) V1DeletePool(ctx context.Context, params V1DeletePoo
 	return r, ht.ErrNotImplemented
 }
 
+// V1GetClusterUpgradeStatus implements v1_getClusterUpgradeStatus operation.
+//
+// Retrieves the status and progress of a cluster upgrade operation.
+//
+// GET /v1/clusters/upgrade/{jobId}
+func (UnimplementedHandler) V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (r V1GetClusterUpgradeStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1GetMultipleReplicationsByExternalUUID implements v1_getMultipleReplicationsByExternalUUID operation.
 //
 // Returns replications filtered by external UUIDs and endpoint type.
@@ -60,6 +69,16 @@ func (UnimplementedHandler) V1GetPool(ctx context.Context, params V1GetPoolParam
 	return r, ht.ErrNotImplemented
 }
 
+// V1ListAvailableVersions implements v1_listAvailableVersions operation.
+//
+// Lists all available ONTAP versions for cluster upgrades, including the current VCP version and
+// supported versions from the database.
+//
+// GET /v1/clusters/versions
+func (UnimplementedHandler) V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (r V1ListAvailableVersionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1ListPools implements v1_listPools operation.
 //
 // Returns descriptions of all pools owned by the caller.
@@ -84,6 +103,15 @@ func (UnimplementedHandler) V1RotateGcpKmsConfig(ctx context.Context, req *GcpKm
 //
 // PUT /v1/pools/{poolId}
 func (UnimplementedHandler) V1UpdatePool(ctx context.Context, req *PoolUpdateV1, params V1UpdatePoolParams) (r V1UpdatePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1UpgradeCluster implements v1_upgradeCluster operation.
+//
+// Initiates an upgrade of a VSA cluster to the latest or specified ONTAP version.
+//
+// POST /v1/clusters/{clusterId}/upgrade
+func (UnimplementedHandler) V1UpgradeCluster(ctx context.Context, req *ClusterUpgradeRequestV1, params V1UpgradeClusterParams) (r V1UpgradeClusterRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

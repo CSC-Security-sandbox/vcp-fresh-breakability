@@ -1111,6 +1111,65 @@ func (_c *MockDataStore_CreateClusterPeeringRow_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// CreateClusterUpgradeJob provides a mock function with given fields: ctx, upgradeJob
+func (_m *MockDataStore) CreateClusterUpgradeJob(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob) (*datamodel.ClusterUpgradeJob, error) {
+	ret := _m.Called(ctx, upgradeJob)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateClusterUpgradeJob")
+	}
+
+	var r0 *datamodel.ClusterUpgradeJob
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ClusterUpgradeJob) (*datamodel.ClusterUpgradeJob, error)); ok {
+		return rf(ctx, upgradeJob)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ClusterUpgradeJob) *datamodel.ClusterUpgradeJob); ok {
+		r0 = rf(ctx, upgradeJob)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ClusterUpgradeJob)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.ClusterUpgradeJob) error); ok {
+		r1 = rf(ctx, upgradeJob)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateClusterUpgradeJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateClusterUpgradeJob'
+type MockDataStore_CreateClusterUpgradeJob_Call struct {
+	*mock.Call
+}
+
+// CreateClusterUpgradeJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - upgradeJob *datamodel.ClusterUpgradeJob
+func (_e *MockDataStore_Expecter) CreateClusterUpgradeJob(ctx interface{}, upgradeJob interface{}) *MockDataStore_CreateClusterUpgradeJob_Call {
+	return &MockDataStore_CreateClusterUpgradeJob_Call{Call: _e.mock.On("CreateClusterUpgradeJob", ctx, upgradeJob)}
+}
+
+func (_c *MockDataStore_CreateClusterUpgradeJob_Call) Run(run func(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob)) *MockDataStore_CreateClusterUpgradeJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ClusterUpgradeJob))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateClusterUpgradeJob_Call) Return(_a0 *datamodel.ClusterUpgradeJob, _a1 error) *MockDataStore_CreateClusterUpgradeJob_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateClusterUpgradeJob_Call) RunAndReturn(run func(context.Context, *datamodel.ClusterUpgradeJob) (*datamodel.ClusterUpgradeJob, error)) *MockDataStore_CreateClusterUpgradeJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateHostGroup provides a mock function with given fields: ctx, hostGroup
 func (_m *MockDataStore) CreateHostGroup(ctx context.Context, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroup)
@@ -1166,6 +1225,65 @@ func (_c *MockDataStore_CreateHostGroup_Call) Return(_a0 *datamodel.HostGroup, _
 }
 
 func (_c *MockDataStore_CreateHostGroup_Call) RunAndReturn(run func(context.Context, *datamodel.HostGroup) (*datamodel.HostGroup, error)) *MockDataStore_CreateHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateImageVersion provides a mock function with given fields: ctx, imageVersion
+func (_m *MockDataStore) CreateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) (*datamodel.ImageVersion, error) {
+	ret := _m.Called(ctx, imageVersion)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateImageVersion")
+	}
+
+	var r0 *datamodel.ImageVersion
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ImageVersion) (*datamodel.ImageVersion, error)); ok {
+		return rf(ctx, imageVersion)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ImageVersion) *datamodel.ImageVersion); ok {
+		r0 = rf(ctx, imageVersion)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ImageVersion)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.ImageVersion) error); ok {
+		r1 = rf(ctx, imageVersion)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateImageVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateImageVersion'
+type MockDataStore_CreateImageVersion_Call struct {
+	*mock.Call
+}
+
+// CreateImageVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - imageVersion *datamodel.ImageVersion
+func (_e *MockDataStore_Expecter) CreateImageVersion(ctx interface{}, imageVersion interface{}) *MockDataStore_CreateImageVersion_Call {
+	return &MockDataStore_CreateImageVersion_Call{Call: _e.mock.On("CreateImageVersion", ctx, imageVersion)}
+}
+
+func (_c *MockDataStore_CreateImageVersion_Call) Run(run func(ctx context.Context, imageVersion *datamodel.ImageVersion)) *MockDataStore_CreateImageVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ImageVersion))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateImageVersion_Call) Return(_a0 *datamodel.ImageVersion, _a1 error) *MockDataStore_CreateImageVersion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateImageVersion_Call) RunAndReturn(run func(context.Context, *datamodel.ImageVersion) (*datamodel.ImageVersion, error)) *MockDataStore_CreateImageVersion_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2386,6 +2504,53 @@ func (_c *MockDataStore_DeleteHostGroup_Call) Return(_a0 *datamodel.HostGroup, _
 }
 
 func (_c *MockDataStore_DeleteHostGroup_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.HostGroup, error)) *MockDataStore_DeleteHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteImageVersion provides a mock function with given fields: ctx, ontapVersion
+func (_m *MockDataStore) DeleteImageVersion(ctx context.Context, ontapVersion string) error {
+	ret := _m.Called(ctx, ontapVersion)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteImageVersion")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, ontapVersion)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_DeleteImageVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteImageVersion'
+type MockDataStore_DeleteImageVersion_Call struct {
+	*mock.Call
+}
+
+// DeleteImageVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ontapVersion string
+func (_e *MockDataStore_Expecter) DeleteImageVersion(ctx interface{}, ontapVersion interface{}) *MockDataStore_DeleteImageVersion_Call {
+	return &MockDataStore_DeleteImageVersion_Call{Call: _e.mock.On("DeleteImageVersion", ctx, ontapVersion)}
+}
+
+func (_c *MockDataStore_DeleteImageVersion_Call) Run(run func(ctx context.Context, ontapVersion string)) *MockDataStore_DeleteImageVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteImageVersion_Call) Return(_a0 error) *MockDataStore_DeleteImageVersion_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteImageVersion_Call) RunAndReturn(run func(context.Context, string) error) *MockDataStore_DeleteImageVersion_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5186,6 +5351,124 @@ func (_c *MockDataStore_GetClusterPeerByAccountIDExternalClusterAndPoolID_Call) 
 	return _c
 }
 
+// GetClusterUpgradeJobByUUID provides a mock function with given fields: ctx, jobUUID
+func (_m *MockDataStore) GetClusterUpgradeJobByUUID(ctx context.Context, jobUUID string) (*datamodel.ClusterUpgradeJob, error) {
+	ret := _m.Called(ctx, jobUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterUpgradeJobByUUID")
+	}
+
+	var r0 *datamodel.ClusterUpgradeJob
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.ClusterUpgradeJob, error)); ok {
+		return rf(ctx, jobUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.ClusterUpgradeJob); ok {
+		r0 = rf(ctx, jobUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ClusterUpgradeJob)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, jobUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetClusterUpgradeJobByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterUpgradeJobByUUID'
+type MockDataStore_GetClusterUpgradeJobByUUID_Call struct {
+	*mock.Call
+}
+
+// GetClusterUpgradeJobByUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobUUID string
+func (_e *MockDataStore_Expecter) GetClusterUpgradeJobByUUID(ctx interface{}, jobUUID interface{}) *MockDataStore_GetClusterUpgradeJobByUUID_Call {
+	return &MockDataStore_GetClusterUpgradeJobByUUID_Call{Call: _e.mock.On("GetClusterUpgradeJobByUUID", ctx, jobUUID)}
+}
+
+func (_c *MockDataStore_GetClusterUpgradeJobByUUID_Call) Run(run func(ctx context.Context, jobUUID string)) *MockDataStore_GetClusterUpgradeJobByUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetClusterUpgradeJobByUUID_Call) Return(_a0 *datamodel.ClusterUpgradeJob, _a1 error) *MockDataStore_GetClusterUpgradeJobByUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetClusterUpgradeJobByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ClusterUpgradeJob, error)) *MockDataStore_GetClusterUpgradeJobByUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetClusterUpgradeJobsByClusterID provides a mock function with given fields: ctx, clusterID
+func (_m *MockDataStore) GetClusterUpgradeJobsByClusterID(ctx context.Context, clusterID string) ([]*datamodel.ClusterUpgradeJob, error) {
+	ret := _m.Called(ctx, clusterID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterUpgradeJobsByClusterID")
+	}
+
+	var r0 []*datamodel.ClusterUpgradeJob
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.ClusterUpgradeJob, error)); ok {
+		return rf(ctx, clusterID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.ClusterUpgradeJob); ok {
+		r0 = rf(ctx, clusterID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ClusterUpgradeJob)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, clusterID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetClusterUpgradeJobsByClusterID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterUpgradeJobsByClusterID'
+type MockDataStore_GetClusterUpgradeJobsByClusterID_Call struct {
+	*mock.Call
+}
+
+// GetClusterUpgradeJobsByClusterID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clusterID string
+func (_e *MockDataStore_Expecter) GetClusterUpgradeJobsByClusterID(ctx interface{}, clusterID interface{}) *MockDataStore_GetClusterUpgradeJobsByClusterID_Call {
+	return &MockDataStore_GetClusterUpgradeJobsByClusterID_Call{Call: _e.mock.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID)}
+}
+
+func (_c *MockDataStore_GetClusterUpgradeJobsByClusterID_Call) Run(run func(ctx context.Context, clusterID string)) *MockDataStore_GetClusterUpgradeJobsByClusterID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetClusterUpgradeJobsByClusterID_Call) Return(_a0 []*datamodel.ClusterUpgradeJob, _a1 error) *MockDataStore_GetClusterUpgradeJobsByClusterID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetClusterUpgradeJobsByClusterID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.ClusterUpgradeJob, error)) *MockDataStore_GetClusterUpgradeJobsByClusterID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetDeletedAccounts provides a mock function with given fields: ctx
 func (_m *MockDataStore) GetDeletedAccounts(ctx context.Context) ([]*datamodel.Account, error) {
 	ret := _m.Called(ctx)
@@ -5360,6 +5643,65 @@ func (_c *MockDataStore_GetHostGroup_Call) Return(_a0 *datamodel.HostGroup, _a1 
 }
 
 func (_c *MockDataStore_GetHostGroup_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.HostGroup, error)) *MockDataStore_GetHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetImageVersionByOntapVersion provides a mock function with given fields: ctx, ontapVersion
+func (_m *MockDataStore) GetImageVersionByOntapVersion(ctx context.Context, ontapVersion string) (*datamodel.ImageVersion, error) {
+	ret := _m.Called(ctx, ontapVersion)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetImageVersionByOntapVersion")
+	}
+
+	var r0 *datamodel.ImageVersion
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.ImageVersion, error)); ok {
+		return rf(ctx, ontapVersion)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.ImageVersion); ok {
+		r0 = rf(ctx, ontapVersion)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ImageVersion)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, ontapVersion)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetImageVersionByOntapVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetImageVersionByOntapVersion'
+type MockDataStore_GetImageVersionByOntapVersion_Call struct {
+	*mock.Call
+}
+
+// GetImageVersionByOntapVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ontapVersion string
+func (_e *MockDataStore_Expecter) GetImageVersionByOntapVersion(ctx interface{}, ontapVersion interface{}) *MockDataStore_GetImageVersionByOntapVersion_Call {
+	return &MockDataStore_GetImageVersionByOntapVersion_Call{Call: _e.mock.On("GetImageVersionByOntapVersion", ctx, ontapVersion)}
+}
+
+func (_c *MockDataStore_GetImageVersionByOntapVersion_Call) Run(run func(ctx context.Context, ontapVersion string)) *MockDataStore_GetImageVersionByOntapVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetImageVersionByOntapVersion_Call) Return(_a0 *datamodel.ImageVersion, _a1 error) *MockDataStore_GetImageVersionByOntapVersion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetImageVersionByOntapVersion_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ImageVersion, error)) *MockDataStore_GetImageVersionByOntapVersion_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -6777,6 +7119,65 @@ func (_c *MockDataStore_GetPoolByName_Call) Return(_a0 *datamodel.PoolView, _a1 
 }
 
 func (_c *MockDataStore_GetPoolByName_Call) RunAndReturn(run func(context.Context, [][]interface{}) (*datamodel.PoolView, error)) *MockDataStore_GetPoolByName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetPoolByUUID provides a mock function with given fields: ctx, poolUUID
+func (_m *MockDataStore) GetPoolByUUID(ctx context.Context, poolUUID string) (*datamodel.Pool, error) {
+	ret := _m.Called(ctx, poolUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPoolByUUID")
+	}
+
+	var r0 *datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Pool, error)); ok {
+		return rf(ctx, poolUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Pool); ok {
+		r0 = rf(ctx, poolUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, poolUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetPoolByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPoolByUUID'
+type MockDataStore_GetPoolByUUID_Call struct {
+	*mock.Call
+}
+
+// GetPoolByUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolUUID string
+func (_e *MockDataStore_Expecter) GetPoolByUUID(ctx interface{}, poolUUID interface{}) *MockDataStore_GetPoolByUUID_Call {
+	return &MockDataStore_GetPoolByUUID_Call{Call: _e.mock.On("GetPoolByUUID", ctx, poolUUID)}
+}
+
+func (_c *MockDataStore_GetPoolByUUID_Call) Run(run func(ctx context.Context, poolUUID string)) *MockDataStore_GetPoolByUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolByUUID_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockDataStore_GetPoolByUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Pool, error)) *MockDataStore_GetPoolByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -9473,6 +9874,65 @@ func (_c *MockDataStore_ListHostGroupsByAccountID_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// ListImageVersions provides a mock function with given fields: ctx, activeOnly
+func (_m *MockDataStore) ListImageVersions(ctx context.Context, activeOnly bool) ([]*datamodel.ImageVersion, error) {
+	ret := _m.Called(ctx, activeOnly)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListImageVersions")
+	}
+
+	var r0 []*datamodel.ImageVersion
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, bool) ([]*datamodel.ImageVersion, error)); ok {
+		return rf(ctx, activeOnly)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, bool) []*datamodel.ImageVersion); ok {
+		r0 = rf(ctx, activeOnly)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ImageVersion)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, bool) error); ok {
+		r1 = rf(ctx, activeOnly)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListImageVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListImageVersions'
+type MockDataStore_ListImageVersions_Call struct {
+	*mock.Call
+}
+
+// ListImageVersions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - activeOnly bool
+func (_e *MockDataStore_Expecter) ListImageVersions(ctx interface{}, activeOnly interface{}) *MockDataStore_ListImageVersions_Call {
+	return &MockDataStore_ListImageVersions_Call{Call: _e.mock.On("ListImageVersions", ctx, activeOnly)}
+}
+
+func (_c *MockDataStore_ListImageVersions_Call) Run(run func(ctx context.Context, activeOnly bool)) *MockDataStore_ListImageVersions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(bool))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListImageVersions_Call) Return(_a0 []*datamodel.ImageVersion, _a1 error) *MockDataStore_ListImageVersions_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListImageVersions_Call) RunAndReturn(run func(context.Context, bool) ([]*datamodel.ImageVersion, error)) *MockDataStore_ListImageVersions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListKmsConfigByAccountID provides a mock function with given fields: ctx, accountID
 func (_m *MockDataStore) ListKmsConfigByAccountID(ctx context.Context, accountID int64) ([]*datamodel.KmsConfig, error) {
 	ret := _m.Called(ctx, accountID)
@@ -11329,6 +11789,53 @@ func (_c *MockDataStore_UpdateClusterPeeringRow_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// UpdateClusterUpgradeJob provides a mock function with given fields: ctx, upgradeJob
+func (_m *MockDataStore) UpdateClusterUpgradeJob(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob) error {
+	ret := _m.Called(ctx, upgradeJob)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateClusterUpgradeJob")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ClusterUpgradeJob) error); ok {
+		r0 = rf(ctx, upgradeJob)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateClusterUpgradeJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateClusterUpgradeJob'
+type MockDataStore_UpdateClusterUpgradeJob_Call struct {
+	*mock.Call
+}
+
+// UpdateClusterUpgradeJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - upgradeJob *datamodel.ClusterUpgradeJob
+func (_e *MockDataStore_Expecter) UpdateClusterUpgradeJob(ctx interface{}, upgradeJob interface{}) *MockDataStore_UpdateClusterUpgradeJob_Call {
+	return &MockDataStore_UpdateClusterUpgradeJob_Call{Call: _e.mock.On("UpdateClusterUpgradeJob", ctx, upgradeJob)}
+}
+
+func (_c *MockDataStore_UpdateClusterUpgradeJob_Call) Run(run func(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob)) *MockDataStore_UpdateClusterUpgradeJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ClusterUpgradeJob))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateClusterUpgradeJob_Call) Return(_a0 error) *MockDataStore_UpdateClusterUpgradeJob_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateClusterUpgradeJob_Call) RunAndReturn(run func(context.Context, *datamodel.ClusterUpgradeJob) error) *MockDataStore_UpdateClusterUpgradeJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID, description, Hosts
 func (_m *MockDataStore) UpdateHostGroup(ctx context.Context, hostGroupUUID string, accountID int64, description *string, Hosts *[]string) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroupUUID, accountID, description, Hosts)
@@ -11487,6 +11994,53 @@ func (_c *MockDataStore_UpdateHostGroupsStateForHandleResource_Call) Return(_a0 
 }
 
 func (_c *MockDataStore_UpdateHostGroupsStateForHandleResource_Call) RunAndReturn(run func(context.Context, string, int64, string, string) error) *MockDataStore_UpdateHostGroupsStateForHandleResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateImageVersion provides a mock function with given fields: ctx, imageVersion
+func (_m *MockDataStore) UpdateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) error {
+	ret := _m.Called(ctx, imageVersion)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateImageVersion")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ImageVersion) error); ok {
+		r0 = rf(ctx, imageVersion)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateImageVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateImageVersion'
+type MockDataStore_UpdateImageVersion_Call struct {
+	*mock.Call
+}
+
+// UpdateImageVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - imageVersion *datamodel.ImageVersion
+func (_e *MockDataStore_Expecter) UpdateImageVersion(ctx interface{}, imageVersion interface{}) *MockDataStore_UpdateImageVersion_Call {
+	return &MockDataStore_UpdateImageVersion_Call{Call: _e.mock.On("UpdateImageVersion", ctx, imageVersion)}
+}
+
+func (_c *MockDataStore_UpdateImageVersion_Call) Run(run func(ctx context.Context, imageVersion *datamodel.ImageVersion)) *MockDataStore_UpdateImageVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ImageVersion))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateImageVersion_Call) Return(_a0 error) *MockDataStore_UpdateImageVersion_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateImageVersion_Call) RunAndReturn(run func(context.Context, *datamodel.ImageVersion) error) *MockDataStore_UpdateImageVersion_Call {
 	_c.Call.Return(run)
 	return _c
 }

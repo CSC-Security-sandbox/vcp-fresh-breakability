@@ -1,4 +1,4 @@
-openapi: 3.0.4
+openapi: 3.0.1
 info:
   title: Google Cloud NetApp Files API
   description: '## Google Cloud NetApp Files This is the documentation and examples
@@ -13,6 +13,8 @@ servers:
 tags:
   - name: pools
     description: Pool operations
+  - name: clusters
+    description: Cluster upgrade operations
   - name: replications
     description: Replication operations
 paths:
@@ -675,6 +677,138 @@ paths:
           $ref: '#/components/responses/StandardError-429'
         '409':
           $ref: '#/components/responses/StandardError-409'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/clusters/{clusterId}/upgrade:
+    post:
+      tags:
+        - clusters
+      summary: Upgrade a VSA cluster
+      description: Initiates an upgrade of a VSA cluster to the latest or specified ONTAP version
+      operationId: v1_upgradeCluster
+      parameters:
+        - name: clusterId
+          in: path
+          description: UUID of the cluster to upgrade
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterUpgradeRequest_v1'
+        required: true
+      responses:
+        "202":
+          description: Upgrade initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterUpgradeResponse_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/clusters/upgrade/{jobId}:
+    get:
+      tags:
+        - clusters
+      summary: Get cluster upgrade status
+      description: Retrieves the status and progress of a cluster upgrade operation
+      operationId: v1_getClusterUpgradeStatus
+      parameters:
+        - name: jobId
+          in: path
+          description: Job ID of the upgrade operation
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      responses:
+        "200":
+          description: Upgrade status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpgradeProgress_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/clusters/versions:
+    get:
+      tags:
+        - clusters
+      summary: List available ONTAP versions
+      description: Lists all available ONTAP versions for cluster upgrades, including the current VCP version and supported versions from the database
+      operationId: v1_listAvailableVersions
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: Available versions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAvailableVersionsResponse_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
         default:
@@ -1628,6 +1762,228 @@ components:
       required:
         - ip
         - dns
+    ClusterUpgradeRequest_v1:
+      type: object
+      title: ClusterUpgradeRequest
+      description: Request to upgrade a VSA cluster
+      properties:
+        vsaBuildImage:
+          type: string
+          description: VSA build image to upgrade to (requires forceUpgrade=true)
+          example: "vsa:9.17.1-build456"
+        mediatorBuildImage:
+          type: string
+          description: Mediator build image to upgrade to (requires forceUpgrade=true)
+          example: "mediator:9.17.1-build456"
+        forceUpgrade:
+          type: boolean
+          description: Whether to force upgrade (required when specifying build images, or when upgrade gap > 1)
+          default: false
+        metadata:
+          type: object
+          description: Additional metadata for the upgrade operation
+          additionalProperties:
+            type: string
+          example:
+            reason: "Scheduled maintenance"
+            operator: "admin@company.com"
+    ClusterUpgradeResponse_v1:
+      type: object
+      title: ClusterUpgradeResponse
+      description: Response for a cluster upgrade request
+      required:
+        - clusterId
+        - status
+        - jobId
+        - createdAt
+        - updatedAt
+      properties:
+        clusterId:
+          type: string
+          description: UUID of the cluster being upgraded
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        status:
+          type: string
+          description: Current status of the upgrade
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+          example: "IN_PROGRESS"
+        jobId:
+          type: string
+          description: Unique job identifier for tracking the upgrade
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the upgrade was initiated
+          example: "2023-12-01T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the upgrade status was last updated
+          example: "2023-12-01T10:05:00Z"
+    UpgradeProgress_v1:
+      type: object
+      title: UpgradeProgress
+      description: Progress information for a cluster upgrade operation
+      required:
+        - jobId
+        - status
+      properties:
+        jobId:
+          type: string
+          description: Unique job identifier for tracking the upgrade
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        status:
+          type: string
+          description: Current status of the upgrade
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+            - ROLLING_BACK
+          example: "IN_PROGRESS"
+        clusters:
+          type: array
+          description: Status of individual clusters in the upgrade operation
+          items:
+            $ref: '#/components/schemas/ClusterUpgradeStatus_v1'
+        errors:
+          type: array
+          description: Any errors that occurred during the upgrade
+          items:
+            $ref: '#/components/schemas/UpgradeError_v1'
+        warnings:
+          type: array
+          description: Any warnings that occurred during the upgrade
+          items:
+            type: string
+    ClusterUpgradeStatus_v1:
+      type: object
+      title: ClusterUpgradeStatus
+      description: Status of a single cluster in an upgrade operation
+      required:
+        - clusterId
+        - status
+      properties:
+        clusterId:
+          type: string
+          description: UUID of the cluster
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        status:
+          type: string
+          description: Current status of the cluster upgrade
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+            - ROLLING_BACK
+          example: "IN_PROGRESS"
+        startTime:
+          type: string
+          format: date-time
+          description: Timestamp when the cluster upgrade started
+          example: "2023-12-01T10:00:00Z"
+        endTime:
+          type: string
+          format: date-time
+          description: Timestamp when the cluster upgrade completed
+          example: "2023-12-01T10:30:00Z"
+        currentStep:
+          type: string
+          description: Current step in the upgrade process
+          example: "Upgrading data nodes"
+    UpgradeError_v1:
+      type: object
+      title: UpgradeError
+      description: Error information for an upgrade operation
+      required:
+        - code
+        - message
+        - type
+        - retryable
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: "UPGRADE_FAILED"
+        message:
+          type: string
+          description: Error message
+          example: "Failed to connect to cluster management interface"
+        type:
+          type: string
+          description: Error type
+          example: "CONNECTION_ERROR"
+        retryable:
+          type: boolean
+          description: Whether the error is retryable
+          example: true
+        clusterId:
+          type: string
+          description: UUID of the cluster where the error occurred
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+    AvailableVersion_v1:
+      type: object
+      title: AvailableVersion
+      description: An available ONTAP version for cluster upgrades
+      required:
+        - ontapVersion
+        - vsaImagePath
+        - vsaName
+        - mediatorName
+        - isCurrent
+        - isActive
+      properties:
+        ontapVersion:
+          type: string
+          description: ONTAP version string
+          example: "9.17.1"
+        vsaImagePath:
+          type: string
+          description: VSA image path for this ONTAP version
+          example: "x-9-17-1x49-gcnv"
+        vsaName:
+          type: string
+          description: VSA image name for this ONTAP version
+          example: "x-9-17-1x49-gcnv"
+        mediatorName:
+          type: string
+          description: Mediator image name for this ONTAP version
+          example: "cvo-mediator-x-9-17-1x49"
+        isCurrent:
+          type: boolean
+          description: Whether this is the current VCP version
+          example: true
+        isActive:
+          type: boolean
+          description: Whether this version is active and available for upgrades
+          example: true
+    ListAvailableVersionsResponse_v1:
+      type: object
+      title: ListAvailableVersionsResponse
+      description: Response containing all available ONTAP versions for cluster upgrades
+      required:
+        - versions
+        - current
+      properties:
+        versions:
+          type: array
+          description: List of available ONTAP versions
+          items:
+            $ref: '#/components/schemas/AvailableVersion_v1'
+        current:
+          type: string
+          description: Current VCP ONTAP version
+          example: "9.17.1"
     ReplicationExternalUUIDList_v1:
       title: ReplicationExternalUUIDList
       required:

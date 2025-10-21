@@ -2407,6 +2407,65 @@ func (_c *MockOrchestratorFactory_GetBackupsUnderBackupVault_Call) RunAndReturn(
 	return _c
 }
 
+// GetClusterUpgradeStatus provides a mock function with given fields: ctx, jobUUID
+func (_m *MockOrchestratorFactory) GetClusterUpgradeStatus(ctx context.Context, jobUUID string) (*models.UpgradeProgress, error) {
+	ret := _m.Called(ctx, jobUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterUpgradeStatus")
+	}
+
+	var r0 *models.UpgradeProgress
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.UpgradeProgress, error)); ok {
+		return rf(ctx, jobUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.UpgradeProgress); ok {
+		r0 = rf(ctx, jobUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.UpgradeProgress)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, jobUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetClusterUpgradeStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterUpgradeStatus'
+type MockOrchestratorFactory_GetClusterUpgradeStatus_Call struct {
+	*mock.Call
+}
+
+// GetClusterUpgradeStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobUUID string
+func (_e *MockOrchestratorFactory_Expecter) GetClusterUpgradeStatus(ctx interface{}, jobUUID interface{}) *MockOrchestratorFactory_GetClusterUpgradeStatus_Call {
+	return &MockOrchestratorFactory_GetClusterUpgradeStatus_Call{Call: _e.mock.On("GetClusterUpgradeStatus", ctx, jobUUID)}
+}
+
+func (_c *MockOrchestratorFactory_GetClusterUpgradeStatus_Call) Run(run func(ctx context.Context, jobUUID string)) *MockOrchestratorFactory_GetClusterUpgradeStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetClusterUpgradeStatus_Call) Return(_a0 *models.UpgradeProgress, _a1 error) *MockOrchestratorFactory_GetClusterUpgradeStatus_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetClusterUpgradeStatus_Call) RunAndReturn(run func(context.Context, string) (*models.UpgradeProgress, error)) *MockOrchestratorFactory_GetClusterUpgradeStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetExpertModePoolCreds provides a mock function with given fields: ctx, poolId, accountName, userName
 func (_m *MockOrchestratorFactory) GetExpertModePoolCreds(ctx context.Context, poolId string, accountName string, userName string) (*models.UserCredentials, error) {
 	ret := _m.Called(ctx, poolId, accountName, userName)
@@ -3945,6 +4004,64 @@ func (_c *MockOrchestratorFactory_ListAllPools_Call) Return(_a0 []*models.Pool, 
 }
 
 func (_c *MockOrchestratorFactory_ListAllPools_Call) RunAndReturn(run func(context.Context) ([]*models.Pool, error)) *MockOrchestratorFactory_ListAllPools_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListAvailableVersions provides a mock function with given fields: ctx
+func (_m *MockOrchestratorFactory) ListAvailableVersions(ctx context.Context) (*models.ListAvailableVersionsResponse, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAvailableVersions")
+	}
+
+	var r0 *models.ListAvailableVersionsResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*models.ListAvailableVersionsResponse, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) *models.ListAvailableVersionsResponse); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.ListAvailableVersionsResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListAvailableVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAvailableVersions'
+type MockOrchestratorFactory_ListAvailableVersions_Call struct {
+	*mock.Call
+}
+
+// ListAvailableVersions is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockOrchestratorFactory_Expecter) ListAvailableVersions(ctx interface{}) *MockOrchestratorFactory_ListAvailableVersions_Call {
+	return &MockOrchestratorFactory_ListAvailableVersions_Call{Call: _e.mock.On("ListAvailableVersions", ctx)}
+}
+
+func (_c *MockOrchestratorFactory_ListAvailableVersions_Call) Run(run func(ctx context.Context)) *MockOrchestratorFactory_ListAvailableVersions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListAvailableVersions_Call) Return(_a0 *models.ListAvailableVersionsResponse, _a1 error) *MockOrchestratorFactory_ListAvailableVersions_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListAvailableVersions_Call) RunAndReturn(run func(context.Context) (*models.ListAvailableVersionsResponse, error)) *MockOrchestratorFactory_ListAvailableVersions_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5943,6 +6060,72 @@ func (_c *MockOrchestratorFactory_UpdateVolumeV2_Call) Return(_a0 *models.Volume
 }
 
 func (_c *MockOrchestratorFactory_UpdateVolumeV2_Call) RunAndReturn(run func(context.Context, *common.UpdateVolumeParams) (*models.Volume, string, error)) *MockOrchestratorFactory_UpdateVolumeV2_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpgradeCluster provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpgradeCluster(ctx context.Context, params *common.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpgradeCluster")
+	}
+
+	var r0 *models.ClusterUpgradeResponse
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpgradeClusterParams) *models.ClusterUpgradeResponse); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.ClusterUpgradeResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpgradeClusterParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.UpgradeClusterParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpgradeCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpgradeCluster'
+type MockOrchestratorFactory_UpgradeCluster_Call struct {
+	*mock.Call
+}
+
+// UpgradeCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpgradeClusterParams
+func (_e *MockOrchestratorFactory_Expecter) UpgradeCluster(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpgradeCluster_Call {
+	return &MockOrchestratorFactory_UpgradeCluster_Call{Call: _e.mock.On("UpgradeCluster", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpgradeCluster_Call) Run(run func(ctx context.Context, params *common.UpgradeClusterParams)) *MockOrchestratorFactory_UpgradeCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpgradeClusterParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpgradeCluster_Call) Return(_a0 *models.ClusterUpgradeResponse, _a1 string, _a2 error) *MockOrchestratorFactory_UpgradeCluster_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpgradeCluster_Call) RunAndReturn(run func(context.Context, *common.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error)) *MockOrchestratorFactory_UpgradeCluster_Call {
 	_c.Call.Return(run)
 	return _c
 }

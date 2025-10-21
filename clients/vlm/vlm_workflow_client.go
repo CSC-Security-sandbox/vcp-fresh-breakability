@@ -72,7 +72,10 @@ type VlmWorkflowClient interface {
 	DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error
 	UpdateVSAClusterDeployment(ctx workflow.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error)
 	ValidateClusterHealth(ctx workflow.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error
-	ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error
+	ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpReq) error
+	UpgradeVSAClusterDeploymentWorkflow(ctx workflow.Context, req *UpdateVSAClusterDeploymentRequest) (*UpgradeVSAClusterDeploymentResponse, error)
+	UpgradeVSAMediatorWorkflow(ctx workflow.Context, req *UpdateMediatorRequest) (*UpdateMediatorResponse, error)
+	UpdateLicenseWorkflow(ctx workflow.Context, req *UpdateLicenseRequest) error
 	GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error)
 }
 
@@ -104,7 +107,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 		return nil, err
 	}
 
-	accountId := createVSAClusterDeploymentRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := createVSAClusterDeploymentRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSAClusterDeploymentWorkflowName]; ok {
@@ -116,7 +119,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 	}
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
-		TaskQueue:             getVLMWorkerQueue(logger, accountId),                                // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+		TaskQueue:             getVLMWorkerQueue(logger, accountID),                                // As VLM workflows are executed in a VSALifecycleManagerQueue queue
 		WaitForCancellation:   true,                                                                // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,          // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
 		RetryPolicy: &temporal.RetryPolicy{
@@ -161,7 +164,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 				}
 
 				ontapVersion := OntapVersion
-				if utils.IsFileProtocolSupported(accountId) {
+				if utils.IsFileProtocolSupported(accountID) {
 					ontapVersion = "9.18.1"
 				}
 
@@ -176,7 +179,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 					// but since we couldn't reproduce the issue reliably, using a new child workflow ID for retry to be safe
 					retryChildWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 						WorkflowID:            createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID + "-1", // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
-						TaskQueue:             getVLMWorkerQueue(logger, accountId),                                       // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+						TaskQueue:             getVLMWorkerQueue(logger, accountID),                                       // As VLM workflows are executed in a VSALifecycleManagerQueue queue
 						WaitForCancellation:   true,                                                                       // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
 						WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,                 // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
 						RetryPolicy: &temporal.RetryPolicy{
@@ -223,7 +226,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 		return nil, err
 	}
 
-	accountId := createSVMRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := createSVMRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSASVMWorkflowName]; ok {
@@ -231,7 +234,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 	}
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             getVLMWorkerQueue(logger, accountId),
+		TaskQueue:             getVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -376,6 +379,107 @@ func (vlmManager *VSAClientWorkflowManager) UpdateVSAClusterDeployment(ctx workf
 	return updateVSAClusterDeploymentResponse, nil
 }
 
+func (vlmManager *VSAClientWorkflowManager) UpgradeVSAClusterDeploymentWorkflow(ctx workflow.Context, req *UpdateVSAClusterDeploymentRequest) (*UpgradeVSAClusterDeploymentResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return &UpgradeVSAClusterDeploymentResponse{}, err
+	}
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[UpgradeVSAClusterDeploymentWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + OntapVersion,
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	upgradeVSAClusterDeploymentResponse := &UpgradeVSAClusterDeploymentResponse{}
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return &UpgradeVSAClusterDeploymentResponse{}, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, req.VLMConfig.Deployment.DeploymentID)
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, UpgradeVSAClusterDeploymentWorkflowName, req).Get(childWorkflowContxt, &upgradeVSAClusterDeploymentResponse)
+
+	if err != nil {
+		logger.Error("Failed to upgrade VSA cluster", "error", err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return &UpgradeVSAClusterDeploymentResponse{}, vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	return upgradeVSAClusterDeploymentResponse, nil
+}
+
+// UpgradeVSAMediatorWorkflow upgrades a VSA mediator
+func (vlmManager *VSAClientWorkflowManager) UpgradeVSAMediatorWorkflow(ctx workflow.Context, req *UpdateMediatorRequest) (*UpdateMediatorResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[UpdateVSAMediatorWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + OntapVersion,
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	upgradeVSAMediatorResponse := &UpdateMediatorResponse{}
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, req.VLMConfig.Deployment.DeploymentID)
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, UpdateVSAMediatorWorkflowName, req).Get(childWorkflowContxt, upgradeVSAMediatorResponse)
+
+	if err != nil {
+		logger.Error("Failed to upgrade VSA mediator", "error", err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return &UpdateMediatorResponse{}, vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	return upgradeVSAMediatorResponse, nil
+}
+
 func (vlmManager *VSAClientWorkflowManager) GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error) {
 	logger := util.GetLogger(ctx)
 	logger.Info("Starting GetClusterZiZsDetails workflow", "projectID", req.ProjectID, "deploymentID", req.DeploymentID)
@@ -518,7 +622,7 @@ func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.C
 		return err
 	}
 
-	accountId := validateClusterHealthRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := validateClusterHealthRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[ClusterHealthCheckWorkflowName]; ok {
@@ -526,11 +630,11 @@ func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.C
 	}
 
 	childWorkflowID := fmt.Sprintf("%s-health-check-%d-%s", validateClusterHealthRequest.VLMConfig.Deployment.DeploymentID, workflow.Now(ctx).UnixNano(), workflow.GetInfo(ctx).WorkflowExecution.ID)
-	logger.Info("Creating ValidateClusterHealth child workflow", "deploymentID", validateClusterHealthRequest.VLMConfig.Deployment.DeploymentID, "childWorkflowID", childWorkflowID, "accountId", accountId)
+	logger.Info("Creating ValidateClusterHealth child workflow", "deploymentID", validateClusterHealthRequest.VLMConfig.Deployment.DeploymentID, "childWorkflowID", childWorkflowID, "accountID", accountID)
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            childWorkflowID,
-		TaskQueue:             getVLMWorkerQueue(logger, accountId),
+		TaskQueue:             getVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -562,7 +666,7 @@ func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.C
 	return nil
 }
 
-func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error {
+func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context, clusterPowerOpRequest *ClusterPowerOpReq) error {
 	logger := util.GetLogger(ctx)
 
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -570,7 +674,7 @@ func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context,
 		return err
 	}
 
-	accountId := clusterPowerOpRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := clusterPowerOpRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[ClusterPowerCycleWorkflowName]; ok {
@@ -578,11 +682,11 @@ func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context,
 	}
 
 	childWorkflowID := fmt.Sprintf("%s-power-op-%d-%s", clusterPowerOpRequest.VLMConfig.Deployment.DeploymentID, workflow.Now(ctx).UnixNano(), workflow.GetInfo(ctx).WorkflowExecution.ID)
-	logger.Info("Creating ClusterPowerOp child workflow", "deploymentID", clusterPowerOpRequest.VLMConfig.Deployment.DeploymentID, "operation", clusterPowerOpRequest.Operation, "childWorkflowID", childWorkflowID, "accountId", accountId)
+	logger.Info("Creating ClusterPowerOp child workflow", "deploymentID", clusterPowerOpRequest.VLMConfig.Deployment.DeploymentID, "operation", clusterPowerOpRequest.Operation, "childWorkflowID", childWorkflowID, "accountID", accountID)
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            childWorkflowID,
-		TaskQueue:             getVLMWorkerQueue(logger, accountId),
+		TaskQueue:             getVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -611,5 +715,58 @@ func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context,
 		return vsaerrors.WrapAsTemporalApplicationError(handledErr)
 	}
 
+	return nil
+}
+
+// UpdateLicenseWorkflow updates the ONTAP license for a VSA cluster
+func (vlmManager *VSAClientWorkflowManager) UpdateLicenseWorkflow(ctx workflow.Context, req *UpdateLicenseRequest) error {
+	logger := util.GetLogger(ctx)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+
+	// Get workflow execution timeout for UpdateLicense workflow
+	workflowExecutionTimeout, exists := WorkflowExecutionTimeoutMap[UpdateLicenseWorkflowName]
+	if !exists {
+		workflowExecutionTimeout = WorkflowExecutionTimeoutMap["DefaultWorkflowExecutionTimeout"]
+	}
+
+	// Generate child workflow ID
+	childWorkflowID := fmt.Sprintf("update-license-%s-%d", req.VSAManagementIP, time.Now().Unix())
+
+	logger.Info("Creating UpdateLicense child workflow", "vsaManagementIP", req.VSAManagementIP, "childWorkflowID", childWorkflowID)
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		WorkflowID:            childWorkflowID,
+		TaskQueue:             VSALifecycleManagerQueue,
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	// Add correlation ID to context if available
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+	} else {
+		childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	}
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, UpdateLicenseWorkflowName, req).Get(childWorkflowContxt, nil)
+	if err != nil {
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	logger.Info("UpdateLicense child workflow completed successfully", "vsaManagementIP", req.VSAManagementIP)
 	return nil
 }

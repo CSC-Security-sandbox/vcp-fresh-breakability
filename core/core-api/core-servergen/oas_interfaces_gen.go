@@ -9,6 +9,10 @@ type V1DeletePoolRes interface {
 	v1DeletePoolRes()
 }
 
+type V1GetClusterUpgradeStatusRes interface {
+	v1GetClusterUpgradeStatusRes()
+}
+
 type V1GetMultipleReplicationsByExternalUUIDRes interface {
 	v1GetMultipleReplicationsByExternalUUIDRes()
 }
@@ -21,6 +25,10 @@ type V1GetPoolRes interface {
 	v1GetPoolRes()
 }
 
+type V1ListAvailableVersionsRes interface {
+	v1ListAvailableVersionsRes()
+}
+
 type V1ListPoolsRes interface {
 	v1ListPoolsRes()
 }
@@ -31,4 +39,8 @@ type V1RotateGcpKmsConfigRes interface {
 
 type V1UpdatePoolRes interface {
 	v1UpdatePoolRes()
+}
+
+type V1UpgradeClusterRes interface {
+	v1UpgradeClusterRes()
 }

@@ -189,6 +189,65 @@ func (_c *MockHandler_V1DeletePool_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// V1GetClusterUpgradeStatus provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1GetClusterUpgradeStatus")
+	}
+
+	var r0 V1GetClusterUpgradeStatusRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetClusterUpgradeStatusParams) V1GetClusterUpgradeStatusRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1GetClusterUpgradeStatusRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1GetClusterUpgradeStatusParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1GetClusterUpgradeStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1GetClusterUpgradeStatus'
+type MockHandler_V1GetClusterUpgradeStatus_Call struct {
+	*mock.Call
+}
+
+// V1GetClusterUpgradeStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1GetClusterUpgradeStatusParams
+func (_e *MockHandler_Expecter) V1GetClusterUpgradeStatus(ctx interface{}, params interface{}) *MockHandler_V1GetClusterUpgradeStatus_Call {
+	return &MockHandler_V1GetClusterUpgradeStatus_Call{Call: _e.mock.On("V1GetClusterUpgradeStatus", ctx, params)}
+}
+
+func (_c *MockHandler_V1GetClusterUpgradeStatus_Call) Run(run func(ctx context.Context, params V1GetClusterUpgradeStatusParams)) *MockHandler_V1GetClusterUpgradeStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1GetClusterUpgradeStatusParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1GetClusterUpgradeStatus_Call) Return(_a0 V1GetClusterUpgradeStatusRes, _a1 error) *MockHandler_V1GetClusterUpgradeStatus_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1GetClusterUpgradeStatus_Call) RunAndReturn(run func(context.Context, V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error)) *MockHandler_V1GetClusterUpgradeStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1GetMultipleReplicationsByExternalUUID provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams) (V1GetMultipleReplicationsByExternalUUIDRes, error) {
 	ret := _m.Called(ctx, params)
@@ -362,6 +421,65 @@ func (_c *MockHandler_V1GetPool_Call) Return(_a0 V1GetPoolRes, _a1 error) *MockH
 }
 
 func (_c *MockHandler_V1GetPool_Call) RunAndReturn(run func(context.Context, V1GetPoolParams) (V1GetPoolRes, error)) *MockHandler_V1GetPool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1ListAvailableVersions provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1ListAvailableVersions")
+	}
+
+	var r0 V1ListAvailableVersionsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1ListAvailableVersionsParams) V1ListAvailableVersionsRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1ListAvailableVersionsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1ListAvailableVersionsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1ListAvailableVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1ListAvailableVersions'
+type MockHandler_V1ListAvailableVersions_Call struct {
+	*mock.Call
+}
+
+// V1ListAvailableVersions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1ListAvailableVersionsParams
+func (_e *MockHandler_Expecter) V1ListAvailableVersions(ctx interface{}, params interface{}) *MockHandler_V1ListAvailableVersions_Call {
+	return &MockHandler_V1ListAvailableVersions_Call{Call: _e.mock.On("V1ListAvailableVersions", ctx, params)}
+}
+
+func (_c *MockHandler_V1ListAvailableVersions_Call) Run(run func(ctx context.Context, params V1ListAvailableVersionsParams)) *MockHandler_V1ListAvailableVersions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1ListAvailableVersionsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1ListAvailableVersions_Call) Return(_a0 V1ListAvailableVersionsRes, _a1 error) *MockHandler_V1ListAvailableVersions_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1ListAvailableVersions_Call) RunAndReturn(run func(context.Context, V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error)) *MockHandler_V1ListAvailableVersions_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -541,6 +659,66 @@ func (_c *MockHandler_V1UpdatePool_Call) Return(_a0 V1UpdatePoolRes, _a1 error) 
 }
 
 func (_c *MockHandler_V1UpdatePool_Call) RunAndReturn(run func(context.Context, *PoolUpdateV1, V1UpdatePoolParams) (V1UpdatePoolRes, error)) *MockHandler_V1UpdatePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1UpgradeCluster provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1UpgradeCluster(ctx context.Context, req *ClusterUpgradeRequestV1, params V1UpgradeClusterParams) (V1UpgradeClusterRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1UpgradeCluster")
+	}
+
+	var r0 V1UpgradeClusterRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ClusterUpgradeRequestV1, V1UpgradeClusterParams) (V1UpgradeClusterRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ClusterUpgradeRequestV1, V1UpgradeClusterParams) V1UpgradeClusterRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1UpgradeClusterRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ClusterUpgradeRequestV1, V1UpgradeClusterParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1UpgradeCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1UpgradeCluster'
+type MockHandler_V1UpgradeCluster_Call struct {
+	*mock.Call
+}
+
+// V1UpgradeCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ClusterUpgradeRequestV1
+//   - params V1UpgradeClusterParams
+func (_e *MockHandler_Expecter) V1UpgradeCluster(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1UpgradeCluster_Call {
+	return &MockHandler_V1UpgradeCluster_Call{Call: _e.mock.On("V1UpgradeCluster", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1UpgradeCluster_Call) Run(run func(ctx context.Context, req *ClusterUpgradeRequestV1, params V1UpgradeClusterParams)) *MockHandler_V1UpgradeCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ClusterUpgradeRequestV1), args[2].(V1UpgradeClusterParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1UpgradeCluster_Call) Return(_a0 V1UpgradeClusterRes, _a1 error) *MockHandler_V1UpgradeCluster_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1UpgradeCluster_Call) RunAndReturn(run func(context.Context, *ClusterUpgradeRequestV1, V1UpgradeClusterParams) (V1UpgradeClusterRes, error)) *MockHandler_V1UpgradeCluster_Call {
 	_c.Call.Return(run)
 	return _c
 }

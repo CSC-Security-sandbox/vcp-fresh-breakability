@@ -121,6 +121,7 @@ workerConfig:
   cloudDnsCacheTtl: 300
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
   ontapVersion: "9.18.1"
+  ontapVersionDetails: "9.17.1"
   enforceMinSpConfig: "false"
   maxNodesPerGroup: 200
   filesProtocolSupport: "false"
@@ -130,6 +131,10 @@ workerConfig:
   vsaFilesImageName: "r9-18-1xn-251008-0400"
   vsaImageProject: ""
   vsaMediatorImageProject: ""
+  # VSA Image Bucket for signed URL generation
+  vsaImageBucket: "vsa-compute-images-tst"
+  # VSA Signed URL duration in hours (1-24, default: 12)
+  vsaSignedUrlDurationHours: 12
   vsaInstanceTypeOverride: false
   # Encryption key must be a 32-byte (256-bit) string for AES-256.
   vsaVlmEncryptionKey: "" # Should be the same as in the vlm-worker values.yaml.
@@ -143,6 +148,9 @@ workerConfig:
   vlmUpdateVsaMediatorWFTimeoutMinutes: 30
   # Comma-separated list of error patterns that trigger delete and retry operations
   vlmRetryErrorPatterns: ""
+
+  # ONTAP Image Version Match Configuration
+  skipOntapImageVersionMatch: false
 
   # Mediator VM Configuration
   vsaMediatorInstanceType: "e2-micro"

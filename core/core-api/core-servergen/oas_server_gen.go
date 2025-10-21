@@ -22,6 +22,12 @@ type Handler interface {
 	//
 	// DELETE /v1/pools/{poolId}
 	V1DeletePool(ctx context.Context, params V1DeletePoolParams) (V1DeletePoolRes, error)
+	// V1GetClusterUpgradeStatus implements v1_getClusterUpgradeStatus operation.
+	//
+	// Retrieves the status and progress of a cluster upgrade operation.
+	//
+	// GET /v1/clusters/upgrade/{jobId}
+	V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error)
 	// V1GetMultipleReplicationsByExternalUUID implements v1_getMultipleReplicationsByExternalUUID operation.
 	//
 	// Returns replications filtered by external UUIDs and endpoint type.
@@ -40,6 +46,13 @@ type Handler interface {
 	//
 	// GET /v1/pools/{poolId}
 	V1GetPool(ctx context.Context, params V1GetPoolParams) (V1GetPoolRes, error)
+	// V1ListAvailableVersions implements v1_listAvailableVersions operation.
+	//
+	// Lists all available ONTAP versions for cluster upgrades, including the current VCP version and
+	// supported versions from the database.
+	//
+	// GET /v1/clusters/versions
+	V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error)
 	// V1ListPools implements v1_listPools operation.
 	//
 	// Returns descriptions of all pools owned by the caller.
@@ -58,6 +71,12 @@ type Handler interface {
 	//
 	// PUT /v1/pools/{poolId}
 	V1UpdatePool(ctx context.Context, req *PoolUpdateV1, params V1UpdatePoolParams) (V1UpdatePoolRes, error)
+	// V1UpgradeCluster implements v1_upgradeCluster operation.
+	//
+	// Initiates an upgrade of a VSA cluster to the latest or specified ONTAP version.
+	//
+	// POST /v1/clusters/{clusterId}/upgrade
+	V1UpgradeCluster(ctx context.Context, req *ClusterUpgradeRequestV1, params V1UpgradeClusterParams) (V1UpgradeClusterRes, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

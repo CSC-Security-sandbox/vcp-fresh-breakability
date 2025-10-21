@@ -8,10 +8,13 @@ type OperationName = string
 const (
 	V1CreatePoolOperation                            OperationName = "V1CreatePool"
 	V1DeletePoolOperation                            OperationName = "V1DeletePool"
+	V1GetClusterUpgradeStatusOperation               OperationName = "V1GetClusterUpgradeStatus"
 	V1GetMultipleReplicationsByExternalUUIDOperation OperationName = "V1GetMultipleReplicationsByExternalUUID"
 	V1GetOntapCredentialsOperation                   OperationName = "V1GetOntapCredentials"
 	V1GetPoolOperation                               OperationName = "V1GetPool"
+	V1ListAvailableVersionsOperation                 OperationName = "V1ListAvailableVersions"
 	V1ListPoolsOperation                             OperationName = "V1ListPools"
 	V1RotateGcpKmsConfigOperation                    OperationName = "V1RotateGcpKmsConfig"
 	V1UpdatePoolOperation                            OperationName = "V1UpdatePool"
+	V1UpgradeClusterOperation                        OperationName = "V1UpgradeCluster"
 )

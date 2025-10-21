@@ -7,6 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+
 )
 
 const (
@@ -28,11 +29,11 @@ const (
 	UpdateVSAClusterDeploymentWorkflowName  = "vlm.UpdateVSAClusterDeploymentWorkflow"
 	UpgradeVSAClusterDeploymentWorkflowName = "vlm.UpgradeVSAClusterDeploymentWorkflow"
 	ClusterPowerCycleWorkflowName           = "vlm.ClusterPowerCycle"
-	ClusterHealthCheckWorkflowName          = "vlm.ClusterHealthCheck"
 	GetClusterZiZsDetailsWorkflowName       = "vlm.GetClusterZiZsDetails"
+	ClusterHealthCheckWorkflowName          = "vlm.ClusterHealthCheck"
+	UpdateLicenseWorkflowName               = "vlm.UpdateLicenseWorkflow"
 	UpdateVSAMediatorWorkflowName           = "vlm.UpdateVSAMediatorWorkflow"
 	CreateVSAExpertModeUserWorkflowName     = "vlm.CreateVSAExpertModeUserWorkflow"
-	UpdateLicenseWorkflowName               = "vlm.UpdateLicenseWorkflow"
 	ASUPTriggerWaitWorkflowName             = "vlm.ASUPTriggerWaitWorkflow"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
@@ -64,7 +65,7 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	GetClusterZiZsDetailsWorkflowName:       time.Duration(env.GetInt("VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
 	UpdateVSAMediatorWorkflowName:           time.Duration(env.GetInt("VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
 	UpdateLicenseWorkflowName:               10 * time.Minute,
-}
+	}
 
 type VLMConfig struct {
 	Cloud      CloudConfig          `json:"cloud"`
@@ -430,7 +431,7 @@ type ValidateClusterHealthRequest struct {
 	TriggerASUPOnFailure bool             `json:"trigger_asup_on_failure"`
 }
 
-type ClusterPowerOpRequest struct {
+type ClusterPowerOpReq struct {
 	VLMConfig        VLMConfig        `json:"vlm_config"`
 	OntapCredentials OntapCredentials `json:"ontap_credentials"`
 	Operation        string           `json:"operation"`

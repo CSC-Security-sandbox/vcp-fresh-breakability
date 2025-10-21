@@ -40,6 +40,8 @@ type Pool struct {
 	SatisfyZI         bool               `gorm:"column:satisfy_zi;default:false"`
 	SatisfyZS         bool               `gorm:"column:satisfy_zs;default:false"`
 	AssetMetadata     *AssetMetadata     `gorm:"column:asset_metadata;type:jsonb"`
+	// Build information - images used to create this pool
+	BuildInfo *PoolBuildInfo `gorm:"column:build_info;type:jsonb" json:"buildInfo,omitempty"`
 }
 
 type PoolCredentials struct {
@@ -56,6 +58,32 @@ type AssetMetadata struct {
 type ChildAsset struct {
 	AssetNames []string `json:"asset_names"`
 	AssetType  string   `json:"asset_type"`
+}
+
+// PoolBuildInfo represents the build information for a pool
+type PoolBuildInfo struct {
+	VSABuildImage      string    `json:"vsaBuildImage"`
+	MediatorBuildImage string    `json:"mediatorBuildImage"`
+	OntapVersion       string    `json:"ontapVersion"`
+	BuildTimestamp     time.Time `json:"buildTimestamp,omitempty"`
+}
+
+// Scan implements the Scanner interface for PoolBuildInfo
+func (pbi *PoolBuildInfo) Scan(value interface{}) error {
+	if value == nil {
+		*pbi = PoolBuildInfo{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, pbi)
+}
+
+// Value implements the Valuer interface for PoolBuildInfo
+func (pbi PoolBuildInfo) Value() (driver.Value, error) {
+	return json.Marshal(pbi)
 }
 
 type PoolView struct {
@@ -992,6 +1020,61 @@ func (cp *CacheParameters) Scan(value interface{}) error {
 
 func (cp CacheParameters) Value() (driver.Value, error) {
 	return json.Marshal(cp)
+}
+
+// ClusterUpgradeJob represents a VSA cluster upgrade job
+type ClusterUpgradeJob struct {
+	BaseModel
+	ClusterID          string               `gorm:"column:cluster_id;index" json:"clusterId"`
+	PoolID             string               `gorm:"column:pool_id;index" json:"poolId"`
+	TargetVersion      string               `gorm:"column:target_version" json:"targetVersion"`
+	CurrentVersion     string               `gorm:"column:current_version" json:"currentVersion"`
+	VSABuildImage      string               `gorm:"column:vsa_build_image" json:"vsaBuildImage"`
+	MediatorBuildImage string               `gorm:"column:mediator_build_image" json:"mediatorBuildImage"`
+	Status             string               `gorm:"column:status" json:"status"`
+	ErrorDetails       *UpgradeErrorDetails `gorm:"column:error_details;type:jsonb" json:"errorDetails,omitempty"`
+	StartedAt          *time.Time           `gorm:"column:started_at" json:"startedAt,omitempty"`
+	CompletedAt        *time.Time           `gorm:"column:completed_at" json:"completedAt,omitempty"`
+	Metadata           *JSONB               `gorm:"column:metadata;type:jsonb" json:"metadata,omitempty"`
+	BatchUpgradeID     *string              `gorm:"column:batch_upgrade_id;index" json:"batchUpgradeId,omitempty"`
+	ForceUpgrade       bool                 `gorm:"column:force_upgrade;default:false" json:"forceUpgrade"`
+}
+
+// UpgradeErrorDetails represents error details for upgrade jobs
+type UpgradeErrorDetails struct {
+	ErrorCode    string            `json:"errorCode"`
+	ErrorMessage string            `json:"errorMessage"`
+	ErrorType    string            `json:"errorType"`
+	Retryable    bool              `json:"retryable"`
+	Details      map[string]string `json:"details,omitempty"`
+	StackTrace   string            `json:"stackTrace,omitempty"`
+}
+
+// Scan implements the Scanner interface for UpgradeErrorDetails
+func (ued *UpgradeErrorDetails) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, ued)
+}
+
+// Value implements the driver Valuer interface for UpgradeErrorDetails
+func (ued UpgradeErrorDetails) Value() (driver.Value, error) {
+	return json.Marshal(ued)
+}
+
+// ImageVersion represents supported ONTAP versions and their corresponding images
+type ImageVersion struct {
+	BaseModel
+	OntapVersion string `gorm:"column:ontap_version;uniqueIndex;not null" json:"ontapVersion"`
+	VSAImagePath string `gorm:"column:vsa_image_path;not null" json:"vsaImagePath"`
+	VSAName      string `gorm:"column:vsa_name;not null" json:"vsaName"`
+	MediatorName string `gorm:"column:mediator_name;not null" json:"mediatorName"`
+	IsActive     bool   `gorm:"column:is_active;default:true" json:"isActive"`
 }
 
 // VolumeLatestBackup represents a volume with its latest backup

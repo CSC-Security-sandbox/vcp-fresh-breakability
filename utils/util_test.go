@@ -13,6 +13,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -3128,4 +3129,162 @@ func TestConvertLabelsMapToJSONB(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExtractOntapVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Valid version in middle of string",
+			input:    "ONTAP-9.17.1-123456",
+			expected: "9.17.1",
+		},
+		{
+			name:     "Valid version at start",
+			input:    "9.17.1-ONTAP-123456",
+			expected: "9.17.1",
+		},
+		{
+			name:     "Valid version at end",
+			input:    "ONTAP-123456-9.17.1",
+			expected: "9.17.1",
+		},
+		{
+			name:     "Multiple versions - first match",
+			input:    "9.17.1-ONTAP-9.18.0",
+			expected: "9.17.1",
+		},
+		{
+			name:     "No version found",
+			input:    "ONTAP-version-string",
+			expected: "",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "Single digit version",
+			input:    "9.17.1",
+			expected: "9.17.1",
+		},
+		{
+			name:     "Version with extra digits",
+			input:    "9.17.1.2.3",
+			expected: "9.17.1",
+		},
+		{
+			name:     "Version with letters",
+			input:    "v9.17.1",
+			expected: "9.17.1",
+		},
+		{
+			name:     "Complex string with version",
+			input:    "r9.17.1PxN_250902_0747_promo_image.tgz",
+			expected: "9.17.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractOntapVersion(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestConvertTimeToOptDateTime(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *time.Time
+		expected oasgenserver.OptDateTime
+	}{
+		{
+			name:     "Nil time",
+			input:    nil,
+			expected: oasgenserver.OptDateTime{},
+		},
+		{
+			name:     "Valid time",
+			input:    timePtr(time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)),
+			expected: oasgenserver.NewOptDateTime(time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)),
+		},
+		{
+			name:     "Zero time",
+			input:    timePtr(time.Time{}),
+			expected: oasgenserver.NewOptDateTime(time.Time{}),
+		},
+		{
+			name:     "Time with different timezone",
+			input:    timePtr(time.Date(2023, 6, 15, 18, 30, 45, 123456789, time.FixedZone("CST", -6*60*60))),
+			expected: oasgenserver.NewOptDateTime(time.Date(2023, 6, 15, 18, 30, 45, 123456789, time.FixedZone("CST", -6*60*60))),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ConvertTimeToOptDateTime(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestConvertStringToOptString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected oasgenserver.OptString
+	}{
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: oasgenserver.OptString{},
+		},
+		{
+			name:     "Valid string",
+			input:    "test string",
+			expected: oasgenserver.NewOptString("test string"),
+		},
+		{
+			name:     "String with special characters",
+			input:    "test-string_with.special@chars!",
+			expected: oasgenserver.NewOptString("test-string_with.special@chars!"),
+		},
+		{
+			name:     "String with spaces",
+			input:    "test string with spaces",
+			expected: oasgenserver.NewOptString("test string with spaces"),
+		},
+		{
+			name:     "String with unicode",
+			input:    "test string with unicode: 测试 🚀",
+			expected: oasgenserver.NewOptString("test string with unicode: 测试 🚀"),
+		},
+		{
+			name:     "Single character",
+			input:    "a",
+			expected: oasgenserver.NewOptString("a"),
+		},
+		{
+			name:     "Whitespace only",
+			input:    "   ",
+			expected: oasgenserver.NewOptString("   "),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ConvertStringToOptString(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Helper function to create time pointers
+func timePtr(t time.Time) *time.Time {
+	return &t
 }

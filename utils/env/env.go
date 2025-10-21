@@ -316,6 +316,10 @@ var (
 	WorkerTaskQueue = GetString("WORKER_TASK_QUEUE", "customer-workflows")
 
 	NLFLicenseSecretPath = GetString("NLF_LICENSE_SECRET_PATH", "")
+	// Get current VCP version from environment
+	CurrentOntapVersionDetails = GetString("ONTAP_VERSION_DETAILS", "9.17.1")
+	// ONTAP Image Version Match Configuration
+	SkipOntapImageVersionMatch = GetBool("SKIP_ONTAP_IMAGE_VERSION_MATCH", false)
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges

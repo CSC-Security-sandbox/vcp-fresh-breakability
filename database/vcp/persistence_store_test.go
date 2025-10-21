@@ -2564,6 +2564,276 @@ func TestPersistenceStore_ListAllVolumes(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, volumes)
 }
+// TestPersistenceStore_WrapperMethods tests the wrapper methods that delegate to dataStore
+// to cover the missing lines in persistance_store.go
+func TestPersistenceStore_WrapperMethods(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	t.Run("GetPoolByUUID", func(t *testing.T) {
+		// Test GetPoolByUUID wrapper method (line 367)
+		// This covers the wrapper method that delegates to dataStore
+
+		// Create a pool first
+		pool := &datamodel.Pool{Name: "test-pool-wrapper", Account: &datamodel.Account{}}
+		created, err := store.CreatingPool(ctx, pool)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		found, err := store.GetPoolByUUID(ctx, created.UUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, found)
+		assert.Equal(t, created.UUID, found.UUID)
+		assert.Equal(t, "test-pool-wrapper", found.Name)
+	})
+
+	t.Run("CreateImageVersion", func(t *testing.T) {
+		// Test CreateImageVersion wrapper method (line 1208)
+		// This covers the wrapper method that delegates to dataStore
+
+		imageVersion := &datamodel.ImageVersion{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-image-version-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			OntapVersion: "9.17.1",
+			VSAImagePath: "/path/to/vsa",
+			VSAName:      "vsa-9.17.1",
+			MediatorName: "mediator-9.17.1",
+			IsActive:     true,
+		}
+
+		// Test the wrapper method
+		result, err := store.CreateImageVersion(ctx, imageVersion)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, imageVersion.UUID, result.UUID)
+		assert.Equal(t, "9.17.1", result.OntapVersion)
+		assert.Equal(t, "/path/to/vsa", result.VSAImagePath)
+		assert.True(t, result.IsActive)
+	})
+
+	t.Run("GetImageVersionByOntapVersion", func(t *testing.T) {
+		// Test GetImageVersionByOntapVersion wrapper method (line 1212)
+		// This covers the wrapper method that delegates to dataStore
+
+		// First create an image version
+		imageVersion := &datamodel.ImageVersion{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-image-version-uuid-2",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			OntapVersion: "9.16.1",
+			VSAImagePath: "/path/to/vsa-9.16.1",
+			VSAName:      "vsa-9.16.1",
+			MediatorName: "mediator-9.16.1",
+			IsActive:     true,
+		}
+		_, err := store.CreateImageVersion(ctx, imageVersion)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		result, err := store.GetImageVersionByOntapVersion(ctx, "9.16.1")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "9.16.1", result.OntapVersion)
+		assert.Equal(t, "/path/to/vsa-9.16.1", result.VSAImagePath)
+	})
+
+	t.Run("ListImageVersions", func(t *testing.T) {
+		// Test ListImageVersions wrapper method (line 1216)
+		// This covers the wrapper method that delegates to dataStore
+
+		// Test with activeOnly = true
+		result, err := store.ListImageVersions(ctx, true)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, []*datamodel.ImageVersion{}, result)
+
+		// Test with activeOnly = false
+		result, err = store.ListImageVersions(ctx, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, []*datamodel.ImageVersion{}, result)
+	})
+
+	t.Run("UpdateImageVersion", func(t *testing.T) {
+		// Test UpdateImageVersion wrapper method (line 1220)
+		// This covers the wrapper method that delegates to dataStore
+
+		// First create an image version
+		imageVersion := &datamodel.ImageVersion{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-image-version-uuid-3",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			OntapVersion: "9.15.1",
+			VSAImagePath: "/path/to/vsa-9.15.1",
+			VSAName:      "vsa-9.15.1",
+			MediatorName: "mediator-9.15.1",
+			IsActive:     false,
+		}
+		created, err := store.CreateImageVersion(ctx, imageVersion)
+		require.NoError(t, err)
+
+		// Update the image version
+		created.IsActive = true
+		created.VSAImagePath = "/updated/path/to/vsa-9.15.1"
+
+		// Test the wrapper method
+		err = store.UpdateImageVersion(ctx, created)
+		assert.NoError(t, err)
+	})
+
+	t.Run("DeleteImageVersion", func(t *testing.T) {
+		// Test DeleteImageVersion wrapper method (line 1224)
+		// This covers the wrapper method that delegates to dataStore
+
+		// First create an image version
+		imageVersion := &datamodel.ImageVersion{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-image-version-uuid-4",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			OntapVersion: "9.14.1",
+			VSAImagePath: "/path/to/vsa-9.14.1",
+			VSAName:      "vsa-9.14.1",
+			MediatorName: "mediator-9.14.1",
+			IsActive:     true,
+		}
+		_, err := store.CreateImageVersion(ctx, imageVersion)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		err = store.DeleteImageVersion(ctx, "9.14.1")
+		assert.NoError(t, err)
+	})
+
+	t.Run("CreateClusterUpgradeJob", func(t *testing.T) {
+		// Test CreateClusterUpgradeJob wrapper method (line 1229)
+		// This covers the wrapper method that delegates to dataStore
+
+		upgradeJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-upgrade-job-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			ClusterID: "test-cluster-id",
+			Status:    "pending",
+		}
+
+		// Test the wrapper method
+		result, err := store.CreateClusterUpgradeJob(ctx, upgradeJob)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, upgradeJob.UUID, result.UUID)
+		assert.Equal(t, "test-cluster-id", result.ClusterID)
+		assert.Equal(t, "pending", result.Status)
+	})
+
+	t.Run("GetClusterUpgradeJobByUUID", func(t *testing.T) {
+		// Test GetClusterUpgradeJobByUUID wrapper method (line 1234)
+		// This covers the wrapper method that delegates to dataStore
+
+		// First create a cluster upgrade job
+		upgradeJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-upgrade-job-uuid-2",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			ClusterID: "test-cluster-id-2",
+			Status:    "in_progress",
+		}
+		created, err := store.CreateClusterUpgradeJob(ctx, upgradeJob)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		result, err := store.GetClusterUpgradeJobByUUID(ctx, created.UUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, created.UUID, result.UUID)
+		assert.Equal(t, "test-cluster-id-2", result.ClusterID)
+		assert.Equal(t, "in_progress", result.Status)
+	})
+
+	t.Run("GetClusterUpgradeJobsByClusterID", func(t *testing.T) {
+		// Test GetClusterUpgradeJobsByClusterID wrapper method (line 1239)
+		// This covers the wrapper method that delegates to dataStore
+
+		// First create some cluster upgrade jobs
+		upgradeJob1 := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-upgrade-job-uuid-3",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			ClusterID: "test-cluster-id-3",
+			Status:    "completed",
+		}
+		upgradeJob2 := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-upgrade-job-uuid-4",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			ClusterID: "test-cluster-id-3",
+			Status:    "failed",
+		}
+		_, err := store.CreateClusterUpgradeJob(ctx, upgradeJob1)
+		require.NoError(t, err)
+		_, err = store.CreateClusterUpgradeJob(ctx, upgradeJob2)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		result, err := store.GetClusterUpgradeJobsByClusterID(ctx, "test-cluster-id-3")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, []*datamodel.ClusterUpgradeJob{}, result)
+		assert.Len(t, result, 2)
+	})
+
+	t.Run("UpdateClusterUpgradeJob", func(t *testing.T) {
+		// Test UpdateClusterUpgradeJob wrapper method (line 1244)
+		// This covers the wrapper method that delegates to dataStore
+
+		// First create a cluster upgrade job
+		upgradeJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-upgrade-job-uuid-5",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			ClusterID: "test-cluster-id-5",
+			Status:    "pending",
+		}
+		created, err := store.CreateClusterUpgradeJob(ctx, upgradeJob)
+		require.NoError(t, err)
+
+		// Update the upgrade job
+		created.Status = "completed"
+		completedAt := time.Now()
+		created.CompletedAt = &completedAt
+
+		// Test the wrapper method
+		err = store.UpdateClusterUpgradeJob(ctx, created)
+		assert.NoError(t, err)
+	})
+}
+
 func TestPersistenceStore_CreateBackupMetadata(t *testing.T) {
 	logger := log.NewLogger()
 	store, err := SetupStorageForTest(logger)

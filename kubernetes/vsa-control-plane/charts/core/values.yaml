@@ -69,6 +69,8 @@ global:
     temporalTlsCert: ""
     temporalTlsKey: ""
     vcpPairedRegions: ""
+    ontapVersionDetails: "9.17.1"
+    skipOntapImageVersionMatch: "false"
     gcpKmsKeyRotationEnabled: "false"
     vsaDeploymentPollInterval: "15s"
     vsaDeploymentTimeout: "10m"

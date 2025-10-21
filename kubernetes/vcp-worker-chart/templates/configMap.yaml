@@ -98,6 +98,7 @@ data:
   CLOUD_DNS_CACHE_TTL: {{$.Values.workerConfig.cloudDnsCacheTtl | quote }}
   VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: {{$.Values.workerConfig.vsaLifecycleManagerQueuePrefix | quote }}
   ONTAP_VERSION: {{$.Values.workerConfig.ontapVersion | quote }}
+  ONTAP_VERSION_DETAILS: {{$.Values.workerConfig.ontapVersionDetails | quote }}
   ENFORCE_MIN_SP_CONFIG: {{$.Values.workerConfig.enforceMinSpConfig | quote }}
   MAX_NODES_PER_GROUP: {{$.Values.workerConfig.maxNodesPerGroup | quote }}
   SERVICE_CONTROL_URL: {{$.Values.workerConfig.serviceControlUrl | quote }}
@@ -119,7 +120,10 @@ data:
   FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
   VSA_IMAGE_NAME: {{$.Values.workerConfig.vsaImageName | quote }}
   VSA_FILES_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesImageName | quote }}
+  VSA_IMAGE_BUCKET: {{$.Values.workerConfig.vsaImageBucket | quote }}
+  VSA_SIGNED_URL_DURATION_HOURS: {{$.Values.workerConfig.vsaSignedUrlDurationHours | quote }}
   VSA_MEDIATOR_INSTANCE_TYPE: {{$.Values.workerConfig.vsaMediatorInstanceType | quote }}
+  SKIP_ONTAP_IMAGE_VERSION_MATCH : {{$.Values.workerConfig.skipOntapImageVersionMatch | quote }}
   VSA_MEDIATOR_DISK_TYPE: {{$.Values.workerConfig.vsaMediatorDiskType | quote }}
   VSA_MEDIATOR_IMAGE_NAME: {{$.Values.workerConfig.vsaMediatorImageName | quote }}
   METRICS_PORT: {{$.Values.workerConfig.metricsPort | quote }}

@@ -21,7 +21,7 @@ func (_m *MockVlmWorkflowClient) EXPECT() *MockVlmWorkflowClient_Expecter {
 }
 
 // ClusterPowerOp provides a mock function with given fields: ctx, clusterPowerOpRequest
-func (_m *MockVlmWorkflowClient) ClusterPowerOp(ctx internal.Context, clusterPowerOpRequest *ClusterPowerOpRequest) error {
+func (_m *MockVlmWorkflowClient) ClusterPowerOp(ctx internal.Context, clusterPowerOpRequest *ClusterPowerOpReq) error {
 	ret := _m.Called(ctx, clusterPowerOpRequest)
 
 	if len(ret) == 0 {
@@ -29,7 +29,7 @@ func (_m *MockVlmWorkflowClient) ClusterPowerOp(ctx internal.Context, clusterPow
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(internal.Context, *ClusterPowerOpRequest) error); ok {
+	if rf, ok := ret.Get(0).(func(internal.Context, *ClusterPowerOpReq) error); ok {
 		r0 = rf(ctx, clusterPowerOpRequest)
 	} else {
 		r0 = ret.Error(0)
@@ -45,14 +45,14 @@ type MockVlmWorkflowClient_ClusterPowerOp_Call struct {
 
 // ClusterPowerOp is a helper method to define mock.On call
 //   - ctx internal.Context
-//   - clusterPowerOpRequest *ClusterPowerOpRequest
+//   - clusterPowerOpRequest *ClusterPowerOpReq
 func (_e *MockVlmWorkflowClient_Expecter) ClusterPowerOp(ctx interface{}, clusterPowerOpRequest interface{}) *MockVlmWorkflowClient_ClusterPowerOp_Call {
 	return &MockVlmWorkflowClient_ClusterPowerOp_Call{Call: _e.mock.On("ClusterPowerOp", ctx, clusterPowerOpRequest)}
 }
 
-func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) Run(run func(ctx internal.Context, clusterPowerOpRequest *ClusterPowerOpRequest)) *MockVlmWorkflowClient_ClusterPowerOp_Call {
+func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) Run(run func(ctx internal.Context, clusterPowerOpRequest *ClusterPowerOpReq)) *MockVlmWorkflowClient_ClusterPowerOp_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(internal.Context), args[1].(*ClusterPowerOpRequest))
+		run(args[0].(internal.Context), args[1].(*ClusterPowerOpReq))
 	})
 	return _c
 }
@@ -62,7 +62,7 @@ func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) Return(_a0 error) *MockVlmW
 	return _c
 }
 
-func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) RunAndReturn(run func(internal.Context, *ClusterPowerOpRequest) error) *MockVlmWorkflowClient_ClusterPowerOp_Call {
+func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) RunAndReturn(run func(internal.Context, *ClusterPowerOpReq) error) *MockVlmWorkflowClient_ClusterPowerOp_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -292,6 +292,53 @@ func (_c *MockVlmWorkflowClient_GetClusterZiZsDetails_Call) RunAndReturn(run fun
 	return _c
 }
 
+// UpdateLicenseWorkflow provides a mock function with given fields: ctx, req
+func (_m *MockVlmWorkflowClient) UpdateLicenseWorkflow(ctx internal.Context, req *UpdateLicenseRequest) error {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateLicenseWorkflow")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *UpdateLicenseRequest) error); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockVlmWorkflowClient_UpdateLicenseWorkflow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateLicenseWorkflow'
+type MockVlmWorkflowClient_UpdateLicenseWorkflow_Call struct {
+	*mock.Call
+}
+
+// UpdateLicenseWorkflow is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - req *UpdateLicenseRequest
+func (_e *MockVlmWorkflowClient_Expecter) UpdateLicenseWorkflow(ctx interface{}, req interface{}) *MockVlmWorkflowClient_UpdateLicenseWorkflow_Call {
+	return &MockVlmWorkflowClient_UpdateLicenseWorkflow_Call{Call: _e.mock.On("UpdateLicenseWorkflow", ctx, req)}
+}
+
+func (_c *MockVlmWorkflowClient_UpdateLicenseWorkflow_Call) Run(run func(ctx internal.Context, req *UpdateLicenseRequest)) *MockVlmWorkflowClient_UpdateLicenseWorkflow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*UpdateLicenseRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_UpdateLicenseWorkflow_Call) Return(_a0 error) *MockVlmWorkflowClient_UpdateLicenseWorkflow_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_UpdateLicenseWorkflow_Call) RunAndReturn(run func(internal.Context, *UpdateLicenseRequest) error) *MockVlmWorkflowClient_UpdateLicenseWorkflow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateVSAClusterDeployment provides a mock function with given fields: ctx, updateVSAClusterDeploymentRequest, ontapVersion
 func (_m *MockVlmWorkflowClient) UpdateVSAClusterDeployment(ctx internal.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error) {
 	ret := _m.Called(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
@@ -348,6 +395,124 @@ func (_c *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call) Return(_a0 *Upd
 }
 
 func (_c *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call) RunAndReturn(run func(internal.Context, *UpdateVSAClusterDeploymentRequest, string) (*UpdateVSAClusterDeploymentResponse, error)) *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpgradeVSAClusterDeploymentWorkflow provides a mock function with given fields: ctx, req
+func (_m *MockVlmWorkflowClient) UpgradeVSAClusterDeploymentWorkflow(ctx internal.Context, req *UpdateVSAClusterDeploymentRequest) (*UpgradeVSAClusterDeploymentResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpgradeVSAClusterDeploymentWorkflow")
+	}
+
+	var r0 *UpgradeVSAClusterDeploymentResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *UpdateVSAClusterDeploymentRequest) (*UpgradeVSAClusterDeploymentResponse, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *UpdateVSAClusterDeploymentRequest) *UpgradeVSAClusterDeploymentResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*UpgradeVSAClusterDeploymentResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(internal.Context, *UpdateVSAClusterDeploymentRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpgradeVSAClusterDeploymentWorkflow'
+type MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call struct {
+	*mock.Call
+}
+
+// UpgradeVSAClusterDeploymentWorkflow is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - req *UpdateVSAClusterDeploymentRequest
+func (_e *MockVlmWorkflowClient_Expecter) UpgradeVSAClusterDeploymentWorkflow(ctx interface{}, req interface{}) *MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call {
+	return &MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call{Call: _e.mock.On("UpgradeVSAClusterDeploymentWorkflow", ctx, req)}
+}
+
+func (_c *MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call) Run(run func(ctx internal.Context, req *UpdateVSAClusterDeploymentRequest)) *MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*UpdateVSAClusterDeploymentRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call) Return(_a0 *UpgradeVSAClusterDeploymentResponse, _a1 error) *MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call) RunAndReturn(run func(internal.Context, *UpdateVSAClusterDeploymentRequest) (*UpgradeVSAClusterDeploymentResponse, error)) *MockVlmWorkflowClient_UpgradeVSAClusterDeploymentWorkflow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpgradeVSAMediatorWorkflow provides a mock function with given fields: ctx, req
+func (_m *MockVlmWorkflowClient) UpgradeVSAMediatorWorkflow(ctx internal.Context, req *UpdateMediatorRequest) (*UpdateMediatorResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpgradeVSAMediatorWorkflow")
+	}
+
+	var r0 *UpdateMediatorResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *UpdateMediatorRequest) (*UpdateMediatorResponse, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *UpdateMediatorRequest) *UpdateMediatorResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*UpdateMediatorResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(internal.Context, *UpdateMediatorRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpgradeVSAMediatorWorkflow'
+type MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call struct {
+	*mock.Call
+}
+
+// UpgradeVSAMediatorWorkflow is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - req *UpdateMediatorRequest
+func (_e *MockVlmWorkflowClient_Expecter) UpgradeVSAMediatorWorkflow(ctx interface{}, req interface{}) *MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call {
+	return &MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call{Call: _e.mock.On("UpgradeVSAMediatorWorkflow", ctx, req)}
+}
+
+func (_c *MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call) Run(run func(ctx internal.Context, req *UpdateMediatorRequest)) *MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*UpdateMediatorRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call) Return(_a0 *UpdateMediatorResponse, _a1 error) *MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call) RunAndReturn(run func(internal.Context, *UpdateMediatorRequest) (*UpdateMediatorResponse, error)) *MockVlmWorkflowClient_UpgradeVSAMediatorWorkflow_Call {
 	_c.Call.Return(run)
 	return _c
 }

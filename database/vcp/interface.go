@@ -46,6 +46,7 @@ type (
 		DeletingPool(ctx context.Context, pool *datamodel.Pool) error
 		DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 		GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
+		GetPoolByUUID(ctx context.Context, poolUUID string) (*datamodel.Pool, error)
 		ListPools(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.PoolView, error)
 		// ListPoolsWithPagination includes deleted pools as well, it's using unscoped for fetching all pools.
 		ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error)
@@ -284,6 +285,19 @@ type (
 		AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error)
 
 		HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error
+
+		// Cluster upgrade methods
+		CreateClusterUpgradeJob(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob) (*datamodel.ClusterUpgradeJob, error)
+		GetClusterUpgradeJobByUUID(ctx context.Context, jobUUID string) (*datamodel.ClusterUpgradeJob, error)
+		GetClusterUpgradeJobsByClusterID(ctx context.Context, clusterID string) ([]*datamodel.ClusterUpgradeJob, error)
+		UpdateClusterUpgradeJob(ctx context.Context, upgradeJob *datamodel.ClusterUpgradeJob) error
+
+		// Image version methods
+		CreateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) (*datamodel.ImageVersion, error)
+		GetImageVersionByOntapVersion(ctx context.Context, ontapVersion string) (*datamodel.ImageVersion, error)
+		ListImageVersions(ctx context.Context, activeOnly bool) ([]*datamodel.ImageVersion, error)
+		UpdateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) error
+		DeleteImageVersion(ctx context.Context, ontapVersion string) error
 
 		CreatePendingResourceDeletion(ctx context.Context, resourceType, resourceName, errorMessage, accountName string, poolID int64) (*datamodel.PendingResourceDeletions, error)
 		UpdatePendingResourceDeletion(ctx context.Context, resourceID int64, isDeletion bool, errorMessage string) (*datamodel.PendingResourceDeletions, error)
