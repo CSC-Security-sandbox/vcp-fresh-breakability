@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 )
 
@@ -1213,4 +1214,253 @@ func TestGetFirstAvailablePort_AllPortsUsed(t *testing.T) {
 	_, err := GetFirstAvailablePort(tx, 1)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no available port found")
+}
+
+func TestListNodeNodeGroupMap_NoPagination(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	// Create multiple mappings
+	for i := 0; i < 3; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		_, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+	}
+
+	// List without pagination
+	result, err := repo.ListNodeNodeGroupMap(ctx, false, nil)
+	assert.NoError(t, err)
+	assert.Len(t, result, 3)
+}
+
+func TestListNodeNodeGroupMap_WithPagination(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	// Create multiple mappings
+	for i := 0; i < 10; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		_, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+	}
+
+	// List with pagination - first page
+	pagination := &utils.Pagination{
+		Offset: 1,
+		Limit:  5,
+	}
+	result, err := repo.ListNodeNodeGroupMap(ctx, false, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 5)
+
+	// List with pagination - second page
+	pagination.Offset = 2
+	result, err = repo.ListNodeNodeGroupMap(ctx, false, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 5)
+}
+
+func TestListNodeNodeGroupMap_IncludeDeleted(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	// Create mappings
+	var createdMappings []*datamodel.NodeNodeGroupMap
+	for i := 0; i < 5; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		created, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+		createdMappings = append(createdMappings, created)
+	}
+
+	// Delete some mappings
+	for i := 0; i < 2; i++ {
+		err := repo.DeleteNodeNodeGroupMap(ctx, createdMappings[i].ID)
+		assert.NoError(t, err)
+	}
+
+	// List without deleted - should return 3
+	result, err := repo.ListNodeNodeGroupMap(ctx, false, nil)
+	assert.NoError(t, err)
+	assert.Len(t, result, 3)
+
+	// List with deleted - should return 5
+	result, err = repo.ListNodeNodeGroupMap(ctx, true, nil)
+	assert.NoError(t, err)
+	assert.Len(t, result, 5)
+
+	// Verify deleted records are included
+	deletedCount := 0
+	for _, mapping := range result {
+		if mapping.DeletedAt != nil && mapping.DeletedAt.Valid {
+			deletedCount++
+		}
+	}
+	assert.Equal(t, 2, deletedCount)
+}
+
+func TestListNodeNodeGroupMap_EmptyResult(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	// List empty database
+	result, err := repo.ListNodeNodeGroupMap(ctx, false, nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 0)
+}
+
+func TestListNodeNodeGroupMap_DBError(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	dbConn, _ := db.DB()
+	_ = dbConn.Close() // Close underlying sql.DB to force error
+	wrapper := gorm.New(db)
+	badRepo := &DataStoreRepository{db: wrapper}
+	ctx := context.Background()
+
+	result, err := badRepo.ListNodeNodeGroupMap(ctx, false, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "sql: database is closed")
+}
+
+func TestListNodeNodeGroupMap_PaginationBoundary(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	// Create exactly 10 mappings
+	for i := 0; i < 10; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		_, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+	}
+
+	// Test page size exactly matching total records
+	pagination := &utils.Pagination{
+		Offset: 0,
+		Limit:  10,
+	}
+	result, err := repo.ListNodeNodeGroupMap(ctx, false, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 10)
+
+	// Test Offset beyond available data
+	pagination.Offset = 2
+	result, err = repo.ListNodeNodeGroupMap(ctx, false, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 8)
+}
+
+func TestListNodeNodeGroupMap_LargePageSize(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	// Create 5 mappings
+	for i := 0; i < 5; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		_, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+	}
+
+	// Request with large page size
+	pagination := &utils.Pagination{
+		Offset: 0,
+		Limit:  100,
+	}
+	result, err := repo.ListNodeNodeGroupMap(ctx, false, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 5)
+}
+
+func TestListNodeNodeGroupMap_ZeroPageSize(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	// Create some mappings
+	for i := 0; i < 3; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		_, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+	}
+
+	// Test with zero Offset size (should use default or return all)
+	pagination := &utils.Pagination{
+		Offset: 0,
+		Limit:  0,
+	}
+	result, err := repo.ListNodeNodeGroupMap(ctx, false, pagination)
+	assert.NoError(t, err)
+	// The behavior depends on how Paginate handles zero page size
+	assert.NotNil(t, result)
+}
+
+func TestListNodeNodeGroupMap_IncludeDeletedWithPagination(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	// Create mappings
+	var createdMappings []*datamodel.NodeNodeGroupMap
+	for i := 0; i < 10; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		created, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+		createdMappings = append(createdMappings, created)
+	}
+
+	// Delete some mappings
+	for i := 0; i < 5; i++ {
+		err := repo.DeleteNodeNodeGroupMap(ctx, createdMappings[i].ID)
+		assert.NoError(t, err)
+	}
+
+	// List with deleted and pagination
+	pagination := &utils.Pagination{
+		Offset: 0,
+		Limit:  5,
+	}
+	result, err := repo.ListNodeNodeGroupMap(ctx, true, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 5)
+
+	// Get second page
+	pagination.Offset = 2
+	result, err = repo.ListNodeNodeGroupMap(ctx, true, pagination)
+	assert.NoError(t, err)
+	assert.Len(t, result, 5)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"strconv"
 	"strings"
 	"time"
@@ -12,8 +11,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
@@ -75,6 +76,27 @@ func (d *DataStoreRepository) UpdateNodeNodeGroupMap(ctx context.Context, mappin
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return mapping, nil
+}
+
+func (d *DataStoreRepository) ListNodeNodeGroupMap(
+	ctx context.Context,
+	includeDeleted bool,
+	pagination *dbutils.Pagination) ([]*datamodel.NodeNodeGroupMap, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var nodesGroupMap []*datamodel.NodeNodeGroupMap
+	// Include soft-deleted records if specified
+	if includeDeleted {
+		db = d.db.Unscoped().GORM().WithContext(ctx)
+	}
+	// Apply pagination if provided
+	if pagination != nil {
+		db = db.Scopes(dbutils.Paginate(pagination))
+	}
+	err := db.Preload("NodeGroup").Find(&nodesGroupMap).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return nodesGroupMap, nil
 }
 
 // DeleteNodeNodeGroupMap deletes a node to nodegroup mapping by ID

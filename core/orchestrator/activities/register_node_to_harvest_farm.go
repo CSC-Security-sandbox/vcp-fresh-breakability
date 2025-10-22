@@ -324,6 +324,14 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 			mapping.HarvestConfig.SECRET_PROJECT = env.SecretManagerProjectID
 		}
 
+		// Update the database record with the possibly modified HarvestConfig
+		// This ensures that any changes (like setting the password) are persisted
+		// before we render and upload the template
+		if _, err := a.SE.UpdateNodeNodeGroupMap(ctx, mapping); err != nil {
+			logger.Errorf("Failed to update harvest config info in DB for node id %d: %v", mapping.NodeID, err)
+			return err
+		}
+
 		tmplStr, err := renderFunc(mapping.HarvestConfig)
 		if err != nil {
 			logger.Errorf("Failed to render template for node mapping %d: %v", i, err)

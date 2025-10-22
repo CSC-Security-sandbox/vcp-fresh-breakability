@@ -4412,6 +4412,26 @@ func (re *retryEngine) AssignTwoNodesToTwoGroups(ctx context.Context, params dat
 	return var0, err
 }
 
+func (re *retryEngine) ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *dbutils.Pagination) ([]*datamodel.NodeNodeGroupMap, error) {
+	var var0 []*datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListNodeNodeGroupMap(ctx, includeDeleted, pagination)
+		if err != nil {
+			re.logError("ListNodeNodeGroupMap", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

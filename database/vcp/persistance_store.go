@@ -1312,3 +1312,7 @@ func (s *PersistenceStore) UpdateClusterPeeringRow(ctx context.Context, clusterP
 func (s *PersistenceStore) ListClusterPeeringRowsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.ClusterPeerings, error) {
 	return s.dataStore.ListClusterPeeringRowsByAccountID(ctx, accountID)
 }
+
+func (s *PersistenceStore) ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *dbutils.Pagination) ([]*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.ListNodeNodeGroupMap(ctx, includeDeleted, pagination)
+}

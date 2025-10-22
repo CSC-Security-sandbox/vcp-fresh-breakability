@@ -121,6 +121,7 @@ func TestUploadHarvestTemplate_Success(t *testing.T) {
 		AccountID:    pool.AccountID,
 	}
 	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	mockSE.On("UpdateNodeNodeGroupMap", mock.Anything, mock.AnythingOfType("*datamodel.NodeNodeGroupMap")).Return(nil, nil)
 	activity := &UploadHarvestTemplateActivity{
 		SE:                        mockSE,
 		LoadHarvestTemplateFunc:   func() (string, error) { return "template: {{.Fake}}", nil },
@@ -204,6 +205,7 @@ func TestUploadHarvestTemplate_WithCredentials(t *testing.T) {
 		AccountID:    pool.AccountID,
 	}
 	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	mockSE.On("UpdateNodeNodeGroupMap", mock.Anything, mock.AnythingOfType("*datamodel.NodeNodeGroupMap")).Return(nil, nil)
 	activity := &UploadHarvestTemplateActivity{
 		SE:                      mockSE,
 		LoadHarvestTemplateFunc: func() (string, error) { return "template: {{.Fake}}", nil },
@@ -258,6 +260,7 @@ func TestUploadHarvestTemplate_WithCreds_SpecialChars(t *testing.T) {
 		AccountID:    pool.AccountID,
 	}
 	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	mockSE.On("UpdateNodeNodeGroupMap", mock.Anything, mock.AnythingOfType("*datamodel.NodeNodeGroupMap")).Return(nil, nil)
 	activity := &UploadHarvestTemplateActivity{
 		SE:                      mockSE,
 		LoadHarvestTemplateFunc: func() (string, error) { return "template: {{.Fake}}", nil },
@@ -321,6 +324,7 @@ func TestUploadHarvestTemplate_WithSMCredentials(t *testing.T) {
 		AccountID:    pool.AccountID,
 	}
 	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	mockSE.On("UpdateNodeNodeGroupMap", mock.Anything, mock.AnythingOfType("*datamodel.NodeNodeGroupMap")).Return(nil, nil)
 	activity := &UploadHarvestTemplateActivity{
 		SE:                      mockSE,
 		LoadHarvestTemplateFunc: func() (string, error) { return "template: {{.Fake}}", nil },
@@ -432,6 +436,7 @@ func TestUploadHarvestTemplate_LoadTemplateError(t *testing.T) {
 		AccountID:    pool.AccountID,
 	}
 	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	mockSE.On("UpdateNodeNodeGroupMap", mock.Anything, mock.AnythingOfType("*datamodel.NodeNodeGroupMap")).Return(nil, nil)
 	activity := &UploadHarvestTemplateActivity{
 		SE:                      mockSE,
 		LoadHarvestTemplateFunc: func() (string, error) { return "", errors.New("load error") },
@@ -460,6 +465,7 @@ func TestUploadHarvestTemplate_HTTPError(t *testing.T) {
 		AccountID:    pool.AccountID,
 	}
 	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	mockSE.On("UpdateNodeNodeGroupMap", mock.Anything, mock.AnythingOfType("*datamodel.NodeNodeGroupMap")).Return(nil, nil)
 	activity := &UploadHarvestTemplateActivity{
 		SE:                        mockSE,
 		LoadHarvestTemplateFunc:   func() (string, error) { return "template", nil },
@@ -729,6 +735,7 @@ func TestUploadHarvestTemplate_HTTPNon2xx(t *testing.T) {
 		AccountID:    pool.AccountID,
 	}
 	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	mockSE.On("UpdateNodeNodeGroupMap", mock.Anything, mock.AnythingOfType("*datamodel.NodeNodeGroupMap")).Return(nil, nil)
 	activity := &UploadHarvestTemplateActivity{
 		SE:                        mockSE,
 		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) { return "fake-yaml", nil },

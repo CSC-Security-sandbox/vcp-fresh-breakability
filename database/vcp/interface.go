@@ -283,6 +283,7 @@ type (
 		// AssignTwoNodesToTwoGroups assigns two nodes to two different node groups, ensuring no group exceeds maxNodesPerGroup nodes
 		// Assumes that node1 and node2 are precreated and have valid IDs
 		AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error)
+		ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *dbutils.Pagination) ([]*datamodel.NodeNodeGroupMap, error)
 
 		HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error
 

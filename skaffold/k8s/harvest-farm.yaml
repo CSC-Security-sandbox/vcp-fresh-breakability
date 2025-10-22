@@ -266,7 +266,7 @@ metadata:
   namespace: vcp
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: vcp-service-account
     namespace: vcp
 roleRef:
   kind: Role

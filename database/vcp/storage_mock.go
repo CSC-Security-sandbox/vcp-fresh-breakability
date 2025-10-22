@@ -10236,6 +10236,66 @@ func (_c *MockStorage_ListKmsServiceAccounts_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// ListNodeNodeGroupMap provides a mock function with given fields: ctx, includeDeleted, pagination
+func (_m *MockStorage) ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *utils.Pagination) ([]*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, includeDeleted, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListNodeNodeGroupMap")
+	}
+
+	var r0 []*datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, bool, *utils.Pagination) ([]*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, includeDeleted, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, bool, *utils.Pagination) []*datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, includeDeleted, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, bool, *utils.Pagination) error); ok {
+		r1 = rf(ctx, includeDeleted, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListNodeNodeGroupMap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListNodeNodeGroupMap'
+type MockStorage_ListNodeNodeGroupMap_Call struct {
+	*mock.Call
+}
+
+// ListNodeNodeGroupMap is a helper method to define mock.On call
+//   - ctx context.Context
+//   - includeDeleted bool
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) ListNodeNodeGroupMap(ctx interface{}, includeDeleted interface{}, pagination interface{}) *MockStorage_ListNodeNodeGroupMap_Call {
+	return &MockStorage_ListNodeNodeGroupMap_Call{Call: _e.mock.On("ListNodeNodeGroupMap", ctx, includeDeleted, pagination)}
+}
+
+func (_c *MockStorage_ListNodeNodeGroupMap_Call) Run(run func(ctx context.Context, includeDeleted bool, pagination *utils.Pagination)) *MockStorage_ListNodeNodeGroupMap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(bool), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListNodeNodeGroupMap_Call) Return(_a0 []*datamodel.NodeNodeGroupMap, _a1 error) *MockStorage_ListNodeNodeGroupMap_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, bool, *utils.Pagination) ([]*datamodel.NodeNodeGroupMap, error)) *MockStorage_ListNodeNodeGroupMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListOngoingPoolJobsWithKmsConfigId provides a mock function with given fields: ctx, kmsId, accountId
 func (_m *MockStorage) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, kmsId int64, accountId int64) ([]*datamodel.Job, error) {
 	ret := _m.Called(ctx, kmsId, accountId)
