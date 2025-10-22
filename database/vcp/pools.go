@@ -37,7 +37,7 @@ func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.P
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 	dbPool := &datamodel.Pool{}
-	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
+	err = tx.Where("vendor_id = ?", pool.VendorID).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -430,7 +430,7 @@ func (d *DataStoreRepository) UpdatePoolWithKmsConfigID(ctx context.Context, poo
 	}
 
 	dbPool := &datamodel.Pool{}
-	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
+	err = tx.Where("vendor_id = ?", pool.VendorID).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

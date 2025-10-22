@@ -603,31 +603,31 @@
     "description": "VLM Zone Resource Pool Exhausted",
     "message": "The zone's resource pool is currently exhausted. Please try a different zone or try again later.",
     "retriable": true,
-    "http_code": 503
+    "http_code": 507
   },
   "9006": {
     "description": "VLM Zone Resource Pool Exhausted with Details",
     "message": "The zone's resource pool is currently exhausted with specific constraints. Please try a different zone or resource configuration.",
     "retriable": true,
-    "http_code": 503
+    "http_code": 507
   },
   "9007": {
     "description": "VLM Insufficient Resources in Zone",
     "message": "Insufficient resources available in the specified zone to fulfill the request. Please try a different zone or try again later.",
     "retriable": true,
-    "http_code": 503
+    "http_code": 507
   },
   "9008": {
     "description": "VLM VM Type Unavailable in Zone",
     "message": "The requested VM type is currently unavailable in the specified zone. Please try a different zone or VM configuration.",
     "retriable": true,
-    "http_code": 503
+    "http_code": 507
   },
   "9009": {
     "description": "VLM VM Type Unavailable with Reason",
     "message": "The requested VM type is currently unavailable in the specified zone due to specific constraints. Please try the suggested alternatives.",
     "retriable": true,
-    "http_code": 503
+    "http_code": 507
   },
   "9010": {
     "description": "VLM Rate Limit Exceeded",

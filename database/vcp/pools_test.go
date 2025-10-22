@@ -1109,6 +1109,7 @@ func TestCreatedPool(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			Name:      "non-existent-pool",
+			VendorID:  "non-existent-vendor-id",
 			AccountID: 1,
 		}
 
@@ -1149,6 +1150,7 @@ func TestCreatedPool(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
+			VendorID:  "test-vendor-id",
 			AccountID: account.ID,
 			Account:   account,
 			State:     models.LifeCycleStateCreating,
@@ -1332,11 +1334,11 @@ func TestUpdatePoolWithKmsConfigIDUTs(t *testing.T) {
 	accounts = append(accounts, account1, account2)
 
 	pool1 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-1"},
-		Name: "test-pool-1", AccountID: account1.ID, Account: account1, DeploymentName: "deployment-name1"}
+		Name: "test-pool-1", VendorID: "test-vendor-id-1", AccountID: account1.ID, Account: account1, DeploymentName: "deployment-name1"}
 	pool2 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-2"},
-		Name: "test-pool-2", AccountID: account2.ID, Account: account2, DeploymentName: "deployment-name2"}
+		Name: "test-pool-2", VendorID: "test-vendor-id-2", AccountID: account2.ID, Account: account2, DeploymentName: "deployment-name2"}
 	pool3 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-3"},
-		Name: "test-pool-3", AccountID: account1.ID, Account: account1, DeploymentName: "deployment-name3"}
+		Name: "test-pool-3", VendorID: "test-vendor-id-3", AccountID: account1.ID, Account: account1, DeploymentName: "deployment-name3"}
 
 	var pools []*datamodel.Pool
 	pools = append(pools, pool1, pool2)
@@ -1505,6 +1507,7 @@ func TestUpdatePoolWithKmsConfigID(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
+			VendorID:  "test-vendor-id",
 			AccountID: account.ID,
 			Account:   account,
 		}
@@ -1544,6 +1547,7 @@ func TestUpdatePoolWithKmsConfigID(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "non-existent-pool-uuid"},
 			Name:      "non-existent-pool",
+			VendorID:  "non-existent-vendor-id",
 			AccountID: 1,
 		}
 
