@@ -4786,3 +4786,63 @@ func (re *retryEngine) ListClusterPeeringRowsByAccountID(ctx context.Context, ac
 
 	return var0, err
 }
+
+func (re *retryEngine) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
+	var var0 *datamodel.ActiveDirectory
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetActiveDirectoryByUUID(ctx, uuid)
+		if err != nil {
+			re.logError("GetActiveDirectoryByUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
+	var var0 []*datamodel.ActiveDirectory
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListActiveDirectories(ctx, accountID)
+		if err != nil {
+			re.logError("ListActiveDirectories", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, uuids []string) ([]*datamodel.ActiveDirectory, error) {
+	var var0 []*datamodel.ActiveDirectory
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetMultipleActiveDirectoriesByUUIDs(ctx, uuids)
+		if err != nil {
+			re.logError("GetMultipleActiveDirectoriesByUUIDs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}

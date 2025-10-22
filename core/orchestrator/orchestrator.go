@@ -112,6 +112,10 @@ type OrchestratorFactory interface {
 	UpgradeCluster(ctx context.Context, params *commonparams.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error)
 	GetClusterUpgradeStatus(ctx context.Context, jobUUID string) (*models.UpgradeProgress, error)
 	ListAvailableVersions(ctx context.Context) (*models.ListAvailableVersionsResponse, error)
+
+	GetActiveDirectory(ctx context.Context, activeDirectoryUUID string) (*models.ActiveDirectory, error)
+	ListActiveDirectories(ctx context.Context, accountName string) ([]*models.ActiveDirectory, error)
+	GetMultipleActiveDirectories(ctx context.Context, uuids []string) ([]*models.ActiveDirectory, error)
 }
 
 type Orchestrator struct {

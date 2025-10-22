@@ -108,6 +108,14 @@ const (
 	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for ISCSI volumes"
 	BackupTypeMANUAL           = "MANUAL"
 	BackupTypeSCHEDULED        = "SCHEDULED"
+	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
+	ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
+
+	// ActiveDirectoryGroupBuiltInAdministrators defines the name of the built-in administrators group
+	ActiveDirectoryGroupBuiltInAdministrators = `BUILTIN\Administrators`
+
+	// ActiveDirectorySeSecurityPrivilege defines the name of the SE security privilege
+	ActiveDirectorySeSecurityPrivilege = `SeSecurityPrivilege`
 )
 
 func ValidateIPv4Address(ipAddr string) bool {

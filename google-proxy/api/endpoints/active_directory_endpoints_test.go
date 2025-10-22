@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -21,6 +22,11 @@ import (
 )
 
 func TestV1betaCreateActiveDirectory_Success(t *testing.T) {
+	// Set CVP_HOST to localhost:8009 to use CVS path
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockAD := &vcpModels.ActiveDirectory{
@@ -94,6 +100,11 @@ func TestV1betaCreateActiveDirectory_Success(t *testing.T) {
 }
 
 func TestV1betaCreateActiveDirectory_OnlyRequiredFields_Success(t *testing.T) {
+	// Set CVP_HOST to localhost:8009 to use CVS path
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockAD := &vcpModels.ActiveDirectory{
@@ -138,6 +149,11 @@ func TestV1betaCreateActiveDirectory_OnlyRequiredFields_Success(t *testing.T) {
 }
 
 func TestV1betaCreateActiveDirectory_BadRequest(t *testing.T) {
+	// Set CVP_HOST to localhost:8009 to use CVS path
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockOrchestrator.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", customerrors.NewUserInputValidationErr("bad request"))
@@ -152,6 +168,11 @@ func TestV1betaCreateActiveDirectory_BadRequest(t *testing.T) {
 }
 
 func TestV1betaCreateActiveDirectory_InternalServerError(t *testing.T) {
+	// Set CVP_HOST to localhost:8009 to use CVS path
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockOrchestrator.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", errors.New("internal error"))
@@ -226,6 +247,11 @@ func TestEncodeActiveDirectoryV1(t *testing.T) {
 }
 
 func TestV1betaListActiveDirectories(t *testing.T) {
+	// Set CVP_HOST to localhost:8009 to use CVS path
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 	// Create a mock client
 	mockClient := active_directories.NewMockClientService(t)
 
@@ -288,6 +314,11 @@ func TestV1betaListActiveDirectories(t *testing.T) {
 // V1betaDeleteActiveDirectory unittests
 func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	t.Run("WhenDeleteActiveDirectorySuccess", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Define request
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
@@ -331,6 +362,11 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithBadRequest", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -372,6 +408,11 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithConflict", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -414,6 +455,11 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithUnprocessableEntry", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -456,6 +502,11 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithUnauthorized", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -498,6 +549,11 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithForbidden", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -540,6 +596,11 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithTooManyRequests", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -582,6 +643,11 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithDefault", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -626,6 +692,11 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 // V1betaDescribeActiveDirectory unittests
 func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	t.Run("WhenDescribeActiveDirectorySuccess", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Define request
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
@@ -688,6 +759,11 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeActiveDirectoryFailsWithBadRequest", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -729,6 +805,11 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeActiveDirectoryFailsWithUnprocessableEntry", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -771,6 +852,11 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeActiveDirectoryFailsWithUnauthorized", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -813,6 +899,11 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeActiveDirectoryFailsWithForbidden", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -855,6 +946,11 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeActiveDirectoryFailsWithTooManyRequests", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -897,6 +993,11 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeActiveDirectoryFailsWithDefault", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -941,6 +1042,11 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 // V1betaUpdateActiveDirectory unittests
 func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	t.Run("WhenUpdateActiveDirectorySuccess", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1004,6 +1110,11 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithBadRequest", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1046,6 +1157,11 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryBadRequest).Message)
 	})
 	t.Run("WhenUpdateActiveDirectoryFailsWithNotFound", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1089,6 +1205,11 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithConflict", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1134,6 +1255,11 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithUnprocessableEntry", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1178,6 +1304,10 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithUnauthorized", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1222,6 +1352,10 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithForbidden", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1266,6 +1400,10 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithTooManyRequests", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1310,6 +1448,10 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithDefault", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1353,6 +1495,10 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithUnknownError", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1399,6 +1545,10 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 // V1betaGetMultipleActiveDirectories unittests
 func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 	t.Run("WhenGetMultipleActiveDirectoriesSuccess", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1462,6 +1612,10 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultipleActiveDirectoriesFailsWithBadRequest", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1506,6 +1660,10 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleActiveDirectoriesBadRequest).Message)
 	})
 	t.Run("WhenGetMultipleActiveDirectoriesFailsWithNotFound", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1551,6 +1709,10 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultipleActiveDirectoriesFailsWithUnauthorized", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1597,6 +1759,10 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultipleActiveDirectoriesFailsWithForbidden", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1643,6 +1809,10 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultipleActiveDirectoriesFailsWithTooManyRequests", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1689,6 +1859,10 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultipleActiveDirectoriesFailsWithDefault", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1734,6 +1908,10 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultipleActiveDirectoriesFailsWithUnknownError", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1776,5 +1954,413 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleActiveDirectoriesInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleActiveDirectoriesInternalServerError).Message)
+	})
+
+	t.Run("WhenGetMultipleActiveDirectories_VCPPath_Success", func(t *testing.T) {
+		// Set CVP_HOST to empty to use VCP path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaGetMultipleActiveDirectoriesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"ad-uuid-1", "ad-uuid-2"},
+		}
+
+		// Mock orchestrator response
+		mockADs := []*vcpModels.ActiveDirectory{
+			{
+				BaseModel: vcpModels.BaseModel{
+					UUID:      "ad-uuid-1",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				AdName:   "ad-name-1",
+				Username: "user1",
+				Password: "pass1",
+				Domain:   "domain1.com",
+				DNS:      "8.8.8.8",
+				NetBIOS:  "NETBIOS1",
+				State:    "READY",
+				ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+					SecurityOperators: []string{"sec1"},
+					BackupOperators:   []string{"backup1"},
+					Administrators:    []string{"admin1"},
+				},
+			},
+			{
+				BaseModel: vcpModels.BaseModel{
+					UUID:      "ad-uuid-2",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				AdName:   "ad-name-2",
+				Username: "user2",
+				Password: "pass2",
+				Domain:   "domain2.com",
+				DNS:      "8.8.4.4",
+				NetBIOS:  "NETBIOS2",
+				State:    "CREATING",
+				ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+					SecurityOperators: []string{"sec2"},
+					BackupOperators:   []string{"backup2"},
+					Administrators:    []string{"admin2"},
+				},
+			},
+		}
+
+		mockOrchestrator.On("GetMultipleActiveDirectories", mock.Anything, req.ActiveDirectoryUuids).Return(mockADs, nil)
+
+		result, err := handler.V1betaGetMultipleActiveDirectories(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		okResult, ok := result.(*gcpgenserver.V1betaGetMultipleActiveDirectoriesOK)
+		assert.True(t, ok)
+		assert.Len(t, okResult.ActiveDirectories, 2)
+		assert.Equal(t, "ad-uuid-1", okResult.ActiveDirectories[0].ActiveDirectoryId.Value)
+		assert.Equal(t, "ad-name-1", okResult.ActiveDirectories[0].ResourceId)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetMultipleActiveDirectories_VCPPath_OrchestratorError", func(t *testing.T) {
+		// Set CVP_HOST to empty to use VCP path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaGetMultipleActiveDirectoriesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		req := &gcpgenserver.ActiveDirectoryIdListV1beta{
+			ActiveDirectoryUuids: []string{"ad-uuid-1"},
+		}
+
+		mockOrchestrator.On("GetMultipleActiveDirectories", mock.Anything, req.ActiveDirectoryUuids).Return(nil, errors.New("orchestrator error"))
+
+		result, err := handler.V1betaGetMultipleActiveDirectories(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		errResult, ok := result.(*gcpgenserver.V1betaGetMultipleActiveDirectoriesInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), errResult.Code)
+		assert.Contains(t, errResult.Message, "orchestrator error")
+		mockOrchestrator.AssertExpectations(t)
+	})
+}
+
+func TestV1betaDescribeActiveDirectory_VCPPath(t *testing.T) {
+	t.Run("WhenDescribeActiveDirectory_VCPPath_Success", func(t *testing.T) {
+		// Set CVP_HOST to empty to use VCP path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaDescribeActiveDirectoryParams{
+			LocationId:        "test-location",
+			ProjectNumber:     "12345",
+			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
+			ActiveDirectoryId: "ad-uuid-1",
+		}
+
+		mockAD := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{
+				UUID:      "ad-uuid-1",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			AdName:       "test-ad",
+			Username:     "testuser",
+			Password:     "testpass",
+			Domain:       "example.com",
+			DNS:          "8.8.8.8",
+			NetBIOS:      "EXAMPLE",
+			State:        "READY",
+			StateDetails: "Active Directory is ready",
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				OrganizationalUnit:   "OU=Test",
+				Site:                 "Default-Site",
+				SecurityOperators:    []string{"sec-op"},
+				BackupOperators:      []string{"backup-op"},
+				Administrators:       []string{"admin"},
+				KdcIP:                "1.2.3.4",
+				AesEncryption:        true,
+				EncryptDCConnections: true,
+				LdapSigning:          false,
+			},
+		}
+
+		mockOrchestrator.On("GetActiveDirectory", mock.Anything, "ad-uuid-1").Return(mockAD, nil)
+
+		result, err := handler.V1betaDescribeActiveDirectory(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		adResult, ok := result.(*gcpgenserver.ActiveDirectoryV1beta)
+		assert.True(t, ok)
+		assert.Equal(t, "ad-uuid-1", adResult.ActiveDirectoryId.Value)
+		assert.Equal(t, "test-ad", adResult.ResourceId)
+		assert.Equal(t, "example.com", adResult.Domain)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("WhenDescribeActiveDirectory_VCPPath_NotFound", func(t *testing.T) {
+		// Set CVP_HOST to empty to use VCP path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaDescribeActiveDirectoryParams{
+			LocationId:        "test-location",
+			ProjectNumber:     "12345",
+			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
+			ActiveDirectoryId: "non-existent",
+		}
+
+		mockOrchestrator.On("GetActiveDirectory", mock.Anything, "non-existent").Return(nil, errors.New("not found"))
+
+		result, err := handler.V1betaDescribeActiveDirectory(context.Background(), params)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+}
+
+func TestV1betaListActiveDirectories_VCPPath(t *testing.T) {
+	t.Run("WhenListActiveDirectories_VCPPath_Success", func(t *testing.T) {
+		// Set CVP_HOST to empty to use VCP path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaListActiveDirectoriesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockADs := []*vcpModels.ActiveDirectory{
+			{
+				BaseModel: vcpModels.BaseModel{
+					UUID:      "ad-1",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				AdName:   "ad-name-1",
+				Username: "user1",
+				Password: "pass1",
+				Domain:   "domain1.com",
+				DNS:      "8.8.8.8",
+				NetBIOS:  "NET1",
+				State:    "READY",
+				ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+					SecurityOperators: []string{"sec1"},
+					BackupOperators:   []string{"backup1"},
+					Administrators:    []string{"admin1"},
+				},
+			},
+			{
+				BaseModel: vcpModels.BaseModel{
+					UUID:      "ad-2",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				AdName:   "ad-name-2",
+				Username: "user2",
+				Password: "pass2",
+				Domain:   "domain2.com",
+				DNS:      "8.8.4.4",
+				NetBIOS:  "NET2",
+				State:    "CREATING",
+				ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+					SecurityOperators: []string{"sec2"},
+					BackupOperators:   []string{"backup2"},
+					Administrators:    []string{"admin2"},
+				},
+			},
+		}
+
+		mockOrchestrator.On("ListActiveDirectories", mock.Anything, "12345").Return(mockADs, nil)
+
+		result, err := handler.V1betaListActiveDirectories(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		okResult, ok := result.(*gcpgenserver.V1betaListActiveDirectoriesOK)
+		assert.True(t, ok)
+		assert.Len(t, okResult.ActiveDirectories, 2)
+		assert.Equal(t, "ad-1", okResult.ActiveDirectories[0].ActiveDirectoryId.Value)
+		assert.Equal(t, "ad-name-1", okResult.ActiveDirectories[0].ResourceId)
+		assert.Equal(t, "ad-2", okResult.ActiveDirectories[1].ActiveDirectoryId.Value)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("WhenListActiveDirectories_VCPPath_EmptyList", func(t *testing.T) {
+		// Set CVP_HOST to empty to use VCP path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaListActiveDirectoriesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockOrchestrator.On("ListActiveDirectories", mock.Anything, "12345").Return([]*vcpModels.ActiveDirectory{}, nil)
+
+		result, err := handler.V1betaListActiveDirectories(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		okResult, ok := result.(*gcpgenserver.V1betaListActiveDirectoriesOK)
+		assert.True(t, ok)
+		assert.Len(t, okResult.ActiveDirectories, 0)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("WhenListActiveDirectories_VCPPath_OrchestratorError", func(t *testing.T) {
+		// Set CVP_HOST to empty to use VCP path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaListActiveDirectoriesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockOrchestrator.On("ListActiveDirectories", mock.Anything, "12345").Return(nil, errors.New("orchestrator error"))
+
+		result, err := handler.V1betaListActiveDirectories(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		errResult, ok := result.(*gcpgenserver.V1betaListActiveDirectoriesInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), errResult.Code)
+		assert.Contains(t, errResult.Message, "orchestrator error")
+		mockOrchestrator.AssertExpectations(t)
+	})
+}
+
+func TestConvertOrchestratorActiveDirectoryToV1Beta(t *testing.T) {
+	t.Run("WhenConvertingWithAllFields", func(t *testing.T) {
+		now := time.Now()
+		deletedAt := time.Now().Add(time.Hour)
+		ad := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+				DeletedAt: &deletedAt,
+			},
+			AdName:       "test-ad",
+			Username:     "testuser",
+			Password:     "testpass",
+			Domain:       "example.com",
+			DNS:          "8.8.8.8",
+			NetBIOS:      "EXAMPLE",
+			State:        "READY",
+			StateDetails: "Ready",
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				SecurityOperators: []string{"sec1", "sec2"},
+				BackupOperators:   []string{"backup1"},
+				Administrators:    []string{"admin1", "admin2"},
+			},
+		}
+
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+
+		assert.Equal(t, "test-uuid", result.ActiveDirectoryId.Value)
+		assert.Equal(t, "test-ad", result.ResourceId)
+		assert.Equal(t, "example.com", result.Domain)
+		assert.Equal(t, "8.8.8.8", result.DNS)
+		assert.Equal(t, "EXAMPLE", result.NetBIOS)
+		assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY, result.ActiveDirectoryState.Value)
+		assert.Equal(t, "Ready", result.ActiveDirectoryStateDetails.Value)
+		assert.Equal(t, []string{"sec1", "sec2"}, result.SecurityOperators)
+		assert.Equal(t, []string{"backup1"}, result.BackupOperators)
+		assert.Equal(t, []string{"admin1", "admin2"}, result.Administrators)
+		assert.True(t, result.DeletedAt.IsSet())
+	})
+
+	t.Run("WhenConvertingWithNilAttributes", func(t *testing.T) {
+		ad := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{
+				UUID: "test-uuid",
+			},
+			AdName:                    "test-ad",
+			State:                     "CREATING",
+			ActiveDirectoryAttributes: nil,
+		}
+
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+
+		assert.Equal(t, "test-uuid", result.ActiveDirectoryId.Value)
+		assert.Equal(t, "test-ad", result.ResourceId)
+		assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING, result.ActiveDirectoryState.Value)
+		assert.Empty(t, result.SecurityOperators)
+		assert.Empty(t, result.BackupOperators)
+		assert.Empty(t, result.Administrators)
+	})
+
+	t.Run("WhenConvertingDifferentStates", func(t *testing.T) {
+		stateTests := []struct {
+			inputState    string
+			expectedState gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState
+		}{
+			{"CREATING", gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING},
+			{"READY", gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY},
+			{"UPDATING", gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING},
+			{"IN_USE", gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE},
+			{"DELETING", gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateDELETING},
+			{"ERROR", gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR},
+			{"UNKNOWN", gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY}, // Default
+		}
+
+		for _, tt := range stateTests {
+			ad := &vcpModels.ActiveDirectory{
+				BaseModel:                 vcpModels.BaseModel{UUID: "test"},
+				AdName:                    "test",
+				State:                     tt.inputState,
+				ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{},
+			}
+
+			result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+			assert.Equal(t, tt.expectedState, result.ActiveDirectoryState.Value, "Failed for state: %s", tt.inputState)
+		}
 	})
 }

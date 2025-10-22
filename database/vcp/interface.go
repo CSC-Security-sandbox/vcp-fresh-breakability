@@ -311,5 +311,8 @@ type (
 		CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error)
 		UpdateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error
 		ListClusterPeeringRowsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.ClusterPeerings, error)
+		GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error)
+		ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error)
+		GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, uuids []string) ([]*datamodel.ActiveDirectory, error)
 	}
 )

@@ -1316,3 +1316,15 @@ func (s *PersistenceStore) ListClusterPeeringRowsByAccountID(ctx context.Context
 func (s *PersistenceStore) ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *dbutils.Pagination) ([]*datamodel.NodeNodeGroupMap, error) {
 	return s.dataStore.ListNodeNodeGroupMap(ctx, includeDeleted, pagination)
 }
+
+func (s *PersistenceStore) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
+	return s.dataStore.GetActiveDirectoryByUUID(ctx, uuid)
+}
+
+func (s *PersistenceStore) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
+	return s.dataStore.ListActiveDirectories(ctx, accountID)
+}
+
+func (s *PersistenceStore) GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, uuids []string) ([]*datamodel.ActiveDirectory, error) {
+	return s.dataStore.GetMultipleActiveDirectoriesByUUIDs(ctx, uuids)
+}

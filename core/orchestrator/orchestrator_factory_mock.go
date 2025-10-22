@@ -1927,6 +1927,65 @@ func (_c *MockOrchestratorFactory_GetAccount_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// GetActiveDirectory provides a mock function with given fields: ctx, activeDirectoryUUID
+func (_m *MockOrchestratorFactory) GetActiveDirectory(ctx context.Context, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+	ret := _m.Called(ctx, activeDirectoryUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActiveDirectory")
+	}
+
+	var r0 *models.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.ActiveDirectory, error)); ok {
+		return rf(ctx, activeDirectoryUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.ActiveDirectory); ok {
+		r0 = rf(ctx, activeDirectoryUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, activeDirectoryUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveDirectory'
+type MockOrchestratorFactory_GetActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// GetActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - activeDirectoryUUID string
+func (_e *MockOrchestratorFactory_Expecter) GetActiveDirectory(ctx interface{}, activeDirectoryUUID interface{}) *MockOrchestratorFactory_GetActiveDirectory_Call {
+	return &MockOrchestratorFactory_GetActiveDirectory_Call{Call: _e.mock.On("GetActiveDirectory", ctx, activeDirectoryUUID)}
+}
+
+func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) Run(run func(ctx context.Context, activeDirectoryUUID string)) *MockOrchestratorFactory_GetActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) Return(_a0 *models.ActiveDirectory, _a1 error) *MockOrchestratorFactory_GetActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) RunAndReturn(run func(context.Context, string) (*models.ActiveDirectory, error)) *MockOrchestratorFactory_GetActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackup provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) GetBackup(ctx context.Context, params *common.GetBackupParams) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, params)
@@ -2820,6 +2879,65 @@ func (_c *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call) Return(_a0 *mo
 }
 
 func (_c *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call) RunAndReturn(run func(context.Context, *common.GetKmsConfigParams) (*models.KmsConfig, error)) *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMultipleActiveDirectories provides a mock function with given fields: ctx, uuids
+func (_m *MockOrchestratorFactory) GetMultipleActiveDirectories(ctx context.Context, uuids []string) ([]*models.ActiveDirectory, error) {
+	ret := _m.Called(ctx, uuids)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleActiveDirectories")
+	}
+
+	var r0 []*models.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]*models.ActiveDirectory, error)); ok {
+		return rf(ctx, uuids)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []*models.ActiveDirectory); ok {
+		r0 = rf(ctx, uuids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, uuids)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetMultipleActiveDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleActiveDirectories'
+type MockOrchestratorFactory_GetMultipleActiveDirectories_Call struct {
+	*mock.Call
+}
+
+// GetMultipleActiveDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - uuids []string
+func (_e *MockOrchestratorFactory_Expecter) GetMultipleActiveDirectories(ctx interface{}, uuids interface{}) *MockOrchestratorFactory_GetMultipleActiveDirectories_Call {
+	return &MockOrchestratorFactory_GetMultipleActiveDirectories_Call{Call: _e.mock.On("GetMultipleActiveDirectories", ctx, uuids)}
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleActiveDirectories_Call) Run(run func(ctx context.Context, uuids []string)) *MockOrchestratorFactory_GetMultipleActiveDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleActiveDirectories_Call) Return(_a0 []*models.ActiveDirectory, _a1 error) *MockOrchestratorFactory_GetMultipleActiveDirectories_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleActiveDirectories_Call) RunAndReturn(run func(context.Context, []string) ([]*models.ActiveDirectory, error)) *MockOrchestratorFactory_GetMultipleActiveDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3946,6 +4064,65 @@ func (_c *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call) Return(_a0
 }
 
 func (_c *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockOrchestratorFactory_IsBackupVaultAttachedToVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListActiveDirectories provides a mock function with given fields: ctx, accountName
+func (_m *MockOrchestratorFactory) ListActiveDirectories(ctx context.Context, accountName string) ([]*models.ActiveDirectory, error) {
+	ret := _m.Called(ctx, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListActiveDirectories")
+	}
+
+	var r0 []*models.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*models.ActiveDirectory, error)); ok {
+		return rf(ctx, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*models.ActiveDirectory); ok {
+		r0 = rf(ctx, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListActiveDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListActiveDirectories'
+type MockOrchestratorFactory_ListActiveDirectories_Call struct {
+	*mock.Call
+}
+
+// ListActiveDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) ListActiveDirectories(ctx interface{}, accountName interface{}) *MockOrchestratorFactory_ListActiveDirectories_Call {
+	return &MockOrchestratorFactory_ListActiveDirectories_Call{Call: _e.mock.On("ListActiveDirectories", ctx, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_ListActiveDirectories_Call) Run(run func(ctx context.Context, accountName string)) *MockOrchestratorFactory_ListActiveDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListActiveDirectories_Call) Return(_a0 []*models.ActiveDirectory, _a1 error) *MockOrchestratorFactory_ListActiveDirectories_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListActiveDirectories_Call) RunAndReturn(run func(context.Context, string) ([]*models.ActiveDirectory, error)) *MockOrchestratorFactory_ListActiveDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }

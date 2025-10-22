@@ -18,11 +18,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-var createClient = cvp.CreateClient
+var (
+	createClient = cvp.CreateClient
+)
 
 // PasswordMask defines the mask used when logging out a password
 const (
@@ -120,6 +123,73 @@ func convertToActiveDirectoryV1Beta(
 	}
 }
 
+// convertOrchestratorActiveDirectoryToV1Beta converts orchestrator's *models.ActiveDirectory to gcpgenserver.ActiveDirectoryV1beta
+func convertOrchestratorActiveDirectoryToV1Beta(ad *vcpModels.ActiveDirectory) gcpgenserver.ActiveDirectoryV1beta {
+	// Convert state from VCP format to CVS format
+	state := gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY // Default state
+	details := ad.StateDetails
+	if ad.State != "" {
+		switch ad.State {
+		case "CREATING":
+			state = gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING
+		case "READY":
+			state = gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY
+		case "UPDATING":
+			state = gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING
+		case "IN_USE":
+			state = gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE
+		case "DELETING":
+			state = gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateDELETING
+		case "ERROR":
+			state = gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR
+		default:
+			state = gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY
+		}
+	}
+	if details == "" {
+		details = "Active Directory is ready"
+	}
+
+	// Initialize empty slices if nil
+	backupOperators := make([]string, 0)
+	securityOperators := make([]string, 0)
+	administrators := make([]string, 0)
+
+	// Extract attributes if available
+	if ad.ActiveDirectoryAttributes != nil {
+		if ad.ActiveDirectoryAttributes.BackupOperators != nil {
+			backupOperators = ad.ActiveDirectoryAttributes.BackupOperators
+		}
+		if ad.ActiveDirectoryAttributes.SecurityOperators != nil {
+			securityOperators = ad.ActiveDirectoryAttributes.SecurityOperators
+		}
+		if ad.ActiveDirectoryAttributes.Administrators != nil {
+			administrators = ad.ActiveDirectoryAttributes.Administrators
+		}
+	}
+
+	adResponse := gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryId:           gcpgenserver.NewOptString(ad.UUID),
+		ResourceId:                  ad.AdName,
+		Username:                    log.Secret(ad.Username).String(),
+		Password:                    log.Secret(ad.Password).String(),
+		Domain:                      ad.Domain,
+		DNS:                         ad.DNS,
+		NetBIOS:                     ad.NetBIOS,
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(state),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(details),
+		CreatedAt:                   gcpgenserver.NewOptDateTime(ad.CreatedAt),
+		UpdatedAt:                   gcpgenserver.NewOptDateTime(ad.UpdatedAt),
+		SecurityOperators:           securityOperators,
+		BackupOperators:             backupOperators,
+		Administrators:              administrators,
+	}
+	if ad.DeletedAt != nil {
+		adResponse.DeletedAt = gcpgenserver.NewOptDateTime(*ad.DeletedAt)
+	}
+	return adResponse
+}
+
 // encodeActiveDirectoryV1 encodes an ActiveDirectoryV1beta struct to JSON.
 func encodeActiveDirectoryV1(
 	pool *gcpgenserver.ActiveDirectoryV1beta,
@@ -203,147 +273,186 @@ func (h Handler) V1betaDeleteActiveDirectory(ctx context.Context, params gcpgens
 func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpgenserver.V1betaDescribeActiveDirectoryParams) (r gcpgenserver.V1betaDescribeActiveDirectoryRes, err error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	pathParams := &active_directories.V1betaDescribeActiveDirectoryParams{
-		LocationID:        params.LocationId,
-		ProjectNumber:     params.ProjectNumber,
-		XCorrelationID:    &params.XCorrelationID.Value,
-		ActiveDirectoryID: params.ActiveDirectoryId,
-	}
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-	resp, err := cvpClient.ActiveDirectories.V1betaDescribeActiveDirectory(pathParams)
-	if err != nil {
-		switch e := err.(type) {
-		case *active_directories.V1betaDescribeActiveDirectoryUnprocessableEntity:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDescribeActiveDirectoryUnprocessableEntity{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaDescribeActiveDirectoryNotFound:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDescribeActiveDirectoryNotFound{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaDescribeActiveDirectoryBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDescribeActiveDirectoryBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaDescribeActiveDirectoryUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDescribeActiveDirectoryUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-
-		case *active_directories.V1betaDescribeActiveDirectoryForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDescribeActiveDirectoryForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-
-		case *active_directories.V1betaDescribeActiveDirectoryTooManyRequests:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDescribeActiveDirectoryTooManyRequests{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaDescribeActiveDirectoryDefault:
-			return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
-				Code:    500,
-				Message: err.Error(),
-			}, nil
+	var adV1BetaModel gcpgenserver.ActiveDirectoryV1beta
+	if cvp.CVP_HOST == "" {
+		ad, err := h.Orchestrator.GetActiveDirectory(ctx, params.ActiveDirectoryId)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				return &gcpgenserver.V1betaDescribeActiveDirectoryNotFound{
+					Code:    http.StatusNotFound,
+					Message: err.Error(),
+				}, nil
+			}
+			return nil, err
 		}
+		adV1BetaModel = convertOrchestratorActiveDirectoryToV1Beta(ad)
+	} else {
+		pathParams := &active_directories.V1betaDescribeActiveDirectoryParams{
+			LocationID:        params.LocationId,
+			ProjectNumber:     params.ProjectNumber,
+			XCorrelationID:    &params.XCorrelationID.Value,
+			ActiveDirectoryID: params.ActiveDirectoryId,
+		}
+		jwtToken := utils.GetJWTTokenFromContext(ctx)
+		cvpClient := createClient(logger, jwtToken)
+		resp, err := cvpClient.ActiveDirectories.V1betaDescribeActiveDirectory(pathParams)
+		if err != nil {
+			switch e := err.(type) {
+			case *active_directories.V1betaDescribeActiveDirectoryUnprocessableEntity:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeActiveDirectoryUnprocessableEntity{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *active_directories.V1betaDescribeActiveDirectoryNotFound:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeActiveDirectoryNotFound{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *active_directories.V1betaDescribeActiveDirectoryBadRequest:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeActiveDirectoryBadRequest{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *active_directories.V1betaDescribeActiveDirectoryUnauthorized:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeActiveDirectoryUnauthorized{
+					Code:    code,
+					Message: msg,
+				}, nil
+
+			case *active_directories.V1betaDescribeActiveDirectoryForbidden:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeActiveDirectoryForbidden{
+					Code:    code,
+					Message: msg,
+				}, nil
+
+			case *active_directories.V1betaDescribeActiveDirectoryTooManyRequests:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaDescribeActiveDirectoryTooManyRequests{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *active_directories.V1betaDescribeActiveDirectoryDefault:
+				return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
+					Code:    500,
+					Message: err.Error(),
+				}, nil
+			}
+		}
+		adV1BetaModel = convertToADV1Beta(resp.Payload)
 	}
-	adV1BetaModel := convertToADV1Beta(resp.Payload)
 	return &adV1BetaModel, nil
 }
 
 func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gcpgenserver.ActiveDirectoryIdListV1beta, params gcpgenserver.V1betaGetMultipleActiveDirectoriesParams) (r gcpgenserver.V1betaGetMultipleActiveDirectoriesRes, _ error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	body := &models.ActiveDirectoryIDListV1beta{
-		ActiveDirectoryUUIDs: req.ActiveDirectoryUuids,
-	}
-	reqPrams := &active_directories.V1betaGetMultipleActiveDirectoriesParams{
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: &params.XCorrelationID.Value,
-		Body:           body,
-	}
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-	resp, err := cvpClient.ActiveDirectories.V1betaGetMultipleActiveDirectories(reqPrams)
-	if err != nil {
-		switch e := err.(type) {
-		case *active_directories.V1betaGetMultipleActiveDirectoriesNotFound:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleActiveDirectoriesNotFound{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaGetMultipleActiveDirectoriesBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleActiveDirectoriesBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaGetMultipleActiveDirectoriesUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleActiveDirectoriesUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
 
-		case *active_directories.V1betaGetMultipleActiveDirectoriesForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleActiveDirectoriesForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
+	var adResponse gcpgenserver.V1betaGetMultipleActiveDirectoriesOK
 
-		case *active_directories.V1betaGetMultipleActiveDirectoriesTooManyRequests:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleActiveDirectoriesTooManyRequests{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaGetMultipleActiveDirectoriesDefault:
+	if cvp.CVP_HOST == "" {
+		// VCP Path: Use orchestrator to get from VCP database
+		ads, err := h.Orchestrator.GetMultipleActiveDirectories(ctx, req.ActiveDirectoryUuids)
+		if err != nil {
 			return &gcpgenserver.V1betaGetMultipleActiveDirectoriesInternalServerError{
 				Code:    500,
 				Message: err.Error(),
 			}, nil
 		}
-	}
-	if resp == nil || resp.Payload == nil {
-		return &gcpgenserver.V1betaGetMultipleActiveDirectoriesInternalServerError{
-			Code:    500,
-			Message: "unknown error during the get multiple active directories",
-		}, nil
-	}
-	// Converting CVP model to gcpgenserver.ActiveDirectoryV1beta
-	adResponse := gcpgenserver.V1betaGetMultipleActiveDirectoriesOK{
-		ActiveDirectories: []gcpgenserver.ActiveDirectoryV1beta{},
+
+		// Convert VCP models to CVS response format
+		adResponse = gcpgenserver.V1betaGetMultipleActiveDirectoriesOK{
+			ActiveDirectories: []gcpgenserver.ActiveDirectoryV1beta{},
+		}
+		for _, ad := range ads {
+			adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, convertOrchestratorActiveDirectoryToV1Beta(ad))
+		}
+	} else {
+		// CVS Path: Original CVS client call logic
+		body := &models.ActiveDirectoryIDListV1beta{
+			ActiveDirectoryUUIDs: req.ActiveDirectoryUuids,
+		}
+		reqPrams := &active_directories.V1betaGetMultipleActiveDirectoriesParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body:           body,
+		}
+		jwtToken := utils.GetJWTTokenFromContext(ctx)
+		cvpClient := createClient(logger, jwtToken)
+		resp, err := cvpClient.ActiveDirectories.V1betaGetMultipleActiveDirectories(reqPrams)
+		if err != nil {
+			switch e := err.(type) {
+			case *active_directories.V1betaGetMultipleActiveDirectoriesNotFound:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleActiveDirectoriesNotFound{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *active_directories.V1betaGetMultipleActiveDirectoriesBadRequest:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleActiveDirectoriesBadRequest{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *active_directories.V1betaGetMultipleActiveDirectoriesUnauthorized:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleActiveDirectoriesUnauthorized{
+					Code:    code,
+					Message: msg,
+				}, nil
+
+			case *active_directories.V1betaGetMultipleActiveDirectoriesForbidden:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleActiveDirectoriesForbidden{
+					Code:    code,
+					Message: msg,
+				}, nil
+
+			case *active_directories.V1betaGetMultipleActiveDirectoriesTooManyRequests:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleActiveDirectoriesTooManyRequests{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *active_directories.V1betaGetMultipleActiveDirectoriesDefault:
+				return &gcpgenserver.V1betaGetMultipleActiveDirectoriesInternalServerError{
+					Code:    500,
+					Message: err.Error(),
+				}, nil
+			}
+		}
+		if resp == nil || resp.Payload == nil {
+			return &gcpgenserver.V1betaGetMultipleActiveDirectoriesInternalServerError{
+				Code:    500,
+				Message: "unknown error during the get multiple active directories",
+			}, nil
+		}
+		// Converting CVP model to gcpgenserver.ActiveDirectoryV1beta
+		adResponse = gcpgenserver.V1betaGetMultipleActiveDirectoriesOK{
+			ActiveDirectories: []gcpgenserver.ActiveDirectoryV1beta{},
+		}
+
+		for _, ad := range resp.Payload.ActiveDirectories {
+			adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, convertToADV1Beta(ad))
+		}
 	}
 
-	for _, ad := range resp.Payload.ActiveDirectories {
-		adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, convertToADV1Beta(ad))
-	}
 	return &adResponse, nil
 }
 
@@ -452,24 +561,47 @@ func (h Handler) V1betaUpdateActiveDirectory(ctx context.Context, req *gcpgenser
 func (h Handler) V1betaListActiveDirectories(ctx context.Context, params gcpgenserver.V1betaListActiveDirectoriesParams) (gcpgenserver.V1betaListActiveDirectoriesRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	pathParams := &active_directories.V1betaListActiveDirectoriesParams{
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: &params.XCorrelationID.Value,
+
+	var adResponse gcpgenserver.V1betaListActiveDirectoriesOK
+
+	if cvp.CVP_HOST == "" {
+		ads, err := h.Orchestrator.ListActiveDirectories(ctx, params.ProjectNumber)
+		if err != nil {
+			return &gcpgenserver.V1betaListActiveDirectoriesInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		}
+
+		// Convert VCP models to CVS response format
+		adResponse = gcpgenserver.V1betaListActiveDirectoriesOK{
+			ActiveDirectories: []gcpgenserver.ActiveDirectoryV1beta{},
+		}
+		for _, ad := range ads {
+			adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, convertOrchestratorActiveDirectoryToV1Beta(ad))
+		}
+	} else {
+		// CVS Path: Original CVS client call logic
+		pathParams := &active_directories.V1betaListActiveDirectoriesParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+		}
+		jwtToken := utils.GetJWTTokenFromContext(ctx)
+		cvpClient := createClient(logger, jwtToken)
+		resp, err := cvpClient.ActiveDirectories.V1betaListActiveDirectories(pathParams)
+		if err != nil {
+			return nil, err
+		}
+		// Converting CVP model to gcpgenserver.ActiveDirectoryV1beta
+		adResponse = gcpgenserver.V1betaListActiveDirectoriesOK{
+			ActiveDirectories: []gcpgenserver.ActiveDirectoryV1beta{},
+		}
+		for _, ad := range resp.Payload.ActiveDirectories {
+			adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, convertToADV1Beta(ad))
+		}
 	}
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-	resp, err := cvpClient.ActiveDirectories.V1betaListActiveDirectories(pathParams)
-	if err != nil {
-		return nil, err
-	}
-	// Converting CVP model to gcpgenserver.ActiveDirectoryV1beta
-	adResponse := gcpgenserver.V1betaListActiveDirectoriesOK{
-		ActiveDirectories: []gcpgenserver.ActiveDirectoryV1beta{},
-	}
-	for _, ad := range resp.Payload.ActiveDirectories {
-		adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, convertToADV1Beta(ad))
-	}
+
 	return &adResponse, nil
 }
 

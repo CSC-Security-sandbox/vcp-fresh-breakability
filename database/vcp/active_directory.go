@@ -32,6 +32,40 @@ func (d *DataStoreRepository) GetActiveDirectoryByNameAndAccountID(ctx context.C
 	return ad, nil
 }
 
+func (d *DataStoreRepository) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
+	ad, err := getActiveDirectoryWithDetails(d.db.GORM().Unscoped().WithContext(ctx), &datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{UUID: uuid}})
+	if err != nil {
+		return nil, err
+	}
+	return ad, nil
+}
+
+func (d *DataStoreRepository) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
+	return listActiveDirectories(d.db.GORM().WithContext(ctx), accountID)
+}
+
+func (d *DataStoreRepository) GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, uuids []string) ([]*datamodel.ActiveDirectory, error) {
+	return getMultipleActiveDirectoriesByUUIDs(d.db.GORM().Unscoped().WithContext(ctx), uuids)
+}
+
+func listActiveDirectories(db *gorm.DB, accountID int64) ([]*datamodel.ActiveDirectory, error) {
+	var ads []*datamodel.ActiveDirectory
+	err := db.Where("account_id = ? AND deleted_at IS NULL", accountID).Find(&ads).Error
+	if err != nil {
+		return nil, err
+	}
+	return ads, nil
+}
+
+func getMultipleActiveDirectoriesByUUIDs(db *gorm.DB, uuids []string) ([]*datamodel.ActiveDirectory, error) {
+	var ads []*datamodel.ActiveDirectory
+	err := db.Where("uuid IN ?", uuids).Find(&ads).Error
+	if err != nil {
+		return nil, err
+	}
+	return ads, nil
+}
+
 func getActiveDirectoryWithDetails(db *gorm.DB, query *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
 	var ad datamodel.ActiveDirectory
 	err := db.First(&ad, query).Error

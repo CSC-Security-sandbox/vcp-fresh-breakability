@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	customValidators "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/validator"
 	"strings"
 
@@ -23,7 +24,10 @@ import (
 )
 
 var (
-	createActiveDirectory = _createActiveDirectory
+	createActiveDirectory        = _createActiveDirectory
+	getActiveDirectory           = _getActiveDirectory
+	listActiveDirectories        = _listActiveDirectories
+	getMultipleActiveDirectories = _getMultipleActiveDirectories
 )
 
 const (
@@ -150,6 +154,73 @@ func convertActiveDirectoryParamsToModel(params *common.CreateActiveDirectoryPar
 	return ad
 }
 
+// _getActiveDirectory retrieves an Active Directory resource by UUID from the database.
+func _getActiveDirectory(
+	ctx context.Context,
+	se database.Storage,
+	activeDirectoryUUID string,
+) (*models.ActiveDirectory, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get ActiveDirectory by UUID from database
+	ad, err := se.GetActiveDirectoryByUUID(ctx, activeDirectoryUUID)
+	if err != nil {
+		logger.Error("Failed to retrieve ActiveDirectory from database", "uuid", activeDirectoryUUID, "error", err)
+		return nil, err
+	}
+
+	if ad == nil {
+		logger.Warn("ActiveDirectory not found", "uuid", activeDirectoryUUID)
+		return nil, customerrors.NewNotFoundErr("ActiveDirectory", &activeDirectoryUUID)
+	}
+
+	// Convert datamodel to model
+	return convertDatastoreActiveDirectoryToModel(ad), nil
+}
+
+// convertDatastoreActiveDirectoryToModel converts datamodel.ActiveDirectory to models.ActiveDirectory
+func convertDatastoreActiveDirectoryToModel(ad *datamodel.ActiveDirectory) *models.ActiveDirectory {
+	if ad == nil {
+		return nil
+	}
+
+	model := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{
+			UUID:      ad.UUID,
+			CreatedAt: ad.CreatedAt,
+			UpdatedAt: ad.UpdatedAt,
+		},
+		AdName:       ad.AdName,
+		Username:     ad.Username,
+		Password:     log.PasswordMask,
+		Domain:       ad.Domain,
+		DNS:          ad.DNS,
+		NetBIOS:      ad.NetBIOS,
+		State:        ad.State,
+		StateDetails: ad.StateDetails,
+	}
+
+	// Convert ActiveDirectoryAttributes if available
+	if ad.ActiveDirectoryAttributes != nil {
+		model.ActiveDirectoryAttributes = &models.ActiveDirectoryAttributes{
+			OrganizationalUnit:         ad.ActiveDirectoryAttributes.OrganizationalUnit,
+			Site:                       ad.ActiveDirectoryAttributes.Site,
+			SecurityOperators:          ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectorySeSecurityPrivilege],
+			BackupOperators:            ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators],
+			Administrators:             ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators],
+			KdcIP:                      ad.ActiveDirectoryAttributes.KdcIP,
+			KdcHostname:                ad.ActiveDirectoryAttributes.KdcHostname,
+			AesEncryption:              ad.ActiveDirectoryAttributes.AesEncryption,
+			EncryptDCConnections:       ad.ActiveDirectoryAttributes.EncryptDCConnections,
+			LdapSigning:                ad.ActiveDirectoryAttributes.LdapSigning,
+			AllowLocalNFSUsersWithLdap: ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap,
+			Description:                ad.ActiveDirectoryAttributes.Description,
+		}
+	}
+
+	return model
+}
+
 // CreateActiveDirectory is the public orchestrator method for creating an Active Directory resource.
 func (o *Orchestrator) CreateActiveDirectory(
 	ctx context.Context,
@@ -160,4 +231,94 @@ func (o *Orchestrator) CreateActiveDirectory(
 		return nil, "", err
 	}
 	return ad, jobUUID, nil
+}
+
+// _listActiveDirectories retrieves a list of Active Directory resources for an account.
+func _listActiveDirectories(
+	ctx context.Context,
+	se database.Storage,
+	accountName string,
+) ([]*models.ActiveDirectory, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get account by ID first
+	account, err := getOrCreateAccount(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	// List ActiveDirectories for the account
+	ads, err := se.ListActiveDirectories(ctx, account.ID)
+	if err != nil {
+		logger.Error("Failed to list ActiveDirectories from database", "accountID", account.ID, "error", err)
+		return nil, err
+	}
+
+	// Convert datamodel to model
+	var result []*models.ActiveDirectory
+	for _, ad := range ads {
+		result = append(result, convertDatastoreActiveDirectoryToModel(ad))
+	}
+
+	return result, nil
+}
+
+// GetActiveDirectory is the public orchestrator method for retrieving an Active Directory resource by UUID.
+func (o *Orchestrator) GetActiveDirectory(
+	ctx context.Context,
+	activeDirectoryUUID string,
+) (*models.ActiveDirectory, error) {
+	ad, err := getActiveDirectory(ctx, o.storage, activeDirectoryUUID)
+	if err != nil {
+		return nil, err
+	}
+	return ad, nil
+}
+
+// _getMultipleActiveDirectories retrieves multiple Active Directory resources by UUIDs.
+func _getMultipleActiveDirectories(
+	ctx context.Context,
+	se database.Storage,
+	uuids []string,
+) ([]*models.ActiveDirectory, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get multiple ActiveDirectories by UUIDs from database
+	ads, err := se.GetMultipleActiveDirectoriesByUUIDs(ctx, uuids)
+	if err != nil {
+		logger.Error("Failed to retrieve multiple ActiveDirectories from database", "uuids", uuids, "error", err)
+		return nil, err
+	}
+
+	// Convert datamodel to model
+	var result []*models.ActiveDirectory
+	for _, ad := range ads {
+		result = append(result, convertDatastoreActiveDirectoryToModel(ad))
+	}
+
+	return result, nil
+}
+
+// ListActiveDirectories is the public orchestrator method for listing Active Directory resources for an account.
+func (o *Orchestrator) ListActiveDirectories(
+	ctx context.Context,
+	accountName string,
+) ([]*models.ActiveDirectory, error) {
+	ads, err := listActiveDirectories(ctx, o.storage, accountName)
+	if err != nil {
+		return nil, err
+	}
+	return ads, nil
+}
+
+// GetMultipleActiveDirectories is the public orchestrator method for retrieving multiple Active Directory resources by UUIDs.
+func (o *Orchestrator) GetMultipleActiveDirectories(
+	ctx context.Context,
+	uuids []string,
+) ([]*models.ActiveDirectory, error) {
+	ads, err := getMultipleActiveDirectories(ctx, o.storage, uuids)
+	if err != nil {
+		return nil, err
+	}
+	return ads, nil
 }
