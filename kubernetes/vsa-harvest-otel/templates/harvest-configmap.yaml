@@ -14,4 +14,3 @@ data:
   CORE_API_BASE_URL: {{ .Values.harvestConfig.coreApiBaseUrl | quote }}
   CORE_API_PORT: {{ .Values.harvestConfig.coreApiPort | quote }}
   CORE_API_BATCH_SIZE: {{ .Values.harvestConfig.coreApiBatchSize | quote }}
-  ENABLE_REPLICATION_BILLING_METRICS: {{ .Values.harvestConfig.enableReplicationBillingMetrics | quote }}

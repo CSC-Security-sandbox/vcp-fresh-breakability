@@ -100,7 +100,6 @@ harvestConfig:
   enablePoolMetrics: "false"
   enableBackupMetrics: "false"
   enableReplicationMetrics: "false"
-  enableReplicationBillingMetrics: "false"
   coreApiBaseUrl: "core-service.vcp.svc.cluster.local"
   coreApiPort: "8080"
   coreApiBatchSize: "1000"

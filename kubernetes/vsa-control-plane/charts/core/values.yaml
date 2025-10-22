@@ -244,6 +244,7 @@ telemetryDeployer:
   enableVolumeMetrics: false
   enableBackupMetrics: false
   enableBackupBillingMetrics: false
+  enableReplicationBillingMetrics: false
   pushBatchSize: 1000
   maxGoogleBillingPushRetry: 5
   pageSize: 1000
