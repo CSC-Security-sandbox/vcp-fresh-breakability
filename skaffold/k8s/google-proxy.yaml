@@ -82,3 +82,7 @@ spec:
               value: "/app/errors.json"
             - name: METRICS_DB_CLEANUP_ENABLED
               value: "false"
+            - name: FILES_PROTOCOL_SUPPORT
+              value: "false"
+            - name: FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS
+              value: ""

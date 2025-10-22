@@ -49,6 +49,8 @@ data:
   VMRS_CONFIG_PATH: "/app/vmrs_gcp.yaml"
   VLM_CONFIG_FILE_PATH: "/app/vlm-config.json"
   ERROR_FILE_PATH: "/app/errors.json"
+  FILES_PROTOCOL_SUPPORT: "false"
+  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: ""
   VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: "vsa-lifecycle-manager"
   ONTAP_VERSION: "9.17.1"
   ONTAP_VERSION_DETAILS: "9.17.1"
