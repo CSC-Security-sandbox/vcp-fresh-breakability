@@ -17,6 +17,8 @@ spec:
     metadata:
       labels:
         app: {{ .Chart.Name }}
+        {{- include "core.kubernetes.labels" . | nindent 8 }}
+        {{- include "core.helmchart.labels" . | nindent 8 }}
     spec:
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
