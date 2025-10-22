@@ -13,6 +13,9 @@ global:
   chartSecondaryImageRegistry: ""
   environment: gcp
   hyperscaler: gcp
+  primaryImageRegistryPasswordAuth: true
+  secondaryImageRegistryPasswordAuth: false
+  primaryImagePullSecretName: ghcr.io
 
 # Logging configuration
 loggerLevel: "info"

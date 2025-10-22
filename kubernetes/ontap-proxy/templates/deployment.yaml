@@ -51,7 +51,3 @@ spec:
                 name: ontap-proxy-service-env-config
             - secretRef:
                 name: ontap-proxy-service-env-secret
-          volumeMounts:
-            - name: env-config-volume
-              mountPath: /etc/config
-              readOnly: true
