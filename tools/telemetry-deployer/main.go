@@ -412,6 +412,8 @@ func getDefaultEnvVars() map[string]string {
 		"PUSHER_SERVICE_PROJECT":             getEnvOrDefault("PUSHER_SERVICE_PROJECT", "netapp-au-se1-autopush-sde-tst"),
 		"LOCAL_REGION":                       getEnvOrDefault("LOCAL_REGION", "us-west2"),
 		"ENABLE_VOLUME_METRICS":              getEnvOrDefault("ENABLE_VOLUME_METRICS", "false"),
+		"ENABLE_BACKUP_METRICS":              getEnvOrDefault("ENABLE_BACKUP_METRICS", "false"),
+		"ENABLE_BACKUP_BILLING_METRICS":      getEnvOrDefault("ENABLE_BACKUP_BILLING_METRICS", "false"),
 		"ENABLE_REPLICATION_BILLING_METRICS": getEnvOrDefault("ENABLE_REPLICATION_BILLING_METRICS", "false"),
 		"PUSH_BATCH_SIZE":                    getEnvOrDefault("PUSH_BATCH_SIZE", "1000"),
 		"MAX_GOOGLE_BILLING_PUSH_RETRY":      getEnvOrDefault("MAX_GOOGLE_BILLING_PUSH_RETRY", "5"),

@@ -1122,7 +1122,7 @@ func _getSourceVolumePathFromBackup(backup *datamodel.Backup) string {
 // GetSourceSnapshotPathFromBackup gets the source snapshot path from a backup object
 func _getSourceSnapshotPathFromBackup(backup *datamodel.Backup) string {
 	var sourceVolumeZone string
-	if backup.Attributes.SourceVolumeZone == "" {
+	if backup.Attributes.IsRegionalHA || backup.Attributes.SourceVolumeZone == "" {
 		sourceVolumeZone = *backup.BackupVault.SourceRegionName
 	} else {
 		sourceVolumeZone = backup.Attributes.SourceVolumeZone
