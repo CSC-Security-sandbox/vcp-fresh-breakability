@@ -61,7 +61,7 @@ data:
   RESOURCE_CLEANUP_CHILD_WORKFLOW_ACTIVITY_TIMEOUT_MINUTES: {{$.Values.workerConfig.resourceCleanupChildWorkflowActivityTimeoutMinutes | quote }}
   RESOURCE_CLEANUP_MAX_CONCURRENT_ACTIVITIES_PER_CHILD: {{$.Values.workerConfig.resourceCleanupMaxConcurrentActivitiesPerChild | quote }}
   PROXY_CLIENT_TRANSPORT_SCHEMA: {{$.Values.workerConfig.proxyClientTransportSchema | quote }}
-  VCP_PAIRED_REGIONS: {{ index $.Values.workerConfig "vcpPairedRegions" | quote }}
+  VCP_PAIRED_REGIONS: "{{ index $.Values.workerConfig "vcpPairedRegions" }}"
   GCP_KMS_KEY_ROTATION_ENABLED: {{$.Values.workerConfig.gcpKmsKeyRotationEnabled | quote }}
   BACKUP_LOGICAL_SIZE_SYNC_ENABLED: {{$.Values.workerConfig.backupLogicalSizeSyncEnabled | quote }}
   ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS: {{$.Values.workerConfig.enableAutoVolOfflineCronForGcpKms | quote }}
