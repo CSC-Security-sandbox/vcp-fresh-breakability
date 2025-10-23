@@ -91,7 +91,7 @@ spec:
             - name: ENABLE_BACKGROUND_TASKS
               value: "true"
             - name: ONTAP_VERSION_DETAILS
-              value: "9.17.1"
+              value: "9.17.1P1"
             - name: REQUIRED_TAKEOVER_REASONS
               value: "disabled,Storage failover mailbox disks are in a degraded state,Local node has encountered errors while reading the storage failover partner's mailbox disks,Storage failover interconnect error,Partner node halted after disabling takeover,Mailbox disks are not healthy,Local node missing partner disks,Default"
             - name: JOB_POLLING_MAX_DURATION

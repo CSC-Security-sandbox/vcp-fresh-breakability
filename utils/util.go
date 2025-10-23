@@ -92,7 +92,8 @@ var (
 	immutableBackupEnabled          = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
 	RestoreVolumeBufferEnabled      = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
 
-	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+`)
+	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
+	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+(?:P\d+)?`)
 )
 
 const (

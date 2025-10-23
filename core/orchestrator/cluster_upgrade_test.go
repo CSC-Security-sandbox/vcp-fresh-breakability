@@ -141,19 +141,19 @@ func TestUpgradeProgress(t *testing.T) {
 func TestListAvailableVersionsResponse(t *testing.T) {
 	t.Run("ResponseCreation", func(t *testing.T) {
 		response := &models.ListAvailableVersionsResponse{
-			Current: "9.17.1",
+			Current: "9.17.1P1",
 			Versions: []models.AvailableVersion{
 				{
-					OntapVersion: "9.17.1",
+					OntapVersion: "9.17.1P1",
 					VSAName:      "vsa-9.17.1",
 					MediatorName: "mediator-9.17.1",
 				},
 			},
 		}
 
-		assert.Equal(t, "9.17.1", response.Current)
+		assert.Equal(t, "9.17.1P1", response.Current)
 		assert.Len(t, response.Versions, 1)
-		assert.Equal(t, "9.17.1", response.Versions[0].OntapVersion)
+		assert.Equal(t, "9.17.1P1", response.Versions[0].OntapVersion)
 		assert.Equal(t, "vsa-9.17.1", response.Versions[0].VSAName)
 		assert.Equal(t, "mediator-9.17.1", response.Versions[0].MediatorName)
 	})
@@ -162,14 +162,14 @@ func TestListAvailableVersionsResponse(t *testing.T) {
 func TestImageVersion(t *testing.T) {
 	t.Run("ImageVersionCreation", func(t *testing.T) {
 		imageVersion := &datamodel.ImageVersion{
-			OntapVersion: "9.17.1",
+			OntapVersion: "9.17.1P1",
 			VSAImagePath: "gcr.io/vsa-image:9.17.1",
 			VSAName:      "vsa-9.17.1",
 			MediatorName: "mediator-9.17.1",
 			IsActive:     true,
 		}
 
-		assert.Equal(t, "9.17.1", imageVersion.OntapVersion)
+		assert.Equal(t, "9.17.1P1", imageVersion.OntapVersion)
 		assert.Equal(t, "gcr.io/vsa-image:9.17.1", imageVersion.VSAImagePath)
 		assert.Equal(t, "vsa-9.17.1", imageVersion.VSAName)
 		assert.Equal(t, "mediator-9.17.1", imageVersion.MediatorName)
@@ -182,12 +182,12 @@ func TestPoolBuildInfo(t *testing.T) {
 		buildInfo := &datamodel.PoolBuildInfo{
 			VSABuildImage:      "vsa-image:latest",
 			MediatorBuildImage: "mediator-image:latest",
-			OntapVersion:       "9.17.1",
+			OntapVersion:       "9.17.1P1",
 		}
 
 		assert.Equal(t, "vsa-image:latest", buildInfo.VSABuildImage)
 		assert.Equal(t, "mediator-image:latest", buildInfo.MediatorBuildImage)
-		assert.Equal(t, "9.17.1", buildInfo.OntapVersion)
+		assert.Equal(t, "9.17.1P1", buildInfo.OntapVersion)
 	})
 }
 
@@ -518,7 +518,7 @@ func TestDetermineTargetBuildImages(t *testing.T) {
 		// Mock image versions
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -535,7 +535,7 @@ func TestDetermineTargetBuildImages(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, targetBuildImages)
-		assert.Equal(t, "9.17.1", targetBuildImages.OntapVersion)
+		assert.Equal(t, "9.17.1P1", targetBuildImages.OntapVersion)
 		assert.Equal(t, "gcr.io/vsa-image:9.17.1", targetBuildImages.VSAImagePath)
 		assert.Equal(t, "vsa-9.17.1", targetBuildImages.VSAName)
 		assert.Equal(t, "mediator-9.17.1", targetBuildImages.MediatorName)
@@ -761,7 +761,7 @@ func TestDetermineTargetBuildImages(t *testing.T) {
 		// Mock ListImageVersions to return versions that don't match
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "different-vsa-image",
 				MediatorName: "different-mediator-image",
@@ -807,7 +807,7 @@ func TestDetermineTargetBuildImages(t *testing.T) {
 		// Mock ListImageVersions to return matching version
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-image",
 				MediatorName: "mediator-image",
@@ -822,7 +822,7 @@ func TestDetermineTargetBuildImages(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, targetBuildImages)
-		assert.Equal(t, "9.17.1", targetBuildImages.OntapVersion)
+		assert.Equal(t, "9.17.1P1", targetBuildImages.OntapVersion)
 		assert.Equal(t, "gcr.io/vsa-image:9.17.1", targetBuildImages.VSAImagePath)
 		assert.Equal(t, "vsa-image", targetBuildImages.VSAName)
 		assert.Equal(t, "mediator-image", targetBuildImages.MediatorName)
@@ -846,7 +846,7 @@ func TestCreateUpgradeJobInDB(t *testing.T) {
 		}
 
 		jobUUID := "test-job-uuid"
-		targetOntapVersion := "9.17.1"
+		targetOntapVersion := "9.17.1P1"
 		targetVSAName := "vsa-9.17.1"
 		targetMediatorName := "mediator-9.17.1"
 
@@ -883,7 +883,7 @@ func TestCreateUpgradeJobInDB(t *testing.T) {
 		}
 
 		jobUUID := "test-job-uuid"
-		targetOntapVersion := "9.17.1"
+		targetOntapVersion := "9.17.1P1"
 		targetVSAName := "vsa-9.17.1"
 		targetMediatorName := "mediator-9.17.1"
 
@@ -1042,7 +1042,7 @@ func TestGetClusterUpgradeStatus(t *testing.T) {
 func TestListAvailableVersions(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1")
+		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1P1")
 		if err != nil {
 			return
 		}
@@ -1063,7 +1063,7 @@ func TestListAvailableVersions(t *testing.T) {
 		// Mock available versions
 		versions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1087,11 +1087,11 @@ func TestListAvailableVersions(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.Equal(t, "9.17.1", response.Current)
+		assert.Equal(t, "9.17.1P1", response.Current)
 		assert.Len(t, response.Versions, 2)
 
 		// Check first version (current)
-		assert.Equal(t, "9.17.1", response.Versions[0].OntapVersion)
+		assert.Equal(t, "9.17.1P1", response.Versions[0].OntapVersion)
 		assert.Equal(t, "gcr.io/vsa-image:9.17.1", response.Versions[0].VSAImagePath)
 		assert.Equal(t, "vsa-9.17.1", response.Versions[0].VSAName)
 		assert.Equal(t, "mediator-9.17.1", response.Versions[0].MediatorName)
@@ -1111,7 +1111,7 @@ func TestListAvailableVersions(t *testing.T) {
 
 	t.Run("EmptyVersions", func(t *testing.T) {
 		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1")
+		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1P1")
 		if err != nil {
 			return
 		}
@@ -1138,14 +1138,14 @@ func TestListAvailableVersions(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.Equal(t, "9.17.1", response.Current)
+		assert.Equal(t, "9.17.1P1", response.Current)
 		assert.Len(t, response.Versions, 0)
 		mockStorage.AssertExpectations(t)
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
 		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1")
+		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1P1")
 		if err != nil {
 			return
 		}
@@ -1188,7 +1188,7 @@ func TestListAvailableVersions(t *testing.T) {
 		// Mock available versions
 		versions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1205,7 +1205,7 @@ func TestListAvailableVersions(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.Equal(t, "9.17.1", response.Current) // Default value
+		assert.Equal(t, "9.17.1P1", response.Current) // Default value
 		assert.Len(t, response.Versions, 1)
 		assert.True(t, response.Versions[0].IsCurrent)
 		mockStorage.AssertExpectations(t)
@@ -1215,7 +1215,7 @@ func TestListAvailableVersions(t *testing.T) {
 func TestListAvailableVersionsInternal(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1")
+		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1P1")
 		if err != nil {
 			return
 		}
@@ -1233,7 +1233,7 @@ func TestListAvailableVersionsInternal(t *testing.T) {
 		// Mock available versions
 		versions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1250,9 +1250,9 @@ func TestListAvailableVersionsInternal(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.Equal(t, "9.17.1", response.Current)
+		assert.Equal(t, "9.17.1P1", response.Current)
 		assert.Len(t, response.Versions, 1)
-		assert.Equal(t, "9.17.1", response.Versions[0].OntapVersion)
+		assert.Equal(t, "9.17.1P1", response.Versions[0].OntapVersion)
 		assert.True(t, response.Versions[0].IsCurrent)
 		assert.True(t, response.Versions[0].IsActive)
 		mockStorage.AssertExpectations(t)
@@ -1260,7 +1260,7 @@ func TestListAvailableVersionsInternal(t *testing.T) {
 
 	t.Run("DatabaseError", func(t *testing.T) {
 		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1")
+		err := os.Setenv("ONTAP_VERSION_DETAILS", "9.17.1P1")
 		if err != nil {
 			return
 		}
@@ -1408,7 +1408,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			},
 			State: models.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
-				OntapVersion:       "9.17.1",
+				OntapVersion:       "9.17.1P1",
 				VSABuildImage:      "vsa-9.17.1",
 				MediatorBuildImage: "mediator-9.17.1",
 			},
@@ -1417,7 +1417,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		// Mock image versions
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1487,7 +1487,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		// Mock image versions
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1546,7 +1546,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		// Mock image versions
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1604,7 +1604,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		// Mock image versions
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1663,7 +1663,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		// Mock image versions
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1736,7 +1736,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		// Mock image versions
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1812,7 +1812,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		// Mock image versions
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",
@@ -1938,7 +1938,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		// Mock determineTargetBuildImages to succeed
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: "9.17.1",
+				OntapVersion: "9.17.1P1",
 				VSAImagePath: "gcr.io/vsa-image:9.17.1",
 				VSAName:      "vsa-9.17.1",
 				MediatorName: "mediator-9.17.1",

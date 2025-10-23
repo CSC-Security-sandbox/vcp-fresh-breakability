@@ -317,7 +317,7 @@ var (
 
 	NLFLicenseSecretPath = GetString("NLF_LICENSE_SECRET_PATH", "")
 	// Get current VCP version from environment
-	CurrentOntapVersionDetails = GetString("ONTAP_VERSION_DETAILS", "9.17.1")
+	CurrentOntapVersionDetails = GetString("ONTAP_VERSION_DETAILS", "9.17.1P1")
 	// ONTAP Image Version Match Configuration
 	SkipOntapImageVersionMatch = GetBool("SKIP_ONTAP_IMAGE_VERSION_MATCH", false)
 )

@@ -22,7 +22,7 @@ var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
 
 var (
 	VSALifecycleManagerQueuePrefix    = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
-	OntapVersion                      = env.GetString("ONTAP_VERSION", "9.17.1")
+	OntapVersion                      = env.GetString("ONTAP_VERSION_DETAILS", "9.17.1P1")
 	VSALifecycleManagerQueue          = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
 	IsIntegrationTest                 = env.GetBool("INTEGRATION_TEST", false)
 	VlmWorkflowStartToCloseTimeout    = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")

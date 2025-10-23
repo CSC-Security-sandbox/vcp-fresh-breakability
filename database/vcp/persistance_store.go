@@ -154,7 +154,7 @@ func (s *PersistenceStore) createConnection(isAdmin bool) (*gorm.DB, error) {
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
-		PrepareStmt:            true,
+		PrepareStmt:            false,
 		SkipDefaultTransaction: true,
 		TranslateError:         true,
 	}

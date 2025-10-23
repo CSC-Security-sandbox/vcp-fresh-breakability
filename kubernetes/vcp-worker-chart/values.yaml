@@ -120,8 +120,7 @@ workerConfig:
   dataSubnetCidrBlock: 28
   cloudDnsCacheTtl: 300
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
-  ontapVersion: "9.18.1"
-  ontapVersionDetails: "9.17.1"
+  ontapVersionDetails: "9.17.1P1"
   enforceMinSpConfig: "false"
   maxNodesPerGroup: 200
   filesProtocolSupport: "false"
