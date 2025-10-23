@@ -62,7 +62,7 @@ Exporters:
           target: "netapp.googleapis.com/volume/auto_tiering/tiered_bytes"
           labels:
             type: "hot"
-        - source: "capacity_tier_footprint"
+        - source: "capacity_tier_logical_footprint"
           target: "netapp.googleapis.com/volume/auto_tiering/tiered_bytes"
           labels:
             type: "cold"
@@ -75,7 +75,7 @@ Exporters:
           target: "netapp.googleapis.com/storage_pool/auto_tiering/tiered_bytes"
           labels:
             type: "hot"
-        - source: "capacity_tier_footprint"
+        - source: "capacity_tier_logical_footprint"
           target: "netapp.googleapis.com/storage_pool/auto_tiering/tiered_bytes"
           labels:
             type: "cold"
