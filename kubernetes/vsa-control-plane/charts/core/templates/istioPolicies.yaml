@@ -1,0 +1,29 @@
+{{- if .Values.istioEnabled | default true }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-to-core
+  annotations:
+    kubernetes.io/description: "Authorization policy for core to allow access to core API's"
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  action: ALLOW
+  rules:
+    - {}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: core-peer-authentication
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  mtls:
+    mode: PERMISSIVE
+{{- end }}

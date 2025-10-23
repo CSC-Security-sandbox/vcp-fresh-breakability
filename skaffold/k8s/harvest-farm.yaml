@@ -101,6 +101,8 @@ spec:
               value: "8080"
             - name: CORE_API_BATCH_SIZE
               value: "1000"
+            - name: ENVIRONMENT
+              value: "dev"
           volumeMounts:
             - mountPath: "/configs/harvest"
               name: harvest-farm-shared

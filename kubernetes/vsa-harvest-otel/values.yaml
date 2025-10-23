@@ -104,6 +104,8 @@ harvestConfig:
   coreApiPort: "8080"
   coreApiBatchSize: "1000"
   sendingQueueEnabled: true
+  gcpAuthServiceAccount: ""
+  gcpServiceUrl: ""
 
 lifecycleHooks: {}
 

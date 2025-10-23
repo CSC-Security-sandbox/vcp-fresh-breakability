@@ -14,3 +14,6 @@ data:
   CORE_API_BASE_URL: {{ .Values.harvestConfig.coreApiBaseUrl | quote }}
   CORE_API_PORT: {{ .Values.harvestConfig.coreApiPort | quote }}
   CORE_API_BATCH_SIZE: {{ .Values.harvestConfig.coreApiBatchSize | quote }}
+  GCP_AUTH_SERVICE_ACCOUNT: {{ .Values.harvestConfig.gcpAuthServiceAccount | quote }}
+  GCP_SERVICE_URL: {{ .Values.harvestConfig.gcpServiceUrl | quote }}
+  ENVIRONMENT: {{ .Values.global.environment | quote }}

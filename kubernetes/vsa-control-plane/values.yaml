@@ -32,7 +32,7 @@ global:
   coreConfig:
     gcp: {}
     gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
-    gcoAuthAcceptedServiceAccounts: ""
+    gcpAuthAcceptedServiceAccounts: ""
     apiCvpMaxRetries: "3"
     apiCvpRetryDelay: "100ms"
     broadcastDomainMtu: "9000"
