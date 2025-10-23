@@ -52,14 +52,16 @@ continent VARCHAR (255) NOT NULL
      'VOLUME_REPLICATION_RELATIONSHIP', 
      'VOLUME_REGIONAL_HA',
      'VOLUME_POOL_REGIONAL_HA',
-     'CBS'
+     'BACKUP'
      ) and
     measured_type in (
      'XREGION_REPLICATION_TOTAL_TRANSFER_BYTES', 
      'ALLOCATED_USED', 
      'POOL_ALLOCATED_SIZE', 
      'ALLOCATED_SIZE', 
-     'LOGICAL_SIZE'
+     'LOGICAL_SIZE',
+     'VOLUME_BACKUP_SIZE',
+     'BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE'
      ) and
  	service_level is not null
  ;
@@ -157,8 +159,7 @@ continent VARCHAR (255) NOT NULL
  		else '0'
  	end as total_gibh_used,
  	sum(hourly_transfer_bytes) / 1024 as total_transfer_bytes_crr,
- 	sum(hourly_backup_total_gibh_used) / 1024 / 1024 as backup_total_gibh_used,
- 	sum(hourly_backup_total_gibh_used) / 1024 / 1024 / 86400*3600 as backup_total_avg_gib_used,
+ 	sum(hourly_backup_total_gibh_used) / 1024 as backup_total_gibh_used,
  	sum(hourly_backup_enabled_volume_allocated_size) / 1024 as backup_enabled_volume_allocated_size_total_gibh,
  	sum(hourly_restore_transferred_bytes) / 1024 as backup_restore_transferred_bytes_used,
  	sum(pool_throughput_mibps) as total_pool_throughput_mibps,
@@ -182,7 +183,7 @@ continent VARCHAR (255) NOT NULL
 		sum(case when(measured_type in ('ALLOCATED_SIZE' ,'POOL_ALLOCATED_SIZE')) then quantity else 0 end) as hourly_allocated_quantity,
 		sum(case when(measured_type = 'TOTAL_LOGICAL_SIZE') then quantity else 0 end) as hourly_pool_logical_quantity,
  		sum(case when(measured_type = 'XREGION_REPLICATION_TOTAL_TRANSFER_BYTES') then quantity else 0 end) as hourly_transfer_bytes,
- 		sum(case when(measured_type = 'CBS_VOLUME_BACKUP_SIZE') then quantity else 0 end) as hourly_backup_total_gibh_used,
+ 		sum(case when(measured_type = 'VOLUME_BACKUP_SIZE') then quantity else 0 end) as hourly_backup_total_gibh_used,
  		sum(case when(measured_type = 'BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE') then quantity else 0 end) as hourly_backup_enabled_volume_allocated_size,
  		sum(case when(measured_type = 'CBS_VOLUME_OPERATION_RESTORE_TRANSFERRED_BYTES') then quantity else 0 end) as hourly_restore_transferred_bytes,
  		sum(case when(measured_type = 'COOL_TIER_SIZE') then quantity else 0 end) as hourly_cool_tier_bytes,
@@ -220,6 +221,7 @@ continent VARCHAR (255) NOT NULL
  	end as num_pools,
      case
  		when puc.resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') then us.resource_count
+ 		when puc.resource_type in ('BACKUP') then us.resource_count
  		else 0
  	end as num_volums,
      $1 as report_start,
@@ -232,6 +234,8 @@ continent VARCHAR (255) NOT NULL
  	    when puc.resource_type = 'VOLUME' then 'netapp.googleapis.com/volume/Allocation/Flex/Zonal/Unified'
  	    
  	    when puc.resource_type = 'VOLUME_REGIONAL_HA' then 'netapp.googleapis.com/volume/Allocation/Flex/Regional/Unified'
+ 	    
+ 	    when puc.resource_type = 'BACKUP' then 'netapp.googleapis.com/volume/Allocation/Flex/Unified'
  	    
  	    when puc.resource_type in ('VOLUME_REPLICATION_RELATIONSHIP') then ''
  		else 'N/A'
@@ -252,7 +256,7 @@ continent VARCHAR (255) NOT NULL
  	    when puc.resource_type = 'VOLUME_REPLICATION_RELATIONSHIP' and puc.replication_type = 'ExternalMigration' then 'Onprem Migration'
  	    when puc.resource_type = 'VOLUME_REPLICATION_RELATIONSHIP' and puc.replication_type = 'ExternalDisasterRecovery' then 'Onprem Replication'
  	    when puc.resource_type in ('VOLUME_REPLICATION_RELATIONSHIP', 'SDS_VOLUME_REPLICATION_RELATIONSHIP') then 'Cross Region Replication'
- 	    when puc.resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') and (puc.destination_region is not NULL and puc.destination_region != '') then 'Backup'
+ 	    when puc.resource_type in ('BACKUP') and (puc.destination_region is not NULL and puc.destination_region != '') then 'Backup'
  		when puc.resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA') then 'Volume'
  		when puc.resource_type in ('VOLUME_POOL', 'VOLUME_POOL_REGIONAL_HA') then 'Pool'
  		else puc.resource_type
