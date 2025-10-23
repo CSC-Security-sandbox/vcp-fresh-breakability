@@ -611,16 +611,22 @@ func TestProcessSnapshotSync(t *testing.T) {
 			ExternalVolumeUUID: "test-volume-uuid-2",
 			Type:               SnapshotTypeAdHoc,
 		},
-		// Adds entries into wronglyDeletedSnapshotsMap
+		// Adds entries into newSSMap
 		{
 			ExternalUUID:       "test-snapshot-uuid-4",
 			ExternalVolumeUUID: "test-volume-uuid-2",
 			Type:               SnapshotTypeAdHoc,
 		},
+		// Adds entries into wronglyDeletedSnapshotsMap
+		{
+			ExternalUUID:       "test-snapshot-uuid-7",
+			ExternalVolumeUUID: "test-volume-uuid-3",
+			Type:               SnapshotTypeAdHoc,
+		},
 		// Does not add entries into any of the slices/maps
 		{
 			ExternalUUID:       "test-snapshot-uuid-5",
-			ExternalVolumeUUID: "test-volume-uuid-3",
+			ExternalVolumeUUID: "test-volume-uuid-4",
 			Type:               SnapshotTypeAdHoc,
 		},
 	}
@@ -671,6 +677,7 @@ func TestProcessSnapshotSync(t *testing.T) {
 		},
 	}
 
+	volType := "dp"
 	ontapVolumeMap := map[string]*vsa.Volume{
 		"test-volume-uuid-1": {
 			Volume: ontaprestmodel.Volume{
@@ -682,6 +689,13 @@ func TestProcessSnapshotSync(t *testing.T) {
 			Volume: ontaprestmodel.Volume{
 				Name: nillable.ToPointer("test-volume-2"),
 				UUID: nillable.ToPointer("test-volume-uuid-2"),
+				Type: &volType,
+			},
+		},
+		"test-volume-uuid-3": {
+			Volume: ontaprestmodel.Volume{
+				Name: nillable.ToPointer("test-volume-3"),
+				UUID: nillable.ToPointer("test-volume-uuid-3"),
 			},
 		},
 	}
@@ -708,10 +722,10 @@ func TestProcessSnapshotSync(t *testing.T) {
 	newSSMap, updatedSSMap, wronglyDeletedSnapshotsMap, newIDs, updatedIDs, deletedIDs, wronglyDeletedIDs :=
 		processSnapshotSync(ctx, ontapVolumeMap, ontapSnapshots, dbVolumeMap, dbSnapshots)
 
-	assert.Len(t, newSSMap, 2)
+	assert.Len(t, newSSMap, 3)
 	assert.Len(t, updatedSSMap, 1)
 	assert.Len(t, wronglyDeletedSnapshotsMap, 1)
-	assert.Len(t, newIDs, 2)
+	assert.Len(t, newIDs, 3)
 	assert.Len(t, updatedIDs, 1)
 	assert.Len(t, deletedIDs, 1)
 	assert.Len(t, wronglyDeletedIDs, 1)

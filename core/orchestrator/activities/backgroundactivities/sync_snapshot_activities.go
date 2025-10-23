@@ -399,14 +399,13 @@ func _processSnapshotSync(ctx context.Context, ontapVolumeMap map[string]*vsa.Vo
 				updatedIDs = append(updatedIDs, key)
 			}
 		} else {
-			_, volumeExistsInOntap := ontapVolumeMap[snapshot.ExternalVolumeUUID]
+			vol, volumeExistsInOntap := ontapVolumeMap[snapshot.ExternalVolumeUUID]
 			if !volumeExistsInOntap {
 				continue
 			}
-
 			_, isCloned := dbSnapshotExternalUUIDMap[snapshot.ExternalUUID]
 
-			if snapshot.Type != SnapshotTypeAdHoc || isCloned {
+			if (vol.Type != nil && *vol.Type == "dp") || snapshot.Type != SnapshotTypeAdHoc || isCloned {
 				newSSMap[key] = snapshot
 				newIDs = append(newIDs, key)
 			} else {

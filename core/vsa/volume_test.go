@@ -959,7 +959,11 @@ func TestGetVolumes(t *testing.T) {
 		}
 		rc := &OntapRestProvider{}
 
-		mockStorage.On("VolumeCollectionGet", mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("VolumeCollectionGet", &ontaprest.VolumeCollectionGetParams{
+			BaseParams: ontaprest.BaseParams{
+				Fields: []string{"uuid", "name", "space.*", "svm", "is_svm_root", "style", "type"},
+			},
+		}, mock.Anything).Return(nil)
 
 		_, err := rc.GetVolumes()
 		assert.NoError(t, err)
