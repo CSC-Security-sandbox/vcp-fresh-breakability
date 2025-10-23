@@ -283,7 +283,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}
 
-	if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
+	if params.AutoTieringPolicy != nil {
 		volumeObj.AutoTieringEnabled = params.AutoTieringPolicy.AutoTieringEnabled
 		volumeObj.AutoTieringPolicy = &datamodel.AutoTieringPolicy{
 			TieringPolicy:            params.AutoTieringPolicy.TieringPolicy,

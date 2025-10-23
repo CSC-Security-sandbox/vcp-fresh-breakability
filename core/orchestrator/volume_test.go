@@ -4557,6 +4557,138 @@ func TestCreateVolume(t *testing.T) {
 		assert.Nil(tt, newVolume, "Expected nil volume")
 		assert.ErrorContains(tt, err, "Snapshot is not eligible for volume creation. Snapshots created for backup, data protection, replication, or clone volumes are not supported.")
 	})
+	t.Run("WhenCreateVolumeSuccessWithPausedAutoTiering", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			State:     "READY",
+		}
+
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "test-backup-vault-id",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+			},
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled: false,
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.NotNil(tt, volume, "Expected nil volume")
+		assert.NoError(tt, err, "error not found")
+		assert.Equal(tt, volume.DisplayName, "test_volume")
+		assert.Equal(tt, volume.AccountName, "test_account")
+		assert.Equal(tt, volume.PoolID, "test-pool-uuid")
+		assert.Equal(tt, volume.PoolName, "test_pool")
+		assert.Equal(tt, volume.VendorID, "")
+		assert.Equal(tt, volume.CreationToken, "test-creation-token")
+		assert.Equal(tt, volume.Description, "Some description")
+		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
+		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
+		assert.Equal(tt, volume.LifeCycleState, "CREATING")
+		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
+	})
 }
 
 func Test_createVolume_WithSnapshotPolicy(t *testing.T) {

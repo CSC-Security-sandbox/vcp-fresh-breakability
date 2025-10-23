@@ -10,8 +10,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -2697,7 +2697,6 @@ func TestIsUpdateRequired(t *testing.T) {
 				Size: 150,
 			},
 			params: &common.UpdateVolumeParams{
-				QuotaInBytes: 150,
 				AutoTieringPolicy: &common.AutoTieringPolicy{
 					AutoTieringEnabled: false,
 				},
@@ -2716,7 +2715,6 @@ func TestIsUpdateRequired(t *testing.T) {
 				Size: 150,
 			},
 			params: &common.UpdateVolumeParams{
-				QuotaInBytes: 150,
 				AutoTieringPolicy: &common.AutoTieringPolicy{
 					AutoTieringEnabled:   true,
 					CoolingThresholdDays: 15,
@@ -2734,7 +2732,6 @@ func TestIsUpdateRequired(t *testing.T) {
 				Size: 150,
 			},
 			params: &common.UpdateVolumeParams{
-				QuotaInBytes: 150,
 				AutoTieringPolicy: &common.AutoTieringPolicy{
 					AutoTieringEnabled:   false,
 					CoolingThresholdDays: 15,

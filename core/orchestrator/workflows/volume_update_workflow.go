@@ -514,7 +514,7 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 		return true
 	}
 
-	if response.Size == params.QuotaInBytes && params.AutoTieringPolicy != nil {
+	if params.AutoTieringPolicy != nil {
 		if params.AutoTieringPolicy.AutoTieringEnabled != existingVolume.AutoTieringEnabled ||
 			(params.AutoTieringPolicy.AutoTieringEnabled && existingVolume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != existingVolume.AutoTieringPolicy.CoolingThresholdDays) {
 			return true
