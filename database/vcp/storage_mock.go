@@ -13379,6 +13379,55 @@ func (_c *MockStorage_UpdatePoolSubnetNames_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// UpdatePoolTieringConsumption provides a mock function with given fields: ctx, poolUUID, hotTierConsumption, coldTierConsumption
+func (_m *MockStorage) UpdatePoolTieringConsumption(ctx context.Context, poolUUID string, hotTierConsumption int64, coldTierConsumption int64) error {
+	ret := _m.Called(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePoolTieringConsumption")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64) error); ok {
+		r0 = rf(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdatePoolTieringConsumption_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePoolTieringConsumption'
+type MockStorage_UpdatePoolTieringConsumption_Call struct {
+	*mock.Call
+}
+
+// UpdatePoolTieringConsumption is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolUUID string
+//   - hotTierConsumption int64
+//   - coldTierConsumption int64
+func (_e *MockStorage_Expecter) UpdatePoolTieringConsumption(ctx interface{}, poolUUID interface{}, hotTierConsumption interface{}, coldTierConsumption interface{}) *MockStorage_UpdatePoolTieringConsumption_Call {
+	return &MockStorage_UpdatePoolTieringConsumption_Call{Call: _e.mock.On("UpdatePoolTieringConsumption", ctx, poolUUID, hotTierConsumption, coldTierConsumption)}
+}
+
+func (_c *MockStorage_UpdatePoolTieringConsumption_Call) Run(run func(ctx context.Context, poolUUID string, hotTierConsumption int64, coldTierConsumption int64)) *MockStorage_UpdatePoolTieringConsumption_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdatePoolTieringConsumption_Call) Return(_a0 error) *MockStorage_UpdatePoolTieringConsumption_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdatePoolTieringConsumption_Call) RunAndReturn(run func(context.Context, string, int64, int64) error) *MockStorage_UpdatePoolTieringConsumption_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdatePoolWithKmsConfigID provides a mock function with given fields: ctx, pool, kmsConfigUUID
 func (_m *MockStorage) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error) {
 	ret := _m.Called(ctx, pool, kmsConfigUUID)

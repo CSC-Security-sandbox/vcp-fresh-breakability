@@ -3682,3 +3682,203 @@ func TestUpdateVolumeJunctionpath_InvalidProtocols_Success(t *testing.T) {
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
+
+// TestUpdateAutoTieringParams tests the updateAutoTieringParams function
+func TestUpdateAutoTieringParams_WithAutoPolicy_TieringNotPaused(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	params := &common.UpdateVolumeParams{
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			AutoTieringEnabled:   true,
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 10,
+		},
+	}
+
+	updateVolumeParams := &vsa.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+
+	result, err := updateAutoTieringParams(ctx, params, updateVolumeParams, volume, mockStorage)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyAuto, result.CoolAccessTieringPolicy)
+	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
+	assert.Equal(t, int64(10), result.CoolnessPeriod)
+}
+
+func TestUpdateAutoTieringParams_WithAllPolicy_TieringNotPaused(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	params := &common.UpdateVolumeParams{
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			AutoTieringEnabled:   true,
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 15,
+		},
+	}
+
+	updateVolumeParams := &vsa.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: false,
+			},
+		},
+	}
+
+	mockStorage.On("GetPool", ctx, "pool-uuid", int64(123)).Return(pool, nil)
+
+	result, err := updateAutoTieringParams(ctx, params, updateVolumeParams, volume, mockStorage)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyAll, result.CoolAccessTieringPolicy)
+	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
+	assert.Equal(t, int64(15), result.CoolnessPeriod)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateAutoTieringParams_WithAllPolicy_TieringPaused(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	params := &common.UpdateVolumeParams{
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			AutoTieringEnabled:   true,
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 20,
+		},
+	}
+
+	updateVolumeParams := &vsa.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: true,
+			},
+		},
+	}
+
+	mockStorage.On("GetPool", ctx, "pool-uuid", int64(123)).Return(pool, nil)
+
+	result, err := updateAutoTieringParams(ctx, params, updateVolumeParams, volume, mockStorage)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// When tiering is paused, it should set to 'none'
+	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyNone, result.CoolAccessTieringPolicy)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateAutoTieringParams_WithAllPolicy_GetPoolError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	params := &common.UpdateVolumeParams{
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			AutoTieringEnabled:   true,
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 10,
+		},
+	}
+
+	updateVolumeParams := &vsa.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+
+	mockStorage.On("GetPool", ctx, "pool-uuid", int64(123)).Return(nil, errors.New("db error"))
+
+	result, err := updateAutoTieringParams(ctx, params, updateVolumeParams, volume, mockStorage)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateAutoTieringParams_AutoTieringDisabled(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	params := &common.UpdateVolumeParams{
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			AutoTieringEnabled:   false,
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyNone,
+			RetrievalPolicy:      "",
+			CoolingThresholdDays: 0,
+		},
+	}
+
+	updateVolumeParams := &vsa.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+
+	result, err := updateAutoTieringParams(ctx, params, updateVolumeParams, volume, mockStorage)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyNone, result.CoolAccessTieringPolicy)
+}
+
+func TestUpdateAutoTieringParams_WithSnapshotOnlyPolicy(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	params := &common.UpdateVolumeParams{
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			AutoTieringEnabled:   true,
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicySnapshotOnly,
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 5,
+		},
+	}
+
+	updateVolumeParams := &vsa.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+
+	result, err := updateAutoTieringParams(ctx, params, updateVolumeParams, volume, mockStorage)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, ontapModels.VolumeInlineTieringPolicySnapshotOnly, result.CoolAccessTieringPolicy)
+	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
+	assert.Equal(t, int64(5), result.CoolnessPeriod)
+}

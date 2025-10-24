@@ -2564,6 +2564,7 @@ func TestPersistenceStore_ListAllVolumes(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, volumes)
 }
+
 // TestPersistenceStore_WrapperMethods tests the wrapper methods that delegate to dataStore
 // to cover the missing lines in persistance_store.go
 func TestPersistenceStore_WrapperMethods(t *testing.T) {
@@ -4151,5 +4152,176 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "test-peer-svm", "test-peer-volume")
 		assert.Error(tt, err, "Expected error when database connection is closed")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 when database error occurs")
+	})
+}
+
+// TestPersistenceStore_UpdatePoolTieringConsumption tests the UpdatePoolTieringConsumption wrapper method
+func TestPersistenceStore_UpdatePoolTieringConsumption(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+
+	t.Run("SuccessfullyUpdatesConsumption", func(tt *testing.T) {
+		store, err := SetupStorageForTest(logger)
+		assert.NoError(tt, err, "Failed to setup storage")
+		defer func() {
+			_ = store.Close()
+		}()
+
+		// Create account directly in DB
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid-1"},
+			Name:      "test_account_1",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create pool with auto_tiering_config directly in DB
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+			Name:           "test_pool_1",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "test-deployment",
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				BucketName:              "test-bucket",
+				TieringPaused:           false,
+				HotTierConsumption:      0,
+				ColdTierConsumption:     0,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(tt, err, "Failed to create pool")
+		createdPool := pool
+
+		// Update consumption values
+		hotTierConsumption := int64(250000000000)
+		coldTierConsumption := int64(150000000000)
+
+		err = store.UpdatePoolTieringConsumption(ctx, createdPool.UUID, hotTierConsumption, coldTierConsumption)
+		assert.NoError(tt, err, "Failed to update pool tiering consumption")
+
+		// Verify the update
+		updatedPool, err := store.GetPoolByUUID(ctx, createdPool.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated pool")
+		assert.NotNil(tt, updatedPool.AutoTieringConfig, "AutoTieringConfig should not be nil")
+		assert.Equal(tt, hotTierConsumption, updatedPool.AutoTieringConfig.HotTierConsumption, "HotTierConsumption not updated correctly")
+		assert.Equal(tt, coldTierConsumption, updatedPool.AutoTieringConfig.ColdTierConsumption, "ColdTierConsumption not updated correctly")
+
+		// Verify other fields remain unchanged
+		assert.Equal(tt, int64(500000000000), updatedPool.AutoTieringConfig.HotTierSizeInBytes, "HotTierSizeInBytes should not change")
+		assert.Equal(tt, true, updatedPool.AutoTieringConfig.EnableHotTierAutoResize, "EnableHotTierAutoResize should not change")
+		assert.Equal(tt, "test-bucket", updatedPool.AutoTieringConfig.BucketName, "BucketName should not change")
+		assert.Equal(tt, false, updatedPool.AutoTieringConfig.TieringPaused, "TieringPaused should not change")
+	})
+
+	t.Run("ReturnsErrorWhenPoolNotFound", func(tt *testing.T) {
+		store, err := SetupStorageForTest(logger)
+		assert.NoError(tt, err, "Failed to setup storage")
+		defer func() {
+			_ = store.Close()
+		}()
+
+		// Try to update consumption for non-existent pool
+		err = store.UpdatePoolTieringConsumption(ctx, "non-existent-uuid", 100000000000, 50000000000)
+		assert.Error(tt, err, "Expected error when pool does not exist")
+		assert.Contains(tt, err.Error(), "Resource not found", "Error should indicate pool not found")
+	})
+
+	t.Run("ReturnsErrorWhenAutoTieringConfigIsNull", func(tt *testing.T) {
+		store, err := SetupStorageForTest(logger)
+		assert.NoError(tt, err, "Failed to setup storage")
+		defer func() {
+			_ = store.Close()
+		}()
+
+		// Create account directly in DB
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid-2"},
+			Name:      "test_account_2",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create pool without auto_tiering_config directly in DB
+		pool := &datamodel.Pool{
+			BaseModel:         datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+			Name:              "test_pool_2",
+			AccountID:         account.ID,
+			Account:           account,
+			DeploymentName:    "test-deployment",
+			AutoTieringConfig: nil, // No auto-tiering config
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(tt, err, "Failed to create pool")
+		createdPool := pool
+
+		// Try to update consumption
+		err = store.UpdatePoolTieringConsumption(ctx, createdPool.UUID, 100000000000, 50000000000)
+		assert.Error(tt, err, "Expected error when auto_tiering_config is null")
+		assert.Contains(tt, err.Error(), "Resource not found", "Error should indicate auto_tiering_config is null")
+	})
+
+	t.Run("UpdatesMultipleTimes", func(tt *testing.T) {
+		store, err := SetupStorageForTest(logger)
+		assert.NoError(tt, err, "Failed to setup storage")
+		defer func() {
+			_ = store.Close()
+		}()
+
+		// Create account directly in DB
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid-3"},
+			Name:      "test_account_3",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create pool with auto_tiering_config directly in DB
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-3"},
+			Name:           "test_pool_3",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "test-deployment",
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				BucketName:              "test-bucket",
+				TieringPaused:           false,
+				HotTierConsumption:      0,
+				ColdTierConsumption:     0,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(tt, err, "Failed to create pool")
+		createdPool := pool
+
+		// First update
+		err = store.UpdatePoolTieringConsumption(ctx, createdPool.UUID, 100000000000, 50000000000)
+		assert.NoError(tt, err, "Failed to update pool tiering consumption (first time)")
+
+		// Verify first update
+		updatedPool, err := store.GetPoolByUUID(ctx, createdPool.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated pool after first update")
+		assert.Equal(tt, int64(100000000000), updatedPool.AutoTieringConfig.HotTierConsumption, "First update: HotTierConsumption incorrect")
+		assert.Equal(tt, int64(50000000000), updatedPool.AutoTieringConfig.ColdTierConsumption, "First update: ColdTierConsumption incorrect")
+
+		// Second update with different values
+		err = store.UpdatePoolTieringConsumption(ctx, createdPool.UUID, 200000000000, 100000000000)
+		assert.NoError(tt, err, "Failed to update pool tiering consumption (second time)")
+
+		// Verify second update
+		updatedPool, err = store.GetPoolByUUID(ctx, createdPool.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated pool after second update")
+		assert.Equal(tt, int64(200000000000), updatedPool.AutoTieringConfig.HotTierConsumption, "Second update: HotTierConsumption incorrect")
+		assert.Equal(tt, int64(100000000000), updatedPool.AutoTieringConfig.ColdTierConsumption, "Second update: ColdTierConsumption incorrect")
+
+		// Verify other fields remain unchanged
+		assert.Equal(tt, int64(500000000000), updatedPool.AutoTieringConfig.HotTierSizeInBytes, "HotTierSizeInBytes should not change")
+		assert.Equal(tt, true, updatedPool.AutoTieringConfig.EnableHotTierAutoResize, "EnableHotTierAutoResize should not change")
+		assert.Equal(tt, "test-bucket", updatedPool.AutoTieringConfig.BucketName, "BucketName should not change")
+		assert.Equal(tt, false, updatedPool.AutoTieringConfig.TieringPaused, "TieringPaused should not change")
 	})
 }

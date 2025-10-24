@@ -387,6 +387,10 @@ func (s *PersistenceStore) UpdatePoolFields(ctx context.Context, poolUUID string
 	return s.dataStore.UpdatePoolFields(ctx, poolUUID, updates)
 }
 
+func (s *PersistenceStore) UpdatePoolTieringConsumption(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption int64) error {
+	return s.dataStore.UpdatePoolTieringConsumption(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+}
+
 func (s *PersistenceStore) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
 	return s.dataStore.GetPoolsByAccountName(ctx, accountName)
 }

@@ -7,6 +7,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+
 	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 )
 

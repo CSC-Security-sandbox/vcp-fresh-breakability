@@ -470,6 +470,44 @@ func (d *DataStoreRepository) UpdatePoolFields(ctx context.Context, poolUUID str
 	return nil
 }
 
+// UpdatePoolTieringConsumption atomically updates only the hot_tier_consumption and cold_tier_consumption
+// fields within the auto_tiering_config JSONB column.
+// This avoids race conditions and preserves other fields in auto_tiering_config.
+func (d *DataStoreRepository) UpdatePoolTieringConsumption(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption int64) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	// Fetch the pool
+	var pool datamodel.Pool
+	if err := tx.Where("uuid = ?", poolUUID).First(&pool).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.New("Pool not found"))
+		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	// Check if auto_tiering_config exists
+	if pool.AutoTieringConfig == nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.New("auto_tiering_config is null"))
+	}
+
+	// Update only the consumption fields
+	pool.AutoTieringConfig.HotTierConsumption = hotTierConsumption
+	pool.AutoTieringConfig.ColdTierConsumption = coldTierConsumption
+
+	// Save the entire pool back (GORM will update auto_tiering_config as a whole)
+	if err := tx.Save(&pool).Error; err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	return nil
+}
+
 // GetNextSerialNumberInRegion retrieves the next number from a regional db counter and returns the serial number suffix with the given prefix.
 func (d *DataStoreRepository) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
 	db := d.db.GORM().WithContext(ctx)

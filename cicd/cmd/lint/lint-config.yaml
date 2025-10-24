@@ -119,3 +119,4 @@ run:
     - database/metrics/data_store_mock.go
     - database/metrics/storage_mock.go
     - clients/vlm/config.go
+    - telemetry/bizops/biz_ops_provider_mock.go

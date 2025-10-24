@@ -87,6 +87,7 @@ func TestSyncVSAAutoTieringWorkflow_Success(t *testing.T) {
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
 	// Mock child workflows for pause/resume
@@ -172,6 +173,79 @@ func TestSyncVSAAutoTieringWorkflow_GetPoolsTierConsumptionError(t *testing.T) {
 	assert.Error(t, env.GetWorkflowError())
 }
 
+func TestSyncVSAAutoTieringWorkflow_UpdatePoolTieringConsumptionError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	autoTierActivity := &backgroundactivities.AutoTierSyncActivity{}
+	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
+	commonActivities := &activities.CommonActivities{}
+
+	// Register activities
+	env.RegisterActivity(commonActivities)
+	env.RegisterActivity(autoTierActivity)
+	env.RegisterActivity(syncSnapshotActivity)
+
+	pools := []*database.PoolIdentifier{
+		{
+			Name:      "test-pool-1",
+			AccountID: 123,
+			VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool-1",
+			UUID:      "test-pool-1-uuid",
+		},
+	}
+
+	poolsConsumptionMap := map[string]map[string]float64{
+		"test-pool-1-uuid": {
+			backgroundactivities.PoolConsumptionHotTier:  500000000000,
+			backgroundactivities.PoolConsumptionColdTier: 600000000000,
+		},
+	}
+
+	segregatedPools := map[string][]*database.PoolIdentifier{
+		backgroundactivities.PoolsToPauseKey: {
+			{
+				Name:      "test-pool-1",
+				AccountID: 123,
+				VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool-1",
+				UUID:      "test-pool-1-uuid",
+			},
+		},
+	}
+
+	// Mock activities
+	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
+	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(assert.AnError)
+	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
+
+	// Mock child workflows for pause/resume
+	for _, pool := range segregatedPools[backgroundactivities.PoolsToPauseKey] {
+		env.OnWorkflow(AutoTieringPauseResumeWorkflow, mock.Anything, *pool, backgroundactivities.PoolsToPauseKey).Return(nil)
+	}
+	for _, pool := range segregatedPools[backgroundactivities.PoolsToResumeKey] {
+		env.OnWorkflow(AutoTieringPauseResumeWorkflow, mock.Anything, *pool, backgroundactivities.PoolsToResumeKey).Return(nil)
+	}
+
+	// Mock GetWorkflowLastExecutionTime for auto-resize pools
+	lastExecTime := time.Now().Add(-5 * time.Hour) // More than 4 hours ago
+	wfLastExecActivity := &activities.WFLastExecutionActivity{}
+	env.RegisterActivity(wfLastExecActivity)
+	env.OnActivity(wfLastExecActivity.GetWorkflowLastExecutionTime, mock.Anything, mock.Anything).Return(&lastExecTime, nil)
+
+	// Mock child workflow for auto-resize
+	for _, pool := range segregatedPools[backgroundactivities.PoolsToAutoResizeKey] {
+		env.OnWorkflow(AutoTieringHotTierAutoResizeWorkflow, mock.Anything, pool).Return(nil)
+	}
+
+	// Execute workflow
+	env.ExecuteWorkflow(SyncVSAAutoTieringWorkflow)
+
+	// Assert workflow completion with no error
+	// Even if tiering consumption update fails, workflow should continue
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
 func TestSyncVSAAutoTieringWorkflow_SegregatePoolsError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -203,6 +277,7 @@ func TestSyncVSAAutoTieringWorkflow_SegregatePoolsError(t *testing.T) {
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(nil, assert.AnError)
 
 	// Execute workflow
@@ -257,6 +332,7 @@ func TestSyncVSAAutoTieringWorkflow_ChildWorkflowFailure(t *testing.T) {
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
 	// Mock child workflow to fail
@@ -316,6 +392,7 @@ func TestSyncVSAAutoTieringWorkflow_AutoResizeSkippedDueToRecentExecution(t *tes
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
 	// Mock GetWorkflowLastExecutionTime for auto-resize pools (recent execution - within 4 hours)
@@ -376,6 +453,7 @@ func TestSyncVSAAutoTieringWorkflow_GetLastExecutionTimeError(t *testing.T) {
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
 	// Mock GetWorkflowLastExecutionTime to fail
@@ -438,8 +516,10 @@ func TestAutoTieringPauseResumeWorkflow_PauseSuccess(t *testing.T) {
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(poolActivity.UpdatedPool, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToPauseKey)
@@ -496,8 +576,10 @@ func TestAutoTieringPauseResumeWorkflow_ResumeSuccess(t *testing.T) {
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(poolActivity.UpdatedPool, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToResumeKey)
@@ -570,6 +652,7 @@ func TestAutoTieringPauseResumeWorkflow_UpdatingPoolError(t *testing.T) {
 	// Mock activities
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToPauseKey)
@@ -615,6 +698,7 @@ func TestAutoTieringPauseResumeWorkflow_GetNodeError(t *testing.T) {
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToPauseKey)
@@ -672,6 +756,7 @@ func TestAutoTieringPauseResumeWorkflow_UpdateAggregateError(t *testing.T) {
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
 	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToPauseKey)
@@ -730,6 +815,7 @@ func TestAutoTieringPauseResumeWorkflow_UpdatedPoolError(t *testing.T) {
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
 	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(poolActivity.UpdatedPool, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToPauseKey)
@@ -1047,6 +1133,7 @@ func TestSyncVSAAutoTieringWorkflow_EmptyPoolsList(t *testing.T) {
 	// Mock empty consumption map
 	emptyConsumptionMap := make(map[string]map[string]float64)
 	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, emptyPools).Return(emptyConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, emptyConsumptionMap).Return(nil).Once()
 
 	// Mock empty segregated pools
 	emptySegregatedPools := map[string][]*database.PoolIdentifier{
@@ -1110,6 +1197,7 @@ func TestSyncVSAAutoTieringWorkflow_GetLocationFromVendorIDError(t *testing.T) {
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
 	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
 	// Execute workflow
@@ -1168,6 +1256,7 @@ func TestAutoTieringPauseResumeWorkflow_InvalidOperation(t *testing.T) {
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(poolActivity.UpdatedPool, mock.Anything, mock.Anything).Return(nil, nil)
 

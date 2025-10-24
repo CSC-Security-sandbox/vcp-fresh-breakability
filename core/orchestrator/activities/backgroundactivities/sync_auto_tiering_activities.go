@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -87,7 +88,7 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 			poolConsumption, ok := poolConsumptionsMap[pool.UUID]
 			if !ok {
 				// If no consumption data is available for the pool, log it and skip it.
-				logger.Errorf("Pool does not have consumption data in metrics DB, poolUUID: %s", pool.UUID)
+				logger.Errorf("Pool does not have consumption data in map, poolUUID: %s", pool.UUID)
 				return
 			}
 
@@ -219,6 +220,8 @@ func (a *AutoTierSyncActivity) GetPoolsTierConsumptionFromOntap(ctx context.Cont
 				return
 			}
 
+			logger.Infof("Fetched pool tier consumption from ONTAP, poolUUID: %s, hotTierConsumption: %d, coldTierConsumption: %d", pool.UUID, hotTierConsumption, coldTierConsumption)
+
 			mu.Lock()
 			poolsConsumptionsMap[pool.UUID] = map[string]float64{
 				PoolConsumptionHotTier:  float64(hotTierConsumption),
@@ -241,14 +244,30 @@ func calculateHotColdTierConsumption(ontapVolumes []*vsa.Volume, expectedVolCoun
 		if volume == nil || volume.IsSvmRoot == nil || *volume.IsSvmRoot {
 			continue
 		}
-		if volume.Space == nil || volume.Space.CapacityTierFootprint == nil || volume.Space.PerformanceTierFootprint == nil {
+		if volume.Space == nil ||
+			volume.Space.CapacityTierFootprint == nil || volume.Space.PerformanceTierFootprint == nil ||
+			volume.Space.LogicalSpace == nil || volume.Space.LogicalSpace.Used == nil {
 			continue
 		}
 
 		volCount++
 
-		coldTierConsumption += *volume.Space.CapacityTierFootprint
-		hotTierConsumption += *volume.Space.PerformanceTierFootprint
+		coldTierFootprint := float64(*volume.Space.CapacityTierFootprint)
+		hotTierFootprint := float64(*volume.Space.PerformanceTierFootprint)
+		logicalSpaceUsed := float64(*volume.Space.LogicalSpace.Used)
+
+		denominator := coldTierFootprint + hotTierFootprint
+		if denominator == 0 {
+			continue
+		}
+		ratio := coldTierFootprint / denominator
+
+		// Correcting the cold tier consumption based on logical space used
+		// to avoid over counting where data reduction/compression is applied via ONTAP
+		logicalColdTierConsumption := logicalSpaceUsed * ratio
+
+		coldTierConsumption += int64(logicalColdTierConsumption)
+		hotTierConsumption += int64(hotTierFootprint)
 	}
 
 	if volCount != int(expectedVolCount) {
@@ -256,4 +275,62 @@ func calculateHotColdTierConsumption(ontapVolumes []*vsa.Volume, expectedVolCoun
 	}
 
 	return hotTierConsumption, coldTierConsumption, nil
+}
+
+func (a *AutoTierSyncActivity) ToggleHotTierBypassModeForPoolVolumes(ctx context.Context, pool *datamodel.Pool) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	provider, err := GetOntapRestProviderForPool(ctx, se, pool)
+	if err != nil || provider == nil {
+		logger.Errorf("Failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	volumes, err := se.GetVolumesByPoolID(ctx, pool.ID)
+	if err != nil {
+		logger.Errorf("Failed to list volumes for pool: %s, error: %v", pool.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	for _, vol := range volumes {
+		if vol.AutoTieringEnabled && vol.AutoTieringPolicy != nil && vol.AutoTieringPolicy.HotTierBypassModeEnabled {
+			updateParams := vsa.UpdateVolumeParams{
+				UUID: vol.VolumeAttributes.ExternalUUID,
+				TieringPolicy: &vsa.TieringPolicy{
+					CoolAccessTieringPolicy: ontapModels.VolumeInlineTieringPolicyNone,
+				},
+			}
+
+			if !pool.AutoTieringConfig.TieringPaused {
+				updateParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyAll
+			}
+
+			if err = provider.UpdateVolume(updateParams); err != nil {
+				logger.Errorf("Failed to change tiering policy to: %s for volume: %s, error: %v", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.UUID, err)
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+
+			logger.Infof("Tiering policy changed to: %s for volume: %s", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.UUID)
+		}
+	}
+	return nil
+}
+
+func (a *AutoTierSyncActivity) UpdatePoolTieringConsumptionInDB(ctx context.Context, poolsConsumptionsMap map[string]map[string]float64) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	for poolUUID, consumptionMap := range poolsConsumptionsMap {
+		hotTierConsumption := int64(consumptionMap[PoolConsumptionHotTier])
+		coldTierConsumption := int64(consumptionMap[PoolConsumptionColdTier])
+
+		err := se.UpdatePoolTieringConsumption(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+		if err != nil {
+			return fmt.Errorf("failed to update pool tiering consumption in DB for poolUUID: %s, error: %v", poolUUID, err)
+		}
+
+		logger.Infof("Updated pool tiering consumption in DB, poolUUID: %s, hotTierConsumption: %d, coldTierConsumption: %d", poolUUID, hotTierConsumption, coldTierConsumption)
+	}
+	return nil
 }

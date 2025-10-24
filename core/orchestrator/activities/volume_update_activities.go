@@ -35,6 +35,7 @@ type VolumeUpdateActivity struct {
 // UpdateVolumeInONTAP updates the volume in ONTAP
 func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	se := a.SE
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -58,13 +59,10 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 	}
 
 	if params.AutoTieringPolicy != nil {
-		updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
-		if params.AutoTieringPolicy.AutoTieringEnabled {
-			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&params.AutoTieringPolicy.TieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
-			updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&params.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
-			updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(params.AutoTieringPolicy.CoolingThresholdDays)
-		} else {
-			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone
+		updateVolumeParams.TieringPolicy, err = updateAutoTieringParams(ctx, params, updateVolumeParams, volume, se)
+		if err != nil {
+			logger.Errorf("Failed to update auto-tiering params for volume %s: %v", volume.Name, err)
+			return err
 		}
 	}
 	err = updateVolume(ctx, provider, *updateVolumeParams)
@@ -74,6 +72,41 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 	}
 	logger.Debugf("Volume %s updated successfully in ontap", volume.Name)
 	return nil
+}
+
+func updateAutoTieringParams(ctx context.Context, params *common.UpdateVolumeParams, updateVolumeParams *vsa.UpdateVolumeParams, volume *datamodel.Volume, se database.Storage) (*vsa.TieringPolicy, error) {
+	// By default, assume tiering is not paused. This is overridden only when "all" policy
+	// is concerned. In that case, we fetch the pool from DB to check if tiering is paused.
+	// If auto-tiering is paused for pool, we don't set the all auto-tiering policy during
+	// volume creation in ontap. Since this supersedes the tiering fullness threshold and
+	// doesn't stop tiering. We let the volume be created with default tiering policy 'none'
+	// This will get later corrected when the pool will resume auto-tiering.
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: false,
+			},
+		},
+	}
+	if params.AutoTieringPolicy.TieringPolicy == ontapModels.VolumeInlineTieringPolicyAll {
+		var err error
+		// Fetch pool from db to check if auto-tiering is currently paused
+		pool, err = se.GetPool(ctx, volume.Pool.UUID, volume.AccountID)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
+	if params.AutoTieringPolicy.AutoTieringEnabled && !pool.AutoTieringConfig.TieringPaused {
+		updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&params.AutoTieringPolicy.TieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
+		updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&params.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
+		updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(params.AutoTieringPolicy.CoolingThresholdDays)
+	} else {
+		updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone
+	}
+
+	return updateVolumeParams.TieringPolicy, nil
 }
 
 func updateVolume(ctx context.Context, provider vsa.Provider, params vsa.UpdateVolumeParams) error {

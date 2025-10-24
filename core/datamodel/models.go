@@ -928,6 +928,8 @@ type AutoTieringConfig struct {
 	EnableHotTierAutoResize bool   `json:"enable_hot_tier_auto_resize"`
 	BucketName              string `json:"bucket_name"`
 	TieringPaused           bool   `json:"tiering_paused"`
+	HotTierConsumption      int64  `json:"hot_tier_consumption"`
+	ColdTierConsumption     int64  `json:"cold_tier_consumption"`
 }
 
 // Scan implements the sql.Scanner interface for AutoTieringConfig

@@ -620,6 +620,9 @@ func TestAutoTierSyncActivity_GetPoolsTierConsumptionFromOntap(t *testing.T) {
 					Space: &ontaprestmodel.VolumeInlineSpace{
 						CapacityTierFootprint:    nillable.ToPointer(int64(100000000000)), // 100GB
 						PerformanceTierFootprint: nillable.ToPointer(int64(50000000000)),  // 50GB
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(150000000000)), // 150GB logical
+						},
 					},
 				},
 			},
@@ -906,6 +909,9 @@ func TestCalculateHotColdTierConsumption(t *testing.T) {
 					Space: &ontaprestmodel.VolumeInlineSpace{
 						CapacityTierFootprint:    nillable.ToPointer(int64(100000000000)), // 100GB
 						PerformanceTierFootprint: nillable.ToPointer(int64(50000000000)),  // 50GB
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(150000000000)), // 150GB logical
+						},
 					},
 				},
 			},
@@ -915,6 +921,9 @@ func TestCalculateHotColdTierConsumption(t *testing.T) {
 					Space: &ontaprestmodel.VolumeInlineSpace{
 						CapacityTierFootprint:    nillable.ToPointer(int64(200000000000)), // 200GB
 						PerformanceTierFootprint: nillable.ToPointer(int64(100000000000)), // 100GB
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(300000000000)), // 300GB logical
+						},
 					},
 				},
 			},
@@ -935,6 +944,9 @@ func TestCalculateHotColdTierConsumption(t *testing.T) {
 					Space: &ontaprestmodel.VolumeInlineSpace{
 						CapacityTierFootprint:    nillable.ToPointer(int64(100000000000)),
 						PerformanceTierFootprint: nillable.ToPointer(int64(50000000000)),
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(150000000000)),
+						},
 					},
 				},
 			},
@@ -944,6 +956,9 @@ func TestCalculateHotColdTierConsumption(t *testing.T) {
 					Space: &ontaprestmodel.VolumeInlineSpace{
 						CapacityTierFootprint:    nillable.ToPointer(int64(200000000000)),
 						PerformanceTierFootprint: nillable.ToPointer(int64(100000000000)),
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(300000000000)),
+						},
 					},
 				},
 			},
@@ -970,6 +985,9 @@ func TestCalculateHotColdTierConsumption(t *testing.T) {
 					Space: &ontaprestmodel.VolumeInlineSpace{
 						CapacityTierFootprint:    nillable.ToPointer(int64(200000000000)),
 						PerformanceTierFootprint: nillable.ToPointer(int64(100000000000)),
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(300000000000)),
+						},
 					},
 				},
 			},
@@ -1008,6 +1026,629 @@ func TestCalculateHotColdTierConsumption(t *testing.T) {
 		expectedVolCount := int64(0)
 
 		hotTier, coldTier, err := calculateHotColdTierConsumption(volumes, expectedVolCount)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), hotTier)
+		assert.Equal(tt, int64(0), coldTier)
+	})
+}
+
+func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("ToggleHotTierBypassModeForPoolVolumes_Success_PauseMode", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: true, // Paused - should set to "none"
+			},
+		}
+
+		volumes := []*datamodel.Volume{
+			{
+				BaseModel:          datamodel.BaseModel{ID: 1, UUID: "vol-1-uuid"},
+				AutoTieringEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					HotTierBypassModeEnabled: true,
+				},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-vol-1-uuid",
+				},
+			},
+			{
+				BaseModel:          datamodel.BaseModel{ID: 2, UUID: "vol-2-uuid"},
+				AutoTieringEnabled: false, // Should be skipped
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-vol-2-uuid",
+				},
+			},
+		}
+
+		mockProvider := vsa.NewMockProvider(tt)
+		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return params.UUID == "external-vol-1-uuid" &&
+				params.TieringPolicy.CoolAccessTieringPolicy == ontaprestmodel.VolumeInlineTieringPolicyNone
+		})).Return(nil)
+
+		// Mock GetOntapRestProviderForPool
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("ToggleHotTierBypassModeForPoolVolumes_Success_ResumeMode", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: false, // Not paused - should set to "all"
+			},
+		}
+
+		volumes := []*datamodel.Volume{
+			{
+				BaseModel:          datamodel.BaseModel{ID: 1, UUID: "vol-1-uuid"},
+				AutoTieringEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					HotTierBypassModeEnabled: true,
+				},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-vol-1-uuid",
+				},
+			},
+		}
+
+		mockProvider := vsa.NewMockProvider(tt)
+		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return params.UUID == "external-vol-1-uuid" &&
+				params.TieringPolicy.CoolAccessTieringPolicy == ontaprestmodel.VolumeInlineTieringPolicyAll
+		})).Return(nil)
+
+		// Mock GetOntapRestProviderForPool
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("ToggleHotTierBypassModeForPoolVolumes_NoVolumesWithBypassMode", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: false,
+			},
+		}
+
+		volumes := []*datamodel.Volume{
+			{
+				BaseModel:          datamodel.BaseModel{ID: 1, UUID: "vol-1-uuid"},
+				AutoTieringEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					HotTierBypassModeEnabled: false, // No bypass mode
+				},
+			},
+		}
+
+		mockProvider := vsa.NewMockProvider(tt)
+		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
+
+		// Mock GetOntapRestProviderForPool
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		// Provider should not be called since no volumes need updating
+	})
+
+	t.Run("ToggleHotTierBypassModeForPoolVolumes_GetProviderFailed", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: false,
+			},
+		}
+
+		// Mock GetOntapRestProviderForPool to return error
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+
+		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		assert.Error(tt, err)
+	})
+
+	t.Run("ToggleHotTierBypassModeForPoolVolumes_GetVolumesFailed", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: false,
+			},
+		}
+
+		mockProvider := vsa.NewMockProvider(tt)
+		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(nil, errors.New("failed to get volumes"))
+
+		// Mock GetOntapRestProviderForPool
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ToggleHotTierBypassModeForPoolVolumes_UpdateVolumeFailed", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringPaused: false,
+			},
+		}
+
+		volumes := []*datamodel.Volume{
+			{
+				BaseModel:          datamodel.BaseModel{ID: 1, UUID: "vol-1-uuid"},
+				AutoTieringEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					HotTierBypassModeEnabled: true,
+				},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-vol-1-uuid",
+				},
+			},
+		}
+
+		mockProvider := vsa.NewMockProvider(tt)
+		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
+		mockProvider.On("UpdateVolume", mock.Anything).Return(errors.New("failed to update volume"))
+
+		// Mock GetOntapRestProviderForPool
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("UpdatePoolTieringConsumptionInDB_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		poolsConsumptionsMap := map[string]map[string]float64{
+			"pool-1-uuid": {
+				PoolConsumptionHotTier:  500000000000, // 500GB
+				PoolConsumptionColdTier: 600000000000, // 600GB
+			},
+			"pool-2-uuid": {
+				PoolConsumptionHotTier:  300000000000, // 300GB
+				PoolConsumptionColdTier: 400000000000, // 400GB
+			},
+		}
+
+		mockStorage.On("UpdatePoolTieringConsumption", ctx, "pool-1-uuid", int64(500000000000), int64(600000000000)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConsumption", ctx, "pool-2-uuid", int64(300000000000), int64(400000000000)).Return(nil)
+
+		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdatePoolTieringConsumptionInDB_EmptyMap", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		poolsConsumptionsMap := map[string]map[string]float64{}
+
+		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdatePoolTieringConsumptionInDB_UpdateFailed", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		poolsConsumptionsMap := map[string]map[string]float64{
+			"pool-1-uuid": {
+				PoolConsumptionHotTier:  500000000000,
+				PoolConsumptionColdTier: 600000000000,
+			},
+		}
+
+		mockStorage.On("UpdatePoolTieringConsumption", ctx, "pool-1-uuid", int64(500000000000), int64(600000000000)).Return(errors.New("database error"))
+
+		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to update pool tiering consumption in DB")
+		assert.Contains(tt, err.Error(), "pool-1-uuid")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdatePoolTieringConsumptionInDB_SinglePool", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		poolsConsumptionsMap := map[string]map[string]float64{
+			"single-pool-uuid": {
+				PoolConsumptionHotTier:  100000000000, // 100GB
+				PoolConsumptionColdTier: 200000000000, // 200GB
+			},
+		}
+
+		mockStorage.On("UpdatePoolTieringConsumption", ctx, "single-pool-uuid", int64(100000000000), int64(200000000000)).Return(nil)
+
+		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdatePoolTieringConsumptionInDB_ZeroConsumption", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		poolsConsumptionsMap := map[string]map[string]float64{
+			"zero-pool-uuid": {
+				PoolConsumptionHotTier:  0,
+				PoolConsumptionColdTier: 0,
+			},
+		}
+
+		mockStorage.On("UpdatePoolTieringConsumption", ctx, "zero-pool-uuid", int64(0), int64(0)).Return(nil)
+
+		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdatePoolTieringConsumptionInDB_MultiplePoolsWithOneFailure", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		poolsConsumptionsMap := map[string]map[string]float64{
+			"failing-pool-uuid": {
+				PoolConsumptionHotTier:  500000000000,
+				PoolConsumptionColdTier: 600000000000,
+			},
+		}
+
+		// Mock to return error for this specific pool
+		mockStorage.On("UpdatePoolTieringConsumption", ctx, "failing-pool-uuid", int64(500000000000), int64(600000000000)).Return(errors.New("database error"))
+
+		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		// Should fail when encountering the error
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failing-pool-uuid")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func Test_calculateHotColdTierConsumption(t *testing.T) {
+	// Helper variables for pointers
+	boolFalse := false
+	boolTrue := true
+	int64Val0 := int64(0)
+	int64Val50 := int64(50000000)
+	int64Val100 := int64(100000000)
+	int64Val150 := int64(150000000)
+	int64Val200 := int64(200000000)
+	int64Val300 := int64(300000000)
+	int64Val350 := int64(350000000)
+	int64Val500 := int64(500000000)
+	int64Val800 := int64(800000000)
+	int64Val1000 := int64(1000000000)
+
+	t.Run("SuccessfulCalculationWithValidVolumes", func(tt *testing.T) {
+		ontapVolumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val100, // 100MB cold tier
+						PerformanceTierFootprint: &int64Val200, // 200MB hot tier
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val300, // 300MB logical space used
+						},
+					},
+				},
+			},
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val200, // 200MB cold tier
+						PerformanceTierFootprint: &int64Val800, // 800MB hot tier
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val1000, // 1000MB logical space used
+						},
+					},
+				},
+			},
+		}
+		expectedVolCount := int64(2)
+
+		hotTier, coldTier, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+
+		assert.NoError(tt, err)
+		// Hot tier should be sum of performance tier footprints: 200000000 + 800000000 = 1000000000
+		assert.Equal(tt, int64(1000000000), hotTier)
+		// Cold tier calculation involves ratio correction
+		// Volume 1: ratio = 100/(100+200) = 0.333, corrected = 300*0.333 = 100000000
+		// Volume 2: ratio = 200/(200+800) = 0.2, corrected = 1000*0.2 = 200000000
+		// Total: 100000000 + 200000000 = 300000000
+		assert.Equal(tt, int64(300000000), coldTier)
+	})
+
+	t.Run("SkipsVolumeWhenDenominatorIsZero", func(tt *testing.T) {
+		ontapVolumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val0, // 0MB cold tier
+						PerformanceTierFootprint: &int64Val0, // 0MB hot tier - denominator will be 0
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val100,
+						},
+					},
+				},
+			},
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val100,
+						PerformanceTierFootprint: &int64Val200,
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val300,
+						},
+					},
+				},
+			},
+		}
+		expectedVolCount := int64(2)
+
+		hotTier, coldTier, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+
+		assert.NoError(tt, err)
+		// First volume should be skipped (denominator = 0)
+		// Only second volume should be counted
+		assert.Equal(tt, int64(200000000), hotTier)
+		assert.Equal(tt, int64(100000000), coldTier)
+	})
+
+	t.Run("SkipsSvmRootVolumes", func(tt *testing.T) {
+		ontapVolumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolTrue, // SVM root volume - should be skipped
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val100,
+						PerformanceTierFootprint: &int64Val200,
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val300,
+						},
+					},
+				},
+			},
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val50,
+						PerformanceTierFootprint: &int64Val150,
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val200,
+						},
+					},
+				},
+			},
+		}
+		expectedVolCount := int64(1) // Only counting non-root volumes
+
+		hotTier, coldTier, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+
+		assert.NoError(tt, err)
+		// Only second volume should be counted
+		assert.Equal(tt, int64(150000000), hotTier)
+		assert.Equal(tt, int64(50000000), coldTier)
+	})
+
+	t.Run("SkipsVolumesWithNilSpace", func(tt *testing.T) {
+		ontapVolumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space:     nil, // Nil space - should be skipped
+				},
+			},
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val100,
+						PerformanceTierFootprint: &int64Val200,
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val300,
+						},
+					},
+				},
+			},
+		}
+		expectedVolCount := int64(1)
+
+		hotTier, coldTier, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(200000000), hotTier)
+		assert.Equal(tt, int64(100000000), coldTier)
+	})
+
+	t.Run("SkipsVolumesWithNilSpaceFields", func(tt *testing.T) {
+		ontapVolumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    nil, // Nil field - should be skipped
+						PerformanceTierFootprint: &int64Val200,
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val300,
+						},
+					},
+				},
+			},
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val100,
+						PerformanceTierFootprint: &int64Val200,
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val300,
+						},
+					},
+				},
+			},
+		}
+		expectedVolCount := int64(1)
+
+		hotTier, coldTier, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(200000000), hotTier)
+		assert.Equal(tt, int64(100000000), coldTier)
+	})
+
+	t.Run("ReturnsErrorWhenVolumeCountMismatch", func(tt *testing.T) {
+		ontapVolumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val100,
+						PerformanceTierFootprint: &int64Val200,
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val300,
+						},
+					},
+				},
+			},
+		}
+		expectedVolCount := int64(2) // Expecting 2 but only got 1
+
+		hotTier, coldTier, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "mismatch in vol count")
+		assert.Equal(tt, int64(0), hotTier)
+		assert.Equal(tt, int64(0), coldTier)
+	})
+
+	t.Run("HandlesMultipleVolumesWithDenominatorZero", func(tt *testing.T) {
+		ontapVolumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val0,
+						PerformanceTierFootprint: &int64Val0, // Denominator = 0
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val100,
+						},
+					},
+				},
+			},
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val0,
+						PerformanceTierFootprint: &int64Val0, // Denominator = 0
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val200,
+						},
+					},
+				},
+			},
+			{
+				Volume: ontaprestmodel.Volume{
+					IsSvmRoot: &boolFalse,
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    &int64Val150,
+						PerformanceTierFootprint: &int64Val350,
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: &int64Val500,
+						},
+					},
+				},
+			},
+		}
+		expectedVolCount := int64(3)
+
+		hotTier, coldTier, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+
+		assert.NoError(tt, err)
+		// First two volumes skipped (denominator = 0), only third volume counted
+		assert.Equal(tt, int64(350000000), hotTier)
+		assert.Equal(tt, int64(150000000), coldTier)
+	})
+
+	t.Run("HandlesEmptyVolumesList", func(tt *testing.T) {
+		ontapVolumes := []*vsa.Volume{}
+		expectedVolCount := int64(0)
+
+		hotTier, coldTier, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+
 		assert.NoError(tt, err)
 		assert.Equal(tt, int64(0), hotTier)
 		assert.Equal(tt, int64(0), coldTier)
