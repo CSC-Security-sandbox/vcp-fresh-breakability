@@ -92,6 +92,27 @@ spec:
               value: "2"
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
+        - name: vlm-worker-patch
+          image: ghcr.io/vcp-vsa-control-plane/temporal-vlm:R9.17.1Px_7825887
+          env:
+            - name: PROVIDER
+              value: "gcp"
+            - name: SERVER_IP
+              value: "local-temporal-frontend.default.svc.cluster.local"
+            - name: SERVER_PORT
+              value: "7233"
+            - name: TASK_QUEUE
+              value: "vsa-lifecycle-manager-9.17.1P1"
+            - name: DEBUG
+              value: "false"
+            - name: MAX_CONCURRENT_ACTIVITIES
+              value: "1000"
+            - name: MAX_CONCURRENT_WORKFLOWS
+              value: "1000"
+            - name: MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
+              value: "2"
+            - name: GCE_METADATA_HOST
+              value: "34.116.66.254:9090"
         - name: vlm-worker-files
           image: ghcr.io/vcp-vsa-control-plane/temporal-vlm:R9.18.1x_7828087
           env:
