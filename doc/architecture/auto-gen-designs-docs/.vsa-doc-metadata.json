@@ -1,0 +1,313 @@
+{
+  "pool-design.md": {
+    "last_updated": "2025-10-12T23:58:29.366568",
+    "operation_count": 13,
+    "operations": [
+      "delete___v1_pools_poolId",
+      "delete___v1beta_projects_projectNumber_locations_locationId_pools_poolId",
+      "get___v1_pools",
+      "get___v1_pools_poolId",
+      "get___v1_pools_poolName_ontap_credentials",
+      "get___v1beta_internal_projects_projectNumber_locations_locationId_pool_poolName",
+      "get___v1beta_projects_projectNumber_locations_locationId_pools",
+      "get___v1beta_projects_projectNumber_locations_locationId_pools_poolId",
+      "post___v1_pools",
+      "post___v1beta_projects_projectNumber_locations_locationId_getMultiplePools",
+      "post___v1beta_projects_projectNumber_locations_locationId_pools",
+      "put___v1_pools_poolId",
+      "put___v1beta_projects_projectNumber_locations_locationId_pools_poolId"
+    ],
+    "resource_type": "pool_management",
+    "api_fingerprint": "afb1cbc2e0c8cc93",
+    "workflow_type": "management",
+    "complexity": "complex"
+  },
+  "kmsconfig-design.md": {
+    "last_updated": "2025-10-12T23:58:29.368749",
+    "operation_count": 9,
+    "operations": [
+      "delete___v1beta_projects_projectNumber_locations_locationId_storage_kmsConfig_kmsConfigId",
+      "get___v1beta_projects_projectNumber_locations_locationId_storage_kmsConfig",
+      "get___v1beta_projects_projectNumber_locations_locationId_storage_kmsConfig_kmsConfigId",
+      "get___v1beta_projects_projectNumber_locations_locationId_storage_kmsConfig_kmsConfigId_check",
+      "post___v1_Storage_GcpKmsConfig_uuid_RotateServiceAccountKey",
+      "post___v1beta_projects_projectNumber_locations_locationId_storage_kmsConfig",
+      "post___v1beta_projects_projectNumber_locations_locationId_storage_kmsConfig_getMultipleKmsConfigs",
+      "post___v1beta_projects_projectNumber_locations_locationId_storage_kmsConfig_kmsConfigId_encryptVolumes",
+      "put___v1beta_projects_projectNumber_locations_locationId_storage_kmsConfig_kmsConfigId"
+    ],
+    "resource_type": "kmsconfig_management",
+    "api_fingerprint": "3605343f99a47ae6",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "replication-design.md": {
+    "last_updated": "2025-10-12T23:58:29.370679",
+    "operation_count": 3,
+    "operations": [
+      "get___v1_getMultipleReplicationsByExternalUUID",
+      "get___v1beta_projects_projectNumber_locations_locationId_replications",
+      "post___v1beta_internal_projects_projectNumber_locations_locationId_getMultipleReplications"
+    ],
+    "resource_type": "replication_management",
+    "api_fingerprint": "1cfab6e29c701d91",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "volume-design.md": {
+    "last_updated": "2025-10-12T23:58:29.372824",
+    "operation_count": 26,
+    "operations": [
+      "delete___v1beta_internal_projects_projectNumber_locations_locationId_volumes_volumeId_snapmirrorSnapshots",
+      "delete___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "delete___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots_snapshotId",
+      "delete___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId",
+      "get___v1beta_internal_projects_projectNumber_locations_locationId_volumes_count",
+      "get___v1beta_internal_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "get___v1beta_projects_projectNumber_locations_locationId_volumes",
+      "get___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "get___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots",
+      "get___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots_snapshotId",
+      "post___v1beta_projects_projectNumber_locations_locationId_getMultipleVolumes",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_Revert",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_getMultipleSnapshots",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_establishPeering",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_getMultipleReplications",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId_resume",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId_reverseAndResumeReplication",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId_stop",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId_sync",
+      "put___v1beta_internal_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "put___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "put___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots_snapshotId",
+      "put___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId"
+    ],
+    "resource_type": "volume_management",
+    "api_fingerprint": "bcdff7a2df9d2e0a",
+    "workflow_type": "management",
+    "complexity": "complex"
+  },
+  "backupvault-design.md": {
+    "last_updated": "2025-10-12T23:58:29.374931",
+    "operation_count": 12,
+    "operations": [
+      "delete___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId",
+      "delete___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups_backupId",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupVaults",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups_backupId",
+      "post___v1beta_projects_projectNumber_locations_locationId_backupVaults",
+      "post___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups",
+      "post___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_getMultipleBackups",
+      "post___v1beta_projects_projectNumber_locations_locationId_getMultipleBackupVaults",
+      "put___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId",
+      "put___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups_backupId"
+    ],
+    "resource_type": "backupvault_management",
+    "api_fingerprint": "e2b3f3bd7ede953a",
+    "workflow_type": "management",
+    "complexity": "complex"
+  },
+  "hostgroup-design.md": {
+    "last_updated": "2025-10-12T23:58:29.376788",
+    "operation_count": 6,
+    "operations": [
+      "delete___v1beta_projects_projectNumber_locations_locationId_hostGroups_hostGroupId",
+      "get___v1beta_projects_projectNumber_locations_locationId_hostGroups",
+      "get___v1beta_projects_projectNumber_locations_locationId_hostGroups_hostGroupId",
+      "post___v1beta_projects_projectNumber_locations_locationId_getMultipleHostGroups",
+      "post___v1beta_projects_projectNumber_locations_locationId_hostGroups",
+      "put___v1beta_projects_projectNumber_locations_locationId_hostGroups_hostGroupId"
+    ],
+    "resource_type": "hostgroup_management",
+    "api_fingerprint": "9f83df0be72081bc",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "activedirectorie-design.md": {
+    "last_updated": "2025-10-12T23:58:29.378242",
+    "operation_count": 6,
+    "operations": [
+      "delete___v1beta_projects_projectNumber_locations_locationId_activeDirectories_activeDirectoryId",
+      "get___v1beta_projects_projectNumber_locations_locationId_activeDirectories",
+      "get___v1beta_projects_projectNumber_locations_locationId_activeDirectories_activeDirectoryId",
+      "post___v1beta_projects_projectNumber_locations_locationId_activeDirectories",
+      "post___v1beta_projects_projectNumber_locations_locationId_getMultipleActiveDirectories",
+      "put___v1beta_projects_projectNumber_locations_locationId_activeDirectories_activeDirectoryId"
+    ],
+    "resource_type": "activedirectorie_management",
+    "api_fingerprint": "063549b052b7dfd2",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "backuppolicies-design.md": {
+    "last_updated": "2025-10-12T23:58:29.379561",
+    "operation_count": 5,
+    "operations": [
+      "delete___v1beta_projects_projectNumber_locations_locationId_backupPolicies_backupPolicyId",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupPolicies",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupPolicies_backupPolicyId",
+      "post___v1beta_projects_projectNumber_locations_locationId_backupPolicies",
+      "put___v1beta_projects_projectNumber_locations_locationId_backupPolicies_backupPolicyId"
+    ],
+    "resource_type": "backuppolicies_management",
+    "api_fingerprint": "c084791a3f74f857",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "volumereplication-design.md": {
+    "last_updated": "2025-10-12T23:58:29.381525",
+    "operation_count": 4,
+    "operations": [
+      "delete___v1beta_internal_projects_projectNumber_locations_locationId_volumeReplication_volumeReplicationId",
+      "get___v1beta_internal_projects_projectNumber_locations_locationId_volumeReplication_volumeReplicationId",
+      "post___v1beta_internal_projects_projectNumber_locations_locationId_volumeReplication",
+      "put___v1beta_internal_projects_projectNumber_locations_locationId_volumeReplication_volumeReplicationId"
+    ],
+    "resource_type": "volumereplication_management",
+    "api_fingerprint": "30bafa07504adfb1",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "updatevolumereplicationattributes-design.md": {
+    "last_updated": "2025-10-12T23:58:29.383502",
+    "operation_count": 1,
+    "operations": [
+      "post___v1beta_internal_projects_projectNumber_locations_locationId_volumeReplication_volumeReplicationId_updateVolumeReplicationAttributes"
+    ],
+    "resource_type": "updatevolumereplicationattributes_management",
+    "api_fingerprint": "a747e5ccbc6eb946",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "clusterpeer-design.md": {
+    "last_updated": "2025-10-12T23:58:29.385597",
+    "operation_count": 1,
+    "operations": [
+      "post___v1beta_internal_projects_projectNumber_locations_locationId_clusterPeer"
+    ],
+    "resource_type": "clusterpeer_management",
+    "api_fingerprint": "b279dee3f5994a94",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "replicationjobs-design.md": {
+    "last_updated": "2025-10-12T23:58:29.387387",
+    "operation_count": 1,
+    "operations": [
+      "get___v1beta_internal_projects_projectNumber_locations_locationId_ReplicationJobs"
+    ],
+    "resource_type": "replicationjobs_management",
+    "api_fingerprint": "ac0518d4f71fe7b5",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "startprojectevent-design.md": {
+    "last_updated": "2025-10-12T23:58:29.389061",
+    "operation_count": 1,
+    "operations": [
+      "post___v1beta_projects_projectNumber_locations_locationId_startProjectEvent"
+    ],
+    "resource_type": "startprojectevent_management",
+    "api_fingerprint": "552f6f16c8b7182e",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "handleresourceevent-design.md": {
+    "last_updated": "2025-10-12T23:58:29.390811",
+    "operation_count": 1,
+    "operations": [
+      "put___v1beta_projects_projectNumber_locations_locationId_handleResourceEvent"
+    ],
+    "resource_type": "handleresourceevent_management",
+    "api_fingerprint": "577783971b8f27da",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "finishprojectevent-design.md": {
+    "last_updated": "2025-10-12T23:58:29.392508",
+    "operation_count": 1,
+    "operations": [
+      "post___v1beta_projects_projectNumber_locations_locationId_finishProjectEvent"
+    ],
+    "resource_type": "finishprojectevent_management",
+    "api_fingerprint": "100deac09ab1de17",
+    "workflow_type": "management",
+    "complexity": "moderate"
+  },
+  "storage-ecosystem-design.md": {
+    "last_updated": "2025-10-12T23:58:29.394321",
+    "operation_count": 39,
+    "operations": [
+      "delete___v1_pools_poolId",
+      "delete___v1beta_internal_projects_projectNumber_locations_locationId_volumes_volumeId_snapmirrorSnapshots",
+      "delete___v1beta_projects_projectNumber_locations_locationId_pools_poolId",
+      "delete___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "delete___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots_snapshotId",
+      "delete___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId",
+      "get___v1_pools",
+      "get___v1_pools_poolId",
+      "get___v1_pools_poolName_ontap_credentials",
+      "get___v1beta_internal_projects_projectNumber_locations_locationId_pool_poolName",
+      "get___v1beta_internal_projects_projectNumber_locations_locationId_volumes_count",
+      "get___v1beta_internal_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "get___v1beta_projects_projectNumber_locations_locationId_pools",
+      "get___v1beta_projects_projectNumber_locations_locationId_pools_poolId",
+      "get___v1beta_projects_projectNumber_locations_locationId_volumes",
+      "get___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "get___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots",
+      "get___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots_snapshotId",
+      "post___v1_pools",
+      "post___v1beta_projects_projectNumber_locations_locationId_getMultiplePools",
+      "post___v1beta_projects_projectNumber_locations_locationId_getMultipleVolumes",
+      "post___v1beta_projects_projectNumber_locations_locationId_pools",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_Revert",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_getMultipleSnapshots",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_establishPeering",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_getMultipleReplications",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId_resume",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId_reverseAndResumeReplication",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId_stop",
+      "post___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId_sync",
+      "put___v1_pools_poolId",
+      "put___v1beta_internal_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "put___v1beta_projects_projectNumber_locations_locationId_pools_poolId",
+      "put___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId",
+      "put___v1beta_projects_projectNumber_locations_locationId_volumes_volumeId_snapshots_snapshotId",
+      "put___v1beta_projects_projectNumber_locations_locationId_volumes_volumeResourceId_replications_replicationResourceId"
+    ],
+    "resource_type": "storage_ecosystem_management",
+    "api_fingerprint": "92cbe7365202334f",
+    "workflow_type": "management",
+    "complexity": "complex"
+  },
+  "backup-ecosystem-design.md": {
+    "last_updated": "2025-10-12T23:58:29.396050",
+    "operation_count": 12,
+    "operations": [
+      "delete___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId",
+      "delete___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups_backupId",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupVaults",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups",
+      "get___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups_backupId",
+      "post___v1beta_projects_projectNumber_locations_locationId_backupVaults",
+      "post___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups",
+      "post___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_getMultipleBackups",
+      "post___v1beta_projects_projectNumber_locations_locationId_getMultipleBackupVaults",
+      "put___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId",
+      "put___v1beta_projects_projectNumber_locations_locationId_backupVaults_backupVaultId_backups_backupId"
+    ],
+    "resource_type": "backup_ecosystem_management",
+    "api_fingerprint": "e2b3f3bd7ede953a",
+    "workflow_type": "management",
+    "complexity": "complex"
+  }
+}
