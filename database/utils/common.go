@@ -41,6 +41,13 @@ func IsTransientErr(err error) bool {
 	// This list may change with newer versions of postgres
 	e := GetRootError(err)
 	if pgerr, ok := e.(*pgconn.PgError); ok {
+		// Check for specific "cached plan must not change result type" error
+		// This is the only 0A000 error that should be treated as transient
+		if pgerr.Code == "0A000" && strings.Contains(strings.ToLower(pgerr.Message), "cached plan must not change result type") {
+			return true
+		}
+
+		// Check other transient error codes
 		_, isTransient := transientErrorCodes[pgerr.Code]
 		return isTransient
 	}
