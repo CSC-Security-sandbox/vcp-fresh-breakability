@@ -1141,8 +1141,9 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	if volume.AutoTieringPolicy != nil && volume.AutoTieringPolicy.AutoTieringEnabled {
 		res.TieringPolicy = gcpgenserver.NewOptTieringPolicyV1beta(
 			gcpgenserver.TieringPolicyV1beta{
-				TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(gcpgenserver.TieringPolicyV1betaTierActionENABLED),
-				CoolingThresholdDays: gcpgenserver.NewOptNilInt32(volume.AutoTieringPolicy.CoolingThresholdDays),
+				TierAction:               gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(gcpgenserver.TieringPolicyV1betaTierActionENABLED),
+				CoolingThresholdDays:     gcpgenserver.NewOptNilInt32(volume.AutoTieringPolicy.CoolingThresholdDays),
+				HotTierBypassModeEnabled: gcpgenserver.NewOptNilBool(volume.AutoTieringPolicy.HotTierBypassModeEnabled),
 			})
 	}
 

@@ -615,6 +615,8 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 		autoTieringConfig = &models.AutoTieringConfig{
 			HotTierSizeInBytes:      uint64(pool.AutoTieringConfig.HotTierSizeInBytes),
 			EnableHotTierAutoResize: pool.AutoTieringConfig.EnableHotTierAutoResize,
+			HotTierConsumption:      pool.AutoTieringConfig.HotTierConsumption,
+			ColdTierConsumption:     pool.AutoTieringConfig.ColdTierConsumption,
 		}
 	}
 

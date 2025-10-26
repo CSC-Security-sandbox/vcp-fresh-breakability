@@ -7496,6 +7496,76 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 	})
 }
 
+// TestConvertModelToVCPVolume_AutoTieringPolicy tests the conversion of AutoTieringPolicy to TieringPolicy
+func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
+	t.Run("AutoTieringPolicy_WithHotTierBypassModeEnabled_ShouldIncludeAllFields", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				CoolingThresholdDays:     30,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.NotNil(tt, result.TieringPolicy)
+		assert.True(tt, result.TieringPolicy.IsSet())
+
+		tieringPolicy := result.TieringPolicy.Value
+		assert.Equal(tt, gcpgenserver.TieringPolicyV1betaTierActionENABLED, tieringPolicy.TierAction.Value)
+		assert.Equal(tt, int32(30), tieringPolicy.CoolingThresholdDays.Value)
+		assert.True(tt, tieringPolicy.HotTierBypassModeEnabled.IsSet())
+		assert.True(tt, tieringPolicy.HotTierBypassModeEnabled.Value)
+	})
+
+	t.Run("AutoTieringPolicy_WithHotTierBypassModeDisabled_ShouldIncludeAllFields", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				CoolingThresholdDays:     45,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.NotNil(tt, result.TieringPolicy)
+		assert.True(tt, result.TieringPolicy.IsSet())
+
+		tieringPolicy := result.TieringPolicy.Value
+		assert.Equal(tt, gcpgenserver.TieringPolicyV1betaTierActionENABLED, tieringPolicy.TierAction.Value)
+		assert.Equal(tt, int32(45), tieringPolicy.CoolingThresholdDays.Value)
+		assert.True(tt, tieringPolicy.HotTierBypassModeEnabled.IsSet())
+		assert.False(tt, tieringPolicy.HotTierBypassModeEnabled.Value)
+	})
+
+	t.Run("AutoTieringPolicy_Disabled_ShouldNotIncludeTieringPolicy", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled: false,
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.False(tt, result.TieringPolicy.IsSet())
+	})
+
+	t.Run("NoAutoTieringPolicy_ShouldNotIncludeTieringPolicy", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.False(tt, result.TieringPolicy.IsSet())
+	})
+}
+
 func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 	param := gcpgenserver.V1betaUpdateVolumeParams{
 		ProjectNumber:  "test-project",

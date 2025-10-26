@@ -71,6 +71,8 @@ type AutoTieringConfig struct {
 	HotTierSizeInBytes      uint64
 	EnableHotTierAutoResize bool
 	BucketName              string
+	HotTierConsumption      int64
+	ColdTierConsumption     int64
 }
 
 type PoolHydrateObject struct {

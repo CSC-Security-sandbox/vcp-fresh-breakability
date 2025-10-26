@@ -728,6 +728,8 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		LargeCapacity:           gcpgenserver.NewOptBool(pool.LargeCapacity),
 		SatisfiesPzs:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzs),
 		SatisfiesPzi:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzi),
+		HotTierConsumption:      getHotTierConsumptionOpt(pool.AutoTieringConfig),
+		ColdTierConsumption:     getColdTierConsumptionOpt(pool.AutoTieringConfig),
 	}
 
 	kmsConfigId := ""
@@ -847,6 +849,20 @@ func getEnableHotTierAutoResize(config *models.AutoTieringConfig) bool {
 		return false
 	}
 	return config.EnableHotTierAutoResize
+}
+
+func getHotTierConsumptionOpt(config *models.AutoTieringConfig) gcpgenserver.OptNilInt64 {
+	if config == nil {
+		return gcpgenserver.OptNilInt64{}
+	}
+	return gcpgenserver.NewOptNilInt64(config.HotTierConsumption)
+}
+
+func getColdTierConsumptionOpt(config *models.AutoTieringConfig) gcpgenserver.OptNilInt64 {
+	if config == nil {
+		return gcpgenserver.OptNilInt64{}
+	}
+	return gcpgenserver.NewOptNilInt64(config.ColdTierConsumption)
 }
 
 // validateCreatePoolParams validates the parameters for creating a pool.

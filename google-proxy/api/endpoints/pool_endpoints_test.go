@@ -3576,6 +3576,88 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 		assert.True(tt, result.UnifiedPool.Value, "UnifiedPool should be true for VSA pools")
 	})
 
+	t.Run("WhenPoolHasAutoTieringConfigWithConsumption", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test-pool",
+			Description:    "Test pool description",
+			SizeInBytes:    1099511627776,
+			ServiceLevel:   "PREMIUM",
+			QosType:        "auto",
+			PoolAttributes: &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				BucketName:              "test-bucket",
+				HotTierConsumption:      250000000000,
+				ColdTierConsumption:     150000000000,
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
+		assert.True(tt, result.HotTierConsumption.IsSet())
+		assert.Equal(tt, int64(250000000000), result.HotTierConsumption.Value)
+		assert.True(tt, result.ColdTierConsumption.IsSet())
+		assert.Equal(tt, int64(150000000000), result.ColdTierConsumption.Value)
+	})
+
+	t.Run("WhenPoolHasNoAutoTieringConfig", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:              "test-pool",
+			Description:       "Test pool description",
+			SizeInBytes:       1099511627776,
+			ServiceLevel:      "PREMIUM",
+			QosType:           "auto",
+			PoolAttributes:    &models.PoolAttributes{},
+			AutoTieringConfig: nil,
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
+		assert.False(tt, result.HotTierConsumption.IsSet())
+		assert.False(tt, result.ColdTierConsumption.IsSet())
+	})
+
+	t.Run("WhenPoolHasAutoTieringConfigWithoutConsumption", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test-pool",
+			Description:    "Test pool description",
+			SizeInBytes:    1099511627776,
+			ServiceLevel:   "PREMIUM",
+			QosType:        "auto",
+			PoolAttributes: &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				BucketName:              "test-bucket",
+				HotTierConsumption:      0,
+				ColdTierConsumption:     0,
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
+		assert.True(tt, result.HotTierConsumption.IsSet())
+		assert.Equal(tt, int64(0), result.HotTierConsumption.Value)
+		assert.True(tt, result.ColdTierConsumption.IsSet())
+		assert.Equal(tt, int64(0), result.ColdTierConsumption.Value)
+	})
+
 	t.Run("WhenPoolIsFromCVP", func(tt *testing.T) {
 		createdAt := time.Now()
 		deletedAt := time.Now().Add(1 * time.Hour)
@@ -3615,6 +3697,55 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.PoolV1betaTypeFILE, result.Type.Value, "Type should be set to FILE for CVP pools")
 		assert.False(tt, result.Unified.Value, "Unified should be false for CVP pools")
 		assert.False(tt, result.UnifiedPool.Value, "UnifiedPool should be false for CVP pools")
+	})
+
+	t.Run("WhenCVPoolHasConsumptionFields", func(tt *testing.T) {
+		createdAt := time.Now()
+		deletedAt := time.Now().Add(1 * time.Hour)
+
+		pool := &cvpmodels.PoolV1beta{
+			PoolID:    "test-pool-uuid",
+			CreatedAt: strfmt.DateTime(createdAt),
+			DeletedAt: func() *strfmt.DateTime {
+				dt := strfmt.DateTime(deletedAt)
+				return &dt
+			}(),
+			ResourceID: func() *string {
+				s := "test-pool"
+				return &s
+			}(),
+			Network: func() *string {
+				s := "test-network"
+				return &s
+			}(),
+			SizeInBytes: func() *float64 {
+				s := 1099511627776.0
+				return &s
+			}(),
+			ServiceLevel: func() *string {
+				s := "premium"
+				return &s
+			}(),
+			StoragePoolState:         "available",
+			CustomPerformanceEnabled: true,
+			HotTierConsumption: func() *int64 {
+				v := int64(300000000000)
+				return &v
+			}(),
+			ColdTierConsumption: func() *int64 {
+				v := int64(200000000000)
+				return &v
+			}(),
+		}
+
+		result := convertToPoolV1beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
+		assert.True(tt, result.HotTierConsumption.IsSet())
+		assert.Equal(tt, int64(300000000000), result.HotTierConsumption.Value)
+		assert.True(tt, result.ColdTierConsumption.IsSet())
+		assert.Equal(tt, int64(200000000000), result.ColdTierConsumption.Value)
 	})
 
 	t.Run("WhenPoolHasAssetMetadata", func(tt *testing.T) {
