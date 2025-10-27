@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 )
 
 func TestProcessResponseModification(t *testing.T) {
@@ -25,7 +26,7 @@ func TestProcessResponseModification(t *testing.T) {
 
 		// Create a request with context containing the action
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		resp.Request = req.WithContext(ctx)
 
 		// Test the function
@@ -46,7 +47,7 @@ func TestProcessResponseModification(t *testing.T) {
 
 		// Create a request with context containing the action
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		resp.Request = req.WithContext(ctx)
 
 		// Test the function
@@ -130,7 +131,7 @@ func TestProcessResponseModification(t *testing.T) {
 
 		// Create a request with context containing the action
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		req = req.WithContext(ctx)
 
 		// Create a response with nil body (edge case)
@@ -171,7 +172,7 @@ func TestProcessResponseModification(t *testing.T) {
 
 		// Create a request with context containing the action
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		resp.Request = req.WithContext(ctx)
 
 		// Test the function
@@ -193,7 +194,7 @@ func TestProcessResponseModification(t *testing.T) {
 
 		// Create a request with context containing the action
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		resp.Request = req.WithContext(ctx)
 
 		// Test the function
@@ -217,7 +218,7 @@ func TestProcessResponseModification(t *testing.T) {
 
 		// Create a request with context containing both actions
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction2)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction2)
 		ctx = context.WithValue(ctx, "otherContext", mockAction1)
 		resp.Request = req.WithContext(ctx)
 
@@ -268,7 +269,7 @@ func TestProcessResponseModificationWithRealActions(t *testing.T) {
 
 		// Create a request with context containing the action
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		resp.Request = req.WithContext(ctx)
 
 		// Test the function
@@ -289,7 +290,7 @@ func TestProcessResponseModificationEdgeCases(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		resp.Request = req.WithContext(ctx)
 
 		err := ProcessResponseModification(resp)
@@ -308,7 +309,7 @@ func TestProcessResponseModificationEdgeCases(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		resp.Request = req.WithContext(ctx)
 
 		err := ProcessResponseModification(resp)
@@ -327,7 +328,7 @@ func TestProcessResponseModificationEdgeCases(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "ruleContext", mockAction)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
 		resp.Request = req.WithContext(ctx)
 
 		err := ProcessResponseModification(resp)

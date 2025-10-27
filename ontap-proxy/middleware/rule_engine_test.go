@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions/processor"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/rules"
 )
 
@@ -240,7 +241,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 	t.Run("WhenActionIsStoredInContext_ShouldBeAccessible", func(t *testing.T) {
 		actionFound := false
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if ctx := r.Context().Value("ruleContext"); ctx != nil {
+			if ctx := r.Context().Value(models.RuleContextKey); ctx != nil {
 				if _, ok := ctx.(actions.RequestProcessor); ok {
 					actionFound = true
 				}

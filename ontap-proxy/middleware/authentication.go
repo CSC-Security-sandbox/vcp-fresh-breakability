@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
@@ -59,14 +60,15 @@ type certCache struct {
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger, _ := log.NewRequestLogger(r)
+		logger := util.GetLogger(r.Context())
 
 		if err := AuthenticateGCP(r); err != nil {
-			logger.Error("Authentication failed", "error", err.Error(), "path", r.URL.Path)
+			logger.ErrorContext(r.Context(), "Authentication failed", "error", err.Error(), "path", r.URL.Path)
 			http.Error(w, "Authentication failed", http.StatusUnauthorized)
 			return
 		}
 
+		logger.DebugContext(r.Context(), "Authentication successful", "path", r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }

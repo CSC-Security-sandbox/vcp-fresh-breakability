@@ -14,7 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 type AuthTransport struct{}
@@ -120,23 +120,23 @@ func setCommonHeaders(req *http.Request) {
 func BuildOntapRESTProxy() *httputil.ReverseProxy {
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			logger := log.NewLogger()
+			logger := util.GetLogger(req.Context())
 
 			cacheKey := cache.GetAuthDataKeyFromContext(req.Context())
 			if cacheKey == "" {
-				logger.Error("No cache key found in context")
+				logger.ErrorContext(req.Context(), "No cache key found in context")
 				return
 			}
 
 			authData, exists := cache.GetFromAuthDataCache(cacheKey)
 			if !exists || authData == nil {
-				logger.Error("No authentication data found in cache", "cacheKey", cacheKey)
+				logger.ErrorContext(req.Context(), "No authentication data found in cache", "cacheKey", cacheKey)
 				return
 			}
 
 			ontapPath := extractOntapPath(req.URL.Path)
 			if ontapPath == "" {
-				logger.Error("Could not extract ONTAP path")
+				logger.ErrorContext(req.Context(), "Could not extract ONTAP path", "path", req.URL.Path)
 				return
 			}
 
@@ -144,14 +144,14 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 			if len(authData.OntapEndpoints) > 0 {
 				ontapAddress = authData.OntapEndpoints[0].DNS
 			} else {
-				logger.Error("No ONTAP endpoints found in authData")
+				logger.ErrorContext(req.Context(), "No ONTAP endpoints found in authData", "cacheKey", cacheKey)
 				return
 			}
 
 			targetURL := buildTargetURL(ontapAddress, ontapPath, req.URL.RawQuery)
 			target, err := url.Parse(targetURL)
 			if err != nil {
-				logger.Error("Error parsing target URL", "error", err)
+				logger.ErrorContext(req.Context(), "Error parsing target URL", "error", err, "targetURL", targetURL)
 				return
 			}
 
@@ -160,23 +160,25 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 
 			err = configureRequestAuthentication(req, authData)
 			if err != nil {
-				logger.Error("Failed to configure request authentication", "error", err)
+				logger.ErrorContext(req.Context(), "Failed to configure request authentication", "error", err, "authType", authData.AuthType)
 				return
 			}
 
 			setCommonHeaders(req)
 
-			logger.Info("Forwarding request",
+			logger.InfoContext(req.Context(), "Forwarding request",
 				"targetURL", targetURL,
 				"poolID", authData.PoolID,
-				"authType", authData.AuthType)
+				"authType", authData.AuthType,
+				"method", req.Method,
+				"path", ontapPath)
 			logCurlCommand(req, targetURL)
 		},
 		Transport:      NewAuthTransport(),
 		ModifyResponse: actions.ProcessResponseModification,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			logger := log.NewLogger()
-			logger.Error("Error handling request", "error", err)
+			logger := util.GetLogger(r.Context())
+			logger.ErrorContext(r.Context(), "Error handling request", "error", err, "path", r.URL.Path)
 
 			if strings.Contains(err.Error(), "context canceled") {
 				http.Error(w, "Request timeout - ONTAP cluster not responding", http.StatusGatewayTimeout)
@@ -229,7 +231,7 @@ func buildTargetURL(ontapAddress, ontapPath, rawQuery string) string {
 }
 
 func logCurlCommand(req *http.Request, targetURL string) {
-	logger := log.NewLogger()
+	logger := util.GetLogger(req.Context())
 
 	curlCmd := fmt.Sprintf("curl -X %s", req.Method)
 
@@ -247,7 +249,7 @@ func logCurlCommand(req *http.Request, targetURL string) {
 
 	curlCmd += fmt.Sprintf(" \"%s\"", targetURL)
 
-	logger.Info("Equivalent curl command", "command", curlCmd)
+	logger.DebugContext(req.Context(), "Equivalent curl command", "command", curlCmd)
 }
 
 func _getAPICallCertificate(cert *models.Certificate) (*x509.CertPool, tls.Certificate, error) {

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	coreapiclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
@@ -80,7 +81,7 @@ func TestFetchAndCacheCredentials(t *testing.T) {
 		defer cache.RemoveFromAuthDataCache(cacheKey)
 
 		logger := &log.MockLogger{}
-		logger.On("Info", "Using cached auth data", "projectNumber", "test-project", "poolID", "test-pool", "accountName", "test-account", "userName", "test-user", "cacheKey", "test-project:test-pool:test-user").Return()
+		logger.On("InfoContext", mock.Anything, "Using cached auth data", "projectNumber", "test-project", "poolID", "test-pool", "accountName", "test-account", "userName", "test-user", "cacheKey", "test-project:test-pool:test-user").Return()
 
 		err := fetchAndCacheCredentials(ctx, poolDetails, cacheKey, "test-jwt-token", logger)
 
@@ -106,8 +107,8 @@ func TestFetchAndCacheCredentials(t *testing.T) {
 		defer cache.RemoveFromAuthDataCache(cacheKey)
 
 		logger := &log.MockLogger{}
-		logger.On("Info", "Cache miss - fetching credentials from Core API", "projectNumber", "test-project", "poolID", "test-pool", "userName", "test-user").Return()
-		logger.On("Info", "Credentials fetched from Core API and stored as AuthData", "poolID", "test-pool", "accountName", "test-account", "userName", "test-user", "authType", 2, "cacheKey", "test-project:test-pool:test-user").Return()
+		logger.On("InfoContext", mock.Anything, "Cache miss - fetching credentials from Core API", "projectNumber", "test-project", "poolID", "test-pool", "userName", "test-user").Return()
+		logger.On("InfoContext", mock.Anything, "Credentials fetched from Core API and stored as AuthData", "poolID", "test-pool", "accountName", "test-account", "userName", "test-user", "authType", 2, "cacheKey", "test-project:test-pool:test-user").Return()
 
 		err := fetchAndCacheCredentials(ctx, poolDetails, cacheKey, "test-jwt-token", logger)
 

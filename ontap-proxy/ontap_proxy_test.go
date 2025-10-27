@@ -350,7 +350,7 @@ func TestBuildOntapRESTProxy(t *testing.T) {
 		req, err := http.NewRequest("GET", "/test", nil)
 		assert.NoError(t, err, "Failed to create request")
 
-		ctx := context.WithValue(req.Context(), "ruleContext", mockProcessor)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockProcessor)
 		req = req.WithContext(ctx)
 
 		resp := &http.Response{
@@ -820,7 +820,7 @@ func TestProcessResponseModificationWithMock(t *testing.T) {
 
 		mockProcessor.EXPECT().ProcessResponse(resp).Return(nil)
 
-		ctx := context.WithValue(req.Context(), "ruleContext", mockProcessor)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockProcessor)
 		resp.Request = req.WithContext(ctx)
 
 		err := actions.ProcessResponseModification(resp)
@@ -839,7 +839,7 @@ func TestProcessResponseModificationWithMock(t *testing.T) {
 		expectedError := fmt.Errorf("mock processing failed")
 		mockProcessor.EXPECT().ProcessResponse(resp).Return(expectedError)
 
-		ctx := context.WithValue(req.Context(), "ruleContext", mockProcessor)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockProcessor)
 		resp.Request = req.WithContext(ctx)
 
 		err := actions.ProcessResponseModification(resp)
@@ -865,7 +865,7 @@ func TestProcessResponseModificationWithMock(t *testing.T) {
 			Body:    io.NopCloser(strings.NewReader(`{"test": "data"}`)),
 		}
 
-		ctx := context.WithValue(req.Context(), "ruleContext", "not-a-request-processor")
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, "not-a-request-processor")
 		resp.Request = req.WithContext(ctx)
 
 		err := actions.ProcessResponseModification(resp)
@@ -903,7 +903,7 @@ func TestBuildOntapRESTProxyWithMockRequestProcessor(t *testing.T) {
 
 		mockProcessor.EXPECT().ProcessResponse(resp).Return(nil)
 
-		ctx := context.WithValue(req.Context(), "ruleContext", mockProcessor)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockProcessor)
 		resp.Request = req.WithContext(ctx)
 
 		err := proxy.ModifyResponse(resp)

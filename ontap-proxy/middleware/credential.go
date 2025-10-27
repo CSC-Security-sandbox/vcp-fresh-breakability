@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/coreapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
@@ -22,11 +23,11 @@ var (
 func CredentialMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger := log.NewLogger()
+			logger := util.GetLogger(r.Context())
 
 			poolDetails, err := extractPoolDetailsFromRequest(r)
 			if err != nil {
-				logger.Error("Failed to extract pool details", "error", err)
+				logger.ErrorContext(r.Context(), "Failed to extract pool details", "error", err, "path", r.URL.Path)
 				http.Error(w, "Invalid URI", http.StatusBadRequest)
 				return
 			}
@@ -36,11 +37,12 @@ func CredentialMiddleware() func(http.Handler) http.Handler {
 			jwtToken := extractJWTTokenFromRequest(r)
 			err = fetchAndCacheCredentials(r.Context(), poolDetails, cacheKey, jwtToken, logger)
 			if err != nil {
-				logger.Error("Failed to fetch and cache credentials", "error", err)
+				logger.ErrorContext(r.Context(), "Failed to fetch and cache credentials", "error", err, "poolID", poolDetails.PoolID)
 				handleCredentialError(w, err)
 				return
 			}
 
+			logger.DebugContext(r.Context(), "Credentials processed successfully", "poolID", poolDetails.PoolID, "cacheKey", cacheKey)
 			ctx := context.WithValue(r.Context(), models.AuthDataKey, cacheKey)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -49,7 +51,7 @@ func CredentialMiddleware() func(http.Handler) http.Handler {
 
 func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetails, cacheKey string, jwtToken string, logger log.Logger) error {
 	if _, exists := cache.GetFromAuthDataCache(cacheKey); exists {
-		logger.Info("Using cached auth data",
+		logger.InfoContext(ctx, "Using cached auth data",
 			"projectNumber", poolDetails.ProjectNumber,
 			"poolID", poolDetails.PoolID,
 			"accountName", poolDetails.AccountName,
@@ -58,7 +60,7 @@ func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetai
 		return nil
 	}
 
-	logger.Info("Cache miss - fetching credentials from Core API",
+	logger.InfoContext(ctx, "Cache miss - fetching credentials from Core API",
 		"projectNumber", poolDetails.ProjectNumber,
 		"poolID", poolDetails.PoolID,
 		"userName", poolDetails.UserName)
@@ -82,7 +84,7 @@ func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetai
 
 	cache.AddToAuthDataCache(cacheKey, authData)
 
-	logger.Info("Credentials fetched from Core API and stored as AuthData",
+	logger.InfoContext(ctx, "Credentials fetched from Core API and stored as AuthData",
 		"poolID", poolDetails.PoolID,
 		"accountName", poolDetails.AccountName,
 		"userName", poolDetails.UserName,

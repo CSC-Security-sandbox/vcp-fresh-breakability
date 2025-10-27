@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalergoogle "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
@@ -292,12 +293,12 @@ func TestGetCertificateFromSecretManager(t *testing.T) {
 		defer restoreMocks()
 
 		logger := &log.MockLogger{}
-		logger.On("Info", "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
-		logger.On("Info", "Successfully retrieved certificate from secret manager", "certificateID", "test-cert-id").Return()
+		logger.On("InfoContext", mock.Anything, "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
+		logger.On("InfoContext", mock.Anything, "Successfully retrieved certificate from secret manager", "certificateID", "test-cert-id").Return()
 
 		certificateID := "test-cert-id"
 
-		cert, err := getCertificateFromSecretManager(certificateID, logger)
+		cert, err := getCertificateFromSecretManager(context.Background(), certificateID, logger)
 
 		assert.NoError(t, err, "Should not return error when GCP service succeeds")
 		assert.NotNil(t, cert, "Certificate should not be nil")
@@ -317,12 +318,12 @@ func TestGetCertificateFromSecretManager(t *testing.T) {
 		defer restoreMocks()
 
 		logger := &log.MockLogger{}
-		logger.On("Info", "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
-		logger.On("Error", "Failed to get GCP service", "error", assert.AnError, "certificateID", "test-cert-id").Return()
+		logger.On("InfoContext", mock.Anything, "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
+		logger.On("ErrorContext", mock.Anything, "Failed to get GCP service", "error", assert.AnError, "certificateID", "test-cert-id").Return()
 
 		certificateID := "test-cert-id"
 
-		cert, err := getCertificateFromSecretManager(certificateID, logger)
+		cert, err := getCertificateFromSecretManager(context.Background(), certificateID, logger)
 
 		assert.Error(t, err, "Should return error when GCP service fails")
 		assert.Nil(t, cert, "Certificate should be nil")
@@ -341,12 +342,12 @@ func TestGetCertificateFromSecretManager(t *testing.T) {
 		defer restoreMocks()
 
 		logger := &log.MockLogger{}
-		logger.On("Info", "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
-		logger.On("Error", "Failed to get certificate and private key", "error", assert.AnError, "certificateID", "test-cert-id").Return()
+		logger.On("InfoContext", mock.Anything, "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
+		logger.On("ErrorContext", mock.Anything, "Failed to get certificate and private key", "error", assert.AnError, "certificateID", "test-cert-id").Return()
 
 		certificateID := "test-cert-id"
 
-		cert, err := getCertificateFromSecretManager(certificateID, logger)
+		cert, err := getCertificateFromSecretManager(context.Background(), certificateID, logger)
 
 		assert.Error(t, err, "Should return error when GetCertificateAndPrivateKeyByID fails")
 		assert.Nil(t, cert, "Certificate should be nil")
@@ -362,12 +363,12 @@ func TestGetPasswordFromSecretManager(t *testing.T) {
 		defer restoreMocks()
 
 		logger := &log.MockLogger{}
-		logger.On("Info", "Getting password from cache or secret manager", "secretID", "test-secret-id").Return()
-		logger.On("Info", "Password fetched and cached", "secretID", "test-secret-id").Return()
+		logger.On("InfoContext", mock.Anything, "Getting password from cache or secret manager", "secretID", "test-secret-id").Return()
+		logger.On("InfoContext", mock.Anything, "Password fetched and cached", "secretID", "test-secret-id").Return()
 
 		secretID := "test-secret-id"
 
-		password, err := getPasswordFromSecretManager(secretID, logger)
+		password, err := getPasswordFromSecretManager(context.Background(), secretID, logger)
 
 		assert.NoError(t, err, "Should not return error when secret manager succeeds")
 		assert.Equal(t, "mock-password", password, "Password should match expected value")
@@ -382,12 +383,12 @@ func TestGetPasswordFromSecretManager(t *testing.T) {
 		defer restoreMocks()
 
 		logger := &log.MockLogger{}
-		logger.On("Info", "Getting password from cache or secret manager", "secretID", "test-secret-id").Return()
-		logger.On("Error", "Failed to get password from secret manager", "error", assert.AnError, "secretID", "test-secret-id").Return()
+		logger.On("InfoContext", mock.Anything, "Getting password from cache or secret manager", "secretID", "test-secret-id").Return()
+		logger.On("ErrorContext", mock.Anything, "Failed to get password from secret manager", "error", assert.AnError, "secretID", "test-secret-id").Return()
 
 		secretID := "test-secret-id"
 
-		password, err := getPasswordFromSecretManager(secretID, logger)
+		password, err := getPasswordFromSecretManager(context.Background(), secretID, logger)
 
 		assert.Error(t, err, "Should return error when secret manager fails")
 		assert.Empty(t, password, "Password should be empty")

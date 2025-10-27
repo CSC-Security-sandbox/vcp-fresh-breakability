@@ -16,7 +16,7 @@ var (
 )
 
 func FetchCredentials(ctx context.Context, poolDetails *models.PoolDetails, jwtToken string, logger log.Logger) (*coreapi.OntapCredentialsV1, error) {
-	logger.Info("Fetching credentials from Core API",
+	logger.InfoContext(ctx, "Fetching credentials from Core API",
 		"poolID", poolDetails.PoolID,
 		"accountName", poolDetails.AccountName,
 		"userName", poolDetails.UserName)
@@ -31,39 +31,39 @@ func FetchCredentials(ctx context.Context, poolDetails *models.PoolDetails, jwtT
 
 	response, err := client.Invoker.V1GetOntapCredentials(ctx, params)
 	if err != nil {
-		logger.Error("Core API call failed", "error", err)
+		logger.ErrorContext(ctx, "Core API call failed", "error", err, "poolID", poolDetails.PoolID)
 		return nil, fmt.Errorf("core API call failed: %w", err)
 	}
 
 	switch resp := response.(type) {
 	case *coreapi.OntapCredentialsV1:
-		logger.Info("Successfully validated pool and got credentials",
+		logger.InfoContext(ctx, "Successfully validated pool and got credentials",
 			"poolID", poolDetails.PoolID,
 			"authType", resp.AuthType.Value)
 		return resp, nil
 
 	case *coreapi.V1GetOntapCredentialsNotFound:
-		logger.Error("Pool not found", "poolID", poolDetails.PoolID, "message", resp.Message)
+		logger.ErrorContext(ctx, "Pool not found", "poolID", poolDetails.PoolID, "message", resp.Message)
 		return nil, fmt.Errorf("pool not found: %s", resp.Message)
 
 	case *coreapi.V1GetOntapCredentialsBadRequest:
-		logger.Error("Invalid pool details", "poolID", poolDetails.PoolID, "message", resp.Message)
+		logger.ErrorContext(ctx, "Invalid pool details", "poolID", poolDetails.PoolID, "message", resp.Message)
 		return nil, fmt.Errorf("invalid pool details: %s", resp.Message)
 
 	case *coreapi.V1GetOntapCredentialsUnauthorized:
-		logger.Error("Unauthorized access", "poolID", poolDetails.PoolID, "message", resp.Message)
+		logger.ErrorContext(ctx, "Unauthorized access", "poolID", poolDetails.PoolID, "message", resp.Message)
 		return nil, fmt.Errorf("unauthorized access: %s", resp.Message)
 
 	case *coreapi.V1GetOntapCredentialsForbidden:
-		logger.Error("Forbidden access", "poolID", poolDetails.PoolID, "message", resp.Message)
+		logger.ErrorContext(ctx, "Forbidden access", "poolID", poolDetails.PoolID, "message", resp.Message)
 		return nil, fmt.Errorf("forbidden access: %s", resp.Message)
 
 	case *coreapi.V1GetOntapCredentialsInternalServerError:
-		logger.Error("Internal server error", "poolID", poolDetails.PoolID, "message", resp.Message)
+		logger.ErrorContext(ctx, "Internal server error", "poolID", poolDetails.PoolID, "message", resp.Message)
 		return nil, fmt.Errorf("internal server error: %s", resp.Message)
 
 	default:
-		logger.Error("Unexpected response from Core API", "responseType", fmt.Sprintf("%T", resp))
+		logger.ErrorContext(ctx, "Unexpected response from Core API", "responseType", fmt.Sprintf("%T", resp), "poolID", poolDetails.PoolID)
 		return nil, fmt.Errorf("unexpected response from Core API")
 	}
 }

@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/rules"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 // uuidPattern is a compiled regex pattern for matching UUIDs in URL paths
@@ -17,43 +19,46 @@ var uuidPattern = regexp.MustCompile(`/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]
 func RuleEngineMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger := log.NewLogger()
+			logger := util.GetLogger(r.Context())
 
 			matchedRule, matchedPath, found := findMatchingRule(r.URL.Path, logger)
 			if !found {
+				logger.InfoContext(r.Context(), "No rule found for path, passing to next middleware", "path", r.URL.Path)
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			logger.Info("Found rule for path", "path", matchedPath)
+			logger.InfoContext(r.Context(), "Found rule for path", "path", matchedPath)
 
 			action := matchedRule.GetAction(r)
 			if action == nil {
+				logger.WarnContext(r.Context(), "Method not allowed for path", "path", matchedPath, "method", r.Method)
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 
 			allowed, err := action.ShouldAllow(r)
 			if err != nil {
-				logger.Error("Validation error", "error", err)
+				logger.ErrorContext(r.Context(), "Validation error", "error", err, "path", matchedPath)
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			if !allowed {
-				logger.Info("Request denied by action")
+				logger.InfoContext(r.Context(), "Request denied by action", "path", matchedPath, "method", r.Method)
 				http.Error(w, "Request denied", http.StatusForbidden)
 				return
 			}
 
 			if err := action.ProcessRequest(r, w); err != nil {
-				logger.Error("Error processing request", "error", err)
+				logger.ErrorContext(r.Context(), "Error processing request", "error", err, "path", matchedPath)
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), "ruleContext", action)
+			ctx := context.WithValue(r.Context(), models.RuleContextKey, action)
 			r = r.WithContext(ctx)
 
+			logger.DebugContext(r.Context(), "Request processed successfully, forwarding to next middleware", "path", matchedPath)
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -81,7 +86,7 @@ func findMatchingRule(requestPath string, logger log.Logger) (actions.Rule, stri
 	}
 
 	if matchedPath == "" {
-		logger.Info("No rule found for path, passing to next middleware", "path", path)
+		logger.Debug("No rule found for path", "path", path)
 		return actions.Rule{}, "", false
 	}
 

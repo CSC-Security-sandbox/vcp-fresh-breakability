@@ -4,31 +4,31 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 // ProcessResponseModification processes response modifications using the action from context
 func ProcessResponseModification(resp *http.Response) error {
-	logger := log.NewLogger()
-
-	if resp.Request == nil {
-		logger.Info("Response request is nil, skipping processing")
+	if resp == nil || resp.Request == nil {
 		return nil
 	}
 
-	if ctx := resp.Request.Context().Value("ruleContext"); ctx != nil {
+	logger := util.GetLogger(resp.Request.Context())
+
+	if ctx := resp.Request.Context().Value(models.RuleContextKey); ctx != nil {
 		if action, ok := ctx.(RequestProcessor); ok {
-			logger.Info("Processing response with action", "action", action)
+			logger.InfoContext(resp.Request.Context(), "Processing response with action", "action", action)
 			if err := action.ProcessResponse(resp); err != nil {
-				logger.Error("Error applying modifications", "error", err)
+				logger.ErrorContext(resp.Request.Context(), "Error applying modifications", "error", err)
 				return err
 			}
-			logger.Info("Successfully processed response")
+			logger.InfoContext(resp.Request.Context(), "Successfully processed response")
 		} else {
-			logger.Info("Context value is not a RequestProcessor", "type", fmt.Sprintf("%T", ctx))
+			logger.InfoContext(resp.Request.Context(), "Context value is not a RequestProcessor", "type", fmt.Sprintf("%T", ctx))
 		}
 	} else {
-		logger.Info("No ruleContext found in response context")
+		logger.InfoContext(resp.Request.Context(), "No ruleContext found in response context")
 	}
 	return nil
 }
