@@ -88,8 +88,6 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 	aggregatedRecordsToRetry, err := p.getUnsentGoogleUsages(ctx, p.config.MaxGoogleBillingPushRetry)
 	if err != nil {
 		logger.Errorf("error getting unsent google usages", "error", err)
-	} else {
-		aggregatedRecords = append(aggregatedRecords, aggregatedRecordsToRetry...)
 	}
 
 	// Process each job definition
@@ -142,6 +140,8 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 		}
 		logger.Infof("Successfully saved %d aggregated usage records in batches of %d", len(aggregatedRecords), batchSize)
 	}
+
+	aggregatedRecords = append(aggregatedRecords, aggregatedRecordsToRetry...)
 
 	// Deliver all aggregated metrics at the end
 	if len(aggregatedRecords) > 0 {
