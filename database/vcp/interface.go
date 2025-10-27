@@ -306,7 +306,8 @@ type (
 
 		CreateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)
 		GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error)
-
+		GetActiveDirectoryByUuidAndAccountId(ctx context.Context, uuid string, accountID int64) (*datamodel.ActiveDirectory, error)
+		
 		// Cluster Peering methods
 		GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx context.Context, accountID int64, onPrempCluster string, poolID int64) (*datamodel.ClusterPeerings, error)
 		CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error)

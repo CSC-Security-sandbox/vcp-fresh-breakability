@@ -172,6 +172,14 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			Valid: true,
 		}
 	}
+
+	if params.ActiveDirectoryId != "" {
+		poolObj.ActiveDirectoryID = sql.NullInt64{
+			Int64: params.ActiveDirectory.ID,
+			Valid: true,
+		}
+	}
+
 	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
 	logger.Infof("generated deployment name: %s", poolObj.DeploymentName)
 	switch env.AuthType {
@@ -231,6 +239,26 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 	err = ValidateAndSetUpdatePoolParams(params, dbPool)
 	if err != nil {
 		return nil, "", err
+	}
+
+	if params.ActiveDirectoryConfigId != "" {
+		activeDir, adErr := se.GetActiveDirectoryByUuidAndAccountId(ctx, params.ActiveDirectoryConfigId, account.ID)
+		if adErr != nil {
+			var notFoundErr *customerrors.NotFoundErr
+			if errors.As(adErr, &notFoundErr) {
+				return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("Active Directory Config with ID %s not found", params.ActiveDirectoryConfigId))
+			}
+			return nil, "", adErr
+		}
+
+		if dbPool.ActiveDirectoryID.Valid && dbPool.ActiveDirectoryID.Int64 != activeDir.ID {
+			return nil, "", customerrors.NewUserInputValidationErr("Active Directory configuration cannot be changed for pools already associated with an Active Directory")
+		}
+
+		dbPool.ActiveDirectoryID = sql.NullInt64{
+			Int64: activeDir.ID,
+			Valid: true,
+		}
 	}
 
 	poolCategory := models.GetPoolCategory(dbPool.LargeCapacity)
@@ -655,6 +683,11 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 		},
 		SatisfiesPzi: pool.SatisfyZI,
 		SatisfiesPzs: pool.SatisfyZS,
+	}
+
+	if pool.ActiveDirectory != nil {
+		poolRes.ActiveDirectoryConfigId = pool.ActiveDirectory.UUID
+		poolRes.ActiveDirectoryResourceId = pool.ActiveDirectory.AdName
 	}
 
 	if pool.KmsConfig != nil {

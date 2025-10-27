@@ -4,11 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	customValidators "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/validator"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -16,6 +15,8 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	customValidators "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/validator"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -321,4 +322,66 @@ func (o *Orchestrator) GetMultipleActiveDirectories(
 		return nil, err
 	}
 	return ads, nil
+}
+
+// GetADConfig retrieves an Active Directory resource by account ID and resource name.
+func (o *Orchestrator) GetADConfig(ctx context.Context, params *common.GetADParams) (*models.ActiveDirectory, error) {
+	account, err := getAccountWithName(ctx, o.storage, params.AccountName)
+	if err != nil {
+		return nil, err
+	}
+	adConfig, err2 := o.storage.GetActiveDirectoryByUuidAndAccountId(ctx, params.UUID, account.ID)
+	if err2 != nil {
+		return nil, err2
+	}
+
+	return convertActiveDirectoryToModel(adConfig), nil
+}
+
+func (o *Orchestrator) GetSDEActiveDirectory(ctx context.Context, getADParams *common.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error) {
+	// Phase 2 implementation
+	return nil, nil
+}
+
+func convertActiveDirectoryToModel(ad *datamodel.ActiveDirectory) *models.ActiveDirectory {
+	if ad == nil {
+		return nil
+	}
+
+	model := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{
+			ID:        ad.ID,
+			UUID:      ad.UUID,
+			CreatedAt: ad.CreatedAt,
+			UpdatedAt: ad.UpdatedAt,
+		},
+		AdName:       ad.AdName,
+		Username:     ad.Username,
+		Password:     ad.CredentialPath,
+		Domain:       ad.Domain,
+		DNS:          ad.DNS,
+		NetBIOS:      ad.NetBIOS,
+		State:        ad.State,
+		StateDetails: ad.StateDetails,
+	}
+
+	// Convert ActiveDirectoryAttributes if available
+	if ad.ActiveDirectoryAttributes != nil {
+		model.ActiveDirectoryAttributes = &models.ActiveDirectoryAttributes{
+			OrganizationalUnit:         ad.ActiveDirectoryAttributes.OrganizationalUnit,
+			Site:                       ad.ActiveDirectoryAttributes.Site,
+			SecurityOperators:          ad.ActiveDirectoryAttributes.AdUsers["SeSecurityPrivilege"],
+			BackupOperators:            ad.ActiveDirectoryAttributes.AdUsers[`BUILTIN\Backup Operators`],
+			Administrators:             ad.ActiveDirectoryAttributes.AdUsers[`BUILTIN\Administrators`],
+			KdcIP:                      ad.ActiveDirectoryAttributes.KdcIP,
+			KdcHostname:                ad.ActiveDirectoryAttributes.KdcHostname,
+			AesEncryption:              ad.ActiveDirectoryAttributes.AesEncryption,
+			EncryptDCConnections:       ad.ActiveDirectoryAttributes.EncryptDCConnections,
+			LdapSigning:                ad.ActiveDirectoryAttributes.LdapSigning,
+			AllowLocalNFSUsersWithLdap: ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap,
+			Description:                ad.ActiveDirectoryAttributes.Description,
+		}
+	}
+
+	return model
 }

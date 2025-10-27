@@ -45,6 +45,8 @@ type CreatePoolParams struct {
 	KmsConfig               *models.KmsConfig
 	Labels                  *datamodel.JSONB
 	LargeCapacity           bool
+	ActiveDirectoryId       string
+	ActiveDirectory         *models.ActiveDirectory
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool
@@ -685,4 +687,13 @@ type CreateActiveDirectoryParams struct {
 	Administrators              []string `json:"administrators" validate:"Administrators"`
 	AesEncryption               bool
 	Description                 string
+}
+
+// GetADParams describes parameters to get Active Directory configuration
+type GetADParams struct {
+	UUID          string
+	AccountName   string
+	LocationID    string
+	ProjectNumber string
+	ResourceID    string
 }

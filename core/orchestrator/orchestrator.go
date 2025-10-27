@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -116,6 +117,8 @@ type OrchestratorFactory interface {
 	GetActiveDirectory(ctx context.Context, activeDirectoryUUID string) (*models.ActiveDirectory, error)
 	ListActiveDirectories(ctx context.Context, accountName string) ([]*models.ActiveDirectory, error)
 	GetMultipleActiveDirectories(ctx context.Context, uuids []string) ([]*models.ActiveDirectory, error)
+	GetADConfig(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error)
+	GetSDEActiveDirectory(ctx context.Context, getADParams *commonparams.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error)
 }
 
 type Orchestrator struct {

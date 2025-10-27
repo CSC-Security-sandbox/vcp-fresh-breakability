@@ -1868,6 +1868,65 @@ func (_c *MockOrchestratorFactory_EstablishFlexCacheVolumePeering_Call) RunAndRe
 	return _c
 }
 
+// GetADConfig provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetADConfig(ctx context.Context, params *common.GetADParams) (*models.ActiveDirectory, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetADConfig")
+	}
+
+	var r0 *models.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetADParams) (*models.ActiveDirectory, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetADParams) *models.ActiveDirectory); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetADParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetADConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetADConfig'
+type MockOrchestratorFactory_GetADConfig_Call struct {
+	*mock.Call
+}
+
+// GetADConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.GetADParams
+func (_e *MockOrchestratorFactory_Expecter) GetADConfig(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetADConfig_Call {
+	return &MockOrchestratorFactory_GetADConfig_Call{Call: _e.mock.On("GetADConfig", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_GetADConfig_Call) Run(run func(ctx context.Context, params *common.GetADParams)) *MockOrchestratorFactory_GetADConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.GetADParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetADConfig_Call) Return(_a0 *models.ActiveDirectory, _a1 error) *MockOrchestratorFactory_GetADConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetADConfig_Call) RunAndReturn(run func(context.Context, *common.GetADParams) (*models.ActiveDirectory, error)) *MockOrchestratorFactory_GetADConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAccount provides a mock function with given fields: ctx, accountName
 func (_m *MockOrchestratorFactory) GetAccount(ctx context.Context, accountName string) (*datamodel.Account, error) {
 	ret := _m.Called(ctx, accountName)
@@ -3772,6 +3831,65 @@ func (_c *MockOrchestratorFactory_GetReplicationJobs_Call) Return(_a0 []*models.
 }
 
 func (_c *MockOrchestratorFactory_GetReplicationJobs_Call) RunAndReturn(run func(context.Context, string, string) ([]*models.Job, error)) *MockOrchestratorFactory_GetReplicationJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSDEActiveDirectory provides a mock function with given fields: ctx, getADParams
+func (_m *MockOrchestratorFactory) GetSDEActiveDirectory(ctx context.Context, getADParams *common.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error) {
+	ret := _m.Called(ctx, getADParams)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSDEActiveDirectory")
+	}
+
+	var r0 *cvpmodels.ActiveDirectoryV1beta
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error)); ok {
+		return rf(ctx, getADParams)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetADParams) *cvpmodels.ActiveDirectoryV1beta); ok {
+		r0 = rf(ctx, getADParams)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*cvpmodels.ActiveDirectoryV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetADParams) error); ok {
+		r1 = rf(ctx, getADParams)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetSDEActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSDEActiveDirectory'
+type MockOrchestratorFactory_GetSDEActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// GetSDEActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - getADParams *common.GetADParams
+func (_e *MockOrchestratorFactory_Expecter) GetSDEActiveDirectory(ctx interface{}, getADParams interface{}) *MockOrchestratorFactory_GetSDEActiveDirectory_Call {
+	return &MockOrchestratorFactory_GetSDEActiveDirectory_Call{Call: _e.mock.On("GetSDEActiveDirectory", ctx, getADParams)}
+}
+
+func (_c *MockOrchestratorFactory_GetSDEActiveDirectory_Call) Run(run func(ctx context.Context, getADParams *common.GetADParams)) *MockOrchestratorFactory_GetSDEActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.GetADParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetSDEActiveDirectory_Call) Return(_a0 *cvpmodels.ActiveDirectoryV1beta, _a1 error) *MockOrchestratorFactory_GetSDEActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetSDEActiveDirectory_Call) RunAndReturn(run func(context.Context, *common.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error)) *MockOrchestratorFactory_GetSDEActiveDirectory_Call {
 	_c.Call.Return(run)
 	return _c
 }

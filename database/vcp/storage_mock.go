@@ -4295,6 +4295,66 @@ func (_c *MockStorage_GetActiveDirectoryByUUID_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// GetActiveDirectoryByUuidAndAccountId provides a mock function with given fields: ctx, uuid, accountID
+func (_m *MockStorage) GetActiveDirectoryByUuidAndAccountId(ctx context.Context, uuid string, accountID int64) (*datamodel.ActiveDirectory, error) {
+	ret := _m.Called(ctx, uuid, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActiveDirectoryByUuidAndAccountId")
+	}
+
+	var r0 *datamodel.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.ActiveDirectory, error)); ok {
+		return rf(ctx, uuid, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.ActiveDirectory); ok {
+		r0 = rf(ctx, uuid, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, uuid, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetActiveDirectoryByUuidAndAccountId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveDirectoryByUuidAndAccountId'
+type MockStorage_GetActiveDirectoryByUuidAndAccountId_Call struct {
+	*mock.Call
+}
+
+// GetActiveDirectoryByUuidAndAccountId is a helper method to define mock.On call
+//   - ctx context.Context
+//   - uuid string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetActiveDirectoryByUuidAndAccountId(ctx interface{}, uuid interface{}, accountID interface{}) *MockStorage_GetActiveDirectoryByUuidAndAccountId_Call {
+	return &MockStorage_GetActiveDirectoryByUuidAndAccountId_Call{Call: _e.mock.On("GetActiveDirectoryByUuidAndAccountId", ctx, uuid, accountID)}
+}
+
+func (_c *MockStorage_GetActiveDirectoryByUuidAndAccountId_Call) Run(run func(ctx context.Context, uuid string, accountID int64)) *MockStorage_GetActiveDirectoryByUuidAndAccountId_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetActiveDirectoryByUuidAndAccountId_Call) Return(_a0 *datamodel.ActiveDirectory, _a1 error) *MockStorage_GetActiveDirectoryByUuidAndAccountId_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetActiveDirectoryByUuidAndAccountId_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.ActiveDirectory, error)) *MockStorage_GetActiveDirectoryByUuidAndAccountId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAdminJobSpecByJobType provides a mock function with given fields: ctx, jobType
 func (_m *MockStorage) GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error) {
 	ret := _m.Called(ctx, jobType)

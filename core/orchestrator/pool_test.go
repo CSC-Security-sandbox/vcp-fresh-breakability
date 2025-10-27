@@ -414,6 +414,99 @@ func TestConvertDatastorePoolToModel_WithAssetMetadata(t *testing.T) {
 	})
 }
 
+func TestConvertDatastorePoolToModel_WithActiveDirectory(t *testing.T) {
+	t.Run("WhenPoolHasActiveDirectory", func(tt *testing.T) {
+		datastorePool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:             "Test Pool",
+			Description:      "Test Description",
+			SizeInBytes:      1024,
+			State:            "active",
+			StateDetails:     "running",
+			AllowAutoTiering: true,
+			Network:          "test-network",
+			ServiceLevel:     "FLEX",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "",
+			},
+			ActiveDirectoryID: sql.NullInt64{Valid: true, Int64: 42},
+			ActiveDirectory: &datamodel.ActiveDirectory{
+				BaseModel: datamodel.BaseModel{
+					UUID: "ad-uuid",
+				},
+				AdName: "test-ad",
+			},
+		}
+		accountName := "test-account"
+
+		dbPoolView := database.ConvertPoolToPoolView(datastorePool)
+		result := convertDatastorePoolToModel(dbPoolView, accountName)
+
+		assert.Equal(t, "test-uuid", result.UUID)
+		assert.Equal(t, accountName, result.AccountName)
+		assert.Equal(t, "Test Pool", result.Name)
+		assert.Equal(t, "Test Description", result.Description)
+		assert.Equal(t, uint64(1024), result.SizeInBytes)
+		assert.Equal(t, "active", result.State)
+		assert.Equal(t, "running", result.StateDetails)
+		assert.Equal(t, true, result.AllowAutoTiering)
+
+		// Check ActiveDirectory fields
+		assert.Equal(t, "ad-uuid", result.ActiveDirectoryConfigId)
+		assert.Equal(t, "test-ad", result.ActiveDirectoryResourceId)
+	})
+
+	t.Run("WhenPoolHasNoActiveDirectory", func(tt *testing.T) {
+		datastorePool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:             "Test Pool",
+			Description:      "Test Description",
+			SizeInBytes:      1024,
+			State:            "active",
+			StateDetails:     "running",
+			AllowAutoTiering: true,
+			Network:          "test-network",
+			ServiceLevel:     "FLEX",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+				SecondaryZone:   "",
+			},
+			ActiveDirectoryID: sql.NullInt64{Valid: false, Int64: 0},
+			ActiveDirectory:   nil,
+		}
+		accountName := "test-account"
+
+		dbPoolView := database.ConvertPoolToPoolView(datastorePool)
+		result := convertDatastorePoolToModel(dbPoolView, accountName)
+
+		assert.Equal(t, "test-uuid", result.UUID)
+		assert.Equal(t, accountName, result.AccountName)
+		assert.Equal(t, "Test Pool", result.Name)
+		assert.Equal(t, "Test Description", result.Description)
+		assert.Equal(t, uint64(1024), result.SizeInBytes)
+		assert.Equal(t, "active", result.State)
+		assert.Equal(t, "running", result.StateDetails)
+		assert.Equal(t, true, result.AllowAutoTiering)
+
+		// Check ActiveDirectory fields are empty
+		assert.Empty(t, result.ActiveDirectoryConfigId)
+		assert.Empty(t, result.ActiveDirectoryResourceId)
+	})
+}
+
 func TestCreatePool(t *testing.T) {
 	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
 		ctx, se, _, temporal := setup(tt)
@@ -760,6 +853,185 @@ func TestCreatePool(t *testing.T) {
 
 		_, _, err := createPool(ctx, store, temporal, params)
 		assert.Error(tt, err)
+	})
+}
+
+func TestUpdatePool_ActiveDirectoryConfigId(t *testing.T) {
+	t.Run("WhenActiveDirectoryConfigIdIsValid", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		_, account := createDBPools(tt, store)
+
+		// Create Active Directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "550e8400-e29b-41d4-a716-446655440000",
+			},
+			AdName:    "test-active-directory",
+			AccountId: account.ID,
+		}
+		err := store.DB().Create(ad).Error
+		assert.NoError(tt, err)
+
+		params := &common.UpdatePoolParams{
+			AccountName:             "test_account",
+			PoolId:                  "test-pool-uuid1",
+			ActiveDirectoryConfigId: "550e8400-e29b-41d4-a716-446655440000",
+			SizeInBytes:             uint64(2 * utils.TiBInBytes), // Set a valid size
+			QosType:                 "auto",                       // Set a valid QOS type
+			TotalThroughputMibps:    128,                          // Set a valid throughput
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		originalValidateAndSetUpdatePoolParams := ValidateAndSetUpdatePoolParams
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+			return nil
+		}
+
+		// Mock workflow execution
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything, mock.Anything).
+			Return(nil, nil)
+
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			ValidateAndSetUpdatePoolParams = originalValidateAndSetUpdatePoolParams
+		}()
+
+		pool, _, err := _updatePool(ctx, store, temporal, params)
+		assert.NoError(tt, err, "Expected no error on updating pool with valid ActiveDirectoryConfigId")
+		assert.Equal(tt, "test-pool-uuid1", pool.UUID)
+		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
+
+		// Verify the ActiveDirectoryID was set in the database
+		var updatedPool datamodel.Pool
+		err = store.DB().First(&updatedPool, "uuid = ?", "test-pool-uuid1").Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, ad.ID, updatedPool.ActiveDirectoryID.Int64)
+	})
+
+	t.Run("WhenActiveDirectoryConfigIdNotFound", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		_, account := createDBPools(tt, store)
+
+		params := &common.UpdatePoolParams{
+			AccountName:             "test_account",
+			PoolId:                  "test-pool-uuid1",
+			ActiveDirectoryConfigId: "non-existent-ad-uuid",
+			SizeInBytes:             uint64(2 * utils.TiBInBytes), // Set a valid size
+			QosType:                 "auto",                       // Set a valid QOS type
+			TotalThroughputMibps:    128,                          // Set a valid throughput
+		}
+
+		originalGetAccountWithName := getAccountWithName
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		_, _, err := _updatePool(ctx, store, temporal, params)
+		assert.Error(tt, err, "Expected error when ActiveDirectoryConfigId not found")
+		// The error occurs during validation, so it should be the validation error message
+		assert.Contains(tt, err.Error(), "Active Directory Config with ID")
+	})
+
+	t.Run("WhenActiveDirectoryConfigIdAlreadyAssociated", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(tt, store)
+
+		// Create Active Directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "550e8400-e29b-41d4-a716-446655440000",
+			},
+			AdName:    "test-active-directory",
+			AccountId: account.ID,
+		}
+		err := store.DB().Create(ad).Error
+		assert.NoError(tt, err)
+
+		// Associate AD with first pool
+		pools[0].ActiveDirectoryID = sql.NullInt64{Valid: true, Int64: ad.ID}
+		err = store.DB().Save(pools[0]).Error
+		assert.NoError(tt, err)
+
+		// Create another Active Directory
+		ad2 := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "550e8400-e29b-41d4-a716-446655440001",
+			},
+			AdName:    "test-active-directory-2",
+			AccountId: account.ID,
+		}
+		err = store.DB().Create(ad2).Error
+		assert.NoError(tt, err)
+
+		params := &common.UpdatePoolParams{
+			AccountName:             "test_account",
+			PoolId:                  "test-pool-uuid1",
+			ActiveDirectoryConfigId: "550e8400-e29b-41d4-a716-446655440001", // Different AD
+			SizeInBytes:             uint64(2 * utils.TiBInBytes),           // Set a valid size
+			QosType:                 "auto",                                 // Set a valid QOS type
+			TotalThroughputMibps:    128,                                    // Set a valid throughput
+		}
+
+		originalGetAccountWithName := getAccountWithName
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		_, _, err = _updatePool(ctx, store, temporal, params)
+		assert.Error(tt, err, "Expected error when trying to change ActiveDirectory configuration")
+		assert.Contains(tt, err.Error(), "Active Directory configuration cannot be changed")
+	})
+
+	t.Run("WhenActiveDirectoryConfigIdIsEmpty", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		_, account := createDBPools(tt, store)
+
+		params := &common.UpdatePoolParams{
+			AccountName: "test_account",
+			PoolId:      "test-pool-uuid1",
+			// ActiveDirectoryConfigId is empty
+			SizeInBytes:          uint64(2 * utils.TiBInBytes), // Set a valid size
+			QosType:              "auto",                       // Set a valid QOS type
+			TotalThroughputMibps: 128,                          // Set a valid throughput
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		originalValidateAndSetUpdatePoolParams := ValidateAndSetUpdatePoolParams
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+			return nil
+		}
+
+		// Mock workflow execution
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything, mock.Anything).
+			Return(nil, nil)
+
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			ValidateAndSetUpdatePoolParams = originalValidateAndSetUpdatePoolParams
+		}()
+
+		pool, _, err := _updatePool(ctx, store, temporal, params)
+		assert.NoError(tt, err, "Expected no error when ActiveDirectoryConfigId is empty")
+		assert.Equal(tt, "test-pool-uuid1", pool.UUID)
+		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
 	})
 }
 
@@ -4503,5 +4775,187 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 		err := _validateCreatePoolParams(params)
 		assert.Error(tt, err)
 		assert.EqualError(tt, err, "invalid KMS configuration state: KEY_CHECK_PENDING")
+	})
+}
+
+func TestCreatePoolInDB_ActiveDirectoryConfigId(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	store, err := database.SetupStorageForTest(mockLogger)
+	assert.NoError(t, err)
+	err = database.ClearInMemoryDB(store.DB())
+	assert.NoError(t, err)
+
+	// Create account
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	assert.NoError(t, err)
+
+	t.Run("CreatePoolWithoutActiveDirectoryConfigId", func(tt *testing.T) {
+		iopsValue := int64(1024)
+		params := &common.CreatePoolParams{
+			AccountName:    "test_account",
+			Region:         "us-central1",
+			Name:           "test-pool-no-ad",
+			Description:    "Test pool without AD",
+			VendorID:       "/projects/test/locations/us-central1/pools/test-pool-no-ad",
+			ServiceLevel:   "FLEX",
+			SizeInBytes:    1073741824,
+			PrimaryZone:    "us-central1-a",
+			VendorSubNetID: "projects/test/networks/test",
+			// ActiveDirectoryId: "", // Empty
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            &iopsValue,
+			},
+		}
+
+		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, pool)
+		// ActiveDirectoryID should be 0 (null in database)
+		assert.Equal(tt, int64(0), pool.ActiveDirectoryID.Int64)
+	})
+}
+
+func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	store, err := database.SetupStorageForTest(mockLogger)
+	assert.NoError(t, err)
+	err = database.ClearInMemoryDB(store.DB())
+	assert.NoError(t, err)
+
+	// Create account
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	assert.NoError(t, err)
+
+	t.Run("CompleteFlow_CreatePoolWithActiveDirectoryConfigId", func(tt *testing.T) {
+		// Create Active Directory first
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "550e8400-e29b-41d4-a716-446655440000",
+			},
+			AdName:    "test-active-directory",
+			AccountId: account.ID,
+		}
+		err = store.DB().Create(ad).Error
+		assert.NoError(tt, err)
+		ad, err := store.GetActiveDirectoryByUuidAndAccountId(ctx, ad.UUID, account.ID)
+		if err != nil {
+			return
+		} // Cache it
+		// Test the complete flow
+		iopsValue := int64(1024)
+		params := &common.CreatePoolParams{
+			AccountName:       "test_account",
+			Region:            "us-central1",
+			Name:              "integration-test-pool",
+			Description:       "Integration test pool with AD",
+			VendorID:          "/projects/test/locations/us-central1/pools/integration-test-pool",
+			ServiceLevel:      "FLEX",
+			SizeInBytes:       1073741824,
+			PrimaryZone:       "us-central1-a",
+			VendorSubNetID:    "projects/test/networks/test",
+			ActiveDirectoryId: "550e8400-e29b-41d4-a716-446655440000",
+			ActiveDirectory: &models.ActiveDirectory{
+				BaseModel: models.BaseModel{
+					ID:   ad.ID,
+					UUID: ad.UUID,
+				},
+			},
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            &iopsValue,
+			},
+		}
+
+		// Mock the validation functions to avoid complex setup
+		originalValidateCreatePoolParams := ValidateCreatePoolParams
+		defer func() { ValidateCreatePoolParams = originalValidateCreatePoolParams }()
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		originalValidatePoolParams := ValidatePoolParams
+		defer func() { ValidatePoolParams = originalValidatePoolParams }()
+		ValidatePoolParams = func(perf *validators.CustomPerformance, serviceLevel string) error {
+			return nil
+		}
+
+		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, pool)
+
+		// Verify the ActiveDirectoryID was set correctly
+		assert.Equal(tt, ad.ID, pool.ActiveDirectory.ID)
+		assert.Equal(tt, ad.ID, pool.ActiveDirectoryID.Int64)
+		assert.Equal(tt, ad.UUID, pool.ActiveDirectory.UUID)
+
+		// Verify the pool was created in the database
+		var dbPool datamodel.Pool
+		err = store.DB().Preload("ActiveDirectory").First(&dbPool, "uuid = ?", pool.UUID).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, params.Name, dbPool.Name)
+		assert.Equal(tt, ad.ID, dbPool.ActiveDirectoryID.Int64)
+		assert.Equal(tt, ad.UUID, dbPool.ActiveDirectory.UUID)
+	})
+
+	t.Run("CompleteFlow_CreatePoolWithoutActiveDirectoryConfigId", func(tt *testing.T) {
+		iopsValue := int64(1024)
+		params := &common.CreatePoolParams{
+			AccountName:       "test_account",
+			Region:            "us-central1",
+			Name:              "integration-test-pool-no-ad",
+			Description:       "Integration test pool without AD",
+			VendorID:          "/projects/test/locations/us-central1/pools/integration-test-pool-no-ad",
+			ServiceLevel:      "FLEX",
+			SizeInBytes:       1073741824,
+			PrimaryZone:       "us-central1-a",
+			VendorSubNetID:    "projects/test/networks/test",
+			ActiveDirectoryId: "", // Empty
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            &iopsValue,
+			},
+		}
+
+		// Mock the validation functions
+		originalValidateCreatePoolParams := ValidateCreatePoolParams
+		defer func() { ValidateCreatePoolParams = originalValidateCreatePoolParams }()
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		originalValidatePoolParams := ValidatePoolParams
+		defer func() { ValidatePoolParams = originalValidatePoolParams }()
+		ValidatePoolParams = func(perf *validators.CustomPerformance, serviceLevel string) error {
+			return nil
+		}
+
+		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, pool)
+
+		// Verify the ActiveDirectoryID is 0 (null in database)
+		assert.Equal(tt, int64(0), pool.ActiveDirectoryID.Int64)
+
+		// Verify the pool was created in the database
+		var dbPool datamodel.Pool
+		err = store.DB().Preload("ActiveDirectory").First(&dbPool, "uuid = ?", pool.UUID).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), dbPool.ActiveDirectoryID.Int64)
 	})
 }

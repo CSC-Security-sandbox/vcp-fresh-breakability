@@ -4727,6 +4727,26 @@ func (re *retryEngine) GetActiveDirectoryByNameAndAccountID(ctx context.Context,
 	return var0, err
 }
 
+func (re *retryEngine) GetActiveDirectoryByUuidAndAccountId(ctx context.Context, uuid string, accountID int64) (*datamodel.ActiveDirectory, error) {
+	var var0 *datamodel.ActiveDirectory
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetActiveDirectoryByUuidAndAccountId(ctx, uuid, accountID)
+		if err != nil {
+			re.logError("GetActiveDirectoryByUuidAndAccountId", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx context.Context, accountID int64, onPrempCluster string, poolID int64) (*datamodel.ClusterPeerings, error) {
 	var var0 *datamodel.ClusterPeerings
 	err := retry.Do(func(attempt int) (bool, error) {

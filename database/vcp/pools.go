@@ -138,6 +138,10 @@ func (d *DataStoreRepository) UpdatingPool(ctx context.Context, pool *datamodel.
 		dbPool.Description = pool.Description
 	}
 
+	if pool.ActiveDirectoryID.Valid && pool.ActiveDirectoryID.Int64 > 0 {
+		dbPool.ActiveDirectoryID = pool.ActiveDirectoryID
+	}
+
 	dbPool.UpdatedAt = time.Now()
 
 	if err = tx.Updates(dbPool).Error; err != nil {
@@ -288,7 +292,7 @@ func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID st
 
 func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.PoolView, error) {
 	pool := &datamodel.PoolView{}
-	err := db.Preload("Account").Preload("KmsConfig").Preload("KmsConfig.ServiceAccount").Preload("KmsConfig.Account").First(&pool, query).Error
+	err := db.Preload("Account").Preload("KmsConfig").Preload("KmsConfig.ServiceAccount").Preload("KmsConfig.Account").Preload("ActiveDirectory").First(&pool, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrPoolNotFound, customerrors.NewNotFoundErr("pool", nil))
@@ -316,7 +320,7 @@ func _getPoolByName(db *gorm.DB) (*datamodel.PoolView, error) {
 
 func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.PoolView, error) {
 	var pools []*datamodel.PoolView
-	err := db.Preload("Account").Preload("KmsConfig").Find(&pools).Error
+	err := db.Preload("Account").Preload("KmsConfig").Preload("ActiveDirectory").Find(&pools).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -397,6 +401,8 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		LargeCapacity:     view.LargeCapacity,
 		SatisfyZI:         view.SatisfyZI,
 		SatisfyZS:         view.SatisfyZS,
+		ActiveDirectory:   view.ActiveDirectory,
+		ActiveDirectoryID: view.ActiveDirectoryID,
 	}
 }
 

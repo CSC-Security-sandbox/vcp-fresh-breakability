@@ -772,3 +772,96 @@ func TestGetMultipleActiveDirectoriesByUUIDsFunction(t *testing.T) {
 		assert.Len(tt, result, 2, "Expected 2 active directories")
 	})
 }
+
+func TestGetActiveDirectoryByUuidAndAccountId(t *testing.T) {
+	t.Run("WhenActiveDirectoryExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(db)
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory first
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "550e8400-e29b-41d4-a716-446655440000",
+			},
+			AdName:    "test-active-directory",
+			AccountId: 123,
+		}
+
+		err = db.Create(ad).Error
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		retrievedAd, err := store.GetActiveDirectoryByUuidAndAccountId(context.Background(), "550e8400-e29b-41d4-a716-446655440000", 123)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, retrievedAd, "Expected active directory to not be nil")
+		assert.Equal(tt, ad.AdName, retrievedAd.AdName, "Expected AD name %v, got %v", ad.AdName, retrievedAd.AdName)
+		assert.Equal(tt, ad.AccountId, retrievedAd.AccountId, "Expected account ID %v, got %v", ad.AccountId, retrievedAd.AccountId)
+		assert.Equal(tt, ad.UUID, retrievedAd.UUID, "Expected UUID %v, got %v", ad.UUID, retrievedAd.UUID)
+	})
+
+	t.Run("WhenActiveDirectoryDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(db)
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		retrievedAd, err := store.GetActiveDirectoryByUuidAndAccountId(context.Background(), "550e8400-e29b-41d4-a716-446655440000", 123)
+		assert.Error(tt, err, "Expected not found error for non-existent AD")
+		assert.ErrorContains(tt, err, "Active Directory not found")
+		assert.Nil(tt, retrievedAd, "Expected active directory to be nil")
+	})
+
+	t.Run("WhenActiveDirectoryExistsButWrongAccount", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(db)
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory for account 123
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "550e8400-e29b-41d4-a716-446655440000",
+			},
+			AdName:    "test-active-directory",
+			AccountId: 123,
+		}
+
+		err = db.Create(ad).Error
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Try to get it for account 456
+		retrievedAd, err := store.GetActiveDirectoryByUuidAndAccountId(context.Background(), "550e8400-e29b-41d4-a716-446655440000", 456)
+		assert.Error(tt, err, "Expected not found error for wrong account")
+		assert.ErrorContains(tt, err, "Active Directory not found")
+		assert.Nil(tt, retrievedAd, "Expected active directory to be nil for wrong account")
+	})
+
+	t.Run("WhenDatabaseError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate a database error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		assert.NoError(tt, err)
+
+		_, err = store.GetActiveDirectoryByUuidAndAccountId(context.Background(), "550e8400-e29b-41d4-a716-446655440000", 123)
+		assert.Error(tt, err, "Expected error when database is closed")
+	})
+}

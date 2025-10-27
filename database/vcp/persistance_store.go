@@ -1255,6 +1255,10 @@ func (s *PersistenceStore) GetActiveDirectoryByNameAndAccountID(ctx context.Cont
 	return s.dataStore.GetActiveDirectoryByNameAndAccountID(ctx, name, accountID)
 }
 
+func (s *PersistenceStore) GetActiveDirectoryByUuidAndAccountId(ctx context.Context, uuid string, accountID int64) (*datamodel.ActiveDirectory, error) {
+	return s.dataStore.GetActiveDirectoryByUuidAndAccountId(ctx, uuid, accountID)
+}
+
 // Image version methods
 func (s *PersistenceStore) CreateImageVersion(ctx context.Context, imageVersion *datamodel.ImageVersion) (*datamodel.ImageVersion, error) {
 	return s.dataStore.CreateImageVersion(ctx, imageVersion)

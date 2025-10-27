@@ -169,6 +169,16 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		LargeCapacity:           req.LargeCapacity.Value,
 	}
 
+	// Set AD related params
+	adConfig, adErrResp := getAndSyncAdConfigForPool(ctx, req, createPoolParams, h.Orchestrator)
+	if adErrResp != nil {
+		return adErrResp, nil
+	}
+	if adConfig != nil {
+		createPoolParams.ActiveDirectoryId = adConfig.UUID
+		createPoolParams.ActiveDirectory = adConfig
+	}
+
 	// Set kms config related params if kms config is provided
 	kmsConfig, errResp := getAndSyncKmsConfigForPool(ctx, req, createPoolParams, h.Orchestrator)
 	if errResp != nil {
@@ -625,6 +635,10 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		param.EnableHotTierAutoResize = existingPool.AutoTieringConfig.EnableHotTierAutoResize
 	}
 
+	if req.ActiveDirectoryConfigId.IsSet() {
+		param.ActiveDirectoryConfigId = req.ActiveDirectoryConfigId.Value
+	}
+
 	updatedPool, operationID, err := h.Orchestrator.UpdatePool(ctx, param)
 	if err != nil {
 		logger.Error("Failed to update pool", "error", err.Error())
@@ -730,6 +744,15 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		SatisfiesPzi:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzi),
 		HotTierConsumption:      getHotTierConsumptionOpt(pool.AutoTieringConfig),
 		ColdTierConsumption:     getColdTierConsumptionOpt(pool.AutoTieringConfig),
+	}
+
+	if pool.ActiveDirectoryConfigId != "" {
+		region, _, err := utils.ParseRegionAndZone(pool.PoolAttributes.PrimaryZone)
+		if err == nil {
+			poolV1beta.ActiveDirectoryConfigId = gcpgenserver.NewOptNilString(pool.ActiveDirectoryConfigId)
+			poolV1beta.ActiveDirectoryResourceId = gcpgenserver.NewOptString(fmt.Sprintf(
+				"projects/%s/locations/%s/activeDirectories/%s", pool.AccountName, region, pool.ActiveDirectoryResourceId))
+		}
 	}
 
 	kmsConfigId := ""
@@ -1014,13 +1037,6 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
-	if req.ActiveDirectoryConfigId.IsSet() {
-		return &gcpgenserver.V1betaUpdatePoolBadRequest{
-			Code:    http.StatusBadRequest,
-			Message: "Updating Active Directory is currently not supported",
-		}
-	}
-
 	// Feature flag validation
 	if !autoTieringEnabled && (req.AllowAutoTiering.IsSet() ||
 		(req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0) ||
@@ -1189,4 +1205,36 @@ func _getAndSyncKmsConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1be
 		}
 	}
 	return kmsConfig, nil
+}
+
+func getAndSyncAdConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params *commonparams.CreatePoolParams, orchestrator orchestrator.OrchestratorFactory) (*models.ActiveDirectory, gcpgenserver.V1betaCreatePoolRes) {
+	log := util.GetLogger(ctx)
+	if req.ActiveDirectoryConfigId.Value == "" {
+		return nil, nil
+	}
+
+	getADParams := &commonparams.GetADParams{
+		UUID:          req.ActiveDirectoryConfigId.Value,
+		AccountName:   params.AccountName,
+		LocationID:    params.Region,
+		ProjectNumber: params.AccountName,
+	}
+	adConfig, err := orchestrator.GetADConfig(ctx, getADParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			log.Debugf("Active Directory config with ID %s not found in VCP, trying SDE", req.ActiveDirectoryConfigId.Value)
+
+			// ToDo: implement SDE AD config fetch and sync logic here
+
+			return nil, &gcpgenserver.V1betaCreatePoolBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: fmt.Sprintf("Active Directory Config with ID %s not found", req.ActiveDirectoryConfigId.Value),
+			}
+		}
+		return nil, &gcpgenserver.V1betaCreatePoolInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}
+	}
+	return adConfig, nil
 }

@@ -4,9 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"go.temporal.io/sdk/mocks"
 	"testing"
 	"time"
 
@@ -15,8 +12,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/mocks"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -722,6 +723,274 @@ func Test_convertDatastoreActiveDirectoryToModel_NilAttributes(t *testing.T) {
 	}
 
 	result := convertDatastoreActiveDirectoryToModel(ad)
+
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-uuid", result.UUID)
+	assert.Equal(t, "test-ad", result.AdName)
+	assert.Nil(t, result.ActiveDirectoryAttributes)
+}
+
+func TestOrchestrator_GetADConfig_Success(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &Orchestrator{
+		storage:  mockSe,
+		temporal: mockTemporal,
+	}
+
+	params := &common.GetADParams{
+		UUID:          "test-ad-uuid",
+		AccountName:   "test-account",
+		LocationID:    "us-central1",
+		ProjectNumber: "12345",
+		ResourceID:    "test-ad",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+
+	// Mock getAccountWithName to return our account
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = _getAccountWithName }()
+
+	adFromDB := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-ad-uuid",
+		},
+		AdName:         "test-ad",
+		Username:       "testuser",
+		CredentialPath: log.PasswordMask,
+		Domain:         "example.com",
+		DNS:            "8.8.8.8",
+		NetBIOS:        "EXAMPLE",
+		State:          "READY",
+		StateDetails:   "Active Directory is ready",
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			OrganizationalUnit: "OU=Test",
+			Site:               "Default-Site",
+			AdUsers: map[string][]string{
+				"SeSecurityPrivilege":      {"user1"},
+				`BUILTIN\Backup Operators`: {"user2"},
+				`BUILTIN\Administrators`:   {"user3"},
+			},
+			KdcIP:                      "1.2.3.4",
+			AesEncryption:              true,
+			EncryptDCConnections:       true,
+			LdapSigning:                true,
+			AllowLocalNFSUsersWithLdap: false,
+			Description:                "Test AD",
+		},
+	}
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "test-ad-uuid", int64(42)).Return(adFromDB, nil)
+
+	result, err := o.GetADConfig(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-ad-uuid", result.UUID)
+	assert.Equal(t, "test-ad", result.AdName)
+	assert.Equal(t, "testuser", result.Username)
+	assert.Equal(t, "example.com", result.Domain)
+	assert.Equal(t, "READY", result.State)
+	assert.NotNil(t, result.ActiveDirectoryAttributes)
+	assert.Equal(t, "OU=Test", result.ActiveDirectoryAttributes.OrganizationalUnit)
+	mockSe.AssertExpectations(t)
+}
+
+func TestOrchestrator_GetADConfig_AccountNotFound(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &Orchestrator{
+		storage:  mockSe,
+		temporal: mockTemporal,
+	}
+
+	params := &common.GetADParams{
+		UUID:        "test-ad-uuid",
+		AccountName: "non-existent-account",
+	}
+
+	// Mock getAccountWithName to return error
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return nil, customerrors.NewUserInputValidationErr("account not found")
+	}
+	defer func() { getAccountWithName = _getAccountWithName }()
+
+	result, err := o.GetADConfig(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "account not found")
+}
+
+func TestOrchestrator_GetADConfig_ADNotFound(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &Orchestrator{
+		storage:  mockSe,
+		temporal: mockTemporal,
+	}
+
+	params := &common.GetADParams{
+		UUID:        "non-existent-ad-uuid",
+		AccountName: "test-account",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+
+	// Mock getAccountWithName to return our account
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = _getAccountWithName }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "non-existent-ad-uuid", int64(42)).Return(nil, customerrors.NewNotFoundErr("Active Directory", nil))
+
+	result, err := o.GetADConfig(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Active Directory not found")
+	mockSe.AssertExpectations(t)
+}
+
+func TestOrchestrator_GetADConfig_DatabaseError(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &Orchestrator{
+		storage:  mockSe,
+		temporal: mockTemporal,
+	}
+
+	params := &common.GetADParams{
+		UUID:        "test-ad-uuid",
+		AccountName: "test-account",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+
+	// Mock getAccountWithName to return our account
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = _getAccountWithName }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "test-ad-uuid", int64(42)).Return(nil, customerrors.New("database error"))
+
+	result, err := o.GetADConfig(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "database error")
+	mockSe.AssertExpectations(t)
+}
+
+func TestOrchestrator_GetSDEActiveDirectory_Phase2Placeholder(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &Orchestrator{
+		storage:  mockSe,
+		temporal: mockTemporal,
+	}
+
+	params := &common.GetADParams{
+		UUID:          "test-ad-uuid",
+		AccountName:   "test-account",
+		LocationID:    "us-central1",
+		ProjectNumber: "12345",
+		ResourceID:    "test-ad",
+	}
+
+	// Phase 2 implementation returns nil, nil
+	result, err := o.GetSDEActiveDirectory(ctx, params)
+
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+}
+
+func Test_convertActiveDirectoryToModel_Success(t *testing.T) {
+	now := time.Now()
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-uuid",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		AdName:         "test-ad",
+		Username:       "testuser",
+		CredentialPath: "secret-path",
+		Domain:         "example.com",
+		DNS:            "8.8.8.8",
+		NetBIOS:        "EXAMPLE",
+		State:          "READY",
+		StateDetails:   "Ready",
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			OrganizationalUnit: "OU=Test",
+			Site:               "Default-Site",
+			AdUsers: map[string][]string{
+				"SeSecurityPrivilege":      {"sec-user"},
+				`BUILTIN\Backup Operators`: {"backup-user"},
+				`BUILTIN\Administrators`:   {"admin-user"},
+			},
+			KdcIP:                      "1.2.3.4",
+			KdcHostname:                "kdc.example.com",
+			AesEncryption:              true,
+			EncryptDCConnections:       true,
+			LdapSigning:                false,
+			AllowLocalNFSUsersWithLdap: true,
+			Description:                "Test Description",
+		},
+	}
+
+	result := convertActiveDirectoryToModel(ad)
+
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-uuid", result.UUID)
+	assert.Equal(t, "test-ad", result.AdName)
+	assert.Equal(t, "testuser", result.Username)
+	assert.Equal(t, "secret-path", result.Password) // CredentialPath maps to Password
+	assert.Equal(t, "example.com", result.Domain)
+	assert.Equal(t, "8.8.8.8", result.DNS)
+	assert.Equal(t, "EXAMPLE", result.NetBIOS)
+	assert.Equal(t, "READY", result.State)
+	assert.Equal(t, "Ready", result.StateDetails)
+	assert.NotNil(t, result.ActiveDirectoryAttributes)
+	assert.Equal(t, "OU=Test", result.ActiveDirectoryAttributes.OrganizationalUnit)
+	assert.Equal(t, "Default-Site", result.ActiveDirectoryAttributes.Site)
+	assert.Equal(t, []string{"sec-user"}, result.ActiveDirectoryAttributes.SecurityOperators)
+	assert.Equal(t, []string{"backup-user"}, result.ActiveDirectoryAttributes.BackupOperators)
+	assert.Equal(t, []string{"admin-user"}, result.ActiveDirectoryAttributes.Administrators)
+	assert.Equal(t, "1.2.3.4", result.ActiveDirectoryAttributes.KdcIP)
+	assert.Equal(t, "kdc.example.com", result.ActiveDirectoryAttributes.KdcHostname)
+	assert.Equal(t, true, result.ActiveDirectoryAttributes.AesEncryption)
+	assert.Equal(t, true, result.ActiveDirectoryAttributes.EncryptDCConnections)
+	assert.Equal(t, false, result.ActiveDirectoryAttributes.LdapSigning)
+	assert.Equal(t, true, result.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap)
+	assert.Equal(t, "Test Description", result.ActiveDirectoryAttributes.Description)
+}
+
+func Test_convertActiveDirectoryToModel_NilInput(t *testing.T) {
+	result := convertActiveDirectoryToModel(nil)
+	assert.Nil(t, result)
+}
+
+func Test_convertActiveDirectoryToModel_NilAttributes(t *testing.T) {
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-uuid",
+		},
+		AdName:                    "test-ad",
+		ActiveDirectoryAttributes: nil,
+	}
+
+	result := convertActiveDirectoryToModel(ad)
 
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-uuid", result.UUID)

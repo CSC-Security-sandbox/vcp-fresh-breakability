@@ -2,8 +2,10 @@ package database
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
 
@@ -30,6 +32,20 @@ func (d *DataStoreRepository) GetActiveDirectoryByNameAndAccountID(ctx context.C
 		return nil, err
 	}
 	return ad, nil
+}
+
+func (d *DataStoreRepository) GetActiveDirectoryByUuidAndAccountId(ctx context.Context, uuid string, accountID int64) (*datamodel.ActiveDirectory, error) {
+	db := d.db.GORM().WithContext(ctx)
+	query := &datamodel.ActiveDirectory{AccountId: accountID, BaseModel: datamodel.BaseModel{DeletedAt: nil, UUID: uuid}}
+	var ad datamodel.ActiveDirectory
+	err := db.First(&ad, query).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "Active Directory", nil)
+		}
+		return nil, err
+	}
+	return &ad, nil
 }
 
 func (d *DataStoreRepository) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
