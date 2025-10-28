@@ -16,7 +16,7 @@ jobs:
     name: Weekly GCP Images and Charts Cleanup
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:{{ vars.VSACICTL_VERSION }}
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
       options: --user root
     permissions:
       contents: read
