@@ -660,6 +660,8 @@ In the short term, VCP will directly retrieve metrics from the VSA Cluster using
 2. The VCP team will be responsible for managing the volume level backup configuration, including bucket lifecycle management.
 3. We will enable auto-tiering even if the customer has not opted for it. We are applying insights from FSX, where VSA auto-tiering is enabled, but the tiering option is set to disabled.
 4. We cannot use the backup bucket deletion strategy because it is managed by Backup Vault. At the time of bucket deletion, the BV bucket is already empty, and the deletion process is merely a sync call. Additionally, we cannot use the backup table for auto-tiering bucket information, as the information is stored exclusively in the backup vault table.
+5. In Pause/Resume, to stop/pause tiering for hotTierBypassMode enabled volumes, we are setting the tiering policy to none during pool pause. This is being reverted during pool resume
+   - Reason: The hotTierBypassMode in a volume supersedes the tiering fullness threshold setting at pool level. Hence, setting the tiering fullness threshold to 100% at pool level doesn't stop tiering for hotTierBypassMode enabled volumes.
 
 
 ### Policies

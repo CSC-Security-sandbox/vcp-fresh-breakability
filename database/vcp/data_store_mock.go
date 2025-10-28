@@ -520,6 +520,53 @@ func (_c *MockDataStore_BatchUpdateVolumeFields_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// BatchUpdateVolumeTieringFields provides a mock function with given fields: ctx, updates
+func (_m *MockDataStore) BatchUpdateVolumeTieringFields(ctx context.Context, updates map[string]datamodel.VolumeTieringUpdate) error {
+	ret := _m.Called(ctx, updates)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchUpdateVolumeTieringFields")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, map[string]datamodel.VolumeTieringUpdate) error); ok {
+		r0 = rf(ctx, updates)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_BatchUpdateVolumeTieringFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchUpdateVolumeTieringFields'
+type MockDataStore_BatchUpdateVolumeTieringFields_Call struct {
+	*mock.Call
+}
+
+// BatchUpdateVolumeTieringFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - updates map[string]datamodel.VolumeTieringUpdate
+func (_e *MockDataStore_Expecter) BatchUpdateVolumeTieringFields(ctx interface{}, updates interface{}) *MockDataStore_BatchUpdateVolumeTieringFields_Call {
+	return &MockDataStore_BatchUpdateVolumeTieringFields_Call{Call: _e.mock.On("BatchUpdateVolumeTieringFields", ctx, updates)}
+}
+
+func (_c *MockDataStore_BatchUpdateVolumeTieringFields_Call) Run(run func(ctx context.Context, updates map[string]datamodel.VolumeTieringUpdate)) *MockDataStore_BatchUpdateVolumeTieringFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(map[string]datamodel.VolumeTieringUpdate))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_BatchUpdateVolumeTieringFields_Call) Return(_a0 error) *MockDataStore_BatchUpdateVolumeTieringFields_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_BatchUpdateVolumeTieringFields_Call) RunAndReturn(run func(context.Context, map[string]datamodel.VolumeTieringUpdate) error) *MockDataStore_BatchUpdateVolumeTieringFields_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CheckAndFetchDuplicateJobs provides a mock function with given fields: ctx, jobType, correlationID
 func (_m *MockDataStore) CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error) {
 	ret := _m.Called(ctx, jobType, correlationID)
@@ -13175,17 +13222,17 @@ func (_c *MockDataStore_UpdatePoolSubnetNames_Call) RunAndReturn(run func(contex
 	return _c
 }
 
-// UpdatePoolTieringConsumption provides a mock function with given fields: ctx, poolUUID, hotTierConsumption, coldTierConsumption
-func (_m *MockDataStore) UpdatePoolTieringConsumption(ctx context.Context, poolUUID string, hotTierConsumption int64, coldTierConsumption int64) error {
-	ret := _m.Called(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+// UpdatePoolTieringConfig provides a mock function with given fields: ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold
+func (_m *MockDataStore) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption *int64, coldTierConsumption *int64, tieringThreshold *int64) error {
+	ret := _m.Called(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdatePoolTieringConsumption")
+		panic("no return value specified for UpdatePoolTieringConfig")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64) error); ok {
-		r0 = rf(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+	if rf, ok := ret.Get(0).(func(context.Context, string, *int64, *int64, *int64) error); ok {
+		r0 = rf(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -13193,33 +13240,34 @@ func (_m *MockDataStore) UpdatePoolTieringConsumption(ctx context.Context, poolU
 	return r0
 }
 
-// MockDataStore_UpdatePoolTieringConsumption_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePoolTieringConsumption'
-type MockDataStore_UpdatePoolTieringConsumption_Call struct {
+// MockDataStore_UpdatePoolTieringConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePoolTieringConfig'
+type MockDataStore_UpdatePoolTieringConfig_Call struct {
 	*mock.Call
 }
 
-// UpdatePoolTieringConsumption is a helper method to define mock.On call
+// UpdatePoolTieringConfig is a helper method to define mock.On call
 //   - ctx context.Context
 //   - poolUUID string
-//   - hotTierConsumption int64
-//   - coldTierConsumption int64
-func (_e *MockDataStore_Expecter) UpdatePoolTieringConsumption(ctx interface{}, poolUUID interface{}, hotTierConsumption interface{}, coldTierConsumption interface{}) *MockDataStore_UpdatePoolTieringConsumption_Call {
-	return &MockDataStore_UpdatePoolTieringConsumption_Call{Call: _e.mock.On("UpdatePoolTieringConsumption", ctx, poolUUID, hotTierConsumption, coldTierConsumption)}
+//   - hotTierConsumption *int64
+//   - coldTierConsumption *int64
+//   - tieringThreshold *int64
+func (_e *MockDataStore_Expecter) UpdatePoolTieringConfig(ctx interface{}, poolUUID interface{}, hotTierConsumption interface{}, coldTierConsumption interface{}, tieringThreshold interface{}) *MockDataStore_UpdatePoolTieringConfig_Call {
+	return &MockDataStore_UpdatePoolTieringConfig_Call{Call: _e.mock.On("UpdatePoolTieringConfig", ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)}
 }
 
-func (_c *MockDataStore_UpdatePoolTieringConsumption_Call) Run(run func(ctx context.Context, poolUUID string, hotTierConsumption int64, coldTierConsumption int64)) *MockDataStore_UpdatePoolTieringConsumption_Call {
+func (_c *MockDataStore_UpdatePoolTieringConfig_Call) Run(run func(ctx context.Context, poolUUID string, hotTierConsumption *int64, coldTierConsumption *int64, tieringThreshold *int64)) *MockDataStore_UpdatePoolTieringConfig_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(int64))
+		run(args[0].(context.Context), args[1].(string), args[2].(*int64), args[3].(*int64), args[4].(*int64))
 	})
 	return _c
 }
 
-func (_c *MockDataStore_UpdatePoolTieringConsumption_Call) Return(_a0 error) *MockDataStore_UpdatePoolTieringConsumption_Call {
+func (_c *MockDataStore_UpdatePoolTieringConfig_Call) Return(_a0 error) *MockDataStore_UpdatePoolTieringConfig_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockDataStore_UpdatePoolTieringConsumption_Call) RunAndReturn(run func(context.Context, string, int64, int64) error) *MockDataStore_UpdatePoolTieringConsumption_Call {
+func (_c *MockDataStore_UpdatePoolTieringConfig_Call) RunAndReturn(run func(context.Context, string, *int64, *int64, *int64) error) *MockDataStore_UpdatePoolTieringConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }

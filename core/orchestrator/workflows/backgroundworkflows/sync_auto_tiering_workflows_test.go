@@ -86,7 +86,7 @@ func TestSyncVSAAutoTieringWorkflow_Success(t *testing.T) {
 
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
 	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
@@ -163,7 +163,7 @@ func TestSyncVSAAutoTieringWorkflow_GetPoolsTierConsumptionError(t *testing.T) {
 
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(nil, assert.AnError)
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, pools).Return(nil, assert.AnError)
 
 	// Execute workflow
 	env.ExecuteWorkflow(SyncVSAAutoTieringWorkflow)
@@ -214,7 +214,7 @@ func TestSyncVSAAutoTieringWorkflow_UpdatePoolTieringConsumptionError(t *testing
 
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
 	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(assert.AnError)
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
@@ -276,7 +276,7 @@ func TestSyncVSAAutoTieringWorkflow_SegregatePoolsError(t *testing.T) {
 
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
 	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(nil, assert.AnError)
 
@@ -331,7 +331,7 @@ func TestSyncVSAAutoTieringWorkflow_ChildWorkflowFailure(t *testing.T) {
 
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
 	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
@@ -391,7 +391,7 @@ func TestSyncVSAAutoTieringWorkflow_AutoResizeSkippedDueToRecentExecution(t *tes
 
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
 	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
@@ -452,7 +452,7 @@ func TestSyncVSAAutoTieringWorkflow_GetLastExecutionTimeError(t *testing.T) {
 
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
 	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 
@@ -1132,7 +1132,7 @@ func TestSyncVSAAutoTieringWorkflow_EmptyPoolsList(t *testing.T) {
 
 	// Mock empty consumption map
 	emptyConsumptionMap := make(map[string]map[string]float64)
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, emptyPools).Return(emptyConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, emptyPools).Return(emptyConsumptionMap, nil).Once()
 	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, emptyConsumptionMap).Return(nil).Once()
 
 	// Mock empty segregated pools
@@ -1196,7 +1196,7 @@ func TestSyncVSAAutoTieringWorkflow_GetLocationFromVendorIDError(t *testing.T) {
 
 	// Mock activities
 	env.OnActivity(commonActivities.ListPoolsUUID, mock.Anything).Return(pools, nil).Once()
-	env.OnActivity(autoTierActivity.GetPoolsTierConsumptionFromOntap, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
+	env.OnActivity(autoTierActivity.FetchAndSavePoolsTieringInfo, mock.Anything, pools).Return(poolsConsumptionMap, nil).Once()
 	env.OnActivity(autoTierActivity.UpdatePoolTieringConsumptionInDB, mock.Anything, poolsConsumptionMap).Return(nil).Once()
 	env.OnActivity(autoTierActivity.SegregatePools, mock.Anything, pools, poolsConsumptionMap).Return(segregatedPools, nil).Once()
 

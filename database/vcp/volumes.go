@@ -12,19 +12,21 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
 var (
-	updateVolumeState         = _updateVolumeState
-	deleteVolume              = _deleteVolume
-	getMultipleVolumes        = _getMultipleVolumes
-	volumesWithHG             = _volumesWithHG
-	listVolumesWithDetails    = _listVolumesWithDetails
-	listAllVolumesWithDetails = _listAllVolumesWithDetails
-	eligibleVolDetails        = _eligibleVolDetails
+	updateVolumeState            = _updateVolumeState
+	deleteVolume                 = _deleteVolume
+	getMultipleVolumes           = _getMultipleVolumes
+	volumesWithHG                = _volumesWithHG
+	listVolumesWithDetails       = _listVolumesWithDetails
+	listAllVolumesWithDetails    = _listAllVolumesWithDetails
+	eligibleVolDetails           = _eligibleVolDetails
+	UpdateVolumeTieringBatchSize = env.GetInt("UPDATE_VOLUME_TIERING_BATCH_SIZE", 20)
 )
 
 func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
@@ -306,6 +308,81 @@ func (d *DataStoreRepository) buildVolumeUpdateQuery(ctx context.Context, update
 		strings.Join(placeholders, ", "))
 
 	return sql, args
+}
+
+// BatchUpdateVolumeTieringFields efficiently updates tiering fields for multiple volumes using PostgreSQL bulk operations
+// Updates: hot_tier_size_gib, cold_tier_size_gib
+// Processes updates in batches to avoid overwhelming the database with large queries
+func (d *DataStoreRepository) BatchUpdateVolumeTieringFields(ctx context.Context, updates map[string]datamodel.VolumeTieringUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	db := d.db.GORM().WithContext(ctx)
+	logger := util.GetLogger(ctx)
+
+	// Convert map to slice for easier batching
+	updateSlice := make([]struct {
+		UUID   string
+		Update datamodel.VolumeTieringUpdate
+	}, 0, len(updates))
+	for uuid, update := range updates {
+		updateSlice = append(updateSlice, struct {
+			UUID   string
+			Update datamodel.VolumeTieringUpdate
+		}{UUID: uuid, Update: update})
+	}
+
+	totalUpdates := len(updateSlice)
+	logger.Infof("Starting batch update of tiering fields for %d volumes with batch size %d", totalUpdates, UpdateVolumeTieringBatchSize)
+
+	// Process updates in batches
+	for i := 0; i < totalUpdates; i += UpdateVolumeTieringBatchSize {
+		end := i + UpdateVolumeTieringBatchSize
+		if end > totalUpdates {
+			end = totalUpdates
+		}
+
+		batch := updateSlice[i:end]
+
+		// Start transaction for this batch
+		tx, err := startTransaction(db)
+		if err != nil {
+			return err
+		}
+		defer commitOrRollbackOnError(logger, tx, &err)
+
+		// Build VALUES clause and args for this batch
+		placeholders := make([]string, 0, len(batch))
+		args := make([]interface{}, 0, len(batch)*3)
+		paramCounter := 1
+
+		for _, item := range batch {
+			placeholders = append(placeholders, fmt.Sprintf("($%d::uuid, $%d::bigint, $%d::bigint)",
+				paramCounter, paramCounter+1, paramCounter+2))
+			args = append(args, item.UUID, item.Update.HotTierSizeGib, item.Update.ColdTierSizeGib)
+			paramCounter += 3
+		}
+
+		sql := fmt.Sprintf(`UPDATE volumes 
+			SET hot_tier_size_gib = tmp.hot_tier_size_gib, 
+			    cold_tier_size_gib = tmp.cold_tier_size_gib, 
+			    updated_at = NOW() 
+			FROM (VALUES %s) AS tmp(uuid, hot_tier_size_gib, cold_tier_size_gib) 
+			WHERE volumes.uuid::text = tmp.uuid::text`,
+			strings.Join(placeholders, ", "))
+
+		err = tx.Exec(sql, args...).Error
+		if err != nil {
+			logger.Errorf("Bulk volume tiering update failed for batch %d-%d: %v", i+1, end, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+
+		logger.Infof("Successfully updated tiering fields for batch %d-%d (%d volumes)", i+1, end, len(batch))
+	}
+
+	logger.Infof("Successfully bulk updated tiering fields for all %d volumes", totalUpdates)
+	return nil
 }
 
 func (d *DataStoreRepository) DeleteVolume(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {

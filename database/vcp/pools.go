@@ -476,10 +476,8 @@ func (d *DataStoreRepository) UpdatePoolFields(ctx context.Context, poolUUID str
 	return nil
 }
 
-// UpdatePoolTieringConsumption atomically updates only the hot_tier_consumption and cold_tier_consumption
-// fields within the auto_tiering_config JSONB column.
-// This avoids race conditions and preserves other fields in auto_tiering_config.
-func (d *DataStoreRepository) UpdatePoolTieringConsumption(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption int64) error {
+// UpdatePoolTieringConfig updates the auto tiering config
+func (d *DataStoreRepository) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -502,9 +500,16 @@ func (d *DataStoreRepository) UpdatePoolTieringConsumption(ctx context.Context, 
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.New("auto_tiering_config is null"))
 	}
 
-	// Update only the consumption fields
-	pool.AutoTieringConfig.HotTierConsumption = hotTierConsumption
-	pool.AutoTieringConfig.ColdTierConsumption = coldTierConsumption
+	// Update only the fields that need update
+	if hotTierConsumption != nil && *hotTierConsumption != pool.AutoTieringConfig.HotTierConsumption {
+		pool.AutoTieringConfig.HotTierConsumption = *hotTierConsumption
+	}
+	if coldTierConsumption != nil && *coldTierConsumption != pool.AutoTieringConfig.ColdTierConsumption {
+		pool.AutoTieringConfig.ColdTierConsumption = *coldTierConsumption
+	}
+	if tieringThreshold != nil && *tieringThreshold != pool.AutoTieringConfig.TieringFullnessThreshold {
+		pool.AutoTieringConfig.TieringFullnessThreshold = *tieringThreshold
+	}
 
 	// Save the entire pool back (GORM will update auto_tiering_config as a whole)
 	if err := tx.Save(&pool).Error; err != nil {

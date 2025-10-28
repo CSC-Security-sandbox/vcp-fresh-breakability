@@ -1024,6 +1024,19 @@ func TestUpdateVolumeFields_UpdatesUpdatedAt(t *testing.T) {
 	assert.NotEqual(t, firstUpdateAT, newUpdateAT, "UpdatedAt should change after update")
 }
 
+func TestBatchUpdateVolumeTieringFields_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	err := store.BatchUpdateVolumeTieringFields(ctx, map[string]datamodel.VolumeTieringUpdate{})
+	assert.NoError(t, err)
+
+	err = store.BatchUpdateVolumeTieringFields(ctx, nil)
+	assert.NoError(t, err)
+}
+
 func TestCreateAdminJobSpec_Persistence_Store(t *testing.T) {
 	logger := &log.MockLogger{}
 	store, _ := NewTestStorage(logger)
@@ -4156,7 +4169,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 }
 
 // TestPersistenceStore_UpdatePoolTieringConsumption tests the UpdatePoolTieringConsumption wrapper method
-func TestPersistenceStore_UpdatePoolTieringConsumption(t *testing.T) {
+func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewLogger()
 
@@ -4199,7 +4212,7 @@ func TestPersistenceStore_UpdatePoolTieringConsumption(t *testing.T) {
 		hotTierConsumption := int64(250000000000)
 		coldTierConsumption := int64(150000000000)
 
-		err = store.UpdatePoolTieringConsumption(ctx, createdPool.UUID, hotTierConsumption, coldTierConsumption)
+		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hotTierConsumption, &coldTierConsumption, nil)
 		assert.NoError(tt, err, "Failed to update pool tiering consumption")
 
 		// Verify the update
@@ -4224,7 +4237,9 @@ func TestPersistenceStore_UpdatePoolTieringConsumption(t *testing.T) {
 		}()
 
 		// Try to update consumption for non-existent pool
-		err = store.UpdatePoolTieringConsumption(ctx, "non-existent-uuid", 100000000000, 50000000000)
+		hot := int64(100000000000)
+		cold := int64(50000000000)
+		err = store.UpdatePoolTieringConfig(ctx, "non-existent-uuid", &hot, &cold, nil)
 		assert.Error(tt, err, "Expected error when pool does not exist")
 		assert.Contains(tt, err.Error(), "Resource not found", "Error should indicate pool not found")
 	})
@@ -4258,7 +4273,9 @@ func TestPersistenceStore_UpdatePoolTieringConsumption(t *testing.T) {
 		createdPool := pool
 
 		// Try to update consumption
-		err = store.UpdatePoolTieringConsumption(ctx, createdPool.UUID, 100000000000, 50000000000)
+		hot := int64(100000000000)
+		cold := int64(50000000000)
+		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot, &cold, nil)
 		assert.Error(tt, err, "Expected error when auto_tiering_config is null")
 		assert.Contains(tt, err.Error(), "Resource not found", "Error should indicate auto_tiering_config is null")
 	})
@@ -4299,7 +4316,9 @@ func TestPersistenceStore_UpdatePoolTieringConsumption(t *testing.T) {
 		createdPool := pool
 
 		// First update
-		err = store.UpdatePoolTieringConsumption(ctx, createdPool.UUID, 100000000000, 50000000000)
+		hot1 := int64(100000000000)
+		cold1 := int64(50000000000)
+		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot1, &cold1, nil)
 		assert.NoError(tt, err, "Failed to update pool tiering consumption (first time)")
 
 		// Verify first update
@@ -4309,7 +4328,9 @@ func TestPersistenceStore_UpdatePoolTieringConsumption(t *testing.T) {
 		assert.Equal(tt, int64(50000000000), updatedPool.AutoTieringConfig.ColdTierConsumption, "First update: ColdTierConsumption incorrect")
 
 		// Second update with different values
-		err = store.UpdatePoolTieringConsumption(ctx, createdPool.UUID, 200000000000, 100000000000)
+		hot2 := int64(200000000000)
+		cold2 := int64(100000000000)
+		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot2, &cold2, nil)
 		assert.NoError(tt, err, "Failed to update pool tiering consumption (second time)")
 
 		// Verify second update

@@ -42,7 +42,7 @@ type (
 		UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHostProject string, subnetNames []string) error
 		UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error)
 		UpdatePoolFields(ctx context.Context, poolUUID string, updates map[string]interface{}) error
-		UpdatePoolTieringConsumption(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption int64) error
+		UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64) error
 		DeletePool(ctx context.Context, pool *datamodel.Pool) error
 		DeletingPool(ctx context.Context, pool *datamodel.Pool) error
 		DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
@@ -76,6 +76,7 @@ type (
 		RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) ([]*datamodel.Snapshot, error)
 		UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error
 		BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error
+		BatchUpdateVolumeTieringFields(ctx context.Context, updates map[string]datamodel.VolumeTieringUpdate) error
 		DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 		DeleteVolumeAndChildResources(ctx context.Context, volumeUUID string) (*datamodel.Volume, error)
 		UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error)

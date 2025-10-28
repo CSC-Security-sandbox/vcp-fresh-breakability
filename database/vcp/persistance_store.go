@@ -387,8 +387,8 @@ func (s *PersistenceStore) UpdatePoolFields(ctx context.Context, poolUUID string
 	return s.dataStore.UpdatePoolFields(ctx, poolUUID, updates)
 }
 
-func (s *PersistenceStore) UpdatePoolTieringConsumption(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption int64) error {
-	return s.dataStore.UpdatePoolTieringConsumption(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+func (s *PersistenceStore) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64) error {
+	return s.dataStore.UpdatePoolTieringConfig(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)
 }
 
 func (s *PersistenceStore) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
@@ -529,6 +529,10 @@ func (s *PersistenceStore) UpdateVolumeFields(ctx context.Context, volumeUUID st
 
 func (s *PersistenceStore) BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error {
 	return s.dataStore.BatchUpdateVolumeFields(ctx, updates)
+}
+
+func (s *PersistenceStore) BatchUpdateVolumeTieringFields(ctx context.Context, updates map[string]datamodel.VolumeTieringUpdate) error {
+	return s.dataStore.BatchUpdateVolumeTieringFields(ctx, updates)
 }
 
 func (s *PersistenceStore) UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error {

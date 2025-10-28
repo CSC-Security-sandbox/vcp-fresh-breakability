@@ -123,12 +123,12 @@ func (re *retryEngine) UpdatePoolFields(ctx context.Context, poolUUID string, up
 	return err
 }
 
-func (re *retryEngine) UpdatePoolTieringConsumption(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption int64) error {
+func (re *retryEngine) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		err = re.dataStore.UpdatePoolTieringConsumption(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+		err = re.dataStore.UpdatePoolTieringConfig(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)
 		if err != nil {
-			re.logError("UpdatePoolTieringConsumption", err)
+			re.logError("UpdatePoolTieringConfig", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -619,6 +619,21 @@ func (re *retryEngine) BatchUpdateVolumeFields(ctx context.Context, updates []da
 		err = re.dataStore.BatchUpdateVolumeFields(ctx, updates)
 		if err != nil {
 			re.logError("BatchUpdateVolumeFields", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
+func (re *retryEngine) BatchUpdateVolumeTieringFields(ctx context.Context, updates map[string]datamodel.VolumeTieringUpdate) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.BatchUpdateVolumeTieringFields(ctx, updates)
+		if err != nil {
+			re.logError("BatchUpdateVolumeTieringFields", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

@@ -511,7 +511,7 @@ func RetrierOnCodes(logger log.Logger, fn func() error, retryCodes []int, maxRet
 func _convertBytesToGib(bytes float64) int64 {
 	gib := bytes / 1024 / 1024 / 1024
 
-	return int64(gib)
+	return int64(math.Round(gib))
 }
 
 func RemovePrefix(str string, prefix string) string {

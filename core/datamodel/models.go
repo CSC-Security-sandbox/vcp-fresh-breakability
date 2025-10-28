@@ -233,6 +233,8 @@ type Volume struct {
 	UsedBytes             uint64                 `gorm:"column:used_bytes"`
 	AutoTieringEnabled    bool                   `gorm:"column:auto_tiering_enabled"`
 	AutoTieringPolicy     *AutoTieringPolicy     `gorm:"column:auto_tiering_policy;type:jsonb"`
+	HotTierSizeGib        uint64                 `gorm:"column:hot_tier_size_gib"`
+	ColdTierSizeGib       uint64                 `gorm:"column:cold_tier_size_gib"`
 	CacheParameters       *CacheParameters       `gorm:"column:cache_parameters;type:jsonb"`
 	LargeVolumeAttributes *LargeVolumeAttributes `gorm:"column:large_volume_attributes;type:jsonb"`
 	ClonesSharedBytes     uint64                 `gorm:"column:clones_shared_bytes"`
@@ -928,12 +930,13 @@ type NodeGroupAssignmentParams struct {
 }
 
 type AutoTieringConfig struct {
-	HotTierSizeInBytes      int64  `json:"hot_tier_size_in_bytes"`
-	EnableHotTierAutoResize bool   `json:"enable_hot_tier_auto_resize"`
-	BucketName              string `json:"bucket_name"`
-	TieringPaused           bool   `json:"tiering_paused"`
-	HotTierConsumption      int64  `json:"hot_tier_consumption"`
-	ColdTierConsumption     int64  `json:"cold_tier_consumption"`
+	HotTierSizeInBytes       int64  `json:"hot_tier_size_in_bytes"`
+	EnableHotTierAutoResize  bool   `json:"enable_hot_tier_auto_resize"`
+	BucketName               string `json:"bucket_name"`
+	TieringPaused            bool   `json:"tiering_paused"`
+	HotTierConsumption       int64  `json:"hot_tier_consumption"`
+	ColdTierConsumption      int64  `json:"cold_tier_consumption"`
+	TieringFullnessThreshold int64  `json:"tiering_fullness_threshold"`
 }
 
 // Scan implements the sql.Scanner interface for AutoTieringConfig
@@ -1093,4 +1096,10 @@ type VolumeLatestBackup struct {
 type VolumeFieldUpdate struct {
 	UUID   string                 `json:"uuid"`
 	Fields map[string]interface{} `json:"fields"`
+}
+
+// VolumeTieringUpdate represents tiering field updates for a volume
+type VolumeTieringUpdate struct {
+	HotTierSizeGib  uint64 `json:"hot_tier_size_gib"`
+	ColdTierSizeGib uint64 `json:"cold_tier_size_gib"`
 }

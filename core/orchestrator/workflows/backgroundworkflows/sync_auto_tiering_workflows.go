@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	temporalutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -36,10 +37,11 @@ var (
 
 // SyncVSAAutoTieringWorkflow is a workflow that synchronizes auto-tiering for all pools.
 func SyncVSAAutoTieringWorkflow(ctx workflow.Context) error {
+	requestID := utils.RandomUUID()
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{
 		"workflowID": workflow.GetInfo(ctx).WorkflowExecution.ID,
 		// Adding a unique request ID for tracking purposes
-		"requestID": utils.RandomUUID(),
+		"requestID": requestID,
 	})
 	logger := util.GetLogger(ctx)
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
@@ -69,7 +71,7 @@ func SyncVSAAutoTieringWorkflow(ctx workflow.Context) error {
 
 	// Assuming the map format is -> map[poolUUID]map[consumptionType]consumptionValue, where consumptionType can be "hotTier" or "coldTier"
 	var poolsConsumptionMap map[string]map[string]float64
-	err = workflow.ExecuteActivity(ctx, autoTierActivity.GetPoolsTierConsumptionFromOntap, pools).Get(ctx, &poolsConsumptionMap)
+	err = workflow.ExecuteActivity(ctx, autoTierActivity.FetchAndSavePoolsTieringInfo, pools).Get(ctx, &poolsConsumptionMap)
 	if err != nil {
 		logger.Errorf("Fetching auto-tier consumption from ontap activity failed with error: %v", err)
 		return err
@@ -184,7 +186,8 @@ func SyncVSAAutoTieringWorkflow(ctx workflow.Context) error {
 		// This will help in identifying the parent workflow ID in the logs of the child workflow.
 		// It is useful for debugging and tracing the execution flow of the workflows.
 		childWFCtx = util.AddExtraLoggerFields(childWFCtx, map[string]interface{}{
-			"parentWorkflowID": workflow.GetInfo(ctx).WorkflowExecution.ID,
+			"parentWorkflowID":                      workflow.GetInfo(ctx).WorkflowExecution.ID,
+			string(middleware.RequestCorrelationID): requestID,
 		})
 
 		// Execute the child workflow asynchronously to auto-resize hot tier for the pool and hydrating it to CCFE.

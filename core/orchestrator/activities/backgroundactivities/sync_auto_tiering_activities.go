@@ -13,7 +13,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -40,6 +42,15 @@ func (a *AutoTierSyncActivity) UpdateAggregateInOntap(ctx context.Context, node 
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	err = getAndUpdateAggregate(provider, tieringFullnessThreshold)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getAndUpdateAggregate(provider vsa.Provider, tieringFullnessThreshold int64) error {
 	aggr, err := provider.GetAggregateByName(activities.AggregateName)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -121,7 +132,7 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 				// 3. No volumes in the pool have bypass mode enabled.
 				// 4. Hot tier usage exceeds the defined threshold percentage.
 				// 5. New hot tier provisioned size + cold tier consumption < logical pool size.
-				if pool.AutoTieringConfig.EnableHotTierAutoResize {
+				if pool.AutoTieringConfig.EnableHotTierAutoResize && pool.AutoTieringConfig.HotTierSizeInBytes != 0 {
 					exists, err := checkPoolVolumesWithBypassModeEnabled(ctx, se, pool)
 					if err != nil {
 						logger.Errorf("Failed to check pool volumes for bypass mode, poolUUID: %s, error: %v", pool.UUID, err)
@@ -172,7 +183,7 @@ func checkPoolVolumesWithBypassModeEnabled(ctx context.Context, se database.Stor
 	return false, nil
 }
 
-func (a *AutoTierSyncActivity) GetPoolsTierConsumptionFromOntap(ctx context.Context, pools []*database.PoolIdentifier) (map[string]map[string]float64, error) {
+func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context, pools []*database.PoolIdentifier) (map[string]map[string]float64, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
 	poolsConsumptionsMap := make(map[string]map[string]float64)
@@ -202,19 +213,46 @@ func (a *AutoTierSyncActivity) GetPoolsTierConsumptionFromOntap(ctx context.Cont
 				return
 			}
 
+			// Check and collect pools which have a tiering fullness threshold set as 50 and not paused
+			// These pools need to have their tiering fullness threshold set to 0
+			if pool.AutoTieringConfig != nil && pool.AutoTieringConfig.TieringFullnessThreshold == 50 && !pool.AutoTieringConfig.TieringPaused {
+				err = getAndUpdateAggregate(provider, 0)
+				if err != nil {
+					// Logging error and skipping. Will retry in next sync.
+					logger.Warnf("Failed to set aggregate threshold to 0 in ontap for pool %s, Error: %v", pool.Name, err)
+				} else {
+					err = se.UpdatePoolTieringConfig(ctx, poolIdentifier.UUID, nil, nil, nillable.GetInt64Ptr(0))
+					if err != nil {
+						// Logging error and skipping. Will retry in next sync.
+						logger.Warnf("Failed to set thresholdPercentage field to 0 in db for pool %s, Error: %v", pool.Name, err)
+					}
+				}
+			}
+
 			ontapVolumes, err := provider.GetVolumes()
 			if err != nil {
 				logger.Errorf("Failed to get ONTAP volumes for the pool: %s, %v", pool.UUID, err)
 				return
 			}
 
-			expectedVolCount, err := se.GetVolumeCountByPoolID(ctx, pool.ID)
+			// Get DB volumes for the pool to create a mapping from external UUID to database UUID
+			dbVolumes, err := se.GetVolumesByPoolID(ctx, pool.ID)
 			if err != nil {
-				logger.Errorf("Failed to get volume count for the pool: %s, %v", pool.UUID, err)
+				logger.Errorf("Failed to get volumes from database for pool %s: %v", pool.UUID, err)
 				return
 			}
 
-			hotTierConsumption, coldTierConsumption, err := calculateHotColdTierConsumption(ontapVolumes, expectedVolCount)
+			// Create a mapping from external UUID to database volume
+			dbVolumeMap := make(map[string]*datamodel.Volume, len(dbVolumes))
+			for _, v := range dbVolumes {
+				if v.VolumeAttributes != nil {
+					dbVolumeMap[v.VolumeAttributes.ExternalUUID] = v
+				}
+			}
+
+			expectedVolCount := int64(len(dbVolumes))
+
+			hotTierConsumption, coldTierConsumption, err := calculateAndUpdateHotColdTierConsumption(ctx, ontapVolumes, expectedVolCount, se, dbVolumeMap)
 			if err != nil {
 				logger.Errorf("Failed to calculate hot/cold tier consumption for the pool: %s, %v", pool.UUID, err)
 				return
@@ -235,10 +273,14 @@ func (a *AutoTierSyncActivity) GetPoolsTierConsumptionFromOntap(ctx context.Cont
 	return poolsConsumptionsMap, nil
 }
 
-func calculateHotColdTierConsumption(ontapVolumes []*vsa.Volume, expectedVolCount int64) (int64, int64, error) {
+func calculateAndUpdateHotColdTierConsumption(ctx context.Context, ontapVolumes []*vsa.Volume, expectedVolCount int64, se database.Storage, dbVolumeMap map[string]*datamodel.Volume) (int64, int64, error) {
+	logger := util.GetLogger(ctx)
 	hotTierConsumption := int64(0)
 	coldTierConsumption := int64(0)
 	volCount := 0
+
+	// Collect tiering updates for bulk update
+	tieringUpdates := make(map[string]datamodel.VolumeTieringUpdate)
 
 	for _, volume := range ontapVolumes {
 		if volume == nil || volume.IsSvmRoot == nil || *volume.IsSvmRoot {
@@ -266,12 +308,36 @@ func calculateHotColdTierConsumption(ontapVolumes []*vsa.Volume, expectedVolCoun
 		// to avoid over counting where data reduction/compression is applied via ONTAP
 		logicalColdTierConsumption := logicalSpaceUsed * ratio
 
+		// Find the database volume UUID and add to bulk update map
+		dbVolume, ok := dbVolumeMap[*volume.UUID]
+		if !ok || dbVolume == nil {
+			logger.Errorf("Volume with external UUID %s not found in database volume map", *volume.UUID)
+			continue
+		}
+
+		// Convert bytes to GiB and add to a bulk update map
+		tieringUpdates[dbVolume.UUID] = datamodel.VolumeTieringUpdate{
+			HotTierSizeGib:  uint64(utils.ConvertBytesToGib(hotTierFootprint)),
+			ColdTierSizeGib: uint64(utils.ConvertBytesToGib(logicalColdTierConsumption)),
+		}
+
 		coldTierConsumption += int64(logicalColdTierConsumption)
 		hotTierConsumption += int64(hotTierFootprint)
 	}
 
 	if volCount != int(expectedVolCount) {
 		return 0, 0, fmt.Errorf("mismatch in vol count fetched from db and ontap, expectedDBCount: %d, ontapCount: %d", expectedVolCount, volCount)
+	}
+
+	// Bulk update all volume tiering fields in a single database transaction
+	if len(tieringUpdates) > 0 {
+		err := se.BatchUpdateVolumeTieringFields(ctx, tieringUpdates)
+		if err != nil {
+			// Not returning error, this will be retried in the next sync cycle
+			logger.Errorf("Failed to bulk update volume tiering footprints in DB: %v", err)
+		} else {
+			logger.Infof("Successfully bulk updated tiering fields for %d volumes", len(tieringUpdates))
+		}
 	}
 
 	return hotTierConsumption, coldTierConsumption, nil
@@ -325,7 +391,7 @@ func (a *AutoTierSyncActivity) UpdatePoolTieringConsumptionInDB(ctx context.Cont
 		hotTierConsumption := int64(consumptionMap[PoolConsumptionHotTier])
 		coldTierConsumption := int64(consumptionMap[PoolConsumptionColdTier])
 
-		err := se.UpdatePoolTieringConsumption(ctx, poolUUID, hotTierConsumption, coldTierConsumption)
+		err := se.UpdatePoolTieringConfig(ctx, poolUUID, nillable.GetInt64Ptr(hotTierConsumption), nillable.GetInt64Ptr(coldTierConsumption), nil)
 		if err != nil {
 			return fmt.Errorf("failed to update pool tiering consumption in DB for poolUUID: %s, error: %v", poolUUID, err)
 		}

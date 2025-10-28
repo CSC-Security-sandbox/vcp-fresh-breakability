@@ -2616,7 +2616,7 @@ func TestCreatingPool_VendorIDUniqueness(t *testing.T) {
 	})
 }
 
-func TestUpdatePoolTieringConsumption(t *testing.T) {
+func TestUpdatePoolTieringConfig(t *testing.T) {
 	t.Run("UpdatesConsumptionSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		if err != nil {
@@ -2663,7 +2663,7 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		hotTierConsumption := int64(250000000000)  // 250GB
 		coldTierConsumption := int64(150000000000) // 150GB
 
-		err = store.UpdatePoolTieringConsumption(context.Background(), pool.UUID, hotTierConsumption, coldTierConsumption)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hotTierConsumption, &coldTierConsumption, nil)
 		assert.NoError(tt, err)
 
 		// Verify the update
@@ -2724,7 +2724,8 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		}
 
 		// Update consumption values to zero
-		err = store.UpdatePoolTieringConsumption(context.Background(), pool.UUID, 0, 0)
+		zero := int64(0)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &zero, &zero, nil)
 		assert.NoError(tt, err)
 
 		// Verify the update
@@ -2749,7 +2750,9 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		}
 
 		// Try to update consumption for non-existent pool
-		err = store.UpdatePoolTieringConsumption(context.Background(), "non-existent-uuid", 100000000000, 50000000000)
+		hot := int64(100000000000)
+		cold := int64(50000000000)
+		err = store.UpdatePoolTieringConfig(context.Background(), "non-existent-uuid", &hot, &cold, nil)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Resource not found")
 	})
@@ -2790,7 +2793,9 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		}
 
 		// Try to update consumption
-		err = store.UpdatePoolTieringConsumption(context.Background(), pool.UUID, 100000000000, 50000000000)
+		hot := int64(100000000000)
+		cold := int64(50000000000)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot, &cold, nil)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Resource not found")
 	})
@@ -2838,7 +2843,9 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		}
 
 		// First update
-		err = store.UpdatePoolTieringConsumption(context.Background(), pool.UUID, 100000000000, 50000000000)
+		hot1 := int64(100000000000)
+		cold1 := int64(50000000000)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot1, &cold1, nil)
 		assert.NoError(tt, err)
 
 		// Verify first update
@@ -2849,7 +2856,9 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		assert.Equal(tt, int64(50000000000), updatedPool.AutoTieringConfig.ColdTierConsumption)
 
 		// Second update with different values
-		err = store.UpdatePoolTieringConsumption(context.Background(), pool.UUID, 200000000000, 100000000000)
+		hot2 := int64(200000000000)
+		cold2 := int64(100000000000)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot2, &cold2, nil)
 		assert.NoError(tt, err)
 
 		// Verify second update
@@ -2915,7 +2924,9 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Update consumption
-		err = store.UpdatePoolTieringConsumption(context.Background(), pool.UUID, 100000000000, 50000000000)
+		hot := int64(100000000000)
+		cold := int64(50000000000)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot, &cold, nil)
 		assert.NoError(tt, err)
 
 		// Verify updated_at has changed
@@ -2968,7 +2979,7 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		hotTierConsumption := int64(5000000000000)   // 5TB
 		coldTierConsumption := int64(10000000000000) // 10TB
 
-		err = store.UpdatePoolTieringConsumption(context.Background(), pool.UUID, hotTierConsumption, coldTierConsumption)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hotTierConsumption, &coldTierConsumption, nil)
 		assert.NoError(tt, err)
 
 		// Verify the update
@@ -3024,7 +3035,7 @@ func TestUpdatePoolTieringConsumption(t *testing.T) {
 		// Update only consumption fields
 		newHotTier := int64(300000000000)
 		newColdTier := int64(150000000000)
-		err = store.UpdatePoolTieringConsumption(context.Background(), pool.UUID, newHotTier, newColdTier)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &newHotTier, &newColdTier, nil)
 		assert.NoError(tt, err)
 
 		// Verify only consumption fields changed

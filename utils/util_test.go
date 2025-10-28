@@ -859,9 +859,9 @@ func Test_convertBytesToGib(t *testing.T) {
 	}{
 		{"ZeroBytes", 0, 0},
 		{"OneGiB", 1024 * 1024 * 1024, 1},
-		{"HalfGiB", 0.5 * 1024 * 1024 * 1024, 0},
+		{"HalfGiB", 0.5 * 1024 * 1024 * 1024, 1},
 		{"NegativeBytes", -1024 * 1024 * 1024, -1},
-		{"NonIntegerGiB", 1.7 * 1024 * 1024 * 1024, 1},
+		{"NonIntegerGiB", 1.7 * 1024 * 1024 * 1024, 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
