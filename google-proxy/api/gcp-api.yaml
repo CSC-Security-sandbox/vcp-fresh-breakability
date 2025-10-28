@@ -2937,7 +2937,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory:
     get:
       operationId: v1beta_listActiveDirectories
       summary: List all Active Directory credentials
@@ -3099,7 +3099,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}:
     get:
       operationId: v1beta_describeActiveDirectory
       summary: Describe Active Directory credentials
@@ -3285,7 +3285,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories:
     post:
       operationId: v1beta_getMultipleActiveDirectories
       summary: List specified Active Directories' credentials

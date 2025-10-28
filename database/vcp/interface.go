@@ -305,6 +305,7 @@ type (
 		UpdatePendingResourceDeletion(ctx context.Context, resourceID int64, isDeletion bool, errorMessage string) (*datamodel.PendingResourceDeletions, error)
 
 		CreateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)
+		UpdateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)
 		GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error)
 		GetActiveDirectoryByUuidAndAccountId(ctx context.Context, uuid string, accountID int64) (*datamodel.ActiveDirectory, error)
 		

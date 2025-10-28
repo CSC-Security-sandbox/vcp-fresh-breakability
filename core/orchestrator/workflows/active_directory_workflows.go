@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
@@ -18,8 +19,7 @@ type ActiveDirectoryCreateWorkflow struct {
 func CreateActiveDirectoryWorkflow(
 	ctx workflow.Context,
 	params *common.CreateActiveDirectoryParams,
-	adUUID string,
-	accountId int64,
+	adRecord *datamodel.ActiveDirectory,
 ) (interface{}, error) {
 	log := util.GetLogger(ctx)
 	activeDirectoryWf := new(ActiveDirectoryCreateWorkflow)
@@ -37,7 +37,7 @@ func CreateActiveDirectoryWorkflow(
 		return nil, err
 	}
 
-	_, customErr := activeDirectoryWf.Run(ctx, params, adUUID, accountId)
+	_, customErr := activeDirectoryWf.Run(ctx, params, adRecord)
 	if customErr != nil {
 		log.Errorf("ActiveDirectoryCreateWorkflow completed with error: %v", customErr)
 		activeDirectoryWf.Status = WorkflowStatusFailed
@@ -99,17 +99,24 @@ func (wf *ActiveDirectoryCreateWorkflow) Run(ctx workflow.Context, args ...inter
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
 	params := args[0].(*common.CreateActiveDirectoryParams)
-	adUUID := args[1].(string)
-	accountId := args[2].(int64)
+	adRecord := args[1].(*datamodel.ActiveDirectory)
+
+	rollbackManager := common.NewRollbackManager()
+	rollbackManager.AddActivity(activeDirectoryActivity.RollbackActiveDirectory, adRecord)
+	defer func() {
+		// Trigger the rollback only if there was an error, and we are not in SDE mode
+		if err != nil && cvp.CVP_HOST == "" {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
 
 	if cvp.CVP_HOST == "" {
 		logger.Info("CVP_HOST environment variable is not set, creating AD in VCP")
 		err = workflow.ExecuteActivity(
 			ctx,
 			activeDirectoryActivity.CreateVcpActiveDirectory,
-			params,
-			adUUID,
-			accountId,
+			adRecord,
 		).Get(ctx, nil)
 	} else {
 		err = workflow.ExecuteActivity(

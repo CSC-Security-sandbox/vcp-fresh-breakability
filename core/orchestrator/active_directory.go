@@ -7,13 +7,17 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	customValidators "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/validator"
@@ -22,6 +26,7 @@ import (
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
+	"strconv"
 )
 
 var (
@@ -29,10 +34,20 @@ var (
 	getActiveDirectory           = _getActiveDirectory
 	listActiveDirectories        = _listActiveDirectories
 	getMultipleActiveDirectories = _getMultipleActiveDirectories
+	storePasswordSecret          = _storePasswordSecret
 )
 
 const (
 	DefaultOrganizationalUnit = "CN=Computers"
+
+	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
+	ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
+
+	// ActiveDirectoryGroupBuiltInAdministrators defines the name of the built-in administrators group
+	ActiveDirectoryGroupBuiltInAdministrators = `BUILTIN\Administrators`
+
+	// ActiveDirectorySeSecurityPrivilege defines the name of the SE security privilege
+	ActiveDirectorySeSecurityPrivilege = `SeSecurityPrivilege`
 )
 
 // _createActiveDirectory orchestrates the creation of an Active Directory resource.
@@ -71,9 +86,19 @@ func _createActiveDirectory(
 		params.OrganizationalUnit = DefaultOrganizationalUnit
 	}
 
-	adUUID := utils.RandomUUID()
-	params.CreatedAt = utils.GetTimeNow()
-	params.UpdatedAt = utils.GetTimeNow()
+	var adRecord *datamodel.ActiveDirectory
+
+	if cvp.CVP_HOST == "" {
+		adRecord, err = createVCPActiveDirectoryDBRecord(ctx, se, params, account.ID)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	var resourceUUID string
+	if adRecord != nil {
+		resourceUUID = adRecord.UUID
+	}
 
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeCreateActiveDirectory),
@@ -83,7 +108,7 @@ func _createActiveDirectory(
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: adUUID,
+			ResourceUUID: resourceUUID,
 		},
 	}
 
@@ -108,8 +133,7 @@ func _createActiveDirectory(
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		},
 		params,
-		adUUID,
-		account.ID,
+		adRecord,
 	)
 	if err != nil {
 		logger.Error("Failed to start create active directory workflow: ", "error", err)
@@ -119,40 +143,11 @@ func _createActiveDirectory(
 		return nil, "", err
 	}
 
-	return convertActiveDirectoryParamsToModel(params, adUUID), createdJob.UUID, nil
-}
-
-// convertActiveDirectoryParamsToModel maps input params and UUID to a models.ActiveDirectory instance.
-func convertActiveDirectoryParamsToModel(params *common.CreateActiveDirectoryParams, uuid string) *models.ActiveDirectory {
-	ad := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{
-			UUID:      uuid,
-			CreatedAt: params.CreatedAt,
-			UpdatedAt: params.UpdatedAt,
-		},
-		AdName:   params.ResourceId,
-		Username: params.Username,
-		Password: params.Password,
-		Domain:   params.Domain,
-		DNS:      params.DNS,
-		NetBIOS:  params.NetBIOS,
-		State:    models.LifeCycleStateCreating,
-		ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
-			OrganizationalUnit:         params.OrganizationalUnit,
-			Site:                       params.Site,
-			SecurityOperators:          params.SecurityOperators,
-			BackupOperators:            params.BackupOperators,
-			Administrators:             params.Administrators,
-			KdcIP:                      params.KdcIP,
-			KdcHostname:                params.KdcHostname,
-			AesEncryption:              params.AesEncryption,
-			EncryptDCConnections:       params.EncryptDCConnections,
-			LdapSigning:                params.LdapSigning,
-			AllowLocalNFSUsersWithLdap: params.AllowLocalNFSUsersWithLdap,
-			Description:                params.Description,
-		},
+	if cvp.CVP_HOST == "" {
+		return convertDatastoreActiveDirectoryToModel(adRecord), createdJob.UUID, nil
 	}
-	return ad
+
+	return convertActiveDirectoryParamsToModel(params), createdJob.UUID, nil
 }
 
 // _getActiveDirectory retrieves an Active Directory resource by UUID from the database.
@@ -384,4 +379,142 @@ func convertActiveDirectoryToModel(ad *datamodel.ActiveDirectory) *models.Active
 	}
 
 	return model
+}
+
+// createAdRecordForNonSDE creates a database record for Active Directory when SDE is disabled.
+// This ensures the AD record exists in the DB for job tracking purposes.
+func createAdRecordForNonSDE(
+	ctx context.Context,
+	se database.Storage,
+	params *common.CreateActiveDirectoryParams,
+	accountID int64,
+	SecretID string,
+) (*datamodel.ActiveDirectory, error) {
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			UUID: utils.RandomUUID(),
+		},
+		AdName:         params.ResourceId,
+		Username:       params.Username,
+		Domain:         params.Domain,
+		DNS:            params.DNS,
+		NetBIOS:        params.NetBIOS,
+		State:          models.LifeCycleStateCreating,
+		StateDetails:   models.LifeCycleStateCreatingDetails,
+		AccountId:      accountID,
+		CredentialPath: SecretID,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			OrganizationalUnit: params.OrganizationalUnit,
+			Site:               params.Site,
+			AdUsers: map[string][]string{
+				ActiveDirectoryGroupBuiltInBackupOperators: params.BackupOperators,
+				ActiveDirectoryGroupBuiltInAdministrators:  params.Administrators,
+				ActiveDirectorySeSecurityPrivilege:         params.SecurityOperators,
+			},
+			KdcIP:                      params.KdcIP,
+			KdcHostname:                params.KdcHostname,
+			AesEncryption:              params.AesEncryption,
+			EncryptDCConnections:       params.EncryptDCConnections,
+			LdapSigning:                params.LdapSigning,
+			AllowLocalNFSUsersWithLdap: params.AllowLocalNFSUsersWithLdap,
+			Description:                params.Description,
+			PrimaryAD:                  true,
+		},
+	}
+
+	return se.CreateActiveDirectory(ctx, adRecord)
+}
+
+func _storePasswordSecret(ctx context.Context, password string, secretID string) error {
+	logger := util.GetLogger(ctx)
+
+	gcpService, err := hyperscaler.GetGCPService(ctx)
+	if err != nil {
+		logger.Error("Failed to get GCP service", "error", err)
+		return err
+	}
+
+	existingSecret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, secretID)
+	if err != nil {
+		logger.Error("Failed to check existing secret", "secretID", secretID, "error", err)
+		return err
+	}
+
+	// Only create secret if it doesn't exist
+	if existingSecret == nil {
+		projectID := env.SecretManagerProjectID
+		secret, err := gcpService.CreateSecret(projectID, env.Region, secretID, password)
+		if err != nil {
+			logger.Error("Failed to create secret", "secretID", secretID, "error", err)
+			return err
+		}
+		logger.Info("Successfully created new secret", "secretID", secretID)
+		common.AddToUserAuthCache(secretID, secret.SecretVersion.Value)
+	} else {
+		logger.Info("Secret already exists, skipping creation", "secretID", secretID)
+		// Add existing secret to cache for consistency
+		common.AddToUserAuthCache(secretID, existingSecret.SecretVersion.Value)
+	}
+
+	return nil
+}
+
+// createVCPActiveDirectoryDBRecord handles Active Directory creation for non-SDE environments.
+// It manages password secret storage in GCP Secret Manager and creates the AD database record.
+func createVCPActiveDirectoryDBRecord(
+	ctx context.Context,
+	se database.Storage,
+	params *common.CreateActiveDirectoryParams,
+	accountID int64,
+) (*datamodel.ActiveDirectory, error) {
+	logger := util.GetLogger(ctx)
+
+	// Generate secret ID before creating AD record since we need accountID
+	// Note: adRecord doesn't exist yet, so we use params values
+	secretId := adHelper.GeneratePasswordSecretId(
+		env.SecretManagerProjectID,
+		strconv.FormatInt(accountID, 10),
+		params.ResourceId,
+		env.Region,
+	)
+
+	err := storePasswordSecret(ctx, params.Password, secretId)
+	if err != nil {
+		return nil, err
+	}
+
+	adRecord, err := createAdRecordForNonSDE(ctx, se, params, accountID, secretId)
+	if err != nil {
+		logger.Error("Failed to create Active Directory record in database", "error", err)
+		return nil, err
+	}
+
+	return adRecord, nil
+}
+
+func convertActiveDirectoryParamsToModel(params *common.CreateActiveDirectoryParams) *models.ActiveDirectory {
+	ad := &models.ActiveDirectory{
+		AdName:       params.ResourceId,
+		Username:     params.Username,
+		Domain:       params.Domain,
+		DNS:          params.DNS,
+		NetBIOS:      params.NetBIOS,
+		State:        models.LifeCycleStateCreating,
+		StateDetails: models.LifeCycleStateCreatingDetails,
+		ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+			OrganizationalUnit:         params.OrganizationalUnit,
+			Site:                       params.Site,
+			SecurityOperators:          params.SecurityOperators,
+			BackupOperators:            params.BackupOperators,
+			Administrators:             params.Administrators,
+			KdcIP:                      params.KdcIP,
+			KdcHostname:                params.KdcHostname,
+			AesEncryption:              params.AesEncryption,
+			EncryptDCConnections:       params.EncryptDCConnections,
+			LdapSigning:                params.LdapSigning,
+			AllowLocalNFSUsersWithLdap: params.AllowLocalNFSUsersWithLdap,
+			Description:                params.Description,
+		},
+	}
+	return ad
 }

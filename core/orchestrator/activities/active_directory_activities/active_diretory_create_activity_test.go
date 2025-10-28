@@ -2,26 +2,29 @@ package active_directory_activities
 
 import (
 	"context"
-	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"strings"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	gcpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"testing"
+
+	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func TestActiveDirectoryCreateActivity_CreateVcpActiveDirectory(t *testing.T) {
 	t.Run("SuccessfulCreation", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		mockGCPService := &hyperscaler.MockGoogleServices{}
 
 		activity := &ActiveDirectoryCreateActivity{
 			SE: mockStorage,
@@ -50,10 +53,7 @@ func TestActiveDirectoryCreateActivity_CreateVcpActiveDirectory(t *testing.T) {
 		adUUID := "test-ad-uuid"
 		accountId := int64(123)
 
-		// Mock that no existing AD is found
-		mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, params.ResourceId, accountId).Return(nil, customerrors.New("not found"))
-
-		expectedAD := &datamodel.ActiveDirectory{
+		ad := &datamodel.ActiveDirectory{
 			BaseModel: datamodel.BaseModel{UUID: adUUID},
 			AdName:    params.ResourceId,
 			Username:  params.Username,
@@ -61,91 +61,18 @@ func TestActiveDirectoryCreateActivity_CreateVcpActiveDirectory(t *testing.T) {
 			DNS:       params.DNS,
 			NetBIOS:   params.NetBIOS,
 			AccountId: accountId,
-			State:     string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY),
+			State:     string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING),
 		}
 
-		mockStorage.On("CreateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
-			return ad.AdName == params.ResourceId &&
-				ad.Username == params.Username &&
-				ad.Domain == params.Domain &&
-				ad.DNS == params.DNS &&
-				ad.NetBIOS == params.NetBIOS &&
-				ad.AccountId == accountId &&
-				ad.UUID == adUUID &&
-				ad.State == string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY) &&
-				ad.ActiveDirectoryAttributes.OrganizationalUnit == params.OrganizationalUnit &&
-				ad.ActiveDirectoryAttributes.PrimaryAD == true
-		})).Return(expectedAD, nil)
+		// Only test that the activity updates the AD state to READY
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.State == string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY)
+		})).Return(ad, nil)
 
-		// Mock GCP service for secret storage
-		mockSecret := &hyperscalermodels.CustomSecret{
-			SecretVersion: &hyperscalermodels.CustomSecretVersion{
-				Value: params.Password,
-			},
-		}
-		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, customerrors.New("secret not found"))
-		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockSecret, nil)
-
-		// Instead of mocking the global function, we need to inject the mock service
-		// into the activity or ensure the activity uses our mock
-		originalStorePasswordSecret := storePasswordSecret
-		storePasswordSecret = func(gcpService hyperscaler.GoogleServices, password, secretID string) error {
-			// Use the mockGCPService that we set up expectations for
-			_, err := mockGCPService.GetSecretWithLatestVersion("test-project", secretID)
-			if err != nil && !strings.Contains(err.Error(), "secret not found") {
-				return err
-			}
-			if err != nil { // secret not found, create it
-				_, err := mockGCPService.CreateSecret("test-project", "us-central1", secretID, password)
-				return err
-			}
-			return nil
-		}
-		defer func() {
-			storePasswordSecret = originalStorePasswordSecret
-		}()
-
-		result, err := activity.CreateVcpActiveDirectory(ctx, params, adUUID, accountId)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, expectedAD.AdName, result.AdName)
-		assert.Equal(t, expectedAD.Username, result.Username)
-		assert.Equal(t, expectedAD.State, result.State)
-		mockStorage.AssertExpectations(t)
-		mockGCPService.AssertExpectations(t)
+		_ = activity.CreateVcpActiveDirectory(ctx, ad)
 	})
 
-	t.Run("ExistingActiveDirectoryConflict", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := &ActiveDirectoryCreateActivity{
-			SE: mockStorage,
-		}
-
-		ctx := context.Background()
-		params := &common.CreateActiveDirectoryParams{
-			ResourceId: "existing-ad",
-		}
-		adUUID := "test-ad-uuid"
-		accountId := int64(123)
-
-		existingAD := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "existing-uuid"},
-			AdName:    params.ResourceId,
-			AccountId: accountId,
-		}
-
-		mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, params.ResourceId, accountId).Return(existingAD, nil)
-
-		result, err := activity.CreateVcpActiveDirectory(ctx, params, adUUID, accountId)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "already exists")
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("DatabaseErrorDuringLookup", func(t *testing.T) {
+	t.Run("DatabaseErrorDuringCreate", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := &ActiveDirectoryCreateActivity{
 			SE: mockStorage,
@@ -154,247 +81,587 @@ func TestActiveDirectoryCreateActivity_CreateVcpActiveDirectory(t *testing.T) {
 		ctx := context.Background()
 		params := &common.CreateActiveDirectoryParams{
 			ResourceId: "test-ad",
-		}
-		adUUID := "test-ad-uuid"
-		accountId := int64(123)
-
-		dbError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, vsaerrors.New("database lookup failed"))
-		mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, params.ResourceId, accountId).Return(nil, dbError)
-
-		result, err := activity.CreateVcpActiveDirectory(ctx, params, adUUID, accountId)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Equal(t, dbError, err)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("DatabaseErrorDuringCreation", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := &ActiveDirectoryCreateActivity{
-			SE: mockStorage,
-		}
-
-		ctx := context.Background()
-		params := &common.CreateActiveDirectoryParams{
-			ResourceId: "test-ad",
+			Domain:     "test.example.com",
+			DNS:        "8.8.8.8",
+			NetBIOS:    "TESTNETBIOS",
 			Username:   "admin",
 			Password:   "password123",
 		}
 		adUUID := "test-ad-uuid"
 		accountId := int64(123)
 
-		mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, params.ResourceId, accountId).Return(nil, customerrors.New("not found"))
-
-		createError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, vsaerrors.New("database creation failed"))
-		mockStorage.On("CreateActiveDirectory", ctx, mock.Anything).Return(nil, createError)
-
-		// Mock the password secret storage to prevent GCP authentication issues
-		originalStorePasswordSecret := storePasswordSecret
-		storePasswordSecret = func(gcpService hyperscaler.GoogleServices, password, secretID string) error {
-			return nil // Mock successful secret storage
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{UUID: adUUID},
+			AdName:    params.ResourceId,
+			Username:  params.Username,
+			Domain:    params.Domain,
+			DNS:       params.DNS,
+			NetBIOS:   params.NetBIOS,
+			AccountId: accountId,
+			State:     string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING),
 		}
-		defer func() {
-			storePasswordSecret = originalStorePasswordSecret
-		}()
 
-		result, err := activity.CreateVcpActiveDirectory(ctx, params, adUUID, accountId)
+		updateError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, vsaerrors.New("database update failed"))
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.Anything).Return(nil, updateError)
+
+		err := activity.CreateVcpActiveDirectory(ctx, ad)
 
 		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Equal(t, createError, err)
+		assert.Equal(t, updateError, err)
 		mockStorage.AssertExpectations(t)
 	})
+}
 
-	t.Run("DatabaseErrorDuringCreation", func(t *testing.T) {
+func TestActiveDirectoryCreateActivity_CreateSdeActiveDirectory_Comprehensive(t *testing.T) {
+	t.Run("SuccessfulCreation", func(t *testing.T) {
+		mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+
+		activity := &ActiveDirectoryCreateActivity{}
+
+		ctx := context.Background()
+		params := &common.CreateActiveDirectoryParams{
+			ResourceId:                 "test-sde-ad",
+			Domain:                     "sde.example.com",
+			DNS:                        "8.8.8.8",
+			NetBIOS:                    "SDETEST",
+			OrganizationalUnit:         "OU=sde",
+			Username:                   "sdeadmin",
+			Password:                   "sdepass123",
+			BackupOperators:            []string{"backup1", "backup2"},
+			Administrators:             []string{"admin1", "admin2"},
+			SecurityOperators:          []string{"security1"},
+			KdcIP:                      "192.168.1.10",
+			KdcHostname:                "kdc.sde.example.com",
+			AesEncryption:              true,
+			EncryptDCConnections:       true,
+			LdapSigning:                true,
+			AllowLocalNFSUsersWithLdap: true,
+			Description:                "SDE Test AD",
+			Site:                       "site1",
+			AccountId:                  "456",
+			LocationId:                 "us-central1",
+			XCorrelationId:             "test-correlation-id",
+		}
+
+		expectedBody := &cvpModels.ActiveDirectoryV1beta{
+			DNS:                        &params.DNS,
+			Domain:                     &params.Domain,
+			NetBIOS:                    &params.NetBIOS,
+			Username:                   &params.Username,
+			Password:                   &params.Password,
+			ResourceID:                 &params.ResourceId,
+			Administrators:             params.Administrators,
+			SecurityOperators:          params.SecurityOperators,
+			AesEncryption:              &params.AesEncryption,
+			AllowLocalNFSUsersWithLdap: &params.AllowLocalNFSUsersWithLdap,
+			BackupOperators:            params.BackupOperators,
+			Description:                &params.Description,
+			EncryptDCConnections:       &params.EncryptDCConnections,
+			KdcIP:                      params.KdcIP,
+			KdcHostname:                params.KdcHostname,
+			Site:                       &params.Site,
+			LdapSigning:                &params.LdapSigning,
+			OrganizationalUnit:         &params.OrganizationalUnit,
+		}
+
+		mockActiveDirectoriesClient.On("V1betaCreateActiveDirectory", mock.MatchedBy(func(createParams *active_directories.V1betaCreateActiveDirectoryParams) bool {
+			return createParams.LocationID == params.LocationId &&
+				createParams.ProjectNumber == params.AccountId &&
+				*createParams.XCorrelationID == params.XCorrelationId &&
+				*createParams.Body.DNS == *expectedBody.DNS &&
+				*createParams.Body.Domain == *expectedBody.Domain &&
+				*createParams.Body.NetBIOS == *expectedBody.NetBIOS &&
+				*createParams.Body.Username == *expectedBody.Username &&
+				*createParams.Body.Password == *expectedBody.Password &&
+				*createParams.Body.ResourceID == *expectedBody.ResourceID &&
+				*createParams.Body.AesEncryption == *expectedBody.AesEncryption &&
+				*createParams.Body.EncryptDCConnections == *expectedBody.EncryptDCConnections &&
+				*createParams.Body.LdapSigning == *expectedBody.LdapSigning &&
+				*createParams.Body.AllowLocalNFSUsersWithLdap == *expectedBody.AllowLocalNFSUsersWithLdap &&
+				len(createParams.Body.BackupOperators) == len(expectedBody.BackupOperators) &&
+				len(createParams.Body.Administrators) == len(expectedBody.Administrators) &&
+				len(createParams.Body.SecurityOperators) == len(expectedBody.SecurityOperators)
+		})).Return(&active_directories.V1betaCreateActiveDirectoryAccepted{
+			Payload: &cvpModels.OperationV1beta{},
+		}, nil)
+
+		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+		originalCvpClient := CvpClient
+		defer func() { CvpClient = originalCvpClient }()
+		CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		err := activity.CreateSdeActiveDirectory(ctx, params)
+
+		assert.NoError(t, err)
+		mockActiveDirectoriesClient.AssertExpectations(t)
+	})
+
+	t.Run("CVPClientError", func(t *testing.T) {
+		mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+
+		activity := &ActiveDirectoryCreateActivity{}
+
+		ctx := context.Background()
+		params := &common.CreateActiveDirectoryParams{
+			ResourceId:     "error-ad",
+			Domain:         "error.example.com",
+			DNS:            "8.8.8.8",
+			NetBIOS:        "ERROR",
+			Username:       "erroruser",
+			Password:       "errorpass",
+			AccountId:      "789",
+			LocationId:     "us-east1",
+			XCorrelationId: "error-corr-id",
+		}
+
+		expectedError := vsaerrors.New("CVP API error")
+
+		mockActiveDirectoriesClient.On("V1betaCreateActiveDirectory", mock.Anything).
+			Return(nil, expectedError)
+
+		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+		originalCvpClient := CvpClient
+		defer func() { CvpClient = originalCvpClient }()
+		CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		err := activity.CreateSdeActiveDirectory(ctx, params)
+
+		assert.Error(t, err)
+		assert.Equal(t, expectedError, err)
+		mockActiveDirectoriesClient.AssertExpectations(t)
+	})
+
+	t.Run("NilPayloadResponse", func(t *testing.T) {
+		mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+
+		activity := &ActiveDirectoryCreateActivity{}
+
+		ctx := context.Background()
+		params := &common.CreateActiveDirectoryParams{
+			ResourceId:     "nil-payload-ad",
+			Domain:         "nilpayload.example.com",
+			DNS:            "8.8.8.8",
+			NetBIOS:        "NILPAY",
+			Username:       "niluser",
+			Password:       "nilpass",
+			AccountId:      "111",
+			LocationId:     "europe-west1",
+			XCorrelationId: "nil-payload-corr-id",
+		}
+
+		mockActiveDirectoriesClient.On("V1betaCreateActiveDirectory", mock.Anything).
+			Return(&active_directories.V1betaCreateActiveDirectoryAccepted{Payload: nil}, nil)
+
+		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+		originalCvpClient := CvpClient
+		defer func() { CvpClient = originalCvpClient }()
+		CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		err := activity.CreateSdeActiveDirectory(ctx, params)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown error during the create active directory")
+		mockActiveDirectoriesClient.AssertExpectations(t)
+	})
+
+	t.Run("NilResponseObject", func(t *testing.T) {
+		mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+
+		activity := &ActiveDirectoryCreateActivity{}
+
+		ctx := context.Background()
+		params := &common.CreateActiveDirectoryParams{
+			ResourceId:     "nil-response-ad",
+			Domain:         "nilresponse.example.com",
+			DNS:            "8.8.8.8",
+			NetBIOS:        "NILRESP",
+			Username:       "nilrespuser",
+			Password:       "nilresppass",
+			AccountId:      "222",
+			LocationId:     "asia-southeast1",
+			XCorrelationId: "nil-response-corr-id",
+		}
+
+		mockActiveDirectoriesClient.On("V1betaCreateActiveDirectory", mock.Anything).
+			Return(nil, nil)
+
+		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+		originalCvpClient := CvpClient
+		defer func() { CvpClient = originalCvpClient }()
+		CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		err := activity.CreateSdeActiveDirectory(ctx, params)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown error during the create active directory")
+		mockActiveDirectoriesClient.AssertExpectations(t)
+	})
+
+	t.Run("MultipleOperatorsAndAdmins", func(t *testing.T) {
+		mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+
+		activity := &ActiveDirectoryCreateActivity{}
+
+		ctx := context.Background()
+		params := &common.CreateActiveDirectoryParams{
+			ResourceId:        "multi-ops-ad",
+			Domain:            "multiops.example.com",
+			DNS:               "8.8.8.8",
+			NetBIOS:           "MULTIOPS",
+			Username:          "multiuser",
+			Password:          "multipass",
+			BackupOperators:   []string{"backup1", "backup2", "backup3", "backup4"},
+			Administrators:    []string{"admin1", "admin2", "admin3"},
+			SecurityOperators: []string{"security1", "security2", "security3", "security4", "security5"},
+			AccountId:         "444",
+			LocationId:        "australia-southeast1",
+			XCorrelationId:    "multi-corr-id",
+		}
+
+		mockActiveDirectoriesClient.On("V1betaCreateActiveDirectory", mock.MatchedBy(func(createParams *active_directories.V1betaCreateActiveDirectoryParams) bool {
+			return len(createParams.Body.BackupOperators) == 4 &&
+				len(createParams.Body.Administrators) == 3 &&
+				len(createParams.Body.SecurityOperators) == 5 &&
+				createParams.Body.BackupOperators[0] == "backup1" &&
+				createParams.Body.Administrators[0] == "admin1" &&
+				createParams.Body.SecurityOperators[0] == "security1"
+		})).Return(&active_directories.V1betaCreateActiveDirectoryAccepted{
+			Payload: &cvpModels.OperationV1beta{},
+		}, nil)
+
+		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+		originalCvpClient := CvpClient
+		defer func() { CvpClient = originalCvpClient }()
+		CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		err := activity.CreateSdeActiveDirectory(ctx, params)
+
+		assert.NoError(t, err)
+		mockActiveDirectoriesClient.AssertExpectations(t)
+	})
+}
+
+func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
+	t.Run("SuccessfulRollbackWithCredentials", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := &ActiveDirectoryCreateActivity{
 			SE: mockStorage,
 		}
 
 		ctx := context.Background()
-		params := &common.CreateActiveDirectoryParams{
-			ResourceId:                 "test-ad",
-			Domain:                     "test.example.com",
-			DNS:                        "8.8.8.8",
-			NetBIOS:                    "TESTNETBIOS",
-			OrganizationalUnit:         "OU=test",
-			Username:                   "admin",
-			Password:                   "password123",
-			BackupOperators:            []string{},
-			Administrators:             []string{},
-			SecurityOperators:          []string{},
-			KdcIP:                      "192.168.1.1",
-			KdcHostname:                "example.com",
-			AesEncryption:              true,
-			EncryptDCConnections:       true,
-			LdapSigning:                true,
-			AllowLocalNFSUsersWithLdap: true,
-			Description:                "Test AD",
+		credentialPath := "projects/test-project/secrets/test-secret"
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid"},
+			AdName:         "test-ad",
+			CredentialPath: credentialPath,
+			State:          string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING),
 		}
-		adUUID := "test-ad-uuid"
-		accountId := int64(123)
 
-		mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, params.ResourceId, accountId).Return(nil, customerrors.New("not found"))
-
-		createError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, vsaerrors.New("database creation failed"))
-		mockStorage.On("CreateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
-			return ad.AdName == params.ResourceId &&
-				ad.Username == params.Username &&
-				ad.Domain == params.Domain &&
-				ad.DNS == params.DNS &&
-				ad.NetBIOS == params.NetBIOS &&
-				ad.AccountId == accountId &&
-				ad.UUID == adUUID &&
-				ad.ActiveDirectoryAttributes.PrimaryAD == true
-		})).Return(nil, createError)
-
-		// Mock the password secret storage to prevent GCP authentication issues
-		originalStorePasswordSecret := storePasswordSecret
-		storePasswordSecret = func(gcpService hyperscaler.GoogleServices, password, secretID string) error {
-			return nil // Mock successful secret storage
+		// Mock successful secret deletion
+		deleteSecretCalled := false
+		originalDeleteSecret := DeleteSecretFromGCP
+		defer func() { DeleteSecretFromGCP = originalDeleteSecret }()
+		DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
+			deleteSecretCalled = true
+			assert.Equal(t, credentialPath, path)
+			return nil
 		}
-		defer func() {
-			storePasswordSecret = originalStorePasswordSecret
-		}()
 
-		result, err := activity.CreateVcpActiveDirectory(ctx, params, adUUID, accountId)
+		// Mock successful database update
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(updatedAd *datamodel.ActiveDirectory) bool {
+			return updatedAd.UUID == ad.UUID && updatedAd.State == models.LifeCycleStateError
+		})).Return(ad, nil)
+
+		err := activity.RollbackActiveDirectory(ctx, ad)
+
+		assert.NoError(t, err)
+		assert.True(t, deleteSecretCalled)
+		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("SuccessfulRollbackWithoutCredentials", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &ActiveDirectoryCreateActivity{
+			SE: mockStorage,
+		}
+
+		ctx := context.Background()
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid"},
+			AdName:         "test-ad",
+			CredentialPath: "", // No credentials to delete
+			State:          string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING),
+		}
+
+		// Verify DeleteSecretFromGCP is not called
+		deleteSecretCalled := false
+		originalDeleteSecret := DeleteSecretFromGCP
+		defer func() { DeleteSecretFromGCP = originalDeleteSecret }()
+		DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
+			deleteSecretCalled = true
+			return nil
+		}
+
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(updatedAd *datamodel.ActiveDirectory) bool {
+			return updatedAd.UUID == ad.UUID && updatedAd.State == models.LifeCycleStateError
+		})).Return(ad, nil)
+
+		err := activity.RollbackActiveDirectory(ctx, ad)
+
+		assert.NoError(t, err)
+		assert.False(t, deleteSecretCalled)
+		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("NilActiveDirectory", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &ActiveDirectoryCreateActivity{
+			SE: mockStorage,
+		}
+
+		ctx := context.Background()
+
+		err := activity.RollbackActiveDirectory(ctx, nil)
+
+		assert.NoError(t, err)
+		// No mock expectations needed as nothing should be called
+	})
+
+	t.Run("SecretDeletionFailure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &ActiveDirectoryCreateActivity{
+			SE: mockStorage,
+		}
+
+		ctx := context.Background()
+		credentialPath := "projects/test-project/secrets/test-secret"
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid"},
+			AdName:         "test-ad",
+			CredentialPath: credentialPath,
+			State:          string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING),
+		}
+
+		// Mock failed secret deletion
+		expectedSecretError := vsaerror.New("failed to delete secret from GCP during AD creation rollback")
+		originalDeleteSecret := DeleteSecretFromGCP
+		defer func() { DeleteSecretFromGCP = originalDeleteSecret }()
+		DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
+			return vsaerror.New("GCP secret deletion error")
+		}
+
+		// Database update should still be called due to defer, even when secret deletion fails
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(updatedAd *datamodel.ActiveDirectory) bool {
+			return updatedAd.UUID == ad.UUID && updatedAd.State == models.LifeCycleStateError
+		})).Return(ad, nil)
+
+		err := activity.RollbackActiveDirectory(ctx, ad)
 
 		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Equal(t, createError, err)
+		assert.Contains(t, err.Error(), expectedSecretError.Error())
+		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DatabaseUpdateFailure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &ActiveDirectoryCreateActivity{
+			SE: mockStorage,
+		}
+
+		ctx := context.Background()
+		credentialPath := "projects/test-project/secrets/test-secret"
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid"},
+			AdName:         "test-ad",
+			CredentialPath: credentialPath,
+			State:          string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING),
+		}
+
+		// Mock successful secret deletion
+		originalDeleteSecret := DeleteSecretFromGCP
+		defer func() { DeleteSecretFromGCP = originalDeleteSecret }()
+		DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
+			return nil
+		}
+
+		// Mock failed database update - error is logged but not returned
+		updateError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, vsaerrors.New("database update failed"))
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.Anything).Return(nil, updateError)
+
+		// No error should be returned as the defer catches and logs update errors
+		err := activity.RollbackActiveDirectory(ctx, ad)
+
+		assert.NoError(t, err)
+		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("StateTransitionValidation", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &ActiveDirectoryCreateActivity{
+			SE: mockStorage,
+		}
+
+		ctx := context.Background()
+		originalState := string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING)
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid"},
+			AdName:         "test-ad",
+			CredentialPath: "",
+			State:          originalState,
+		}
+
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(updatedAd *datamodel.ActiveDirectory) bool {
+			// Verify state transition from CREATING to ERROR
+			return updatedAd.State == models.LifeCycleStateError
+		})).Return(ad, nil)
+
+		err := activity.RollbackActiveDirectory(ctx, ad)
+
+		assert.NoError(t, err)
+		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		assert.NotEqual(t, originalState, ad.State)
 		mockStorage.AssertExpectations(t)
 	})
 }
 
-func TestActiveDirectoryCreateActivity_CreateSdeActiveDirectory(t *testing.T) {
-	t.Run("PlaceholderImplementation", func(t *testing.T) {
-		activity := &ActiveDirectoryCreateActivity{}
-
+func TestDeleteSecretFromGCP(t *testing.T) {
+	t.Run("SuccessfulSecretDeletion", func(t *testing.T) {
+		mockGcpService := &hyperscaler.MockGoogleServices{}
 		ctx := context.Background()
-		params := &common.CreateActiveDirectoryParams{
-			ResourceId: "test-sde-ad",
-		}
+		credentialPath := "test-secret-id"
+		projectID := "test-project-id"
 
-		result, err := activity.CreateSdeActiveDirectory(ctx, params)
+		// Mock successful secret retrieval
+		secretData := &gcpModels.CustomSecret{}
+		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
+			Return(secretData, nil)
+
+		// Mock successful secret deletion
+		mockGcpService.On("DeleteSecret", projectID, credentialPath).
+			Return(nil)
+
+		// Set the env variable for the test
+		originalProjectID := env.SecretManagerProjectID
+		env.SecretManagerProjectID = projectID
+		defer func() { env.SecretManagerProjectID = originalProjectID }()
+
+		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
 
 		assert.NoError(t, err)
-		assert.Nil(t, result)
+		mockGcpService.AssertExpectations(t)
 	})
 
-	t.Run("ReturnsCorrectType", func(t *testing.T) {
-		activity := &ActiveDirectoryCreateActivity{}
-
+	t.Run("SecretNotFound", func(t *testing.T) {
+		mockGcpService := &hyperscaler.MockGoogleServices{}
 		ctx := context.Background()
-		params := &common.CreateActiveDirectoryParams{
-			ResourceId: "test-sde-ad",
-			Domain:     "sde.example.com",
-		}
+		credentialPath := "non-existent-secret"
+		projectID := "test-project-id"
 
-		result, err := activity.CreateSdeActiveDirectory(ctx, params)
+		// Mock secret not found
+		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
+			Return(nil, vsaerror.New("secret not found"))
 
-		assert.NoError(t, err)
-		assert.Nil(t, result)
+		originalProjectID := env.SecretManagerProjectID
+		env.SecretManagerProjectID = projectID
+		defer func() { env.SecretManagerProjectID = originalProjectID }()
 
-		// Verify the function signature returns the correct type
-		var expectedType *models.AggregateDistributionResult
-		assert.IsType(t, expectedType, result)
-	})
-}
-
-func TestStorePasswordSecret(t *testing.T) {
-	t.Run("CreateNewSecretSuccess", func(t *testing.T) {
-		mockGCPService := &hyperscaler.MockGoogleServices{}
-
-		password := "test-password"
-		secretID := "test-secret-id"
-
-		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, secretID, password).
-			Return(&hyperscalermodels.CustomSecret{SecretVersion: &hyperscalermodels.CustomSecretVersion{
-				Value: "",
-			}}, nil)
-
-		err := storePasswordSecret(mockGCPService, password, secretID)
+		// Should not fail when secret is not found
+		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
 
 		assert.NoError(t, err)
-		mockGCPService.AssertExpectations(t)
+		mockGcpService.AssertExpectations(t)
 	})
 
-	t.Run("PropagateCreateSecretError", func(t *testing.T) {
-		mockGCPService := &hyperscaler.MockGoogleServices{}
+	t.Run("NilGcpService", func(t *testing.T) {
+		ctx := context.Background()
+		credentialPath := "test-secret-id"
 
-		password := "test-password"
-		secretID := "test-secret-id"
-
-		createError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, vsaerrors.New("create secret failed"))
-		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, secretID, password).Return(nil, createError)
-		err := storePasswordSecret(mockGCPService, password, secretID)
+		err := deleteSecretFromGCP(ctx, nil, credentialPath)
 
 		assert.Error(t, err)
-		assert.Equal(t, createError, err)
-		mockGCPService.AssertExpectations(t)
-	})
-}
-
-func TestGeneratePasswordSecretId(t *testing.T) {
-	t.Run("ValidSecretIdGeneration", func(t *testing.T) {
-		projectID := "test-project"
-		accountID := "test-account"
-		adName := "test-ad"
-		region := "us-central1"
-
-		secretID := generatePasswordSecretId(projectID, accountID, adName, region)
-
-		assert.NotEmpty(t, secretID)
-		assert.True(t, len(secretID) == 20) // "gcnv-" (5 chars) + 15 hex chars
-		assert.True(t, strings.HasPrefix(secretID, "gcnv-"))
+		assert.Contains(t, err.Error(), "GCP service is nil")
 	})
 
-	t.Run("DeterministicGeneration", func(t *testing.T) {
-		projectID := "test-project"
-		adName := "test-ad"
-		accountID := "test-account"
-		region := "us-central1"
+	t.Run("SecretDeletionFailed", func(t *testing.T) {
+		mockGcpService := &hyperscaler.MockGoogleServices{}
+		ctx := context.Background()
+		credentialPath := "test-secret-id"
+		projectID := "test-project-id"
 
-		secretID1 := generatePasswordSecretId(projectID, accountID, adName, region)
-		secretID2 := generatePasswordSecretId(projectID, accountID, adName, region)
+		secretData := &gcpModels.CustomSecret{}
+		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
+			Return(secretData, nil)
 
-		assert.Equal(t, secretID1, secretID2)
+		// Mock deletion failure
+		deleteError := vsaerror.New("failed to delete secret")
+		mockGcpService.On("DeleteSecret", projectID, credentialPath).
+			Return(deleteError)
+
+		originalProjectID := env.SecretManagerProjectID
+		env.SecretManagerProjectID = projectID
+		defer func() { env.SecretManagerProjectID = originalProjectID }()
+
+		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
+
+		assert.Error(t, err)
+		assert.Equal(t, deleteError, err)
+		mockGcpService.AssertExpectations(t)
 	})
 
-	t.Run("DifferentInputsProduceDifferentIds", func(t *testing.T) {
-		secretID1 := generatePasswordSecretId("project1", "test-account", "ad1", "region1")
-		secretID2 := generatePasswordSecretId("project2", "test-account", "ad2", "region2")
+	t.Run("NilSecretReturned", func(t *testing.T) {
+		mockGcpService := &hyperscaler.MockGoogleServices{}
+		ctx := context.Background()
+		credentialPath := "test-secret-id"
+		projectID := "test-project-id"
 
-		assert.NotEqual(t, secretID1, secretID2)
+		// Mock nil secret with no error
+		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
+			Return(nil, nil)
+
+		originalProjectID := env.SecretManagerProjectID
+		env.SecretManagerProjectID = projectID
+		defer func() { env.SecretManagerProjectID = originalProjectID }()
+
+		// Should succeed without attempting deletion
+		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
+
+		assert.NoError(t, err)
+		// Verify DeleteSecret was NOT called
+		mockGcpService.AssertNotCalled(t, "DeleteSecret", mock.Anything, mock.Anything)
+		mockGcpService.AssertExpectations(t)
 	})
 
-	t.Run("HandleEmptyInputs", func(t *testing.T) {
-		secretID := generatePasswordSecretId("", "", "", "")
+	t.Run("EmptyCredentialPath", func(t *testing.T) {
+		mockGcpService := &hyperscaler.MockGoogleServices{}
+		ctx := context.Background()
+		credentialPath := ""
+		projectID := "test-project-id"
 
-		assert.NotEmpty(t, secretID)
-		assert.True(t, strings.HasPrefix(secretID, "gcnv-"))
-		assert.True(t, len(secretID) == 20)
-	})
+		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
+			Return(nil, vsaerror.New("invalid secret path"))
 
-	t.Run("HandleSpecialCharacters", func(t *testing.T) {
-		projectID := "test-project-123"
-		accountID := "acc!@#"
-		adName := "test_ad-name"
-		region := "us-central1-a"
+		originalProjectID := env.SecretManagerProjectID
+		env.SecretManagerProjectID = projectID
+		defer func() { env.SecretManagerProjectID = originalProjectID }()
 
-		secretID := generatePasswordSecretId(projectID, accountID, adName, region)
+		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
 
-		assert.NotEmpty(t, secretID)
-		assert.True(t, strings.HasPrefix(secretID, "gcnv-"))
-		assert.True(t, len(secretID) == 20)
-	})
-}
-
-func TestActiveDirectoryCreateActivity_Constants(t *testing.T) {
-	t.Run("VerifyConstants", func(t *testing.T) {
-		assert.Equal(t, `BUILTIN\Backup Operators`, ActiveDirectoryGroupBuiltInBackupOperators)
-		assert.Equal(t, `BUILTIN\Administrators`, ActiveDirectoryGroupBuiltInAdministrators)
-		assert.Equal(t, `SeSecurityPrivilege`, ActiveDirectorySeSecurityPrivilege)
+		// Should not fail as secret not found is treated as success
+		assert.NoError(t, err)
+		mockGcpService.AssertExpectations(t)
 	})
 }

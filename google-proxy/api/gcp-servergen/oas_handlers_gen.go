@@ -325,14 +325,14 @@ func (s *Server) handleV1betaCheckKmsConfigRequest(args [3]string, argsEscaped b
 //
 // Creates Active Directory credentials for the active user.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 func (s *Server) handleV1betaCreateActiveDirectoryRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_createActiveDirectory"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory"),
 	}
 
 	// Start a span for this request.
@@ -2064,14 +2064,14 @@ func (s *Server) handleV1betaCreateVolumeRequest(args [2]string, argsEscaped boo
 // resource not found, since that could be interpreted as resource already deleted, and therefore
 // will return operation done instead.
 //
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (s *Server) handleV1betaDeleteActiveDirectoryRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_deleteActiveDirectory"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}"),
 	}
 
 	// Start a span for this request.
@@ -3722,14 +3722,14 @@ func (s *Server) handleV1betaDeleteVolumeRequest(args [3]string, argsEscaped boo
 //
 // Returns the description of the specified Active Directory credentials by active-directory Id.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (s *Server) handleV1betaDescribeActiveDirectoryRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_describeActiveDirectory"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}"),
 	}
 
 	// Start a span for this request.
@@ -5857,14 +5857,14 @@ func (s *Server) handleV1betaFinishProjectEventRequest(args [2]string, argsEscap
 //
 // Returns descriptions of Active Directory credentials that is listed in request body.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories
 func (s *Server) handleV1betaGetMultipleActiveDirectoriesRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_getMultipleActiveDirectories"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories"),
 	}
 
 	// Start a span for this request.
@@ -10956,14 +10956,14 @@ func (s *Server) handleV1betaInternalUpdateVolumeReplicationAttributesRequest(ar
 //
 // Returns descriptions of all Active Directory credentials owned by the caller.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 func (s *Server) handleV1betaListActiveDirectoriesRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_listActiveDirectories"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory"),
 	}
 
 	// Start a span for this request.
@@ -13765,14 +13765,14 @@ func (s *Server) handleV1betaSyncReplicationRequest(args [4]string, argsEscaped 
 //
 // Update the Active Directory credentials.
 //
-// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (s *Server) handleV1betaUpdateActiveDirectoryRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_updateActiveDirectory"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}"),
 	}
 
 	// Start a span for this request.

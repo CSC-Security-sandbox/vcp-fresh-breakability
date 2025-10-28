@@ -780,7 +780,7 @@ func TestGetActiveDirectoryByUuidAndAccountId(t *testing.T) {
 		wrapper := gormwrapper.New(db)
 		store := NewDataStoreRepository(wrapper)
 
-		err = ClearInMemoryDB(db)
+		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		// Create an active directory first
@@ -846,6 +846,41 @@ func TestGetActiveDirectoryByUuidAndAccountId(t *testing.T) {
 		assert.Nil(tt, retrievedAd, "Expected active directory to be nil for wrong account")
 	})
 
+	t.Run("WhenActiveDirectoryIsNil", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(db)
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory for account 123
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "550e8400-e29b-41d4-a716-446655440000",
+			},
+			AdName:    "test-active-directory",
+			AccountId: 123,
+		}
+
+		err = db.Create(ad).Error
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Try to get it for account 456
+		retrievedAd, err := store.GetActiveDirectoryByUuidAndAccountId(context.Background(), "550e8400-e29b-41d4-a716-446655440000", 456)
+		assert.Error(tt, err, "Expected not found error for wrong account")
+		assert.ErrorContains(tt, err, "Active Directory not found")
+		assert.Nil(tt, retrievedAd, "Expected active directory to be nil for wrong account")
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		updatedAd, err := store.UpdateActiveDirectory(context.Background(), nil)
+		assert.Error(tt, err, "Expected error when active directory is nil")
+		assert.Nil(tt, updatedAd, "Expected result to be nil")
+		assert.Contains(tt, err.Error(), "Active Directory is nil", "Expected nil AD error message")
+	})
+
 	t.Run("WhenDatabaseError", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")
@@ -863,5 +898,261 @@ func TestGetActiveDirectoryByUuidAndAccountId(t *testing.T) {
 
 		_, err = store.GetActiveDirectoryByUuidAndAccountId(context.Background(), "550e8400-e29b-41d4-a716-446655440000", 123)
 		assert.Error(tt, err, "Expected error when database is closed")
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			AdName:    "test-ad",
+			AccountId: 123,
+		}
+
+		_, err = store.UpdateActiveDirectory(context.Background(), ad)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Contains(tt, err.Error(), "sql: database is closed", "Expected database closed error")
+	})
+
+	t.Run("WhenUpdatingMultipleFields", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "multi-update-uuid",
+			},
+			AdName:    "original-name",
+			AccountId: 100,
+		}
+		createdAd, err := store.CreateActiveDirectory(context.Background(), ad)
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Update multiple fields
+		originalUpdatedAt := createdAd.UpdatedAt
+		createdAd.AdName = "new-name"
+		// Note: AccountId typically shouldn't change, but testing field updates
+
+		updatedAd, err := store.UpdateActiveDirectory(context.Background(), createdAd)
+		assert.NoError(tt, err, "Expected no error")
+		assert.NotNil(tt, updatedAd, "Expected updated active directory to not be nil")
+		assert.Equal(tt, "new-name", updatedAd.AdName, "Expected updated AD name")
+		assert.True(tt, updatedAd.UpdatedAt.After(originalUpdatedAt), "Expected UpdatedAt to be updated")
+	})
+}
+
+func TestUpdateActiveDirectory(t *testing.T) {
+	t.Run("WhenActiveDirectoryIsUpdatedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory first
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "update-test-uuid",
+			},
+			AdName:    "original-ad-name",
+			AccountId: 123,
+		}
+		createdAd, err := store.CreateActiveDirectory(context.Background(), ad)
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Update the active directory
+		createdAd.AdName = "updated-ad-name"
+		updatedAd, err := store.UpdateActiveDirectory(context.Background(), createdAd)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, updatedAd, "Expected updated active directory to not be nil")
+		assert.Equal(tt, "updated-ad-name", updatedAd.AdName, "Expected updated AD name")
+		assert.Equal(tt, createdAd.ID, updatedAd.ID, "Expected ID to remain the same")
+	})
+
+	t.Run("WhenActiveDirectoryDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Try to update non-existent active directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				ID: 99999,
+			},
+			AdName:    "non-existent-ad",
+			AccountId: 123,
+		}
+
+		updatedAd, err := store.UpdateActiveDirectory(context.Background(), ad)
+		assert.Error(tt, err, "Expected error for non-existent record")
+		assert.Nil(tt, updatedAd, "Expected result to be nil")
+		assert.Contains(tt, err.Error(), "not found", "Expected not found error message")
+	})
+
+	t.Run("WhenActiveDirectoryIsNil", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		updatedAd, err := store.UpdateActiveDirectory(context.Background(), nil)
+		assert.Error(tt, err, "Expected error when active directory is nil")
+		assert.Nil(tt, updatedAd, "Expected result to be nil")
+		assert.Contains(tt, err.Error(), "Active Directory is nil", "Expected nil AD error message")
+	})
+
+	t.Run("WhenDatabaseError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate a database error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		assert.NoError(tt, err)
+
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			AdName:    "test-ad",
+			AccountId: 123,
+		}
+
+		_, err = store.UpdateActiveDirectory(context.Background(), ad)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Contains(tt, err.Error(), "sql: database is closed", "Expected database closed error")
+	})
+
+	t.Run("WhenUpdatingMultipleFields", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "multi-update-uuid",
+			},
+			AdName:    "original-name",
+			AccountId: 100,
+		}
+		createdAd, err := store.CreateActiveDirectory(context.Background(), ad)
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Update multiple fields
+		originalUpdatedAt := createdAd.UpdatedAt
+		createdAd.AdName = "new-name"
+		// Note: AccountId typically shouldn't change, but testing field updates
+
+		updatedAd, err := store.UpdateActiveDirectory(context.Background(), createdAd)
+		assert.NoError(tt, err, "Expected no error")
+		assert.NotNil(tt, updatedAd, "Expected updated active directory to not be nil")
+		assert.Equal(tt, "new-name", updatedAd.AdName, "Expected updated AD name")
+		assert.True(tt, updatedAd.UpdatedAt.After(originalUpdatedAt), "Expected UpdatedAt to be updated")
+	})
+}
+
+func TestUpdateActiveDirectoryFunction(t *testing.T) {
+	t.Run("WhenDirectFunctionCallSucceeds", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+
+		err = ClearInMemoryDB(db)
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "direct-update-uuid",
+			},
+			AdName:    "direct-original",
+			AccountId: 456,
+		}
+		err = db.Create(ad).Error
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Update using direct function
+		ad.AdName = "direct-updated"
+		result, err := updateActiveDirectory(db, ad)
+		assert.NoError(tt, err, "Expected no error from direct function call")
+		assert.NotNil(tt, result, "Expected result to not be nil")
+		assert.Equal(tt, "direct-updated", result.AdName, "Expected updated AD name")
+	})
+
+	t.Run("WhenNilActiveDirectory", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+
+		result, err := updateActiveDirectory(db, nil)
+		assert.Error(tt, err, "Expected error for nil active directory")
+		assert.Nil(tt, result, "Expected result to be nil")
+		assert.Contains(tt, err.Error(), "Active Directory is nil", "Expected nil AD error message")
+	})
+
+	t.Run("WhenNoRowsAffected", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+
+		err = ClearInMemoryDB(db)
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Try to update with non-existent ID
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				ID: 99999,
+			},
+			AdName:    "non-existent",
+			AccountId: 789,
+		}
+
+		result, err := updateActiveDirectory(db, ad)
+		assert.Error(tt, err, "Expected error when no rows affected")
+		assert.Nil(tt, result, "Expected result to be nil")
+		assert.Contains(tt, err.Error(), "not found", "Expected not found error")
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+
+		// Close the database to simulate error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		assert.NoError(tt, err)
+
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			AdName:    "error-test",
+			AccountId: 123,
+		}
+
+		result, err := updateActiveDirectory(db, ad)
+		assert.Error(tt, err, "Expected error from direct function call")
+		assert.Nil(tt, result, "Expected result to be nil on error")
 	})
 }

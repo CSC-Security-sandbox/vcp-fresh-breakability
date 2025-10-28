@@ -22,15 +22,14 @@ type ActiveDirectoryValidator struct {
 }
 
 const (
-	netBIOSPattern                = `(^[^\.\\/:*?"<>|\s@()=+\[\];,#]$)|(^[^\.\\/:*?"<>|\s@()=+\[\];,#][^\\/:*?"<>|\s@()=+\[\];,#]{0,8}[^\.\\/:*?"<>|\s@()=+\[\];,#]$)`
-	sitePattern                   = `(^[A-Za-z0-9]+[A-Za-z0-9\.\-]*[A-Za-z0-9]$)`
-	netBIOSValidationErr          = `netBIOS in body must not contain any of the following characters: \/;*?"<>|@#()=+[]:, nor start or end with a dot.`
-	siteValidationErr             = `Site names have to be at least 2 characters long (an empty string clears site assignment), can contain only alphabetical characters (A-Z), numeric characters (0-9), the minus sign (-), and the period (.). Period characters are allowed only when they are used to delimit the components of domain style names.`
-	adUserValidationErr           = `Active Directory users must be unique and should not have the domain prefixed.`
-	dnsValidationErr              = `Active Directory DNS cannot be a loopback ip, broadcast ip or multicast ip.`
-	adNameValidationErr           = `Active Directory AD server name cannot be an ip address, provide AD server hostname`
-	usernameValidationErr         = `Active directory username should not contain any of the following characters: /\[]:;|=,+*?"<>`
-	uniqueResourceIdPerAccountErr = `Active Directory resourceId must be unique per account`
+	netBIOSPattern        = `(^[^\.\\/:*?"<>|\s@()=+\[\];,#]$)|(^[^\.\\/:*?"<>|\s@()=+\[\];,#][^\\/:*?"<>|\s@()=+\[\];,#]{0,8}[^\.\\/:*?"<>|\s@()=+\[\];,#]$)`
+	sitePattern           = `(^[A-Za-z0-9]+[A-Za-z0-9\.\-]*[A-Za-z0-9]$)`
+	netBIOSValidationErr  = `netBIOS in body must not contain any of the following characters: \/;*?"<>|@#()=+[]:, nor start or end with a dot.`
+	siteValidationErr     = `Site names have to be at least 2 characters long (an empty string clears site assignment), can contain only alphabetical characters (A-Z), numeric characters (0-9), the minus sign (-), and the period (.). Period characters are allowed only when they are used to delimit the components of domain style names.`
+	adUserValidationErr   = `Active Directory users must be unique and should not have the domain prefixed.`
+	dnsValidationErr      = `Active Directory DNS cannot be a loopback ip, broadcast ip or multicast ip.`
+	adNameValidationErr   = `Active Directory AD server name cannot be an ip address, provide AD server hostname`
+	usernameValidationErr = `Active directory username should not contain any of the following characters: /\[]:;|=,+*?"<>`
 )
 
 var usernameInvalidCharsRe = regexp.MustCompile(`[/\\:;|\[\]=,+*?<>"]`)
@@ -102,9 +101,6 @@ func (adValidator *ActiveDirectoryValidator) RegisterValidators() error {
 		return err
 	}
 	adValidator.AddTranslation("ResourceId")
-
-	adValidator.validate.RegisterStructValidation(adValidator.adNameAndAccountIDValidator, &common.CreateActiveDirectoryParams{})
-	adValidator.AddTranslation("uniqueResourceIdPerAccount", uniqueResourceIdPerAccountErr)
 
 	return nil
 }
@@ -193,18 +189,6 @@ func (adValidator *ActiveDirectoryValidator) dnsValidator(fl validator.FieldLeve
 	// Clean up any previous error
 	adValidator.dnErrorStore.Delete(fl.StructFieldName())
 	return true
-}
-
-func (adValidator *ActiveDirectoryValidator) adNameAndAccountIDValidator(sl validator.StructLevel) {
-	key := "CreateActiveDirectoryParams-uniqueResourceIdPerAccount"
-	adValidator.dnErrorStore.Store(key, uniqueResourceIdPerAccountErr)
-	params := sl.Current().Interface().(common.CreateActiveDirectoryParams)
-
-	account, _ := adValidator.se.GetAccount(adValidator.ctx, params.AccountId)
-	ad, _ := adValidator.se.GetActiveDirectoryByNameAndAccountID(adValidator.ctx, params.ResourceId, account.ID)
-	if ad != nil {
-		sl.ReportError(params.ResourceId, "ResourceId", "resourceId", "uniqueResourceIdPerAccount", "")
-	}
 }
 
 func (adValidator *ActiveDirectoryValidator) adNameValidator(fl validator.FieldLevel) bool {

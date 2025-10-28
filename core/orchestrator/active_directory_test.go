@@ -2,18 +2,19 @@ package orchestrator
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/sdk/client"
@@ -21,49 +22,68 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-func Test_createActiveDirectory_Success(t *testing.T) {
+func TestCreateActiveDirectory_Success(t *testing.T) {
 	ctx := context.Background()
-	mockSe := new(database.MockStorage)
-	mockTemporal := new(mocks.Client)
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
 	params := &common.CreateActiveDirectoryParams{
-		AccountId:                  "test-account",
-		ResourceId:                 "ad-resource",
-		Username:                   "admin",
-		Password:                   "pass",
-		Domain:                     "example.com",
-		DNS:                        "8.8.8.8",
-		NetBIOS:                    "NETBIOS",
-		OrganizationalUnit:         "",
-		Site:                       "site1",
-		SecurityOperators:          []string{"secop"},
-		BackupOperators:            []string{"backupop"},
-		Administrators:             []string{"admin"},
-		KdcIP:                      "1.2.3.4",
-		KdcHostname:                "kdc-host",
-		AesEncryption:              true,
-		EncryptDCConnections:       true,
-		LdapSigning:                true,
-		AllowLocalNFSUsersWithLdap: false,
-		Description:                "desc",
+		ResourceId:         "test-ad",
+		AccountId:          "123",
+		Username:           "admin@test.local",
+		Password:           "SecurePass123!",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
+		OrganizationalUnit: "CN=Computers",
+		Site:               "Default-First-Site",
+		KdcIP:              "10.0.0.2",
+		KdcHostname:        "kdc.test.local",
+		AesEncryption:      true,
+		BackupOperators:    []string{"backup-user"},
+		Administrators:     []string{"admin-user"},
+		SecurityOperators:  []string{"security-user"},
 	}
 
-	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
-	job := &datamodel.Job{
-		BaseModel: datamodel.BaseModel{
-			UUID: "job-uuid",
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
+		AdName:         params.ResourceId,
+		Username:       params.Username,
+		Domain:         params.Domain,
+		DNS:            params.DNS,
+		NetBIOS:        params.NetBIOS,
+		CredentialPath: "secret-path",
+		AccountId:      accountID,
+		State:          models.LifeCycleStateCreating,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			OrganizationalUnit: params.OrganizationalUnit,
+			Site:               params.Site,
+			KdcIP:              params.KdcIP,
+			KdcHostname:        params.KdcHostname,
+			AesEncryption:      params.AesEncryption,
 		},
-		WorkflowID:   "workflow-id",
-		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
-		ResourceName: "ad-resource",
 	}
-	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 
-	// Patch getOrCreateAccount to return our account
-	origGetOrCreateAccount := getOrCreateAccount
-	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-		return account, nil
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-123",
+		Type:       string(models.JobTypeCreateActiveDirectory),
+		State:      string(models.JobsStateNEW),
 	}
-	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		return ad.AdName == params.ResourceId
+	})).Return(adRecord, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
+		return j.Type == string(models.JobTypeCreateActiveDirectory)
+	})).Return(job, nil)
 
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
@@ -72,202 +92,710 @@ func Test_createActiveDirectory_Success(t *testing.T) {
 	}
 	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
-	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
-	mockSe.On("GetAccount", mock.Anything, "test-account").Return(account, nil)
-	mockSe.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "ad-resource", int64(42)).Return(nil, sql.ErrNoRows)
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
 
-	ad, jobUUID, err := createActiveDirectory(ctx, mockSe, mockTemporal, params)
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ad)
-	assert.Equal(t, "job-uuid", jobUUID)
+	assert.Equal(t, "job-uuid-123", jobUUID)
+	assert.Equal(t, adRecord.UUID, ad.UUID)
 	assert.Equal(t, params.ResourceId, ad.AdName)
+	assert.Equal(t, params.Username, ad.Username)
+	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
 }
 
-func Test_createActiveDirectory_AccountError(t *testing.T) {
+func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	ctx := context.Background()
-	mockSe := new(database.MockStorage)
-	mockTemporal := new(mocks.Client)
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
 	params := &common.CreateActiveDirectoryParams{
-		AccountId:          "test-account",
-		ResourceId:         "ad-resource",
-		Username:           "admin",
-		Password:           "password123",
-		Domain:             "example.com",
-		DNS:                "8.8.8.8",
-		NetBIOS:            "EXAMPLE",
+		ResourceId:         "test-ad-cvp",
+		AccountId:          "123",
+		Username:           "admin@test.local",
+		Password:           "SecurePass123!",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
 		OrganizationalUnit: "CN=Computers",
-		Site:               "Default-First-Site-Name",
+		Site:               "Default-First-Site",
+		KdcIP:              "10.0.0.2",
+		KdcHostname:        "kdc.test.local",
+		AesEncryption:      true,
+		BackupOperators:    []string{"backup-user"},
+		Administrators:     []string{"admin-user"},
+		SecurityOperators:  []string{"security-user"},
 	}
-	// Patch getOrCreateAccount to return error
-	origGetOrCreateAccount := getOrCreateAccount
-	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-		return nil, errors.New("account error")
-	}
-	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
 
-	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
-	mockSe.On("GetAccount", mock.Anything, "test-account").Return(account, nil)
-	mockSe.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, mock.Anything, int64(42)).Return(nil, sql.ErrNoRows)
-
-	_, _, err := _createActiveDirectory(ctx, mockSe, mockTemporal, params)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "account error")
-}
-
-func Test_createActiveDirectory_CreateJobError(t *testing.T) {
-	ctx := context.Background()
-	mockSe := new(database.MockStorage)
-	mockTemporal := new(mocks.Client)
-	params := &common.CreateActiveDirectoryParams{
-		AccountId:          "test-account",
-		ResourceId:         "ad-resource",
-		Username:           "admin",
-		Password:           "password123",
-		Domain:             "example.com",
-		DNS:                "8.8.8.8",
-		NetBIOS:            "EXAMPLE",
-		OrganizationalUnit: "CN=Computers",
-		Site:               "Default-First-Site-Name",
-	}
-	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
-	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(&datamodel.Job{}, errors.New("db error"))
-
-	origGetOrCreateAccount := getOrCreateAccount
-	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-		return account, nil
-	}
-	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
-
-	mockSe.On("GetAccount", mock.Anything, "test-account").Return(account, nil)
-	mockSe.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, mock.Anything, int64(42)).Return(nil, sql.ErrNoRows)
-
-	_, _, err := _createActiveDirectory(ctx, mockSe, mockTemporal, params)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "db error")
-}
-
-func Test_createActiveDirectory_WorkflowError(t *testing.T) {
-	ctx := context.Background()
-	mockSe := new(database.MockStorage)
-	mockTemporal := new(mocks.Client)
-	params := &common.CreateActiveDirectoryParams{
-		AccountId:          "test-account",
-		ResourceId:         "ad-resource",
-		Username:           "admin",
-		Password:           "password123",
-		Domain:             "example.com",
-		DNS:                "8.8.8.8",
-		NetBIOS:            "EXAMPLE",
-		OrganizationalUnit: "CN=Computers",
-		Site:               "Default-First-Site-Name",
-	}
-	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
 	job := &datamodel.Job{
-		BaseModel: datamodel.BaseModel{
-			UUID: "job-uuid",
-		},
-		WorkflowID:   "workflow-id",
-		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
-		ResourceName: "ad-resource",
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-cvp-123"},
+		WorkflowID: "workflow-cvp-123",
+		Type:       string(models.JobTypeCreateActiveDirectory),
+		State:      string(models.JobsStateNEW),
 	}
-	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
-	mockSe.On("UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
 
-	origGetOrCreateAccount := getOrCreateAccount
-	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-		return account, nil
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
 	}
-	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
+		return j.Type == string(models.JobTypeCreateActiveDirectory)
+	})).Return(job, nil)
 
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
-		return errors.New("workflow error")
+		return nil
 	}
 	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
-	mockSe.On("GetAccount", mock.Anything, "test-account").Return(account, nil)
-	mockSe.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, mock.Anything, int64(42)).Return(nil, sql.ErrNoRows)
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
 
-	_, _, err := _createActiveDirectory(ctx, mockSe, mockTemporal, params)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "workflow error")
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "https://cvp.example.com"
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, "job-uuid-cvp-123", jobUUID)
+	assert.Equal(t, params.ResourceId, ad.AdName)
+	assert.Equal(t, "", ad.UUID)
+	assert.Equal(t, params.Username, ad.Username)
+	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
 }
 
-func Test_convertActiveDirectoryParamsToModel(t *testing.T) {
+func TestCreateActiveDirectory_ValidationError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
 	params := &common.CreateActiveDirectoryParams{
-		ResourceId:                 "ad-resource",
-		Username:                   "admin",
-		Password:                   "pass",
-		Domain:                     "example.com",
-		DNS:                        "8.8.8.8",
-		NetBIOS:                    "NETBIOS",
-		OrganizationalUnit:         "OU=Test",
-		Site:                       "site1",
-		SecurityOperators:          []string{"secop"},
-		BackupOperators:            []string{"backupop"},
-		Administrators:             []string{"admin"},
-		KdcIP:                      "1.2.3.4",
-		KdcHostname:                "kdc-host",
+		ResourceId: "",
+		AccountId:  "123",
+		Username:   "admin",
+		Password:   "pass",
+		Domain:     "test.local",
+	}
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+
+	var validationErr *customerrors.UserInputValidationErr
+	assert.True(t, errors.As(err, &validationErr))
+}
+
+func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId:         "test-ad",
+		AccountId:          "123",
+		Username:           "admin@test.local",
+		Password:           "SecurePass123!",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
+		OrganizationalUnit: "CN=Computers",
+		Site:               "Default-First-Site",
+		KdcIP:              "10.0.0.2",
+		KdcHostname:        "kdc.test.local",
+		AesEncryption:      true,
+		BackupOperators:    []string{"backup-user"},
+		Administrators:     []string{"admin-user"},
+		SecurityOperators:  []string{"security-user"},
+	}
+
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-123",
+		Type:       string(models.JobTypeCreateActiveDirectory),
+		State:      string(models.JobsStateNEW),
+	}
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
+		AdName:         params.ResourceId,
+		Username:       params.Username,
+		Domain:         params.Domain,
+		DNS:            params.DNS,
+		NetBIOS:        params.NetBIOS,
+		CredentialPath: "secret-path",
+		AccountId:      accountID,
+		State:          models.LifeCycleStateCreating,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			OrganizationalUnit: params.OrganizationalUnit,
+			Site:               params.Site,
+			KdcIP:              params.KdcIP,
+			KdcHostname:        params.KdcHostname,
+			AesEncryption:      params.AesEncryption,
+		},
+	}
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return nil
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	mockStorage.On("GetAccount", mock.Anything, "123").
+		Return(nil, errors.New("account not found")).Maybe()
+	mockStorage.On("CreateAccount", mock.Anything, mock.Anything).
+		Return(account, nil).Maybe()
+
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		return ad.AdName == params.ResourceId
+	})).Return(adRecord, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
+		return j.Type == string(models.JobTypeCreateActiveDirectory)
+	})).Return(job, nil)
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, "job-uuid-123", jobUUID)
+	assert.Equal(t, adRecord.UUID, ad.UUID)
+	assert.Equal(t, params.ResourceId, ad.AdName)
+	assert.Equal(t, params.Username, ad.Username)
+	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
+}
+
+func TestCreateActiveDirectory_DefaultOrganizationalUnit(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId:         "test-ad",
+		AccountId:          "123",
+		Username:           "admin@test.local",
+		Password:           "SecurePass123!",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
+		OrganizationalUnit: "",
+	}
+
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+	}
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+		AdName:    params.ResourceId,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			OrganizationalUnit: DefaultOrganizationalUnit,
+		},
+	}
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "workflow-id",
+	}
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return nil
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		return ad.ActiveDirectoryAttributes.OrganizationalUnit == DefaultOrganizationalUnit
+	})).Return(adRecord, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(job, nil)
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, _, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.Equal(t, DefaultOrganizationalUnit, ad.ActiveDirectoryAttributes.OrganizationalUnit)
+}
+
+func TestCreateActiveDirectory_JobCreationFailed(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		AccountId:  "123",
+		Username:   "admin@test.local",
+		Password:   "SecurePass123!",
+		Domain:     "test.local",
+		DNS:        "10.0.0.1",
+		NetBIOS:    "TEST",
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 123},
+	}
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+	}
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).
+		Return(nil, errors.New("database error"))
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+}
+
+func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		AccountId:  "123",
+		Username:   "admin@test.local",
+		Password:   "SecurePass123!",
+		Domain:     "test.local",
+		DNS:        "10.0.0.1",
+		NetBIOS:    "TEST",
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 123},
+	}
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+	}
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "workflow-id",
+	}
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(job, nil)
+	mockStorage.On("UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).
+		Return(nil)
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return errors.New("workflow execution failed")
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	mockStorage.AssertCalled(t, "UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything)
+}
+
+func TestCreateActiveDirectory_PasswordStorageFailed(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		AccountId:  "123",
+		Username:   "admin@test.local",
+		Password:   "SecurePass123!",
+		Domain:     "test.local",
+		DNS:        "10.0.0.1",
+		NetBIOS:    "TEST",
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 123},
+	}
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return errors.New("failed to store password")
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "failed to store password")
+}
+
+func TestCreateActiveDirectory_DatabaseRecordCreationFailed(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		AccountId:  "123",
+		Username:   "admin@test.local",
+		Password:   "SecurePass123!",
+		Domain:     "test.local",
+		DNS:        "10.0.0.1",
+		NetBIOS:    "TEST",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).
+		Return(nil, errors.New("database insert failed"))
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "database insert failed")
+}
+
+func TestConvertActiveDirectoryParamsToModel(t *testing.T) {
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId:                 "test-ad",
+		Username:                   "admin@test.local",
+		Domain:                     "test.local",
+		DNS:                        "10.0.0.1",
+		NetBIOS:                    "TEST",
+		OrganizationalUnit:         "CN=Computers",
+		Site:                       "Default-First-Site",
+		SecurityOperators:          []string{"security-user"},
+		BackupOperators:            []string{"backup-user"},
+		Administrators:             []string{"admin-user"},
+		KdcIP:                      "10.0.0.2",
+		KdcHostname:                "kdc.test.local",
 		AesEncryption:              true,
 		EncryptDCConnections:       true,
 		LdapSigning:                true,
 		AllowLocalNFSUsersWithLdap: false,
-		Description:                "desc",
+		Description:                "Test AD",
 	}
-	uuid := "ad-uuid"
-	ad := convertActiveDirectoryParamsToModel(params, uuid)
-	assert.Equal(t, uuid, ad.UUID)
-	assert.Equal(t, params.ResourceId, ad.AdName)
-	assert.Equal(t, params.Username, ad.Username)
-	assert.Equal(t, params.Password, ad.Password)
-	assert.Equal(t, params.Domain, ad.Domain)
-	assert.Equal(t, params.DNS, ad.DNS)
-	assert.Equal(t, params.NetBIOS, ad.NetBIOS)
-	assert.Equal(t, params.OrganizationalUnit, ad.ActiveDirectoryAttributes.OrganizationalUnit)
-	assert.Equal(t, params.Site, ad.ActiveDirectoryAttributes.Site)
-	assert.Equal(t, params.SecurityOperators, ad.ActiveDirectoryAttributes.SecurityOperators)
-	assert.Equal(t, params.BackupOperators, ad.ActiveDirectoryAttributes.BackupOperators)
-	assert.Equal(t, params.Administrators, ad.ActiveDirectoryAttributes.Administrators)
-	assert.Equal(t, params.KdcIP, ad.ActiveDirectoryAttributes.KdcIP)
-	assert.Equal(t, params.KdcHostname, ad.ActiveDirectoryAttributes.KdcHostname)
-	assert.Equal(t, params.AesEncryption, ad.ActiveDirectoryAttributes.AesEncryption)
-	assert.Equal(t, params.EncryptDCConnections, ad.ActiveDirectoryAttributes.EncryptDCConnections)
-	assert.Equal(t, params.LdapSigning, ad.ActiveDirectoryAttributes.LdapSigning)
-	assert.Equal(t, params.AllowLocalNFSUsersWithLdap, ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap)
-	assert.Equal(t, params.Description, ad.ActiveDirectoryAttributes.Description)
+
+	ad := convertActiveDirectoryParamsToModel(params)
+
+	assert.Equal(t, "test-ad", ad.AdName)
+	assert.Equal(t, "admin@test.local", ad.Username)
+	assert.Equal(t, "test.local", ad.Domain)
+	assert.Equal(t, "10.0.0.1", ad.DNS)
+	assert.Equal(t, "TEST", ad.NetBIOS)
+	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
+	assert.Equal(t, "CN=Computers", ad.ActiveDirectoryAttributes.OrganizationalUnit)
+	assert.Equal(t, []string{"security-user"}, ad.ActiveDirectoryAttributes.SecurityOperators)
+	assert.True(t, ad.ActiveDirectoryAttributes.AesEncryption)
 }
 
-func TestOrchestrator_CreateActiveDirectory(t *testing.T) {
+func TestCreateAdRecordForNonSDE(t *testing.T) {
 	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
 	params := &common.CreateActiveDirectoryParams{
-		AccountId:          "test-account",
-		ResourceId:         "ad-resource",
-		Username:           "admin",
-		Password:           "password123",
-		Domain:             "example.com",
-		DNS:                "8.8.8.8",
-		NetBIOS:            "EXAMPLE",
+		ResourceId:         "test-ad",
+		Username:           "admin@test.local",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
 		OrganizationalUnit: "CN=Computers",
-		Site:               "Default-First-Site-Name",
+		Site:               "Default-First-Site",
+		BackupOperators:    []string{"backup-user"},
+		Administrators:     []string{"admin-user"},
+		SecurityOperators:  []string{"security-user"},
+		KdcIP:              "10.0.0.2",
+		KdcHostname:        "kdc.test.local",
+		AesEncryption:      true,
 	}
-	mockSe := new(database.MockStorage)
-	mockTemporal := new(mocks.Client)
-	o := &Orchestrator{
-		storage:  mockSe,
+
+	accountID := int64(123)
+	secretID := "secret-id-123"
+
+	expectedRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+		AdName:    params.ResourceId,
+		Username:  params.Username,
+		State:     models.LifeCycleStateCreating,
+	}
+
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		return ad.AdName == params.ResourceId &&
+			ad.Username == params.Username &&
+			ad.AccountId == accountID &&
+			ad.CredentialPath == secretID &&
+			ad.ActiveDirectoryAttributes.OrganizationalUnit == params.OrganizationalUnit &&
+			ad.ActiveDirectoryAttributes.PrimaryAD == true
+	})).Return(expectedRecord, nil)
+
+	adRecord, err := createAdRecordForNonSDE(ctx, mockStorage, params, accountID, secretID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, adRecord)
+}
+
+func TestCreateAdRecordForNonSDE_DatabaseError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		Username:   "admin@test.local",
+		Domain:     "test.local",
+	}
+
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).
+		Return(nil, errors.New("database error"))
+
+	adRecord, err := createAdRecordForNonSDE(ctx, mockStorage, params, 123, "secret-id")
+
+	assert.Error(t, err)
+	assert.Nil(t, adRecord)
+	assert.Contains(t, err.Error(), "database error")
+}
+
+func TestCreateVCPActiveDirectoryDBRecord_Success(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		Username:   "admin@test.local",
+		Password:   "SecurePass123!",
+		Domain:     "test.local",
+		DNS:        "10.0.0.1",
+		NetBIOS:    "TEST",
+	}
+
+	accountID := int64(123)
+
+	expectedRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+		AdName:    params.ResourceId,
+	}
+
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(expectedRecord, nil)
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	adRecord, err := createVCPActiveDirectoryDBRecord(ctx, mockStorage, params, accountID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, adRecord)
+	assert.Equal(t, "test-ad", adRecord.AdName)
+}
+
+func TestCreateVCPActiveDirectoryDBRecord_PasswordStoreError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		Username:   "admin@test.local",
+		Password:   "SecurePass123!",
+		Domain:     "test.local",
+	}
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return errors.New("password store failed")
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	adRecord, err := createVCPActiveDirectoryDBRecord(ctx, mockStorage, params, 123)
+
+	assert.Error(t, err)
+	assert.Nil(t, adRecord)
+	assert.Contains(t, err.Error(), "password store failed")
+}
+
+func TestCreateVCPActiveDirectoryDBRecord_CreateRecordError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		Username:   "admin@test.local",
+		Password:   "SecurePass123!",
+		Domain:     "test.local",
+	}
+
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).
+		Return(nil, errors.New("database create failed"))
+
+	originalStorePassword := storePasswordSecret
+	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { storePasswordSecret = originalStorePassword }()
+
+	adRecord, err := createVCPActiveDirectoryDBRecord(ctx, mockStorage, params, 123)
+
+	assert.Error(t, err)
+	assert.Nil(t, adRecord)
+	assert.Contains(t, err.Error(), "database create failed")
+}
+
+func TestOrchestratorCreateActiveDirectory(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
 		temporal: mockTemporal,
 	}
-	origCreateActiveDirectory := createActiveDirectory
-	createActiveDirectory = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error) {
-		return &models.ActiveDirectory{AdName: "ad-resource"}, "job-uuid", nil
-	}
-	defer func() { createActiveDirectory = origCreateActiveDirectory }()
 
-	ad, jobUUID, err := o.CreateActiveDirectory(ctx, params)
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		AccountId:  "123",
+		Username:   "admin@test.local",
+		Password:   "SecurePass123!",
+		Domain:     "test.local",
+		DNS:        "10.0.0.1",
+		NetBIOS:    "TEST",
+	}
+
+	expectedAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid"},
+		AdName:    "test-ad",
+	}
+
+	originalCreate := createActiveDirectory
+	createActiveDirectory = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error) {
+		return expectedAD, "job-uuid", nil
+	}
+	defer func() { createActiveDirectory = originalCreate }()
+
+	ad, jobUUID, err := orchestrator.CreateActiveDirectory(ctx, params)
+
 	assert.NoError(t, err)
-	assert.Equal(t, "ad-resource", ad.AdName)
+	assert.NotNil(t, ad)
 	assert.Equal(t, "job-uuid", jobUUID)
+	assert.Equal(t, "test-ad", ad.AdName)
+}
+
+func TestOrchestratorCreateActiveDirectory_Error(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId: "test-ad",
+		AccountId:  "123",
+	}
+
+	originalCreate := createActiveDirectory
+	createActiveDirectory = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error) {
+		return nil, "", errors.New("creation failed")
+	}
+	defer func() { createActiveDirectory = originalCreate }()
+
+	ad, jobUUID, err := orchestrator.CreateActiveDirectory(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "creation failed")
 }
 
 func Test_getActiveDirectory_Success(t *testing.T) {
@@ -955,7 +1483,7 @@ func Test_convertActiveDirectoryToModel_Success(t *testing.T) {
 	assert.Equal(t, "test-uuid", result.UUID)
 	assert.Equal(t, "test-ad", result.AdName)
 	assert.Equal(t, "testuser", result.Username)
-	assert.Equal(t, "secret-path", result.Password) // CredentialPath maps to Password
+	assert.Equal(t, "secret-path", result.Password)
 	assert.Equal(t, "example.com", result.Domain)
 	assert.Equal(t, "8.8.8.8", result.DNS)
 	assert.Equal(t, "EXAMPLE", result.NetBIOS)

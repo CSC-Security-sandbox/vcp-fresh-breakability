@@ -24,7 +24,7 @@ type Handler interface {
 	//
 	// Creates Active Directory credentials for the active user.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 	V1betaCreateActiveDirectory(ctx context.Context, req *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error)
 	// V1betaCreateBackup implements v1beta_createBackup operation.
 	//
@@ -87,7 +87,7 @@ type Handler interface {
 	// resource not found, since that could be interpreted as resource already deleted, and therefore
 	// will return operation done instead.
 	//
-	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 	V1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (V1betaDeleteActiveDirectoryRes, error)
 	// V1betaDeleteBackupPolicy implements v1beta_deleteBackupPolicy operation.
 	//
@@ -153,7 +153,7 @@ type Handler interface {
 	//
 	// Returns the description of the specified Active Directory credentials by active-directory Id.
 	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 	V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error)
 	// V1betaDescribeBackup implements v1beta_describeBackup operation.
 	//
@@ -231,7 +231,7 @@ type Handler interface {
 	//
 	// Returns descriptions of Active Directory credentials that is listed in request body.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories
 	V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)
 	// V1betaGetMultipleBackupPolicies implements v1beta_getMultipleBackupPolicies operation.
 	//
@@ -418,7 +418,7 @@ type Handler interface {
 	//
 	// Returns descriptions of all Active Directory credentials owned by the caller.
 	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 	V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error)
 	// V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
 	//
@@ -520,7 +520,7 @@ type Handler interface {
 	//
 	// Update the Active Directory credentials.
 	//
-	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 	V1betaUpdateActiveDirectory(ctx context.Context, req *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error)
 	// V1betaUpdateBackup implements v1beta_updateBackup operation.
 	//

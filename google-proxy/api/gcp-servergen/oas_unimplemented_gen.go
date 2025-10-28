@@ -35,7 +35,7 @@ func (UnimplementedHandler) V1betaCheckKmsConfig(ctx context.Context, params V1b
 //
 // Creates Active Directory credentials for the active user.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 func (UnimplementedHandler) V1betaCreateActiveDirectory(ctx context.Context, req *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (r V1betaCreateActiveDirectoryRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -128,7 +128,7 @@ func (UnimplementedHandler) V1betaCreateVolume(ctx context.Context, req *VolumeC
 // resource not found, since that could be interpreted as resource already deleted, and therefore
 // will return operation done instead.
 //
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (UnimplementedHandler) V1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (r V1betaDeleteActiveDirectoryRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -224,7 +224,7 @@ func (UnimplementedHandler) V1betaDeleteVolume(ctx context.Context, req OptV1bet
 //
 // Returns the description of the specified Active Directory credentials by active-directory Id.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (UnimplementedHandler) V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (r V1betaDescribeActiveDirectoryRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -341,7 +341,7 @@ func (UnimplementedHandler) V1betaFinishProjectEvent(ctx context.Context, req *P
 //
 // Returns descriptions of Active Directory credentials that is listed in request body.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories
 func (UnimplementedHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (r V1betaGetMultipleActiveDirectoriesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -618,7 +618,7 @@ func (UnimplementedHandler) V1betaInternalUpdateVolumeReplicationAttributes(ctx 
 //
 // Returns descriptions of all Active Directory credentials owned by the caller.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 func (UnimplementedHandler) V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (r V1betaListActiveDirectoriesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -771,7 +771,7 @@ func (UnimplementedHandler) V1betaSyncReplication(ctx context.Context, params V1
 //
 // Update the Active Directory credentials.
 //
-// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (UnimplementedHandler) V1betaUpdateActiveDirectory(ctx context.Context, req *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (r V1betaUpdateActiveDirectoryRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

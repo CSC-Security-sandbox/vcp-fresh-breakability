@@ -42,6 +42,8 @@ func (h Handler) V1betaCreateActiveDirectory(
 
 	param := common.CreateActiveDirectoryParams{
 		AccountId:                   params.ProjectNumber,
+		LocationId:                  params.LocationId,
+		XCorrelationId:              params.XCorrelationID.Value,
 		Username:                    req.Username,
 		ResourceId:                  req.ResourceId,
 		Description:                 req.Description.Value,

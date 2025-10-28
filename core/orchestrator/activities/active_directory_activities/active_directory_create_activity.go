@@ -3,23 +3,25 @@ package active_directory_activities
 import (
 	// Standard library
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"gorm.io/gorm"
+	"time"
 
 	// Third-party and local
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	logger "golang.org/x/exp/slog"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 type ActiveDirectoryCreateActivity struct {
@@ -27,100 +29,111 @@ type ActiveDirectoryCreateActivity struct {
 	Scheduler *scheduler.TemporalScheduler
 }
 
-// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
-const ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
-
-// ActiveDirectoryGroupBuiltInAdministrators defines the name of the built-in administrators group
-const ActiveDirectoryGroupBuiltInAdministrators = `BUILTIN\Administrators`
-
-// ActiveDirectorySeSecurityPrivilege defines the name of the SE security privilege
-const ActiveDirectorySeSecurityPrivilege = `SeSecurityPrivilege`
-
 var (
-	storePasswordSecret = _storePasswordSecret
+	CvpClient           = cvp.CreateClient
+	DeleteSecretFromGCP = deleteSecretFromGCP
 )
 
-func (a ActiveDirectoryCreateActivity) CreateVcpActiveDirectory(ctx context.Context, params *common.CreateActiveDirectoryParams, adUUID string, accountId int64) (*datamodel.ActiveDirectory, error) {
-	ad, adErr := a.SE.GetActiveDirectoryByNameAndAccountID(ctx, params.ResourceId, accountId)
-	if ad != nil {
-		logger.Debug("Existing Active Directory found with the given name",
-			"active_directory_name", params.ActiveDirectoryId)
-		return nil, customerrors.NewConflictErr("Active Directory with the given name already exists")
-	}
-
-	if adErr != nil {
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(adErr, &customErr) && !customerrors.IsNotFoundErr(customErr.Unwrap()) {
-			// propagate the Non-NotFound errors
-			return nil, adErr
-		}
-		logger.Debug("No existing Active Directory found with the given name, proceeding to create a new Active Directory")
-	}
-
-	gcpService, _ := hyperscaler.GetGCPService(ctx)
-	secretId := generatePasswordSecretId(env.SecretManagerProjectID, params.AccountId, params.ResourceId, env.Region)
-	err := storePasswordSecret(gcpService, params.Password, secretId)
-	if err != nil {
-		return nil, err
-	}
-
-	activeDirectory := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{
-			UUID: adUUID,
-		},
-		AdName:         params.ResourceId,
-		Username:       params.Username,
-		CredentialPath: secretId,
-		Domain:         params.Domain,
-		DNS:            params.DNS,
-		NetBIOS:        params.NetBIOS,
-		State:          string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY),
-		AccountId:      accountId,
-		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
-			OrganizationalUnit: params.OrganizationalUnit,
-			Site:               params.Site,
-			AdUsers: map[string][]string{
-				ActiveDirectoryGroupBuiltInBackupOperators: params.BackupOperators,
-				ActiveDirectoryGroupBuiltInAdministrators:  params.Administrators,
-				ActiveDirectorySeSecurityPrivilege:         params.SecurityOperators,
-			},
-			KdcIP:                      params.KdcIP,
-			KdcHostname:                params.KdcHostname,
-			AesEncryption:              params.AesEncryption,
-			EncryptDCConnections:       params.EncryptDCConnections,
-			LdapSigning:                params.LdapSigning,
-			AllowLocalNFSUsersWithLdap: params.AllowLocalNFSUsersWithLdap,
-			Description:                params.Description,
-			PrimaryAD:                  true,
-		},
-	}
-
-	directory, err := a.SE.CreateActiveDirectory(ctx, activeDirectory)
-	if err != nil {
-		return nil, err
-	}
-
-	return directory, nil
-}
-
-// CreateSdeActiveDirectory PlaceHolder func to hold the SDE AD creation logic
-func (a ActiveDirectoryCreateActivity) CreateSdeActiveDirectory(ctx context.Context, params *common.CreateActiveDirectoryParams) (*models.AggregateDistributionResult, error) {
-	return nil, nil
-}
-
-func _storePasswordSecret(gcpService hyperscaler.GoogleServices, password string, secretID string) error {
-	var secret *hyperscalermodels.CustomSecret
-	projectID := env.SecretManagerProjectID
-	secret, err := gcpService.CreateSecret(projectID, env.Region, secretID, password)
+func (a ActiveDirectoryCreateActivity) CreateVcpActiveDirectory(ctx context.Context, adRecord *datamodel.ActiveDirectory) error {
+	// As the adRecord with password stored as GCP secret already exists in DB by now, just mark the AD as record and return
+	adRecord.State = models.LifeCycleStateREADY
+	adRecord.StateDetails = models.LifeCycleStateAvailableDetails
+	_, err := a.SE.UpdateActiveDirectory(ctx, adRecord)
 	if err != nil {
 		return err
 	}
-	common.AddToUserAuthCache(secretID, secret.SecretVersion.Value)
 	return nil
 }
 
-func generatePasswordSecretId(secretManagerProjectID string, accountID string, adName string, region string) string {
-	data := fmt.Sprintf("%s-%s-%s-%s", secretManagerProjectID, accountID, adName, region)
-	hash := sha256.Sum256([]byte(data))
-	return "gcnv-" + hex.EncodeToString(hash[:8])[:15]
+func (a ActiveDirectoryCreateActivity) RollbackActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) error {
+	logger := util.GetLogger(ctx)
+	if ad == nil {
+		return nil
+	}
+
+	// Ensure AD state is updated to error regardless of secret deletion outcome
+	defer func() {
+		ad.State = models.LifeCycleStateError
+		ad.StateDetails = models.LifeCycleStateCreationErrorDetails
+		ad.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+		if _, updateErr := a.SE.UpdateActiveDirectory(ctx, ad); updateErr != nil {
+			logger.Errorf("failed to update AD state during rollback: %v", updateErr)
+		}
+	}()
+
+	if ad.CredentialPath != "" {
+		gcpService, _ := hyperscaler.GetGCPService(ctx)
+		err := DeleteSecretFromGCP(ctx, gcpService, ad.CredentialPath)
+		if err != nil {
+			logger.Errorf("failed to delete secret from GCP during AD creation rollback, err: %v", err)
+			return vsaerror.New("failed to delete secret from GCP during AD creation rollback")
+		}
+	}
+
+	return nil
+}
+
+func deleteSecretFromGCP(ctx context.Context, gcpService hyperscaler.GoogleServices, credentialPath string) error {
+	logger := util.GetLogger(ctx)
+
+	if gcpService == nil {
+		return vsaerror.New("GCP service is nil, cannot delete secret from Secret Manager")
+	}
+
+	secret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, credentialPath)
+	if err != nil || secret == nil {
+		logger.Infof("secret %s not found in Secret Manager - considering deletion successful", credentialPath)
+	}
+
+	if secret != nil {
+		err = gcpService.DeleteSecret(env.SecretManagerProjectID, credentialPath)
+		if err != nil {
+			logger.Errorf("failed to delete password for secretID: %s, err : %v", credentialPath, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CreateSdeActiveDirectory PlaceHolder func to hold the SDE AD creation logic
+func (a ActiveDirectoryCreateActivity) CreateSdeActiveDirectory(ctx context.Context, params *common.CreateActiveDirectoryParams) error {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.AccountId, params.LocationId, nil)
+	body := &cvpModels.ActiveDirectoryV1beta{
+		DNS:                        &params.DNS,
+		Domain:                     &params.Domain,
+		NetBIOS:                    &params.NetBIOS,
+		Username:                   &params.Username,
+		Password:                   &params.Password,
+		ResourceID:                 &params.ResourceId,
+		Administrators:             params.Administrators,
+		SecurityOperators:          params.SecurityOperators,
+		AesEncryption:              &params.AesEncryption,
+		AllowLocalNFSUsersWithLdap: &params.AllowLocalNFSUsersWithLdap,
+		BackupOperators:            params.BackupOperators,
+		Description:                &params.Description,
+		EncryptDCConnections:       &params.EncryptDCConnections,
+		KdcIP:                      params.KdcIP,
+		KdcHostname:                params.KdcHostname,
+		Site:                       &params.Site,
+		LdapSigning:                &params.LdapSigning,
+		OrganizationalUnit:         &params.OrganizationalUnit,
+	}
+	createParams := &active_directories.V1betaCreateActiveDirectoryParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.AccountId,
+		XCorrelationID: &params.XCorrelationId,
+		Body:           body,
+	}
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := CvpClient(logger, jwtToken)
+	created, err := cvpClient.ActiveDirectories.V1betaCreateActiveDirectory(createParams)
+	if err != nil {
+		return err
+	}
+	if created == nil || created.Payload == nil {
+		return customerrors.New("unknown error during the create active directory")
+	}
+	return nil
 }

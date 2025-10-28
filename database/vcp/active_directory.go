@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
+	"time"
 )
 
 func (d *DataStoreRepository) CreateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
@@ -92,4 +93,23 @@ func getActiveDirectoryWithDetails(db *gorm.DB, query *datamodel.ActiveDirectory
 		return nil, err
 	}
 	return &ad, nil
+}
+
+func (d *DataStoreRepository) UpdateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
+	return updateActiveDirectory(d.db.GORM().WithContext(ctx), ad)
+}
+
+func updateActiveDirectory(db *gorm.DB, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
+	if ad == nil {
+		return nil, errors.New("Active Directory is nil")
+	}
+	ad.UpdatedAt = time.Now()
+	result := db.Model(&datamodel.ActiveDirectory{}).Where("id = ?", ad.ID).Updates(ad)
+	if result.Error != nil {
+		return nil, errors.New(result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return nil, customerrors.NewNotFoundErr("active_directory", nil)
+	}
+	return ad, nil
 }

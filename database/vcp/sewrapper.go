@@ -4707,6 +4707,26 @@ func (re *retryEngine) CreateActiveDirectory(ctx context.Context, ad *datamodel.
 	return var0, err
 }
 
+func (re *retryEngine) UpdateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
+	var var0 *datamodel.ActiveDirectory
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateActiveDirectory(ctx, ad)
+		if err != nil {
+			re.logError("UpdateActiveDirectory", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error) {
 	var var0 *datamodel.ActiveDirectory
 	err := retry.Do(func(attempt int) (bool, error) {

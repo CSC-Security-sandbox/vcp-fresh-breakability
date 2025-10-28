@@ -37,7 +37,6 @@ func TestV1betaCreateActiveDirectory_Success(t *testing.T) {
 		},
 		AdName:       "ad-name",
 		Username:     "user",
-		Password:     "pass",
 		Domain:       "domain",
 		DNS:          "dns",
 		NetBIOS:      "netbios",
@@ -113,12 +112,12 @@ func TestV1betaCreateActiveDirectory_OnlyRequiredFields_Success(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		AdName:   "ad-name",
-		Username: "user",
-		Password: "pass",
-		Domain:   "domain",
-		DNS:      "dns",
-		NetBIOS:  "netbios",
+		AdName:       "ad-name",
+		Username:     "user",
+		Domain:       "domain",
+		DNS:          "dns",
+		NetBIOS:      "netbios",
+		StateDetails: "details",
 
 		ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{},
 	}
@@ -193,9 +192,8 @@ func TestConvertToActiveDirectoryV1Beta(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		AdName:       "adname",
+		AdName:       "ad-name",
 		Username:     "user",
-		Password:     "pass",
 		Domain:       "domain",
 		DNS:          "dns",
 		NetBIOS:      "netbios",
@@ -216,7 +214,7 @@ func TestConvertToActiveDirectoryV1Beta(t *testing.T) {
 	}
 	res := convertToActiveDirectoryV1Beta(ad)
 	assert.Equal(t, "uuid", res.ActiveDirectoryId.Value)
-	assert.Equal(t, "adname", res.ResourceId)
+	assert.Equal(t, "ad-name", res.ResourceId)
 	assert.Equal(t, "domain", res.Domain)
 	assert.Equal(t, "dns", res.DNS)
 	assert.Equal(t, "netbios", res.NetBIOS)

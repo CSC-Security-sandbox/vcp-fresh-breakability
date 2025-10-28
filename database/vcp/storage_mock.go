@@ -11694,6 +11694,65 @@ func (_c *MockStorage_UpdateAccountStateForHandleResource_Call) RunAndReturn(run
 	return _c
 }
 
+// UpdateActiveDirectory provides a mock function with given fields: ctx, ad
+func (_m *MockStorage) UpdateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
+	ret := _m.Called(ctx, ad)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateActiveDirectory")
+	}
+
+	var r0 *datamodel.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)); ok {
+		return rf(ctx, ad)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ActiveDirectory) *datamodel.ActiveDirectory); ok {
+		r0 = rf(ctx, ad)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.ActiveDirectory) error); ok {
+		r1 = rf(ctx, ad)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateActiveDirectory'
+type MockStorage_UpdateActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// UpdateActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ad *datamodel.ActiveDirectory
+func (_e *MockStorage_Expecter) UpdateActiveDirectory(ctx interface{}, ad interface{}) *MockStorage_UpdateActiveDirectory_Call {
+	return &MockStorage_UpdateActiveDirectory_Call{Call: _e.mock.On("UpdateActiveDirectory", ctx, ad)}
+}
+
+func (_c *MockStorage_UpdateActiveDirectory_Call) Run(run func(ctx context.Context, ad *datamodel.ActiveDirectory)) *MockStorage_UpdateActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ActiveDirectory))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateActiveDirectory_Call) Return(_a0 *datamodel.ActiveDirectory, _a1 error) *MockStorage_UpdateActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateActiveDirectory_Call) RunAndReturn(run func(context.Context, *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)) *MockStorage_UpdateActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateAdminJobSpec provides a mock function with given fields: ctx, jobSpec
 func (_m *MockStorage) UpdateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) error {
 	ret := _m.Called(ctx, jobSpec)

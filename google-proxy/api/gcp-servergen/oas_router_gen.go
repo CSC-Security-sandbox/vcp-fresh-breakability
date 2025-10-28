@@ -734,80 +734,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 							switch elem[0] {
-							case 'a': // Prefix: "activeDirectories"
-
-								if l := len("activeDirectories"); len(elem) >= l && elem[0:l] == "activeDirectories" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									switch r.Method {
-									case "GET":
-										s.handleV1betaListActiveDirectoriesRequest([2]string{
-											args[0],
-											args[1],
-										}, elemIsEscaped, w, r)
-									case "POST":
-										s.handleV1betaCreateActiveDirectoryRequest([2]string{
-											args[0],
-											args[1],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "GET,POST")
-									}
-
-									return
-								}
-								switch elem[0] {
-								case '/': // Prefix: "/"
-
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									// Param: "activeDirectoryId"
-									// Leaf parameter, slashes are prohibited
-									idx := strings.IndexByte(elem, '/')
-									if idx >= 0 {
-										break
-									}
-									args[2] = elem
-									elem = ""
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "DELETE":
-											s.handleV1betaDeleteActiveDirectoryRequest([3]string{
-												args[0],
-												args[1],
-												args[2],
-											}, elemIsEscaped, w, r)
-										case "GET":
-											s.handleV1betaDescribeActiveDirectoryRequest([3]string{
-												args[0],
-												args[1],
-												args[2],
-											}, elemIsEscaped, w, r)
-										case "PUT":
-											s.handleV1betaUpdateActiveDirectoryRequest([3]string{
-												args[0],
-												args[1],
-												args[2],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "DELETE,GET,PUT")
-										}
-
-										return
-									}
-
-								}
-
 							case 'b': // Prefix: "backup"
 
 								if l := len("backup"); len(elem) >= l && elem[0:l] == "backup" {
@@ -1123,29 +1049,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 								switch elem[0] {
-								case 'A': // Prefix: "ActiveDirectories"
-
-									if l := len("ActiveDirectories"); len(elem) >= l && elem[0:l] == "ActiveDirectories" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "POST":
-											s.handleV1betaGetMultipleActiveDirectoriesRequest([2]string{
-												args[0],
-												args[1],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "POST")
-										}
-
-										return
-									}
-
 								case 'B': // Prefix: "Backup"
 
 									if l := len("Backup"); len(elem) >= l && elem[0:l] == "Backup" {
@@ -1553,101 +1456,137 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										return
 									}
 
-								case 'o': // Prefix: "orage/kmsConfig"
+								case 'o': // Prefix: "orage/"
 
-									if l := len("orage/kmsConfig"); len(elem) >= l && elem[0:l] == "orage/kmsConfig" {
+									if l := len("orage/"); len(elem) >= l && elem[0:l] == "orage/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										switch r.Method {
-										case "GET":
-											s.handleV1betaListKmsConfigurationsRequest([2]string{
-												args[0],
-												args[1],
-											}, elemIsEscaped, w, r)
-										case "POST":
-											s.handleV1betaCreateKmsConfigurationRequest([2]string{
-												args[0],
-												args[1],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "GET,POST")
-										}
-
-										return
+										break
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/"
+									case 'a': // Prefix: "activeDirectory"
 
-										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										if l := len("activeDirectory"); len(elem) >= l && elem[0:l] == "activeDirectory" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
-											break
+											switch r.Method {
+											case "GET":
+												s.handleV1betaListActiveDirectoriesRequest([2]string{
+													args[0],
+													args[1],
+												}, elemIsEscaped, w, r)
+											case "POST":
+												s.handleV1betaCreateActiveDirectoryRequest([2]string{
+													args[0],
+													args[1],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "GET,POST")
+											}
+
+											return
 										}
 										switch elem[0] {
-										case 'g': // Prefix: "getMultipleKmsConfigs"
-											origElem := elem
-											if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
+											// Param: "activeDirectoryId"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[2] = elem
+											elem = ""
+
 											if len(elem) == 0 {
 												// Leaf node.
 												switch r.Method {
-												case "POST":
-													s.handleV1betaGetMultipleKmsConfigsRequest([2]string{
+												case "DELETE":
+													s.handleV1betaDeleteActiveDirectoryRequest([3]string{
 														args[0],
 														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												case "GET":
+													s.handleV1betaDescribeActiveDirectoryRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												case "PUT":
+													s.handleV1betaUpdateActiveDirectoryRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
 													}, elemIsEscaped, w, r)
 												default:
-													s.notAllowed(w, r, "POST")
+													s.notAllowed(w, r, "DELETE,GET,PUT")
 												}
 
 												return
 											}
 
-											elem = origElem
 										}
-										// Param: "kmsConfigId"
-										// Match until "/"
-										idx := strings.IndexByte(elem, '/')
-										if idx < 0 {
-											idx = len(elem)
+
+									case 'g': // Prefix: "getMultipleActiveDirectories"
+
+										if l := len("getMultipleActiveDirectories"); len(elem) >= l && elem[0:l] == "getMultipleActiveDirectories" {
+											elem = elem[l:]
+										} else {
+											break
 										}
-										args[2] = elem[:idx]
-										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleV1betaGetMultipleActiveDirectoriesRequest([2]string{
+													args[0],
+													args[1],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "POST")
+											}
+
+											return
+										}
+
+									case 'k': // Prefix: "kmsConfig"
+
+										if l := len("kmsConfig"); len(elem) >= l && elem[0:l] == "kmsConfig" {
+											elem = elem[l:]
+										} else {
+											break
+										}
 
 										if len(elem) == 0 {
 											switch r.Method {
-											case "DELETE":
-												s.handleV1betaDeleteKmsConfigurationRequest([3]string{
-													args[0],
-													args[1],
-													args[2],
-												}, elemIsEscaped, w, r)
 											case "GET":
-												s.handleV1betaDescribeKmsConfigurationRequest([3]string{
+												s.handleV1betaListKmsConfigurationsRequest([2]string{
 													args[0],
 													args[1],
-													args[2],
 												}, elemIsEscaped, w, r)
-											case "PUT":
-												s.handleV1betaUpdateKmsConfigurationRequest([3]string{
+											case "POST":
+												s.handleV1betaCreateKmsConfigurationRequest([2]string{
 													args[0],
 													args[1],
-													args[2],
 												}, elemIsEscaped, w, r)
 											default:
-												s.notAllowed(w, r, "DELETE,GET,PUT")
+												s.notAllowed(w, r, "GET,POST")
 											}
 
 											return
@@ -1665,33 +1604,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												break
 											}
 											switch elem[0] {
-											case 'c': // Prefix: "check"
-
-												if l := len("check"); len(elem) >= l && elem[0:l] == "check" {
-													elem = elem[l:]
-												} else {
-													break
-												}
-
-												if len(elem) == 0 {
-													// Leaf node.
-													switch r.Method {
-													case "GET":
-														s.handleV1betaCheckKmsConfigRequest([3]string{
-															args[0],
-															args[1],
-															args[2],
-														}, elemIsEscaped, w, r)
-													default:
-														s.notAllowed(w, r, "GET")
-													}
-
-													return
-												}
-
-											case 'e': // Prefix: "encryptVolumes"
-
-												if l := len("encryptVolumes"); len(elem) >= l && elem[0:l] == "encryptVolumes" {
+											case 'g': // Prefix: "getMultipleKmsConfigs"
+												origElem := elem
+												if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
 													elem = elem[l:]
 												} else {
 													break
@@ -1701,16 +1616,115 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													// Leaf node.
 													switch r.Method {
 													case "POST":
-														s.handleV1betaEncryptVolumesRequest([3]string{
+														s.handleV1betaGetMultipleKmsConfigsRequest([2]string{
 															args[0],
 															args[1],
-															args[2],
 														}, elemIsEscaped, w, r)
 													default:
 														s.notAllowed(w, r, "POST")
 													}
 
 													return
+												}
+
+												elem = origElem
+											}
+											// Param: "kmsConfigId"
+											// Match until "/"
+											idx := strings.IndexByte(elem, '/')
+											if idx < 0 {
+												idx = len(elem)
+											}
+											args[2] = elem[:idx]
+											elem = elem[idx:]
+
+											if len(elem) == 0 {
+												switch r.Method {
+												case "DELETE":
+													s.handleV1betaDeleteKmsConfigurationRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												case "GET":
+													s.handleV1betaDescribeKmsConfigurationRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												case "PUT":
+													s.handleV1betaUpdateKmsConfigurationRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE,GET,PUT")
+												}
+
+												return
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													break
+												}
+												switch elem[0] {
+												case 'c': // Prefix: "check"
+
+													if l := len("check"); len(elem) >= l && elem[0:l] == "check" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "GET":
+															s.handleV1betaCheckKmsConfigRequest([3]string{
+																args[0],
+																args[1],
+																args[2],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "GET")
+														}
+
+														return
+													}
+
+												case 'e': // Prefix: "encryptVolumes"
+
+													if l := len("encryptVolumes"); len(elem) >= l && elem[0:l] == "encryptVolumes" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "POST":
+															s.handleV1betaEncryptVolumesRequest([3]string{
+																args[0],
+																args[1],
+																args[2],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "POST")
+														}
+
+														return
+													}
+
 												}
 
 											}
@@ -3000,88 +3014,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 							switch elem[0] {
-							case 'a': // Prefix: "activeDirectories"
-
-								if l := len("activeDirectories"); len(elem) >= l && elem[0:l] == "activeDirectories" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									switch method {
-									case "GET":
-										r.name = V1betaListActiveDirectoriesOperation
-										r.summary = "List all Active Directory credentials"
-										r.operationID = "v1beta_listActiveDirectories"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories"
-										r.args = args
-										r.count = 2
-										return r, true
-									case "POST":
-										r.name = V1betaCreateActiveDirectoryOperation
-										r.summary = "Create Active Directory credentials"
-										r.operationID = "v1beta_createActiveDirectory"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories"
-										r.args = args
-										r.count = 2
-										return r, true
-									default:
-										return
-									}
-								}
-								switch elem[0] {
-								case '/': // Prefix: "/"
-
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									// Param: "activeDirectoryId"
-									// Leaf parameter, slashes are prohibited
-									idx := strings.IndexByte(elem, '/')
-									if idx >= 0 {
-										break
-									}
-									args[2] = elem
-									elem = ""
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "DELETE":
-											r.name = V1betaDeleteActiveDirectoryOperation
-											r.summary = "Delete the Active Directory credentials"
-											r.operationID = "v1beta_deleteActiveDirectory"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"
-											r.args = args
-											r.count = 3
-											return r, true
-										case "GET":
-											r.name = V1betaDescribeActiveDirectoryOperation
-											r.summary = "Describe Active Directory credentials"
-											r.operationID = "v1beta_describeActiveDirectory"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"
-											r.args = args
-											r.count = 3
-											return r, true
-										case "PUT":
-											r.name = V1betaUpdateActiveDirectoryOperation
-											r.summary = "Update Active Directory credentials"
-											r.operationID = "v1beta_updateActiveDirectory"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}"
-											r.args = args
-											r.count = 3
-											return r, true
-										default:
-											return
-										}
-									}
-
-								}
-
 							case 'b': // Prefix: "backup"
 
 								if l := len("backup"); len(elem) >= l && elem[0:l] == "backup" {
@@ -3417,30 +3349,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									break
 								}
 								switch elem[0] {
-								case 'A': // Prefix: "ActiveDirectories"
-
-									if l := len("ActiveDirectories"); len(elem) >= l && elem[0:l] == "ActiveDirectories" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "POST":
-											r.name = V1betaGetMultipleActiveDirectoriesOperation
-											r.summary = "List specified Active Directories' credentials"
-											r.operationID = "v1beta_getMultipleActiveDirectories"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories"
-											r.args = args
-											r.count = 2
-											return r, true
-										default:
-											return
-										}
-									}
-
 								case 'B': // Prefix: "Backup"
 
 									if l := len("Backup"); len(elem) >= l && elem[0:l] == "Backup" {
@@ -3872,109 +3780,149 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										}
 									}
 
-								case 'o': // Prefix: "orage/kmsConfig"
+								case 'o': // Prefix: "orage/"
 
-									if l := len("orage/kmsConfig"); len(elem) >= l && elem[0:l] == "orage/kmsConfig" {
+									if l := len("orage/"); len(elem) >= l && elem[0:l] == "orage/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										switch method {
-										case "GET":
-											r.name = V1betaListKmsConfigurationsOperation
-											r.summary = "List all KMS configurations"
-											r.operationID = "v1beta_listKmsConfigurations"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
-											r.args = args
-											r.count = 2
-											return r, true
-										case "POST":
-											r.name = V1betaCreateKmsConfigurationOperation
-											r.summary = "Create KMS configuration"
-											r.operationID = "v1beta_CreateKmsConfiguration"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
-											r.args = args
-											r.count = 2
-											return r, true
-										default:
-											return
-										}
+										break
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/"
+									case 'a': // Prefix: "activeDirectory"
 
-										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										if l := len("activeDirectory"); len(elem) >= l && elem[0:l] == "activeDirectory" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
-											break
+											switch method {
+											case "GET":
+												r.name = V1betaListActiveDirectoriesOperation
+												r.summary = "List all Active Directory credentials"
+												r.operationID = "v1beta_listActiveDirectories"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory"
+												r.args = args
+												r.count = 2
+												return r, true
+											case "POST":
+												r.name = V1betaCreateActiveDirectoryOperation
+												r.summary = "Create Active Directory credentials"
+												r.operationID = "v1beta_createActiveDirectory"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory"
+												r.args = args
+												r.count = 2
+												return r, true
+											default:
+												return
+											}
 										}
 										switch elem[0] {
-										case 'g': // Prefix: "getMultipleKmsConfigs"
-											origElem := elem
-											if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
+											// Param: "activeDirectoryId"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[2] = elem
+											elem = ""
+
 											if len(elem) == 0 {
 												// Leaf node.
 												switch method {
-												case "POST":
-													r.name = V1betaGetMultipleKmsConfigsOperation
-													r.summary = "List specified KMS configurations"
-													r.operationID = "v1beta_getMultipleKmsConfigs"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs"
+												case "DELETE":
+													r.name = V1betaDeleteActiveDirectoryOperation
+													r.summary = "Delete the Active Directory credentials"
+													r.operationID = "v1beta_deleteActiveDirectory"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}"
 													r.args = args
-													r.count = 2
+													r.count = 3
+													return r, true
+												case "GET":
+													r.name = V1betaDescribeActiveDirectoryOperation
+													r.summary = "Describe Active Directory credentials"
+													r.operationID = "v1beta_describeActiveDirectory"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}"
+													r.args = args
+													r.count = 3
+													return r, true
+												case "PUT":
+													r.name = V1betaUpdateActiveDirectoryOperation
+													r.summary = "Update Active Directory credentials"
+													r.operationID = "v1beta_updateActiveDirectory"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}"
+													r.args = args
+													r.count = 3
 													return r, true
 												default:
 													return
 												}
 											}
 
-											elem = origElem
 										}
-										// Param: "kmsConfigId"
-										// Match until "/"
-										idx := strings.IndexByte(elem, '/')
-										if idx < 0 {
-											idx = len(elem)
+
+									case 'g': // Prefix: "getMultipleActiveDirectories"
+
+										if l := len("getMultipleActiveDirectories"); len(elem) >= l && elem[0:l] == "getMultipleActiveDirectories" {
+											elem = elem[l:]
+										} else {
+											break
 										}
-										args[2] = elem[:idx]
-										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = V1betaGetMultipleActiveDirectoriesOperation
+												r.summary = "List specified Active Directories' credentials"
+												r.operationID = "v1beta_getMultipleActiveDirectories"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories"
+												r.args = args
+												r.count = 2
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'k': // Prefix: "kmsConfig"
+
+										if l := len("kmsConfig"); len(elem) >= l && elem[0:l] == "kmsConfig" {
+											elem = elem[l:]
+										} else {
+											break
+										}
 
 										if len(elem) == 0 {
 											switch method {
-											case "DELETE":
-												r.name = V1betaDeleteKmsConfigurationOperation
-												r.summary = "Deletes a KMS configuration"
-												r.operationID = "v1beta_deleteKmsConfiguration"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
-												r.args = args
-												r.count = 3
-												return r, true
 											case "GET":
-												r.name = V1betaDescribeKmsConfigurationOperation
-												r.summary = "Describe KMS configuration"
-												r.operationID = "v1beta_describeKmsConfiguration"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+												r.name = V1betaListKmsConfigurationsOperation
+												r.summary = "List all KMS configurations"
+												r.operationID = "v1beta_listKmsConfigurations"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
 												r.args = args
-												r.count = 3
+												r.count = 2
 												return r, true
-											case "PUT":
-												r.name = V1betaUpdateKmsConfigurationOperation
-												r.summary = "Update a KMS configuration"
-												r.operationID = "v1beta_updateKmsConfiguration"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+											case "POST":
+												r.name = V1betaCreateKmsConfigurationOperation
+												r.summary = "Create KMS configuration"
+												r.operationID = "v1beta_CreateKmsConfiguration"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
 												r.args = args
-												r.count = 3
+												r.count = 2
 												return r, true
 											default:
 												return
@@ -3993,33 +3941,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												break
 											}
 											switch elem[0] {
-											case 'c': // Prefix: "check"
-
-												if l := len("check"); len(elem) >= l && elem[0:l] == "check" {
-													elem = elem[l:]
-												} else {
-													break
-												}
-
-												if len(elem) == 0 {
-													// Leaf node.
-													switch method {
-													case "GET":
-														r.name = V1betaCheckKmsConfigOperation
-														r.summary = "Verifies KMS configuration reachability"
-														r.operationID = "v1beta_checkKmsConfig"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
-														r.args = args
-														r.count = 3
-														return r, true
-													default:
-														return
-													}
-												}
-
-											case 'e': // Prefix: "encryptVolumes"
-
-												if l := len("encryptVolumes"); len(elem) >= l && elem[0:l] == "encryptVolumes" {
+											case 'g': // Prefix: "getMultipleKmsConfigs"
+												origElem := elem
+												if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
 													elem = elem[l:]
 												} else {
 													break
@@ -4029,16 +3953,120 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													// Leaf node.
 													switch method {
 													case "POST":
-														r.name = V1betaEncryptVolumesOperation
-														r.summary = "Migrates volumes to VSA CMEK encryption"
-														r.operationID = "v1beta_encryptVolumes"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes"
+														r.name = V1betaGetMultipleKmsConfigsOperation
+														r.summary = "List specified KMS configurations"
+														r.operationID = "v1beta_getMultipleKmsConfigs"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs"
 														r.args = args
-														r.count = 3
+														r.count = 2
 														return r, true
 													default:
 														return
 													}
+												}
+
+												elem = origElem
+											}
+											// Param: "kmsConfigId"
+											// Match until "/"
+											idx := strings.IndexByte(elem, '/')
+											if idx < 0 {
+												idx = len(elem)
+											}
+											args[2] = elem[:idx]
+											elem = elem[idx:]
+
+											if len(elem) == 0 {
+												switch method {
+												case "DELETE":
+													r.name = V1betaDeleteKmsConfigurationOperation
+													r.summary = "Deletes a KMS configuration"
+													r.operationID = "v1beta_deleteKmsConfiguration"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+													r.args = args
+													r.count = 3
+													return r, true
+												case "GET":
+													r.name = V1betaDescribeKmsConfigurationOperation
+													r.summary = "Describe KMS configuration"
+													r.operationID = "v1beta_describeKmsConfiguration"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+													r.args = args
+													r.count = 3
+													return r, true
+												case "PUT":
+													r.name = V1betaUpdateKmsConfigurationOperation
+													r.summary = "Update a KMS configuration"
+													r.operationID = "v1beta_updateKmsConfiguration"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													break
+												}
+												switch elem[0] {
+												case 'c': // Prefix: "check"
+
+													if l := len("check"); len(elem) >= l && elem[0:l] == "check" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "GET":
+															r.name = V1betaCheckKmsConfigOperation
+															r.summary = "Verifies KMS configuration reachability"
+															r.operationID = "v1beta_checkKmsConfig"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
+															r.args = args
+															r.count = 3
+															return r, true
+														default:
+															return
+														}
+													}
+
+												case 'e': // Prefix: "encryptVolumes"
+
+													if l := len("encryptVolumes"); len(elem) >= l && elem[0:l] == "encryptVolumes" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "POST":
+															r.name = V1betaEncryptVolumesOperation
+															r.summary = "Migrates volumes to VSA CMEK encryption"
+															r.operationID = "v1beta_encryptVolumes"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes"
+															r.args = args
+															r.count = 3
+															return r, true
+														default:
+															return
+														}
+													}
+
 												}
 
 											}

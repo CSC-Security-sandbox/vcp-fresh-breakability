@@ -3,15 +3,12 @@ package validator
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"sync"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
@@ -63,43 +60,6 @@ func TestActiveDirectoryValidator_RegisterValidators(t *testing.T) {
 
 	err = adValidator.validate.Struct(testObj)
 	assert.NoError(t, err, "validation should pass for valid data")
-}
-
-func TestActiveDirectoryValidator_ValidateParams(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	mockStorage.On("GetAccount", ctx, mock.Anything).Return(&datamodel.Account{}, nil)
-	mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, mock.Anything, mock.Anything).Return(nil, nil)
-
-	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
-
-	params := &common.CreateActiveDirectoryParams{
-		NetBIOS:            "TESTDOMAIN",
-		Username:           "administrator",
-		Password:           "SecurePassword123!",
-		Site:               "DefaultSite",
-		OrganizationalUnit: "CN=Computers,DC=testdomain,DC=local",
-		SecurityOperators:  []string{"securityuser1", "securityuser2"},
-		BackupOperators:    []string{"backupuser1"},
-		Administrators:     []string{"admin1", "admin2"},
-		DNS:                "192.168.1.10,192.168.1.11",
-		ResourceId:         "ad-test-server",
-	}
-
-	err := adValidator.RegisterValidators()
-	if err != nil {
-		return
-	}
-	_ = adValidator.ValidateParams(params)
-	// This test verifies the ValidateParams method works
-	// The actual validation depends on the struct tags in CreateActiveDirectoryParams
-	assert.NotPanics(t, func() {
-		err := adValidator.ValidateParams(params)
-		if err != nil {
-			return
-		}
-	})
 }
 
 func TestActiveDirectoryValidator_NetBIOSValidator_Valid(t *testing.T) {

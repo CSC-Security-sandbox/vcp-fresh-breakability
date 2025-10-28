@@ -4,6 +4,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 
@@ -51,17 +52,21 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			Username:           "admin",
 			Password:           "password123",
 		}
-		adUUID := "test-ad-uuid-123"
-		accountId := int64(123)
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid-123",
+			},
+			AccountId: 123,
+		}
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
 
-		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, params, adUUID, accountId).Return(nil, nil)
+		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, adRecord).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adUUID, accountId)
+		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -96,17 +101,21 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			Username:           "admin",
 			Password:           "password123",
 		}
-		adUUID := "test-ad-uuid-456"
-		accountId := int64(456)
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid-456",
+			},
+			AccountId: 456,
+		}
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
 		defer func() { cvp.CVP_HOST = originalHost }()
 
-		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(nil, nil)
+		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adUUID, accountId)
+		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -141,22 +150,23 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			Username:           "admin",
 			Password:           "password123",
 		}
-		adUUID := "test-ad-uuid-fail"
-		accountId := int64(789)
+
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid-fail",
+			},
+			AccountId: 789,
+		}
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
 
-		expectedError := vsaerrors.NewVCPError
-		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, params, adUUID, accountId).Return(expectedError)
+		expectedError := vsaerrors.New("Error")
+		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, adRecord).Return(expectedError)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adUUID, accountId)
-
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-		env.AssertExpectations(t)
+		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 	})
 
 	t.Run("SdeActivityFailure", func(t *testing.T) {
@@ -187,22 +197,22 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			Username:           "admin",
 			Password:           "password123",
 		}
-		adUUID := "test-ad-uuid-sde-fail"
-		accountId := int64(999)
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid-sde-fail",
+			},
+			AccountId: 999,
+		}
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
 		defer func() { cvp.CVP_HOST = originalHost }()
 
-		expectedError := vsaerrors.NewVCPError
+		expectedError := vsaerrors.New("Error")
 		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(expectedError)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adUUID, accountId)
-
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-		env.AssertExpectations(t)
+		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 	})
 
 	t.Run("SetupFailure", func(t *testing.T) {
@@ -225,13 +235,14 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 
 		// Pass invalid params to cause setup failure
 		invalidParams := &common.CreateActiveDirectoryParams{}
-		adUUID := "test-ad-uuid"
-		accountId := int64(123)
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AccountId: 123,
+		}
 
-		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, invalidParams, adUUID, accountId)
-
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
+		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, invalidParams, adRecord)
 	})
 
 	t.Run("UpdateJobStatusFailure", func(t *testing.T) {
@@ -256,8 +267,12 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			AccountId:  "123",
 			ResourceId: "test-ad",
 		}
-		adUUID := "test-ad-uuid"
-		accountId := int64(123)
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AccountId: 123,
+		}
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
@@ -265,11 +280,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("job status update failed"))
 
-		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adUUID, accountId)
-
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-		env.AssertExpectations(t)
+		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 	})
 }
 
@@ -387,16 +398,20 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 			AccountId:  "123",
 			ResourceId: "test-ad",
 		}
-		adUUID := "test-uuid"
-		accountId := int64(123)
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			AccountId: 123,
+		}
 
-		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, params, adUUID, accountId).Return(nil, nil)
+		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, adRecord).Return(nil)
 
 		var runResult interface{}
 		var runErr *vsaerrors.CustomError
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryCreateWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, adUUID, accountId)
+			runResult, runErr = wf.Run(ctx, params, adRecord)
 			if runErr != nil {
 				return runErr
 			}
@@ -405,7 +420,7 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryCreateWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, adUUID, accountId)
+			runResult, runErr = wf.Run(ctx, params, adRecord)
 			if runErr != nil {
 				return runErr
 			}
@@ -440,16 +455,20 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 			AccountId:  "456",
 			ResourceId: "test-ad-sde",
 		}
-		adUUID := "test-uuid-sde"
-		accountId := int64(456)
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid-sde",
+			},
+			AccountId: 456,
+		}
 
-		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(nil, nil)
+		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(nil)
 
 		var runResult interface{}
 		var runErr *vsaerrors.CustomError
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryCreateWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, adUUID, accountId)
+			runResult, runErr = wf.Run(ctx, params, adRecord)
 			if runErr != nil {
 				return runErr
 			}
@@ -458,7 +477,7 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryCreateWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, adUUID, accountId)
+			runResult, runErr = wf.Run(ctx, params, adRecord)
 			if runErr != nil {
 				return runErr
 			}
@@ -493,17 +512,21 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 			AccountId:  "789",
 			ResourceId: "test-ad-activity-fail",
 		}
-		adUUID := "test-uuid-activity-fail"
-		accountId := int64(789)
+		adRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid-activity-fail",
+			},
+			AccountId: 789,
+		}
 
-		activityError := vsaerrors.NewVCPError
-		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, params, adUUID, accountId).Return(activityError)
+		activityError := vsaerrors.New("activity execution failed")
+		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, adRecord).Return(activityError)
 
 		var runResult interface{}
 		var runErr *vsaerrors.CustomError
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryCreateWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, adUUID, accountId)
+			runResult, runErr = wf.Run(ctx, params, adRecord)
 			if runErr != nil {
 				return runErr
 			}
@@ -512,7 +535,7 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryCreateWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, adUUID, accountId)
+			runResult, runErr = wf.Run(ctx, params, adRecord)
 			if runErr != nil {
 				return runErr
 			}

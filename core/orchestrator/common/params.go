@@ -663,6 +663,8 @@ type EstablishVolumePeeringParams struct {
 
 type CreateActiveDirectoryParams struct {
 	AccountId                   string
+	LocationId                  string
+	XCorrelationId              string
 	ActiveDirectoryId           string
 	Username                    string `json:"Username" validate:"Username"`
 	ResourceId                  string `json:"ResourceId" validate:"ResourceId"`
